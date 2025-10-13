@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit3, Trash2, Star, Image as ImageIcon, Save, X } from 'lucide-react'
+import { Plus, Edit3, Trash2, Star, Image, Save, X } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
 interface Realization {
@@ -390,7 +390,7 @@ export default function RealizationManager() {
 
       {realizations.length === 0 && (
         <div className="text-center py-12">
-          <ImageIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <Image className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune réalisation</h3>
           <p className="text-gray-600">Commencez par ajouter votre première réalisation.</p>
         </div>
