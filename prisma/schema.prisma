@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Table des utilisateurs
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  name      String
+  phone     String?
+  role      UserRole @default(CLIENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  reports   MaintenanceReport[]
+  projects  Project[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  CLIENT
+  TECHNICIAN
+  ADMIN
+}
+
+// Table des projets
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  address     String
+  clientId    String
+  status      ProjectStatus @default(ACTIVE)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  client      User @relation(fields: [clientId], references: [id])
+  reports     MaintenanceReport[]
+  images      ProjectImage[]
+  
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+// Table des rapports de maintenance
+model MaintenanceReport {
+  id                    String   @id @default(cuid())
+  reportId              String   @unique
+  projectId             String?
+  technicianId          String
+  clientName            String
+  clientContact         String?
+  site                  String
+  interventionDate      DateTime
+  startTime             String
+  endTime               String?
+  duration              String?
+  
+  // Observations
+  initialObservations   String
+  problemDescription    String
+  problemSeverity       ProblemSeverity @default(MEDIUM)
+  
+  // Tâches et résultats
+  tasksPerformed        Json // Array de strings
+  results               String
+  recommendations       Json // Array de strings
+  
+  // Signatures et validation
+  technicianSignature   String?
+  clientSignature       String?
+  clientTitle           String?
+  
+  // Géolocalisation
+  gpsLatitude           Float?
+  gpsLongitude          Float?
+  
+  // Statut
+  status                ReportStatus @default(DRAFT)
+  validatedAt           DateTime?
+  validatedBy           String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  technician            User @relation(fields: [technicianId], references: [id])
+  project               Project? @relation(fields: [projectId], references: [id])
+  photos                ReportPhoto[]
+  
+  @@map("maintenance_reports")
+}
+
+enum ProblemSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportStatus {
+  DRAFT
+  COMPLETED
+  VALIDATED
+  REJECTED
+}
+
+// Table des photos de rapports
+model ReportPhoto {
+  id       String @id @default(cuid())
+  reportId String
+  filename String
+  url      String
+  type     PhotoType
+  caption  String?
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  report MaintenanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@map("report_photos")
+}
+
+enum PhotoType {
+  BEFORE
+  AFTER
+  DURING
+}
+
+// Table des images de projets/réalisations
+model ProjectImage {
+  id          String @id @default(cuid())
+  projectId   String
+  filename    String
+  url         String
+  title       String?
+  description String?
+  isMain      Boolean @default(false)
+  order       Int     @default(0)
+  
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("project_images")
+}
+
+// Table des réalisations (pour la page d'accueil)
+model Realization {
+  id          String @id @default(cuid())
+  title       String
+  location    String
+  description String
+  services    Json // Array de services
+  mainImage   String
+  images      Json // Array d'URLs d'images
+  featured    Boolean @default(false)
+  order       Int     @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("realizations")
+}
