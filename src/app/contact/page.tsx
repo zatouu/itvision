@@ -53,7 +53,7 @@ export default function ContactPage() {
               Contactez-<span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">nous</span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-8">
-              Notre équipe d'experts est à votre disposition pour vous accompagner dans vos projets de sécurité électronique
+              Notre équipe d&apos;experts est à votre disposition pour vous accompagner dans vos projets de sécurité électronique
             </p>
             
             {/* Stats contact */}
@@ -68,7 +68,7 @@ export default function ContactPage() {
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <div className="text-2xl font-bold text-purple-300">15+</div>
-                <div className="text-sm text-blue-100">Années d'expérience</div>
+                <div className="text-sm text-blue-100">Années d&apos;expérience</div>
               </div>
             </div>
           </div>
