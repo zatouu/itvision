@@ -1,0 +1,79 @@
+name: Deploy to EC2 (systemd + Nginx)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      APP_DIR: /var/www/itvision
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-
+
+      # - name: Lint & Build (optional)
+      #   run: |
+      #     cd migration-mongo
+      #     npm ci
+      #     npm run build
+
+      - name: Rsync to EC2 (preserve env & uploads)
+        uses: burnett01/rsync-deployments@6.0.0
+        with:
+          switches: -avzr --delete --exclude=".git" --exclude="node_modules" --exclude=".env" --exclude=".env.*" --exclude="public/uploads" --filter='P .env.production' --filter='P public/uploads/'
+          path: ./migration-mongo/
+          remote_path: ${{ env.APP_DIR }}
+          remote_host: ${{ env.SSH_HOST }}
+          remote_user: ${{ env.SSH_USER }}
+          remote_key: ${{ env.SSH_KEY }}
+
+      - name: Build on EC2 and restart service (systemd)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            cd $APP_DIR
+            # Assurer les droits pour l'utilisateur de déploiement sur le répertoire
+            sudo chown -R $USER:$USER $APP_DIR
+
+            # Protéger le fichier d'environnement de production s'il est présent
+            if [ -f .env.production ]; then
+              sudo chown root:www-data .env.production
+              sudo chmod 640 .env.production
+            else
+              echo "[deploy] .env.production manquant dans $APP_DIR - arrêt du déploiement" >&2
+              exit 1
+            fi
+
+            # Préserver/Créer le dossier d'uploads et donner l'accès au runtime
+            mkdir -p public/uploads
+            sudo chown -R www-data:www-data public/uploads
+            sudo chmod -R 775 public/uploads
+
+            npm ci
+            export NODE_ENV=production
+            npm run build
+            sudo systemctl restart itvision
+            sudo systemctl status itvision --no-pager || true
+
