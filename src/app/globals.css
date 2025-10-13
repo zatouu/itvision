@@ -246,3 +246,157 @@ body {
   z-index: 1;
   margin: 0.25rem 0;
 }
+
+/* Styles pour les champs de saisie - CORRECTION VISIBILITÉ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select {
+  color: #1f2937 !important; /* Texte gris foncé */
+  background-color: #ffffff !important; /* Fond blanc */
+  border: 1px solid #d1d5db !important; /* Bordure grise */
+  border-radius: 0.375rem; /* Coins arrondis */
+  padding: 0.5rem 0.75rem; /* Espacement interne */
+  font-size: 0.875rem; /* Taille de police */
+  line-height: 1.25rem;
+  transition: all 0.2s ease-in-out;
+}
+
+/* États des champs de saisie */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important; /* Bordure bleue au focus */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important; /* Ombre bleue */
+  color: #1f2937 !important; /* Texte toujours visible */
+  background-color: #ffffff !important; /* Fond toujours blanc */
+}
+
+/* Placeholder */
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important; /* Gris moyen pour les placeholders */
+  opacity: 1;
+}
+
+/* États disabled */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: #f9fafb !important;
+  color: #6b7280 !important;
+  cursor: not-allowed;
+  border-color: #e5e7eb !important;
+}
+
+/* États d'erreur */
+input.error,
+textarea.error,
+select.error {
+  border-color: #ef4444 !important;
+  color: #1f2937 !important; /* Texte toujours visible même en erreur */
+  background-color: #ffffff !important;
+}
+
+input.error:focus,
+textarea.error:focus,
+select.error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Styles spéciaux pour les inputs avec classes Tailwind communes */
+.form-input,
+.form-control {
+  color: #1f2937 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Mode sombre - si activé */
+@media (prefers-color-scheme: dark) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  textarea,
+  select {
+    color: #f9fafb !important; /* Texte blanc en mode sombre */
+    background-color: #374151 !important; /* Fond gris foncé */
+    border-color: #4b5563 !important;
+  }
+  
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af !important;
+  }
+}
+
+/* Correction spécifique pour les inputs avec bg-white */
+.bg-white input,
+.bg-white textarea,
+.bg-white select {
+  color: #1f2937 !important;
+  background-color: #ffffff !important;
+}
+
+/* Corrections spécifiques pour les classes Tailwind communes */
+.border-gray-300 {
+  border-color: #d1d5db !important;
+}
+
+.focus\:ring-purple-500:focus {
+  --tw-ring-color: rgb(168 85 247) !important;
+}
+
+.focus\:border-purple-500:focus {
+  border-color: #a855f7 !important;
+}
+
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: rgb(59 130 246) !important;
+}
+
+.focus\:border-blue-500:focus {
+  border-color: #3b82f6 !important;
+}
+
+/* Force la visibilité pour tous les inputs, même avec des classes personnalisées */
+input[type="email"],
+input[type="password"],
+input[type="text"],
+input[type="number"],
+input[type="tel"],
+textarea {
+  color: #1f2937 !important;
+  background-color: #ffffff !important;
+}
+
+/* Correction pour les checkboxes */
+input[type="checkbox"] {
+  color: initial !important;
+  background-color: initial !important;
+}
