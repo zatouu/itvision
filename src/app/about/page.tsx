@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Shield, Users, Award, Clock, CheckCircle, Target, Heart, Lightbulb, Star } from 'lucide-react'
+import { Shield, Users, Award, Clock, CheckCircle, Target, Heart, Lightbulb } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -73,7 +73,7 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              À propos d'<span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">IT Vision</span>
+              À propos d&apos;<span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">IT Vision</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-8">
               Depuis 15 ans, nous accompagnons particuliers et entreprises dans leurs projets de sécurité électronique 
@@ -110,7 +110,7 @@ export default function AboutPage() {
               <div className="space-y-6 text-lg text-gray-600 leading-relaxed">
                 <p>
                   Fondée en <strong className="text-emerald-600">décembre 2019</strong>, <strong className="text-emerald-600">IT Vision</strong> est née de la passion 
-                  de ses fondateurs pour les technologies avancées et leur vision d'un écosystème connecté 
+                  de ses fondateurs pour les technologies avancées et leur vision d&apos;un écosystème connecté 
                   intelligent au service de la sécurité et de l'efficacité.
                 </p>
                 <p>
@@ -134,7 +134,7 @@ export default function AboutPage() {
             </div>
             <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl p-8 text-center">
               <div className="text-6xl mb-4">🏆</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">5 ans d'innovation</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">5 ans d&apos;innovation</h3>
               <p className="text-gray-600">
                 Pionniers IoT & LoRaWAN au Sénégal depuis décembre 2019
               </p>
@@ -180,7 +180,7 @@ export default function AboutPage() {
               Notre Équipe
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Une équipe d'experts passionnés, formés aux dernières technologies et certifiés par les plus grandes marques.
+              Une équipe d&apos;experts passionnés, formés aux dernières technologies et certifiés par les plus grandes marques.
             </p>
           </div>
 

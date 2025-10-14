@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { Upload, X, Image, Loader2 } from 'lucide-react'
 
 interface ImageUploadProps {
   onUpload: (url: string, filename: string) => void
@@ -165,7 +165,7 @@ export default function ImageUpload({
 
       {existingImages.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+          <Image className="h-12 w-12 mx-auto mb-2 opacity-50" />
           <p>Aucune image ajoutée</p>
         </div>
       )}
