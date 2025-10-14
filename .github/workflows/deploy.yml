@@ -40,7 +40,7 @@ jobs:
         uses: burnett01/rsync-deployments@6.0.0
         with:
           switches: -avzr --delete --exclude=".git" --exclude="node_modules" --exclude=".env" --exclude=".env.*" --exclude="public/uploads" --filter='P .env.production' --filter='P public/uploads/'
-          path: ./migration-mongo/
+          path: ./
           remote_path: ${{ env.APP_DIR }}
           remote_host: ${{ env.SSH_HOST }}
           remote_user: ${{ env.SSH_USER }}
