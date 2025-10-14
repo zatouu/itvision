@@ -2,24 +2,33 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X, Phone, Mail } from 'lucide-react'
+import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ITVisionLogo from './ITVisionLogo'
 import UnifiedLoginButton from './UnifiedLoginButton'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isServicesOpen, setIsServicesOpen] = useState(false)
 
   const navigation = [
     { name: 'Accueil', href: '/' },
     { name: 'Services', href: '/services' },
-    { name: 'Domotique', href: '/domotique' },
     { name: 'Produits', href: '/produits' },
     { name: 'Digitalisation', href: '/digitalisation' },
     { name: 'Réalisations', href: '/realisations' },
     { name: 'À propos', href: '/about' },
     { name: 'Contact', href: '/contact' },
-    { name: 'Admin', href: '/admin' },
+  ]
+
+  const servicesMenu = [
+    { name: 'Vidéosurveillance', href: '/services/videosurveillance' },
+    { name: "Contrôle d'accès", href: '/services/controle-acces' },
+    { name: 'Domotique', href: '/domotique' },
+    { name: 'Sécurité incendie', href: '/services/securite-incendie' },
+    { name: 'Câblage Réseau & TV', href: '/services/network-cabling' },
+    { name: 'Fibre Optique FTTH', href: '/services/fiber-optic' },
+    { name: 'Maintenance & Support', href: '/services/maintenance' },
   ]
 
   // Supprimé - remplacé par UnifiedLoginButton
@@ -59,7 +68,41 @@ const Header = () => {
           {/* Menu desktop - amélioré */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-1">
-              {navigation.map((item) => (
+              {/* Accueil */}
+              <Link
+                href="/"
+                className="text-gray-700 hover:text-emerald-600 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-emerald-50 rounded-lg relative group"
+              >
+                Accueil
+                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full"></span>
+              </Link>
+
+              {/* Services avec sous-menu */}
+              <div className="relative group">
+                <Link
+                  href="/services"
+                  className="flex items-center text-gray-700 hover:text-emerald-600 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-emerald-50 rounded-lg relative"
+                >
+                  Services
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Link>
+                <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-200 absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
+                  <div className="py-2">
+                    {servicesMenu.map((s) => (
+                      <Link
+                        key={s.name}
+                        href={s.href}
+                        className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"
+                      >
+                        {s.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Autres liens */}
+              {navigation.filter((n) => n.name !== 'Accueil' && n.name !== 'Services').map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
@@ -95,7 +138,41 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-4 space-y-2 bg-white border-t border-gray-100 shadow-lg">
-              {navigation.map((item) => (
+              {/* Accueil */}
+              <Link
+                href="/"
+                className="text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 block px-4 py-3 text-base font-semibold transition-all duration-300 rounded-lg"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Accueil
+              </Link>
+
+              {/* Services - accordéon */}
+              <button
+                onClick={() => setIsServicesOpen(!isServicesOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 text-base font-semibold text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                aria-expanded={isServicesOpen}
+              >
+                <span>Services</span>
+                <ChevronDown className={`h-5 w-5 transition-transform ${isServicesOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isServicesOpen && (
+                <div className="pl-4 space-y-1">
+                  {servicesMenu.map((s) => (
+                    <Link
+                      key={s.name}
+                      href={s.href}
+                      className="block px-4 py-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg text-sm"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {s.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Autres liens */}
+              {navigation.filter((n) => n.name !== 'Accueil' && n.name !== 'Services').map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}

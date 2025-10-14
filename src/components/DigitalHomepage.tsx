@@ -54,14 +54,14 @@ export default function DigitalHomepage() {
       color: 'from-purple-500 to-purple-600'
     },
     {
-      id: 'incendie',
+      id: 'securite-incendie',
       title: 'Sécurité incendie',
       description: 'Détection et extinction automatique',
       icon: Flame,
       color: 'from-red-500 to-red-600'
     },
     {
-      id: 'reseau',
+      id: 'network-cabling',
       title: 'Câblage réseau',
       description: 'Infrastructure réseau et fibre optique',
       icon: Cable,
@@ -230,7 +230,7 @@ export default function DigitalHomepage() {
                       <p className="text-gray-600 mb-4">{service.description}</p>
                       
                       <Link
-                        href={service.id === 'domotique' ? '/domotique' : '/services'}
+                        href={service.id === 'domotique' ? '/domotique' : `/services/${service.id}`}
                         className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center"
                       >
                         {service.id === 'domotique' ? 'Page dédiée' : 'En savoir plus'}
@@ -251,6 +251,36 @@ export default function DigitalHomepage() {
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Link>
             </div>
+          </div>
+        </section>
+
+        {/* Section Prise de Rendez-vous Digitale */}
+        <section className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+                Planifiez un <span className="text-emerald-600">Rendez-vous</span>
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Confirmez un créneau en quelques clics et recevez une confirmation. Simple et rapide.
+              </p>
+            </div>
+            <DigitalBooking />
+          </div>
+        </section>
+
+        {/* Section Calculateur de Devis */}
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+                Estimez votre <span className="text-blue-600">Devis</span>
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Sélectionnez vos équipements et paramètres. Estimation automatique et partage par WhatsApp.
+              </p>
+            </div>
+            <SmartQuoteCalculator />
           </div>
         </section>
 
