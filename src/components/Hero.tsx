@@ -11,7 +11,7 @@ const Hero = () => {
     "Installation certifiée",
     "Intervention 24h/7j",
     "Devis gratuit",
-    "15 ans d'expérience"
+    "Actifs depuis 2019"
   ]
 
   return (

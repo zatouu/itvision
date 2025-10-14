@@ -15,7 +15,7 @@ const Footer = () => {
               <ITVisionLogo size={35} animated={true} />
             </div>
             <p className="text-gray-300 mb-4 max-w-md">
-              IT Vision Plus : Votre expert en sécurité électronique au Sénégal depuis plus de 15 ans. Vision technologique avancée 
+              IT Vision Plus : Votre expert en sécurité électronique au Sénégal depuis 2019. Vision technologique avancée 
               pour des solutions innovantes de vidéosurveillance, contrôle d&apos;accès, domotique et sécurité incendie.
             </p>
             <div className="flex space-x-4">
