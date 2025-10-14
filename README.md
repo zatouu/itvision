@@ -111,19 +111,32 @@ npm run lint          # lint
 npm run test:features # tester les nouvelles fonctionnalités
 ```
 
-## 🆕 Nouvelles Fonctionnalités (v1.1)
+## 🆕 Nouvelles Fonctionnalités
 
-### ✅ Implémentées
+### ✅ v1.2 - Fonctionnalités Avancées (Dernière)
+- **Gestion des utilisateurs** : Interface complète `/admin/users`
+- **Notifications temps réel** : Centre de notifications avec API
+- **Analytics avancés** : Métriques business et insights
+- **Dashboard admin enrichi** : Navigation et composants améliorés
+
+### ✅ v1.1 - Authentification Complète
 - **Reset de mot de passe** : Pages `/forgot-password` et `/reset-password`
 - **Inscription utilisateur** : Page `/register` avec validation avancée
 - **Service d'email** : Templates professionnels avec support SMTP
 - **Sécurité renforcée** : Validation de mots de passe, rate limiting
 
 ### 📱 Pages Disponibles
-- `/login` - Connexion (améliorée)
+#### Authentification
+- `/login` - Connexion unifiée
 - `/register` - Inscription utilisateur
 - `/forgot-password` - Demande de reset
 - `/reset-password` - Réinitialisation avec token
+
+#### Administration
+- `/admin-reports` - Dashboard principal (avec notifications et analytics)
+- `/admin/users` - Gestion complète des utilisateurs
+- `/admin-prix` - Gestion des prix et produits
+- `/admin-factures` - Gestion des factures
 
 ### 📧 Configuration Email
 Pour activer l'envoi d'emails, ajouter dans `.env.local` :
@@ -134,4 +147,6 @@ SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
 ```
 
-Voir `NOUVELLES_FONCTIONNALITES.md` pour la documentation complète.
+### 📚 Documentation
+- `NOUVELLES_FONCTIONNALITES.md` - Fonctionnalités v1.1 (authentification)
+- `AMELIORATIONS_AVANCEES.md` - Fonctionnalités v1.2 (administration)
