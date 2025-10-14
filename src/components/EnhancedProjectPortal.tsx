@@ -67,6 +67,10 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
   const [notifications, setNotifications] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [taskFilter, setTaskFilter] = useState('all')
+  const [feedbackRating, setFeedbackRating] = useState<number>(0)
+  const [feedbackComment, setFeedbackComment] = useState<string>('')
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState<boolean>(false)
+  const [feedbackAvg, setFeedbackAvg] = useState<{avg:number,count:number}|null>(null)
   
   useEffect(() => {
     (async () => {
@@ -81,6 +85,22 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
       } catch {}
     })()
   }, [])
+
+  // Charger moyenne satisfaction pour le technicien du projet
+  useEffect(() => {
+    (async () => {
+      try {
+        const techName = projectData?.project?.technician
+        if (!techName) return
+        // Dans cet exemple, on utilise le nom comme identifiant logique
+        const res = await fetch(`/api/feedback?technicianId=${encodeURIComponent(techName)}&mode=stats`, { credentials: 'include' })
+        if (res.ok) {
+          const j = await res.json()
+          setFeedbackAvg({ avg: j.avgRating || 0, count: j.count || 0 })
+        }
+      } catch {}
+    })()
+  }, [projectData?.project?.technician])
 
   function getNavTabs() {
     const common = [
@@ -985,11 +1005,82 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
                     <span className="font-medium text-gray-900">Votre Satisfaction</span>
                     <div className="flex items-center space-x-1">
                       <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      <span className="font-bold text-yellow-600">{projectData.project.satisfaction}/5</span>
+                      <span className="font-bold text-yellow-600">{(feedbackAvg?.avg || projectData.project.satisfaction).toFixed(1)}/5</span>
+                      {feedbackAvg && (
+                        <span className="text-xs text-gray-500 ml-2">({feedbackAvg.count})</span>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm text-gray-600">Merci pour votre retour positif !</p>
                 </div>
+
+                {/* Formulaire d'évaluation client */}
+                {userRole === 'CLIENT' && (
+                  <div className="mt-6 p-4 bg-white rounded-xl border">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <Star className="h-4 w-4 text-yellow-500 fill-current mr-2" />
+                      Évaluer notre intervention
+                    </h4>
+                    <div className="flex items-center mb-3">
+                      {[1,2,3,4,5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setFeedbackRating(n)}
+                          className={`mr-1 ${feedbackRating >= n ? 'text-yellow-500' : 'text-gray-300'}`}
+                          aria-label={`Note ${n}`}
+                        >
+                          <Star className={`h-6 w-6 ${feedbackRating >= n ? 'fill-current' : ''}`} />
+                        </button>
+                      ))}
+                      <span className="ml-2 text-sm text-gray-600">{feedbackRating || 0}/5</span>
+                    </div>
+                    <textarea
+                      value={feedbackComment}
+                      onChange={(e) => setFeedbackComment(e.target.value)}
+                      rows={3}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      placeholder="Votre commentaire (optionnel)"
+                    />
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        disabled={feedbackSubmitting || feedbackRating === 0}
+                        onClick={async () => {
+                          try {
+                            setFeedbackSubmitting(true)
+                            const res = await fetch('/api/feedback', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                projectId,
+                                technicianId: projectData.project.technician,
+                                rating: feedbackRating,
+                                comment: feedbackComment
+                              })
+                            })
+                            if (res.ok) {
+                              setFeedbackComment('')
+                              setFeedbackRating(0)
+                              // Rafraîchir moyenne
+                              try {
+                                const s = await fetch(`/api/feedback?technicianId=${encodeURIComponent(projectData.project.technician)}&mode=stats`)
+                                if (s.ok) {
+                                  const j = await s.json()
+                                  setFeedbackAvg({ avg: j.avgRating || 0, count: j.count || 0 })
+                                }
+                              } catch {}
+                            }
+                          } finally {
+                            setFeedbackSubmitting(false)
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50"
+                      >
+                        {feedbackSubmitting ? 'Envoi...' : 'Envoyer mon évaluation'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">

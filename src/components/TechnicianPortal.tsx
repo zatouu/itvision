@@ -99,6 +99,20 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     }
   }, [session])
 
+  // Charger la moyenne d'évaluations client (via /api/feedback)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!session?.name) return
+        const res = await fetch(`/api/feedback?technicianId=${encodeURIComponent(session.name)}&mode=stats`, { credentials: 'include' })
+        if (res.ok) {
+          const j = await res.json()
+          setStats((prev) => ({ ...prev, clientSatisfaction: Number((j.avgRating || 0).toFixed(1)) }))
+        }
+      } catch {}
+    })()
+  }, [session?.name])
+
   // Auto-auth via cookie (évite double login)
   useEffect(() => {
     let cancelled = false
