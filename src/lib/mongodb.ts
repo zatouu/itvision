@@ -1,7 +1,10 @@
 import { MongoClient } from 'mongodb'
 
+// Éviter d'échouer au build si MONGODB_URI manque; la connexion réelle
+// ne se fera qu'à l'exécution des routes qui l'appellent.
 if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
+  console.warn('[MongoDB] MONGODB_URI manquant. Utilisation d\'une valeur factice pour le build.')
+  process.env.MONGODB_URI = 'mongodb://localhost:27017/dev-placeholder'
 }
 
 const uri = process.env.MONGODB_URI

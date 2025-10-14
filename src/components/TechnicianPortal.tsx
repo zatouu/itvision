@@ -28,6 +28,7 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react'
+import NotificationCenter from './NotificationCenter'
 import AuthPortal from './AuthPortal'
 import EnhancedMaintenanceForm from './EnhancedMaintenanceForm'
 
@@ -55,7 +56,10 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     todayReports: 0,
     pendingReports: 0,
     completedToday: 0,
-    avgResponseTime: '2h 30min'
+    avgResponseTime: '2h 30min',
+    weekHours: 0,
+    clientSatisfaction: 0,
+    slaOnTime: 0
   })
 
   // Surveillance de la connectivité
@@ -94,6 +98,20 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       loadTechnicianData()
     }
   }, [session])
+
+  // Charger la moyenne d'évaluations client (via /api/feedback)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!session?.name) return
+        const res = await fetch(`/api/feedback?technicianId=${encodeURIComponent(session.name)}&mode=stats`, { credentials: 'include' })
+        if (res.ok) {
+          const j = await res.json()
+          setStats((prev) => ({ ...prev, clientSatisfaction: Number((j.avgRating || 0).toFixed(1)) }))
+        }
+      } catch {}
+    })()
+  }, [session?.name])
 
   // Auto-auth via cookie (évite double login)
   useEffect(() => {
@@ -161,7 +179,10 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         todayReports: 3,
         pendingReports: 2,
         completedToday: 1,
-        avgResponseTime: '2h 15min'
+        avgResponseTime: '2h 15min',
+        weekHours: 18,
+        clientSatisfaction: 4.7,
+        slaOnTime: 92
       })
     } catch (error) {
       console.error('Erreur chargement données:', error)
@@ -235,6 +256,37 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
               <div className="text-sm text-purple-700">Temps moyen</div>
             </div>
             <Activity className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+
+        {/* Nouvelles cartes KPI */}
+        <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-emerald-600">{stats.weekHours}h</div>
+              <div className="text-sm text-emerald-700">Heures cette semaine</div>
+            </div>
+            <Activity className="h-8 w-8 text-emerald-500" />
+          </div>
+        </div>
+
+        <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.clientSatisfaction}</div>
+              <div className="text-sm text-yellow-700">Note clients /5</div>
+            </div>
+            <Star className="h-8 w-8 text-yellow-500" />
+          </div>
+        </div>
+
+        <div className="bg-teal-50 rounded-xl p-4 border border-teal-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-teal-600">{stats.slaOnTime}%</div>
+              <div className="text-sm text-teal-700">SLA respecté</div>
+            </div>
+            <CheckCircle className="h-8 w-8 text-teal-600" />
           </div>
         </div>
       </div>
@@ -401,6 +453,9 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                   {isOnline ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
+
+              {/* Notifications protégées */}
+              <NotificationCenter />
 
               {/* Localisation */}
               {currentLocation && (

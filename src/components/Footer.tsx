@@ -15,7 +15,7 @@ const Footer = () => {
               <ITVisionLogo size={35} animated={true} />
             </div>
             <p className="text-gray-300 mb-4 max-w-md">
-              IT Vision Plus : Votre expert en sécurité électronique au Sénégal depuis plus de 15 ans. Vision technologique avancée 
+              IT Vision Plus : Votre expert en sécurité électronique au Sénégal depuis 2019. Vision technologique avancée 
               pour des solutions innovantes de vidéosurveillance, contrôle d&apos;accès, domotique et sécurité incendie.
             </p>
             <div className="flex space-x-4">
@@ -30,12 +30,12 @@ const Footer = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Sécurité Électronique</h3>
             <ul className="space-y-2 text-gray-300">
-              <li><Link href="/services" className="hover:text-emerald-400 transition-colors duration-300">Vidéosurveillance</Link></li>
-              <li><Link href="/services" className="hover:text-emerald-400 transition-colors duration-300">Contrôle d&apos;accès</Link></li>
-              <li><Link href="/services" className="hover:text-emerald-400 transition-colors duration-300">Domotique</Link></li>
-              <li><Link href="/services" className="hover:text-emerald-400 transition-colors duration-300">Visiophonie</Link></li>
-              <li><Link href="/services" className="hover:text-emerald-400 transition-colors duration-300">Câblage informatique</Link></li>
-              <li><Link href="/produits" className="hover:text-emerald-400 transition-colors duration-300">Produits Hikvision</Link></li>
+              <li><Link href="/services/videosurveillance" className="hover:text-emerald-400 transition-colors duration-300">Vidéosurveillance</Link></li>
+              <li><Link href="/services/controle-acces" className="hover:text-emerald-400 transition-colors duration-300">Contrôle d&apos;accès</Link></li>
+              <li><Link href="/domotique" className="hover:text-emerald-400 transition-colors duration-300">Domotique</Link></li>
+              <li><Link href="/services/securite-incendie" className="hover:text-emerald-400 transition-colors duration-300">Sécurité incendie</Link></li>
+              <li><Link href="/services/network-cabling" className="hover:text-emerald-400 transition-colors duration-300">Câblage Réseau & TV</Link></li>
+              <li><Link href="/produits" className="hover:text-emerald-400 transition-colors duration-300">Produits</Link></li>
             </ul>
           </div>
 

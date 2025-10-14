@@ -207,7 +207,7 @@ export default function ServicesPage() {
               </div>
               <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
                 <Star className="h-5 w-5 text-emerald-600 mr-2" />
-                <span className="text-sm font-medium">15 ans d'expérience</span>
+                <span className="text-sm font-medium">Actifs depuis 2019</span>
               </div>
             </div>
           </div>

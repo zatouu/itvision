@@ -32,6 +32,7 @@ import {
   Key,
   Smartphone
 } from 'lucide-react'
+import ImageUpload from './ImageUpload'
 
 interface User {
   _id: string
@@ -39,6 +40,7 @@ interface User {
   email: string
   name: string
   phone?: string
+  avatarUrl?: string
   role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
   isActive: boolean
   loginAttempts: number
@@ -53,6 +55,7 @@ interface UserFormData {
   email: string
   name: string
   phone: string
+  avatarUrl?: string
   role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
   password?: string
 }
@@ -71,6 +74,7 @@ export default function UserManagementInterface() {
     email: '',
     name: '',
     phone: '',
+    avatarUrl: '',
     role: 'CLIENT'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -159,6 +163,7 @@ export default function UserManagementInterface() {
           id: selectedUser._id,
           name: formData.name,
           phone: formData.phone,
+          avatarUrl: formData.avatarUrl,
           role: formData.role,
           isActive: selectedUser.isActive
         })
@@ -210,6 +215,7 @@ export default function UserManagementInterface() {
       email: '',
       name: '',
       phone: '',
+      avatarUrl: '',
       role: 'CLIENT'
     })
   }
@@ -221,6 +227,7 @@ export default function UserManagementInterface() {
       email: user.email,
       name: user.name,
       phone: user.phone || '',
+      avatarUrl: user.avatarUrl || '',
       role: user.role
     })
     setShowEditModal(true)
@@ -410,9 +417,17 @@ export default function UserManagementInterface() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <User className="h-5 w-5 text-blue-600" />
-                          </div>
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="h-10 w-10 rounded-full object-cover border"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <User className="h-5 w-5 text-blue-600" />
+                            </div>
+                          )}
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{user.name}</div>
@@ -581,6 +596,29 @@ export default function UserManagementInterface() {
             </div>
             
             <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+              {/* Avatar */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Avatar</label>
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border">
+                    {formData.avatarUrl ? (
+                      <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-gray-400">
+                        <User className="h-6 w-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <ImageUpload
+                      onUpload={(url) => setFormData({ ...formData, avatarUrl: url })}
+                      maxFiles={1}
+                      type="avatars"
+                      existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
                 <input
@@ -699,6 +737,29 @@ export default function UserManagementInterface() {
             </div>
             
             <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
+              {/* Avatar */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Avatar</label>
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border">
+                    {formData.avatarUrl ? (
+                      <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-gray-400">
+                        <User className="h-6 w-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <ImageUpload
+                      onUpload={(url) => setFormData({ ...formData, avatarUrl: url })}
+                      maxFiles={1}
+                      type="avatars"
+                      existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
                 <input
