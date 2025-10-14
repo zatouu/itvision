@@ -69,6 +69,31 @@
   }
 }
 
+/* Assure une bonne lisibilité sur fonds clairs même en mode sombre */
+@media (prefers-color-scheme: dark) {
+  .bg-white,
+  .from-white,
+  .via-white,
+  .to-white,
+  .bg-gray-50,
+  .from-gray-50,
+  .via-gray-50,
+  .to-gray-50 {
+    color: #111827 !important; /* text-gray-900 */
+  }
+
+  .bg-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .from-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .via-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .to-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .bg-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .from-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .via-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
+  .to-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em) {
+    color: #111827 !important; /* text-gray-900 */
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
