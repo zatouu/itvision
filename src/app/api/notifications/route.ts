@@ -18,7 +18,7 @@ interface Notification {
 let notifications: Notification[] = [
   {
     id: 'notif-1',
-    userId: 'all', // notification pour tous les admins
+    userId: 'admin', // notification dédiée aux admins
     type: 'warning',
     title: 'Maintenance programmée',
     message: '3 équipements nécessitent une maintenance cette semaine',
@@ -29,7 +29,7 @@ let notifications: Notification[] = [
   },
   {
     id: 'notif-2',
-    userId: 'all',
+    userId: 'admin',
     type: 'info',
     title: 'Nouveau rapport',
     message: 'Un nouveau rapport d\'intervention a été soumis par Moussa Diop',
@@ -40,7 +40,7 @@ let notifications: Notification[] = [
   },
   {
     id: 'notif-3',
-    userId: 'all',
+    userId: 'admin',
     type: 'success',
     title: 'Projet terminé',
     message: 'Le projet "Vidéosurveillance Siège" a été marqué comme terminé',
@@ -51,7 +51,7 @@ let notifications: Notification[] = [
   },
   {
     id: 'notif-4',
-    userId: 'all',
+    userId: 'admin',
     type: 'error',
     title: 'Problème technique',
     message: 'Problème détecté sur le projet "Domotique Hôtel" - intervention requise',
@@ -77,11 +77,11 @@ export async function GET(request: NextRequest) {
     const unreadOnly = searchParams.get('unread') === 'true'
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    // Filtrer les notifications pour l'utilisateur
-    let userNotifications = notifications.filter(n => 
-      n.userId === user.userId || n.userId === 'all' || 
-      (user.role === 'ADMIN' && n.userId === 'admin')
-    )
+    // Filtrer strictement par utilisateur (et canal admin dédié)
+    const targets = new Set<string>([String(user.userId)])
+    if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
+
+    let userNotifications = notifications.filter(n => targets.has(n.userId))
 
     if (unreadOnly) {
       userNotifications = userNotifications.filter(n => !n.read)
@@ -93,10 +93,7 @@ export async function GET(request: NextRequest) {
     // Limiter le nombre de résultats
     userNotifications = userNotifications.slice(0, limit)
 
-    const unreadCount = notifications.filter(n => 
-      (n.userId === user.userId || n.userId === 'all' || (user.role === 'ADMIN' && n.userId === 'admin')) && 
-      !n.read
-    ).length
+    const unreadCount = notifications.filter(n => targets.has(n.userId) && !n.read).length
 
     return NextResponse.json({
       success: true,
@@ -168,29 +165,21 @@ export async function PATCH(request: NextRequest) {
 
     if (markAllAsRead) {
       // Marquer toutes les notifications de l'utilisateur comme lues
-      notifications = notifications.map(n => {
-        if (n.userId === user.userId || n.userId === 'all' || (user.role === 'ADMIN' && n.userId === 'admin')) {
-          return { ...n, read: true }
-        }
-        return n
-      })
+      const targets = new Set<string>([String(user.userId)])
+      if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
+      notifications = notifications.map(n => (targets.has(n.userId) ? { ...n, read: true } : n))
     } else if (notificationIds && Array.isArray(notificationIds)) {
       // Marquer les notifications spécifiées comme lues
-      notifications = notifications.map(n => {
-        if (notificationIds.includes(n.id) && 
-            (n.userId === user.userId || n.userId === 'all' || (user.role === 'ADMIN' && n.userId === 'admin'))) {
-          return { ...n, read: true }
-        }
-        return n
-      })
+      const targets = new Set<string>([String(user.userId)])
+      if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
+      notifications = notifications.map(n => (notificationIds.includes(n.id) && targets.has(n.userId)) ? { ...n, read: true } : n)
     } else {
       return NextResponse.json({ error: 'IDs de notifications ou markAllAsRead requis' }, { status: 400 })
     }
 
-    const unreadCount = notifications.filter(n => 
-      (n.userId === user.userId || n.userId === 'all' || (user.role === 'ADMIN' && n.userId === 'admin')) && 
-      !n.read
-    ).length
+    const targets = new Set<string>([String(user.userId)])
+    if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
+    const unreadCount = notifications.filter(n => targets.has(n.userId) && !n.read).length
 
     return NextResponse.json({
       success: true,
@@ -215,9 +204,9 @@ export async function DELETE(request: NextRequest) {
     if (deleteAll) {
       // Supprimer toutes les notifications de l'utilisateur
       const initialLength = notifications.length
-      notifications = notifications.filter(n => 
-        !(n.userId === user.userId || n.userId === 'all' || (user.role === 'ADMIN' && n.userId === 'admin'))
-      )
+      const targets = new Set<string>([String(user.userId)])
+      if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
+      notifications = notifications.filter(n => !targets.has(n.userId))
       const deletedCount = initialLength - notifications.length
 
       return NextResponse.json({
@@ -228,10 +217,9 @@ export async function DELETE(request: NextRequest) {
     } else if (notificationId) {
       // Supprimer une notification spécifique
       const initialLength = notifications.length
-      notifications = notifications.filter(n => 
-        !(n.id === notificationId && 
-          (n.userId === user.userId || n.userId === 'all' || (user.role === 'ADMIN' && n.userId === 'admin')))
-      )
+      const targets = new Set<string>([String(user.userId)])
+      if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
+      notifications = notifications.filter(n => !(n.id === notificationId && targets.has(n.userId)))
 
       if (notifications.length < initialLength) {
         return NextResponse.json({

@@ -28,6 +28,7 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react'
+import NotificationCenter from './NotificationCenter'
 import AuthPortal from './AuthPortal'
 import EnhancedMaintenanceForm from './EnhancedMaintenanceForm'
 
@@ -401,6 +402,9 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                   {isOnline ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
+
+              {/* Notifications protégées */}
+              <NotificationCenter />
 
               {/* Localisation */}
               {currentLocation && (
