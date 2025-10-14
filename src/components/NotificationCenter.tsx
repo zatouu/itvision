@@ -333,15 +333,13 @@ export default function NotificationCenter({ className }: NotificationCenterProp
             {/* Footer */}
             {notifications.length > 0 && (
               <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                <button
-                  onClick={() => {
-                    // TODO: Ouvrir page complète des notifications
-                    setIsOpen(false)
-                  }}
-                  className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                <a
+                  href="/client-portal"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full block text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
                   Voir toutes les notifications
-                </button>
+                </a>
               </div>
             )}
           </div>
