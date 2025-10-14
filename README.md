@@ -104,8 +104,56 @@ git pull && docker compose --env-file .env.docker up -d --build
 
 ## Scripts npm utiles
 ```bash
-npm run dev    # dev
-npm run build  # build prod
-npm run start  # start prod
-npm run lint   # lint
+npm run dev           # dev
+npm run build         # build prod
+npm run start         # start prod
+npm run lint          # lint
+npm run test:features # tester les nouvelles fonctionnalités
 ```
+
+## 🆕 Nouvelles Fonctionnalités
+
+### ✅ v1.3 - Système de Réservation Avancé (Dernière)
+- **Emails de confirmation** : Templates professionnels pour les RDV
+- **Calendrier intégré** : Interface de réservation améliorée avec créneaux visuels
+- **Multi-canal** : WhatsApp + Email + SMS + Fichiers .ics
+- **Notifications admin** : Alertes automatiques pour nouveaux RDV
+
+### ✅ v1.2 - Fonctionnalités Avancées
+- **Gestion des utilisateurs** : Interface complète `/admin/users`
+- **Notifications temps réel** : Centre de notifications avec API
+- **Analytics avancés** : Métriques business et insights
+- **Dashboard admin enrichi** : Navigation et composants améliorés
+
+### ✅ v1.1 - Authentification Complète
+- **Reset de mot de passe** : Pages `/forgot-password` et `/reset-password`
+- **Inscription utilisateur** : Page `/register` avec validation avancée
+- **Service d'email** : Templates professionnels avec support SMTP
+- **Sécurité renforcée** : Validation de mots de passe, rate limiting
+
+### 📱 Pages Disponibles
+#### Authentification
+- `/login` - Connexion unifiée
+- `/register` - Inscription utilisateur
+- `/forgot-password` - Demande de reset
+- `/reset-password` - Réinitialisation avec token
+
+#### Administration
+- `/admin-reports` - Dashboard principal (avec notifications et analytics)
+- `/admin/users` - Gestion complète des utilisateurs
+- `/admin-prix` - Gestion des prix et produits
+- `/admin-factures` - Gestion des factures
+
+### 📧 Configuration Email
+Pour activer l'envoi d'emails, ajouter dans `.env.local` :
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+```
+
+### 📚 Documentation
+- `NOUVELLES_FONCTIONNALITES.md` - Fonctionnalités v1.1 (authentification)
+- `AMELIORATIONS_AVANCEES.md` - Fonctionnalités v1.2 (administration)
+- `AMELIORATIONS_RESERVATION.md` - Fonctionnalités v1.3 (réservation)
