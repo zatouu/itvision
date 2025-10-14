@@ -104,8 +104,34 @@ git pull && docker compose --env-file .env.docker up -d --build
 
 ## Scripts npm utiles
 ```bash
-npm run dev    # dev
-npm run build  # build prod
-npm run start  # start prod
-npm run lint   # lint
+npm run dev           # dev
+npm run build         # build prod
+npm run start         # start prod
+npm run lint          # lint
+npm run test:features # tester les nouvelles fonctionnalités
 ```
+
+## 🆕 Nouvelles Fonctionnalités (v1.1)
+
+### ✅ Implémentées
+- **Reset de mot de passe** : Pages `/forgot-password` et `/reset-password`
+- **Inscription utilisateur** : Page `/register` avec validation avancée
+- **Service d'email** : Templates professionnels avec support SMTP
+- **Sécurité renforcée** : Validation de mots de passe, rate limiting
+
+### 📱 Pages Disponibles
+- `/login` - Connexion (améliorée)
+- `/register` - Inscription utilisateur
+- `/forgot-password` - Demande de reset
+- `/reset-password` - Réinitialisation avec token
+
+### 📧 Configuration Email
+Pour activer l'envoi d'emails, ajouter dans `.env.local` :
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+```
+
+Voir `NOUVELLES_FONCTIONNALITES.md` pour la documentation complète.

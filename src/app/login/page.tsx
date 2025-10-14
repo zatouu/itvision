@@ -194,19 +194,12 @@ export default function UnifiedLoginPage() {
                   <input type="checkbox" className="mr-2" checked={remember} onChange={(e)=>setRemember(e.target.checked)} />
                   Se souvenir de moi
                 </label>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setResetRequested(false)
-                    const email = credentials.email
-                    if (!email) { setError('Saisir votre email pour réinitialiser'); return }
-                    const res = await fetch('/api/auth/forgot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
-                    if (res.ok) setResetRequested(true)
-                  }}
+                <a
+                  href="/forgot-password"
                   className="text-sm text-purple-600 hover:text-purple-700"
                 >
                   Mot de passe oublié ?
-                </button>
+                </a>
               </div>
 
               {resetRequested && (
@@ -252,7 +245,16 @@ export default function UnifiedLoginPage() {
             )}
 
             {/* Aide */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
+              <p className="text-sm text-gray-600">
+                Pas encore de compte ?{' '}
+                <a 
+                  href="/register"
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Créer un compte
+                </a>
+              </p>
               <p className="text-sm text-gray-600">
                 Problème de connexion ?{' '}
                 <a 
