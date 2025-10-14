@@ -113,7 +113,13 @@ npm run test:features # tester les nouvelles fonctionnalités
 
 ## 🆕 Nouvelles Fonctionnalités
 
-### ✅ v1.2 - Fonctionnalités Avancées (Dernière)
+### ✅ v1.3 - Système de Réservation Avancé (Dernière)
+- **Emails de confirmation** : Templates professionnels pour les RDV
+- **Calendrier intégré** : Interface de réservation améliorée avec créneaux visuels
+- **Multi-canal** : WhatsApp + Email + SMS + Fichiers .ics
+- **Notifications admin** : Alertes automatiques pour nouveaux RDV
+
+### ✅ v1.2 - Fonctionnalités Avancées
 - **Gestion des utilisateurs** : Interface complète `/admin/users`
 - **Notifications temps réel** : Centre de notifications avec API
 - **Analytics avancés** : Métriques business et insights
@@ -150,3 +156,4 @@ SMTP_PASS=your-app-password
 ### 📚 Documentation
 - `NOUVELLES_FONCTIONNALITES.md` - Fonctionnalités v1.1 (authentification)
 - `AMELIORATIONS_AVANCEES.md` - Fonctionnalités v1.2 (administration)
+- `AMELIORATIONS_RESERVATION.md` - Fonctionnalités v1.3 (réservation)
