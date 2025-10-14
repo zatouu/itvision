@@ -47,6 +47,7 @@ import {
   Home
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import NotificationCenter from './NotificationCenter'
 import Image from 'next/image'
 const ClientReportsView = dynamic(() => import('./ClientReportsView'), { ssr: false, loading: () => <div className="text-gray-500">Chargement des rapports…</div> })
 const ClientInvoicesView = dynamic(() => import('./ClientInvoicesView'), { ssr: false, loading: () => <div className="text-gray-500">Chargement des factures…</div> })
@@ -687,15 +688,8 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <div className="relative">
-                <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors relative">
-                  <Bell className="h-5 w-5" />
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-                  )}
-                </button>
-              </div>
+              {/* Notifications (protégées par session) */}
+              <NotificationCenter />
               
               <div className="hidden md:block text-right">
                 <p className="text-sm font-medium text-gray-900">{projectData.client.name}</p>
