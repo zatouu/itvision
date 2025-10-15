@@ -13,8 +13,10 @@ export default function VideosurveillanceServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Vidéosurveillance</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Systèmes de surveillance haute définition pour protéger vos locaux 24h/24, avec accès mobile et enregistrement fiable.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Protégez vos actifs et réduisez les pertes avec des caméras IP 4K, des analyses<br className="hidden md:inline" />
+              intelligentes et un enregistrement redondant. Accédez à vos sites <strong>en temps réel</strong>
+              depuis mobile et centralisez les preuves <strong>conformes RGPD</strong> en quelques clics.
             </p>
           </div>
 
@@ -67,39 +69,38 @@ export default function VideosurveillanceServicePage() {
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Pourquoi maintenant ?</h3>
+              <h3 className="text-xl font-semibold mb-3">Bénéfices business immédiats</h3>
               <p className="text-gray-700 mb-3">
-                La vidéosurveillance moderne dépasse la simple captation d’images. Elle combine <strong>caméras IP</strong>,
-                <strong> stockage hybride</strong> et <strong>analyses intelligentes</strong> pour dissuader, détecter et documenter.
-                L’accès mobile et les <strong>tableaux de bord</strong> offrent une vision temps réel multi‑sites.
+                Une solution conçue pour <strong>dissuader</strong>, <strong>détecter</strong> et <strong>documenter</strong> chaque incident.
+                Pilotez plusieurs sites depuis un seul tableau de bord et gagnez en réactivité.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Dissuasion visible et preuves exploitables</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Supervision multi‑sites et alertes en direct</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Conformité RGPD et gestion des rétentions</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Baisse des pertes et délais de résolution réduits</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Alertes temps réel et levée de doute à distance</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Archivage conforme et partage sécurisé des preuves</li>
               </ul>
             </div>
 
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-semibold mb-3">Cas d’usage concrets</h3>
               <ul className="space-y-2 text-gray-700 text-sm">
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Retail: comptage de personnes, zones chaudes, files d’attente</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Résidentiel: périmétrie, détection intrusion, levée de doute</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Industriel: franchissement de ligne, EPI, zones sensibles</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Parkings: LAPI/ANPR, suivi d’occupation, incidents</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Retail: comptage, zones chaudes, files d’attente pour booster les ventes</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Résidentiel: périmétrie et levée de doute pour la sérénité des occupants</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Industriel: franchissement de ligne, EPI, zones sensibles pour réduire les risques</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Parkings: LAPI/ANPR, suivi d’occupation pour fluidifier l’expérience</li>
               </ul>
             </div>
 
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-semibold mb-3">Notre apport IT Vision</h3>
               <p className="text-gray-700 mb-3">
-                Nous dimensionnons une architecture <strong>PoE/VLAN</strong> robuste, un stockage adapté (NVR/NAS/cloud),
-                et des <strong>politiques de cybersécurité</strong> (mots de passe forts, réseaux isolés, mises à jour).
+                Conception <strong>PoE/VLAN</strong> robuste, stockage <strong>NVR/NAS/cloud</strong>, durcissement sécurité
+                (réseaux isolés, mises à jour, accès chiffrés) et transfert de compétences à vos équipes.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Audit site et couverture optique (intérieur/extérieur)</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Choix caméras (dôme, bullet, PTZ, varifocale) selon contexte</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Documentation, formation, et maintenance proactive</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Audit de site et plan de couverture précis</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Sélection des caméras (dôme, bullet, PTZ) orientée résultats</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Documentation, formation et maintenance proactive (SLA)</li>
               </ul>
             </div>
           </div>

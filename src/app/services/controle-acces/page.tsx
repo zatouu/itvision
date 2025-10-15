@@ -13,8 +13,10 @@ export default function ControleAccesServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Contrôle d'accès</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Solutions d'accès avancées: badges RFID, biométrie, codes et gestion centralisée des autorisations.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Sécurisez vos locaux et fluidifiez l’expérience collaborateurs/visiteurs avec des identifiants
+              <strong> NFC/biométrie</strong> et une <strong>gestion centralisée</strong> par zones et horaires. Traçabilité
+              complète, intégration portails, parkings et ascenseurs.
             </p>
           </div>
 
@@ -64,32 +66,32 @@ export default function ControleAccesServicePage() {
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Utilité et enjeux</h3>
+              <h3 className="text-xl font-semibold mb-3">Bénéfices mesurables</h3>
               <p className="text-gray-700 mb-3">
-                Le contrôle d’accès moderne permet de <strong>maîtriser précisément qui entre</strong>, quand et où.
-                Idéal pour bureaux, résidences et sites sensibles, avec <strong>traçabilité</strong> et <strong>zones</strong>.
+                Maîtrisez précisément <strong>qui entre, quand et où</strong>. Réduisez les risques, éliminez les clés
+                physiques et gagnez en productivité avec des droits dynamiques.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des risques d’intrusion</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des intrusions et pertes associées</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Historique des passages exploitable</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Gestion fine des horaires et visiteurs</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Droits à la minute près pour employés et visiteurs</li>
               </ul>
             </div>
 
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-semibold mb-3">Contexte moderne</h3>
               <ul className="space-y-2 text-gray-700 text-sm">
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Badges NFC, biométrie, QR temporaire</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Badges NFC, biométrie, QR code invités</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Portails, portes, ascenseurs, parkings intégrés</li>
-                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Scénarios: multi‑sites, invités, anti‑passback</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Scénarios: multi‑sites, anti‑passback, anti‑tailgating</li>
               </ul>
             </div>
 
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
               <p className="text-gray-700 mb-3">
-                Nous concevons une solution évolutive: <strong>contrôleurs</strong>, lecteurs, câblage et <strong>politiques d’accès</strong>,
-                avec interfaçage vidéosurveillance et <strong>supervision</strong>.
+                Conception évolutive: <strong>contrôleurs</strong>, lecteurs, câblage, <strong>politiques granulaires</strong>.
+                Intégration vidéosurveillance et supervision pour une sécurité <strong>end‑to‑end</strong>.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Cartographie des zones et profils</li>

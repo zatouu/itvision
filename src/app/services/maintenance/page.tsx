@@ -13,8 +13,9 @@ export default function MaintenanceServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Maintenance & Support</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Maintenez vos systèmes en parfait état: maintenance préventive, support 24h/7j, mise à jour firmware et audit complet.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Faites durer vos investissements. Un plan <strong>préventif</strong> et des <strong>SLA</strong> clairs
+              garantissent performance, sécurité et sérénité au quotidien.
             </p>
           </div>
 
@@ -67,11 +68,11 @@ export default function MaintenanceServicePage() {
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Pourquoi la maintenance</h3>
+              <h3 className="text-xl font-semibold mb-3">Impact sur vos résultats</h3>
               <p className="text-gray-700 mb-3">
                 Sans maintenance, les systèmes se dégradent silencieusement: <strong>images manquantes</strong>,
-                <strong> alertes désactivées</strong>, <strong>mises à jour absentes</strong>. Un plan préventif assure
-                fiabilité et longévité.
+                <strong> alertes désactivées</strong>, <strong>mises à jour absentes</strong>. Un plan préventif réduit
+                les incidents, sécurise la continuité d’activité et diminue le coût total de possession.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des pannes critiques</li>
@@ -92,7 +93,7 @@ export default function MaintenanceServicePage() {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
               <p className="text-gray-700 mb-3">
-                Un contrat clair, <strong>indicateurs</strong> de disponibilité, tableau de bord et <strong>support 24/7</strong>.
+                Un contrat clair, des <strong>indicateurs</strong> actionnables, un tableau de bord et un <strong>support 24/7</strong>.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />SLA adaptés à vos enjeux</li>

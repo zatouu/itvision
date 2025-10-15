@@ -13,8 +13,10 @@ export default function NetworkCablingServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Câblage Réseau & TV</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Câblage réseau professionnel (Cat6A/Cat7), prises TV/satellite et baies de brassage 19". Intégration idéale dès la construction.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Donnez à vos applications (VoIP, vidéosurveillance, Wi‑Fi, TV/SAT) une base
+              <strong> performante et durable</strong>. Nous concevons des liaisons certifiées pour des
+              débits jusqu’à <strong>10 Gbps</strong>, prêtes pour l’avenir.
             </p>
           </div>
 
@@ -67,10 +69,10 @@ export default function NetworkCablingServicePage() {
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Pourquoi c’est critique</h3>
+              <h3 className="text-xl font-semibold mb-3">Impact business</h3>
               <p className="text-gray-700 mb-3">
-                Le câblage est la <strong>colonne vertébrale</strong> de vos réseaux & TV. Un design correct évite goulots
-                d’étranglement et pannes chroniques.
+                Le câblage est la <strong>colonne vertébrale</strong> de vos réseaux & TV. Un design rigoureux évite
+                goulots d’étranglement et pannes récurrentes, tout en réduisant vos coûts d’exploitation.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Débits garantis et latence maîtrisée</li>

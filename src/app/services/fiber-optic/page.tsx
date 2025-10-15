@@ -13,8 +13,9 @@ export default function FiberOpticServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Fibre Optique FTTH</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Installation complète BPI, PBO et PTO. Soudures, tests OTDR et dossier technique pour opérateurs.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Offrez à vos bâtiments un accès <strong>très haut débit</strong> prêt pour les usages d’aujourd’hui et de demain.
+              Nous livrons un déploiement <strong>BPI‑PBO‑PTO</strong> exemplaire, mesuré à l’<strong>OTDR</strong> et accepté par les opérateurs.
             </p>
           </div>
 
@@ -67,10 +68,10 @@ export default function FiberOpticServicePage() {
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Contexte FTTH</h3>
+              <h3 className="text-xl font-semibold mb-3">Valeur pour vos occupants</h3>
               <p className="text-gray-700 mb-3">
-                La fibre est la base du <strong>très haut débit</strong> résidentiel et professionnel. Un déploiement BPI‑PBO‑PTO
-                bien conçu assure stabilité et évolutivité.
+                Expérience Internet premium, télétravail fluide, TV 4K/8K et services connectés. Une
+                infrastructure qui valorise votre patrimoine immobilier.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Débits multi‑gigabits durables</li>

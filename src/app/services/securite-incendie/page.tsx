@@ -13,8 +13,10 @@ export default function SecuriteIncendieServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Sécurité incendie</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Détection et extinction conformes aux normes pour protéger vos biens et vos proches.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Protégez vos équipes et assurez la <strong>continuité d’activité</strong> avec des systèmes
+              de détection multicapteurs et des scenarii d’<strong>évacuation</strong> intégrés. Nous livrons
+              une solution conforme et orientée résultats.
             </p>
           </div>
 
@@ -67,10 +69,10 @@ export default function SecuriteIncendieServicePage() {
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Utilité métier</h3>
+              <h3 className="text-xl font-semibold mb-3">Bénéfices pour votre activité</h3>
               <p className="text-gray-700 mb-3">
-                La sécurité incendie protège les <strong>personnes</strong> et les <strong>actifs</strong>. Elle réduit les arrêts
-                d’activité et assure la <strong>conformité</strong> aux normes locales.
+                Réduisez les arrêts non planifiés, sécurisez les personnes et les actifs, et facilitez
+                vos démarches <strong>assurances</strong> et <strong>conformité</strong>.
               </p>
               <ul className="space-y-2 text-gray-700 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Alerte précoce et évacuation rapide</li>
