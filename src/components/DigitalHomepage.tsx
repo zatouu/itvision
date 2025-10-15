@@ -154,7 +154,7 @@ export default function DigitalHomepage() {
                 </a>
                 <Link
                   href="/contact"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
                   <Phone className="h-5 w-5 mr-2" />
                   Nous contacter
@@ -245,7 +245,7 @@ export default function DigitalHomepage() {
             <div className="text-center mt-12">
               <Link
                 href="/services"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors inline-flex items-center"
+                className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors inline-flex items-center"
               >
                 Voir tous nos services
                 <ArrowRight className="h-5 w-5 ml-2" />
@@ -287,7 +287,7 @@ export default function DigitalHomepage() {
 
 
         {/* Section À propos / Pourquoi nous choisir */}
-        <section className="py-20 bg-gradient-to-r from-blue-900 to-green-900 text-white">
+        <section className="py-20 bg-gradient-to-r from-emerald-900 via-purple-900 to-emerald-900 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div>
@@ -363,7 +363,7 @@ export default function DigitalHomepage() {
         </section>
 
         {/* Section Portail d'accès unifié */}
-        <section className="py-20 bg-gradient-to-r from-gray-900 to-blue-900 text-white">
+        <section className="py-20 bg-gradient-to-r from-emerald-950 via-purple-950 to-emerald-950 text-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="mb-12">
               <h2 className="text-4xl font-bold mb-4">
@@ -377,7 +377,7 @@ export default function DigitalHomepage() {
             {/* Portail unifié */}
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-12 border border-white/20 hover:border-green-400 transition-all duration-300 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="bg-gradient-to-r from-green-500 to-blue-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="bg-gradient-to-r from-emerald-500 to-purple-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                   <User className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold mb-4">Portail IT Vision</h3>
@@ -388,7 +388,7 @@ export default function DigitalHomepage() {
                 <div className="space-y-4">
                   <Link
                     href="/login"
-                    className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center w-full text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                    className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center w-full text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                   >
                     <User className="h-6 w-6 mr-3" />
                     Se connecter
@@ -447,7 +447,7 @@ export default function DigitalHomepage() {
               </a>
               <Link
                 href="/contact"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
               >
                 Nous contacter
                 <ArrowRight className="h-5 w-5 ml-2" />
