@@ -18,7 +18,7 @@ export default function UnifiedLoginButton({
   const getButtonStyles = () => {
     switch (variant) {
       case 'header':
-        return "text-gray-700 hover:text-emerald-600 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-emerald-50 rounded-lg relative group"
+        return "px-4 py-2.5 text-base font-semibold transition-all duration-300 rounded-lg relative group inline-flex items-center bg-gray-900 text-white hover:bg-black shadow-sm hover:shadow-md"
       case 'hero':
         return "bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
       default:
