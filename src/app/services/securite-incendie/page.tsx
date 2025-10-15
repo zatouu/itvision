@@ -63,6 +63,44 @@ export default function SecuriteIncendieServicePage() {
               </div>
             </div>
           </div>
+
+          {/* Bloc descriptif enrichi */}
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Utilité métier</h3>
+              <p className="text-gray-700 mb-3">
+                La sécurité incendie protège les <strong>personnes</strong> et les <strong>actifs</strong>. Elle réduit les arrêts
+                d’activité et assure la <strong>conformité</strong> aux normes locales.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Alerte précoce et évacuation rapide</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Limitation des dommages matériels</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Preuves de conformité pour assurances</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Technologies modernes</h3>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Détecteurs multicapteurs (fumée/chaleur/CO)</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Extinction automatique: gaz, eau pulvérisée</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Interconnexion contrôle d’accès & ventilation</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Notre approche</h3>
+              <p className="text-gray-700 mb-3">
+                De l’étude aux essais, nous fournissons un <strong>dossier technique</strong>, la <strong>signalétique</strong>, et un
+                <strong>plan de maintenance</strong> avec tests périodiques.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Analyse des risques et scénarios</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Mise en service et formation occupants</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Maintenance préventive planifiée</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
       <Footer />

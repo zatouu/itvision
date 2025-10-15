@@ -63,6 +63,44 @@ export default function MaintenanceServicePage() {
               </div>
             </div>
           </div>
+
+          {/* Bloc descriptif enrichi */}
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Pourquoi la maintenance</h3>
+              <p className="text-gray-700 mb-3">
+                Sans maintenance, les systèmes se dégradent silencieusement: <strong>images manquantes</strong>,
+                <strong> alertes désactivées</strong>, <strong>mises à jour absentes</strong>. Un plan préventif assure
+                fiabilité et longévité.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des pannes critiques</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Performance et sécurité maximisées</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Coûts maîtrisés, visibilité budgétaire</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Ce que nous faisons</h3>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Visites planifiées et rapports détaillés</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Mises à jour firmware/logiciels</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Nettoyage capteurs, vérif. enregistrement</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
+              <p className="text-gray-700 mb-3">
+                Un contrat clair, <strong>indicateurs</strong> de disponibilité, tableau de bord et <strong>support 24/7</strong>.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />SLA adaptés à vos enjeux</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Hotline et interventions programmées</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Historique centralisé, conformité</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
       <Footer />

@@ -63,6 +63,44 @@ export default function NetworkCablingServicePage() {
               </div>
             </div>
           </div>
+
+          {/* Bloc descriptif enrichi */}
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Pourquoi c’est critique</h3>
+              <p className="text-gray-700 mb-3">
+                Le câblage est la <strong>colonne vertébrale</strong> de vos réseaux & TV. Un design correct évite goulots
+                d’étranglement et pannes chroniques.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Débits garantis et latence maîtrisée</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Disponibilité accrue et évolutivité</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Conformité et documentation claire</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Bonnes pratiques</h3>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Cat6A/Cat7 certifié, brassage organisé</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Tests & étiquetage, plans as‑built</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Pré‑câblage TV/SAT multi‑pièces</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
+              <p className="text-gray-700 mb-3">
+                Nous livrons une infrastructure <strong>performante</strong> et <strong>documentée</strong> prête pour 10 Gbps, avec
+                chemins de câbles optimisés et baies bien ventilées.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Audit, plans de cheminement, métrés</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Installation propre et tests de recette</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Dossier technique et support</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
       <Footer />

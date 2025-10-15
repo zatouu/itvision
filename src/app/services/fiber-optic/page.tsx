@@ -63,6 +63,44 @@ export default function FiberOpticServicePage() {
               </div>
             </div>
           </div>
+
+          {/* Bloc descriptif enrichi */}
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Contexte FTTH</h3>
+              <p className="text-gray-700 mb-3">
+                La fibre est la base du <strong>très haut débit</strong> résidentiel et professionnel. Un déploiement BPI‑PBO‑PTO
+                bien conçu assure stabilité et évolutivité.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Débits multi‑gigabits durables</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Pré‑raccordement simple pour opérateurs</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Plus‑value immobilière</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Bonnes pratiques techniques</h3>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Fibres G.657.A2 résistantes à la courbure</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Soudures calibrées, tiroirs optiques propres</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Tests OTDR et rapport de recette</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Notre valeur</h3>
+              <p className="text-gray-700 mb-3">
+                IT Vision pilote l’architecture, la pose, les <strong>soudures</strong>, les <strong>mesures</strong> et livre un
+                <strong> dossier opérateur</strong> complet.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Plans, schémas, nomenclatures</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Recette conjointe et remise du dossier</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Support opérateur et maintenance</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
       <Footer />

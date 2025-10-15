@@ -60,6 +60,44 @@ export default function ControleAccesServicePage() {
               </div>
             </div>
           </div>
+
+          {/* Bloc descriptif enrichi */}
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Utilité et enjeux</h3>
+              <p className="text-gray-700 mb-3">
+                Le contrôle d’accès moderne permet de <strong>maîtriser précisément qui entre</strong>, quand et où.
+                Idéal pour bureaux, résidences et sites sensibles, avec <strong>traçabilité</strong> et <strong>zones</strong>.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des risques d’intrusion</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Historique des passages exploitable</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Gestion fine des horaires et visiteurs</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Contexte moderne</h3>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Badges NFC, biométrie, QR temporaire</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Portails, portes, ascenseurs, parkings intégrés</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Scénarios: multi‑sites, invités, anti‑passback</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
+              <p className="text-gray-700 mb-3">
+                Nous concevons une solution évolutive: <strong>contrôleurs</strong>, lecteurs, câblage et <strong>politiques d’accès</strong>,
+                avec interfaçage vidéosurveillance et <strong>supervision</strong>.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Cartographie des zones et profils</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Procédures d’onboarding/offboarding</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Formation et documentation complète</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
       <Footer />
