@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { connectDB } from '@/lib/mongodb'
+import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 import { logFailedAuth, logDataAccess, logSecurityViolation } from '@/lib/security-logger'
 import { InputValidator } from '@/lib/input-validation'
 
 async function verifyAdminToken(request: NextRequest) {
-  const token = request.cookies.get('admin-auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  
+  // Supporte à la fois 'auth-token' (standard) et 'admin-auth-token' (legacy)
+  const token =
+    request.cookies.get('auth-token')?.value ||
+    request.cookies.get('admin-auth-token')?.value ||
+    request.headers.get('authorization')?.replace('Bearer ', '')
+
   if (!token) {
     logFailedAuth('missing_token', request)
     throw new Error('Token manquant')
@@ -17,18 +20,19 @@ async function verifyAdminToken(request: NextRequest) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-    
-    // Vérification rôle admin
-    if (decoded.role !== 'admin' && decoded.role !== 'supervisor') {
-      logSecurityViolation('unauthorized_admin_access', request, { 
-        userId: decoded.userId, 
-        role: decoded.role 
+    const normalizedRole = String(decoded.role || '').toUpperCase()
+
+    // Vérification rôle admin (normalisé)
+    if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
+      logSecurityViolation('unauthorized_admin_access', request, {
+        userId: decoded.userId,
+        role: decoded.role,
       })
       throw new Error('Accès non autorisé')
     }
-    
+
     logDataAccess('admin_reports', 'validate_access', request, decoded.userId)
-    return decoded
+    return { ...decoded, role: normalizedRole }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
     logFailedAuth('invalid_token', request, { error: errorMessage })
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await connectDB()
+    await connectMongoose()
     
     const { userId } = await verifyAdminToken(request)
     const requestData = await request.json()
@@ -190,7 +194,7 @@ export async function POST(request: NextRequest) {
 // GET - Récupérer les rapports en attente de validation
 export async function GET(request: NextRequest) {
   try {
-    await connectDB()
+    await connectMongoose()
     
     await verifyAdminToken(request)
     
