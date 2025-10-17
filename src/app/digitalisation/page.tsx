@@ -190,22 +190,22 @@ export default function DigitalisationPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-900 via-purple-900 to-emerald-900 text-white py-20 pt-32">
+      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 py-20 pt-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-emerald-600 via-purple-600 to-emerald-400 bg-clip-text text-transparent">
                 Digitalisation
               </span>
               <br />d'Entreprise
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-8">
               Accompagnons votre transformation numérique : digitalisation des processus, automatisation et solutions sur mesure pour PME et grandes entreprises
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/contact"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 Diagnostic Gratuit
               </Link>
@@ -240,7 +240,7 @@ export default function DigitalisationPage() {
                   {/* Service Header */}
                   <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 border-b">
                     <div className="flex items-center mb-4">
-                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
+                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-lg shadow-lg">
                         <IconComponent className="h-6 w-6 text-white" />
                       </div>
                       <div className="ml-4">
@@ -285,7 +285,7 @@ export default function DigitalisationPage() {
                       </div>
                       <Link
                         href="/contact"
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-300 text-center block"
+                        className="w-full bg-gradient-to-r from-emerald-500 to-purple-600 text-white py-2 px-4 rounded-lg font-semibold hover:from-emerald-600 hover:to-purple-700 transition-all duration-300 text-center block"
                       >
                         Demander un devis
                       </Link>
@@ -314,7 +314,7 @@ export default function DigitalisationPage() {
             {processSteps.map((step, index) => (
               <div key={index} className="text-center">
                 <div className="relative mb-6">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full text-white font-bold text-xl mx-auto shadow-lg">
+                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-emerald-600 rounded-full text-white font-bold text-xl mx-auto shadow-lg">
                     {step.step}
                   </div>
                   {index < processSteps.length - 1 && (
@@ -330,7 +330,7 @@ export default function DigitalisationPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-16 bg-gradient-to-r from-emerald-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Accélérez votre transformation numérique

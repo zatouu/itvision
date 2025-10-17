@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import EnhancedProjectPortal from '@/components/EnhancedProjectPortal'
+import Breadcrumb from '@/components/Breadcrumb'
 
 export default function ClientPortalPage() {
   const router = useRouter()
@@ -44,10 +45,18 @@ export default function ClientPortalPage() {
   if (isCheckingAuth || !projectId) return null
 
   return (
-    <EnhancedProjectPortal 
-      projectId={projectId}
-      accessCode={accessCode}
-      onLogout={handleLogout}
-    />
+    <div className="min-h-screen bg-gray-50">
+      <div className="pt-16">
+        <Breadcrumb 
+          backHref="/" 
+          backLabel="Retour à l'accueil"
+        />
+      </div>
+      <EnhancedProjectPortal 
+        projectId={projectId}
+        accessCode={accessCode}
+        onLogout={handleLogout}
+      />
+    </div>
   )
 }

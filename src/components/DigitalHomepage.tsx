@@ -37,7 +37,7 @@ export default function DigitalHomepage() {
       title: 'Vidéosurveillance',
       description: 'Surveillance professionnelle haute définition',
       icon: Camera,
-      color: 'from-blue-500 to-blue-600'
+      color: 'from-emerald-500 to-emerald-600'
     },
     {
       id: 'controle-acces',
@@ -81,7 +81,7 @@ export default function DigitalHomepage() {
       value: '2019',
       label: 'Expertise IoT/LoRaWAN',
       icon: Award,
-      color: 'text-blue-600'
+      color: 'text-emerald-600'
     },
     {
       value: '200+',
@@ -123,11 +123,11 @@ export default function DigitalHomepage() {
       <Header />
       <div className="min-h-screen bg-white">
         {/* Hero Section */}
-        <section className="relative page-content py-20 bg-gradient-to-br from-blue-50 via-white to-gray-50">
+        <section className="relative page-content py-20 bg-gradient-to-br from-emerald-50 via-white to-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h1 className="text-5xl md:text-6xl font-bold mb-8 text-gray-900">
-                <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">
                   IT Vision
                 </span>
                 <br />
@@ -154,7 +154,7 @@ export default function DigitalHomepage() {
                 </a>
                 <Link
                   href="/contact"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  className="bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
                   <Phone className="h-5 w-5 mr-2" />
                   Nous contacter
@@ -209,7 +209,7 @@ export default function DigitalHomepage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Nos <span className="text-blue-600">Services</span>
+                Nos <span className="text-emerald-600">Services</span>
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Solutions complètes de sécurité électronique adaptées à tous vos besoins professionnels et résidentiels
@@ -231,7 +231,7 @@ export default function DigitalHomepage() {
                       
                       <Link
                         href={service.id === 'domotique' ? '/domotique' : `/services/${service.id}`}
-                        className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center"
+                        className="text-emerald-600 hover:text-emerald-700 font-medium inline-flex items-center"
                       >
                         {service.id === 'domotique' ? 'Page dédiée' : 'En savoir plus'}
                         <ArrowRight className="h-4 w-4 ml-1" />
@@ -245,7 +245,7 @@ export default function DigitalHomepage() {
             <div className="text-center mt-12">
               <Link
                 href="/services"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors inline-flex items-center"
+                className="bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors inline-flex items-center"
               >
                 Voir tous nos services
                 <ArrowRight className="h-5 w-5 ml-2" />
@@ -274,7 +274,7 @@ export default function DigitalHomepage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Estimez votre <span className="text-blue-600">Devis</span>
+                Estimez votre <span className="text-purple-600">Devis</span>
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Sélectionnez vos équipements et paramètres. Estimation automatique et partage par WhatsApp.
@@ -287,72 +287,72 @@ export default function DigitalHomepage() {
 
 
         {/* Section À propos / Pourquoi nous choisir */}
-        <section className="py-20 bg-gradient-to-r from-blue-900 to-green-900 text-white">
+        <section className="py-20 bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div>
-                <h2 className="text-4xl font-bold mb-6">
+                <h2 className="text-4xl font-bold mb-6 text-gray-900">
                   Pourquoi choisir <br />
-                  <span className="text-green-400">IT Vision ?</span>
+                  <span className="text-emerald-600">IT Vision ?</span>
                 </h2>
                 
                 <div className="space-y-6">
                   <div className="flex items-start space-x-4">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Award className="h-5 w-5" />
+                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Award className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-2">Expertise complète en sécurité</h3>
-                      <p className="text-gray-300">Vidéosurveillance, contrôle d'accès, sécurité incendie, câblage réseau, fibre optique et domotique. Solutions intégrées pour votre protection totale.</p>
+                      <h3 className="font-semibold mb-2 text-gray-900">Expertise complète en sécurité</h3>
+                      <p className="text-gray-700">Vidéosurveillance, contrôle d'accès, sécurité incendie, câblage réseau, fibre optique et domotique. Solutions intégrées pour votre protection totale.</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-4">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Shield className="h-5 w-5" />
+                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Shield className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-2">Solutions sur mesure</h3>
-                      <p className="text-gray-300">Chaque projet est unique. Nous analysons vos besoins pour vous proposer la solution la plus adaptée.</p>
+                      <h3 className="font-semibold mb-2 text-gray-900">Solutions sur mesure</h3>
+                      <p className="text-gray-700">Chaque projet est unique. Nous analysons vos besoins pour vous proposer la solution la plus adaptée.</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-4">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-5 w-5" />
+                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Clock className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-2">Support 24h/7j</h3>
-                      <p className="text-gray-300">Une équipe technique disponible pour vous assister et maintenir vos équipements en parfait état.</p>
+                      <h3 className="font-semibold mb-2 text-gray-900">Support 24h/7j</h3>
+                      <p className="text-gray-700">Une équipe technique disponible pour vous assister et maintenir vos équipements en parfait état.</p>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
-                <h3 className="text-2xl font-bold mb-6 text-center">Nos engagements</h3>
+              <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+                <h3 className="text-2xl font-bold mb-6 text-center text-gray-900">Nos engagements</h3>
                 
                 <div className="grid grid-cols-2 gap-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-green-400 mb-2">Devis</div>
-                    <div className="text-sm text-gray-300">Gratuit et détaillé</div>
+                    <div className="text-3xl font-bold text-emerald-600 mb-2">Devis</div>
+                    <div className="text-sm text-gray-600">Gratuit et détaillé</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-400 mb-2">Installation</div>
-                    <div className="text-sm text-gray-300">Professionnelle</div>
+                    <div className="text-3xl font-bold text-purple-600 mb-2">Installation</div>
+                    <div className="text-sm text-gray-600">Professionnelle</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-400 mb-2">Garantie</div>
-                    <div className="text-sm text-gray-300">Constructeur</div>
+                    <div className="text-3xl font-bold text-purple-600 mb-2">Garantie</div>
+                    <div className="text-sm text-gray-600">Constructeur</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-orange-400 mb-2">Formation</div>
-                    <div className="text-sm text-gray-300">Utilisateurs incluse</div>
+                    <div className="text-3xl font-bold text-orange-600 mb-2">Formation</div>
+                    <div className="text-sm text-gray-600">Utilisateurs incluse</div>
                   </div>
                 </div>
                 
                 <div className="mt-8 text-center">
-                  <p className="text-blue-200 text-sm">
+                  <p className="text-gray-700 text-sm">
                     <strong>Votre sécurité, notre priorité.</strong><br />
                     Des solutions fiables pour protéger ce qui compte le plus pour vous.
                   </p>
@@ -363,39 +363,39 @@ export default function DigitalHomepage() {
         </section>
 
         {/* Section Portail d'accès unifié */}
-        <section className="py-20 bg-gradient-to-r from-gray-900 to-blue-900 text-white">
+        <section className="py-20 bg-gradient-to-br from-gray-50 via-purple-50 to-emerald-50">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="mb-12">
-              <h2 className="text-4xl font-bold mb-4">
-                Accès <span className="text-green-400">Portail</span>
+              <h2 className="text-4xl font-bold mb-4 text-gray-900">
+                Accès <span className="text-emerald-600">Portail</span>
               </h2>
-              <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-8">
                 Un seul portail pour tous les profils. Connectez-vous et accédez automatiquement à votre espace personnalisé.
               </p>
             </div>
 
             {/* Portail unifié */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-12 border border-white/20 hover:border-green-400 transition-all duration-300 max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-lg p-12 border border-gray-200 hover:border-emerald-400 transition-all duration-300 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="bg-gradient-to-r from-green-500 to-blue-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="bg-gradient-to-r from-emerald-500 to-purple-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                   <User className="h-10 w-10 text-white" />
                 </div>
-                <h3 className="text-3xl font-bold mb-4">Portail IT Vision</h3>
-                <p className="text-gray-300 mb-8 text-lg">
+                <h3 className="text-3xl font-bold mb-4 text-gray-900">Portail IT Vision</h3>
+                <p className="text-gray-700 mb-8 text-lg">
                   Clients, techniciens, administrateurs : un seul point d'accès pour tous vos besoins
                 </p>
                 
                 <div className="space-y-4">
                   <Link
                     href="/login"
-                    className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center w-full text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                    className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:from-emerald-600 hover:to-purple-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center w-full text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                   >
                     <User className="h-6 w-6 mr-3" />
                     Se connecter
                     <ArrowRight className="h-5 w-5 ml-2" />
                   </Link>
                   
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Votre rôle sera automatiquement détecté et vous serez redirigé vers votre interface
                   </p>
                 </div>
@@ -404,20 +404,20 @@ export default function DigitalHomepage() {
 
             {/* Informations sur les différents accès */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 text-sm">
-              <div className="text-center">
-                <Building className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-                <p className="font-medium text-white">Clients</p>
-                <p className="text-gray-400">Suivi projets & maintenance</p>
+              <div className="text-center bg-white rounded-xl p-4 shadow-md">
+                <Building className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+                <p className="font-medium text-gray-900">Clients</p>
+                <p className="text-gray-600">Suivi projets & maintenance</p>
               </div>
-              <div className="text-center">
-                <Wrench className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                <p className="font-medium text-white">Techniciens</p>
-                <p className="text-gray-400">Rapports & interventions</p>
+              <div className="text-center bg-white rounded-xl p-4 shadow-md">
+                <Wrench className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+                <p className="font-medium text-gray-900">Techniciens</p>
+                <p className="text-gray-600">Rapports & interventions</p>
               </div>
-              <div className="text-center">
-                <Shield className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                <p className="font-medium text-white">Administrateurs</p>
-                <p className="text-gray-400">Gestion & supervision</p>
+              <div className="text-center bg-white rounded-xl p-4 shadow-md">
+                <Shield className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <p className="font-medium text-gray-900">Administrateurs</p>
+                <p className="text-gray-600">Gestion & supervision</p>
               </div>
             </div>
           </div>
@@ -447,7 +447,7 @@ export default function DigitalHomepage() {
               </a>
               <Link
                 href="/contact"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                className="bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
               >
                 Nous contacter
                 <ArrowRight className="h-5 w-5 ml-2" />

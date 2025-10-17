@@ -53,6 +53,7 @@ const ClientReportsView = dynamic(() => import('./ClientReportsView'), { ssr: fa
 const ClientInvoicesView = dynamic(() => import('./ClientInvoicesView'), { ssr: false, loading: () => <div className="text-gray-500">Chargement des factures…</div> })
 const TicketsPanel = dynamic(() => import('./TicketsPanel'), { ssr: false, loading: () => <div className="text-gray-500">Chargement des demandes…</div> })
 const WorkflowMiniPanel = dynamic(() => import('./WorkflowMiniPanel'), { ssr: false, loading: () => <div className="text-gray-500">Chargement du workflow…</div> })
+const ClientMaintenanceHub = dynamic(() => import('./ClientMaintenanceHub'), { ssr: false, loading: () => <div className="text-gray-500">Chargement du centre de maintenance…</div> })
 
 interface EnhancedProjectPortalProps {
   projectId: string
@@ -109,6 +110,7 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
     if (userRole === 'CLIENT') {
       return [
         ...common,
+        { id: 'maintenance', label: 'Maintenance', icon: Wrench },
         { id: 'documents', label: 'Documents', icon: FileText },
         { id: 'communications', label: 'Communications', icon: MessageCircle },
         { id: 'invoices', label: 'Mes Factures', icon: FileCheck },
@@ -1343,6 +1345,17 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
                         projectData.client.company === 'Commerce Plus' ? 'CLI-002' : 'CLI-001'}
               clientName={projectData.client.name}
               clientCompany={projectData.client.company}
+            />
+          )}
+
+          {/* Section Maintenance */}
+          {activeTab === 'maintenance' && (
+            <ClientMaintenanceHub 
+              clientId={projectData.client.company === 'IT Solutions SARL' ? 'CLI-001' : 
+                        projectData.client.company === 'Commerce Plus' ? 'CLI-002' : 'CLI-001'}
+              clientName={projectData.client.name}
+              clientCompany={projectData.client.company}
+              projectId={projectData.project._id || 'PRJ-001'}
             />
           )}
 

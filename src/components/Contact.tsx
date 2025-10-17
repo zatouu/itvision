@@ -170,7 +170,7 @@ const Contact = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center space-x-2"
+                  className="w-full bg-emerald-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-emerald-700 transition-colors duration-300 flex items-center justify-center space-x-2"
                 >
                   <Send className="h-5 w-5" />
                   <span>Envoyer ma demande</span>
@@ -255,7 +255,7 @@ const Contact = () => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
               viewport={{ once: true }}
-              className="bg-blue-50 border border-blue-200 rounded-2xl p-6"
+              className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6"
             >
               <h4 className="text-lg font-bold text-blue-800 mb-3">
                 📍 Zone d&apos;intervention

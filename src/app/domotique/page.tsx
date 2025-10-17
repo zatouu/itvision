@@ -199,13 +199,13 @@ export default function DomotiquePage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-emerald-900 via-teal-800 to-blue-900 text-white page-content py-20">
+      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Domotique &amp; <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Bâtiment Intelligent</span>
+              Domotique &amp; <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Bâtiment Intelligent</span>
             </h1>
-            <p className="text-xl md:text-2xl text-emerald-100 max-w-4xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-8">
               Experts en systèmes connectés depuis 2019, nous maîtrisons les protocoles les plus avancés pour créer
               des espaces intelligents, sécurisés et économes en énergie.
             </p>

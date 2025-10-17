@@ -62,8 +62,8 @@ const Portfolio = () => {
               key={index}
               className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
                 index === 0 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-white text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
               }`}
             >
               {category}
@@ -85,7 +85,7 @@ const Portfolio = () => {
                 className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 group"
               >
                 {/* Project Image */}
-                <div className="relative h-48 bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                <div className="relative h-48 bg-gradient-to-br from-emerald-500 to-purple-600 flex items-center justify-center">
                   <span className="text-6xl">{project.image}</span>
                   <div className="absolute top-4 left-4">
                     <span className="bg-white bg-opacity-20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-semibold">
@@ -109,7 +109,7 @@ const Portfolio = () => {
                     {project.services.map((service, idx) => (
                       <span
                         key={idx}
-                        className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm font-medium"
+                        className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-sm font-medium"
                       >
                         {service}
                       </span>
@@ -149,13 +149,13 @@ const Portfolio = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/realisations"
-                className="inline-flex items-center justify-center px-6 py-3 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors duration-300"
+                className="inline-flex items-center justify-center px-6 py-3 border border-emerald-600 text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition-colors duration-300"
               >
                 Voir toutes nos réalisations
               </Link>
               <Link
                 href="/contact"
-                className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-300"
+                className="inline-flex items-center justify-center px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors duration-300"
               >
                 Demander un devis
               </Link>

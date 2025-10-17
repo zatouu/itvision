@@ -1,9 +1,9 @@
 'use client'
 
-import ModularQuoteGenerator from '../../../components/ModularQuoteGenerator'
+import ValidationCycleTest from '@/components/ValidationCycleTest'
 import Breadcrumb from '@/components/Breadcrumb'
 
-export default function QuotesAdminPage() {
+export default function TestValidationPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="pt-16">
@@ -12,7 +12,7 @@ export default function QuotesAdminPage() {
           backLabel="Retour au dashboard"
         />
       </div>
-      <ModularQuoteGenerator />
+      <ValidationCycleTest />
     </div>
   )
 }

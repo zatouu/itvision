@@ -46,13 +46,13 @@ export default function ContactPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-900 via-blue-800 to-green-900 text-white page-content py-20">
+      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Contactez-<span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">nous</span>
+              Contactez-<span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">nous</span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-8">
               Notre équipe d&apos;experts est à votre disposition pour vous accompagner dans vos projets de sécurité électronique
             </p>
             

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react'
+import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ITVisionLogo from './ITVisionLogo'
 import UnifiedLoginButton from './UnifiedLoginButton'
@@ -12,24 +12,59 @@ const Header = () => {
   const [isServicesOpen, setIsServicesOpen] = useState(false)
 
   const navigation = [
-    { name: 'Accueil', href: '/' },
-    { name: 'Services', href: '/services' },
-    { name: 'Produits', href: '/produits' },
-    { name: 'Digitalisation', href: '/digitalisation' },
-    { name: 'Réalisations', href: '/realisations' },
-    { name: 'À propos', href: '/about' },
-    { name: 'Contact', href: '/contact' },
-  ]
+    { name: 'Accueil', href: '/', icon: HomeIcon },
+    { name: 'Services', href: '/services', icon: Boxes },
+    { name: 'Produits', href: '/produits', icon: Package },
+    { name: 'Digitalisation', href: '/digitalisation', icon: CircuitBoard },
+    { name: 'Réalisations', href: '/realisations', icon: Images },
+    { name: 'À propos', href: '/about', icon: Info },
+    { name: 'Contact', href: '/contact', icon: MessageSquare },
+  ] as const
 
   const servicesMenu = [
-    { name: 'Vidéosurveillance', href: '/services/videosurveillance' },
-    { name: "Contrôle d'accès", href: '/services/controle-acces' },
-    { name: 'Domotique', href: '/domotique' },
-    { name: 'Sécurité incendie', href: '/services/securite-incendie' },
-    { name: 'Câblage Réseau & TV', href: '/services/network-cabling' },
-    { name: 'Fibre Optique FTTH', href: '/services/fiber-optic' },
-    { name: 'Maintenance & Support', href: '/services/maintenance' },
-  ]
+    { 
+      name: 'Vidéosurveillance', 
+      href: '/services/videosurveillance', 
+      icon: Camera,
+      description: 'Caméras HD/4K, analyses intelligentes et supervision temps réel'
+    },
+    { 
+      name: "Contrôle d'accès", 
+      href: '/services/controle-acces', 
+      icon: Lock,
+      description: 'Badges RFID, biométrie et gestion centralisée des autorisations'
+    },
+    { 
+      name: 'Domotique', 
+      href: '/domotique', 
+      icon: House,
+      description: 'Protocoles mesh avancés et solutions sur-mesure connectées'
+    },
+    { 
+      name: 'Sécurité incendie', 
+      href: '/services/securite-incendie', 
+      icon: Flame,
+      description: 'Détection précoce et extinction automatique conformes aux normes'
+    },
+    { 
+      name: 'Câblage Réseau & TV', 
+      href: '/services/network-cabling', 
+      icon: Cable,
+      description: 'Infrastructure Cat6A/Cat7 et prises TV/satellite professionnelles'
+    },
+    { 
+      name: 'Fibre Optique FTTH', 
+      href: '/services/fiber-optic', 
+      icon: Shield,
+      description: 'Installation BPI, PBO et PTO avec dossier technique opérateur'
+    },
+    { 
+      name: 'Maintenance & Support', 
+      href: '/services/maintenance', 
+      icon: Wrench,
+      description: 'Support 24h/7j et maintenance préventive de tous équipements'
+    },
+  ] as const
 
   // Supprimé - remplacé par UnifiedLoginButton
 
@@ -68,55 +103,147 @@ const Header = () => {
           {/* Menu desktop - amélioré */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-1">
-              {/* Accueil */}
-              <Link
-                href="/"
-                className="text-gray-700 hover:text-emerald-600 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-emerald-50 rounded-lg relative group"
-              >
-                Accueil
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full"></span>
-              </Link>
-
-              {/* Services avec sous-menu */}
-              <div className="relative group">
-                <Link
-                  href="/services"
-                  className="flex items-center text-gray-700 hover:text-emerald-600 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-emerald-50 rounded-lg relative"
-                >
-                  Services
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Link>
-                <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-200 absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
-                  <div className="py-2">
-                    {servicesMenu.map((s) => (
+              {/* Liens principaux avec icônes monochromes */}
+              {navigation.map((item) => {
+                const Icon = item.icon
+                const isServices = item.name === 'Services'
+                if (isServices) {
+                  return (
+                    <div className="relative group" key={item.name}>
                       <Link
-                        key={s.name}
-                        href={s.href}
-                        className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"
+                        href={item.href}
+                        className="flex items-center gap-2 text-gray-800 hover:text-gray-900 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-gray-100 rounded-lg"
                       >
-                        {s.name}
+                        <Icon className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />
+                        <span>{item.name}</span>
+                        <ChevronDown className="ml-1 h-4 w-4 text-gray-400 group-hover:text-gray-600" />
                       </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                      <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-200 absolute left-0 mt-2 w-[900px] bg-white rounded-xl shadow-xl border border-gray-100 z-50">
+                        <div className="p-6">
+                          {/* Header du menu */}
+                          <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nos Services</h3>
+                            <p className="text-sm text-gray-600">Solutions complètes de sécurité électronique</p>
+                          </div>
+                          
+                          {/* Grid 3 colonnes */}
+                          <div className="grid grid-cols-3 gap-6">
+                            {/* Colonne SÉCURITÉ */}
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">SÉCURITÉ</h4>
+                              <div className="space-y-3">
+                                {servicesMenu.slice(0, 3).map((s) => {
+                                  const SIcon = s.icon
+                                  return (
+                                    <Link
+                                      key={s.name}
+                                      href={s.href}
+                                      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 group/item"
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-50 to-purple-50 rounded-lg flex items-center justify-center group-hover/item:from-emerald-100 group-hover/item:to-purple-100 transition-all duration-200">
+                                          <SIcon className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <h5 className="font-semibold text-gray-900 text-sm mb-1">{s.name}</h5>
+                                          <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                                        </div>
+                                      </div>
+                                    </Link>
+                                  )
+                                })}
+                              </div>
+                            </div>
 
-              {/* Autres liens */}
-              {navigation.filter((n) => n.name !== 'Accueil' && n.name !== 'Services').map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="text-gray-700 hover:text-emerald-600 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-emerald-50 rounded-lg relative group"
-                >
-                  {item.name}
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full"></span>
-                </Link>
-              ))}
-              
+                            {/* Colonne INFRASTRUCTURE */}
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">INFRASTRUCTURE</h4>
+                              <div className="space-y-3">
+                                {servicesMenu.slice(3, 6).map((s) => {
+                                  const SIcon = s.icon
+                                  return (
+                                    <Link
+                                      key={s.name}
+                                      href={s.href}
+                                      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 group/item"
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-50 to-purple-50 rounded-lg flex items-center justify-center group-hover/item:from-emerald-100 group-hover/item:to-purple-100 transition-all duration-200">
+                                          <SIcon className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <h5 className="font-semibold text-gray-900 text-sm mb-1">{s.name}</h5>
+                                          <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                                        </div>
+                                      </div>
+                                    </Link>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Colonne SUPPORT */}
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">SUPPORT</h4>
+                              <div className="space-y-3">
+                                {servicesMenu.slice(6).map((s) => {
+                                  const SIcon = s.icon
+                                  return (
+                                    <Link
+                                      key={s.name}
+                                      href={s.href}
+                                      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 group/item"
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-50 to-purple-50 rounded-lg flex items-center justify-center group-hover/item:from-emerald-100 group-hover/item:to-purple-100 transition-all duration-200">
+                                          <SIcon className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <h5 className="font-semibold text-gray-900 text-sm mb-1">{s.name}</h5>
+                                          <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                                        </div>
+                                      </div>
+                                    </Link>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Footer du menu */}
+                          <div className="border-t border-gray-100 mt-6 pt-4 flex justify-between items-center">
+                            <div className="text-xs text-gray-500">
+                              Expertise IT Vision depuis 2019
+                            </div>
+                            <Link
+                              href="/services"
+                              className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-colors duration-200"
+                            >
+                              Voir tous nos services
+                              <ArrowRight className="h-4 w-4" />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-2 text-gray-800 hover:text-gray-900 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-gray-100 rounded-lg"
+                  >
+                    <Icon className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+
               {/* Séparateur */}
               <div className="h-6 w-px bg-gray-300 mx-2"></div>
               
-              {/* Bouton de connexion unifié */}
+              {/* Bouton de connexion modernisé */}
               <UnifiedLoginButton variant="header" />
             </div>
           </div>
@@ -134,54 +261,66 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Menu mobile dropdown - amélioré */}
+          {/* Menu mobile dropdown - amélioré */}
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-4 space-y-2 bg-white border-t border-gray-100 shadow-lg">
               {/* Accueil */}
               <Link
                 href="/"
-                className="text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 block px-4 py-3 text-base font-semibold transition-all duration-300 rounded-lg"
+                className="flex items-center gap-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-4 py-3 text-base font-semibold transition-all duration-300 rounded-lg"
                 onClick={() => setIsMenuOpen(false)}
               >
+                <HomeIcon className="h-5 w-5 text-gray-500" />
                 Accueil
               </Link>
 
               {/* Services - accordéon */}
               <button
                 onClick={() => setIsServicesOpen(!isServicesOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 text-base font-semibold text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                className="w-full flex items-center justify-between px-4 py-3 text-base font-semibold text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                 aria-expanded={isServicesOpen}
               >
-                <span>Services</span>
+                <span className="flex items-center gap-2">
+                  <Boxes className="h-5 w-5 text-gray-500" />
+                  Services
+                </span>
                 <ChevronDown className={`h-5 w-5 transition-transform ${isServicesOpen ? 'rotate-180' : ''}`} />
               </button>
               {isServicesOpen && (
                 <div className="pl-4 space-y-1">
-                  {servicesMenu.map((s) => (
-                    <Link
-                      key={s.name}
-                      href={s.href}
-                      className="block px-4 py-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg text-sm"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {s.name}
-                    </Link>
-                  ))}
+                  {servicesMenu.map((s) => {
+                    const SIcon = s.icon
+                    return (
+                      <Link
+                        key={s.name}
+                        href={s.href}
+                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg text-sm"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <SIcon className="h-4 w-4 text-gray-500" />
+                        {s.name}
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
 
               {/* Autres liens */}
-              {navigation.filter((n) => n.name !== 'Accueil' && n.name !== 'Services').map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 block px-4 py-3 text-base font-semibold transition-all duration-300 rounded-lg"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item.name}
-                </Link>
-              ))}
+              {navigation.filter((n) => n.name !== 'Accueil' && n.name !== 'Services').map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-4 py-3 text-base font-semibold transition-all duration-300 rounded-lg"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Icon className="h-5 w-5 text-gray-500" />
+                    {item.name}
+                  </Link>
+                )
+              })}
               
               {/* Séparateur pour mobile */}
               <div className="border-t border-gray-200 my-3"></div>
@@ -193,7 +332,7 @@ const Header = () => {
               
               <Link
                 href="/contact"
-                className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white block px-4 py-3 text-base font-semibold rounded-lg mt-3 transition-all duration-300 text-center"
+                className="bg-gray-900 hover:bg-black text-white block px-4 py-3 text-base font-semibold rounded-lg mt-3 transition-all duration-300 text-center"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Demander un devis

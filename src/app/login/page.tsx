@@ -32,9 +32,9 @@ export default function UnifiedLoginPage() {
       title: 'Client',
       description: 'Accès au portail client pour suivre vos projets',
       icon: User,
-      color: 'from-blue-500 to-blue-600',
+      color: 'from-emerald-500 to-emerald-600',
       borderColor: 'border-blue-200 hover:border-blue-400',
-      bgColor: 'bg-blue-50'
+      bgColor: 'bg-emerald-50'
     },
     {
       type: 'technician' as const,
@@ -107,11 +107,11 @@ export default function UnifiedLoginPage() {
   const selectedType = userTypes.find(type => type.type === selectedUserType)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <Lock className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Connexion IT Vision</h1>
@@ -177,7 +177,7 @@ export default function UnifiedLoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
+                className={`w-full bg-gradient-to-r from-purple-600 to-emerald-600 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
               >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -240,7 +240,7 @@ export default function UnifiedLoginPage() {
                   placeholder="000000"
                 />
               </div>
-              <button className={`w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-300`}>Vérifier</button>
+              <button className={`w-full bg-gradient-to-r from-purple-600 to-emerald-600 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-300`}>Vérifier</button>
             </form>
             )}
 

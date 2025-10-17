@@ -7,10 +7,10 @@ const Footer = () => {
   return (
     <footer className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-emerald-900 text-white py-12 overflow-hidden">
       <TechLines density="low" opacity={0.05} />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Logo et description */}
-          <div className="col-span-1 lg:col-span-2">
+          <div className="col-span-1 lg:col-span-1">
             <div className="mb-4">
               <ITVisionLogo size={35} animated={true} />
             </div>

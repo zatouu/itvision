@@ -13,7 +13,8 @@ import {
   Home,
   Shield,
   Wifi,
-  Zap
+  Zap,
+  Calendar
 } from 'lucide-react'
 import AdminHelpGuide from '@/components/AdminHelpGuide'
 
@@ -45,6 +46,15 @@ export default function AdminDashboard() {
       href: '/admin/catalog',
       color: 'purple',
       features: ['Types par service', 'Variants détaillés', 'Spécifications techniques']
+    },
+    {
+      id: 'planning',
+      title: 'Planification Dynamique',
+      description: 'Gestion intelligente des interventions et affectation automatique',
+      icon: Calendar,
+      href: '/admin/planning',
+      color: 'emerald',
+      features: ['Affectation automatique', 'Calendrier partagé', 'Gestion des compétences']
     }
   ]
 
@@ -75,6 +85,12 @@ export default function AdminDashboard() {
         border: 'border-purple-200',
         icon: 'bg-purple-100 text-purple-600',
         button: 'bg-purple-600 hover:bg-purple-700'
+      }
+      case 'emerald': return {
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-200',
+        icon: 'bg-emerald-100 text-emerald-600',
+        button: 'bg-emerald-600 hover:bg-emerald-700'
       }
       default: return {
         bg: 'bg-gray-50',

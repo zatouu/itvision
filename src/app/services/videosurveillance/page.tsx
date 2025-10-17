@@ -13,8 +13,10 @@ export default function VideosurveillanceServicePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Vidéosurveillance</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
-              Systèmes de surveillance haute définition pour protéger vos locaux 24h/24, avec accès mobile et enregistrement fiable.
+            <p className="text-gray-700 max-w-3xl mx-auto">
+              Protégez vos actifs et réduisez les pertes avec des caméras IP 4K, des analyses<br className="hidden md:inline" />
+              intelligentes et un enregistrement redondant. Accédez à vos sites <strong>en temps réel</strong>
+              depuis mobile et centralisez les preuves <strong>conformes RGPD</strong> en quelques clics.
             </p>
           </div>
 
@@ -52,7 +54,7 @@ export default function VideosurveillanceServicePage() {
                   <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347" /></svg>
                   WhatsApp
                 </a>
-                <Link href="/contact" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold transition-all inline-flex items-center">
+                <Link href="/contact" className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all inline-flex items-center">
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
@@ -61,6 +63,45 @@ export default function VideosurveillanceServicePage() {
                   +221 77 413 34 40
                 </a>
               </div>
+            </div>
+          </div>
+
+          {/* Bloc descriptif enrichi */}
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Bénéfices business immédiats</h3>
+              <p className="text-gray-700 mb-3">
+                Une solution conçue pour <strong>dissuader</strong>, <strong>détecter</strong> et <strong>documenter</strong> chaque incident.
+                Pilotez plusieurs sites depuis un seul tableau de bord et gagnez en réactivité.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Baisse des pertes et délais de résolution réduits</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Alertes temps réel et levée de doute à distance</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Archivage conforme et partage sécurisé des preuves</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Cas d’usage concrets</h3>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Retail: comptage, zones chaudes, files d’attente pour booster les ventes</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Résidentiel: périmétrie et levée de doute pour la sérénité des occupants</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Industriel: franchissement de ligne, EPI, zones sensibles pour réduire les risques</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Parkings: LAPI/ANPR, suivi d’occupation pour fluidifier l’expérience</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-semibold mb-3">Notre apport IT Vision</h3>
+              <p className="text-gray-700 mb-3">
+                Conception <strong>PoE/VLAN</strong> robuste, stockage <strong>NVR/NAS/cloud</strong>, durcissement sécurité
+                (réseaux isolés, mises à jour, accès chiffrés) et transfert de compétences à vos équipes.
+              </p>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Audit de site et plan de couverture précis</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Sélection des caméras (dôme, bullet, PTZ) orientée résultats</li>
+                <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Documentation, formation et maintenance proactive (SLA)</li>
+              </ul>
             </div>
           </div>
         </div>
