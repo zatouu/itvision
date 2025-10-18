@@ -37,6 +37,8 @@
     "framer-motion": "^12.23.12",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.536.0",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.0",
