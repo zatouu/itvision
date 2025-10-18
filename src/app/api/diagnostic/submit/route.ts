@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import emailService from '@/lib/email-service'
+import { addNotification } from '@/lib/notifications-memory'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,16 @@ export async function POST(request: NextRequest) {
         <h2>Nouveau diagnostic</h2>
         <pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(body, null, 2))}</pre>
       `,
+    })
+
+    // Notification in-app pour les admins
+    addNotification({
+      userId: 'admin',
+      type: 'info',
+      title: 'Nouveau diagnostic soumis',
+      message: `${body?.contact?.company || body?.contact?.name || 'Prospect'} a soumis un diagnostic`,
+      actionUrl: '/validation-rapports',
+      metadata: { kind: 'diagnostic', sector: body?.sector, score: body?.scoring?.score }
     })
 
     // Accusé pour le visiteur si email fourni

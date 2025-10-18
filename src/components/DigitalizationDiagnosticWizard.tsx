@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ClipboardList, CheckCircle2, ChevronLeft, ChevronRight, FileDown, Calendar, Zap, Info } from 'lucide-react'
+import Link from 'next/link'
 
 interface DiagnosticData {
   sector: string
@@ -44,14 +45,14 @@ const OBJECTIVES = [
 ]
 
 const PROCESSES = [
-  'Ventes / CRM',
-  'Achats / Appros',
-  'Stock / Inventaire',
-  'SAV / Tickets',
-  'RH / Absences',
-  'Devis / Facturation',
-  'Production / Planification',
-  'Conformité / Qualité'
+  'Ventes / CRM (Prospection → Devis → Commande)',
+  'Achats / Appros (Demande → Commande → Réception)',
+  'Stock / Inventaire (Entrées/Sorties, Seuils, Alertes)',
+  'SAV / Tickets (Ouverture → Affectation → Résolution)',
+  'RH / Absences (Demande → Validation → Paie)',
+  'Devis / Facturation (Workflow de validation)',
+  'Production / Planification (Ordres & Charges)',
+  'Conformité / Qualité (Checklist & Audits)'
 ]
 
 const SYSTEMS = [
@@ -440,11 +441,7 @@ export default function DigitalizationDiagnosticWizard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <a
-                href="#"
-                onClick={(e) => { e.preventDefault(); downloadSummary() }}
-                className="flex items-center justify-center gap-2 px-4 py-3 border rounded-lg hover:bg-gray-50"
-              >
+              <a href="#" onClick={(e) => { e.preventDefault(); downloadSummary() }} className="flex items-center justify-center gap-2 px-4 py-3 border rounded-lg hover:bg-gray-50">
                 <FileDown className="h-4 w-4" /> Télécharger la synthèse
               </a>
               <a
@@ -455,12 +452,9 @@ export default function DigitalizationDiagnosticWizard() {
               >
                 <Zap className="h-4 w-4" /> Continuer par WhatsApp
               </a>
-              <a
-                href="/contact"
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-              >
+              <Link href="/contact" className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                 <Calendar className="h-4 w-4" /> Planifier un RDV
-              </a>
+              </Link>
             </div>
           </div>
         )}
