@@ -226,7 +226,7 @@ export default function DigitalizationDiagnosticWizard() {
       scoring: { score, tShirt, priceHint }
     }
     try {
-      const { default: jsPDF } = await import('jspdf')
+      const { jsPDF } = await import('jspdf')
       await import('jspdf-autotable')
       // @ts-ignore
       const doc = new jsPDF({ unit: 'pt', format: 'a4' })
