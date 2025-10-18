@@ -2,6 +2,9 @@ import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { Code, Database, Cloud, BarChart3, Cog, Smartphone, Globe, Shield, CheckCircle, ArrowRight } from 'lucide-react'
+import dynamic from 'next/dynamic'
+
+const DigitalizationDiagnosticWizard = dynamic(() => import('@/components/DigitalizationDiagnosticWizard'), { ssr: false })
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -338,20 +341,9 @@ export default function DigitalisationPage() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Diagnostic gratuit de vos processus actuels et identification des opportunités d'amélioration et d'automatisation
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/contact"
-              className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center justify-center shadow-lg"
-            >
-              Diagnostic Gratuit
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Link>
-            <a
-              href="tel:+2217774382220"
-              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-all duration-300 inline-flex items-center justify-center"
-            >
-              📞 Appeler maintenant
-            </a>
+          {/* Wizard Diagnostic – ancre */}
+          <div id="diagnostic" className="mt-8">
+            <DigitalizationDiagnosticWizard />
           </div>
         </div>
       </section>
