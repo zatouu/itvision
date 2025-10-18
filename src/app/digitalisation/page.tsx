@@ -2,9 +2,7 @@ import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { Code, Database, Cloud, BarChart3, Cog, Smartphone, Globe, Shield, CheckCircle, ArrowRight } from 'lucide-react'
-import dynamic from 'next/dynamic'
-
-const DigitalizationDiagnosticWizard = dynamic(() => import('@/components/DigitalizationDiagnosticWizard'), { ssr: false })
+import DigitalizationDiagnosticWizard from '@/components/DigitalizationDiagnosticWizard'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
