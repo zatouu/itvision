@@ -3,17 +3,18 @@ import jwt from 'jsonwebtoken'
 import { connectDB } from '@/lib/mongodb'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
+import { addNotification } from '@/lib/notifications-memory'
 
 async function verifyTechnicianToken(request: NextRequest) {
-  const token = request.cookies.get('tech-auth-token')?.value || 
+  // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
+  const token = request.cookies.get('auth-token')?.value ||
+                request.cookies.get('tech-auth-token')?.value ||
                 request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) {
-    throw new Error('Token manquant')
-  }
-
+  if (!token) throw new Error('Token manquant')
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return decoded
+  const role = String(decoded.role || '').toUpperCase()
+  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? decoded.userId : undefined)
+  return { ...decoded, role, technicianId }
 }
 
 // POST - Soumettre rapport pour validation
@@ -81,7 +82,9 @@ export async function POST(request: NextRequest) {
     await report.save()
     
     // Notification admin (ici on simule, mais dans un vrai système on enverrait email/push)
-    await notifyAdminNewReport(report)
+    try {
+      await notifyAdminNewReport(report)
+    } catch {}
     
     // Mise à jour statistiques technicien
     const technician = await Technician.findById(technicianId)
@@ -182,6 +185,16 @@ async function notifyAdminNewReport(report: any) {
   // - SMS si urgent
   
   console.log(`🔔 Nouveau rapport en attente de validation: ${report.reportId}`)
+
+  // Ajouter une notification mémoire pour les admins (canal 'admin')
+  addNotification({
+    userId: 'admin',
+    type: 'info',
+    title: 'Nouveau rapport soumis',
+    message: `Rapport ${report.reportId} soumis pour validation`,
+    actionUrl: '/validation-rapports',
+    metadata: { reportMongoId: String(report._id), reportId: report.reportId }
+  })
   
   // Exemple d'envoi d'email (à adapter avec votre service email)
   if (process.env.NODE_ENV === 'production') {

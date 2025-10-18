@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose'
+import crypto from 'crypto'
 
 export interface ITechnician extends Document {
   technicianId: string

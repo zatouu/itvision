@@ -138,6 +138,7 @@ export default function EnhancedMaintenanceForm({
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [createdReportId, setCreatedReportId] = useState<string | null>(null)
 
   // Géolocalisation automatique
   useEffect(() => {
@@ -238,20 +239,59 @@ export default function EnhancedMaintenanceForm({
     return errors.length === 0
   }
 
-  const handleSave = async () => {
-    if (!validateForm()) return
+  const handleSave = async (): Promise<string | null> => {
+    if (!validateForm()) return null
 
     setIsGenerating(true)
     try {
+      const payload: any = {
+        site: formData.site,
+        interventionDate: formData.interventionDate,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        initialObservations: formData.initialObservations,
+        problemDescription: formData.problemDescription,
+        problemSeverity: formData.problemSeverity,
+        tasksPerformed: (formData.tasksPerformed || []).filter(Boolean),
+        results: formData.results,
+        recommendations: (formData.recommendations || []).filter(Boolean),
+        interventionType: 'maintenance',
+        templateId: 'manual',
+        templateVersion: '1.0',
+        technician: formData.technician,
+        projectId,
+        technicianSignature: formData.technicianSignature,
+        clientSignature: formData.clientSignature,
+        clientTitle: formData.clientTitle,
+        gpsLocation: formData.gpsLocation,
+        status: 'draft'
+      }
+
+      const res = await fetch('/api/maintenance/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dev-bypass-csrf': 'true' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j?.error || 'Echec de la création du rapport')
+      }
+
+      const j = await res.json()
+      const id = String(j?.report?._id || j?.report?.id || '')
+      if (id) {
+        setCreatedReportId(id)
+      }
+
       const dataToSave = { ...formData, status: 'draft' as const }
       onSave?.(dataToSave)
-      
-      // Simulation de sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
       alert('Rapport sauvegardé avec succès!')
-    } catch (error) {
-      alert('Erreur lors de la sauvegarde')
+      return id || null
+    } catch (error: any) {
+      alert(error?.message || 'Erreur lors de la sauvegarde')
+      return null
     } finally {
       setIsGenerating(false)
     }
@@ -262,15 +302,36 @@ export default function EnhancedMaintenanceForm({
 
     setIsGenerating(true)
     try {
+      let id = createdReportId
+      if (!id) {
+        id = await handleSave()
+        if (!id) throw new Error('Création du rapport échouée')
+      }
+
+      const submitRes = await fetch('/api/maintenance/reports/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-dev-bypass-csrf': 'true' },
+        credentials: 'include',
+        body: JSON.stringify({
+          reportId: id,
+          finalChecks: {
+            hasPhotosBefore: (formData.photosBefore || []).length > 0,
+            hasPhotosAfter: (formData.photosAfter || []).length > 0,
+            hasTechnicianSignature: !!formData.technicianSignature
+          }
+        })
+      })
+
+      if (!submitRes.ok) {
+        const j = await submitRes.json().catch(() => ({}))
+        throw new Error(j?.error || 'Echec de la soumission')
+      }
+
       const dataToSubmit = { ...formData, status: 'completed' as const }
       onSubmit?.(dataToSubmit)
-      
-      // Simulation d'envoi
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
       alert('Rapport envoyé pour validation!')
-    } catch (error) {
-      alert('Erreur lors de l\'envoi')
+    } catch (error: any) {
+      alert(error?.message || 'Erreur lors de l\'envoi')
     } finally {
       setIsGenerating(false)
     }

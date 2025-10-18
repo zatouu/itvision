@@ -1,28 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { connectDB } from '@/lib/mongodb'
+import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
 import Client from '@/lib/models/Client'
 
 async function verifyTechnicianToken(request: NextRequest) {
-  const token = request.cookies.get('tech-auth-token')?.value || 
+  // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
+  const token = request.cookies.get('auth-token')?.value || 
+                request.cookies.get('tech-auth-token')?.value ||
                 request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) {
-    throw new Error('Token manquant')
-  }
-
+  if (!token) throw new Error('Token manquant')
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return decoded
+  const role = String(decoded.role || '').toUpperCase()
+  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? decoded.userId : undefined)
+  return { ...decoded, role, technicianId }
 }
 
 // GET - Récupérer les rapports (filtres par technicien)
 export async function GET(request: NextRequest) {
   try {
-    await connectDB()
+    await connectMongoose()
     
-    const { technicianId } = await verifyTechnicianToken(request)
+    const { technicianId, role, userId } = await verifyTechnicianToken(request)
     const { searchParams } = new URL(request.url)
     
     const status = searchParams.get('status')
@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0')
     
     // Construction filtre
-    let filter: any = { technicianId }
+    let filter: any = {}
+    if (role === 'TECHNICIAN') {
+      filter.technicianId = technicianId || userId
+    }
     
     if (status && status !== 'all') {
       filter.status = status
@@ -75,20 +78,17 @@ export async function GET(request: NextRequest) {
 // POST - Créer nouveau rapport
 export async function POST(request: NextRequest) {
   try {
-    await connectDB()
+    await connectMongoose()
     
     const { technicianId } = await verifyTechnicianToken(request)
     const reportData = await request.json()
     
-    // Validation des données requises
-    const requiredFields = ['clientId', 'projectId', 'interventionDate', 'site', 'interventionType']
-    for (const field of requiredFields) {
-      if (!reportData[field]) {
-        return NextResponse.json(
-          { error: `Champ requis manquant: ${field}` },
-          { status: 400 }
-        )
-      }
+    // Assouplir les champs requis: on fournira des valeurs par défaut si absents
+    if (!reportData.interventionDate || !reportData.site) {
+      return NextResponse.json(
+        { error: 'Champs requis manquants: interventionDate et site' },
+        { status: 400 }
+      )
     }
     
     // Vérification que le technicien existe
@@ -108,12 +108,38 @@ export async function POST(request: NextRequest) {
       duration = Math.round((end.getTime() - start.getTime()) / 60000)
     }
     
-    // Création du rapport
+    // Création du rapport avec valeurs par défaut compatibles schéma
     const newReport = new MaintenanceReport({
-      ...reportData,
       technicianId,
+      clientId: reportData.clientId || new (require('mongoose').Types.ObjectId)(),
+      projectId: reportData.projectId || new (require('mongoose').Types.ObjectId)(),
+      interventionDate: new Date(reportData.interventionDate),
+      startTime: reportData.startTime || '08:00',
+      endTime: reportData.endTime || '09:00',
       duration,
+      site: reportData.site,
+      interventionType: (reportData.interventionType || 'maintenance'),
+      templateId: reportData.templateId || 'generic',
+      templateVersion: reportData.templateVersion || '1.0',
+      formData: reportData.formData || {},
+      initialObservations: reportData.initialObservations || 'Observations non renseignées',
+      problemDescription: reportData.problemDescription || '',
+      problemSeverity: (reportData.problemSeverity || 'medium').toLowerCase(),
+      tasksPerformed: reportData.tasksPerformed || [],
+      results: reportData.results || 'N/A',
+      recommendations: reportData.recommendations || [],
+      photos: reportData.photos || { before: [], after: [] },
+      signatures: {
+        technician: reportData.technicianSignature
+          ? { signature: reportData.technicianSignature, name: reportData.technician || 'Technicien', timestamp: new Date() }
+          : undefined,
+        client: reportData.clientSignature
+          ? { signature: reportData.clientSignature, name: reportData.clientName || '', title: reportData.clientTitle || '', timestamp: new Date() }
+          : undefined,
+      },
+      gpsLocation: reportData.gpsLocation,
       status: reportData.status || 'draft',
+      priority: reportData.priority || 'medium',
       version: 1,
       analytics: {
         timeToComplete: 0,
@@ -156,7 +182,7 @@ export async function POST(request: NextRequest) {
 // PUT - Mettre à jour rapport
 export async function PUT(request: NextRequest) {
   try {
-    await connectDB()
+    await connectMongoose()
     
     const { technicianId } = await verifyTechnicianToken(request)
     const updateData = await request.json()

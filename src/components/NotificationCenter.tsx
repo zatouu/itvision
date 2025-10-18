@@ -44,7 +44,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/notifications')
+      const response = await fetch('/api/notifications', { credentials: 'include' })
       const data = await response.json()
 
       if (data.success) {
@@ -67,6 +67,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       const response = await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ notificationIds })
       })
 
@@ -88,6 +89,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       const response = await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ markAllAsRead: true })
       })
 
@@ -105,7 +107,8 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const deleteNotification = async (notificationId: string) => {
     try {
       const response = await fetch(`/api/notifications?id=${notificationId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
       const data = await response.json()

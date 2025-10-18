@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
+import { addNotification } from '@/lib/notifications-memory'
 
 interface Notification {
   id: string

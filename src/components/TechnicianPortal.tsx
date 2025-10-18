@@ -189,20 +189,22 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     }
   }
 
-  const handleSaveReport = (data: any) => {
-    console.log('Sauvegarde rapport:', data)
-    // Ici vous pourriez sauvegarder en local ou synchroniser
+  const handleSaveReport = async (data: any) => {
+    try {
+      // Déjà géré dans le formulaire via l'API, on met juste à jour l'état local minimal
+      setStats((prev) => ({ ...prev, pendingReports: prev.pendingReports + 1 }))
+    } catch {}
   }
 
-  const handleSubmitReport = (data: any) => {
-    console.log('Envoi rapport:', data)
-    setCurrentView('dashboard')
-    // Actualiser les stats
-    setStats(prev => ({
-      ...prev,
-      completedToday: prev.completedToday + 1,
-      pendingReports: Math.max(0, prev.pendingReports - 1)
-    }))
+  const handleSubmitReport = async (data: any) => {
+    try {
+      setCurrentView('dashboard')
+      setStats(prev => ({
+        ...prev,
+        completedToday: prev.completedToday + 1,
+        pendingReports: Math.max(0, prev.pendingReports - 1)
+      }))
+    } catch {}
   }
 
   // Redirection hors rendu pour éviter l'avertissement React
