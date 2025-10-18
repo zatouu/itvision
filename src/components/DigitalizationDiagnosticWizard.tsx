@@ -82,6 +82,96 @@ export default function DigitalizationDiagnosticWizard() {
 
   const totalSteps = 6
 
+  // Recettes par secteur (pré-sélections recommandées)
+  const SECTOR_RECIPES: Record<string, Partial<DiagnosticData>> = {
+    'Retail': {
+      objectives: ['Réduire le temps de traitement', 'Unifier les données et les outils', 'Offrir un portail client'],
+      processes: [
+        'Ventes / CRM (Prospection → Devis → Commande)',
+        'Stock / Inventaire (Entrées/Sorties, Seuils, Alertes)',
+        'Devis / Facturation (Workflow de validation)'
+      ],
+      systems: ['WhatsApp Business', 'Paiements (Stripe / PayDunya)', 'Suite Google / O365'],
+      constraints: { budget: 'normal', timeline: 'standard', compliance: ['SLAs client', 'RGPD'] }
+    },
+    'Services B2B': {
+      objectives: ['Automatiser les tâches répétitives', 'Offrir un portail client', 'Mettre en place des KPI/BI'],
+      processes: [
+        'Ventes / CRM (Prospection → Devis → Commande)',
+        'SAV / Tickets (Ouverture → Affectation → Résolution)',
+        'Devis / Facturation (Workflow de validation)'
+      ],
+      systems: ['WhatsApp Business', 'Drive / GED', 'Suite Google / O365'],
+      constraints: { budget: 'normal', timeline: 'rapide', compliance: ['SLAs client', 'RGPD'] }
+    },
+    'Industrie légère': {
+      objectives: ['Améliorer la traçabilité', 'Mettre en place des KPI/BI', 'Automatiser les tâches répétitives'],
+      processes: [
+        'Production / Planification (Ordres & Charges)',
+        'Achats / Appros (Demande → Commande → Réception)',
+        'Stock / Inventaire (Entrées/Sorties, Seuils, Alertes)'
+      ],
+      systems: ['Comptabilité (ex: Sage/Odoo)', 'Suite Google / O365'],
+      constraints: { budget: 'premium', timeline: 'standard', compliance: ['ISO'] }
+    },
+    'Immobilier': {
+      objectives: ['Offrir un portail client', 'Unifier les données et les outils', 'Réduire le temps de traitement'],
+      processes: [
+        'SAV / Tickets (Ouverture → Affectation → Résolution)',
+        'Devis / Facturation (Workflow de validation)',
+        'Conformité / Qualité (Checklist & Audits)'
+      ],
+      systems: ['WhatsApp Business', 'Drive / GED'],
+      constraints: { budget: 'normal', timeline: 'standard', compliance: ['SLAs client', 'RGPD'] }
+    },
+    'Éducation': {
+      objectives: ['Offrir un portail client', 'Améliorer la traçabilité'],
+      processes: [
+        'SAV / Tickets (Ouverture → Affectation → Résolution)',
+        'RH / Absences (Demande → Validation → Paie)'
+      ],
+      systems: ['Suite Google / O365'],
+      constraints: { budget: 'serre', timeline: 'rapide', compliance: ['RGPD'] }
+    },
+    'Santé': {
+      objectives: ['Améliorer la traçabilité', 'Mettre en place des KPI/BI'],
+      processes: [
+        'Conformité / Qualité (Checklist & Audits)',
+        'Achats / Appros (Demande → Commande → Réception)'
+      ],
+      systems: ['Suite Google / O365'],
+      constraints: { budget: 'premium', timeline: 'urgent', compliance: ['RGPD', 'ISO'] }
+    },
+    'Autre': {
+      objectives: ['Réduire le temps de traitement', 'Automatiser les tâches répétitives'],
+      processes: ['Ventes / CRM (Prospection → Devis → Commande)'],
+      systems: ['Suite Google / O365'],
+      constraints: { budget: 'normal', timeline: 'standard', compliance: [] }
+    }
+  }
+
+  const mergeUnique = (base: string[], add?: string[]) => {
+    const set = new Set(base)
+    ;(add || []).forEach(v => set.add(v))
+    return Array.from(set)
+  }
+
+  const applySectorRecipe = () => {
+    const recipe = SECTOR_RECIPES[data.sector]
+    if (!recipe) return
+    setData(prev => ({
+      ...prev,
+      objectives: mergeUnique(prev.objectives, recipe.objectives),
+      processes: mergeUnique(prev.processes, recipe.processes),
+      systems: mergeUnique(prev.systems, recipe.systems),
+      constraints: {
+        budget: (recipe.constraints?.budget as any) || prev.constraints.budget,
+        timeline: (recipe.constraints?.timeline as any) || prev.constraints.timeline,
+        compliance: mergeUnique(prev.constraints.compliance, recipe.constraints?.compliance as any)
+      }
+    }))
+  }
+
   const canNext = useMemo(() => {
     if (step === 1) return data.sector.trim().length > 0 && data.objectives.length > 0
     if (step === 2) return data.processes.length > 0
@@ -225,6 +315,16 @@ export default function DigitalizationDiagnosticWizard() {
                   </button>
                 ))}
               </div>
+              {data.sector && (
+                <div className="mt-3 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm">
+                  <div className="text-blue-800">
+                    Suggestion {data.sector}: objectifs, processus et intégrations usuels.
+                  </div>
+                  <button onClick={applySectorRecipe} className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 inline-flex items-center gap-2">
+                    <Zap className="h-4 w-4" /> Appliquer
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
