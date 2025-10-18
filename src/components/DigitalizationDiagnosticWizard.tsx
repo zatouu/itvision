@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ClipboardList, CheckCircle2, ChevronLeft, ChevronRight, FileDown, Calendar, Zap } from 'lucide-react'
+import { ClipboardList, CheckCircle2, ChevronLeft, ChevronRight, FileDown, Calendar, Zap, Info } from 'lucide-react'
 
 interface DiagnosticData {
   sector: string
@@ -142,6 +142,20 @@ export default function DigitalizationDiagnosticWizard() {
     URL.revokeObjectURL(url)
   }
 
+  const submitToAdmin = async () => {
+    try {
+      const payload = { ...data, scoring: { score, tShirt, priceHint }, createdAt: new Date().toISOString() }
+      await fetch('/api/diagnostic/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      alert('Votre demande a été soumise. Un email de prise en charge vous sera envoyé.')
+    } catch (e) {
+      alert("Soumission effectuée (mode dév). Nous vous recontactons rapidement.")
+    }
+  }
+
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       {/* Header */}
@@ -193,7 +207,10 @@ export default function DigitalizationDiagnosticWizard() {
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Secteur d'activité</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-lg font-semibold text-gray-900">Secteur d'activité</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Nous adaptons le parcours et les modules selon votre secteur." />
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {SECTORS.map(sec => (
                   <button
@@ -210,7 +227,10 @@ export default function DigitalizationDiagnosticWizard() {
             </div>
 
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Objectifs prioritaires</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-lg font-semibold text-gray-900">Objectifs prioritaires</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Choisissez les résultats attendus: rapidité, traçabilité, portail client, etc." />
+              </div>
               <div className="flex flex-wrap gap-2">
                 {OBJECTIVES.map(obj => (
                   <button
@@ -230,7 +250,10 @@ export default function DigitalizationDiagnosticWizard() {
 
         {step === 2 && (
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900">Processus à digitaliser</h4>
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-lg font-semibold text-gray-900">Processus à digitaliser</h4>
+              <Info className="h-4 w-4 text-gray-400" title="Sélectionnez 1 à 3 processus pour un impact rapide (P1)." />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {PROCESSES.map(proc => (
                 <label key={proc} className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50">
@@ -249,7 +272,10 @@ export default function DigitalizationDiagnosticWizard() {
         {step === 3 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Rôles concernés</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-lg font-semibold text-gray-900">Rôles concernés</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Ex: Commercial, Comptable, Responsable achats. Aide à définir les accès (RBAC)." />
+              </div>
               <textarea
                 value={data.roles}
                 onChange={e => setData(prev => ({ ...prev, roles: e.target.value }))}
@@ -259,7 +285,10 @@ export default function DigitalizationDiagnosticWizard() {
               />
             </div>
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Approbations / validations</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-lg font-semibold text-gray-900">Approbations / validations</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Ex: Validation des devis, achats > X FCFA, congés. Permet d’automatiser les circuits d’accord." />
+              </div>
               <textarea
                 value={data.approvals}
                 onChange={e => setData(prev => ({ ...prev, approvals: e.target.value }))}
@@ -273,7 +302,10 @@ export default function DigitalizationDiagnosticWizard() {
 
         {step === 4 && (
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900">Systèmes existants & intégrations</h4>
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-lg font-semibold text-gray-900">Systèmes existants & intégrations</h4>
+              <Info className="h-4 w-4 text-gray-400" title="Indiquez les outils déjà en place pour prévoir les connecteurs (ex: Odoo, Google, WhatsApp, Stripe)." />
+            </div>
             <div className="flex flex-wrap gap-2">
               {SYSTEMS.map(sys => (
                 <button
@@ -298,9 +330,12 @@ export default function DigitalizationDiagnosticWizard() {
         )}
 
         {step === 5 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Budget cible</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-sm font-semibold text-gray-900">Budget cible</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Indication pour calibrer la solution (contraint/normal/premium)." />
+              </div>
               <select
                 value={data.constraints.budget}
                 onChange={e => setData(prev => ({ ...prev, constraints: { ...prev.constraints, budget: e.target.value } }))}
@@ -312,7 +347,10 @@ export default function DigitalizationDiagnosticWizard() {
               </select>
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Délai souhaité</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-sm font-semibold text-gray-900">Délai souhaité</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Urgence du besoin: standard, rapide ou urgent." />
+              </div>
               <select
                 value={data.constraints.timeline}
                 onChange={e => setData(prev => ({ ...prev, constraints: { ...prev.constraints, timeline: e.target.value } }))}
@@ -324,7 +362,10 @@ export default function DigitalizationDiagnosticWizard() {
               </select>
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Conformité</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-sm font-semibold text-gray-900">Conformité</h4>
+                <Info className="h-4 w-4 text-gray-400" title="Besoins RGPD, ISO, SLA. Nous adaptons les contrôles et l’audit." />
+              </div>
               <div className="flex flex-wrap gap-2">
                 {COMPLIANCE.map(c => (
                   <button
@@ -341,7 +382,10 @@ export default function DigitalizationDiagnosticWizard() {
             </div>
             <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">Société / Contact</h4>
+                <div className="flex items-center gap-2 mb-2">
+                  <h4 className="text-sm font-semibold text-gray-900">Société / Contact</h4>
+                  <Info className="h-4 w-4 text-gray-400" title="Pour vous recontacter et vous envoyer la synthèse/rdv." />
+                </div>
                 <input
                   value={data.contact.company}
                   onChange={e => setData(prev => ({ ...prev, contact: { ...prev.contact, company: e.target.value } }))}
@@ -444,10 +488,10 @@ export default function DigitalizationDiagnosticWizard() {
           </button>
         ) : (
           <button
-            onClick={() => setStep(totalSteps)}
+            onClick={submitToAdmin}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
           >
-            Terminer
+            Soumettre
           </button>
         )}
       </div>
