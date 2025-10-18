@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calculator, Camera, Shield, Home, Wifi, Plus, Minus, Zap, TrendingUp } from 'lucide-react'
+import { Calculator, Camera, Shield, Home, Wifi, Plus, Minus, Zap, TrendingUp, Search } from 'lucide-react'
 
 interface QuoteItem {
   id: string
@@ -19,6 +19,8 @@ export default function SmartQuoteCalculator() {
   const [complexity, setComplexity] = useState('standard')
   const [installation, setInstallation] = useState(true)
   const [maintenance, setMaintenance] = useState(false)
+  const [selectedService, setSelectedService] = useState<string>('Vidéosurveillance')
+  const [searchTerm, setSearchTerm] = useState<string>('')
 
   const productCategories = [
     {
@@ -202,24 +204,73 @@ export default function SmartQuoteCalculator() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
         {/* Sélection produits */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Sélection de service (compact, innovatif) */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">1. Choisissez un service</h3>
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {productCategories.map((cat) => {
+                const Icon = cat.icon
+                const isActive = selectedService === cat.name
+                return (
+                  <button
+                    key={cat.name}
+                    onClick={() => setSelectedService(cat.name)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                    }`}
+                    aria-pressed={isActive}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-blue-600'}`} />
+                    {cat.name}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Barre de recherche équipements */}
+            <div className="mt-3">
+              <div className="relative">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher un équipement, une marque, un modèle..."
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">1. Sélectionnez vos équipements</h3>
-            
-            {productCategories.map((category) => {
-              const IconComponent = category.icon
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">2. Sélectionnez vos équipements</h3>
+
+            {(() => {
+              const active = productCategories.find(c => c.name === selectedService)
+              if (!active) return null
+              const IconComponent = active.icon
+              const filteredItems = active.items.filter((it: any) => {
+                if (!searchTerm.trim()) return true
+                const q = searchTerm.toLowerCase()
+                return (
+                  it.name.toLowerCase().includes(q) ||
+                  (it.features || []).join(' ').toLowerCase().includes(q)
+                )
+              })
               return (
-                <div key={category.name} className="mb-6">
+                <div className="mb-6">
                   <h4 className="font-medium text-gray-800 mb-3 flex items-center">
                     <IconComponent className="h-5 w-5 mr-2 text-blue-600" />
-                    {category.name}
+                    {active.name}
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {category.items.map((item) => (
+                    {filteredItems.map((item: any) => (
                       <div key={item.id} className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
                         <div className="flex justify-between items-start mb-2">
                           <h5 className="font-medium text-sm text-gray-900">{item.name}</h5>
                           <button
-                            onClick={() => addItem(category.name, item)}
+                            onClick={() => addItem(active.name, item)}
                             className="bg-blue-600 text-white p-1 rounded hover:bg-blue-700 transition-colors"
                           >
                             <Plus className="h-4 w-4" />
@@ -234,14 +285,17 @@ export default function SmartQuoteCalculator() {
                       </div>
                     ))}
                   </div>
+                  {filteredItems.length === 0 && (
+                    <div className="text-center text-gray-500 py-8">Aucun équipement ne correspond à votre recherche</div>
+                  )}
                 </div>
               )
-            })}
+            })()}
           </div>
 
           {/* Paramètres projet */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">2. Paramètres du projet</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Paramètres du projet</h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
