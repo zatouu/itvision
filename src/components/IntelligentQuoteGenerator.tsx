@@ -163,6 +163,9 @@ export default function IntelligentQuoteGenerator() {
   const [activeTab, setActiveTab] = useState('builder')
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([])
   const [showPreview, setShowPreview] = useState(false)
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false)
+  const [catalogService, setCatalogService] = useState<string>('videosurveillance')
+  const [catalogSearch, setCatalogSearch] = useState<string>('')
 
   // Templates de devis par service
   useEffect(() => {
@@ -821,6 +824,9 @@ export default function IntelligentQuoteGenerator() {
     const template = templates.find(t => t.id === templateId)
     if (!template) return
 
+    setSelectedTemplate(template)
+    setCatalogService(template.serviceType)
+
     const newQuote: ProjectQuote = {
       id: `QUO-${new Date().getFullYear()}-${String(Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / (2**32) * 1000)).padStart(3, '0')}`,
       projectId: projectData.projectId || 'PRJ-NEW',
@@ -860,6 +866,55 @@ export default function IntelligentQuoteGenerator() {
 
     setCurrentQuote(newQuote)
     calculateTotals(newQuote)
+  }
+
+  const serviceTypes = Array.from(new Set(templates.map(t => t.serviceType)))
+
+  const getCatalogItemsForService = (service: string): QuoteItem[] => {
+    const t = templates.find(tmp => tmp.serviceType === service)
+    if (!t) return []
+    const items = t.sections
+      .filter(s => s.type === 'equipment' || s.type === 'materials')
+      .flatMap(s => s.items)
+    if (!catalogSearch.trim()) return items
+    const q = catalogSearch.toLowerCase()
+    return items.filter(i =>
+      i.name.toLowerCase().includes(q) ||
+      (i.description || '').toLowerCase().includes(q) ||
+      (i.brand || '').toLowerCase().includes(q) ||
+      (i.model || '').toLowerCase().includes(q) ||
+      (i.category || '').toLowerCase().includes(q)
+    )
+  }
+
+  const addItemFromCatalog = (item: QuoteItem) => {
+    if (!currentQuote) {
+      // Créer un devis à la volée sur le service courant si aucun devis en cours
+      const tmp = templates.find(t => t.serviceType === catalogService)
+      if (!tmp) return
+      createQuoteFromTemplate(tmp.id, { projectId: 'PRJ-NEW' })
+      // Le setState étant async, reprogrammer l'ajout dans le prochain tick
+      setTimeout(() => addItemFromCatalog(item), 0)
+      return
+    }
+
+    const targetSectionIndex = currentQuote.sections.findIndex(s => s.type === 'equipment')
+    const targetIndex = targetSectionIndex >= 0 ? targetSectionIndex : 0
+    const cloned: QuoteItem = {
+      ...item,
+      id: `${item.id}_${Date.now()}`,
+      quantity: 1,
+      totalPrice: item.unitPrice
+    }
+    const updated = {
+      ...currentQuote,
+      sections: currentQuote.sections.map((s, idx) => idx === targetIndex ? {
+        ...s,
+        isExpanded: true,
+        items: [...s.items, cloned]
+      } : s)
+    }
+    calculateTotals(updated)
   }
 
   const calculateTotals = (quote: ProjectQuote) => {
@@ -1309,6 +1364,18 @@ export default function IntelligentQuoteGenerator() {
                     )}
                   </div>
                 ))}
+
+                {/* Bouton flottant pour catalogue d'équipements */}
+                <div className="sticky bottom-4 right-4 flex justify-end mt-6">
+                  <button
+                    onClick={() => setIsCatalogOpen(true)}
+                    className="group flex items-center space-x-3 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-emerald-500 text-white shadow-lg hover:shadow-xl transition-all hover:scale-[1.01]"
+                  >
+                    <Package className="h-5 w-5" />
+                    <span>Ajouter des équipements</span>
+                    <Zap className="h-4 w-4 opacity-80 group-hover:animate-pulse" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1539,6 +1606,114 @@ export default function IntelligentQuoteGenerator() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Drawer Catalogue d'Équipements (innovatif) */}
+      {isCatalogOpen && (
+        <div className="fixed inset-0 z-50">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setIsCatalogOpen(false)}
+          />
+
+          {/* Panel */}
+          <div className="absolute right-0 top-0 h-full w-full max-w-3xl bg-white shadow-2xl border-l border-gray-200 animate-[slideIn_.2s_ease-out]">
+            {/* Header */}
+            <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-emerald-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Layers className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Catalogue d'Équipements</h3>
+                </div>
+                <button
+                  onClick={() => setIsCatalogOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                  aria-label="Fermer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Services chips */}
+              <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
+                {serviceTypes.map((service) => (
+                  <button
+                    key={service}
+                    onClick={() => setCatalogService(service)}
+                    className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                      catalogService === service
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="capitalize">{service.replace('_', ' ')}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="mt-4">
+                <div className="relative">
+                  <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Rechercher équipement, marque, modèle..."
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="h-[calc(100%-140px)] overflow-y-auto p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                {getCatalogItemsForService(catalogService).map((it) => (
+                  <div key={`${it.id}`} className="border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                    <div className="flex items-start justify-between">
+                      <div className="pr-4">
+                        <h4 className="font-medium text-gray-900">{it.name}</h4>
+                        <p className="text-sm text-gray-600 line-clamp-2">{it.description}</p>
+                        {(it.brand || it.model) && (
+                          <p className="text-xs text-gray-500 mt-1">{it.brand} {it.model}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-blue-700">
+                          {new Intl.NumberFormat('fr-FR').format(it.unitPrice)} FCFA
+                        </div>
+                        <div className="text-xs text-gray-500">par {it.unit || 'unité'}</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex flex-wrap gap-1">
+                        {it.category && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">{it.category}</span>
+                        )}
+                        {it.margin > 0 && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-50 text-emerald-700">Marge {it.margin}%</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => addItemFromCatalog(it)}
+                        className="inline-flex items-center space-x-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Ajouter</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {getCatalogItemsForService(catalogService).length === 0 && (
+                <div className="text-center text-gray-500 py-12">Aucun équipement pour cette recherche</div>
+              )}
+            </div>
           </div>
         </div>
       )}
