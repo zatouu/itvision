@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ClipboardList, CheckCircle2, ChevronLeft, ChevronRight, FileDown, Calendar, Zap, Info } from 'lucide-react'
-import dynamic from 'next/dynamic'
-const genPdf = () => import('@/lib/pdf').then(m => m.generateDiagnosticPdf).catch(() => null)
+// PDF libs chargées à la demande côté client pour éviter tout coût SSR
 import Link from 'next/link'
 
 interface DiagnosticData {
@@ -226,18 +225,55 @@ export default function DigitalizationDiagnosticWizard() {
       createdAt: new Date().toISOString(),
       scoring: { score, tShirt, priceHint }
     }
-    const fn = await genPdf()
-    if (fn) {
-      const bytes = fn(payload)
-      const blob = new Blob([bytes], { type: 'application/pdf' })
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      await import('jspdf-autotable')
+      // @ts-ignore
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      doc.setFillColor(16, 185, 129)
+      doc.rect(0, 0, 595, 80, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(18)
+      doc.text('IT Vision Plus', 40, 40)
+      doc.setFontSize(11)
+      doc.text('Diagnostic de digitalisation PME', 40, 60)
+      doc.setTextColor(33, 33, 33)
+      doc.setFontSize(14)
+      doc.text('Résumé', 40, 110)
+      doc.setFontSize(10)
+      const lines: any[] = [
+        ['Date', new Date(payload.createdAt).toLocaleString('fr-FR')],
+        ['Société', payload?.contact?.company || '-'],
+        ['Contact', `${payload?.contact?.name || ''} ${payload?.contact?.email || ''}`.trim() || '-'],
+        ['Secteur', payload?.sector || '-'],
+        ['Objectifs', (payload?.objectives || []).join(', ') || '-'],
+        ['Processus', (payload?.processes || []).join(', ') || '-'],
+        ['Systèmes', (payload?.systems || []).join(', ') || '-'],
+        [
+          'Contraintes',
+          `Budget: ${payload?.constraints?.budget || '-'} | Délai: ${payload?.constraints?.timeline || '-'} | Conformité: ${(payload?.constraints?.compliance || []).join(', ') || '-'}`
+        ],
+        ['Score', `${payload?.scoring?.score || '-'} / 10`],
+        ['Taille', payload?.scoring?.tShirt || '-'],
+        ['Fourchette', payload?.scoring?.priceHint || '-']
+      ]
+      // @ts-ignore
+      doc.autoTable({ startY: 130, head: [['Champ', 'Valeur']], body: lines, styles: { cellPadding: 6, fontSize: 10 } })
+      const pageHeight = doc.internal.pageSize.getHeight()
+      doc.setDrawColor(229, 231, 235)
+      doc.line(40, pageHeight - 60, 555, pageHeight - 60)
+      doc.setFontSize(9)
+      doc.setTextColor(100, 116, 139)
+      doc.text('IT Vision Plus • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
+      doc.text('www.itvisionplus.sn • contact@itvisionplus.sn • +221 77 413 34 40', 40, pageHeight - 24)
+      const blob = doc.output('blob')
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = `diagnostic-${Date.now()}.pdf`
       a.click()
       URL.revokeObjectURL(url)
-    } else {
-      // fallback JSON si lib indisponible
+    } catch (e) {
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
