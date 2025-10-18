@@ -2,6 +2,42 @@
 
 > Document vivant à enrichir. Chaque fonctionnalité inclut: description, faisabilité (tech/ops), impact client (apport), dépendances.
 
+## 0. Orchestrateur de Digitalisation PME (agnostique métier)
+- Description: Un parcours guidé pour collecter le besoin client (tous secteurs), qualifier les processus à digitaliser, générer automatiquement une proposition (parcours, écrans, données, intégrations), planifier le projet et suivre l’exécution.
+- Faisabilité: Haute. Formulaires dynamiques + rules engine (JSON), génération d’un backlog initial (templates), workflow d’approbation, signature et onboarding.
+- Apport: Accélère la vente et l’exécution, cadre clair, industrialise la prise en charge multi-secteurs.
+- Dépendances: Modèle de données “Process Blueprint”, templates UI/process, connecteurs standards.
+
+### 0.a. Portail Client – Recueil et qualification du besoin
+- Description: Wizard multi-étapes (secteur, taille, objectifs, processus à digitaliser, systèmes existants, contraintes) avec scoring d’opportunité et chiffrage indicatif.
+- Faisabilité: Haute. Front Next.js + schémas JSON & pondérations; export PDF du besoin.
+- Apport: Moins d’ateliers, meilleure précision, cycle de vente raccourci.
+- Dépendances: Modèle de questions par secteur, moteurs de scoring.
+
+### 0.b. Blueprint Process – Modélisation rapide
+- Description: Mapper les processus (BPMN light), données, rôles, règles, exceptions; générer des écrans mock et une API de base.
+- Faisabilité: Moyenne. Éditeur graphique lightweight (diagram-js) et générateurs.
+- Apport: Projection rapide, alignement client, réduction des risques.
+- Dépendances: Bibliothèque de blocs (formulaire CRUD, approbations, tableau, dashboard).
+
+### 0.c. Devis & Contrat automatisés
+- Description: Générer automatiquement devis, planning par lots, livrables, SLA, et contrat; signature électronique.
+- Faisabilité: Haute. Templates docs (Docx/PDF), e-sign.
+- Apport: Vitesse commerciale, professionnalisme.
+- Dépendances: Service signature, templates juridiques.
+
+### 0.d. Onboarding & Projet – Exécution industrialisée
+- Description: Backlog JIRA/GitHub auto, environnements (Keycloak, API, DB), pipeline CI/CD, tickets par lot (analyse, build, tests, UAT), reporting hebdo.
+- Faisabilité: Haute. Scripts infra, gabarits de repo.
+- Apport: Délai de mise en prod réduit, qualité stable.
+- Dépendances: DevOps, templates mono/micro-services.
+
+### 0.e. Catalogue de Modules Transverses (agnostiques secteur)
+- Description: Modules prêts à l’emploi: CRM léger, tickets, devis/facturation, stock/simple ERP, RH, approbations, documents, notifications, intégrations (O365/Google/WhatsApp/Stripe/Odoo).
+- Faisabilité: Haute progressive. Composants réutilisables et adaptables.
+- Apport: Time-to-value, coûts maîtrisés, personnalisation.
+- Dépendances: Bibliothèque UI/Back réutilisable, contrôles RBAC.
+
 ## 1. Assistant Devis AR (Réalité Augmentée)
 - Description: Application mobile web (PWA) permettant de scanner les pièces (caméra smartphone), placer virtuellement caméras/lecteurs/DM et générer une proposition.
 - Faisabilité: Moyenne. WebAR via WebXR + librairies (8thWall/Zappar/Three.js). Nécessite calibration simple et modèles 3D light. PWA offline-first.
@@ -77,7 +113,8 @@
 ---
 
 ## Roadmap de mise en œuvre (suggestion)
-- Trimestre 1: Keycloak + microservice Produits, Suivi SLA, Notifications, Boutique MRO (lecture), Portail conformité (MVP)
-- Trimestre 2: Devis WhatsApp, Simulation 2D, IA triage incidents (MVP), KPI Énergie
-- Trimestre 3: AR Devis (pilote), Maintenance prédictive (v1), Télémaintenance sécurisée (pilote)
-- En continu: Intégrations, Assistant IA
+1) Fondations Orchestrateur (0a–0d) + Keycloak; Modules transverses (0e) – MVP
+2) Devis WhatsApp, Suivi SLA, Portail conformité, Boutique MRO (lecture)
+3) Simulation 2D, IA triage incidents (MVP), KPI Énergie
+4) AR Devis (pilote), Maintenance prédictive (v1), Télémaintenance (pilote)
+Toujours: Intégrations, Assistant IA
