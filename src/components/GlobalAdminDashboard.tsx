@@ -735,22 +735,11 @@ export default function GlobalAdminDashboard() {
         </div>
       )}
 
-      {/* Gestion des Projets - Redirection */}
+      {/* Gestion des Projets - Intégration directe */}
       {activeTab === 'projects' && (
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-          <Briefcase className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">Gestion Complète des Projets</h3>
-          <p className="text-gray-600 mb-6">
-            Accédez au système complet de gestion de projets avec workflows par service
-          </p>
-          <a
-            href="/gestion-projets"
-            className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Briefcase className="h-5 w-5" />
-            <span>Ouvrir Gestion Projets</span>
-            <ChevronRight className="h-4 w-4" />
-          </a>
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">🏗️ Gestion de Projets IT Vision</h3>
+          <iframe src="/gestion-projets" className="w-full h-[80vh] rounded-xl border" />
         </div>
       )}
 
