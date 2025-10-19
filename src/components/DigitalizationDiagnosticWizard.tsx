@@ -634,7 +634,7 @@ export default function DigitalizationDiagnosticWizard() {
         ) : (
           <button
             onClick={submitToAdmin}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
           >
             Soumettre
           </button>
