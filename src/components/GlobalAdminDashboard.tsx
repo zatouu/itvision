@@ -62,6 +62,14 @@ import {
 } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
 import AdminAnalytics from './AdminAnalytics'
+import dynamic from 'next/dynamic'
+
+const ProjectManagementSystem = dynamic(() => import('@/components/ProjectManagementSystem'), {
+  ssr: false,
+  loading: () => (
+    <div className="bg-white rounded-2xl shadow p-6 text-gray-600">Chargement de la Gestion de Projets…</div>
+  )
+})
 
 interface Project {
   id: string
@@ -140,6 +148,7 @@ export default function GlobalAdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showProjectDetail, setShowProjectDetail] = useState(false)
+  const [newProjectSignal, setNewProjectSignal] = useState(0)
 
   // Données simulées complètes IT Vision
   useEffect(() => {
@@ -480,7 +489,10 @@ export default function GlobalAdminDashboard() {
           <div className="flex items-center space-x-4">
             <NotificationCenter />
             
-            <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            <button
+              onClick={() => { setActiveTab('projects'); setNewProjectSignal((s) => s + 1) }}
+              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+            >
               <Plus className="h-4 w-4" />
               <span>Nouveau Projet</span>
             </button>
@@ -735,11 +747,11 @@ export default function GlobalAdminDashboard() {
         </div>
       )}
 
-      {/* Gestion des Projets - Intégration directe */}
+      {/* Gestion des Projets - Intégration directe (sans iframe) */}
       {activeTab === 'projects' && (
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-xl font-bold text-gray-900 mb-6">🏗️ Gestion de Projets IT Vision</h3>
-          <iframe src="/gestion-projets" className="w-full h-[80vh] rounded-xl border" />
+          <ProjectManagementSystem openNewProjectSignal={newProjectSignal} />
         </div>
       )}
 

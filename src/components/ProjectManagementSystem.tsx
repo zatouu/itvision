@@ -230,7 +230,11 @@ interface Document {
   clientVisible: boolean
 }
 
-export default function ProjectManagementSystem() {
+interface ProjectManagementSystemProps {
+  openNewProjectSignal?: number
+}
+
+export default function ProjectManagementSystem({ openNewProjectSignal }: ProjectManagementSystemProps) {
   const [activeTab, setActiveTab] = useState('projects')
   const [projects, setProjects] = useState<Project[]>([])
   const [serviceTemplates, setServiceTemplates] = useState<ServiceTemplate[]>([])
@@ -1718,6 +1722,14 @@ export default function ProjectManagementSystem() {
       ])
     })()
   }, [])
+
+  // Ouvre la modale de création lorsqu'on reçoit un signal externe
+  useEffect(() => {
+    if (openNewProjectSignal && openNewProjectSignal > 0) {
+      createNewProject()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNewProjectSignal])
 
   const createNewProject = () => {
     setNewProject({
