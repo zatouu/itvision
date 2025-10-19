@@ -197,6 +197,8 @@ export async function PUT(request: NextRequest) {
           address: updateData.address ?? existingProject.address,
           status: updateData.status ?? existingProject.status,
           endDate: updateData.endDate ? new Date(updateData.endDate) : null,
+          currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
+          progress: typeof updateData.progress === 'number' ? updateData.progress : existingProject.progress,
           updatedAt: new Date()
         }
       }

@@ -8,6 +8,9 @@ export interface IProject extends Document {
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'ON_HOLD'
   startDate: Date
   endDate?: Date | null
+  // Champs UI supplémentaires
+  currentPhase?: string
+  progress?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -20,6 +23,8 @@ const ProjectSchema = new Schema<IProject>({
   status: { type: String, enum: ['ACTIVE', 'COMPLETED', 'CANCELLED', 'ON_HOLD'], default: 'ACTIVE', index: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date },
+  currentPhase: { type: String, default: '' },
+  progress: { type: Number, default: 0 },
 }, { timestamps: true })
 
 ProjectSchema.index({ clientId: 1, createdAt: -1 })

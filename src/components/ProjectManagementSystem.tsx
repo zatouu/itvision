@@ -1838,6 +1838,11 @@ export default function ProjectManagementSystem() {
     const updated = { ...selectedProject, currentPhase: next || selectedProject.currentPhase, progress: newProgress }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    ;(async()=>{
+      try {
+        await fetch('/api/projects/advance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ id: updated.id, nextPhase: updated.currentPhase, progress: updated.progress }) })
+      } catch {}
+    })()
   }
 
   const getStatusColor = (status: string) => {
