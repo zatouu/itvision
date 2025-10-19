@@ -238,6 +238,8 @@ export default function ProjectManagementSystem() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [newProject, setNewProject] = useState<Partial<Project>>({})
   const [selectedService, setSelectedService] = useState<ServiceTemplate | null>(null)
+  const [showProjectModal, setShowProjectModal] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Templates de services IT Vision
   useEffect(() => {
@@ -1538,8 +1540,31 @@ export default function ProjectManagementSystem() {
       }
     ])
 
-    // Projets exemple
-    setProjects([
+    // Charger via API (fallback données exemple si échec)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/projects', { credentials: 'include' })
+        if (res.ok) {
+          const j = await res.json()
+          if (j.success && Array.isArray(j.projects)) {
+            const mapped: Project[] = j.projects.map((p: any) => ({
+              id: String(p._id),
+              name: p.name,
+              description: p.description || '',
+              serviceType: 'visiophonie',
+              client: { company: p.clientId?.name || 'Client', contact: p.clientId?.name || '', phone: p.clientId?.phone || '', email: p.clientId?.email || '', address: p.address },
+              site: { name: p.address, address: p.address, access: '', constraints: [] },
+              status: 'lead', currentPhase: 'phase_1', progress: 0, value: 0, margin: 0,
+              startDate: new Date(p.startDate).toISOString().split('T')[0], endDate: p.endDate ? new Date(p.endDate).toISOString().split('T')[0] : '',
+              assignedTo: [], milestones: [], quote: null, products: [], timeline: [], risks: [], documents: [], clientAccess: false
+            }))
+            setProjects(mapped)
+            return
+          }
+        }
+      } catch {}
+      // Fallback exemples
+      setProjects([
       {
         id: 'PRJ-2024-001',
         name: 'Visiophonie Résidence Almadies',
@@ -1680,7 +1705,8 @@ export default function ProjectManagementSystem() {
         ],
         clientAccess: true
       }
-    ])
+      ])
+    })()
   }, [])
 
   const createNewProject = () => {
@@ -1709,7 +1735,7 @@ export default function ProjectManagementSystem() {
     setNewProject(prev => ({ ...prev, serviceType: serviceId }))
   }
 
-  const saveProject = () => {
+  const saveProject = async () => {
     if (!selectedService || !newProject.client?.company) return
 
     const projectId = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`
@@ -1755,10 +1781,63 @@ export default function ProjectManagementSystem() {
       clientAccess: false
     }
 
+    // Persistance API si disponible
+    try {
+      setIsSaving(true)
+      const payload = {
+        name: project.name,
+        description: project.description,
+        address: project.site.address,
+        clientId: (projects[0] as any)?.clientId || '000000000000000000000000',
+        startDate: project.startDate
+      }
+      await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) })
+    } catch {} finally { setIsSaving(false) }
+
     setProjects(prev => [...prev, project])
     setShowNewProjectModal(false)
     setNewProject({})
     setSelectedService(null)
+  }
+
+  const openProjectModal = (project: Project) => {
+    setSelectedProject(project)
+    setShowProjectModal(true)
+  }
+
+  const updateSelectedProjectField = (field: keyof Project, value: any) => {
+    if (!selectedProject) return
+    setSelectedProject({ ...selectedProject, [field]: value })
+  }
+
+  const saveSelectedProject = async () => {
+    if (!selectedProject) return
+    setIsSaving(true)
+    try {
+      // API PUT si dispo
+      await fetch('/api/projects', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({
+        id: selectedProject.id,
+        name: selectedProject.name,
+        description: selectedProject.description,
+        address: selectedProject.site.address,
+        status: 'ACTIVE',
+        endDate: selectedProject.endDate || null
+      }) })
+    } catch {} finally { setIsSaving(false) }
+    setProjects(prev => prev.map(p => p.id === selectedProject.id ? selectedProject : p))
+    setShowProjectModal(false)
+  }
+
+  const advanceToNextPhase = () => {
+    if (!selectedProject) return
+    const service = serviceTemplates.find(s => s.id === selectedProject.serviceType)
+    if (!service) return
+    const idx = service.phases.findIndex(p => p.id === selectedProject.currentPhase)
+    const next = idx >= 0 && idx < service.phases.length - 1 ? service.phases[idx + 1].id : service.phases[idx]?.id
+    const newProgress = Math.min(100, selectedProject.progress + Math.round(100 / service.phases.length))
+    const updated = { ...selectedProject, currentPhase: next || selectedProject.currentPhase, progress: newProgress }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
   }
 
   const getStatusColor = (status: string) => {
@@ -1940,7 +2019,7 @@ export default function ProjectManagementSystem() {
 
                     <div className="flex flex-col space-y-2 ml-6">
                       <button
-                        onClick={() => setSelectedProject(project)}
+                        onClick={() => openProjectModal(project)}
                         className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                       >
                         <Eye className="h-4 w-4" />
@@ -2226,12 +2305,45 @@ export default function ProjectManagementSystem() {
                 
                 <button
                   onClick={saveProject}
-                  disabled={!selectedService || !newProject.client?.company}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  disabled={!selectedService || !newProject.client?.company || isSaving}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 cursor-pointer"
                 >
                   <Save className="h-4 w-4" />
                   <span>Créer le projet</span>
                 </button>
+      {/* Modal détail/modification projet */}
+      {showProjectModal && selectedProject && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full overflow-hidden">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Détails du projet</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={()=>setShowProjectModal(false)}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-700">Nom du projet</label>
+                  <input className="w-full border rounded-lg px-3 py-2" value={selectedProject.name} onChange={e=>updateSelectedProjectField('name', e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-700">Adresse</label>
+                  <input className="w-full border rounded-lg px-3 py-2" value={selectedProject.site.address} onChange={e=>setSelectedProject({ ...selectedProject, site: { ...selectedProject.site, address: e.target.value }})} />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm text-gray-700">Description</label>
+                <textarea className="w-full border rounded-lg px-3 py-2" rows={3} value={selectedProject.description} onChange={e=>updateSelectedProjectField('description', e.target.value)} />
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={advanceToNextPhase} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer">Étape suivante</button>
+                <button onClick={saveSelectedProject} disabled={isSaving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer">Enregistrer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
               </div>
             </div>
           </div>
