@@ -121,9 +121,24 @@ export async function POST(request: NextRequest) {
       description: projectData.description || '',
       address: projectData.address,
       clientId: projectData.clientId,
-      status: projectData.status || 'ACTIVE',
+      status: (projectData.status || 'lead').toLowerCase(),
       startDate: new Date(projectData.startDate),
-      endDate: projectData.endDate ? new Date(projectData.endDate) : undefined
+      endDate: projectData.endDate ? new Date(projectData.endDate) : undefined,
+      currentPhase: projectData.currentPhase || '',
+      progress: projectData.progress || 0,
+      serviceType: projectData.serviceType || '',
+      clientSnapshot: projectData.clientSnapshot,
+      site: projectData.site,
+      assignedTo: projectData.assignedTo || [],
+      value: projectData.value || 0,
+      margin: projectData.margin || 0,
+      milestones: projectData.milestones || [],
+      quote: projectData.quote || null,
+      products: projectData.products || [],
+      timeline: projectData.timeline || [],
+      risks: projectData.risks || [],
+      documents: projectData.documents || [],
+      clientAccess: !!projectData.clientAccess
     })
 
     const newProject = (await Project.findById(created._id)
@@ -195,10 +210,23 @@ export async function PUT(request: NextRequest) {
           name: updateData.name ?? existingProject.name,
           description: updateData.description ?? existingProject.description,
           address: updateData.address ?? existingProject.address,
-          status: updateData.status ?? existingProject.status,
+          status: (updateData.status || existingProject.status),
           endDate: updateData.endDate ? new Date(updateData.endDate) : null,
           currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
           progress: typeof updateData.progress === 'number' ? updateData.progress : existingProject.progress,
+          serviceType: updateData.serviceType ?? existingProject.serviceType,
+          clientSnapshot: updateData.clientSnapshot ?? existingProject.clientSnapshot,
+          site: updateData.site ?? existingProject.site,
+          assignedTo: updateData.assignedTo ?? existingProject.assignedTo,
+          value: typeof updateData.value === 'number' ? updateData.value : existingProject.value,
+          margin: typeof updateData.margin === 'number' ? updateData.margin : existingProject.margin,
+          milestones: updateData.milestones ?? existingProject.milestones,
+          quote: updateData.quote ?? existingProject.quote,
+          products: updateData.products ?? existingProject.products,
+          timeline: updateData.timeline ?? existingProject.timeline,
+          risks: updateData.risks ?? existingProject.risks,
+          documents: updateData.documents ?? existingProject.documents,
+          clientAccess: typeof updateData.clientAccess === 'boolean' ? updateData.clientAccess : existingProject.clientAccess,
           updatedAt: new Date()
         }
       }
