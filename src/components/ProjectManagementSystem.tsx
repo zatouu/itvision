@@ -240,6 +240,7 @@ export default function ProjectManagementSystem() {
   const [selectedService, setSelectedService] = useState<ServiceTemplate | null>(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const LOCAL_KEY = 'itvision.local-projects'
 
   // Templates de services IT Vision
   useEffect(() => {
@@ -1558,12 +1559,21 @@ export default function ProjectManagementSystem() {
               startDate: new Date(p.startDate).toISOString().split('T')[0], endDate: p.endDate ? new Date(p.endDate).toISOString().split('T')[0] : '',
               assignedTo: [], milestones: [], quote: null, products: [], timeline: [], risks: [], documents: [], clientAccess: false
             }))
-            setProjects(mapped)
-            return
+            if (mapped.length > 0) {
+              setProjects(mapped)
+              if (typeof window !== 'undefined') localStorage.setItem(LOCAL_KEY, JSON.stringify(mapped))
+              return
+            }
           }
         }
       } catch {}
-      // Fallback exemples
+      // Fallback: localStorage puis exemples
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem(LOCAL_KEY)
+        if (raw) {
+          try { setProjects(JSON.parse(raw)); return } catch {}
+        }
+      }
       setProjects([
       {
         id: 'PRJ-2024-001',
@@ -1795,6 +1805,10 @@ export default function ProjectManagementSystem() {
     } catch {} finally { setIsSaving(false) }
 
     setProjects(prev => [...prev, project])
+    if (typeof window !== 'undefined') {
+      const updated = [...projects, project]
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(updated))
+    }
     setShowNewProjectModal(false)
     setNewProject({})
     setSelectedService(null)
@@ -1825,6 +1839,10 @@ export default function ProjectManagementSystem() {
       }) })
     } catch {} finally { setIsSaving(false) }
     setProjects(prev => prev.map(p => p.id === selectedProject.id ? selectedProject : p))
+    if (typeof window !== 'undefined') {
+      const updated = projects.map(p => p.id === selectedProject.id ? selectedProject : p)
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(updated))
+    }
     setShowProjectModal(false)
   }
 
@@ -1843,6 +1861,10 @@ export default function ProjectManagementSystem() {
         await fetch('/api/projects/advance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ id: updated.id, nextPhase: updated.currentPhase, progress: updated.progress }) })
       } catch {}
     })()
+    if (typeof window !== 'undefined') {
+      const updatedList = projects.map(p => p.id === updated.id ? updated : p)
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(updatedList))
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -2025,13 +2047,13 @@ export default function ProjectManagementSystem() {
                     <div className="flex flex-col space-y-2 ml-6">
                       <button
                         onClick={() => openProjectModal(project)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer"
                       >
                         <Eye className="h-4 w-4" />
                         <span>Détails</span>
                       </button>
                       
-                      <button className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
+                      <button onClick={() => openProjectModal(project)} className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors cursor-pointer">
                         <Edit3 className="h-4 w-4" />
                         <span>Modifier</span>
                       </button>
