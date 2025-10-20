@@ -1988,6 +1988,112 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     }
   }
 
+  // Handlers UI pour jalons / produits / documents / timeline
+  const addMilestoneUI = async () => {
+    if (!selectedProject) return
+    const newMilestoneId = `mil_${Date.now()}`
+    const newMilestone: any = {
+      id: newMilestoneId,
+      name: 'Nouveau jalon',
+      description: '',
+      dueDate: '',
+      status: 'pending',
+      dependencies: [],
+      deliverables: [],
+      clientNotified: false
+    }
+    const updated = { ...selectedProject, milestones: [...(selectedProject.milestones || []), newMilestone] }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiAddMilestone(selectedProject.id, newMilestone)
+  }
+
+  const removeMilestoneUI = async (mid: string) => {
+    if (!selectedProject) return
+    const updated = { ...selectedProject, milestones: (selectedProject.milestones || []).filter(m => m.id !== mid) }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiDeleteMilestone(selectedProject.id, mid)
+  }
+
+  const addProductUI = async () => {
+    if (!selectedProject) return
+    const productId = `prod_${Date.now()}`
+    const newProd: any = {
+      productId,
+      name: 'Produit',
+      brand: '',
+      model: '',
+      quantity: 1,
+      unitPrice: 0,
+      totalPrice: 0,
+      status: 'planned'
+    }
+    const updated = { ...selectedProject, products: [...(selectedProject.products || []), newProd] }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiAddProduct(selectedProject.id, newProd)
+  }
+
+  const removeProductUI = async (pid: string) => {
+    if (!selectedProject) return
+    const updated = { ...selectedProject, products: (selectedProject.products || []).filter(p => p.productId !== pid) }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiDeleteProduct(selectedProject.id, pid)
+  }
+
+  const addDocumentUI = async () => {
+    if (!selectedProject) return
+    const id = `doc_${Date.now()}`
+    const newDoc: any = {
+      id,
+      name: 'Document',
+      type: 'technical',
+      url: `/documents/${id}.pdf`,
+      uploadDate: new Date().toISOString().split('T')[0],
+      clientVisible: true
+    }
+    const updated = { ...selectedProject, documents: [...(selectedProject.documents || []), newDoc] }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiAddDocument(selectedProject.id, newDoc)
+  }
+
+  const removeDocumentUI = async (did: string) => {
+    if (!selectedProject) return
+    const updated = { ...selectedProject, documents: (selectedProject.documents || []).filter(d => d.id !== did) }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiDeleteDocument(selectedProject.id, did)
+  }
+
+  const addTimelineEventUI = async () => {
+    if (!selectedProject) return
+    const id = `evt_${Date.now()}`
+    const newEvt: any = {
+      id,
+      date: new Date().toISOString(),
+      type: 'milestone',
+      title: 'Événement',
+      description: '',
+      author: 'Admin',
+      clientVisible: true
+    }
+    const updated = { ...selectedProject, timeline: [...(selectedProject.timeline || []), newEvt] }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiAddTimelineEvent(selectedProject.id, newEvt)
+  }
+
+  const removeTimelineEventUI = async (eid: string) => {
+    if (!selectedProject) return
+    const updated = { ...selectedProject, timeline: (selectedProject.timeline || []).filter(e => e.id !== eid) }
+    setSelectedProject(updated)
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    await apiDeleteTimelineEvent(selectedProject.id, eid)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'lead': return 'bg-gray-100 text-gray-800'
@@ -2483,6 +2589,75 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
               <div>
                 <label className="text-sm text-gray-700">Description</label>
                 <textarea className="w-full border rounded-lg px-3 py-2" rows={3} value={selectedProject.description} onChange={e=>updateSelectedProjectField('description', e.target.value)} />
+              </div>
+              {/* Sous-ressources */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Jalons */}
+                <div className="border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">Jalons</h4>
+                    <button onClick={addMilestoneUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                  </div>
+                  <ul className="space-y-2">
+                    {(selectedProject.milestones || []).map(m => (
+                      <li key={m.id} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
+                        <span className="truncate mr-2">{m.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">{m.status}</span>
+                          <button onClick={()=>removeMilestoneUI(m.id)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Produits */}
+                <div className="border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">Produits</h4>
+                    <button onClick={addProductUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                  </div>
+                  <ul className="space-y-2">
+                    {(selectedProject.products || []).map(p => (
+                      <li key={p.productId} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
+                        <span className="truncate mr-2">{p.name} × {p.quantity}</span>
+                        <button onClick={()=>removeProductUI(p.productId)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Documents */}
+                <div className="border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">Documents</h4>
+                    <button onClick={addDocumentUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                  </div>
+                  <ul className="space-y-2">
+                    {(selectedProject.documents || []).map(d => (
+                      <li key={d.id} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
+                        <a href={d.url} target="_blank" className="truncate mr-2 text-blue-600 hover:underline">{d.name}</a>
+                        <button onClick={()=>removeDocumentUI(d.id)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Timeline */}
+                <div className="border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">Chronologie</h4>
+                    <button onClick={addTimelineEventUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                  </div>
+                  <ul className="space-y-2">
+                    {(selectedProject.timeline || []).map(e => (
+                      <li key={e.id} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
+                        <span className="truncate mr-2">{new Date(e.date).toLocaleDateString('fr-FR')} — {e.title}</span>
+                        <button onClick={()=>removeTimelineEventUI(e.id)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={advanceToNextPhase} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer">Étape suivante</button>
