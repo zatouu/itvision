@@ -126,18 +126,12 @@ export default function DigitalHomepage() {
         <section className="relative page-content py-20 bg-gradient-to-br from-emerald-50 via-white to-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h1 className="text-5xl md:text-6xl font-bold mb-8 text-gray-900">
-                <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">
-                  IT Vision
-                </span>
-                <br />
-                <span className="text-gray-700">Sécurité Électronique</span>
-              </h1>
-              
-              <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-12">
-                Actifs sur l’IoT & LoRaWAN au Sénégal depuis 2019. Votre partenaire expert en <strong>sécurité électronique</strong>, 
-                <strong>vidéosurveillance</strong>, <strong>contrôle d'accès</strong>, <strong>câblage réseau</strong>, 
-                <strong>fibre optique</strong> et <strong>domotique avancée</strong>. Solutions connectées intelligentes pour tous vos besoins.
+              <h1 className="text-5xl md:text-6xl font-bold mb-6 text-gray-900">Bienvenue chez <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">IT Vision</span></h1>
+              <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4">
+                Depuis 2019, IT Vision accompagne particuliers et entreprises au Sénégal dans la sécurité électronique, la domotique, et la transformation digitale.
+              </p>
+              <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                Nous concevons des solutions intelligentes et connectées pour renforcer votre sécurité, optimiser vos performances et réussir votre transition numérique.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
