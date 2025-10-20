@@ -17,10 +17,7 @@ import {
   Calendar
 } from 'lucide-react'
 import AdminHelpGuide from '@/components/AdminHelpGuide'
-import dynamic from 'next/dynamic'
-const ProjectManagementSystem = dynamic(() => import('@/components/ProjectManagementSystem'), { ssr: false, loading: () => (
-  <div className="bg-white rounded-2xl shadow p-6 text-gray-600">Chargement de la Gestion de Projets…</div>
-) })
+// Intégration de la gestion de projets déplacée vers le Dashboard global (GlobalAdminDashboard)
 
 export default function AdminDashboard() {
   const adminModules = [
@@ -165,11 +162,7 @@ export default function AdminDashboard() {
           })}
         </div>
 
-        {/* Onglet Projets - intègre directement la gestion de projets */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">🏗️ Projets</h3>
-          <ProjectManagementSystem />
-        </div>
+        {/* Bloc Projets centralisé dans le Dashboard global pour éviter les doublons */}
 
         {/* Services disponibles */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
