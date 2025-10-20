@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "title": "Installation Vidéosurveillance Centre Commercial",
+    "location": "Dakar, Plateau",
+    "description": "Système complet de vidéosurveillance avec 24 caméras 4K, contrôle d'accès et surveillance 24h/7j.",
+    "image": "/images/placeholder-surveillance.jpg",
+    "category": "project",
+    "services": ["Vidéosurveillance", "Contrôle d'accès", "Monitoring"]
+  },
+  {
+    "id": 2,
+    "title": "Équipe Technique en Action",
+    "location": "Installation sur site",
+    "description": "Nos techniciens certifiés lors de l'installation d'un système de sécurité complexe.",
+    "image": "/images/placeholder-team-1.jpg",
+    "category": "team",
+    "services": ["Installation", "Configuration", "Formation"]
+  },
+  {
+    "id": 3,
+    "title": "Domotique Résidentielle Premium",
+    "location": "Almadies, Villa",
+    "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
+    "image": "/images/placeholder-domotique.jpg",
+    "category": "project",
+    "services": ["Domotique", "Automatisation", "Smart Home"]
+  }
+]

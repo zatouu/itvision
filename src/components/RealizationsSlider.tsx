@@ -13,7 +13,7 @@ interface Realization {
   services: string[]
 }
 
-const realizations: Realization[] = [
+const defaultRealizations: Realization[] = [
   {
     id: 1,
     title: "Installation Vidéosurveillance Centre Commercial",
@@ -71,33 +71,54 @@ const realizations: Realization[] = [
 ]
 
 export default function RealizationsSlider() {
+  const [items, setItems] = useState<Realization[]>(defaultRealizations)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+
+  // Charger depuis /realizations.json si présent (facile à maintenir)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/realizations.json', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setItems(data)
+          setCurrentSlide(0)
+        }
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   // Auto-play slider
   useEffect(() => {
     if (!isAutoPlaying) return
 
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % realizations.length)
+      setCurrentSlide((prev) => items.length ? (prev + 1) % items.length : 0)
     }, 4000)
 
     return () => clearInterval(interval)
-  }, [isAutoPlaying])
+  }, [isAutoPlaying, items.length])
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % realizations.length)
+    if (!items.length) return
+    setCurrentSlide((prev) => (prev + 1) % items.length)
   }
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + realizations.length) % realizations.length)
+    if (!items.length) return
+    setCurrentSlide((prev) => (prev - 1 + items.length) % items.length)
   }
 
   const goToSlide = (index: number) => {
+    if (!items.length) return
     setCurrentSlide(index)
   }
 
-  const currentRealization = realizations[currentSlide]
+  const currentRealization = items[currentSlide]
 
   return (
     <div className="relative max-w-6xl mx-auto">
@@ -112,7 +133,7 @@ export default function RealizationsSlider() {
           <div 
             className="w-full h-full bg-cover bg-center transition-all duration-700"
             style={{
-              backgroundImage: `url('https://images.unsplash.com/photo-${currentRealization.category === 'team' ? '1571019613454-1cb2f99b2d8b' : '1558618666-fabe5d0cbeb8'}?w=1200&h=400&fit=crop')`
+              backgroundImage: `url('${currentRealization?.image || ''}'), url('https://images.unsplash.com/photo-${currentRealization?.category === 'team' ? '1571019613454-1cb2f99b2d8b' : '1558618666-fabe5d0cbeb8'}?w=1200&h=400&fit=crop')`
             }}
           />
         </div>
@@ -180,7 +201,7 @@ export default function RealizationsSlider() {
 
       {/* Indicateurs de pagination */}
       <div className="flex justify-center space-x-2 mt-8">
-        {realizations.map((_, index) => (
+        {items.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
@@ -196,10 +217,10 @@ export default function RealizationsSlider() {
 
       {/* Mini aperçus */}
       <div className="hidden md:grid grid-cols-3 gap-4 mt-8">
-        {[
-          realizations[(currentSlide + 1) % realizations.length],
-          realizations[(currentSlide + 2) % realizations.length],
-          realizations[(currentSlide + 3) % realizations.length]
+        {items.length >= 3 ? [
+          items[(currentSlide + 1) % items.length],
+          items[(currentSlide + 2) % items.length],
+          items[(currentSlide + 3) % items.length]
         ].map((realization, index) => (
           <div
             key={realization.id}
@@ -224,7 +245,7 @@ export default function RealizationsSlider() {
               {realization.location}
             </p>
           </div>
-        ))}
+        )) : null}
       </div>
 
       {/* Message pour les vraies photos */}
