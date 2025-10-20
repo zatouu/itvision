@@ -52,7 +52,8 @@ import {
   Archive,
   Award,
   Zap,
-  Calculator
+  Calculator,
+  Loader2
 } from 'lucide-react'
 
 interface ServiceTemplate {
@@ -245,6 +246,7 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
+  const [busyAction, setBusyAction] = useState<string | null>(null)
   const LOCAL_KEY = 'itvision.local-projects'
 
   // Helpers API
@@ -2003,6 +2005,7 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
   // Handlers UI pour jalons / produits / documents / timeline
   const addMilestoneUI = async () => {
     if (!selectedProject) return
+    setBusyAction('milestone_add')
     const newMilestoneId = `mil_${Date.now()}`
     const newMilestone: any = {
       id: newMilestoneId,
@@ -2022,11 +2025,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Jalon ajouté' })
     } catch (e) {
       setToast({ type: 'error', message: 'Erreur lors de l’ajout du jalon' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const removeMilestoneUI = async (mid: string) => {
     if (!selectedProject) return
+    setBusyAction(`milestone_del_${mid}`)
     const updated = { ...selectedProject, milestones: (selectedProject.milestones || []).filter(m => m.id !== mid) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -2035,11 +2039,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Jalon supprimé' })
     } catch (e) {
       setToast({ type: 'error', message: 'Suppression du jalon échouée' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const addProductUI = async () => {
     if (!selectedProject) return
+    setBusyAction('product_add')
     const productId = `prod_${Date.now()}`
     const newProd: any = {
       productId,
@@ -2059,11 +2064,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Produit ajouté' })
     } catch (e) {
       setToast({ type: 'error', message: 'Erreur lors de l’ajout du produit' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const removeProductUI = async (pid: string) => {
     if (!selectedProject) return
+    setBusyAction(`product_del_${pid}`)
     const updated = { ...selectedProject, products: (selectedProject.products || []).filter(p => p.productId !== pid) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -2072,11 +2078,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Produit supprimé' })
     } catch (e) {
       setToast({ type: 'error', message: 'Suppression du produit échouée' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const addDocumentUI = async () => {
     if (!selectedProject) return
+    setBusyAction('document_add')
     const id = `doc_${Date.now()}`
     const newDoc: any = {
       id,
@@ -2094,11 +2101,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Document ajouté' })
     } catch (e) {
       setToast({ type: 'error', message: 'Erreur lors de l’ajout du document' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const removeDocumentUI = async (did: string) => {
     if (!selectedProject) return
+    setBusyAction(`document_del_${did}`)
     const updated = { ...selectedProject, documents: (selectedProject.documents || []).filter(d => d.id !== did) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -2107,11 +2115,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Document supprimé' })
     } catch (e) {
       setToast({ type: 'error', message: 'Suppression du document échouée' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const addTimelineEventUI = async () => {
     if (!selectedProject) return
+    setBusyAction('timeline_add')
     const id = `evt_${Date.now()}`
     const newEvt: any = {
       id,
@@ -2130,11 +2139,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Événement ajouté' })
     } catch (e) {
       setToast({ type: 'error', message: 'Erreur lors de l’ajout de l’événement' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const removeTimelineEventUI = async (eid: string) => {
     if (!selectedProject) return
+    setBusyAction(`timeline_del_${eid}`)
     const updated = { ...selectedProject, timeline: (selectedProject.timeline || []).filter(e => e.id !== eid) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -2143,7 +2153,7 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
       setToast({ type: 'success', message: 'Événement supprimé' })
     } catch (e) {
       setToast({ type: 'error', message: 'Suppression de l’événement échouée' })
-    }
+    } finally { setBusyAction(null) }
   }
 
   const getStatusColor = (status: string) => {
@@ -2658,15 +2668,28 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
                 <div className="border rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-gray-900">Jalons</h4>
-                    <button onClick={addMilestoneUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                    <button onClick={addMilestoneUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded disabled:opacity-50" disabled={busyAction==='milestone_add'}>
+                      {busyAction==='milestone_add' ? <span className="inline-flex items-center"><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Patientez</span> : '+ Ajouter'}
+                    </button>
                   </div>
                   <ul className="space-y-2">
                     {(selectedProject.milestones || []).map(m => (
                       <li key={m.id} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
-                        <span className="truncate mr-2">{m.name}</span>
+                        <input
+                          className="truncate mr-2 bg-transparent outline-none flex-1"
+                          value={m.name}
+                          onChange={e=>{
+                            const name = e.target.value
+                            const updated = { ...selectedProject!, milestones: (selectedProject!.milestones||[]).map(x=>x.id===m.id?{...x, name}:x) }
+                            setSelectedProject(updated)
+                          }}
+                          onBlur={async()=>{
+                            try { await apiUpdateMilestone(selectedProject!.id, m.id, m) ; setToast({type:'success',message:'Jalon mis à jour'}) } catch { setToast({type:'error',message:'MAJ jalon échouée'}) }
+                          }}
+                        />
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">{m.status}</span>
-                          <button onClick={()=>removeMilestoneUI(m.id)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                          <button onClick={()=>removeMilestoneUI(m.id)} className="text-xs text-red-600 hover:underline disabled:opacity-50" disabled={busyAction===`milestone_del_${m.id}`}>{busyAction===`milestone_del_${m.id}` ? '...' : 'Supprimer'}</button>
                         </div>
                       </li>
                     ))}
@@ -2677,13 +2700,26 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
                 <div className="border rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-gray-900">Produits</h4>
-                    <button onClick={addProductUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                    <button onClick={addProductUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded disabled:opacity-50" disabled={busyAction==='product_add'}>
+                      {busyAction==='product_add' ? <span className="inline-flex items-center"><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Patientez</span> : '+ Ajouter'}
+                    </button>
                   </div>
                   <ul className="space-y-2">
                     {(selectedProject.products || []).map(p => (
-                      <li key={p.productId} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
-                        <span className="truncate mr-2">{p.name} × {p.quantity}</span>
-                        <button onClick={()=>removeProductUI(p.productId)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                      <li key={p.productId} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1 gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <input className="w-40 bg-transparent outline-none" value={p.name} onChange={e=>{
+                            const name=e.target.value; setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,name}:x) }))
+                          }} onBlur={async()=>{ try{ await apiUpdateProduct(selectedProject!.id,p.productId,p); setToast({type:'success',message:'Produit mis à jour'}) }catch{ setToast({type:'error',message:'MAJ produit échouée'}) } }} />
+                          <input type="number" className="w-16 bg-transparent outline-none" value={p.quantity} onChange={e=>{
+                            const quantity = Number(e.target.value||0); setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,quantity,totalPrice:(x.unitPrice||0)*quantity}:x) }))
+                          }} onBlur={async()=>{ try{ await apiUpdateProduct(selectedProject!.id,p.productId,p); setToast({type:'success',message:'Quantité mise à jour'}) }catch{ setToast({type:'error',message:'MAJ produit échouée'}) } }} />
+                          <input type="number" className="w-20 bg-transparent outline-none" value={p.unitPrice} onChange={e=>{
+                            const unitPrice = Number(e.target.value||0); setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,unitPrice,totalPrice:unitPrice*(x.quantity||0)}:x) }))
+                          }} onBlur={async()=>{ try{ await apiUpdateProduct(selectedProject!.id,p.productId,p); setToast({type:'success',message:'Prix unitaire mis à jour'}) }catch{ setToast({type:'error',message:'MAJ produit échouée'}) } }} />
+                          <span className="text-xs text-gray-500">Total: {p.totalPrice || 0}</span>
+                        </div>
+                        <button onClick={()=>removeProductUI(p.productId)} className="text-xs text-red-600 hover:underline disabled:opacity-50" disabled={busyAction===`product_del_${p.productId}`}>{busyAction===`product_del_${p.productId}` ? '...' : 'Supprimer'}</button>
                       </li>
                     ))}
                   </ul>
@@ -2693,13 +2729,15 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
                 <div className="border rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-gray-900">Documents</h4>
-                    <button onClick={addDocumentUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                    <button onClick={addDocumentUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded disabled:opacity-50" disabled={busyAction==='document_add'}>
+                      {busyAction==='document_add' ? <span className="inline-flex items-center"><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Patientez</span> : '+ Ajouter'}
+                    </button>
                   </div>
                   <ul className="space-y-2">
                     {(selectedProject.documents || []).map(d => (
                       <li key={d.id} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
                         <a href={d.url} target="_blank" className="truncate mr-2 text-blue-600 hover:underline">{d.name}</a>
-                        <button onClick={()=>removeDocumentUI(d.id)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                        <button onClick={()=>removeDocumentUI(d.id)} className="text-xs text-red-600 hover:underline disabled:opacity-50" disabled={busyAction===`document_del_${d.id}`}>{busyAction===`document_del_${d.id}` ? '...' : 'Supprimer'}</button>
                       </li>
                     ))}
                   </ul>
@@ -2709,13 +2747,15 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
                 <div className="border rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-gray-900">Chronologie</h4>
-                    <button onClick={addTimelineEventUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">+ Ajouter</button>
+                    <button onClick={addTimelineEventUI} className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded disabled:opacity-50" disabled={busyAction==='timeline_add'}>
+                      {busyAction==='timeline_add' ? <span className="inline-flex items-center"><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Patientez</span> : '+ Ajouter'}
+                    </button>
                   </div>
                   <ul className="space-y-2">
                     {(selectedProject.timeline || []).map(e => (
                       <li key={e.id} className="flex items-center justify-between text-sm bg-gray-50 rounded px-2 py-1">
                         <span className="truncate mr-2">{new Date(e.date).toLocaleDateString('fr-FR')} — {e.title}</span>
-                        <button onClick={()=>removeTimelineEventUI(e.id)} className="text-xs text-red-600 hover:underline">Supprimer</button>
+                        <button onClick={()=>removeTimelineEventUI(e.id)} className="text-xs text-red-600 hover:underline disabled:opacity-50" disabled={busyAction===`timeline_del_${e.id}`}>{busyAction===`timeline_del_${e.id}` ? '...' : 'Supprimer'}</button>
                       </li>
                     ))}
                   </ul>
