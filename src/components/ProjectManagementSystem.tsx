@@ -246,6 +246,100 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
   const [isSaving, setIsSaving] = useState(false)
   const LOCAL_KEY = 'itvision.local-projects'
 
+  // Helpers API
+  const apiBase = (id: string) => `/api/projects/${encodeURIComponent(id)}`
+
+  async function apiAddMilestone(projectId: string, milestone: any) {
+    await fetch(`${apiBase(projectId)}/milestones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ milestone })
+    })
+  }
+
+  async function apiUpdateMilestone(projectId: string, milestoneId: string, updates: any) {
+    await fetch(`${apiBase(projectId)}/milestones`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ milestoneId, updates })
+    })
+  }
+
+  async function apiDeleteMilestone(projectId: string, milestoneId: string) {
+    await fetch(`${apiBase(projectId)}/milestones?milestoneId=${encodeURIComponent(milestoneId)}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+  }
+
+  async function apiAddTimelineEvent(projectId: string, event: any) {
+    await fetch(`${apiBase(projectId)}/timeline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ event })
+    })
+  }
+
+  async function apiDeleteTimelineEvent(projectId: string, eventId: string) {
+    await fetch(`${apiBase(projectId)}/timeline?eventId=${encodeURIComponent(eventId)}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+  }
+
+  async function apiAddProduct(projectId: string, product: any) {
+    await fetch(`${apiBase(projectId)}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ product })
+    })
+  }
+
+  async function apiUpdateProduct(projectId: string, productId: string, updates: any) {
+    await fetch(`${apiBase(projectId)}/products`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ productId, updates })
+    })
+  }
+
+  async function apiDeleteProduct(projectId: string, productId: string) {
+    await fetch(`${apiBase(projectId)}/products?productId=${encodeURIComponent(productId)}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+  }
+
+  async function apiAddDocument(projectId: string, document: any) {
+    await fetch(`${apiBase(projectId)}/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ document })
+    })
+  }
+
+  async function apiDeleteDocument(projectId: string, documentId: string) {
+    await fetch(`${apiBase(projectId)}/documents?documentId=${encodeURIComponent(documentId)}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+  }
+
+  async function apiPatchQuote(projectId: string, quote: any) {
+    await fetch(`${apiBase(projectId)}/quote`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ quote })
+    })
+  }
+
   // Templates de services IT Vision
   useEffect(() => {
     setServiceTemplates([
@@ -1849,6 +1943,21 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
         status: 'ACTIVE',
         endDate: selectedProject.endDate || null
       }) })
+      // Synchroniser ressources granulaires
+      // Milestones (exemple: envoyer les jalons en "upsert" simple via PATCH unitaire)
+      for (const m of selectedProject.milestones || []) {
+        await apiUpdateMilestone(selectedProject.id, m.id, m)
+      }
+      // Produits
+      for (const p of selectedProject.products || []) {
+        await apiUpdateProduct(selectedProject.id, p.productId, p)
+      }
+      // Documents: pas d'update dédié, seulement POST/DELETE — on laisse tel quel
+      // Timeline: idem, création/suppression — pas d'update dédié
+      // Devis
+      if (selectedProject.quote) {
+        await apiPatchQuote(selectedProject.id, selectedProject.quote)
+      }
     } catch {} finally { setIsSaving(false) }
     setProjects(prev => prev.map(p => p.id === selectedProject.id ? selectedProject : p))
     if (typeof window !== 'undefined') {
