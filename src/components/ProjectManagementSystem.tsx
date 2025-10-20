@@ -244,100 +244,112 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
   const [selectedService, setSelectedService] = useState<ServiceTemplate | null>(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const LOCAL_KEY = 'itvision.local-projects'
 
   // Helpers API
   const apiBase = (id: string) => `/api/projects/${encodeURIComponent(id)}`
 
   async function apiAddMilestone(projectId: string, milestone: any) {
-    await fetch(`${apiBase(projectId)}/milestones`, {
+    const res = await fetch(`${apiBase(projectId)}/milestones`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ milestone })
     })
+    if (!res.ok) throw new Error('Ajout jalon échoué')
   }
 
   async function apiUpdateMilestone(projectId: string, milestoneId: string, updates: any) {
-    await fetch(`${apiBase(projectId)}/milestones`, {
+    const res = await fetch(`${apiBase(projectId)}/milestones`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ milestoneId, updates })
     })
+    if (!res.ok) throw new Error('MAJ jalon échouée')
   }
 
   async function apiDeleteMilestone(projectId: string, milestoneId: string) {
-    await fetch(`${apiBase(projectId)}/milestones?milestoneId=${encodeURIComponent(milestoneId)}`, {
+    const res = await fetch(`${apiBase(projectId)}/milestones?milestoneId=${encodeURIComponent(milestoneId)}`, {
       method: 'DELETE',
       credentials: 'include'
     })
+    if (!res.ok) throw new Error('Suppression jalon échouée')
   }
 
   async function apiAddTimelineEvent(projectId: string, event: any) {
-    await fetch(`${apiBase(projectId)}/timeline`, {
+    const res = await fetch(`${apiBase(projectId)}/timeline`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ event })
     })
+    if (!res.ok) throw new Error('Ajout événement échoué')
   }
 
   async function apiDeleteTimelineEvent(projectId: string, eventId: string) {
-    await fetch(`${apiBase(projectId)}/timeline?eventId=${encodeURIComponent(eventId)}`, {
+    const res = await fetch(`${apiBase(projectId)}/timeline?eventId=${encodeURIComponent(eventId)}`, {
       method: 'DELETE',
       credentials: 'include'
     })
+    if (!res.ok) throw new Error('Suppression événement échouée')
   }
 
   async function apiAddProduct(projectId: string, product: any) {
-    await fetch(`${apiBase(projectId)}/products`, {
+    const res = await fetch(`${apiBase(projectId)}/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ product })
     })
+    if (!res.ok) throw new Error('Ajout produit échoué')
   }
 
   async function apiUpdateProduct(projectId: string, productId: string, updates: any) {
-    await fetch(`${apiBase(projectId)}/products`, {
+    const res = await fetch(`${apiBase(projectId)}/products`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ productId, updates })
     })
+    if (!res.ok) throw new Error('MAJ produit échouée')
   }
 
   async function apiDeleteProduct(projectId: string, productId: string) {
-    await fetch(`${apiBase(projectId)}/products?productId=${encodeURIComponent(productId)}`, {
+    const res = await fetch(`${apiBase(projectId)}/products?productId=${encodeURIComponent(productId)}`, {
       method: 'DELETE',
       credentials: 'include'
     })
+    if (!res.ok) throw new Error('Suppression produit échouée')
   }
 
   async function apiAddDocument(projectId: string, document: any) {
-    await fetch(`${apiBase(projectId)}/documents`, {
+    const res = await fetch(`${apiBase(projectId)}/documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ document })
     })
+    if (!res.ok) throw new Error('Ajout document échoué')
   }
 
   async function apiDeleteDocument(projectId: string, documentId: string) {
-    await fetch(`${apiBase(projectId)}/documents?documentId=${encodeURIComponent(documentId)}`, {
+    const res = await fetch(`${apiBase(projectId)}/documents?documentId=${encodeURIComponent(documentId)}`, {
       method: 'DELETE',
       credentials: 'include'
     })
+    if (!res.ok) throw new Error('Suppression document échouée')
   }
 
   async function apiPatchQuote(projectId: string, quote: any) {
-    await fetch(`${apiBase(projectId)}/quote`, {
+    const res = await fetch(`${apiBase(projectId)}/quote`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ quote })
     })
+    if (!res.ok) throw new Error('Mise à jour devis échouée')
   }
 
   // Templates de services IT Vision
@@ -2005,7 +2017,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, milestones: [...(selectedProject.milestones || []), newMilestone] }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiAddMilestone(selectedProject.id, newMilestone)
+    try {
+      await apiAddMilestone(selectedProject.id, newMilestone)
+      setToast({ type: 'success', message: 'Jalon ajouté' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Erreur lors de l’ajout du jalon' })
+    }
   }
 
   const removeMilestoneUI = async (mid: string) => {
@@ -2013,7 +2030,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, milestones: (selectedProject.milestones || []).filter(m => m.id !== mid) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiDeleteMilestone(selectedProject.id, mid)
+    try {
+      await apiDeleteMilestone(selectedProject.id, mid)
+      setToast({ type: 'success', message: 'Jalon supprimé' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Suppression du jalon échouée' })
+    }
   }
 
   const addProductUI = async () => {
@@ -2032,7 +2054,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, products: [...(selectedProject.products || []), newProd] }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiAddProduct(selectedProject.id, newProd)
+    try {
+      await apiAddProduct(selectedProject.id, newProd)
+      setToast({ type: 'success', message: 'Produit ajouté' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Erreur lors de l’ajout du produit' })
+    }
   }
 
   const removeProductUI = async (pid: string) => {
@@ -2040,7 +2067,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, products: (selectedProject.products || []).filter(p => p.productId !== pid) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiDeleteProduct(selectedProject.id, pid)
+    try {
+      await apiDeleteProduct(selectedProject.id, pid)
+      setToast({ type: 'success', message: 'Produit supprimé' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Suppression du produit échouée' })
+    }
   }
 
   const addDocumentUI = async () => {
@@ -2057,7 +2089,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, documents: [...(selectedProject.documents || []), newDoc] }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiAddDocument(selectedProject.id, newDoc)
+    try {
+      await apiAddDocument(selectedProject.id, newDoc)
+      setToast({ type: 'success', message: 'Document ajouté' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Erreur lors de l’ajout du document' })
+    }
   }
 
   const removeDocumentUI = async (did: string) => {
@@ -2065,7 +2102,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, documents: (selectedProject.documents || []).filter(d => d.id !== did) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiDeleteDocument(selectedProject.id, did)
+    try {
+      await apiDeleteDocument(selectedProject.id, did)
+      setToast({ type: 'success', message: 'Document supprimé' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Suppression du document échouée' })
+    }
   }
 
   const addTimelineEventUI = async () => {
@@ -2083,7 +2125,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, timeline: [...(selectedProject.timeline || []), newEvt] }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiAddTimelineEvent(selectedProject.id, newEvt)
+    try {
+      await apiAddTimelineEvent(selectedProject.id, newEvt)
+      setToast({ type: 'success', message: 'Événement ajouté' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Erreur lors de l’ajout de l’événement' })
+    }
   }
 
   const removeTimelineEventUI = async (eid: string) => {
@@ -2091,7 +2138,12 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
     const updated = { ...selectedProject, timeline: (selectedProject.timeline || []).filter(e => e.id !== eid) }
     setSelectedProject(updated)
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    await apiDeleteTimelineEvent(selectedProject.id, eid)
+    try {
+      await apiDeleteTimelineEvent(selectedProject.id, eid)
+      setToast({ type: 'success', message: 'Événement supprimé' })
+    } catch (e) {
+      setToast({ type: 'error', message: 'Suppression de l’événement échouée' })
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -2132,6 +2184,16 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
 
   return (
     <div className="max-w-7xl mx-auto p-6">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${
+          toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-gray-800'
+        }`}
+          onAnimationEnd={() => setTimeout(()=>setToast(null), 1800)}
+        >
+          {toast.message}
+        </div>
+      )}
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
