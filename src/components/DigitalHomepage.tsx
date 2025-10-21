@@ -249,11 +249,11 @@ export default function DigitalHomepage() {
         </section>
 
         {/* Section Prise de Rendez-vous Digitale */}
-        <section className="py-20 bg-white">
+        <section className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Planifiez un <span className="text-emerald-600">Rendez-vous</span>
+                Planifier <span className="text-emerald-600">maintenant</span> — sécurité électronique & domotique
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Confirmez un créneau en quelques clics et recevez une confirmation. Simple et rapide.
@@ -264,11 +264,11 @@ export default function DigitalHomepage() {
         </section>
 
         {/* Section Calculateur de Devis */}
-        <section className="py-20 bg-gray-50">
+        <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Estimez votre <span className="text-purple-600">Devis</span>
+                Obtenir mon <span className="text-purple-600">estimation</span> — vidéosurveillance & contrôle d’accès
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Sélectionnez vos équipements et paramètres. Estimation automatique et partage par WhatsApp.
