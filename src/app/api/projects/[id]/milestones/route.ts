@@ -11,12 +11,12 @@ async function requireAdmin(request: NextRequest) {
   return decoded
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
     const body = await request.json()
-    const { id } = params
+    const { id } = await params
     const milestone = body?.milestone
     if (!id || !milestone?.id || !milestone?.name) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
 
@@ -32,12 +32,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
     const body = await request.json()
-    const { id } = params
+    const { id } = await params
     const { milestoneId, updates } = body
     if (!id || !milestoneId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
 
@@ -52,12 +52,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
     const { searchParams } = new URL(request.url)
-    const { id } = params
+    const { id } = await params
     const milestoneId = searchParams.get('milestoneId')
     if (!id || !milestoneId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
 

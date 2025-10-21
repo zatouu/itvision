@@ -11,11 +11,11 @@ async function requireAdmin(request: NextRequest) {
   return decoded
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const product = body?.product
     if (!id || !product?.productId || !product?.name) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
@@ -32,11 +32,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { productId, updates } = body
     if (!id || !productId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
@@ -52,11 +52,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
-    const { id } = params
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const productId = searchParams.get('productId')
     if (!id || !productId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })

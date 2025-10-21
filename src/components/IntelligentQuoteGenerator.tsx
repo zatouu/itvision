@@ -42,7 +42,8 @@ import {
   Info,
   Star,
   Award,
-  Zap
+  Zap,
+  Search
 } from 'lucide-react'
 
 interface QuoteSection {

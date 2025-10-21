@@ -224,7 +224,7 @@ export default function RealizationsSlider() {
         ].map((realization, index) => (
           <div
             key={realization.id}
-            onClick={() => goToSlide((currentSlide + index + 1) % realizations.length)}
+            onClick={() => goToSlide((currentSlide + index + 1) % items.length)}
             className="bg-gray-50 hover:bg-gray-100 rounded-xl p-4 cursor-pointer transition-all duration-300 border border-gray-200 hover:border-blue-300 hover:shadow-md"
           >
             <div className="flex items-center mb-2">
