@@ -23,6 +23,17 @@ jobs:
         with:
           node-version: 20
 
+      - name: Fix permissions on EC2
+        run: |
+          echo "$SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'EOF'
+            sudo chown -R admin:admin /var/www/itvision
+            sudo chown root:www-data /var/www/itvision/.env.production
+            sudo chmod 640 /var/www/itvision/.env.production
+          EOF
+
       - name: Cache npm
         uses: actions/cache@v4
         with:
