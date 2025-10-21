@@ -100,53 +100,56 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* Menu desktop - amélioré */}
-          <div className="hidden md:block">
-            <div className="flex items-center space-x-1">
-              {/* Liens principaux avec icônes monochromes */}
+          {/* Menu desktop - spacieux et moderne */}
+          <div className="hidden lg:flex items-center flex-1 justify-between ml-8">
+            <div className="flex items-center space-x-2 flex-1">
+              {/* Liens principaux avec icônes à gauche */}
               {navigation.map((item) => {
                 const Icon = item.icon
                 const isServices = item.name === 'Services'
                 if (isServices) {
                   return (
-                    <div className="relative group" key={item.name}>
+                    <div className="relative group flex-1" key={item.name}>
                       <Link
                         href={item.href}
-                        className="flex items-center gap-2 text-gray-800 hover:text-gray-900 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-gray-100 rounded-lg"
+                        className="flex items-center gap-3 text-gray-700 hover:text-emerald-600 px-5 py-3 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 rounded-xl w-full justify-start group"
                       >
-                        <Icon className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />
-                        <span>{item.name}</span>
-                        <ChevronDown className="ml-1 h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                        <Icon className="h-5 w-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+                        <span className="whitespace-nowrap">{item.name}</span>
+                        <ChevronDown className="ml-auto h-4 w-4 text-gray-400 group-hover:text-emerald-500 transition-colors" />
                       </Link>
-                      <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-200 absolute left-0 mt-2 w-[900px] bg-white rounded-xl shadow-xl border border-gray-100 z-50">
-                        <div className="p-6">
+                      <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-300 absolute left-0 mt-2 w-[900px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                        <div className="p-8">
                           {/* Header du menu */}
-                          <div className="mb-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nos Services</h3>
+                          <div className="mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">Nos Services</h3>
                             <p className="text-sm text-gray-600">Solutions complètes de sécurité électronique</p>
                           </div>
                           
                           {/* Grid 3 colonnes */}
-                          <div className="grid grid-cols-3 gap-6">
+                          <div className="grid grid-cols-3 gap-8">
                             {/* Colonne SÉCURITÉ */}
                             <div>
-                              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">SÉCURITÉ</h4>
-                              <div className="space-y-3">
+                              <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-5 flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                SÉCURITÉ
+                              </h4>
+                              <div className="space-y-2">
                                 {servicesMenu.slice(0, 3).map((s) => {
                                   const SIcon = s.icon
                                   return (
                                     <Link
                                       key={s.name}
                                       href={s.href}
-                                      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 group/item"
+                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-purple-50 transition-all duration-200 group/item border border-transparent hover:border-emerald-100"
                                     >
-                                      <div className="flex items-start gap-3">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-50 to-purple-50 rounded-lg flex items-center justify-center group-hover/item:from-emerald-100 group-hover/item:to-purple-100 transition-all duration-200">
-                                          <SIcon className="h-4 w-4 text-emerald-600" />
+                                      <div className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-100 to-purple-100 rounded-xl flex items-center justify-center group-hover/item:from-emerald-500 group-hover/item:to-purple-500 transition-all duration-300 shadow-sm">
+                                          <SIcon className="h-5 w-5 text-emerald-600 group-hover/item:text-white transition-colors" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h5 className="font-semibold text-gray-900 text-sm mb-1">{s.name}</h5>
-                                          <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                                          <h5 className="font-semibold text-gray-900 text-sm mb-1 group-hover/item:text-emerald-600 transition-colors">{s.name}</h5>
+                                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{s.description}</p>
                                         </div>
                                       </div>
                                     </Link>
@@ -157,23 +160,26 @@ const Header = () => {
 
                             {/* Colonne INFRASTRUCTURE */}
                             <div>
-                              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">INFRASTRUCTURE</h4>
-                              <div className="space-y-3">
+                              <h4 className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-5 flex items-center gap-2">
+                                <Cable className="h-4 w-4" />
+                                INFRASTRUCTURE
+                              </h4>
+                              <div className="space-y-2">
                                 {servicesMenu.slice(3, 6).map((s) => {
                                   const SIcon = s.icon
                                   return (
                                     <Link
                                       key={s.name}
                                       href={s.href}
-                                      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 group/item"
+                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-purple-50 transition-all duration-200 group/item border border-transparent hover:border-purple-100"
                                     >
-                                      <div className="flex items-start gap-3">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-50 to-purple-50 rounded-lg flex items-center justify-center group-hover/item:from-emerald-100 group-hover/item:to-purple-100 transition-all duration-200">
-                                          <SIcon className="h-4 w-4 text-emerald-600" />
+                                      <div className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-100 to-purple-100 rounded-xl flex items-center justify-center group-hover/item:from-emerald-500 group-hover/item:to-purple-500 transition-all duration-300 shadow-sm">
+                                          <SIcon className="h-5 w-5 text-purple-600 group-hover/item:text-white transition-colors" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h5 className="font-semibold text-gray-900 text-sm mb-1">{s.name}</h5>
-                                          <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                                          <h5 className="font-semibold text-gray-900 text-sm mb-1 group-hover/item:text-purple-600 transition-colors">{s.name}</h5>
+                                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{s.description}</p>
                                         </div>
                                       </div>
                                     </Link>
@@ -184,23 +190,26 @@ const Header = () => {
 
                             {/* Colonne SUPPORT */}
                             <div>
-                              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">SUPPORT</h4>
-                              <div className="space-y-3">
+                              <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-5 flex items-center gap-2">
+                                <Wrench className="h-4 w-4" />
+                                SUPPORT
+                              </h4>
+                              <div className="space-y-2">
                                 {servicesMenu.slice(6).map((s) => {
                                   const SIcon = s.icon
                                   return (
                                     <Link
                                       key={s.name}
                                       href={s.href}
-                                      className="block p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 group/item"
+                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-purple-50 transition-all duration-200 group/item border border-transparent hover:border-emerald-100"
                                     >
-                                      <div className="flex items-start gap-3">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-emerald-50 to-purple-50 rounded-lg flex items-center justify-center group-hover/item:from-emerald-100 group-hover/item:to-purple-100 transition-all duration-200">
-                                          <SIcon className="h-4 w-4 text-emerald-600" />
+                                      <div className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-100 to-purple-100 rounded-xl flex items-center justify-center group-hover/item:from-emerald-500 group-hover/item:to-purple-500 transition-all duration-300 shadow-sm">
+                                          <SIcon className="h-5 w-5 text-emerald-600 group-hover/item:text-white transition-colors" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h5 className="font-semibold text-gray-900 text-sm mb-1">{s.name}</h5>
-                                          <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                                          <h5 className="font-semibold text-gray-900 text-sm mb-1 group-hover/item:text-emerald-600 transition-colors">{s.name}</h5>
+                                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{s.description}</p>
                                         </div>
                                       </div>
                                     </Link>
@@ -211,13 +220,14 @@ const Header = () => {
                           </div>
                           
                           {/* Footer du menu */}
-                          <div className="border-t border-gray-100 mt-6 pt-4 flex justify-between items-center">
-                            <div className="text-xs text-gray-500">
+                          <div className="border-t border-gray-100 mt-8 pt-6 flex justify-between items-center">
+                            <div className="text-xs text-gray-500 flex items-center gap-2">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                               Expertise IT Vision depuis 2019
                             </div>
                             <Link
                               href="/services"
-                              className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-colors duration-200"
+                              className="flex items-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-purple-600 px-6 py-2.5 rounded-xl hover:from-emerald-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                             >
                               Voir tous nos services
                               <ArrowRight className="h-4 w-4" />
@@ -232,20 +242,20 @@ const Header = () => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="flex items-center gap-2 text-gray-800 hover:text-gray-900 px-4 py-2.5 text-base font-semibold transition-all duration-300 hover:bg-gray-100 rounded-lg"
+                    className="flex items-center gap-3 text-gray-700 hover:text-emerald-600 px-5 py-3 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 rounded-xl flex-1 justify-start group"
                   >
-                    <Icon className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />
-                    <span>{item.name}</span>
+                    <Icon className="h-5 w-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+                    <span className="whitespace-nowrap">{item.name}</span>
                   </Link>
                 )
               })}
-
-              {/* Séparateur */}
-              <div className="h-6 w-px bg-gray-300 mx-2"></div>
-              
-              {/* Bouton de connexion modernisé */}
-              <UnifiedLoginButton variant="header" />
             </div>
+
+            {/* Séparateur */}
+            <div className="h-8 w-px bg-gray-200 mx-4"></div>
+            
+            {/* Bouton de connexion modernisé */}
+            <UnifiedLoginButton variant="header" />
           </div>
 
           {/* Supprimer le CTA devis redondant pour aérer la barre */}
