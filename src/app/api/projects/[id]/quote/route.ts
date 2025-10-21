@@ -11,11 +11,11 @@ async function requireAdmin(request: NextRequest) {
   return decoded
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const quote = body?.quote
     if (!id || !quote) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })

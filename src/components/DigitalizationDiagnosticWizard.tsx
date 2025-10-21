@@ -351,7 +351,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-lg font-semibold text-gray-900">Secteur d'activité</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Choisissez votre secteur: nous proposons une pré‑sélection adaptée que vous pouvez modifier à tout moment." />
+                <div className="group relative">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Choisissez votre secteur: nous proposons une pré‑sélection adaptée que vous pouvez modifier à tout moment.
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {SECTORS.map(sec => (
@@ -381,7 +386,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-lg font-semibold text-gray-900">Objectifs prioritaires</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Sélectionnez vos objectifs: gains de temps, automatisation, traçabilité, portail client, KPI/BI." />
+                <div className="group relative">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Sélectionnez vos objectifs: gains de temps, automatisation, traçabilité, portail client, KPI/BI.
+                  </span>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {OBJECTIVES.map(obj => (
@@ -404,7 +414,12 @@ export default function DigitalizationDiagnosticWizard() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-lg font-semibold text-gray-900">Processus à digitaliser</h4>
-              <Info className="h-4 w-4 text-gray-400" title="Ciblez 1 à 3 processus pour démarrer (priorité P1). Nous itérerons ensuite." />
+              <div className="group relative inline-block">
+                <Info className="h-4 w-4 text-gray-400" />
+                <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                  Ciblez 1 à 3 processus pour démarrer (priorité P1). Nous itérerons ensuite.
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {PROCESSES.map(proc => (
@@ -426,7 +441,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-lg font-semibold text-gray-900">Rôles concernés</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Ex: Commercial, Comptable, Responsable achats… ça nous aide à définir les accès (RBAC)." />
+                <div className="group relative inline-block">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Ex: Commercial, Comptable, Responsable achats… ça nous aide à définir les accès (RBAC).
+                  </span>
+                </div>
               </div>
               <textarea
                 value={data.roles}
@@ -439,7 +459,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-lg font-semibold text-gray-900">Approbations / validations</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Ex: validation des devis, achats > X FCFA, congés. Nous automatiserons ces validations." />
+                <div className="group relative inline-block">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Ex: validation des devis, achats &gt; X FCFA, congés. Nous automatiserons ces validations.
+                  </span>
+                </div>
               </div>
               <textarea
                 value={data.approvals}
@@ -456,7 +481,12 @@ export default function DigitalizationDiagnosticWizard() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-lg font-semibold text-gray-900">Systèmes existants & intégrations</h4>
-              <Info className="h-4 w-4 text-gray-400" title="Indiquez vos outils (Odoo, Google, WhatsApp, Stripe…) pour prévoir les connecteurs." />
+              <div className="group relative inline-block">
+                <Info className="h-4 w-4 text-gray-400" />
+                <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                  Indiquez vos outils (Odoo, Google, WhatsApp, Stripe…) pour prévoir les connecteurs.
+                </span>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {SYSTEMS.map(sys => (
@@ -486,7 +516,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-sm font-semibold text-gray-900">Budget cible</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Indication pour calibrer la solution: contraint / normal / premium." />
+                <div className="group relative inline-block">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Indication pour calibrer la solution: contraint / normal / premium.
+                  </span>
+                </div>
               </div>
               <select
                 value={data.constraints.budget}
@@ -501,7 +536,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-sm font-semibold text-gray-900">Délai souhaité</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Urgence du besoin: standard / rapide / urgent." />
+                <div className="group relative inline-block">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Urgence du besoin: standard / rapide / urgent.
+                  </span>
+                </div>
               </div>
               <select
                 value={data.constraints.timeline}
@@ -516,7 +556,12 @@ export default function DigitalizationDiagnosticWizard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="text-sm font-semibold text-gray-900">Conformité</h4>
-                <Info className="h-4 w-4 text-gray-400" title="Besoins RGPD, ISO, SLA. Nous adaptons les contrôles et l’audit en conséquence." />
+                <div className="group relative inline-block">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                    Besoins RGPD, ISO, SLA. Nous adaptons les contrôles et l'audit en conséquence.
+                  </span>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {COMPLIANCE.map(c => (
@@ -536,7 +581,12 @@ export default function DigitalizationDiagnosticWizard() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <h4 className="text-sm font-semibold text-gray-900">Société / Contact</h4>
-                  <Info className="h-4 w-4 text-gray-400" title="Indispensable pour l’accusé de réception et la prise de RDV." />
+                  <div className="group relative inline-block">
+                    <Info className="h-4 w-4 text-gray-400" />
+                    <span className="invisible group-hover:visible absolute left-0 top-6 w-64 bg-gray-900 text-white text-xs rounded p-2 z-10">
+                      Indispensable pour l'accusé de réception et la prise de RDV.
+                    </span>
+                  </div>
                 </div>
                 <input
                   value={data.contact.company}

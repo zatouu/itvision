@@ -7,7 +7,7 @@ import SmartChatbot from './SmartChatbot'
 import ClientPortal from './ClientPortal'
 import Header from './Header'
 import Footer from './Footer'
-import RealizationsSlider from './RealizationsSlider'
+import HeroCarousel from './HeroCarousel'
 import Link from 'next/link'
 import { 
   Camera, 
@@ -25,7 +25,8 @@ import {
   MapPin,
   Award,
   Building,
-  User
+  User,
+  Check
 } from 'lucide-react'
 
 export default function DigitalHomepage() {
@@ -122,78 +123,198 @@ export default function DigitalHomepage() {
     <main>
       <Header />
       <div className="min-h-screen bg-white">
-        {/* Hero Section */}
-        <section className="relative page-content py-20 bg-gradient-to-br from-emerald-50 via-white to-gray-50">
+        {/* Hero Carousel Section */}
+        <section className="relative page-content">
+          <HeroCarousel />
+        </section>
+
+        {/* Stats rapides sous le carousel */}
+        <section className="py-12 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 text-gray-900">Bienvenue chez <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">IT Vision</span></h1>
-              <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4">
-                Depuis 2019, IT Vision accompagne particuliers et entreprises au Sénégal dans la sécurité électronique, la domotique, et la transformation digitale.
-              </p>
-              <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-                Nous concevons des solutions intelligentes et connectées pour renforcer votre sécurité, optimiser vos performances et réussir votre transition numérique.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-                <a
-                  href="https://wa.me/221774133440?text=Bonjour, je souhaite recevoir un devis pour mes besoins en sécurité électronique."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                >
-                  <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
-                  </svg>
-                  Demander un devis
-                </a>
-                <Link
-                  href="/contact"
-                  className="bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                >
-                  <Phone className="h-5 w-5 mr-2" />
-                  Nous contacter
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {stats.map((stat, index) => {
-                  const IconComponent = stat.icon
-                  return (
-                    <div key={index} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                      <IconComponent className={`h-8 w-8 ${stat.color} mx-auto mb-3`} />
-                      <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                      <div className="text-sm text-gray-600">{stat.label}</div>
-                    </div>
-                  )
-                })}
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {stats.map((stat, index) => {
+                const IconComponent = stat.icon
+                return (
+                  <div key={index} className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
+                    <IconComponent className={`h-8 w-8 ${stat.color} mx-auto mb-3`} />
+                    <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
+                    <div className="text-sm text-gray-600">{stat.label}</div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </section>
 
-        {/* Section Réalisations avec Slider - déplacée plus haut et plus large */}
-        <section className="pt-6 pb-16 bg-white">
-          <div className="max-w-7xl lg:max-w-[120rem] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Nos <span className="text-green-600">Réalisations</span>
+        {/* Section Réalisations avec Mini-Cartes Modernes */}
+        <section className="py-20 bg-gradient-to-br from-gray-50 via-white to-emerald-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Header */}
+            <div className="text-center mb-16">
+              <div className="inline-block mb-4">
+                <span className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                  Portfolio
+                </span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Réalisations</span>
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Découvrez nos projets récents et nos équipes en action
+                Découvrez nos projets récents qui témoignent de notre expertise et de notre engagement
               </p>
             </div>
 
-            {/* Slider de réalisations */}
-            <RealizationsSlider />
-            
-            <div className="text-center mt-8">
+            {/* Grid de cartes détaillées avec aperçu des projets */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+              {/* Carte 1 - Projet Antalya */}
+              <Link href="/realisations" className="group">
+                <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-emerald-200">
+                  {/* Image principale */}
+                  <div className="relative h-64 overflow-hidden">
+                    <img 
+                      src="/images/Antalya-front.jpg" 
+                      alt="Résidence Antalya" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                        🏆 Résidentiel
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Contenu détaillé */}
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm text-gray-500">Mermoz, Dakar</span>
+                    </div>
+                    
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-emerald-600 transition-colors">
+                      Résidence ANTALYA
+                    </h3>
+                    
+                    <p className="text-gray-600 mb-4 text-sm leading-relaxed">
+                      Installation complète des systèmes de sécurité et domotique pour un immeuble résidentiel de luxe de 15 appartements.
+                    </p>
+                    
+                    {/* Points clés */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">15 appartements équipés (TV + RJ45)</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">Visiophonie HD intégrée</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">Domotique centralisée par appartement</span>
+                      </div>
+                    </div>
+                    
+                    {/* Mini-galerie */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <img src="/images/domo1.jpeg" alt="Domotique" className="w-full h-20 object-cover rounded-lg" />
+                      <img src="/images/domo2.jpeg" alt="Installation" className="w-full h-20 object-cover rounded-lg" />
+                      <img src="/images/visiophonie.jpeg" alt="Visiophonie" className="w-full h-20 object-cover rounded-lg" />
+                    </div>
+                    
+                    {/* Tags et CTA */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold">Câblage réseau</span>
+                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">Visiophonie</span>
+                        <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">Domotique</span>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-emerald-600 group-hover:translate-x-2 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+
+              {/* Carte 2 - Projet Locafrique */}
+              <Link href="/realisations" className="group">
+                <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-purple-200">
+                  {/* Image principale */}
+                  <div className="relative h-64 overflow-hidden">
+                    <img 
+                      src="/images/locafrique.jpg" 
+                      alt="Locafrique" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-gradient-to-r from-purple-500 to-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                        💼 Financier
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Contenu détaillé */}
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Building className="h-4 w-4 text-purple-600" />
+                      <span className="text-sm text-gray-500">Almadies, Dakar</span>
+                    </div>
+                    
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
+                      Entreprise LOCAFRIQUE
+                    </h3>
+                    
+                    <p className="text-gray-600 mb-4 text-sm leading-relaxed">
+                      Installation d'un système de vidéosurveillance avancé pour un établissement financier sur 5 étages avec 42 caméras POE.
+                    </p>
+                    
+                    {/* Points clés */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">42 caméras POE sur 5 étages</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">Transmission longue distance optimisée</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">Affichage multi-points (3 points)</span>
+                      </div>
+                    </div>
+                    
+                    {/* Mini-galerie */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <img src="/images/visiophonie.jpeg" alt="Surveillance" className="w-full h-20 object-cover rounded-lg" />
+                      <img src="/images/ecran_ascenseur.jpeg" alt="Affichage" className="w-full h-20 object-cover rounded-lg" />
+                      <img src="/images/fibre.jpeg" alt="Infrastructure" className="w-full h-20 object-cover rounded-lg" />
+                    </div>
+                    
+                    {/* Tags et CTA */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">Vidéosurveillance</span>
+                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold">Architecture réseau</span>
+                        <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">Multi-points</span>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-purple-600 group-hover:translate-x-2 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </div>
+
+            {/* CTA modernisé */}
+            <div className="text-center">
               <Link
                 href="/realisations"
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors inline-flex items-center text-sm"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
               >
-                Voir toutes nos réalisations
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <span>Découvrir tous nos projets</span>
+                <ArrowRight className="h-5 w-5" />
               </Link>
+              <p className="text-sm text-gray-500 mt-4">
+                Plus de 50 projets réalisés avec succès
+              </p>
             </div>
           </div>
         </section>

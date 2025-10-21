@@ -240,11 +240,35 @@ export default function RealisationsPage() {
                   
                   {/* Visual */}
                   <div className={!isEven ? 'lg:col-start-1 lg:row-start-1' : ''}>
-                    <div className="bg-white rounded-2xl p-8 shadow-lg">
-                      <div className="flex items-center justify-center h-80 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl relative overflow-hidden">
-                        <span className="text-8xl">{project.image}</span>
-                        <div className="absolute top-4 right-4 bg-white bg-opacity-20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-semibold">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-lg">
+                      {/* Image principale */}
+                      <div className="relative h-80 overflow-hidden">
+                        <img 
+                          src={project.id === 1 ? '/images/Antalya-front.jpg' : '/images/locafrique.jpg'}
+                          alt={project.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-4 right-4 bg-white bg-opacity-95 backdrop-blur-sm text-gray-900 px-3 py-2 rounded-full text-sm font-semibold shadow-lg">
                           {project.category}
+                        </div>
+                      </div>
+                      
+                      {/* Mini-galerie en dessous */}
+                      <div className="p-4">
+                        <div className="grid grid-cols-3 gap-3">
+                          {project.id === 1 ? (
+                            <>
+                              <img src="/images/domo1.jpeg" alt="Détail 1" className="w-full h-24 object-cover rounded-lg" />
+                              <img src="/images/domo2.jpeg" alt="Détail 2" className="w-full h-24 object-cover rounded-lg" />
+                              <img src="/images/visiophonie.jpeg" alt="Détail 3" className="w-full h-24 object-cover rounded-lg" />
+                            </>
+                          ) : (
+                            <>
+                              <img src="/images/visiophonie.jpeg" alt="Surveillance" className="w-full h-24 object-cover rounded-lg" />
+                              <img src="/images/ecran_ascenseur.jpeg" alt="Affichage" className="w-full h-24 object-cover rounded-lg" />
+                              <img src="/images/fibre.jpeg" alt="Infrastructure" className="w-full h-24 object-cover rounded-lg" />
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

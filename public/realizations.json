@@ -12,18 +12,64 @@
     "id": 2,
     "title": "Équipe Technique en Action",
     "location": "Installation sur site",
-    "description": "Nos techniciens certifiés lors de l'installation d'un système de sécurité complexe.",
+    "description": "Nos techniciens en action lors de l'installation d'un système de sécurité complexe.",
     "image": "/images/placeholder-team-1.jpg",
     "category": "team",
     "services": ["Installation", "Configuration", "Formation"]
   },
   {
     "id": 3,
-    "title": "Domotique Résidentielle Premium",
-    "location": "Almadies, Villa",
+    "title": "Domotique Résidentielle ",
+    "location": "Mermoz, Résidence",
     "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
     "image": "/images/placeholder-domotique.jpg",
     "category": "project",
     "services": ["Domotique", "Automatisation", "Smart Home"]
+  },
+  {
+    "id": 4,
+    "title": "Domotique Résidentielle Antalya",
+    "location": "Mermoz, Résidence",
+    "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
+    "image": "/images/domo1.jpeg",
+    "category": "project",
+    "services": ["Domotique", "Automatisation", "Smart Home"]
+  },
+  {
+    "id": 5,
+    "title": "Domotique Résidentielle Antalya",
+    "location": "Mermoz, Résidence",
+    "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
+    "image": "/images/domo2.jpeg",
+    "category": "project",
+    "services": ["Domotique", "Automatisation", "Smart Home"]
+  },
+  {
+    "id": 6,
+    "title": "Équipe Technique en Action",
+    "location": "Installation sur site",
+    "description": "Nos techniciens en action lors de l'installation de la fibre optique",
+    "image": "/images/fibre.jpeg",
+    "category": "team",
+    "services": ["Installation", "Configuration", "Fibre Optique"]
+  },
+  {
+    "id": 7,
+    "title": "Visiophonie Résidentielle",
+    "location": "Mermoz, Résidence",
+    "description": "Platine de rue multi appartements.",
+    "image": "/images/visiophonie.jpeg",
+    "category": "project",
+    "services": ["Visiophonie", "Contrôle d'accès", "Monitoring"]
+  },
+  {
+    "id": 8,
+    "title": "Extincteur",
+    "location": "Almadies, Résidence",
+    "description": "Installation Extincteur Immeuble THEA.",
+    "image": "/images/securite.jpeg",
+    "category": "project",
+    "services": ["Extincteur", "Sécurité", "Incendie"]
   }
 ]
+

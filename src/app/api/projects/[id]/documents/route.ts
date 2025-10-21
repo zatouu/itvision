@@ -11,11 +11,11 @@ async function requireAdmin(request: NextRequest) {
   return decoded
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const doc = body?.document
     if (!id || !doc?.id || !doc?.name || !doc?.url) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
@@ -32,11 +32,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
     await requireAdmin(request)
-    const { id } = params
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const documentId = searchParams.get('documentId')
     if (!id || !documentId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
