@@ -25,6 +25,8 @@ COPY . .
 # Variables d'environnement pour le build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Placeholder uniquement pour permettre le build Next.js (pas utilisé à l'exécution)
+ENV MONGODB_URI=mongodb://localhost:27017/build-placeholder
 
 # Build de l'application
 RUN npm run build
