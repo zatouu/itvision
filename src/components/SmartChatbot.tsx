@@ -27,6 +27,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
   const [isTyping, setIsTyping] = useState(false)
   const [conversationContext, setConversationContext] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -47,12 +48,30 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
             { label: "🔐 Contrôle d'accès", action: "access_control" },
             { label: "🏠 Domotique", action: "domotique" },
             { label: "🔧 Maintenance", action: "maintenance" },
+            { label: "⚙️ Digitalisation de processus", action: "digitalization" },
             { label: "📞 Contact direct", action: "contact" }
           ]
         )
       }, 500)
     }
   }, [isOpen])
+
+  // Réduction au clic extérieur (conserve l'historique)
+  useEffect(() => {
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (!isOpen) return
+      const target = e.target as Node
+      if (chatRef.current && !chatRef.current.contains(target)) {
+        if (messages.length > 0) setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [isOpen, messages.length])
 
   const addBotMessage = (text: string, actions?: Array<{label: string, action: string, data?: any}>) => {
     const message: Message = {
@@ -168,6 +187,36 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
         }
         break
 
+      case 'digitalization':
+        simulateTyping(() => {
+          addBotMessage(
+            "⚙️ Digitalisation de processus:\n\n• Cartographie de vos processus métiers\n• Dématérialisation des formulaires et validations\n• Automatisation des workflows (notifications, étapes, règles)\n• Intégrations (ERP/CRM, email, WhatsApp)\n\nQue souhaitez-vous faire ?",
+            [
+              { label: "🗺️ Cartographier mes processus", action: "process_mapping" },
+              { label: "📝 Dématérialiser mes formulaires", action: "forms_workflow" },
+              { label: "🤖 Automatiser un workflow", action: "process_automation" },
+              { label: "🔗 Intégrations ERP/CRM", action: "integrations" },
+              { label: "📅 Audit digitalisation (RDV)", action: "booking" }
+            ]
+          )
+        })
+        break
+
+      case 'process_mapping':
+      case 'forms_workflow':
+      case 'process_automation':
+      case 'integrations':
+        simulateTyping(() => {
+          addBotMessage(
+            "Parfait. Pour cadrer rapidement votre besoin, je vous propose un court échange avec un expert digitalisation.",
+            [
+              { label: "📅 Planifier un audit (gratuit)", action: "booking" },
+              { label: "💬 WhatsApp expert digitalisation", action: "whatsapp" }
+            ]
+          )
+        })
+        break
+
       case 'booking':
         if (onBookingClick) {
           onBookingClick()
@@ -269,6 +318,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
               { label: "🔐 Contrôle d'accès", action: "access_control" },
               { label: "🏠 Domotique", action: "domotique" },
               { label: "🔧 Maintenance", action: "maintenance" },
+              { label: "⚙️ Digitalisation de processus", action: "digitalization" },
               { label: "📞 Contact direct", action: "contact" }
             ]
           )
@@ -296,6 +346,12 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
             ]
           )
         })
+      } else if (
+        userInput.includes('digitalisation') || userInput.includes('digitisation') || userInput.includes('digitaliser') ||
+        userInput.includes('processus') || userInput.includes('workflow') || userInput.includes('automatisation') ||
+        userInput.includes('dématérialisation') || userInput.includes('dematerialisation')
+      ) {
+        handleActionClick('digitalization')
       } else if (userInput.includes('rendez-vous') || userInput.includes('rdv') || userInput.includes('meeting') || userInput.includes('rencontrer')) {
         simulateTyping(() => {
           addBotMessage(
@@ -383,7 +439,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
 
       {/* Interface du chat */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col z-50">
+        <div ref={chatRef} className="fixed bottom-6 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col z-50">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-2xl flex items-center justify-between">
             <div className="flex items-center space-x-3">
