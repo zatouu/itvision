@@ -122,11 +122,11 @@ jobs:
             EOF
 
             # Pull de l'image (recommandé: PAT dédié avec read:packages)
-            docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
+            sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Démarrage/MAJ des services
-            docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
 
             # Nettoyage des anciennes images
-            docker image prune -f
+            sudo docker image prune -f
