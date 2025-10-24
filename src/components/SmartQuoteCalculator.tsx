@@ -195,7 +195,7 @@ export default function SmartQuoteCalculator() {
         <div className="flex items-center space-x-3">
           <Calculator className="h-8 w-8" />
           <div>
-            <h2 className="text-2xl font-bold">🧮 Calculateur de Devis Intelligent</h2>
+            <h2 className="text-2xl font-bold">🧮 Calculateur de Devis</h2>
             <p className="text-emerald-100">Estimez votre projet en temps réel - Calcul automatique et précis</p>
           </div>
         </div>
