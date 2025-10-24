@@ -1,5 +1,5 @@
 # Dockerfile pour l'application Next.js securite-electronique
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Installation des dépendances système nécessaires
 RUN apk add --no-cache libc6-compat
@@ -37,6 +37,9 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Outils nécessaires pour les healthchecks (utilisés par docker-compose)
+RUN apk add --no-cache curl wget
+
 # Copie des fichiers nécessaires
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
@@ -54,9 +57,14 @@ USER nextjs
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV PORT 3000
+ENV HOSTNAME 0.0.0.0
 
 # Exposition du port
 EXPOSE 3000
+
+# Healthcheck interne (en complément de celui dans docker-compose)
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \\
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Commande de démarrage
 CMD ["node", "server.js"]
