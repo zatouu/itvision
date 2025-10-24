@@ -63,8 +63,7 @@ ENV HOSTNAME 0.0.0.0
 EXPOSE 3000
 
 # Healthcheck interne (en complément de celui dans docker-compose)
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \\
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Commande de démarrage
 CMD ["node", "server.js"]
