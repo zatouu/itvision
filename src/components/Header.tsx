@@ -96,7 +96,7 @@ const Header = () => {
         <div className="flex justify-between items-center py-3">
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <ITVisionLogo size={36} animated={true} />
+              <ITVisionLogo size={64} animated={true} />
             </Link>
           </div>
 
