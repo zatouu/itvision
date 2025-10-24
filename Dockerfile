@@ -23,8 +23,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Variables d'environnement pour le build
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
 # Build de l'application
 RUN npm run build
@@ -54,10 +54,10 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 # Variables d'environnement
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV PORT 3000
-ENV HOSTNAME 0.0.0.0
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 # Exposition du port
 EXPOSE 3000
