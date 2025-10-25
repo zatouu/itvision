@@ -43,23 +43,23 @@ export default function AboutPage() {
   const team = [
     {
       name: 'Ibrahima Gueye',
-      role: 'Directeur Technique',
-      experience: '5+ ans',
-      speciality: 'Sécurité électronique & domotique',
+      role: 'Solutions Architect 🚀',
+      experience: '10+ ans',
+      speciality: 'Sécurité électronique & architecture de solutions',
       certifications: []
     },
     {
       name: 'Ibrahima Ndiaye',
-      role: 'Directeur Commercial',
+      role: 'BizDev & Technico‑commercial 🤝',
       experience: '5+ ans',
-      speciality: 'Conseil PME & digitalisation',
+      speciality: 'Développement commercial & conseil technique',
       certifications: []
     },
     {
       name: 'Talibouya Ndiaye',
-      role: 'Chef de Projet',
+      role: 'Coordinateur de super‑héros 🦸‍♂️',
       experience: '5+ ans',
-      speciality: 'Gestion de projets & intégration',
+      speciality: 'Coordination de projets & opérations',
       certifications: []
     }
   ]
