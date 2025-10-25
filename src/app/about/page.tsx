@@ -6,14 +6,14 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'À propos - IT Vision',
-  description: 'Découvrez IT Vision, pionniers IoT & LoRaWAN au Sénégal depuis 2019. Experts en sécurité électronique, domotique et solutions connectées.',
+  description: 'Découvrez IT Vision, experts en sécurité électronique, domotique et digitalisation des processus PME depuis 2019.',
 }
 
 export default function AboutPage() {
   const stats = [
-    { icon: Users, label: 'Clients satisfaits', value: '200+' },
-    { icon: Shield, label: 'Projets IoT/Sécurité', value: '500+' },
-    { icon: Award, label: 'Années d\'innovation', value: '5' },
+    { icon: Users, label: 'Clients satisfaits', value: '+15' },
+    { icon: Shield, label: 'Projets réalisés', value: '+20' },
+    { icon: Award, label: "Expérience", value: '5+ ans' },
     { icon: Clock, label: 'Disponibilité', value: '24h/7j' }
   ]
 
@@ -42,25 +42,25 @@ export default function AboutPage() {
 
   const team = [
     {
-      name: 'Marc DUBOIS',
+      name: 'Ibrahima Gueye',
       role: 'Directeur Technique',
-      experience: '15 ans',
-      speciality: 'Systèmes de sécurité avancés',
-      certifications: ['APSAD', 'Hikvision', 'Axis']
+      experience: '5+ ans',
+      speciality: 'Sécurité électronique & domotique',
+      certifications: []
     },
     {
-      name: 'Sophie MARTIN',
-      role: 'Responsable Commercial',
-      experience: '12 ans',
-      speciality: 'Conseil et accompagnement',
-      certifications: ['Domotique KNX', 'Sécurité incendie']
+      name: 'Ibrahima Ndiaye',
+      role: 'Directeur Commercial',
+      experience: '5+ ans',
+      speciality: 'Conseil PME & digitalisation',
+      certifications: []
     },
     {
-      name: 'Thomas BERNARD',
+      name: 'Talibouya Ndiaye',
       role: 'Chef de Projet',
-      experience: '10 ans',
-      speciality: 'Intégration systèmes',
-      certifications: ['Réseau Cisco', 'VMware']
+      experience: '5+ ans',
+      speciality: 'Gestion de projets & intégration',
+      certifications: []
     }
   ]
 
@@ -76,8 +76,8 @@ export default function AboutPage() {
               À propos d&apos;<span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">IT Vision</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Depuis 15 ans, nous accompagnons particuliers et entreprises dans leurs projets de sécurité électronique 
-              avec une vision technologique avant-gardiste.
+              Depuis plus de 5 ans, nous accompagnons particuliers et PME en sécurité électronique,
+              domotique et digitalisation opérationnelle.
             </p>
           </div>
 
@@ -114,16 +114,10 @@ export default function AboutPage() {
                   intelligent au service de la sécurité et de l'efficacité.
                 </p>
                 <p>
-                  <strong>Pionniers de l'IoT au Sénégal</strong>, nous avons démarré avec la mise en place de systèmes 
-                  basés sur <strong className="text-emerald-600">LoRa & LoRaWAN</strong> pour la collecte et l'acquisition 
-                  de données, ainsi que l'implémentation de protocoles <strong className="text-emerald-600">MQTT</strong> 
-                  pour la communication entre objets connectés. Cette expertise initiale nous a naturellement menés 
-                  vers la sécurité électronique et la domotique avancée.
-                </p>
-                <p>
-                  Aujourd'hui, nous sommes reconnus comme <strong>leaders en solutions IoT, domotique et sécurité électronique</strong> 
-                  sur le marché sénégalais, proposant des écosystèmes complets intégrant capteurs, communications 
-                  longue portée, sécurité et automatisation intelligente.
+                  Nous avons démarré avec l'IoT (LoRa/LoRaWAN, MQTT) pour la collecte de données et l'automation,
+                  puis étendu notre offre vers la <strong className="text-emerald-600">sécurité électronique</strong> et la
+                  <strong className="text-emerald-600"> domotique</strong>, avec un rôle de facilitateur pour la
+                  <strong className="text-emerald-600"> digitalisation des processus des PME</strong>.
                 </p>
                 <p>
                   Notre approche unique combine <strong>expertise technique pointue</strong> (protocols mesh, LoRaWAN, MQTT), 
@@ -133,11 +127,9 @@ export default function AboutPage() {
               </div>
             </div>
             <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl p-8 text-center">
-              <div className="text-6xl mb-4">🏆</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">5 ans d&apos;innovation</h3>
-              <p className="text-gray-600">
-                Pionniers IoT & LoRaWAN au Sénégal depuis décembre 2019
-              </p>
+              <div className="text-6xl mb-4">📈</div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">5+ ans d'expérience</h3>
+              <p className="text-gray-600">Sécurité électronique, domotique et digitalisation des PME depuis 2019</p>
             </div>
           </div>
         </div>
