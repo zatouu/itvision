@@ -10,9 +10,9 @@ export const metadata: Metadata = {
   keywords: 'IT Vision, sécurité électronique, vidéosurveillance, contrôle accès, domotique, sécurité incendie, technologie, innovation, solutions IT',
   authors: [{ name: 'IT Vision' }],
   icons: {
-    icon: '/icon.png',
-    shortcut: '/icon.png',
-    apple: '/icon.png',
+    icon: '/Icone.png',
+    shortcut: '/Icone.png',
+    apple: '/apple-touch-icon.png',
   },
   openGraph: {
     title: 'IT Vision - Sécurité Électronique & Solutions Technologiques',

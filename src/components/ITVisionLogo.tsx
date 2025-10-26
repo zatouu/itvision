@@ -14,7 +14,7 @@ const ITVisionLogo: React.FC<ITVisionLogoProps> = ({
   return (
     <div className={`flex items-center ${className}`}>
       <img
-        src="/images/logo-it-vision.png"
+        src="/images/Complet avec fond.png"
         alt="IT Vision"
         style={{ height: size, width: 'auto' }}
       />

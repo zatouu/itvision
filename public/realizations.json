@@ -70,6 +70,15 @@
     "image": "/images/securite.jpeg",
     "category": "project",
     "services": ["Extincteur", "Sécurité", "Incendie"]
+  },
+  {
+    "id": 9,
+    "title": "Résidence Shiramba",
+    "location": "Diamniadio",
+    "description": "Installation complète pour l'entreprise Teyliom - Résidence Shiramba: 26 Combinés interphone audio RL, 1 Platine de Rue 16 Postes RL, 1 Platine de Rue 12 Postes RL.",
+    "image": "/images/Shiramba.png",
+    "category": "project",
+    "services": ["Interphonie", "Contrôle d'accès", "Installation résidentielle"]
   }
 ]
 

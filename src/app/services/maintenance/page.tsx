@@ -9,7 +9,7 @@ export default function MaintenanceServicePage() {
   return (
     <main>
       <Header />
-      <section className="bg-gradient-to-br from-gray-50 via-white to-gray-50 page-content pt-28 pb-16">
+      <section className="bg-gradient-to-br from-gray-50 via-white to-gray-50 pt-36 md:pt-40 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Maintenance & Support</h1>
@@ -42,17 +42,17 @@ export default function MaintenanceServicePage() {
 
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h2 className="text-xl font-semibold mb-4">Contact</h2>
-              <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
                 <a
                   href={`https://wa.me/221774133440?text=${encodeURIComponent('Bonjour, je souhaite souscrire à un contrat de maintenance.')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-semibold transition-all inline-flex items-center"
+                  className="bg-gradient-to-r from-emerald-300 to-purple-300 hover:from-emerald-400 hover:to-purple-400 text-white px-4 py-3 rounded-lg font-semibold transition-all inline-flex items-center"
                 >
                   <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347" /></svg>
                   WhatsApp
                 </a>
-                <Link href="/contact" className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all inline-flex items-center">
+                <Link href="/contact" className="bg-gradient-to-r from-purple-300 to-emerald-300 hover:from-purple-400 hover:to-emerald-400 text-white px-4 py-3 rounded-lg font-semibold transition-all inline-flex items-center">
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>

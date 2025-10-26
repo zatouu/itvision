@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import ITVisionLogo from './ITVisionLogo'
 import UnifiedLoginButton from './UnifiedLoginButton'
 
 const Header = () => {
@@ -93,15 +93,26 @@ const Header = () => {
 
       {/* Navigation principale - optimisée */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-3">
+        <div className="flex justify-between items-center py-1">
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
-              <ITVisionLogo size={80} animated={true} />
+            <Link href="/" className="flex items-center gap-3 shrink-0">
+              <Image
+                src="/logo-it-vision.png"
+                alt="IT Vision"
+                width={610}
+                height={530}
+                className="h-14 sm:h-16 lg:h-18 xl:h-20 w-auto object-contain"
+                sizes="(max-width: 640px) 56px, (max-width: 1024px) 64px, (max-width: 1280px) 72px, 80px"
+                priority
+                style={{
+                  objectFit: "contain",
+                }}
+              />
             </Link>
           </div>
 
           {/* Menu desktop - spacieux et moderne */}
-          <div className="hidden lg:flex items-center flex-1 justify-between ml-8">
+          <div className="hidden lg:flex items-center flex-1 justify-between ml-12 lg:ml-16">
             <div className="flex items-center space-x-2 flex-1">
               {/* Liens principaux avec icônes à gauche */}
               {navigation.map((item) => {

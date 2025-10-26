@@ -37,21 +37,23 @@ export default function RealisationsPage() {
         "Câblage encastré invisible",
         "Infrastructure réseau structurée",
         "Système domotique centralisé par appartement",
-        "Visiophonie HD avec contrôle d'accès"
+        "Visiophonie HD avec contrôle d'accès",
+        "Serrures connectées",
+        "Videosurveillance"
       ],
       testimonial: {
         text: "Une expertise technique remarquable. L'installation invisible et la qualité des finitions correspondent parfaitement au standing de notre résidence.",
         author: "Mamadou Diallo",
-        role: "Directeur Technique Teyliom Properties"
+        role: ""
       }
     },
     {
       id: 2,
-      title: "Entreprise LOCAFRIQUE",
+      title: "LOCAFRIQUE",
       category: "Financier",
       icon: Building2,
       location: "Almadies, Dakar",
-      date: "2024",
+      date: "2020",
       client: "LOCAFRIQUE",
       description: "Installation d'un système de vidéosurveillance avancé pour un établissement financier sur 5 étages. 42 caméras POE avec architecture réseau optimisée, transmission longue distance et affichage multi-points.",
       services: ["Vidéosurveillance", "Architecture réseau", "Transmission longue distance", "Affichage multi-points"],
@@ -80,10 +82,84 @@ export default function RealisationsPage() {
         author: "Fatou Seck",
         role: "Directrice des Opérations LOCAFRIQUE"
       }
+    },
+    {
+      id: 3,
+      title: "Résidence SHIRAMBA",
+      category: "Résidentiel",
+      icon: Home,
+      location: "Diamniadio",
+      date: "2023",
+      client: "Teyliom",
+      description: "Installation complète d'un système d'interphonie audio pour une résidence moderne. Déploiement de 26 combinés interphone audio RL, 1 platine de rue 16 postes RL et 1 platine de rue 12 postes RL pour assurer la communication et le contrôle d'accès de l'ensemble de la résidence.",
+      services: ["Interphonie audio", "Contrôle d'accès", "Platines de rue", "Installation résidentielle"],
+      image: "🏢",
+      stats: { 
+        combines: "26", 
+        platine16: "1 (16 postes)", 
+        platine12: "1 (12 postes)",
+        type: "Audio RL"
+      },
+      challenges: [
+        "Installation pour un grand nombre d'unités résidentielles",
+        "Intégration de deux platines de rue différentes",
+        "Distribution audio claire pour tous les appartements",
+        "Câblage optimisé pour 26 points"
+      ],
+      solutions: [
+        "Système d'interphonie audio RL haute performance",
+        "Architecture en étoile pour distribution optimale",
+        "Platines de rue adaptées aux besoins (16 et 12 postes)",
+        "Câblage structuré et testé pour chaque unité",
+        "Configuration centralisée pour gestion facilitée",
+        "Installation discrète et esthétique"
+      ],
+      testimonial: {
+        text: "L'installation de l'interphonie a été réalisée dans les délais avec une qualité irréprochable. Le système fonctionne parfaitement et répond aux besoins de notre résidence.",
+        author: "Équipe Teyliom",
+        role: "Client"
+      }
+    },
+    {
+      id: 4,
+      title: "Holding Mermoz",
+      category: "Professionnel",
+      icon: Building2,
+      location: "Mermoz, Dakar",
+      date: "2020",
+      client: "Holding Mermoz",
+      description: "Système de vidéosurveillance professionnel complet avec 16 caméras POE, enregistrement haute capacité et transmission vidéo longue distance. Infrastructure réseau optimisée pour une surveillance continue et un stockage sécurisé.",
+      services: ["Vidéosurveillance", "Architecture réseau", "Infrastructure POE", "Monitoring"],
+      image: "🏢",
+      stats: { 
+        "NVR": "16ch POE", 
+        "Caméras": "16 POE", 
+        "Stockage": "8 TB",
+        "Câblage": "Cat6 FTP"
+      },
+      challenges: [
+        "Déploiement de 16 caméras sur site professionnel",
+        "Architecture réseau structurée pour POE",
+        "Stockage haute capacité pour longue rétention",
+        "Transmission vidéo longue distance (HDMI 50m)"
+      ],
+      solutions: [
+        "Enregistreur NVR 16ch POE Uniview",
+        "16 caméras POE Uniview",
+        "Stockage redondant 2x4TB",
+        "Infrastructure Cat6 FTP complète",
+        "Onduleur 420-650VA",
+        "Transmission HDMI 50m + convertisseur VGA"
+      ],
+      testimonial: {
+        text: "Un système de surveillance professionnel qui répond parfaitement à nos besoins de sécurité. L'équipe IT Vision a su nous conseiller et installer une solution fiable et évolutive.",
+        author: "Direction Holding Mermoz",
+        role: "Client"
+      }
     }
   ]
 
-  const categories = ["Tous", "Résidentiel", "Financier"]
+  const categories = ["Tous", "Résidentiel", "Financier", "Professionnel"]
 
   return (
     <main>
@@ -244,7 +320,11 @@ export default function RealisationsPage() {
                       {/* Image principale */}
                       <div className="relative h-80 overflow-hidden">
                         <img 
-                          src={project.id === 1 ? '/images/Antalya-front.jpg' : '/images/locafrique.jpg'}
+                          src={
+                            project.id === 1 ? '/images/Antalya-front.jpg' : 
+                            project.id === 2 ? '/images/locafrique.jpg' :
+                            '/images/Shiramba.png'
+                          }
                           alt={project.title}
                           className="w-full h-full object-cover"
                         />
@@ -262,11 +342,17 @@ export default function RealisationsPage() {
                               <img src="/images/domo2.jpeg" alt="Détail 2" className="w-full h-24 object-cover rounded-lg" />
                               <img src="/images/visiophonie.jpeg" alt="Détail 3" className="w-full h-24 object-cover rounded-lg" />
                             </>
-                          ) : (
+                          ) : project.id === 2 ? (
                             <>
                               <img src="/images/visiophonie.jpeg" alt="Surveillance" className="w-full h-24 object-cover rounded-lg" />
                               <img src="/images/ecran_ascenseur.jpeg" alt="Affichage" className="w-full h-24 object-cover rounded-lg" />
                               <img src="/images/fibre.jpeg" alt="Infrastructure" className="w-full h-24 object-cover rounded-lg" />
+                            </>
+                          ) : (
+                            <>
+                              <img src="/images/visiophonie.jpeg" alt="Interphone" className="w-full h-24 object-cover rounded-lg" />
+                              <img src="/images/domo1.jpeg" alt="Installation" className="w-full h-24 object-cover rounded-lg" />
+                              <img src="/images/Shiramba.png" alt="Résidence" className="w-full h-24 object-cover rounded-lg" />
                             </>
                           )}
                         </div>
