@@ -370,30 +370,22 @@ export default function DigitalHomepage() {
         </section>
 
         {/* Section Prise de Rendez-vous Digitale */}
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-gradient-to-r from-emerald-700 to-purple-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Planifier <span className="text-emerald-600">maintenant</span> — sécurité électronique & domotique
-              </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Confirmez un créneau en quelques clics et recevez une confirmation. Simple et rapide.
-              </p>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">🚀 Prise de Rendez-vous</h2>
+              <p className="text-lg text-white/90 max-w-2xl mx-auto">Planifiez votre intervention en quelques clics - Confirmation immédiate</p>
             </div>
             <DigitalBooking />
           </div>
         </section>
 
         {/* Section Calculateur de Devis */}
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-gradient-to-r from-purple-800 to-emerald-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Obtenir mon <span className="text-purple-600">estimation</span> — vidéosurveillance & contrôle d’accès
-              </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Sélectionnez vos équipements et paramètres. Estimation automatique et partage par WhatsApp.
-              </p>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">🧮 Calculateur de Devis</h2>
+              <p className="text-lg text-white/90 max-w-2xl mx-auto">Estimez votre projet en temps réel - Calcul automatique et précis</p>
             </div>
             <SmartQuoteCalculator />
           </div>

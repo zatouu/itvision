@@ -14,6 +14,7 @@ services:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
       - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    command: ["mongod", "--auth", "--quiet", "--logpath", "/dev/null"]
     networks:
       - itvision-internal
     healthcheck:
