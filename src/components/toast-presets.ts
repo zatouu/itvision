@@ -40,8 +40,15 @@ export const toastPresets: Record<PresetKey, Preset> = {
   'publish:info':    { type: 'info',    title: 'Publication',        description: 'Publication en cours...', durationMs: DEFAULT_DURATION },
   'publish:warning': { type: 'warning', title: 'À vérifier',         description: 'Vérifier la conformité.', durationMs: DEFAULT_DURATION },
 
+  'load:success': { type: 'success', title: 'Chargement terminé',   description: 'Les données ont été chargées.', durationMs: DEFAULT_DURATION },
+  'load:error':   { type: 'error',   title: 'Échec du chargement',  description: 'Impossible de charger les données.', durationMs: ERROR_DURATION },
   'load:info':    { type: 'info',    title: 'Chargement',           description: 'Récupération des données...', durationMs: DEFAULT_DURATION },
-  'error:error':  { type: 'error',   title: 'Erreur',               description: 'Une erreur est survenue.', durationMs: ERROR_DURATION },
+  'load:warning': { type: 'warning', title: 'Chargement lent',      description: 'Veuillez patienter encore.', durationMs: DEFAULT_DURATION },
+
+  'error:success': { type: 'success', title: 'Erreur résolue',      description: 'Le problème a été corrigé.', durationMs: DEFAULT_DURATION },
+  'error:error':   { type: 'error',   title: 'Erreur',               description: 'Une erreur est survenue.', durationMs: ERROR_DURATION },
+  'error:info':    { type: 'info',    title: 'Information',          description: 'Une vérification est nécessaire.', durationMs: DEFAULT_DURATION },
+  'error:warning': { type: 'warning', title: 'Avertissement',        description: 'Un risque a été détecté.', durationMs: DEFAULT_DURATION },
 }
 
 export function useToastPresetKey(kind: ActionKind, type: ToastType): PresetKey {
