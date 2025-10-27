@@ -74,8 +74,8 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
     const toast: Toast = {
       id,
       type,
-      title: options.title || undefined,
-      description: options.description || undefined,
+      title: options.title || '',
+      description: options.description || '',
       durationMs
     }
 

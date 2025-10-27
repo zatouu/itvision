@@ -4,8 +4,9 @@ import AdminProductManager from '@/components/AdminProductManager'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
 
-export default function AdminProduitsPage() {
-  const token = cookies().get('auth-token')?.value
+export default async function AdminProduitsPage() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('auth-token')?.value
   let allowed = false
   try {
     if (token) {
