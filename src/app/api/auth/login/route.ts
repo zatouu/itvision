@@ -136,8 +136,10 @@ export async function POST(request: NextRequest) {
 function getRedirectUrl(role: string): string {
   const normalized = String(role).toUpperCase()
   switch (normalized) {
+    case 'PRODUCT_MANAGER':
+      return '/admin/produits'
     case 'ADMIN':
-      return '/admin-reports'
+      return '/admin'
     case 'TECHNICIAN':
       return '/tech-interface'
     case 'CLIENT':

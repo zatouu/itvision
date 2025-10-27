@@ -93,7 +93,7 @@ const Header = () => {
 
       {/* Navigation principale - optimisée */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-1">
+        <div className="flex justify-between items-center py-0">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-3 shrink-0">
               <Image
@@ -101,8 +101,8 @@ const Header = () => {
                 alt="IT Vision"
                 width={610}
                 height={530}
-                className="h-14 sm:h-16 lg:h-18 xl:h-20 w-auto object-contain"
-                sizes="(max-width: 640px) 56px, (max-width: 1024px) 64px, (max-width: 1280px) 72px, 80px"
+                className="h-18 sm:h-20 lg:h-22 xl:h-24 w-auto object-contain"
+                sizes="(max-width: 640px) 72px, (max-width: 1024px) 80px, (max-width: 1280px) 88px, 96px"
                 priority
                 style={{
                   objectFit: "contain",
@@ -112,8 +112,8 @@ const Header = () => {
           </div>
 
           {/* Menu desktop - spacieux et moderne */}
-          <div className="hidden lg:flex items-center flex-1 justify-between ml-12 lg:ml-16">
-            <div className="flex items-center space-x-2 flex-1">
+          <div className="hidden lg:flex items-center flex-1 justify-between ml-10 lg:ml-14">
+            <div className="flex items-center space-x-1 flex-1">
               {/* Liens principaux avec icônes à gauche */}
               {navigation.map((item) => {
                 const Icon = item.icon
@@ -123,7 +123,7 @@ const Header = () => {
                     <div className="relative group flex-1" key={item.name}>
                       <Link
                         href={item.href}
-                        className="flex items-center gap-3 text-gray-700 hover:text-emerald-600 px-5 py-3 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 rounded-xl w-full justify-start group"
+                        className="flex items-center gap-3 text-gray-700 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 rounded-xl w-full justify-start group"
                       >
                         <Icon className="h-5 w-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
                         <span className="whitespace-nowrap">{item.name}</span>
@@ -253,7 +253,7 @@ const Header = () => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="flex items-center gap-3 text-gray-700 hover:text-emerald-600 px-5 py-3 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 rounded-xl flex-1 justify-start group"
+                    className="flex items-center gap-3 text-gray-700 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 rounded-xl flex-1 justify-start group"
                   >
                     <Icon className="h-5 w-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
                     <span className="whitespace-nowrap">{item.name}</span>

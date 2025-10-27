@@ -1,6 +1,6 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Phone, Mail, MapPin, Clock } from 'lucide-react'
-import ITVisionLogo from './ITVisionLogo'
 import TechLines from './TechLines'
 
 const Footer = () => {
@@ -12,7 +12,17 @@ const Footer = () => {
           {/* Logo et description */}
           <div className="col-span-1 lg:col-span-1">
             <div className="mb-4">
-              <ITVisionLogo size={35} animated={true} />
+              <Image
+                src="/Complet transparent vert.png"
+                alt="IT Vision"
+                width={200}
+                height={80}
+                className="h-12 w-auto object-contain"
+                priority
+                style={{
+                  objectFit: "contain",
+                }}
+              />
             </div>
             <p className="text-gray-300 mb-4 max-w-md">
               IT Vision Plus : Votre expert en sécurité électronique au Sénégal depuis 2019. Vision technologique avancée 

@@ -1,0 +1,12 @@
+// Simple analytics event tracker compatible with GA4 (fallback to console)
+export const trackEvent = (event: string, data?: Record<string, any>) => {
+  if (typeof window === 'undefined') return;
+  try {
+    // GA4 style if available
+    // @ts-ignore
+    window.gtag?.('event', event, data);
+  } catch {}
+  // Fallback logging for debugging
+  // eslint-disable-next-line no-console
+  console.log('Event:', event, data);
+};

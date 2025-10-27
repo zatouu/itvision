@@ -31,6 +31,15 @@ export default function AdminDashboard() {
       features: ['Devis par service', 'Prix configurables', 'Système modulaire']
     },
     {
+      id: 'products',
+      title: 'Gestion Produits',
+      description: 'Ajouter, modifier et supprimer les produits du catalogue',
+      icon: Package,
+      href: '/admin/produits',
+      color: 'purple',
+      features: ['CRUD produits', 'Recherche/filtre', 'Sur devis ou tarifé']
+    },
+    {
       id: 'prices',
       title: 'Gestion des Prix',
       description: 'Configurer les prix par type de produit',

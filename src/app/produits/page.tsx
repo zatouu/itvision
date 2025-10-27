@@ -1,17 +1,83 @@
-import { Metadata } from 'next'
+"use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
+import CartIcon from '@/components/CartIcon'
+import CartDrawer from '@/components/CartDrawer'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export const metadata: Metadata = {
-  title: 'Nos Produits & Solutions - IT Vision Plus',
-  description: 'Produits Hikvision dernière génération, domotique Tuya, et solutions de digitalisation d\'entreprise : développement, data science, DevOps.',
+// Interface pour les produits de l'API
+interface ApiProduct {
+  _id: string
+  name: string
+  category: string
+  description: string
+  priceAmount?: number
+  currency?: string
+  image?: string
+  requiresQuote: boolean
+  deliveryDays?: number
+  createdAt: string
+  updatedAt: string
 }
 
+// metadata export is not allowed in a client component; title handled elsewhere
+
 export default function ProduitsPage() {
+  const [cartOpen, setCartOpen] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  const [onlyPrice, setOnlyPrice] = useState(false)
+  const [onlyQuote, setOnlyQuote] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [products, setProducts] = useState<ApiProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const sync = () => {
+      if (typeof window === 'undefined') return
+      const raw = localStorage.getItem('cart:items')
+      const items = raw ? JSON.parse(raw) : []
+      const count = items.reduce((s: number, i: any) => s + (i.qty || 1), 0)
+      setCartCount(count)
+    }
+    sync()
+    window.addEventListener('cart:updated', sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener('cart:updated', sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
+
+  // Charger les produits depuis l'API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/products')
+        const data = await response.json()
+        
+        if (data.success) {
+          setProducts(data.products)
+        } else {
+          setError('Erreur lors du chargement des produits')
+        }
+      } catch (err) {
+        setError('Erreur de connexion')
+        console.error('Error fetching products:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
   const categories = [
     {
       id: 'cameras',
@@ -477,9 +543,14 @@ export default function ProduitsPage() {
   return (
     <main>
       <Header />
+      {/* Local cart icon for produits page */}
+      <div className="fixed right-4 bottom-4 z-40">
+        <CartIcon count={cartCount} onClick={() => setCartOpen(true)} />
+      </div>
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-white via-gray-50 to-gray-100 page-content pt-28 pb-20">
+      <section className="bg-gradient-to-br from-white via-gray-50 to-gray-100 page-content pt-28 pb-20 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
@@ -500,9 +571,9 @@ export default function ProduitsPage() {
                 <div className="ml-3">
                   <p className="text-blue-700 font-semibold mb-2">🌟 Offre Produits Illimitée</p>
                   <p className="text-blue-600 text-sm">
-                    <strong>Import direct :</strong> Approvisionnement depuis 1688.com et Alibaba pour des prix imbattables.<br/>
+                    {/* <strong>Import direct :</strong> Approvisionnement depuis l'étranger pour des prix imbattables.<br/>
                     <strong>Marques disponibles :</strong> Hikvision, Dahua, Uniview, et des centaines d'autres selon vos besoins.<br/>
-                    <strong>Catalogue :</strong> Les produits ci-dessous sont des exemples. Nous pouvons sourcer tout équipement sur demande.
+                    <strong>Catalogue :</strong> Les produits ci-dessous sont des exemples. Nous pouvons sourcer tout équipement sur demande. */}
                   </p>
                 </div>
               </div>
@@ -526,228 +597,200 @@ export default function ProduitsPage() {
         </div>
       </section>
 
-      {/* Products Sections */}
-      <section className="py-20 bg-white">
+      {/* Products Sections with sidebar filters */}
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {categories.map((category, categoryIndex) => {
-            const IconComponent = category.icon
-            
-            return (
-              <div key={category.id} className="mb-24 last:mb-0">
-                {/* Category Header */}
-                <div className="text-center mb-16">
-                  <div className="flex items-center justify-center mb-4">
-                    <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-2xl shadow-lg">
-                      <IconComponent className="h-8 w-8 text-white" />
-                    </div>
-                  </div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{category.title}</h2>
-                  <p className="text-lg text-gray-600 max-w-2xl mx-auto">{category.description}</p>
-                </div>
+          {/* Mobile filter bar */}
+          <div className="lg:hidden mb-4 flex items-center justify-between">
+            <input
+              value={search}
+              onChange={(e)=>setSearch(e.target.value)}
+              placeholder="Rechercher un produit..."
+              className="flex-1 border rounded-lg px-3 py-2 text-sm mr-2"
+            />
+            <button onClick={()=>setShowFilters(true)} className="px-3 py-2 border rounded-lg text-sm">Filtres</button>
+          </div>
 
-                {/* Products Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {category.products.map((product, index) => (
-                    <ProductCard
-                      key={index}
-                      name={product.name}
-                      model={product.model}
-                      price={product.price}
-                      features={product.features}
-                      rating={product.rating}
-                      images={[
-                        '/file.svg',
-                        '/window.svg',
-                        '/globe.svg'
-                      ]}
-                    />
-                  ))}
+          <div className="flex gap-6">
+            {/* Sidebar Filters */}
+            <aside className="w-64 hidden lg:block">
+              <div className="sticky top-24 space-y-4">
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">Recherche</h3>
+                  <input
+                    value={search}
+                    onChange={(e)=>setSearch(e.target.value)}
+                    placeholder="Rechercher un produit..."
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">Catégories</h3>
+                  <div className="space-y-1 text-sm">
+                    {Array.from(new Set(products.map(p => p.category))).map((category) => (
+                      <label key={category} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(category)}
+                          onChange={(e)=>{
+                            setSelected((prev)=> e.target.checked ? [...prev, category] : prev.filter(id=>id!==category))
+                          }}
+                        />
+                        <span>{category}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">Tarif</h3>
+                  <div className="space-y-1 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} />
+                      <span>Avec prix</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} />
+                      <span>Sur devis</span>
+                    </label>
+                  </div>
                 </div>
               </div>
-            )
-          })}
-        </div>
+            </aside>
+
+            {/* Main content */}
+            <div className="flex-1">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  <span className="ml-2 text-gray-600">Chargement des produits...</span>
+                </div>
+              ) : error ? (
+                <div className="text-center py-16">
+                  <p className="text-red-600 mb-4">{error}</p>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-16">
+                  {/* Grouper les produits par catégorie */}
+                  {Object.entries(
+                    products.reduce((acc, product) => {
+                      if (!acc[product.category]) acc[product.category] = []
+                      acc[product.category].push(product)
+                      return acc
+                    }, {} as Record<string, ApiProduct[]>)
+                  ).map(([categoryName, categoryProducts]) => {
+                    // Filtrer les produits selon les critères
+                    const filtered = categoryProducts.filter(product => {
+                      const text = `${product.name} ${product.description}`.toLowerCase()
+                      const matchesSearch = search.trim().length === 0 || text.includes(search.toLowerCase())
+                      const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
+                      const matchesCategory = selected.length === 0 || selected.includes(product.category)
+                      return matchesSearch && matchesTarif && matchesCategory
+                    })
+
+                    if (filtered.length === 0) return null
+
+                    return (
+                      <div key={categoryName} className="mb-16 last:mb-0">
+                        {/* Category Header */}
+                        <div className="text-center mb-16">
+                          <div className="flex items-center justify-center mb-4">
+                            <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-2xl shadow-lg">
+                              <Package className="h-7 w-7 text-white" />
+                            </div>
+                          </div>
+                          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{categoryName}</h2>
+                          <p className="text-base text-gray-600 max-w-2xl mx-auto">
+                            {filtered.length} produit{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
+                          </p>
+                        </div>
+
+                        {/* Products Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {filtered.map((product) => (
+                            <ProductCard
+                              key={product._id}
+                              name={product.name}
+                              model=""
+                              price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'Fcfa'}` : 'Sur devis'}
+                              priceAmount={product.priceAmount}
+                              currency={product.currency || 'Fcfa'}
+                              requiresQuote={product.requiresQuote}
+                              deliveryDays={product.deliveryDays || 0}
+                              features={[product.description]}
+                              rating={4.5}
+                              images={product.image ? [product.image] : ['/file.svg']}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {products.length === 0 && !loading && (
+                    <div className="text-center py-16">
+                      <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
+                      <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+                  </div>
       </section>
 
-      {/* Section Explicative Domotique */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 via-purple-50 to-emerald-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              🏠 <span className="text-blue-600">Deux Approches Domotiques</span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Que votre bâtiment soit existant ou en construction, nous avons la solution adaptée
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Mode Retrofit */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">🔄</span>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">Mode RETROFIT</h3>
-                    <p className="text-orange-100">Pour bâtiments existants</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <h4 className="text-xl font-semibold text-gray-900 mb-4">✨ Rendez intelligent sans refaire</h4>
-                
-                <div className="space-y-4 mb-6">
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Micro-modules invisibles</p>
-                      <p className="text-sm text-gray-600">Installation derrière vos interrupteurs existants</p>
+      {/* Mobile Filters Drawer */}
+      {showFilters && (
+        <div className="lg:hidden fixed inset-0 z-50" aria-hidden={!showFilters}>
+          <div className="absolute inset-0 bg-black/40" onClick={()=>setShowFilters(false)} />
+          <div className="absolute left-0 top-0 h-full w-80 bg-white shadow-2xl p-4 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold">Filtres</h3>
+              <button onClick={()=>setShowFilters(false)} className="text-sm">Fermer</button>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Aucun changement visible</p>
-                      <p className="text-sm text-gray-600">Vos interrupteurs gardent leur aspect d'origine</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Installation rapide</p>
-                      <p className="text-sm text-gray-600">Pas de travaux lourds ni de peinture</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Contrôle mobile</p>
-                      <p className="text-sm text-gray-600">App unique pour tout contrôler</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <h5 className="font-semibold text-orange-800 mb-2">💡 Idéal pour :</h5>
-                  <ul className="text-orange-700 text-sm space-y-1">
-                    <li>• Appartements et maisons déjà meublés</li>
-                    <li>• Bureaux en activité</li>
-                    <li>• Éviter les travaux de rénovation</li>
-                    <li>• Budget maîtrisé</li>
-                  </ul>
-                </div>
+            <div className="bg-white border rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 mb-2">Recherche</h4>
+              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Rechercher..." className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div className="bg-white border rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 mb-2">Catégories</h4>
+              <div className="space-y-1 text-sm max-h-56 overflow-auto pr-1">
+                {categories.map((c)=> (
+                  <label key={c.id} className="flex items-center gap-2">
+                    <input type="checkbox" checked={selected.includes(c.id)} onChange={(e)=>{
+                      setSelected((prev)=> e.target.checked ? [...prev, c.id] : prev.filter(id=>id!==c.id))
+                    }} />
+                    <span>{c.title}</span>
+                  </label>
+                ))}
               </div>
             </div>
-
-            {/* Mode Construction Neuve */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <span className="text-2xl">🏗️</span>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">Mode CONSTRUCTION</h3>
-                    <p className="text-blue-100">Pour projets neufs</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <h4 className="text-xl font-semibold text-gray-900 mb-4">🚀 Équipements smart directement</h4>
-                
-                <div className="space-y-4 mb-6">
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Design moderne intégré</p>
-                      <p className="text-sm text-gray-600">Interrupteurs tactiles avec écrans</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Fonctionnalités avancées</p>
-                      <p className="text-sm text-gray-600">Scénarios complexes et contrôle vocal</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Installation optimale</p>
-                      <p className="text-sm text-gray-600">Câblage prévu dès la construction</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Évolutivité maximale</p>
-                      <p className="text-sm text-gray-600">Prêt pour les futures technologies</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h5 className="font-semibold text-blue-800 mb-2">🏗️ Idéal pour :</h5>
-                  <ul className="text-blue-700 text-sm space-y-1">
-                    <li>• Nouvelles constructions</li>
-                    <li>• Rénovations complètes</li>
-                    <li>• Projets haut de gamme</li>
-                    <li>• Bâtiments intelligents</li>
-                  </ul>
-                </div>
+            <div className="bg-white border rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 mb-2">Tarif</h4>
+              <div className="space-y-1 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} />
+                  <span>Avec prix</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} />
+                  <span>Sur devis</span>
+                </label>
               </div>
             </div>
-          </div>
-
-          {/* Interface unifiée */}
-          <div className="mt-16 bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                📱 Interface Mobile Unifiée
-              </h3>
-              <p className="text-lg text-gray-600">
-                Quel que soit le mode choisi, vous bénéficiez de la même application conviviale
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">📱</span>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-2">App iOS/Android</h4>
-                <p className="text-sm text-gray-600">Interface intuitive et moderne pour tous vos équipements</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🎛️</span>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Contrôle Central</h4>
-                <p className="text-sm text-gray-600">Tous vos protocoles (WiFi, Zigbee, Bluetooth) unifiés</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🎭</span>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Scénarios Smart</h4>
-                <p className="text-sm text-gray-600">Automatisations selon vos habitudes et préférences</p>
-              </div>
-            </div>
+            <button onClick={()=>setShowFilters(false)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2 font-semibold">Appliquer</button>
           </div>
         </div>
-      </section>
+      )}
+
+      {/* Section Explicative déplacée vers /domotique (supprimée ici) */}
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-br from-emerald-600 via-teal-600 to-purple-600 text-white">

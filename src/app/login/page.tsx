@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Wrench, Shield, ArrowRight, Eye, EyeOff, LogIn, Lock } from 'lucide-react'
+import Link from 'next/link'
+import { User, Wrench, Shield, ArrowRight, Eye, EyeOff, LogIn, Lock, ArrowLeft, Home } from 'lucide-react'
 
 interface LoginCredentials {
   email: string
@@ -78,17 +79,14 @@ export default function UnifiedLoginPage() {
           setMfaRequired({ required: true, userId: data.userId })
           return
         }
-        // Redirection
-        if (data.redirectUrl) {
-          router.push(data.redirectUrl)
-        } else if (data.user?.role) {
+        // Redirection selon rôle, avec PRODUCT_MANAGER vers admin/produits
+        if (data.user?.role) {
           const role = String(data.user.role).toUpperCase()
-          if (role === 'ADMIN') router.push('/admin-reports')
+          if (role === 'PRODUCT_MANAGER') router.push('/admin/produits')
+          else if (role === 'ADMIN') router.push('/admin')
           else if (role === 'TECHNICIAN') router.push('/tech-interface')
           else router.push('/client-portal')
-        } else {
-          router.push('/client-portal')
-        }
+        } else router.push('/client-portal')
         if (remember) {
           try { localStorage.setItem('rememberEmail', credentials.email) } catch {}
         }
@@ -107,7 +105,23 @@ export default function UnifiedLoginPage() {
   const selectedType = userTypes.find(type => type.type === selectedUserType)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      {/* Bouton de retour */}
+      <div className="absolute top-6 left-6 z-10">
+        <Link
+          href="/"
+          className="group flex items-center gap-3 bg-white/90 backdrop-blur-sm hover:bg-white text-gray-700 hover:text-emerald-600 px-4 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-emerald-300"
+        >
+          <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-gray-100 to-gray-200 group-hover:from-emerald-100 group-hover:to-emerald-200 rounded-lg transition-all duration-300">
+            <ArrowLeft className="h-4 w-4 group-hover:text-emerald-600 transition-colors" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">Retour au site</span>
+            <span className="text-xs text-gray-500 group-hover:text-emerald-500">Accueil IT Vision</span>
+          </div>
+        </Link>
+      </div>
+
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
@@ -266,6 +280,17 @@ export default function UnifiedLoginPage() {
                   Contactez le support
                 </a>
               </p>
+              
+              {/* Bouton retour mobile */}
+              <div className="pt-4 border-t border-gray-200">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 text-gray-500 hover:text-emerald-600 transition-colors duration-300"
+                >
+                  <Home className="h-4 w-4" />
+                  <span className="text-sm font-medium">Retour à l'accueil</span>
+                </Link>
+              </div>
             </div>
           </div>
         )}
