@@ -75,18 +75,38 @@ export default function UnifiedLoginPage() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('Login response:', data) // Debug log
+        
         if (data.mfa_required && data.userId) {
           setMfaRequired({ required: true, userId: data.userId })
           return
         }
+        
         // Redirection selon rôle, avec PRODUCT_MANAGER vers admin/produits
         if (data.user?.role) {
           const role = String(data.user.role).toUpperCase()
-          if (role === 'PRODUCT_MANAGER') router.push('/admin/produits')
-          else if (role === 'ADMIN') router.push('/admin')
-          else if (role === 'TECHNICIAN') router.push('/tech-interface')
-          else router.push('/client-portal')
-        } else router.push('/client-portal')
+          console.log('User role:', role, 'Redirecting to:', data.redirectUrl) // Debug log
+          
+          // Utiliser l'URL de redirection de l'API si disponible
+          const redirectUrl = data.redirectUrl || (
+            role === 'PRODUCT_MANAGER' ? '/admin/produits' :
+            role === 'ADMIN' ? '/admin' :
+            role === 'TECHNICIAN' ? '/tech-interface' :
+            '/client-portal'
+          )
+          
+          console.log('Final redirect URL:', redirectUrl) // Debug log
+          router.push(redirectUrl)
+          
+          // Vérifier que la redirection fonctionne
+          setTimeout(() => {
+            console.log('Current URL after redirect:', window.location.href)
+          }, 1000)
+        } else {
+          console.log('No user role found, redirecting to client-portal') // Debug log
+          router.push('/client-portal')
+        }
+        
         if (remember) {
           try { localStorage.setItem('rememberEmail', credentials.email) } catch {}
         }

@@ -20,14 +20,23 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const [address, setAddress] = useState('')
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const raw = localStorage.getItem('cart:items')
-    if (raw) setItems(JSON.parse(raw))
+    try {
+      if (typeof window === 'undefined') return
+      const raw = localStorage.getItem('cart:items')
+      if (raw) setItems(JSON.parse(raw))
+    } catch (error) {
+      console.error('Error loading cart items:', error)
+      setItems([])
+    }
   }, [open])
 
   const save = (next: CartItem[]) => {
-    setItems(next)
-    if (typeof window !== 'undefined') localStorage.setItem('cart:items', JSON.stringify(next))
+    try {
+      setItems(next)
+      if (typeof window !== 'undefined') localStorage.setItem('cart:items', JSON.stringify(next))
+    } catch (error) {
+      console.error('Error saving cart items:', error)
+    }
   }
 
   const remove = (id: string) => {

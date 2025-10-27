@@ -5,6 +5,7 @@ import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, Ch
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -26,6 +27,55 @@ interface ApiProduct {
 
 // metadata export is not allowed in a client component; title handled elsewhere
 
+// Produits de fallback en cas d'erreur API
+const getFallbackProducts = (): ApiProduct[] => [
+  {
+    _id: 'fallback-1',
+    name: 'Caméra IP HD',
+    category: 'Vidéosurveillance',
+    description: 'Caméra de surveillance haute définition avec vision nocturne',
+    priceAmount: 150000,
+    currency: 'FCFA',
+    requiresQuote: false,
+    deliveryDays: 3,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'fallback-2',
+    name: 'Système Contrôle d\'Accès',
+    category: 'Contrôle d\'Accès',
+    description: 'Solution complète de contrôle d\'accès avec badges RFID',
+    priceAmount: 250000,
+    currency: 'FCFA',
+    requiresQuote: false,
+    deliveryDays: 5,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'fallback-3',
+    name: 'Installation Fibre Optique',
+    category: 'Réseau',
+    description: 'Installation et configuration de réseau fibre optique',
+    requiresQuote: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'fallback-4',
+    name: 'Système Domotique',
+    category: 'Domotique',
+    description: 'Automatisation complète de votre habitat',
+    priceAmount: 500000,
+    currency: 'FCFA',
+    requiresQuote: false,
+    deliveryDays: 7,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+]
+
 export default function ProduitsPage() {
   const [cartOpen, setCartOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
@@ -40,11 +90,16 @@ export default function ProduitsPage() {
 
   useEffect(() => {
     const sync = () => {
-      if (typeof window === 'undefined') return
-      const raw = localStorage.getItem('cart:items')
-      const items = raw ? JSON.parse(raw) : []
-      const count = items.reduce((s: number, i: any) => s + (i.qty || 1), 0)
-      setCartCount(count)
+      try {
+        if (typeof window === 'undefined') return
+        const raw = localStorage.getItem('cart:items')
+        const items = raw ? JSON.parse(raw) : []
+        const count = items.reduce((s: number, i: any) => s + (i.qty || 1), 0)
+        setCartCount(count)
+      } catch (error) {
+        console.error('Error syncing cart:', error)
+        setCartCount(0)
+      }
     }
     sync()
     window.addEventListener('cart:updated', sync)
@@ -60,17 +115,33 @@ export default function ProduitsPage() {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/products')
+        setError(null)
+        
+        const response = await fetch('/api/products', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
         
-        if (data.success) {
+        if (data.success && Array.isArray(data.products)) {
           setProducts(data.products)
         } else {
-          setError('Erreur lors du chargement des produits')
+          // Fallback avec des produits de démonstration
+          setProducts(getFallbackProducts())
+          setError('Mode démonstration - Connexion API indisponible')
         }
       } catch (err) {
-        setError('Erreur de connexion')
         console.error('Error fetching products:', err)
+        // Fallback avec des produits de démonstration
+        setProducts(getFallbackProducts())
+        setError('Mode démonstration - Connexion API indisponible')
       } finally {
         setLoading(false)
       }
@@ -541,13 +612,14 @@ export default function ProduitsPage() {
   ]
 
   return (
-    <main>
-      <Header />
-      {/* Local cart icon for produits page */}
-      <div className="fixed right-4 bottom-4 z-40">
-        <CartIcon count={cartCount} onClick={() => setCartOpen(true)} />
-      </div>
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+    <ErrorBoundary>
+      <main>
+        <Header />
+        {/* Local cart icon for produits page */}
+        <div className="fixed right-4 bottom-4 z-40">
+          <CartIcon count={cartCount} onClick={() => setCartOpen(true)} />
+        </div>
+        <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-white via-gray-50 to-gray-100 page-content pt-28 pb-20 mt-16">
@@ -596,6 +668,26 @@ export default function ProduitsPage() {
           </div>
         </div>
       </section>
+
+      {/* Affichage d'erreur */}
+      {error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  {error}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Products Sections with sidebar filters */}
       <section className="py-16 bg-white">
@@ -832,5 +924,6 @@ export default function ProduitsPage() {
 
       <Footer />
     </main>
+    </ErrorBoundary>
   )
 }

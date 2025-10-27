@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   Calculator, 
   DollarSign, 
@@ -20,6 +22,48 @@ import AdminHelpGuide from '@/components/AdminHelpGuide'
 // Intégration de la gestion de projets déplacée vers le Dashboard global (GlobalAdminDashboard)
 
 export default function AdminDashboard() {
+  const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'GET',
+          credentials: 'include'
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log('Auth check result:', data) // Debug log
+          setIsAuthenticated(true)
+        } else {
+          console.log('Auth check failed, redirecting to login') // Debug log
+          router.push('/login')
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        router.push('/login')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-600"></div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null // Redirection en cours
+  }
   const adminModules = [
     {
       id: 'quotes',

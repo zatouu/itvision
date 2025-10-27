@@ -49,6 +49,21 @@ export default function DigitalisationPage() {
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null)
   const [showResults, setShowResults] = useState(false)
 
+  // Fonction pour lancer le diagnostic et scroller vers le wizard
+  const startDiagnostic = () => {
+    setShowWizard(true)
+    // Petit délai pour s'assurer que le wizard est rendu avant le scroll
+    setTimeout(() => {
+      const wizardElement = document.getElementById('diagnostic-wizard')
+      if (wizardElement) {
+        wizardElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        })
+      }
+    }, 100)
+  }
+
   // Charger les réponses depuis localStorage
   useEffect(() => {
     const savedAnswers = localStorage.getItem('digitalization-diagnostic')
@@ -426,7 +441,7 @@ export default function DigitalisationPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => setShowWizard(true)}
+                onClick={startDiagnostic}
                 className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 📋 Diagnostic Gratuit
@@ -484,7 +499,7 @@ export default function DigitalisationPage() {
 
       {/* Wizard Diagnostic */}
       {showWizard && !showResults && (
-        <section className="py-16 bg-gradient-to-br from-emerald-50 to-purple-50">
+        <section id="diagnostic-wizard" className="py-16 bg-gradient-to-br from-emerald-50 to-purple-50">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="text-center mb-8">
@@ -842,18 +857,18 @@ export default function DigitalisationPage() {
             {processSteps.map((step, index) => {
               const IconComponent = step.icon
               return (
-                <div key={index} className="text-center">
-                  <div className="relative mb-6">
-                    <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-emerald-600 rounded-full text-white font-bold text-xl mx-auto shadow-lg">
-                      {step.step}
-                    </div>
-                    {index < processSteps.length - 1 && (
-                      <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-purple-300 to-emerald-300 transform -translate-y-1/2"></div>
-                    )}
+              <div key={index} className="text-center">
+                <div className="relative mb-6">
+                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-emerald-600 rounded-full text-white font-bold text-xl mx-auto shadow-lg">
+                    {step.step}
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
-                  <p className="text-gray-600 text-sm">{step.description}</p>
+                  {index < processSteps.length - 1 && (
+                      <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-purple-300 to-emerald-300 transform -translate-y-1/2"></div>
+                  )}
                 </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
+                <p className="text-gray-600 text-sm">{step.description}</p>
+              </div>
               )
             })}
           </div>
@@ -870,7 +885,7 @@ export default function DigitalisationPage() {
             Diagnostic gratuit de vos processus actuels et identification des opportunités d'amélioration
           </p>
           <button
-            onClick={() => setShowWizard(true)}
+            onClick={startDiagnostic}
             className="bg-white text-emerald-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             🚀 Lancer mon diagnostic
