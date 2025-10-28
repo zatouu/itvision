@@ -125,36 +125,36 @@ export default function HeroCarousel() {
               <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-center">
                   {/* Texte */}
-                  <div className="text-gray-900 space-y-6 py-12 lg:py-0">
+                  <div className="text-gray-900 space-y-4 sm:space-y-6 py-8 sm:py-12 lg:py-0">
                     <div className="inline-block animate-pulse">
                       <span className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg">
                         ✨ Solution IT Vision
                       </span>
                     </div>
                     
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">
                       {slide.title}
                     </h1>
                     
-                    <p className="text-xl md:text-2xl font-semibold text-gray-700">
+                    <p className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-700">
                       {slide.subtitle}
                     </p>
                     
-                    <p className="text-base md:text-lg text-gray-600 max-w-xl leading-relaxed">
+                    <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-xl leading-relaxed">
                       {slide.description}
                     </p>
 
-                    <div className="pt-4 flex flex-wrap gap-4">
+                    <div className="pt-4 flex flex-col sm:flex-row gap-3 sm:gap-4">
                       <Link
                         href={slide.ctaLink}
-                        className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-purple-600 text-white hover:from-emerald-600 hover:to-purple-700 px-8 py-4 rounded-xl font-bold transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105"
+                        className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-500 to-purple-600 text-white hover:from-emerald-600 hover:to-purple-700 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105 text-sm sm:text-base"
                       >
                         <span>{slide.ctaText}</span>
-                        <ArrowRight className="h-5 w-5" />
+                        <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                       </Link>
                       <Link
                         href="/contact"
-                        className="inline-flex items-center space-x-2 bg-white text-gray-900 hover:bg-gray-50 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border-2 border-gray-300 hover:border-emerald-500 shadow-lg"
+                        className="inline-flex items-center justify-center space-x-2 bg-white text-gray-900 hover:bg-gray-50 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold transition-all duration-300 border-2 border-gray-300 hover:border-emerald-500 shadow-lg text-sm sm:text-base"
                       >
                         <span>Nous contacter</span>
                       </Link>
