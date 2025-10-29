@@ -191,12 +191,12 @@ export default function SmartQuoteCalculator() {
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-w-6xl mx-auto">
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white p-6">
+      <div className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white p-6 wizard-header">
         <div className="flex items-center space-x-3">
           <Calculator className="h-8 w-8" />
           <div>
-            <h2 className="text-2xl font-bold">🧮 Calculateur de Devis</h2>
-            <p className="text-emerald-100">Estimez votre projet en temps réel - Calcul automatique et précis</p>
+            <h2 className="text-2xl font-bold text-white !text-white">🧮 Calculateur de Devis</h2>
+            <p className="text-emerald-100 !text-white">Estimez votre projet en temps réel - Calcul automatique et précis</p>
           </div>
         </div>
       </div>

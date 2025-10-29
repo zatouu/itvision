@@ -114,9 +114,9 @@ export default function DigitalBooking() {
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-w-4xl mx-auto">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
-        <h2 className="text-2xl font-bold mb-2">🚀 Prise de Rendez-vous</h2>
-        <p className="text-white">Planifiez votre intervention en quelques clics - Confirmation immédiate</p>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 wizard-header">
+        <h2 className="text-2xl font-bold mb-2 text-white !text-white">🚀 Prise de Rendez-vous</h2>
+        <p className="text-white !text-white">Planifiez votre intervention en quelques clics - Confirmation immédiate</p>
         
         {/* Progress Bar */}
         <div className="mt-4 flex items-center space-x-2">

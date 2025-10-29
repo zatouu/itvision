@@ -9,6 +9,7 @@ import Header from './Header'
 import Footer from './Footer'
 import HeroCarousel from './HeroCarousel'
 import Link from 'next/link'
+import Image from 'next/image'
 import { 
   Camera, 
   Lock, 
@@ -72,22 +73,22 @@ export default function DigitalHomepage() {
     },
     {
       id: 'digitalisation-pme',
-      title: 'Digitalisation des processus PME',
-      description: 'Transformation digitale et automatisation pour PME',
+      title: 'Digitalisation PME',
+      description: 'Transformation digitale et automatisation',
       icon: CircuitBoard,
       color: 'from-blue-500 to-blue-600'
     },
     {
       id: 'maintenance',
       title: 'Maintenance',
-      description: 'Support technique et entretien',
+      description: 'Support technique et entretien préventif',
       icon: Wrench,
       color: 'from-gray-500 to-gray-600'
     },
     {
       id: 'qhse',
       title: 'QHSE',
-      description: 'Qualité, Hygiène, Sécurité, Environnement - Personnel certifié',
+      description: 'Qualité, Hygiène, Sécurité, Environnement',
       icon: FileCheck,
       color: 'from-teal-500 to-teal-600'
     }
@@ -329,8 +330,164 @@ export default function DigitalHomepage() {
                 <ArrowRight className="h-5 w-5" />
               </Link>
               <p className="text-sm text-gray-500 mt-4">
-                Plus de 50 projets réalisés avec succès
+                Plus de 25 projets réalisés avec succès
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Section Partenaires */}
+        <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-emerald-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <div className="inline-block mb-4">
+                <span className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                  Références
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Partenaires</span>
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Des entreprises de tous secteurs nous font confiance pour leurs projets de sécurité électronique et digitalisation
+              </p>
+            </div>
+
+            {/* Carousel des logos partenaires */}
+            <div className="relative overflow-hidden">
+              {/* Gradient de masquage */}
+              <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white to-transparent z-10"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white to-transparent z-10"></div>
+              
+              {/* Animation de défilement */}
+              <div className="flex animate-scroll">
+                {/* Premier set de logos */}
+                <div className="flex items-center space-x-8 flex-shrink-0">
+                  {/* Partenaire 1 - LOCAFRIQUE */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/locaf.png" 
+                      alt="LOCAFRIQUE" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 2 - CEL */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/CEL.png" 
+                      alt="CEL" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 3 - Sea Plaza */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/sea-plza.png" 
+                      alt="Sea Plaza" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 4 - Sylla Bois */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/sylla-bois.jpg" 
+                      alt="Sylla Bois" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 5 - Teyliom */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/teyliom.jpg" 
+                      alt="Teyliom" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                </div>
+
+                {/* Deuxième set de logos (pour l'effet de boucle) */}
+                <div className="flex items-center space-x-8 flex-shrink-0 ml-8">
+                  {/* Partenaire 1 - LOCAFRIQUE */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/locaf.png" 
+                      alt="LOCAFRIQUE" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 2 - CEL */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/CEL.png" 
+                      alt="CEL" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 3 - Sea Plaza */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/sea-plza.png" 
+                      alt="Sea Plaza" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 4 - Sylla Bois */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/sylla-bois.jpg" 
+                      alt="Sylla Bois" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Partenaire 5 - Teyliom */}
+                  <div className="flex items-center justify-center w-32 h-20 md:w-40 md:h-24 p-4 bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 hover:border-emerald-200 transition-all duration-500 group hover:scale-125">
+                    <Image 
+                      src="/images/clients/teyliom.jpg" 
+                      alt="Teyliom" 
+                      width={140}
+                      height={90}
+                      className="max-w-full max-h-full object-contain transition-all duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Témoignage */}
+            <div className="mt-12 text-center">
+              <blockquote className="text-lg text-gray-700 italic max-w-3xl mx-auto mb-4">
+                "IT Vision a su nous accompagner dans la digitalisation de nos processus de sécurité. 
+                Leur expertise technique et leur professionnalisme nous ont permis d'optimiser nos opérations."
+              </blockquote>
+              <cite className="text-sm text-gray-500">
+                — Directeur Technique, LOCAFRIQUE
+              </cite>
             </div>
           </div>
         </section>

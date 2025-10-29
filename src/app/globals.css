@@ -433,3 +433,28 @@ input[type="checkbox"] {
   color: initial !important;
   background-color: initial !important;
 }
+
+/* Animation de défilement pour les logos partenaires */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+/* Pause l'animation au survol */
+.animate-scroll:hover {
+  animation-play-state: paused;
+}
+
+/* Force le texte en blanc pour les headers des wizards */
+.wizard-header h2,
+.wizard-header p {
+  color: white !important;
+}

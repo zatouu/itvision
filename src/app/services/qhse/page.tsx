@@ -32,8 +32,8 @@ export default function QHSEServicePage() {
                   'Mise en conformité réglementaire',
                   'Élaboration de procédures et documentation',
                   'Formation et sensibilisation du personnel',
-                  'Certification ISO 9001, ISO 14001, OHSAS 18001',
-                  'Suivi et amélioration continue'
+                  'Mise à disposition agent QHSE',
+                  'Formation ISO 9001, ISO 14001, OHSAS 18001'
                 ].map((f) => (
                   <li key={f} className="flex items-start">
                     <CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
