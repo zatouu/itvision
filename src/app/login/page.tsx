@@ -96,12 +96,9 @@ export default function UnifiedLoginPage() {
           )
           
           console.log('Final redirect URL:', redirectUrl) // Debug log
-          router.push(redirectUrl)
           
-          // Vérifier que la redirection fonctionne
-          setTimeout(() => {
-            console.log('Current URL after redirect:', window.location.href)
-          }, 1000)
+          // Utiliser window.location.href pour forcer la redirection
+          window.location.href = redirectUrl
         } else {
           console.log('No user role found, redirecting to client-portal') // Debug log
           router.push('/client-portal')

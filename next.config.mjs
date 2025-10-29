@@ -60,11 +60,7 @@ const nextConfig = {
   // Configuration de sécurité pour les redirections
   async redirects() {
     return [
-      {
-        source: '/admin',
-        destination: '/login',
-        permanent: false
-      }
+      // Redirection supprimée - gérée par le middleware d'authentification
     ]
   },
   

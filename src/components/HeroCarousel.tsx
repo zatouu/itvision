@@ -195,18 +195,18 @@ export default function HeroCarousel() {
         {/* Boutons de navigation */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white backdrop-blur-sm text-gray-900 p-3 rounded-full transition-all duration-300 hover:scale-110 shadow-xl border-2 border-gray-200"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 bg-transparent hover:bg-white/20 backdrop-blur-sm text-gray-900 p-2 sm:p-3 rounded-full transition-all duration-300 hover:scale-110 shadow-lg border-2 border-transparent hover:border-gray-200 touch-manipulation"
           aria-label="Slide précédent"
         >
-          <ChevronLeft className="h-6 w-6" />
+          <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
         </button>
 
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white backdrop-blur-sm text-gray-900 p-3 rounded-full transition-all duration-300 hover:scale-110 shadow-xl border-2 border-gray-200"
+          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 bg-transparent hover:bg-white/20 backdrop-blur-sm text-gray-900 p-2 sm:p-3 rounded-full transition-all duration-300 hover:scale-110 shadow-lg border-2 border-transparent hover:border-gray-200 touch-manipulation"
           aria-label="Slide suivant"
         >
-          <ChevronRight className="h-6 w-6" />
+          <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
         </button>
 
         {/* Indicateurs de slides (points en bas) */}
