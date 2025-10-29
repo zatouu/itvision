@@ -26,7 +26,9 @@ import {
   Award,
   Building,
   User,
-  Check
+  Check,
+  CircuitBoard,
+  FileCheck
 } from 'lucide-react'
 
 export default function DigitalHomepage() {
@@ -69,11 +71,25 @@ export default function DigitalHomepage() {
       color: 'from-orange-500 to-orange-600'
     },
     {
+      id: 'digitalisation-pme',
+      title: 'Digitalisation des processus PME',
+      description: 'Transformation digitale et automatisation pour PME',
+      icon: CircuitBoard,
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
       id: 'maintenance',
       title: 'Maintenance',
       description: 'Support technique et entretien',
       icon: Wrench,
       color: 'from-gray-500 to-gray-600'
+    },
+    {
+      id: 'qhse',
+      title: 'QHSE',
+      description: 'Qualité, Hygiène, Sécurité, Environnement - Personnel certifié',
+      icon: FileCheck,
+      color: 'from-teal-500 to-teal-600'
     }
   ]
 
@@ -331,7 +347,7 @@ export default function DigitalHomepage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {services.map((service, index) => {
                 const IconComponent = service.icon
                 return (
@@ -345,10 +361,15 @@ export default function DigitalHomepage() {
                       <p className="text-gray-600 mb-4">{service.description}</p>
                       
                       <Link
-                        href={service.id === 'domotique' ? '/domotique' : `/services/${service.id}`}
+                        href={
+                          service.id === 'domotique' ? '/domotique' :
+                          service.id === 'digitalisation-pme' ? '/digitalisation' :
+                          service.id === 'qhse' ? '/services/qhse' :
+                          `/services/${service.id}`
+                        }
                         className="text-emerald-600 hover:text-emerald-700 font-medium inline-flex items-center"
                       >
-                        {service.id === 'domotique' ? 'Page dédiée' : 'En savoir plus'}
+                        {service.id === 'domotique' || service.id === 'digitalisation-pme' ? 'Page dédiée' : 'En savoir plus'}
                         <ArrowRight className="h-4 w-4 ml-1" />
                       </Link>
                     </div>

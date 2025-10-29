@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight } from 'lucide-react'
+import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import UnifiedLoginButton from './UnifiedLoginButton'
 
@@ -88,6 +88,18 @@ const Header = () => {
       href: '/services/maintenance', 
       icon: Wrench,
       description: 'Support 24h/7j et maintenance préventive de tous équipements'
+    },
+    { 
+      name: 'Digitalisation PME', 
+      href: '/digitalisation', 
+      icon: CircuitBoard,
+      description: 'Transformation digitale et automatisation des processus pour PME'
+    },
+    { 
+      name: 'QHSE', 
+      href: '/services/qhse', 
+      icon: FileCheck,
+      description: 'Qualité, Hygiène, Sécurité, Environnement - Personnel certifié'
     },
   ] as const
 
