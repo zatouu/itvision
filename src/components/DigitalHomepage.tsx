@@ -112,7 +112,7 @@ export default function DigitalHomepage() {
       services: ['Câblage réseau', 'Vidéosurveillance', 'Visiophonie', 'Domotique']
     },
     {
-      title: 'Entreprise LOCAFRIQUE',
+      title: 'LOCAFRIQUE',
       location: 'Almadies, Dakar',
       description: '42 caméras POE sur 5 étages avec transmission longue distance',
       services: ['Vidéosurveillance', 'Architecture réseau', 'Transmission']
@@ -259,7 +259,7 @@ export default function DigitalHomepage() {
                     </div>
                     
                     <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
-                      Entreprise LOCAFRIQUE
+                      LOCAFRIQUE
                     </h3>
                     
                     <p className="text-gray-600 mb-4 text-sm leading-relaxed">
@@ -373,8 +373,8 @@ export default function DigitalHomepage() {
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">🚀 Prise de Rendez-vous</h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">Planifiez votre intervention en quelques clics - Confirmation immédiate</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Planifier maintenant — sécurité électronique & domotique</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">Confirmez un créneau en quelques clics et recevez une confirmation. Simple et rapide.</p>
             </div>
             <DigitalBooking />
           </div>
@@ -384,8 +384,8 @@ export default function DigitalHomepage() {
         <section className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">🧮 Calculateur de Devis</h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">Estimez votre projet en temps réel - Calcul automatique et précis</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Obtenir mon estimation — vidéosurveillance & contrôle d'accès</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">Sélectionnez vos équipements et paramètres. Estimation automatique et partage par WhatsApp.</p>
             </div>
             <SmartQuoteCalculator />
           </div>

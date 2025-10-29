@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight } from 'lucide-react'
@@ -10,6 +10,31 @@ import UnifiedLoginButton from './UnifiedLoginButton'
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isServicesOpen, setIsServicesOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  // Fermeture du menu au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isMenuOpen &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMenuOpen])
 
   const navigation = [
     { name: 'Accueil', href: '/', icon: HomeIcon },
@@ -274,6 +299,7 @@ const Header = () => {
           {/* Menu mobile */}
           <div className="md:hidden">
             <button
+              ref={buttonRef}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-700 hover:text-emerald-600 transition-colors duration-300 p-2"
             >
@@ -284,7 +310,7 @@ const Header = () => {
 
           {/* Menu mobile dropdown - amélioré */}
         {isMenuOpen && (
-          <div className="md:hidden">
+          <div ref={menuRef} className="md:hidden">
             <div className="px-2 pt-2 pb-4 space-y-2 bg-white border-t border-gray-100 shadow-lg">
               {/* Accueil */}
               <Link
