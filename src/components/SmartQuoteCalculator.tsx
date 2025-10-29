@@ -16,6 +16,7 @@ interface QuoteItem {
 export default function SmartQuoteCalculator() {
   const [selectedItems, setSelectedItems] = useState<QuoteItem[]>([])
   const [surface, setSurface] = useState(100)
+  const [floors, setFloors] = useState(1)
   const [complexity, setComplexity] = useState('standard')
   const [installation, setInstallation] = useState(true)
   const [maintenance, setMaintenance] = useState(false)
@@ -155,7 +156,8 @@ export default function SmartQuoteCalculator() {
     if (!installation) return 0
     const baseInstallation = calculateSubtotal() * 0.15 // 15% du matériel
     const surfaceBonus = surface > 200 ? (surface - 200) * 1000 : 0
-    return baseInstallation + surfaceBonus
+    const floorsBonus = floors > 1 ? (floors - 1) * 50000 : 0 // 50k FCFA par étage supplémentaire
+    return baseInstallation + surfaceBonus + floorsBonus
   }
 
   const getMaintenanceCost = () => {
@@ -183,7 +185,7 @@ export default function SmartQuoteCalculator() {
     
     const total = getTotalEstimate()
     
-    const message = `💰 ESTIMATION AUTOMATIQUE DE DEVIS%0A%0A🏢 PARAMÈTRES PROJET:%0A- Surface: ${surface}m²%0A- Complexité: ${complexity}%0A- Installation: ${installation ? 'Incluse' : 'Non incluse'}%0A- Maintenance: ${maintenance ? 'Incluse (1 an)' : 'Non incluse'}%0A%0A📋 ÉQUIPEMENTS SÉLECTIONNÉS:%0A${itemsList}%0A%0A💵 ESTIMATION TOTALE:%0A${formatPrice(total)}%0A%0A⚠️ Cette estimation est indicative. Demande de devis détaillé pour confirmation exacte.%0A%0AMerci de me faire parvenir un devis personnalisé.`
+    const message = `💰 ESTIMATION AUTOMATIQUE DE DEVIS%0A%0A🏢 PARAMÈTRES PROJET:%0A- Surface: ${surface}m²%0A- Étages: ${floors} ${floors === 1 ? 'étage' : 'étages'}%0A- Complexité: ${complexity}%0A- Installation: ${installation ? 'Incluse' : 'Non incluse'}%0A- Maintenance: ${maintenance ? 'Incluse (1 an)' : 'Non incluse'}%0A%0A📋 ÉQUIPEMENTS SÉLECTIONNÉS:%0A${itemsList}%0A%0A💵 ESTIMATION TOTALE:%0A${formatPrice(total)}%0A%0A⚠️ Cette estimation est indicative. Demande de devis détaillé pour confirmation exacte.%0A%0AMerci de me faire parvenir un devis personnalisé.`
     
     return `https://wa.me/221774133440?text=${message}`
   }
@@ -297,7 +299,7 @@ export default function SmartQuoteCalculator() {
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Paramètres du projet</h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Surface à couvrir (m²)
@@ -312,6 +314,24 @@ export default function SmartQuoteCalculator() {
                   className="w-full"
                 />
                 <div className="text-center text-sm text-gray-600 mt-1">{surface} m²</div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre d'étages/niveaux
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={floors}
+                  onChange={(e) => setFloors(parseInt(e.target.value))}
+                  className="w-full"
+                />
+                <div className="text-center text-sm text-gray-600 mt-1">
+                  {floors} {floors === 1 ? 'étage' : 'étages'}
+                </div>
               </div>
               
               <div>
@@ -440,6 +460,13 @@ export default function SmartQuoteCalculator() {
                   <div className="flex justify-between text-purple-600">
                     <span>Installation :</span>
                     <span>{formatPrice(getInstallationCost())}</span>
+                  </div>
+                )}
+                
+                {floors > 1 && installation && (
+                  <div className="flex justify-between text-indigo-600">
+                    <span>Supplément étages (${floors - 1} étage${floors > 2 ? 's' : ''}) :</span>
+                    <span>{formatPrice((floors - 1) * 50000)}</span>
                   </div>
                 )}
                 
