@@ -17,7 +17,7 @@ const Footer = () => {
                 alt="IT Vision"
                 width={200}
                 height={80}
-                className="h-12 w-auto object-contain"
+                className="h-16 w-auto object-contain"
                 priority
                 style={{
                   objectFit: "contain",

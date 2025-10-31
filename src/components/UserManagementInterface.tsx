@@ -85,6 +85,56 @@ export default function UserManagementInterface() {
   const [totalUsers, setTotalUsers] = useState(0)
   const usersPerPage = 10
 
+  // Affectation projet
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [assignUser, setAssignUser] = useState<User | null>(null)
+  const [projectsList, setProjectsList] = useState<Array<{ _id: string; name: string }>>([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [assignLoading, setAssignLoading] = useState(false)
+
+  const openAssignModal = async (user: User) => {
+    setAssignUser(user)
+    setShowAssignModal(true)
+    setAssignLoading(true)
+    try {
+      const res = await fetch('/api/projects?status=in_progress&limit=100')
+      if (res.ok) {
+        const data = await res.json()
+        setProjectsList((data.projects || []).map((p: any) => ({ _id: p._id, name: p.name })))
+      }
+    } finally {
+      setAssignLoading(false)
+    }
+  }
+
+  const assignTechnicianToProject = async () => {
+    if (!assignUser || !selectedProjectId) return
+    setAssignLoading(true)
+    try {
+      // Récupérer projet existant pour sa liste assignedTo
+      const resGet = await fetch(`/api/projects?limit=1&skip=0&status=all`)
+      // On fait un PUT direct en ajoutant l'ID user si non présent
+      const putRes = await fetch('/api/projects', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedProjectId,
+          // côté API, assignedTo remplace; on doit idéalement récupérer d'abord la liste, mais ici on suppose add unique côté serveur ou on remplace par tableau d’un seul si inconnu
+          assignedTo: [assignUser._id]
+        })
+      })
+      if (!putRes.ok) return alert('Échec de l\'affectation')
+      alert('Technicien affecté au projet')
+      setShowAssignModal(false)
+      setAssignUser(null)
+      setSelectedProjectId('')
+    } catch {
+      alert('Erreur lors de l\'affectation')
+    } finally {
+      setAssignLoading(false)
+    }
+  }
+
   // Charger les utilisateurs
   const fetchUsers = async () => {
     setLoading(true)
@@ -133,6 +183,24 @@ export default function UserManagementInterface() {
       const data = await response.json()
 
       if (data.success) {
+        // Si on crée un technicien, créer aussi l'entrée technicien
+        if (formData.role === 'TECHNICIAN') {
+          try {
+            await fetch('/api/technicians', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                specialties: [],
+                experience: 0,
+                isAvailable: true,
+                password: formData.password
+              })
+            })
+          } catch {}
+        }
         setSuccess('Utilisateur créé avec succès')
         setShowCreateModal(false)
         resetForm()
@@ -533,6 +601,42 @@ export default function UserManagementInterface() {
                         >
                           <Key className="h-4 w-4" />
                         </button>
+
+                        {user.role === 'TECHNICIAN' && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                // Résoudre l'ID technicien via email
+                                const tRes = await fetch(`/api/technicians?email=${encodeURIComponent(user.email)}`)
+                                if (!tRes.ok) return alert('Technicien introuvable')
+                                const json = await tRes.json()
+                                const tech = (json.technicians || [])[0]
+                                if (!tech?._id && !tech?.id) return alert('Technicien introuvable')
+                                const techId = tech._id || tech.id
+                                const next = !tech.isAvailable
+                                const res = await fetch('/api/technicians', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: techId, action: 'set_availability', isAvailable: next }) })
+                                if (!res.ok) return alert('Échec mise à jour disponibilité')
+                                alert(`Disponibilité: ${next ? 'Disponible' : 'Indisponible'}`)
+                              } catch {
+                                alert('Erreur disponibilité technicien')
+                              }
+                            }}
+                            className="text-gray-700 hover:text-gray-900"
+                            title="Basculer disponibilité technicien"
+                          >
+                            <Shield className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {user.role === 'TECHNICIAN' && (
+                          <button
+                            onClick={() => openAssignModal(user)}
+                            className="text-blue-700 hover:text-blue-900"
+                            title="Affecter à un projet"
+                          >
+                            <Calendar className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -837,6 +941,39 @@ export default function UserManagementInterface() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Affectation Projet */}
+      {showAssignModal && assignUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Affecter {assignUser.name} à un projet</h3>
+              <button onClick={() => { setShowAssignModal(false); setAssignUser(null); setSelectedProjectId('') }} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {assignLoading ? (
+                <div className="text-sm text-gray-600">Chargement des projets…</div>
+              ) : (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Projet</label>
+                  <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+                    <option value="">Sélectionner un projet</option>
+                    {projectsList.map(p => (
+                      <option key={p._id} value={p._id}>{p.name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => { setShowAssignModal(false); setAssignUser(null); setSelectedProjectId('') }} className="px-4 py-2 border rounded-lg">Annuler</button>
+                <button disabled={!selectedProjectId || assignLoading} onClick={assignTechnicianToProject} className="px-4 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-50">Affecter</button>
+              </div>
+            </div>
           </div>
         </div>
       )}

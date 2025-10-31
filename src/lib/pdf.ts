@@ -50,3 +50,49 @@ export function generateDiagnosticPdf(payload: any): Uint8Array {
 
   return doc.output('arraybuffer') as unknown as Uint8Array
 }
+
+export function generateQuotePdf(quote: {
+  id: string
+  client: { company: string; contact: string; email: string; phone: string }
+  sections: Array<{ name: string; items: Array<{ name: string; quantity: number; unitPrice: number; totalPrice: number }> }>
+  totals: { subtotalHT: number; taxAmount: number; totalTTC: number }
+}): Uint8Array {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+
+  // Header
+  doc.setFillColor(16, 185, 129)
+  doc.rect(0, 0, 595, 70, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16)
+  doc.text(`Devis ${quote.id}`, 40, 40)
+
+  // Client
+  doc.setTextColor(33, 33, 33)
+  doc.setFontSize(12)
+  doc.text('Client', 40, 100)
+  doc.setFontSize(10)
+  doc.text(`${quote.client.company}`, 40, 118)
+  doc.text(`${quote.client.contact} • ${quote.client.email} • ${quote.client.phone}`, 40, 134)
+
+  // Items
+  const rows: any[] = []
+  quote.sections.forEach((s) => {
+    s.items.forEach((it) => rows.push([s.name, it.name, it.quantity, it.unitPrice.toLocaleString('fr-FR'), it.totalPrice.toLocaleString('fr-FR')]))
+  })
+  // @ts-ignore
+  doc.autoTable({
+    startY: 160,
+    head: [['Service', 'Article', 'Qté', 'PU', 'Total']],
+    body: rows,
+    styles: { cellPadding: 6, fontSize: 10 }
+  })
+
+  const y = (doc as any).lastAutoTable?.finalY || 180
+  doc.setFontSize(11)
+  doc.text(`Sous-total HT: ${quote.totals.subtotalHT.toLocaleString('fr-FR')} FCFA`, 360, y + 30)
+  doc.text(`TVA 18%: ${quote.totals.taxAmount.toLocaleString('fr-FR')} FCFA`, 360, y + 48)
+  doc.setFont(undefined, 'bold')
+  doc.text(`Total TTC: ${quote.totals.totalTTC.toLocaleString('fr-FR')} FCFA`, 360, y + 66)
+
+  return doc.output('arraybuffer') as unknown as Uint8Array
+}

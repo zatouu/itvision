@@ -1,6 +1,5 @@
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import AdminProductManager from '@/components/AdminProductManager'
+import AdminTabs from '@/components/admin/AdminTabs'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
 
@@ -17,26 +16,23 @@ export default async function AdminProduitsPage() {
   } catch {}
   if (!allowed) {
     return (
-      <main>
-        <Header />
-        <section className="page-content pt-28 pb-12">
-          <div className="max-w-3xl mx-auto text-center bg-white p-8 rounded-xl border">
-            <h2 className="text-xl font-bold mb-2">Accès refusé</h2>
-            <p className="text-gray-600">Cette section est réservée aux administrateurs et gestionnaires produits.</p>
-          </div>
-        </section>
-        <Footer />
-      </main>
+      <div className="pt-2 pb-6">
+        <div className="max-w-3xl mx-auto text-center bg-white p-8 rounded-xl border">
+          <h2 className="text-xl font-bold mb-2">Accès refusé</h2>
+          <p className="text-gray-600">Cette section est réservée aux administrateurs et gestionnaires produits.</p>
+        </div>
+      </div>
     )
   }
   return (
-    <main>
-      <Header />
-      <section className="page-content pt-28 pb-12">
+    <div>
+      <div className="mb-4">
+        <AdminTabs context="services" />
+      </div>
+      <section>
         <AdminProductManager />
       </section>
-      <Footer />
-    </main>
+    </div>
   )
 }
 

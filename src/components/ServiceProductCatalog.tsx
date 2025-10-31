@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { 
   Camera,
   Home,
@@ -26,8 +26,35 @@ import {
 export default function ServiceProductCatalog() {
   const [selectedService, setSelectedService] = useState<string>('videosurveillance')
   const [selectedProductType, setSelectedProductType] = useState<string>('')
+  const [services, setServices] = useState<Array<{ id: string; name: string; code: string; defaultMargin?: number }>>([])
+  const [loadingServices, setLoadingServices] = useState<boolean>(true)
 
-  const serviceTypes = DEFAULT_SERVICE_TYPES
+  // Fallback local si API non disponible
+  const fallbackServices = DEFAULT_SERVICE_TYPES.map(s => ({ id: s.id, name: s.name, code: s.id.toUpperCase(), defaultMargin: s.defaultMargin }))
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/services')
+        if (res.ok) {
+          const data = await res.json()
+          const items = (data.items || []).map((s: any) => ({ id: s._id, name: s.name, code: s.code, defaultMargin: undefined }))
+          if (mounted) setServices(items)
+          if (mounted && items.length > 0) setSelectedService(items[0].code.toLowerCase())
+        } else {
+          if (mounted) setServices(fallbackServices)
+        }
+      } catch {
+        if (mounted) setServices(fallbackServices)
+      } finally {
+        if (mounted) setLoadingServices(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  const serviceTypes = services.length ? services.map(s => ({ id: s.code.toLowerCase(), name: s.name, defaultMargin: s.defaultMargin || 0 })) : DEFAULT_SERVICE_TYPES
   const allProductTypes = [...VIDEOSURVEILLANCE_PRODUCTS, ...DOMOTIQUE_TYPES]
 
   const getServiceIcon = (serviceId: string) => {

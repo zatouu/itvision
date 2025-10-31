@@ -138,8 +138,8 @@ const Header = () => {
                 alt="IT Vision"
                 width={610}
                 height={530}
-                className="h-18 sm:h-20 lg:h-22 xl:h-24 w-auto object-contain"
-                sizes="(max-width: 640px) 72px, (max-width: 1024px) 80px, (max-width: 1280px) 88px, 96px"
+                className="h-20 sm:h-24 lg:h-28 xl:h-32 w-auto object-contain"
+                sizes="(max-width: 640px) 80px, (max-width: 1024px) 96px, (max-width: 1280px) 112px, 128px"
                 priority
                 style={{
                   objectFit: "contain",

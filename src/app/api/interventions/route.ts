@@ -1,27 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
+import Intervention from '@/lib/models/Intervention'
+import jwt from 'jsonwebtoken'
 
-// Modèle temporaire pour les interventions (à remplacer par Mongoose)
-interface Intervention {
-  id: string
-  title: string
-  description: string
-  client: {
-    name: string
-    address: string
-    phone: string
-    zone: string
+function requireAuth(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
+  if (!token) return { ok: false, status: 401, error: 'Non authentifié' as const }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+    const role = String(decoded.role || '').toUpperCase()
+    const allowed = ['ADMIN','TECHNICIAN','PRODUCT_MANAGER'].includes(role)
+    if (!allowed) return { ok: false, status: 403, error: 'Accès refusé' as const }
+    return { ok: true }
+  } catch {
+    return { ok: false, status: 401, error: 'Token invalide' as const }
   }
-  service: string
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  estimatedDuration: number
-  requiredSkills: string[]
-  scheduledDate?: string
-  scheduledTime?: string
-  assignedTechnician?: string
-  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
-  createdAt: string
-  urgency: boolean
 }
 
 // GET - Récupérer toutes les interventions
@@ -34,86 +27,20 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const service = searchParams.get('service')
     const zone = searchParams.get('zone')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
+    const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0)
+    const query: any = {}
+    if (date) query.scheduledDate = date
+    if (status) query.status = status
+    if (service && service !== 'all') query.service = service
+    if (zone && zone !== 'all') query['client.zone'] = zone
 
-    // Données de démonstration (à remplacer par requête MongoDB)
-    const mockInterventions: Intervention[] = [
-      {
-        id: 'int-001',
-        title: 'Installation système vidéosurveillance',
-        description: 'Installation complète 8 caméras IP + NVR',
-        client: {
-          name: 'SARL TechnoPlus',
-          address: 'Rue 10, Mermoz, Dakar',
-          phone: '+221 33 123 45 67',
-          zone: 'Dakar-Centre'
-        },
-        service: 'videosurveillance',
-        priority: 'high',
-        estimatedDuration: 6,
-        requiredSkills: ['videosurveillance', 'network_cabling'],
-        status: 'pending',
-        createdAt: '2024-01-14T10:00:00Z',
-        urgency: false
-      },
-      {
-        id: 'int-002',
-        title: 'Maintenance préventive système accès',
-        description: 'Vérification et mise à jour lecteurs RFID',
-        client: {
-          name: 'Résidence Les Palmiers',
-          address: 'VDN, Almadies, Dakar',
-          phone: '+221 77 987 65 43',
-          zone: 'Almadies'
-        },
-        service: 'controle_acces',
-        priority: 'medium',
-        estimatedDuration: 3,
-        requiredSkills: ['controle_acces'],
-        status: 'pending',
-        createdAt: '2024-01-14T14:30:00Z',
-        urgency: false
-      },
-      {
-        id: 'int-003',
-        title: 'Dépannage urgent caméra défaillante',
-        description: 'Caméra principale entrée ne fonctionne plus',
-        client: {
-          name: 'Banque Atlantique',
-          address: 'Avenue Cheikh Anta Diop, Dakar',
-          phone: '+221 33 456 78 90',
-          zone: 'Dakar-Centre'
-        },
-        service: 'videosurveillance',
-        priority: 'urgent',
-        estimatedDuration: 2,
-        requiredSkills: ['videosurveillance'],
-        status: 'pending',
-        createdAt: '2024-01-15T08:15:00Z',
-        urgency: true
-      }
-    ]
+    const [items, total] = await Promise.all([
+      Intervention.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Intervention.countDocuments(query)
+    ])
 
-    let filteredInterventions = mockInterventions
-
-    // Appliquer les filtres
-    if (date) {
-      filteredInterventions = filteredInterventions.filter(i => i.scheduledDate === date)
-    }
-    if (status) {
-      filteredInterventions = filteredInterventions.filter(i => i.status === status)
-    }
-    if (service && service !== 'all') {
-      filteredInterventions = filteredInterventions.filter(i => i.service === service)
-    }
-    if (zone && zone !== 'all') {
-      filteredInterventions = filteredInterventions.filter(i => i.client.zone === zone)
-    }
-
-    return NextResponse.json({
-      success: true,
-      interventions: filteredInterventions,
-      total: filteredInterventions.length
-    })
+    return NextResponse.json({ success: true, interventions: items, total })
 
   } catch (error) {
     console.error('Erreur API interventions:', error)
@@ -128,6 +55,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+    const auth = requireAuth(request)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
     
     const body = await request.json()
     
@@ -139,9 +68,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Créer l'intervention (à implémenter avec MongoDB)
-    const newIntervention: Intervention = {
-      id: `int-${Date.now()}`,
+    const created = await Intervention.create({
       title: body.title,
       description: body.description || '',
       client: body.client,
@@ -150,14 +77,10 @@ export async function POST(request: NextRequest) {
       estimatedDuration: body.estimatedDuration || 2,
       requiredSkills: body.requiredSkills || [],
       status: 'pending',
-      createdAt: new Date().toISOString(),
-      urgency: body.urgency || false
-    }
-
-    return NextResponse.json({
-      success: true,
-      intervention: newIntervention
+      projectId: body.projectId || undefined
     })
+
+    return NextResponse.json({ success: true, intervention: created }, { status: 201 })
 
   } catch (error) {
     console.error('Erreur création intervention:', error)
@@ -172,6 +95,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await connectMongoose()
+    const auth = requireAuth(request)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
     
     const body = await request.json()
     const { interventionId, technicianId, scheduledDate, scheduledTime } = body
@@ -183,19 +108,14 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Mettre à jour l'intervention (à implémenter avec MongoDB)
-    const updatedIntervention = {
-      id: interventionId,
-      assignedTechnician: technicianId,
+    await Intervention.updateOne({ _id: interventionId }, { $set: {
+      assignedTechnician: technicianId || undefined,
       scheduledDate,
       scheduledTime,
       status: technicianId ? 'scheduled' : 'pending'
-    }
-
-    return NextResponse.json({
-      success: true,
-      intervention: updatedIntervention
-    })
+    } })
+    const updated = await Intervention.findById(interventionId).lean()
+    return NextResponse.json({ success: true, intervention: updated })
 
   } catch (error) {
     console.error('Erreur mise à jour intervention:', error)

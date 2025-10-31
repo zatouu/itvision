@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [kpis, setKpis] = useState({ quotes: 0, projectsActive: 0, techniciansAvailable: 0 })
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -52,6 +53,24 @@ export default function AdminDashboard() {
 
     checkAuth()
   }, [router])
+
+  useEffect(() => {
+    if (loading || !isAuthenticated) return
+    const loadKpis = async () => {
+      try {
+        const [quotesRes, projectsRes, techRes] = await Promise.all([
+          fetch('/api/quotes', { credentials: 'include' }),
+          fetch('/api/projects?status=in_progress', { credentials: 'include' }),
+          fetch('/api/technicians?available=true', { credentials: 'include' })
+        ])
+        const quotes = quotesRes.ok ? (await quotesRes.json()).items?.length || 0 : 0
+        const projects = projectsRes.ok ? (await projectsRes.json()).projects?.length || 0 : 0
+        const techs = techRes.ok ? (await techRes.json()).technicians?.filter((t: any) => t.isAvailable)?.length || 0 : 0
+        setKpis({ quotes, projectsActive: projects, techniciansAvailable: techs })
+      } catch {}
+    }
+    loadKpis()
+  }, [loading, isAuthenticated])
 
   if (loading) {
     return (
@@ -172,6 +191,25 @@ export default function AdminDashboard() {
               <span>Déconnexion</span>
             </button>
           </form>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="text-sm text-gray-500">Devis totaux</div>
+            <div className="text-3xl font-bold text-gray-900 mt-1">{kpis.quotes}</div>
+            <Link href="/admin/quotes" className="text-emerald-700 text-sm mt-2 inline-block">Voir les devis →</Link>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="text-sm text-gray-500">Projets actifs</div>
+            <div className="text-3xl font-bold text-gray-900 mt-1">{kpis.projectsActive}</div>
+            <Link href="/admin/planning" className="text-emerald-700 text-sm mt-2 inline-block">Voir le planning →</Link>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="text-sm text-gray-500">Techniciens disponibles</div>
+            <div className="text-3xl font-bold text-gray-900 mt-1">{kpis.techniciansAvailable}</div>
+            <Link href="/admin/users" className="text-emerald-700 text-sm mt-2 inline-block">Voir l'équipe →</Link>
+          </div>
         </div>
 
         {/* Modules principaux */}

@@ -55,118 +55,52 @@ const DynamicSchedulingSystem = () => {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null)
 
-  // Données de démonstration
+  // Chargement depuis l'API
   useEffect(() => {
-    const mockTechnicians: Technician[] = [
-      {
-        id: 'tech-001',
-        name: 'Moussa Diop',
-        email: 'moussa@itvision.sn',
-        phone: '+221 77 123 45 67',
-        skills: ['videosurveillance', 'network_cabling', 'fiber_optic'],
-        zone: 'Dakar-Centre',
-        availability: {
-          '2024-01-15': { morning: true, afternoon: true, evening: false },
-          '2024-01-16': { morning: true, afternoon: false, evening: false },
-          '2024-01-17': { morning: false, afternoon: true, evening: true }
-        },
-        currentLoad: 65,
-        rating: 4.8,
-        specialties: ['Installation', 'Maintenance', 'Dépannage']
-      },
-      {
-        id: 'tech-002',
-        name: 'Fatou Sall',
-        email: 'fatou@itvision.sn',
-        phone: '+221 77 234 56 78',
-        skills: ['controle_acces', 'domotique', 'securite_incendie'],
-        zone: 'Almadies',
-        availability: {
-          '2024-01-15': { morning: true, afternoon: true, evening: true },
-          '2024-01-16': { morning: true, afternoon: true, evening: false },
-          '2024-01-17': { morning: true, afternoon: true, evening: true }
-        },
-        currentLoad: 40,
-        rating: 4.9,
-        specialties: ['Configuration', 'Formation', 'Support']
-      },
-      {
-        id: 'tech-003',
-        name: 'Amadou Ba',
-        email: 'amadou@itvision.sn',
-        phone: '+221 77 345 67 89',
-        skills: ['videosurveillance', 'controle_acces', 'maintenance'],
-        zone: 'Pikine',
-        availability: {
-          '2024-01-15': { morning: false, afternoon: true, evening: true },
-          '2024-01-16': { morning: true, afternoon: true, evening: true },
-          '2024-01-17': { morning: true, afternoon: false, evening: true }
-        },
-        currentLoad: 80,
-        rating: 4.7,
-        specialties: ['Réparation', 'Diagnostic', 'Urgences']
-      }
-    ]
-
-    const mockInterventions: Intervention[] = [
-      {
-        id: 'int-001',
-        title: 'Installation système vidéosurveillance',
-        description: 'Installation complète 8 caméras IP + NVR',
-        client: {
-          name: 'SARL TechnoPlus',
-          address: 'Rue 10, Mermoz, Dakar',
-          phone: '+221 33 123 45 67',
-          zone: 'Dakar-Centre'
-        },
-        service: 'videosurveillance',
-        priority: 'high',
-        estimatedDuration: 6,
-        requiredSkills: ['videosurveillance', 'network_cabling'],
-        status: 'pending',
-        createdAt: '2024-01-14T10:00:00Z',
-        urgency: false
-      },
-      {
-        id: 'int-002',
-        title: 'Maintenance préventive système accès',
-        description: 'Vérification et mise à jour lecteurs RFID',
-        client: {
-          name: 'Résidence Les Palmiers',
-          address: 'VDN, Almadies, Dakar',
-          phone: '+221 77 987 65 43',
-          zone: 'Almadies'
-        },
-        service: 'controle_acces',
-        priority: 'medium',
-        estimatedDuration: 3,
-        requiredSkills: ['controle_acces'],
-        status: 'pending',
-        createdAt: '2024-01-14T14:30:00Z',
-        urgency: false
-      },
-      {
-        id: 'int-003',
-        title: 'Dépannage urgent caméra défaillante',
-        description: 'Caméra principale entrée ne fonctionne plus',
-        client: {
-          name: 'Banque Atlantique',
-          address: 'Avenue Cheikh Anta Diop, Dakar',
-          phone: '+221 33 456 78 90',
-          zone: 'Dakar-Centre'
-        },
-        service: 'videosurveillance',
-        priority: 'urgent',
-        estimatedDuration: 2,
-        requiredSkills: ['videosurveillance'],
-        status: 'pending',
-        createdAt: '2024-01-15T08:15:00Z',
-        urgency: true
-      }
-    ]
-
-    setTechnicians(mockTechnicians)
-    setInterventions(mockInterventions)
+    ;(async () => {
+      try {
+        const [tRes, iRes] = await Promise.all([
+          fetch('/api/technicians?limit=100', { credentials: 'include' }),
+          fetch('/api/interventions?limit=100', { credentials: 'include' })
+        ])
+        if (tRes.ok) {
+          const tJson = await tRes.json()
+          const list: Technician[] = (tJson.technicians || []).map((t: any) => ({
+            id: t._id || t.id,
+            name: t.name,
+            email: t.email,
+            phone: t.phone,
+            skills: t.specialties || [],
+            zone: t.preferences?.zone || 'Dakar',
+            availability: {},
+            currentLoad: t.stats?.currentLoad || 0,
+            rating: t.stats?.averageRating || 4.5,
+            specialties: t.specialties || []
+          }))
+          setTechnicians(list)
+        }
+        if (iRes.ok) {
+          const iJson = await iRes.json()
+          const iv: Intervention[] = (iJson.interventions || []).map((it: any) => ({
+            id: it._id || it.id,
+            title: it.title,
+            description: it.description,
+            client: it.client,
+            service: it.service,
+            priority: it.priority,
+            estimatedDuration: it.estimatedDuration,
+            requiredSkills: it.requiredSkills || [],
+            scheduledDate: it.scheduledDate,
+            scheduledTime: it.scheduledTime,
+            assignedTechnician: it.assignedTechnician,
+            status: it.status,
+            createdAt: it.createdAt,
+            urgency: it.priority === 'urgent'
+          }))
+          setInterventions(iv)
+        }
+      } catch {}
+    })()
   }, [])
 
   const services = [

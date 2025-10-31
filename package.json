@@ -20,7 +20,8 @@
     "docker:prod": "docker-compose --env-file .env.docker -f docker-compose.yml up -d --build",
     "docker:stop": "docker-compose --env-file .env.docker down",
     "docker:logs": "docker-compose --env-file .env.docker logs -f",
-    "docker:backup": "docker-compose --env-file .env.docker --profile backup run --rm backup"
+    "docker:backup": "docker-compose --env-file .env.docker --profile backup run --rm backup",
+    "seed:admin": "tsx scripts/seed-admin.ts"
   },
   "dependencies": {
     "@next/font": "^14.2.15",

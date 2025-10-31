@@ -32,6 +32,7 @@ import {
   VIDEOSURVEILLANCE_PRODUCTS,
   DOMOTIQUE_TYPES
 } from '../types/pricing'
+import { generateQuotePdf } from '@/lib/pdf'
 
 interface QuoteItem {
   id: string
@@ -81,6 +82,8 @@ export default function ModularQuoteGenerator() {
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null)
   const [selectedService, setSelectedService] = useState<string>('')
   const [showPriceWarnings, setShowPriceWarnings] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -271,6 +274,60 @@ export default function ModularQuoteGenerator() {
     return currentQuote.sections.flatMap(section => 
       section.items.filter(item => !item.hasPrice)
     )
+  }
+
+  const saveQuote = async () => {
+    if (!currentQuote) return
+    try {
+      setSaving(true)
+      const products = currentQuote.sections.flatMap((s) => s.items.map((it) => ({
+        productId: it.productTypeId,
+        name: it.name,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        marginRate: 0
+      })))
+      const body = {
+        clientId: '000000000000000000000000',
+        serviceCode: selectedService || currentQuote.sections[0]?.serviceTypeId || 'GENERAL',
+        products,
+        notes: ''
+      }
+      const res = await fetch('/api/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (!res.ok) throw new Error('Erreur sauvegarde')
+      alert('Devis sauvegardé')
+    } catch (e) {
+      alert('Erreur lors de la sauvegarde du devis')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const exportPdf = async () => {
+    if (!currentQuote) return
+    try {
+      setDownloading(true)
+      const pdfArray = generateQuotePdf({
+        id: currentQuote.id,
+        client: currentQuote.client,
+        sections: currentQuote.sections.map(s => ({
+          name: s.name,
+          items: s.items.map(it => ({ name: it.name, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.totalPrice }))
+        })),
+        totals: currentQuote.totals
+      })
+      const blob = new Blob([pdfArray], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${currentQuote.id}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert('Erreur export PDF')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -666,16 +723,17 @@ export default function ModularQuoteGenerator() {
                     </div>
                   </div>
                   
-                  <button 
+              <button 
                     disabled={getItemsWithoutPrice().length > 0}
                     className={`w-full flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
                       getItemsWithoutPrice().length === 0
                         ? 'bg-green-600 text-white hover:bg-green-700'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
+                    onClick={saveQuote}
                   >
-                    <Save className="h-4 w-4" />
-                    <span>Sauvegarder devis</span>
+                    <Save className={`h-4 w-4 ${saving ? 'animate-pulse' : ''}`} />
+                    <span>{saving ? 'Enregistrement…' : 'Sauvegarder devis'}</span>
                   </button>
                   
                   <button 
@@ -685,9 +743,10 @@ export default function ModularQuoteGenerator() {
                         ? 'bg-blue-600 text-white hover:bg-blue-700'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
+                    onClick={exportPdf}
                   >
-                    <Download className="h-4 w-4" />
-                    <span>Exporter PDF</span>
+                    <Download className={`h-4 w-4 ${downloading ? 'animate-pulse' : ''}`} />
+                    <span>{downloading ? 'Génération…' : 'Exporter PDF'}</span>
                   </button>
                 </div>
               </div>
