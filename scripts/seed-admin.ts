@@ -11,9 +11,9 @@ async function main() {
 
   await connectMongoose()
 
-  const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username }] }).lean()
+  const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username }] }).lean() as any
   if (existing) {
-    console.log('Utilisateur déjà présent:', existing.email)
+    console.log('Utilisateur déjà présent:', existing.email || existing.username)
     process.exit(0)
   }
 
