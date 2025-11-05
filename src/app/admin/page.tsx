@@ -6,26 +6,62 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Calculator, 
-  DollarSign, 
   Package, 
-  FileText, 
-  Settings, 
   TrendingUp,
-  Camera,
-  Home,
-  Shield,
-  Wifi,
-  Zap,
+  Users2,
+  Building2,
+  ArrowRight,
+  Network,
+  ShieldCheck,
+  Laptop,
   Calendar
 } from 'lucide-react'
 import AdminHelpGuide from '@/components/AdminHelpGuide'
 // Intégration de la gestion de projets déplacée vers le Dashboard global (GlobalAdminDashboard)
+
+type ClientCard = {
+  id: string
+  name: string
+  company?: string
+  contact?: string
+  phone: string
+  email: string
+  activeContracts: number
+  address?: string
+}
+
+type ProjectHighlight = {
+  id: string
+  name: string
+  client: string
+  status: string
+  serviceType?: string
+  startDate?: string
+  progress?: number
+}
+
+type TechnicianRollup = {
+  total: number
+  available: number
+  active: number
+}
+
+type PortalMetrics = {
+  totalClients: number
+  activeClients: number
+  portalEnabledClients: number
+}
 
 export default function AdminDashboard() {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState({ quotes: 0, projectsActive: 0, techniciansAvailable: 0 })
+  const [recentClients, setRecentClients] = useState<ClientCard[]>([])
+  const [projectHighlights, setProjectHighlights] = useState<ProjectHighlight[]>([])
+  const [technicians, setTechnicians] = useState<TechnicianRollup>({ total: 0, available: 0, active: 0 })
+  const [portalMetrics, setPortalMetrics] = useState<PortalMetrics>({ totalClients: 0, activeClients: 0, portalEnabledClients: 0 })
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -54,22 +90,76 @@ export default function AdminDashboard() {
     checkAuth()
   }, [router])
 
-  useEffect(() => {
-    if (loading || !isAuthenticated) return
-    const loadKpis = async () => {
-      try {
-        const [quotesRes, projectsRes, techRes] = await Promise.all([
-          fetch('/api/quotes', { credentials: 'include' }),
-          fetch('/api/projects?status=in_progress', { credentials: 'include' }),
-          fetch('/api/technicians?available=true', { credentials: 'include' })
-        ])
-        const quotes = quotesRes.ok ? (await quotesRes.json()).items?.length || 0 : 0
-        const projects = projectsRes.ok ? (await projectsRes.json()).projects?.length || 0 : 0
-        const techs = techRes.ok ? (await techRes.json()).technicians?.filter((t: any) => t.isAvailable)?.length || 0 : 0
-        setKpis({ quotes, projectsActive: projects, techniciansAvailable: techs })
-      } catch {}
+  const loadDashboardData = async () => {
+    try {
+      const [quotesRes, projectsRes, techListRes, techAvailableRes, clientsRes] = await Promise.all([
+        fetch('/api/quotes', { credentials: 'include' }),
+        fetch('/api/projects?status=in_progress&limit=6', { credentials: 'include' }),
+        fetch('/api/technicians?limit=6', { credentials: 'include' }),
+        fetch('/api/technicians?available=true&limit=1', { credentials: 'include' }),
+        fetch('/api/tech/clients?limit=5', { credentials: 'include' })
+      ])
+
+      const quotesData = quotesRes.ok ? await quotesRes.json() : null
+      const projectsData = projectsRes.ok ? await projectsRes.json() : null
+      const techListData = techListRes.ok ? await techListRes.json() : null
+      const techAvailableData = techAvailableRes.ok ? await techAvailableRes.json() : null
+      const clientsData = clientsRes.ok ? await clientsRes.json() : null
+
+      const quotesCount = quotesData?.items?.length || 0
+      const projectsActive = projectsData?.projects?.length || 0
+      const techniciansAvailable = techAvailableData?.total || 0
+
+      setKpis({ quotes: quotesCount, projectsActive, techniciansAvailable })
+
+      if (Array.isArray(projectsData?.projects)) {
+        const formattedProjects: ProjectHighlight[] = projectsData.projects.slice(0, 5).map((project: any) => ({
+          id: project._id || project.id,
+          name: project.name,
+          client: project.clientId?.name || project.client?.name || 'Client',
+          status: String(project.status || 'lead').toUpperCase(),
+          serviceType: project.serviceType || 'Général',
+          startDate: project.startDate
+        }))
+        setProjectHighlights(formattedProjects)
+      }
+
+      if (Array.isArray(techListData?.technicians)) {
+        const total = techListData.total || techListData.technicians.length
+        const active = techListData.technicians.filter((tech: any) => tech.isAvailable !== false).length
+        setTechnicians({ total, available: techniciansAvailable, active })
+      }
+
+      if (clientsData?.success) {
+        const formattedClients: ClientCard[] = Array.isArray(clientsData.clients) ? clientsData.clients.map((client: any) => ({
+          id: client.id,
+          name: client.name,
+          company: client.company,
+          contact: client.contactPerson,
+          phone: client.phone,
+          email: client.email,
+          activeContracts: Array.isArray(client.activeContracts) ? client.activeContracts.length : 0,
+          address: client.address
+        })) : []
+        setRecentClients(formattedClients)
+
+        setPortalMetrics({
+          totalClients: clientsData.metrics?.totalClients || 0,
+          activeClients: clientsData.metrics?.activeClients || 0,
+          portalEnabledClients: clientsData.metrics?.portalEnabledClients || 0
+        })
+      }
+    } catch (error) {
+      console.error('Erreur chargement dashboard:', error)
+    } finally {
+      setLastUpdatedAt(new Date())
     }
-    loadKpis()
+  }
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      loadDashboardData()
+    }
   }, [loading, isAuthenticated])
 
   if (loading) {
@@ -83,292 +173,259 @@ export default function AdminDashboard() {
   if (!isAuthenticated) {
     return null // Redirection en cours
   }
-  const adminModules = [
-    {
-      id: 'quotes',
-      title: 'Générateur de Devis',
-      description: 'Créer des devis modulaires par service',
-      icon: Calculator,
-      href: '/admin/quotes',
-      color: 'blue',
-      features: ['Devis par service', 'Prix configurables', 'Système modulaire']
-    },
-    {
-      id: 'products',
-      title: 'Gestion Produits',
-      description: 'Ajouter, modifier et supprimer les produits du catalogue',
-      icon: Package,
-      href: '/admin/produits',
-      color: 'purple',
-      features: ['CRUD produits', 'Recherche/filtre', 'Sur devis ou tarifé']
-    },
-    {
-      id: 'prices',
-      title: 'Gestion des Prix',
-      description: 'Configurer les prix par type de produit',
-      icon: DollarSign,
-      href: '/admin/prices',
-      color: 'green',
-      features: ['Prix par variant', 'Marges configurables', 'Mise à jour temps réel']
-    },
-    {
-      id: 'catalog',
-      title: 'Catalogue Produits',
-      description: 'Explorer les types de produits par service',
-      icon: Package,
-      href: '/admin/catalog',
-      color: 'purple',
-      features: ['Types par service', 'Variants détaillés', 'Spécifications techniques']
-    },
-    {
-      id: 'planning',
-      title: 'Planification Dynamique',
-      description: 'Gestion intelligente des interventions et affectation automatique',
-      icon: Calendar,
-      href: '/admin/planning',
-      color: 'emerald',
-      features: ['Affectation automatique', 'Calendrier partagé', 'Gestion des compétences']
-    }
-  ]
-
-  const services = [
-    { id: 'videosurveillance', name: 'Vidéosurveillance', icon: Camera, products: 'NVR, Caméras, Stockage' },
-    { id: 'domotique', name: 'Domotique', icon: Home, products: 'Hubs, Interrupteurs, Capteurs' },
-    { id: 'controle_acces', name: 'Contrôle d\'Accès', icon: Shield, products: 'Terminaux, Serrures, Badges' },
-    { id: 'network_cabling', name: 'Câblage Réseau', icon: Wifi, products: 'Câbles, Prises, Brassage' },
-    { id: 'fiber_optic', name: 'Fibre Optique', icon: Zap, products: 'BPI, PBO, Fibres' }
-  ]
-
-  const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'blue': return {
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
-        icon: 'bg-blue-100 text-blue-600',
-        button: 'bg-blue-600 hover:bg-blue-700'
-      }
-      case 'green': return {
-        bg: 'bg-green-50',
-        border: 'border-green-200',
-        icon: 'bg-green-100 text-green-600',
-        button: 'bg-green-600 hover:bg-green-700'
-      }
-      case 'purple': return {
-        bg: 'bg-purple-50',
-        border: 'border-purple-200',
-        icon: 'bg-purple-100 text-purple-600',
-        button: 'bg-purple-600 hover:bg-purple-700'
-      }
-      case 'emerald': return {
-        bg: 'bg-emerald-50',
-        border: 'border-emerald-200',
-        icon: 'bg-emerald-100 text-emerald-600',
-        button: 'bg-emerald-600 hover:bg-emerald-700'
-      }
-      default: return {
-        bg: 'bg-gray-50',
-        border: 'border-gray-200',
-        icon: 'bg-gray-100 text-gray-600',
-        button: 'bg-gray-600 hover:bg-gray-700'
-      }
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🛠️ Administration IT Vision
-          </h1>
-          <p className="text-gray-600">
-            Système de gestion modulaire des devis et prix par service
-          </p>
-          <form action="/api/auth/logout" method="post">
-            <button className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
-              <LogOut className="h-5 w-5" />
-              <span>Déconnexion</span>
-            </button>
-          </form>
-        </div>
-
-        {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <div className="text-sm text-gray-500">Devis totaux</div>
-            <div className="text-3xl font-bold text-gray-900 mt-1">{kpis.quotes}</div>
-            <Link href="/admin/quotes" className="text-emerald-700 text-sm mt-2 inline-block">Voir les devis →</Link>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <div className="text-sm text-gray-500">Projets actifs</div>
-            <div className="text-3xl font-bold text-gray-900 mt-1">{kpis.projectsActive}</div>
-            <Link href="/admin/planning" className="text-emerald-700 text-sm mt-2 inline-block">Voir le planning →</Link>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <div className="text-sm text-gray-500">Techniciens disponibles</div>
-            <div className="text-3xl font-bold text-gray-900 mt-1">{kpis.techniciansAvailable}</div>
-            <Link href="/admin/users" className="text-emerald-700 text-sm mt-2 inline-block">Voir l'équipe →</Link>
-          </div>
-        </div>
-
-        {/* Modules principaux */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {adminModules.map((module) => {
-            const IconComponent = module.icon
-            const colors = getColorClasses(module.color)
-            
-            return (
-              <div key={module.id} className={`${colors.bg} ${colors.border} border rounded-2xl p-6`}>
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className={`w-12 h-12 ${colors.icon} rounded-xl flex items-center justify-center`}>
-                    <IconComponent className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{module.title}</h3>
-                    <p className="text-sm text-gray-600">{module.description}</p>
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Fonctionnalités:</h4>
-                  <ul className="space-y-1">
-                    {module.features.map((feature, idx) => (
-                      <li key={idx} className="text-sm text-gray-600 flex items-center">
-                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2"></div>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 text-white p-8 lg:p-12">
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(255,255,255,0.25), transparent 55%)' }} />
+          <div className="relative z-10 space-y-8">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div className="max-w-2xl space-y-3">
+                <h1 className="text-3xl md:text-4xl font-bold">Centre de contrôle IT Vision</h1>
+                <p className="text-emerald-100 text-sm md:text-base">
+                  Supervisez le catalogue, rendez visibles vos clients sur les portails &amp; synchronisez les interventions terrain.
+                </p>
+                {lastUpdatedAt && (
+                  <p className="text-xs text-emerald-100/80">Dernière synchronisation : {lastUpdatedAt.toLocaleString('fr-FR')}</p>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch gap-3">
                 <Link
-                  href={module.href}
-                  className={`w-full ${colors.button} text-white py-2 px-4 rounded-lg font-medium transition-colors inline-flex items-center justify-center`}
+                  href="/tech-interface"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 transition"
                 >
-                  Accéder
+                  Accéder au portail technicien <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="/client-portal"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 transition"
+                >
+                  Portail client <ArrowRight className="h-4 w-4" />
+                </Link>
+                <form action="/api/auth/logout" method="post" className="sm:self-center">
+                  <button className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-xs text-white/80 hover:bg-white/10">
+                    <LogOut className="h-3.5 w-3.5" /> Déconnexion
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
+                <div className="text-xs uppercase tracking-wide text-emerald-100">Devis en cours</div>
+                <div className="mt-2 flex items-end justify-between">
+                  <span className="text-3xl font-semibold">{kpis.quotes}</span>
+                  <Calculator className="h-6 w-6 text-emerald-100" />
+                </div>
+                <Link href="/admin/quotes" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Manage devis <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              </div>
+              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
+                <div className="text-xs uppercase tracking-wide text-emerald-100">Projets actifs</div>
+                <div className="mt-2 flex items-end justify-between">
+                  <span className="text-3xl font-semibold">{kpis.projectsActive}</span>
+                  <TrendingUp className="h-6 w-6 text-emerald-100" />
+                </div>
+                <Link href="/admin/planning" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Voir planning <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              </div>
+              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
+                <div className="text-xs uppercase tracking-wide text-emerald-100">Techniciens dispo</div>
+                <div className="mt-2 flex items-end justify-between">
+                  <span className="text-3xl font-semibold">{technicians.available}</span>
+                  <Users2 className="h-6 w-6 text-emerald-100" />
+                </div>
+                <Link href="/tech-interface" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Ouvrir portail tech <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 space-y-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Actions rapides</h2>
+                  <p className="text-sm text-gray-500">Centralisez vos opérations clés — catalogue, planification, portails.</p>
+                </div>
+                <button
+                  onClick={loadDashboardData}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                >
+                  Rafraîchir les données
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Link href="/admin/produits" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Catalogue fournisseurs</h3>
+                      <p className="text-xs text-gray-500">Import AliExpress / Config produit</p>
+                    </div>
+                    <Package className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">Ajoutez ou éditez les fiches avant publication sur le portail client.</p>
+                </Link>
+
+                <Link href="/admin/clients" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Créer un client</h3>
+                      <p className="text-xs text-gray-500">Accessible portails client &amp; tech</p>
+                    </div>
+                    <Building2 className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">Chaque client enregistré est immédiatement visible pour les techniciens.</p>
+                </Link>
+
+                <Link href="/admin/planning" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Planifier une intervention</h3>
+                      <p className="text-xs text-gray-500">Synchronisé avec portail technicien</p>
+                    </div>
+                    <Calendar className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">Affectez les techniciens en tenant compte des disponibilités et compétences.</p>
+                </Link>
+
+                <Link href="/tech-interface" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Portail technicien</h3>
+                      <p className="text-xs text-gray-500">Suivi terrain en direct</p>
+                    </div>
+                    <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">Consultez ce que voient vos équipes : interventions, clients, checklists.</p>
+                </Link>
+
+                <Link href="/client-portal" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Portail client</h3>
+                      <p className="text-xs text-gray-500">Suivi projets &amp; rapports</p>
+                    </div>
+                    <Laptop className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">Assurez-vous que les clients disposent des accès et informations nécessaires.</p>
                 </Link>
               </div>
-            )
-          })}
-        </div>
+            </div>
+          </div>
 
-        {/* Bloc Projets centralisé dans le Dashboard global pour éviter les doublons */}
-
-        {/* Services disponibles */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">🔧 Services Configurés</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services.map((service) => {
-              const IconComponent = service.icon
-              return (
-                <div key={service.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <IconComponent className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{service.name}</h4>
-                      <p className="text-xs text-gray-500">{service.products}</p>
-                    </div>
-                  </div>
+          <aside className="space-y-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Équipe technique</h2>
+                <Network className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div className="mt-4 space-y-3 text-sm text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span>Total inscrits</span>
+                  <span className="font-semibold text-gray-900">{technicians.total}</span>
                 </div>
-              )
-            })}
-          </div>
-        </div>
+                <div className="flex items-center justify-between">
+                  <span>Disponibles aujourd’hui</span>
+                  <span className="font-semibold text-emerald-600">{technicians.available}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Actifs (connectés)</span>
+                  <span className="font-semibold text-gray-900">{technicians.active}</span>
+                </div>
+              </div>
+              <Link href="/admin/users" className="mt-6 inline-flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700">
+                Gérer les techniciens <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
 
-        {/* Workflow recommandé */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">📋 Workflow Recommandé</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-purple-600">1</span>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Explorer le Catalogue</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Découvrez les types de produits disponibles par service et leurs variants
-              </p>
-              <Link
-                href="/admin/catalog"
-                className="inline-flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
-              >
-                <Package className="h-4 w-4" />
-                <span>Voir Catalogue</span>
-              </Link>
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">À propos</h2>
+              <p className="text-sm text-gray-600">Chaque client créé ici est automatiquement disponible sur le portail technicien pour planifier des interventions, et sur le portail client pour consulter devis & rapports.</p>
             </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-green-600">2</span>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Configurer les Prix</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Définissez les prix de coût et de vente pour chaque variant de produit
-              </p>
-              <Link
-                href="/admin/prices"
-                className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
-              >
-                <DollarSign className="h-4 w-4" />
-                <span>Gérer Prix</span>
-              </Link>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-blue-600">3</span>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Créer des Devis</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Générez des devis professionnels avec les prix configurés
-              </p>
-              <Link
-                href="/admin/quotes"
-                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-              >
-                <Calculator className="h-4 w-4" />
-                <span>Créer Devis</span>
-              </Link>
-            </div>
-          </div>
-        </div>
+          </aside>
+        </section>
 
-        {/* Avantages du nouveau système */}
-        <div className="mt-8 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">✨ Nouveau Système Modulaire</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold text-green-800 mb-2">Améliorations:</h4>
-              <ul className="space-y-1 text-sm text-green-700">
-                <li>• <strong>Plus de prix codés en dur</strong> - Tout est configurable</li>
-                <li>• <strong>Gestion par type de service</strong> - Organisation claire</li>
-                <li>• <strong>Variants de produits</strong> - NVR 4/8/16/32 canaux, etc.</li>
-                <li>• <strong>Code modulaire</strong> - Maintenance facilitée</li>
-                <li>• <strong>Prix optionnels</strong> - Configuration progressive</li>
-              </ul>
+        <section className="grid grid-cols-1 2xl:grid-cols-3 gap-6">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm 2xl:col-span-1">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Clients récents</h2>
+              <Link href="/admin/clients" className="text-sm text-emerald-600 hover:text-emerald-700">Tout afficher</Link>
             </div>
-            
-            <div>
-              <h4 className="font-semibold text-blue-800 mb-2">Fonctionnalités:</h4>
-              <ul className="space-y-1 text-sm text-blue-700">
-                <li>• <strong>Marges automatiques</strong> - Calcul prix/coût/marge</li>
-                <li>• <strong>Validation des prix</strong> - Alertes marges faibles</li>
-                <li>• <strong>Sauvegarde locale</strong> - Persistance des données</li>
-                <li>• <strong>Interface intuitive</strong> - Gestion simplifiée</li>
-                <li>• <strong>Synchronisation</strong> - Mise à jour temps réel</li>
-              </ul>
+            <div className="divide-y divide-gray-100">
+              {recentClients.length === 0 && (
+                <p className="text-sm text-gray-500 py-6 text-center">Aucun client enregistré pour le moment.</p>
+              )}
+              {recentClients.map((client) => (
+                <div key={client.id} className="py-4 flex items-start justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{client.company || client.name}</div>
+                    <div className="text-xs text-gray-500">{client.email} • {client.phone}</div>
+                    {client.contact && <div className="text-xs text-gray-400 mt-1">Référent : {client.contact}</div>}
+                  </div>
+                  <span className={`px-2 py-1 text-xs rounded-full ${client.activeContracts > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}`}>
+                    {client.activeContracts > 0 ? `${client.activeContracts} contrat(s)` : 'En prospection'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm 2xl:col-span-1">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Interventions actives</h2>
+              <Link href="/admin/planning" className="text-sm text-emerald-600 hover:text-emerald-700">Planifier</Link>
+            </div>
+            <div className="space-y-3">
+              {projectHighlights.length === 0 && (
+                <p className="text-sm text-gray-500">Aucune intervention en cours.</p>
+              )}
+              {projectHighlights.map((project) => (
+                <div key={project.id} className="rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{project.name}</div>
+                      <div className="text-xs text-gray-500">{project.client}</div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${project.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-600'}`}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500">Service : {project.serviceType}</div>
+                  {project.startDate && <div className="text-xs text-gray-400">Début : {new Date(project.startDate).toLocaleDateString('fr-FR')}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm 2xl:col-span-1 space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Connexions portails</h2>
+              <p className="text-xs text-gray-500">Synchronisation automatique clients ↔ techniciens ↔ portails.</p>
+            </div>
+            <div className="space-y-3 text-sm text-gray-600">
+              <div className="flex items-center justify-between">
+                <span>Clients (total)</span>
+                <span className="font-semibold text-gray-900">{portalMetrics.totalClients}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Clients actifs</span>
+                <span className="font-semibold text-gray-900">{portalMetrics.activeClients}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Accès portail client</span>
+                <span className="font-semibold text-emerald-600">{portalMetrics.portalEnabledClients}</span>
+              </div>
+            </div>
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 text-xs text-emerald-900">
+              Dès qu’un client est créé ici, il est affiché dans l’annuaire du portail technicien (planification) et peut accéder à son espace client (rapports, demandes de maintenance).
+            </div>
+          </div>
+        </section>
+
+        <AdminHelpGuide />
       </div>
-
-      {/* Guide d'aide flottant */}
-      <AdminHelpGuide />
     </div>
   )
 }

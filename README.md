@@ -131,7 +131,13 @@ npm run import:aliexpress -- --keyword "hikvision" --limit 5 --dry-run # importe
 
 ## 🆕 Nouvelles Fonctionnalités
 
-### ✅ v1.3 - Système de Réservation Avancé (Dernière)
+### ✅ v1.4 - Hub Admin & Portails synchronisés (Dernière)
+- **Tableau de bord admin repensé** : carte KPI responsive, actions rapides et accès directs aux portails clients/techniciens.
+- **Synchronisation clients ↔ techniciens** : l’API `GET /api/tech/clients` expose un annuaire filtré (sans données sensibles) partageable avec le portail terrain.
+- **Annuaire technicien enrichi** : les techniciens voient immédiatement les nouveaux clients, avec coordonnées, contrats actifs et CTA de planification.
+- **Suivi portails** : compteurs globaux (clients actifs, accès portail client, techniciens disponibles) pour monitorer la relation back-office ↔ terrain ↔ client.
+
+### ✅ v1.3 - Système de Réservation Avancé
 - **Emails de confirmation** : Templates professionnels pour les RDV
 - **Calendrier intégré** : Interface de réservation améliorée avec créneaux visuels
 - **Multi-canal** : WhatsApp + Email + SMS + Fichiers .ics
