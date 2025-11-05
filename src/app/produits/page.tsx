@@ -11,70 +11,120 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 // Interface pour les produits de l'API
+interface ShippingOptionSummary {
+  id: string
+  label: string
+  description: string
+  durationDays: number
+  cost: number
+  total: number
+  currency: string
+}
+
 interface ApiProduct {
   _id: string
   name: string
   category: string
   description: string
+  tagline?: string
   priceAmount?: number
   currency?: string
   image?: string
+  gallery?: string[]
   requiresQuote: boolean
   deliveryDays?: number
-  createdAt: string
-  updatedAt: string
+  features: string[]
+  rating: number
+  shippingOptions: ShippingOptionSummary[]
+  availabilityLabel?: string
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
 
 // Produits de fallback en cas d'erreur API
-const getFallbackProducts = (): ApiProduct[] => [
-  {
-    _id: 'fallback-1',
-    name: 'Caméra IP HD',
-    category: 'Vidéosurveillance',
-    description: 'Caméra de surveillance haute définition avec vision nocturne',
-    priceAmount: 150000,
-    currency: 'FCFA',
-    requiresQuote: false,
-    deliveryDays: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    _id: 'fallback-2',
-    name: 'Système Contrôle d\'Accès',
-    category: 'Contrôle d\'Accès',
-    description: 'Solution complète de contrôle d\'accès avec badges RFID',
-    priceAmount: 250000,
-    currency: 'FCFA',
-    requiresQuote: false,
-    deliveryDays: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    _id: 'fallback-3',
-    name: 'Installation Fibre Optique',
-    category: 'Réseau',
-    description: 'Installation et configuration de réseau fibre optique',
-    requiresQuote: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    _id: 'fallback-4',
-    name: 'Système Domotique',
-    category: 'Domotique',
-    description: 'Automatisation complète de votre habitat',
-    priceAmount: 500000,
-    currency: 'FCFA',
-    requiresQuote: false,
-    deliveryDays: 7,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-]
+const getFallbackProducts = (): ApiProduct[] => {
+  return [
+    {
+      _id: 'fallback-1',
+      name: 'Caméra IP Hikvision 4MP',
+      category: 'Vidéosurveillance',
+      description: 'Caméra de surveillance haute définition avec vision nocturne et IA détection humain/véhicule',
+      tagline: 'Livraison express 3 jours ou maritime économique 60 jours',
+      priceAmount: 198500,
+      currency: 'FCFA',
+      image: '/images/fallback-camera.png',
+      gallery: ['/images/fallback-camera.png'],
+      requiresQuote: false,
+      deliveryDays: 3,
+      features: ['IA AcuSense intégrée', 'Vision nocturne ColorVu', 'Garantie 2 ans'],
+      rating: 4.8,
+      shippingOptions: [
+        { id: 'air_express', label: 'Express aérien 3 jours', description: 'Livraison 72h Dakar', durationDays: 3, cost: 35000, total: 198500, currency: 'FCFA' },
+        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 22000, total: 185500, currency: 'FCFA' },
+        { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 95000, total: 258500, currency: 'FCFA' }
+      ],
+      availabilityLabel: 'Commande sur demande (15 jours)' 
+    },
+    {
+      _id: 'fallback-2',
+      name: 'Terminal Contrôle d\'accès Facial',
+      category: 'Contrôle d\'Accès',
+      description: 'Terminal biométrique reconnaissance faciale & RFID pour entreprise',
+      tagline: 'Sourcing direct usine Chine, installation Dakar',
+      priceAmount: 275000,
+      currency: 'FCFA',
+      image: '/images/fallback-access.png',
+      gallery: ['/images/fallback-access.png'],
+      requiresQuote: false,
+      deliveryDays: 15,
+      features: ['Reconnaissance faciale < 0.2s', 'Support RFID & QR code', 'Application mobile incluse'],
+      rating: 4.7,
+      shippingOptions: [
+        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 45000, total: 275000, currency: 'FCFA' },
+        { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 90000, total: 320000, currency: 'FCFA' }
+      ],
+      availabilityLabel: 'Commande sur demande (15 jours)'
+    },
+    {
+      _id: 'fallback-3',
+      name: 'Kit alarme sans fil AX PRO',
+      category: 'Alarme',
+      description: 'Pack alarme résidentielle Hikvision AX PRO avec application mobile',
+      priceAmount: 325000,
+      currency: 'FCFA',
+      image: '/images/fallback-alarm.png',
+      gallery: ['/images/fallback-alarm.png'],
+      requiresQuote: false,
+      deliveryDays: 5,
+      features: ['Installation rapide Dakar', 'Sirène 110dB', 'Batterie secours 24h'],
+      rating: 4.9,
+      shippingOptions: [
+        { id: 'air_express', label: 'Express aérien 3 jours', description: 'Livraison 72h Dakar', durationDays: 3, cost: 65000, total: 325000, currency: 'FCFA' },
+        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 42000, total: 302000, currency: 'FCFA' }
+      ],
+      availabilityLabel: 'Disponible immédiatement à Dakar'
+    },
+    {
+      _id: 'fallback-4',
+      name: 'Switch PoE 16 ports Hikvision',
+      category: 'Réseau',
+      description: 'Switch PoE+ 16 ports pour infrastructure vidéosurveillance',
+      priceAmount: 415000,
+      currency: 'FCFA',
+      image: '/images/fallback-network.png',
+      gallery: ['/images/fallback-network.png'],
+      requiresQuote: false,
+      deliveryDays: 15,
+      features: ['Budget PoE 230W', 'Gestion web & VLAN', 'Garantie 3 ans'],
+      rating: 4.6,
+      shippingOptions: [
+        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 65000, total: 415000, currency: 'FCFA' },
+        { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 120000, total: 470000, currency: 'FCFA' }
+      ],
+      availabilityLabel: 'Commande sur demande (15 jours)'
+    }
+  ]
+}
 
 export default function ProduitsPage() {
   const [cartOpen, setCartOpen] = useState(false)
@@ -110,45 +160,89 @@ export default function ProduitsPage() {
     }
   }, [])
 
-  // Charger les produits depuis l'API
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        const response = await fetch('/api/products', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        const data = await response.json()
-        
-        if (data.success && Array.isArray(data.products)) {
-          setProducts(data.products)
-        } else {
-          // Fallback avec des produits de démonstration
+    // Charger les produits depuis l'API
+    useEffect(() => {
+      const fetchProducts = async () => {
+        try {
+          setLoading(true)
+          setError(null)
+
+          const response = await fetch('/api/catalog/products', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+
+          const data = await response.json()
+
+          if (data.success && Array.isArray(data.products)) {
+            const formatted: ApiProduct[] = data.products.map((item: any): ApiProduct => {
+              const shipping: ShippingOptionSummary[] = Array.isArray(item.pricing?.shippingOptions)
+                ? item.pricing.shippingOptions.map((opt: any) => ({
+                    id: opt.id,
+                    label: opt.label,
+                    description: opt.description,
+                    durationDays: opt.durationDays,
+                    cost: opt.cost,
+                    total: opt.total,
+                    currency: opt.currency
+                  }))
+                : []
+
+              const bestShipping = shipping.length > 0
+                ? shipping.reduce((prev, current) => (prev.total <= current.total ? prev : current))
+                : null
+
+              const salePrice = typeof item.pricing?.salePrice === 'number' ? item.pricing.salePrice : undefined
+              const priceAmount = !item.requiresQuote
+                ? (bestShipping ? bestShipping.total : salePrice)
+                : undefined
+
+              const featuresFromApi = Array.isArray(item.features) ? item.features.filter(Boolean) : []
+              const shippingHighlights = shipping.slice(0, 2).map((opt) => `${opt.label} · ${opt.total.toLocaleString('fr-FR')} ${opt.currency}`)
+              const availabilityHighlight = item.availability?.label ? [item.availability.label] : []
+
+              const features = [...featuresFromApi, ...shippingHighlights, ...availabilityHighlight]
+
+              return {
+                _id: item.id,
+                name: item.name,
+                category: item.category || 'Catalogue import Chine',
+                description: item.description || item.tagline || 'Équipement import direct Chine avec installation Dakar',
+                tagline: item.tagline || undefined,
+                priceAmount,
+                currency: item.pricing?.currency || 'FCFA',
+                image: item.image || item.gallery?.[0] || '/file.svg',
+                gallery: Array.isArray(item.gallery) ? item.gallery : undefined,
+                requiresQuote: item.requiresQuote || !priceAmount,
+                deliveryDays: bestShipping?.durationDays ?? item.availability?.leadTimeDays ?? 0,
+                features: features.length ? features : ['Import direct Chine', 'Livraison Dakar sécurisée'],
+                rating: item.isFeatured ? 4.9 : 4.7,
+                shippingOptions: shipping,
+                availabilityLabel: item.availability?.label || undefined
+              }
+            })
+            setProducts(formatted)
+          } else {
+            setProducts(getFallbackProducts())
+            setError('Mode démonstration - Connexion API indisponible')
+          }
+        } catch (err) {
+          console.error('Error fetching products:', err)
           setProducts(getFallbackProducts())
           setError('Mode démonstration - Connexion API indisponible')
+        } finally {
+          setLoading(false)
         }
-      } catch (err) {
-        console.error('Error fetching products:', err)
-        // Fallback avec des produits de démonstration
-        setProducts(getFallbackProducts())
-        setError('Mode démonstration - Connexion API indisponible')
-      } finally {
-        setLoading(false)
       }
-    }
 
-    fetchProducts()
-  }, [])
+      fetchProducts()
+    }, [])
   const categories = [
     {
       id: 'cameras',
@@ -719,7 +813,7 @@ export default function ProduitsPage() {
                 <div className="bg-white border rounded-xl p-4">
                   <h3 className="font-semibold text-gray-900 mb-2">Catégories</h3>
                   <div className="space-y-1 text-sm">
-                    {Array.from(new Set(products.map(p => p.category))).map((category) => (
+                    {Array.from(new Set(products.map(p => p.category || 'Catalogue import Chine'))).map((category) => (
                       <label key={category} className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -767,28 +861,28 @@ export default function ProduitsPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-16">
-                  {/* Grouper les produits par catégorie */}
-                  {Object.entries(
-                    products.reduce((acc, product) => {
-                      if (!acc[product.category]) acc[product.category] = []
-                      acc[product.category].push(product)
-                      return acc
-                    }, {} as Record<string, ApiProduct[]>)
-                  ).map(([categoryName, categoryProducts]) => {
-                    // Filtrer les produits selon les critères
-                    const filtered = categoryProducts.filter(product => {
-                      const text = `${product.name} ${product.description}`.toLowerCase()
-                      const matchesSearch = search.trim().length === 0 || text.includes(search.toLowerCase())
-                      const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
-                      const matchesCategory = selected.length === 0 || selected.includes(product.category)
-                      return matchesSearch && matchesTarif && matchesCategory
-                    })
+                  <div className="space-y-16">
+                    {/* Grouper les produits par catégorie */}
+                    {Object.entries(
+                      products.reduce((acc, product) => {
+                        const categoryKey = product.category || 'Catalogue import Chine'
+                        if (!acc[categoryKey]) acc[categoryKey] = []
+                        acc[categoryKey].push(product)
+                        return acc
+                      }, {} as Record<string, ApiProduct[]>)
+                    ).map(([categoryName, categoryProducts]) => {
+                      const filtered = categoryProducts.filter(product => {
+                        const text = `${product.name} ${product.description}`.toLowerCase()
+                        const matchesSearch = search.trim().length === 0 || text.includes(search.toLowerCase())
+                        const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
+                        const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
+                        return matchesSearch && matchesTarif && matchesCategory
+                      })
 
-                    if (filtered.length === 0) return null
+                      if (filtered.length === 0) return null
 
-                    return (
-                      <div key={categoryName} className="mb-16 last:mb-0">
+                      return (
+                        <div key={categoryName} className="mb-16 last:mb-0">
                         {/* Category Header */}
                         <div className="text-center mb-16">
                           <div className="flex items-center justify-center mb-4">
@@ -804,21 +898,22 @@ export default function ProduitsPage() {
 
                         {/* Products Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {filtered.map((product) => (
-                            <ProductCard
-                              key={product._id}
-                              name={product.name}
-                              model=""
-                              price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'Fcfa'}` : 'Sur devis'}
-                              priceAmount={product.priceAmount}
-                              currency={product.currency || 'Fcfa'}
-                              requiresQuote={product.requiresQuote}
-                              deliveryDays={product.deliveryDays || 0}
-                              features={[product.description]}
-                              rating={4.5}
-                              images={product.image ? [product.image] : ['/file.svg']}
-                            />
-                          ))}
+                            {filtered.map((product) => (
+                              <ProductCard
+                                key={product._id}
+                                name={product.name}
+                                model={product.tagline}
+                                price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                                priceAmount={product.priceAmount}
+                                currency={product.currency || 'FCFA'}
+                                requiresQuote={product.requiresQuote}
+                                deliveryDays={product.deliveryDays || 0}
+                                features={product.features && product.features.length ? product.features : [product.description]}
+                                rating={product.rating || 4.7}
+                                images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
+                                shippingOptions={product.shippingOptions}
+                              />
+                            ))}
                         </div>
                       </div>
                     )

@@ -2,8 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Star, CheckCircle, ShoppingCart } from 'lucide-react'
+import { Star, CheckCircle, ShoppingCart, Plane, Ship } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
+
+interface ShippingOption {
+  id: string
+  label: string
+  description: string
+  durationDays: number
+  cost: number
+  total: number
+  currency: string
+}
 
 export interface ProductCardProps {
   name: string
@@ -16,15 +26,41 @@ export interface ProductCardProps {
   features: string[]
   rating: number
   images: string[]
+  shippingOptions?: ShippingOption[]
 }
 
-export default function ProductCard({ name, model, price, priceAmount, currency = 'Fcfa', requiresQuote, deliveryDays = 0, features, rating, images }: ProductCardProps) {
+const shippingIcon = (methodId?: string) => {
+  if (!methodId) return Plane
+  if (methodId.includes('sea')) return Ship
+  return Plane
+}
+
+export default function ProductCard({ name, model, price, priceAmount, currency = 'Fcfa', requiresQuote, deliveryDays = 0, features, rating, images, shippingOptions = [] }: ProductCardProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(shippingOptions[0]?.id ?? null)
+
+  useEffect(() => {
+    if (shippingOptions.length === 0) {
+      setSelectedShippingId(null)
+    } else if (!selectedShippingId || !shippingOptions.find(option => option.id === selectedShippingId)) {
+      setSelectedShippingId(shippingOptions[0].id)
+    }
+  }, [shippingOptions, selectedShippingId])
+
+  const activeShipping = selectedShippingId ? shippingOptions.find(option => option.id === selectedShippingId) || null : null
+  const effectiveCurrency = activeShipping?.currency || currency
+  const computedDeliveryDays = activeShipping?.durationDays ?? deliveryDays
+  const computedPriceAmount = !requiresQuote ? (activeShipping ? activeShipping.total : priceAmount) : undefined
+  const computedPriceLabel = computedPriceAmount && !requiresQuote
+    ? `${computedPriceAmount.toLocaleString('fr-FR')} ${effectiveCurrency}`
+    : price || 'Sur devis'
 
   const whatsappUrl = () => {
     const msg = encodeURIComponent(
-      `Bonjour, je souhaite un devis pour: ${name}${model ? ` (${model})` : ''}.\nMerci de me recontacter.`
+      `Bonjour, je souhaite un devis pour: ${name}${model ? ` (${model})` : ''}.
+Mode de transport souhaité: ${activeShipping?.label || 'À définir'}.
+Merci de me recontacter.`
     )
     return `https://wa.me/221774133440?text=${msg}`
   }
@@ -34,32 +70,57 @@ export default function ProductCard({ name, model, price, priceAmount, currency 
       setAdding(true)
       const raw = typeof window !== 'undefined' ? localStorage.getItem('cart:items') : null
       const items = raw ? JSON.parse(raw) : []
-      const id = `${name}-${model || ''}`.replace(/\s+/g, '-').toLowerCase()
+      const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
+      const id = `${name}-${model || ''}${shippingKey}`.replace(/\s+/g, '-').toLowerCase()
       const existsIndex = items.findIndex((i: any) => i.id === id)
-      if (existsIndex >= 0) items[existsIndex].qty += 1
-      else items.push({ id, name: `${name}${model ? ` (${model})` : ''}`, qty: 1, price: priceAmount, currency, requiresQuote: !!requiresQuote })
+      if (existsIndex >= 0) {
+        items[existsIndex].qty += 1
+        items[existsIndex].price = computedPriceAmount
+        items[existsIndex].currency = effectiveCurrency
+        if (activeShipping) {
+          items[existsIndex].shipping = {
+            id: activeShipping.id,
+            label: activeShipping.label,
+            durationDays: activeShipping.durationDays,
+            cost: activeShipping.cost,
+            currency: activeShipping.currency
+          }
+        }
+      } else {
+        items.push({
+          id,
+          name: `${name}${model ? ` (${model})` : ''}`,
+          qty: 1,
+          price: computedPriceAmount,
+          currency: effectiveCurrency,
+          requiresQuote: !!requiresQuote,
+          shipping: activeShipping ? {
+            id: activeShipping.id,
+            label: activeShipping.label,
+            durationDays: activeShipping.durationDays,
+            cost: activeShipping.cost,
+            currency: activeShipping.currency
+          } : undefined
+        })
+      }
       localStorage.setItem('cart:items', JSON.stringify(items))
       trackEvent('add_to_cart', { productId: id })
-      // notify listeners (e.g., page header/cart icon)
       try {
         window.dispatchEvent(new CustomEvent('cart:updated'))
       } catch {}
-      // simple toast
       alert('Produit ajouté au panier')
     } finally {
       setAdding(false)
     }
   }
 
-  const showQuote = typeof requiresQuote === 'boolean' ? requiresQuote : (price ? /devis/i.test(price) : !priceAmount)
-  const isBuy = !!priceAmount && !showQuote && (deliveryDays <= 2)
-  const isOrder = !!priceAmount && !showQuote && (deliveryDays > 2)
+  const showQuote = typeof requiresQuote === 'boolean' ? requiresQuote : (price ? /devis/i.test(price) : !computedPriceAmount)
+  const isBuy = !!computedPriceAmount && !showQuote && (computedDeliveryDays <= 2)
+  const isOrder = !!computedPriceAmount && !showQuote && (computedDeliveryDays > 2)
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
-  const priceLabel = priceAmount && !showQuote ? `${priceAmount.toLocaleString()} ${currency}` : (price || 'Sur devis')
 
   return (
     <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden group hover:shadow-md transition-all h-full flex flex-col">
-      {/* Media */}
       <div className="p-2.5 pb-0">
         <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
           <Image
@@ -74,15 +135,12 @@ export default function ProductCard({ name, model, price, priceAmount, currency 
             <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" /> {rating.toFixed(1)}
           </div>
         </div>
-        {/* Thumbnails */}
         <div className="flex items-center gap-2 mt-2">
           {images.slice(0, 4).map((src, idx) => (
             <button
               key={idx}
               onClick={() => setActiveIndex(idx)}
-              className={`relative h-10 w-10 rounded-md overflow-hidden border ${
-                activeIndex === idx ? 'border-emerald-500' : 'border-gray-200'
-              }`}
+              className={`relative h-10 w-10 rounded-md overflow-hidden border ${activeIndex === idx ? 'border-emerald-500' : 'border-gray-200'}`}
               aria-label={`Image ${idx + 1}`}
             >
               <Image src={src} alt={`${name} ${idx + 1}`} fill className="object-contain" />
@@ -91,7 +149,6 @@ export default function ProductCard({ name, model, price, priceAmount, currency 
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-4 flex flex-col justify-between flex-1">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
@@ -99,12 +156,11 @@ export default function ProductCard({ name, model, price, priceAmount, currency 
             {model && <p className="text-xs text-gray-500 mt-1">{model}</p>}
           </div>
           <div className="text-right">
-            <div className="text-xs text-gray-500">{showQuote ? 'Tarif' : 'Prix'}</div>
-            <div className={`text-lg font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>{priceLabel}</div>
+            <div className="text-xs text-gray-500">{showQuote ? 'Tarif' : 'Prix total'}</div>
+            <div className={`text-lg font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>{computedPriceLabel}</div>
           </div>
         </div>
 
-        {/* Features */}
         <ul className="mt-1 space-y-2">
           {features.slice(0, 4).map((f, i) => (
             <li key={i} className="flex items-start text-sm text-gray-700">
@@ -114,9 +170,35 @@ export default function ProductCard({ name, model, price, priceAmount, currency 
           ))}
         </ul>
 
-        {/* CTA */}
+        {shippingOptions.length > 0 && !showQuote && (
+          <div className="mt-3">
+            <div className="text-xs text-gray-500 mb-1">Choisir le transport</div>
+            <div className="flex flex-wrap gap-2">
+              {shippingOptions.map(option => {
+                const Icon = shippingIcon(option.id)
+                const active = option.id === selectedShippingId
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => setSelectedShippingId(option.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1 ${active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'border-gray-200 text-gray-600 hover:border-emerald-400'}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {option.label.split(' ')[0]} · {option.durationDays} j
+                  </button>
+                )
+              })}
+            </div>
+            {activeShipping && (
+              <div className="mt-2 text-xs text-gray-600">
+                <span className="font-medium text-gray-900">{activeShipping.label}</span>
+                <span>{` · ${activeShipping.durationDays} jours · Transport ${activeShipping.cost.toLocaleString('fr-FR')} ${activeShipping.currency}`}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 flex items-center justify-end gap-2">
-          {!!priceAmount && !showQuote && (
+          {!!computedPriceAmount && !showQuote && (
             <button
               onClick={addToCart}
               disabled={adding}
