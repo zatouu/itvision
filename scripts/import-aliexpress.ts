@@ -99,7 +99,7 @@ const extractFeatures = (item: AliExpressItem): string[] => {
   return [...features].slice(0, 6)
 }
 
-const fetchAliExpress = async (keyword: string, page: number): Promise<AliExpressItem[]> => {
+const fetchAliExpress = async (keyword: string, page: number, pageSize: number, verbose = false): Promise<AliExpressItem[]> => {
   const apiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
   if (!apiKey) {
     throw new Error('ALIEXPRESS_RAPIDAPI_KEY est requis pour exécuter l\'import')
@@ -108,6 +108,7 @@ const fetchAliExpress = async (keyword: string, page: number): Promise<AliExpres
   const query = new URLSearchParams({
     q: keyword,
     page: String(page),
+    page_size: String(pageSize),
     sort: 'orignalPriceDown'
   })
 
@@ -126,6 +127,15 @@ const fetchAliExpress = async (keyword: string, page: number): Promise<AliExpres
 
   const json = (await response.json()) as AliExpressApiResponse
   const items = json.result?.items ?? []
+
+  if (verbose) {
+    const total = Array.isArray(items) ? items.length : 0
+    console.log(`Page ${page} • ${total} résultats bruts pour "${keyword}"`)
+    if (total === 0) {
+      console.log('Réponse API (extrait):', JSON.stringify(json, null, 2).slice(0, 800) + '…')
+    }
+  }
+
   return items
 }
 
@@ -221,7 +231,7 @@ async function main() {
   for (let page = 1; page <= totalPages; page++) {
     if (processed >= limit) break
 
-    const items = await fetchAliExpress(keyword, page)
+    const items = await fetchAliExpress(keyword, page, pageSize, verbose)
     if (items.length === 0) {
       if (verbose) console.log(`Aucun résultat page ${page}`)
       break
