@@ -190,25 +190,25 @@ export default function AdminDashboard() {
                   <p className="text-xs text-emerald-100/80">Dernière synchronisation : {lastUpdatedAt.toLocaleString('fr-FR')}</p>
                 )}
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch gap-3">
-                <Link
-                  href="/tech-interface"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 transition"
-                >
-                  Accéder au portail technicien <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/client-portal"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 transition"
-                >
-                  Portail client <ArrowRight className="h-4 w-4" />
-                </Link>
-                <form action="/api/auth/logout" method="post" className="sm:self-center">
-                  <button className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-xs text-white/80 hover:bg-white/10">
-                    <LogOut className="h-3.5 w-3.5" /> Déconnexion
-                  </button>
-                </form>
-              </div>
+                <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                  <Link
+                    href="/admin/users"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 transition"
+                  >
+                    Gérer les techniciens <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/admin/clients"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 transition"
+                  >
+                    Gérer les clients <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <form action="/api/auth/logout" method="post" className="sm:self-center">
+                    <button className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-xs text-white/80 hover:bg-white/10">
+                      <LogOut className="h-3.5 w-3.5" /> Déconnexion
+                    </button>
+                  </form>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -228,14 +228,14 @@ export default function AdminDashboard() {
                 </div>
                 <Link href="/admin/planning" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Voir planning <ArrowRight className="ml-1 h-3 w-3" /></Link>
               </div>
-              <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
-                <div className="text-xs uppercase tracking-wide text-emerald-100">Techniciens dispo</div>
-                <div className="mt-2 flex items-end justify-between">
-                  <span className="text-3xl font-semibold">{technicians.available}</span>
-                  <Users2 className="h-6 w-6 text-emerald-100" />
+                <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
+                  <div className="text-xs uppercase tracking-wide text-emerald-100">Techniciens dispo</div>
+                  <div className="mt-2 flex items-end justify-between">
+                    <span className="text-3xl font-semibold">{technicians.available}</span>
+                    <Users2 className="h-6 w-6 text-emerald-100" />
+                  </div>
+                  <Link href="/admin/users" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Gérer l'équipe <ArrowRight className="ml-1 h-3 w-3" /></Link>
                 </div>
-                <Link href="/tech-interface" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Ouvrir portail tech <ArrowRight className="ml-1 h-3 w-3" /></Link>
-              </div>
             </div>
           </div>
         </section>
@@ -290,27 +290,27 @@ export default function AdminDashboard() {
                   <p className="mt-3 text-xs text-gray-500">Affectez les techniciens en tenant compte des disponibilités et compétences.</p>
                 </Link>
 
-                <Link href="/tech-interface" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Portail technicien</h3>
-                      <p className="text-xs text-gray-500">Suivi terrain en direct</p>
+                  <Link href="/admin/users" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">Équipe & techniciens</h3>
+                        <p className="text-xs text-gray-500">Affectations, accès portails</p>
+                      </div>
+                      <ShieldCheck className="h-5 w-5 text-emerald-500" />
                     </div>
-                    <ShieldCheck className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <p className="mt-3 text-xs text-gray-500">Consultez ce que voient vos équipes : interventions, clients, checklists.</p>
-                </Link>
+                    <p className="mt-3 text-xs text-gray-500">Attribuez des missions, gérez les accès et synchronisez avec le portail terrain.</p>
+                  </Link>
 
-                <Link href="/client-portal" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Portail client</h3>
-                      <p className="text-xs text-gray-500">Suivi projets &amp; rapports</p>
+                  <Link href="/admin/clients" className="group rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">Portail client</h3>
+                        <p className="text-xs text-gray-500">Accès & visibilité projets</p>
+                      </div>
+                      <Laptop className="h-5 w-5 text-emerald-500" />
                     </div>
-                    <Laptop className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <p className="mt-3 text-xs text-gray-500">Assurez-vous que les clients disposent des accès et informations nécessaires.</p>
-                </Link>
+                    <p className="mt-3 text-xs text-gray-500">Assignez les accès portail client et suivez la relation avec vos contacts.</p>
+                  </Link>
               </div>
             </div>
           </div>
