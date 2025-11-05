@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 
-export function generateDiagnosticPdf(payload: any): Uint8Array {
+export function generateDiagnosticPdf(payload: any): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
   const primary = '#10b981'
@@ -48,7 +48,7 @@ export function generateDiagnosticPdf(payload: any): Uint8Array {
   doc.text('IT Vision Plus • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
   doc.text('www.itvisionplus.sn • contact@itvisionplus.sn • +221 77 413 34 40', 40, pageHeight - 24)
 
-  return doc.output('arraybuffer') as unknown as Uint8Array
+  return doc.output('arraybuffer') as unknown as ArrayBuffer
 }
 
 export function generateQuotePdf(quote: {
@@ -56,7 +56,7 @@ export function generateQuotePdf(quote: {
   client: { company: string; contact: string; email: string; phone: string }
   sections: Array<{ name: string; items: Array<{ name: string; quantity: number; unitPrice: number; totalPrice: number }> }>
   totals: { subtotalHT: number; taxAmount: number; totalTTC: number }
-}): Uint8Array {
+}): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
   // Header
@@ -91,8 +91,8 @@ export function generateQuotePdf(quote: {
   doc.setFontSize(11)
   doc.text(`Sous-total HT: ${quote.totals.subtotalHT.toLocaleString('fr-FR')} FCFA`, 360, y + 30)
   doc.text(`TVA 18%: ${quote.totals.taxAmount.toLocaleString('fr-FR')} FCFA`, 360, y + 48)
-  doc.setFont(undefined, 'bold')
+  doc.setFont('helvetica', 'bold')
   doc.text(`Total TTC: ${quote.totals.totalTTC.toLocaleString('fr-FR')} FCFA`, 360, y + 66)
 
-  return doc.output('arraybuffer') as unknown as Uint8Array
+  return doc.output('arraybuffer') as unknown as ArrayBuffer
 }
