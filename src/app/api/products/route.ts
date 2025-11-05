@@ -113,18 +113,19 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   }
 
   if (Array.isArray(shippingOverrides)) {
-    normalized.shippingOverrides = shippingOverrides
-      .map((item: any) => {
-        if (!item || typeof item !== 'object') return null
-        if (typeof item.methodId !== 'string') return null
-        return {
-          methodId: item.methodId,
-          ratePerKg: parseNumber(item.ratePerKg),
-          ratePerM3: parseNumber(item.ratePerM3),
-          flatFee: parseNumber(item.flatFee)
-        }
+    const overrides: NonNullable<IProduct['shippingOverrides']> = []
+    for (const raw of shippingOverrides) {
+      if (!raw || typeof raw !== 'object' || typeof raw.methodId !== 'string') continue
+      overrides.push({
+        methodId: raw.methodId,
+        ratePerKg: parseNumber(raw.ratePerKg),
+        ratePerM3: parseNumber(raw.ratePerM3),
+        flatFee: parseNumber(raw.flatFee)
       })
-      .filter((item): item is NonNullable<IProduct['shippingOverrides']>[number] => !!item)
+    }
+    if (overrides.length > 0) {
+      normalized.shippingOverrides = overrides
+    }
   }
 
   return normalized

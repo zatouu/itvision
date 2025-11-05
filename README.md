@@ -127,6 +127,8 @@ npm run import:aliexpress -- --keyword "hikvision" --limit 5 --dry-run # importe
 4. Retirez `--dry-run` pour créer ou mettre à jour les produits (ils seront stockés comme `preorder` avec sourcing Chine et calcul transport automatique).
 5. Finalisez dans `/admin/produits` (poids, dimensions, marge ou overrides transport) avant publication.
 
+📘 Documentation complète : voir [`ALIEXPRESS_IMPORT.md`](./ALIEXPRESS_IMPORT.md).
+
 ## 🆕 Nouvelles Fonctionnalités
 
 ### ✅ v1.3 - Système de Réservation Avancé (Dernière)
