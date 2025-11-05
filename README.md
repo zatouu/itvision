@@ -25,6 +25,11 @@ NEXT_PUBLIC_API_URL=https://votre-domaine
 # Uploads
 UPLOAD_DIR=./public/uploads
 
+# Import catalogue (AliExpress via RapidAPI)
+# ALIEXPRESS_RAPIDAPI_KEY=your-rapidapi-key
+# ALIEXPRESS_USD_TO_XOF=620           # optionnel, taux de conversion USD→FCFA
+# ALIEXPRESS_DEFAULT_MARGIN=30        # optionnel, marge (%) appliquée
+
 # Prisma (optionnel, uniquement si vous utilisez les routes Prisma)
 # Exemple SQLite: DATABASE_URL=file:./prisma/dev.db
 # Exemple Postgres: DATABASE_URL=postgresql://user:pass@host:5432/db
@@ -109,7 +114,18 @@ npm run build         # build prod
 npm run start         # start prod
 npm run lint          # lint
 npm run test:features # tester les nouvelles fonctionnalités
+npm run import:aliexpress -- --keyword "hikvision" --limit 5 --dry-run # importer des fiches AliExpress (dry-run)
 ```
+
+### Import catalogue AliExpress
+1. Créez un compte RapidAPI et souscrivez à une API AliExpress (ex. *aliexpress-datahub*).
+2. Ajoutez la clé dans vos variables d'environnement (`ALIEXPRESS_RAPIDAPI_KEY`).
+3. Lancez un import de test (dry-run) :
+   ```bash
+   ALIEXPRESS_RAPIDAPI_KEY=xxx npm run import:aliexpress -- --keyword "caméra hikvision" --limit 10 --dry-run
+   ```
+4. Retirez `--dry-run` pour créer ou mettre à jour les produits (ils seront stockés comme `preorder` avec sourcing Chine et calcul transport automatique).
+5. Finalisez dans `/admin/produits` (poids, dimensions, marge ou overrides transport) avant publication.
 
 ## 🆕 Nouvelles Fonctionnalités
 
