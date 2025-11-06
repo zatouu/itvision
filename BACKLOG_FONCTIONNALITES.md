@@ -82,3 +82,10 @@ Date: 2025-10-17
 | Variables d’env | Vérifier SMTP, ADMIN_EMAIL, JWT_SECRET en env | Facile | Élevé |
 | Logs & métrologie | Journaux structurés + métriques (latences, erreurs) | Moyenne | Moyen |
 | Erreurs contrôlées | Pages d’erreur amicales + boundary React | Facile | Moyen |
+
+### Portail Client & Techniciens (Roadmap)
+
+- ✅ **Vue Project Live** (Phase 1 livrée) : résumé projet client, timeline, docs, techniciens assignés, création de ticket directe.
+- 🔜 **Module Tickets client complet** : fil de discussion, pièces jointes, suivi SLA et routage admin (phase 1.2).
+- 🔜 **Job Dispatch temps réel** : diffusion d’interventions aux techniciens, réponses/négociation, notifications push/SMS (phase 1.3).
+- 🔜 **Tableau de pilotage admin** : liste priorisée tickets & interventions, filtres SLA, assignation rapide.
