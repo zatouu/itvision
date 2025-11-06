@@ -234,7 +234,7 @@ export default function AdminDashboard() {
                     <span className="text-3xl font-semibold">{technicians.available}</span>
                     <Users2 className="h-6 w-6 text-emerald-100" />
                   </div>
-                  <Link href="/admin/users" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Gérer l'équipe <ArrowRight className="ml-1 h-3 w-3" /></Link>
+                  <Link href="/admin/users" className="mt-3 inline-flex items-center text-xs text-emerald-50 hover:text-white">Gérer l&apos;équipe <ArrowRight className="ml-1 h-3 w-3" /></Link>
                 </div>
             </div>
           </div>

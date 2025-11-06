@@ -702,7 +702,7 @@ export default function EnhancedMaintenanceForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Site d'intervention *
+              Site d&apos;intervention *
             </label>
             <input
               type="text"
@@ -746,7 +746,7 @@ export default function EnhancedMaintenanceForm({
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date d'intervention
+              Date d&apos;intervention
             </label>
             <input
               type="date"
@@ -788,7 +788,7 @@ export default function EnhancedMaintenanceForm({
           <div className="mt-4 p-3 bg-green-50 rounded-lg">
             <div className="flex items-center">
               <Clock className="h-5 w-5 text-green-600 mr-2" />
-              <span className="text-green-800 font-medium">Durée d'intervention: {formData.duration}</span>
+              <span className="text-green-800 font-medium">Durée d&apos;intervention: {formData.duration}</span>
             </div>
           </div>
         )}
@@ -811,7 +811,7 @@ export default function EnhancedMaintenanceForm({
               onChange={(e) => updateField('initialObservations', e.target.value)}
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Description de l'état initial du système..."
+              placeholder="Description de l&apos;état initial du système..."
               disabled={isReadOnly}
               required
             />
@@ -940,14 +940,14 @@ export default function EnhancedMaintenanceForm({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Résultats de l'intervention *
+              Résultats de l&apos;intervention *
             </label>
             <textarea
               value={formData.results}
               onChange={(e) => updateField('results', e.target.value)}
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Décrivez les résultats obtenus, l'état final du système..."
+              placeholder="Décrivez les résultats obtenus, l&apos;état final du système..."
               disabled={isReadOnly}
               required
             />
@@ -1075,7 +1075,7 @@ export default function EnhancedMaintenanceForm({
                       onChange={(e) => updateIssue(index, 'impact', e.target.value)}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-400"
-                      placeholder="Impact sur l'exploitation, risques associés..."
+                      placeholder="Impact sur l&apos;exploitation, risques associés..."
                       disabled={isReadOnly}
                     />
                   </div>
@@ -1450,7 +1450,7 @@ export default function EnhancedMaintenanceForm({
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <p className="text-sm text-gray-600">
-                Activez cette option pour signaler à l'administration qu'un devis doit être généré à partir des recommandations.
+                Activez cette option pour signaler à l&apos;administration qu&apos;un devis doit être généré à partir des recommandations.
               </p>
               <div className="mt-2 text-sm text-gray-700">
                 <span className="font-semibold text-purple-900">{formData.followUpRecommendations.filter((rec) => rec.requiresQuote).length}</span> recommandation(s) nécessite(nt) un devis.
@@ -1464,7 +1464,7 @@ export default function EnhancedMaintenanceForm({
                 className="rounded border-purple-400 text-purple-600 focus:ring-purple-500"
                 disabled={isReadOnly}
               />
-              <span className="text-purple-900 font-medium">Signaler "Devis requis"</span>
+              <span className="text-purple-900 font-medium">Signaler « Devis requis »</span>
             </label>
           </div>
         </section>

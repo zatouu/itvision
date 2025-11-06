@@ -308,7 +308,7 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0')
     
     // Construction filtre
-      const filter: Record<string, unknown> = {}
+    const filter: Record<string, unknown> = {}
     if (role === 'TECHNICIAN') {
       filter.technicianId = technicianId || userId
     }

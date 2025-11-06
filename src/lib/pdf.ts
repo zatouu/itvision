@@ -36,7 +36,7 @@ export function generateDiagnosticPdf(payload: any): ArrayBuffer {
     [`Fourchette`, payload?.scoring?.priceHint || '-'],
   ]
 
-  // @ts-ignore
+  // @ts-expect-error plugin jspdf-autotable injecte autoTable sur l'instance
   doc.autoTable({ startY: 130, head: [['Champ', 'Valeur']], body: lines, styles: { cellPadding: 6, fontSize: 10 } })
 
   // Footer
@@ -79,7 +79,7 @@ export function generateQuotePdf(quote: {
   quote.sections.forEach((s) => {
     s.items.forEach((it) => rows.push([s.name, it.name, it.quantity, it.unitPrice.toLocaleString('fr-FR'), it.totalPrice.toLocaleString('fr-FR')]))
   })
-  // @ts-ignore
+  // @ts-expect-error plugin jspdf-autotable injecte autoTable sur l'instance
   doc.autoTable({
     startY: 160,
     head: [['Service', 'Article', 'Qté', 'PU', 'Total']],
