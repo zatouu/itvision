@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { CheckCircle2, Clock, FileText, MapPin, User, Users, AlertCircle, TrendingUp, Package, Layers } from 'lucide-react'
 
 interface TimelineEntry {
@@ -101,6 +101,8 @@ export interface ClientProjectSummary {
 
 interface ClientProjectLiveViewProps {
   summary: ClientProjectSummary
+  clientId?: string
+  onTicketCreated?: () => Promise<void> | void
 }
 
 const DATE_FORMATTER = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -124,8 +126,15 @@ const STATUS_COLORS: Record<string, string> = {
   on_hold: 'bg-red-100 text-red-700'
 }
 
-export default function ClientProjectLiveView({ summary }: ClientProjectLiveViewProps) {
+export default function ClientProjectLiveView({ summary, clientId, onTicketCreated }: ClientProjectLiveViewProps) {
   const { project, stats, timeline, milestones, documents, tickets, assignedTechnicians } = summary
+  const [ticketTitle, setTicketTitle] = useState('')
+  const [ticketCategory, setTicketCategory] = useState<'incident' | 'request' | 'change'>('incident')
+  const [ticketPriority, setTicketPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
+  const [ticketMessage, setTicketMessage] = useState('')
+  const [ticketSubmitting, setTicketSubmitting] = useState(false)
+  const [ticketFeedback, setTicketFeedback] = useState<string | null>(null)
+  const formDisabled = ticketSubmitting || !ticketTitle.trim() || !clientId
 
   const progressPercent = Math.min(100, Math.max(0, Math.round(stats.progress)))
 
@@ -133,6 +142,42 @@ export default function ClientProjectLiveView({ summary }: ClientProjectLiveView
     const key = project.status?.toLowerCase() || ''
     return STATUS_COLORS[key] || 'bg-gray-100 text-gray-700'
   }, [project.status])
+
+  const handleTicketSubmit = async () => {
+    if (formDisabled || !clientId) return
+    setTicketSubmitting(true)
+    setTicketFeedback(null)
+    try {
+      const response = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: ticketTitle.trim(),
+          category: ticketCategory,
+          priority: ticketPriority,
+          clientId,
+          projectId: summary.project.id,
+          message: ticketMessage.trim()
+        })
+      })
+      if (!response.ok) {
+        throw new Error('Impossible de créer le ticket pour le moment')
+      }
+      setTicketTitle('')
+      setTicketCategory('incident')
+      setTicketPriority('medium')
+      setTicketMessage('')
+      setTicketFeedback('Votre demande a été envoyée. Notre équipe vous recontactera rapidement.')
+      if (onTicketCreated) {
+        await onTicketCreated()
+      }
+    } catch (err) {
+      setTicketFeedback((err as Error).message)
+    } finally {
+      setTicketSubmitting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -301,7 +346,7 @@ export default function ClientProjectLiveView({ summary }: ClientProjectLiveView
           {tickets.length === 0 ? (
             <p className="text-sm text-gray-500">Aucun ticket ouvert pour ce projet.</p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-3 mb-4">
               {tickets.slice(0, 5).map((ticket) => (
                 <li key={ticket.id} className="border border-gray-100 rounded-xl p-3">
                   <div className="flex items-center justify-between text-xs text-gray-500">
@@ -313,6 +358,55 @@ export default function ClientProjectLiveView({ summary }: ClientProjectLiveView
                 </li>
               ))}
             </ul>
+          )}
+          {clientId && (
+            <div className="mt-4 border-t border-gray-100 pt-4 space-y-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Ouvrir un ticket</p>
+              {ticketFeedback && <p className={`text-sm ${ticketFeedback.includes('Impossible') ? 'text-red-600' : 'text-emerald-600'}`}>{ticketFeedback}</p>}
+              <input
+                type="text"
+                value={ticketTitle}
+                onChange={(e) => setTicketTitle(e.target.value)}
+                placeholder="Objet de votre demande"
+                className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">Catégorie</label>
+                  <select value={ticketCategory} onChange={(e) => setTicketCategory(e.target.value as any)} className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="incident">Incident</option>
+                    <option value="request">Demande</option>
+                    <option value="change">Changement</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">Priorité</label>
+                  <select value={ticketPriority} onChange={(e) => setTicketPriority(e.target.value as any)} className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="low">Faible</option>
+                    <option value="medium">Normale</option>
+                    <option value="high">Haute</option>
+                    <option value="urgent">Urgente</option>
+                  </select>
+                </div>
+              </div>
+              <textarea
+                value={ticketMessage}
+                onChange={(e) => setTicketMessage(e.target.value)}
+                placeholder="Décrivez votre demande (optionnel)"
+                rows={3}
+                className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                type="button"
+                disabled={formDisabled}
+                onClick={handleTicketSubmit}
+                className={`w-full inline-flex justify-center items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg ${
+                  formDisabled ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                {ticketSubmitting ? 'Envoi en cours…' : 'Envoyer la demande'}
+              </button>
+            </div>
           )}
         </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/components/Breadcrumb'
 import ClientProjectLiveView, { ClientProjectSummary } from '@/components/ClientProjectLiveView'
@@ -23,6 +23,7 @@ export default function ClientPortalPage() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [clientId, setClientId] = useState<string | null>(null)
 
   const loadProjects = async () => {
     setProjectsLoading(true)
@@ -71,6 +72,10 @@ export default function ClientPortalPage() {
           else router.replace('/login')
           return
         }
+        const resolvedId = String(data.user?.id || data.user?.userId || data.user?._id || '')
+        if (!cancelled) {
+          setClientId(resolvedId || null)
+        }
         if (cancelled) {
           return
         }
@@ -88,49 +93,39 @@ export default function ClientPortalPage() {
     return () => { cancelled = true }
   }, [router])
 
+  const fetchSummary = useCallback(async (projectId: string) => {
+    setSummaryLoading(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/summary`, { credentials: 'include' })
+      if (!response.ok) {
+        throw new Error('Impossible de charger le projet sélectionné')
+      }
+      const data = await response.json()
+      setSummary(data)
+      setError(null)
+    } catch (err) {
+      console.error(err)
+      setSummary(null)
+      setError((err as Error).message)
+    } finally {
+      setSummaryLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!selectedProjectId) {
       setSummary(null)
       return
     }
-
-    let cancelled = false
-    const loadSummary = async () => {
-      setSummaryLoading(true)
-      try {
-        const response = await fetch(`/api/projects/${selectedProjectId}/summary`, { credentials: 'include' })
-        if (!response.ok) {
-          throw new Error('Impossible de charger le projet sélectionné')
-        }
-        const data = await response.json()
-        if (!cancelled) {
-          setSummary(data)
-        }
-      } catch (err) {
-        console.error(err)
-        if (!cancelled) {
-          setSummary(null)
-          setError((err as Error).message)
-        }
-      } finally {
-        if (!cancelled) {
-          setSummaryLoading(false)
-        }
-      }
-    }
-
-    loadSummary()
-    return () => {
-      cancelled = true
-    }
-  }, [selectedProjectId])
+    fetchSummary(selectedProjectId)
+  }, [selectedProjectId, fetchSummary])
 
   const handleLogout = async () => {
     try { await fetch('/api/auth/logout', { credentials: 'include' }) } catch {}
     router.replace('/login')
   }
 
-  const selectedProject = useMemo(() => projects.find((project) => project.id === selectedProjectId), [projects, selectedProjectId])
+    const selectedProject = useMemo(() => projects.find((project) => project.id === selectedProjectId), [projects, selectedProjectId])
 
   const projectSummary = useMemo<ClientProjectSummary | null>(() => {
     if (summary && summary.success) {
@@ -207,8 +202,12 @@ export default function ClientPortalPage() {
               <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 text-sm text-gray-500">Chargement des informations du projet…</div>
             )}
 
-            {!summaryLoading && selectedProject && projectSummary && (
-              <ClientProjectLiveView summary={projectSummary} />
+              {!summaryLoading && selectedProject && projectSummary && (
+                <ClientProjectLiveView
+                  summary={projectSummary}
+                  clientId={clientId ?? undefined}
+                  onTicketCreated={selectedProjectId ? () => fetchSummary(selectedProjectId) : undefined}
+                />
             )}
 
             {!summaryLoading && (!selectedProject || !projectSummary) && (
