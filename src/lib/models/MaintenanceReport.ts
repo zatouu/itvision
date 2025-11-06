@@ -1,6 +1,69 @@
 import mongoose, { Document, Schema } from 'mongoose'
 import crypto from 'crypto'
 
+export interface IMaintenanceReportIssue {
+  reference: string
+  component: string
+  location?: string
+  description: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  impact?: string
+  immediateAction?: string
+  photos?: string[]
+  requiresQuote: boolean
+  recommendedSolution?: string
+  estimatedCost?: number
+  estimatedDurationHours?: number
+  status: 'identified' | 'in_progress' | 'resolved'
+}
+
+export interface IMaintenanceReportMaterial {
+  name: string
+  sku?: string
+  category?: string
+  quantity: number
+  unitCost?: number
+  unitPrice?: number
+  totalCost?: number
+  totalPrice?: number
+  supplierReference?: string
+}
+
+export interface IMaintenanceReportRecommendation {
+  title: string
+  description?: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  category?: string
+  recommendedDate?: Date
+  estimatedCost?: number
+  estimatedDurationHours?: number
+  requiresQuote: boolean
+  quoteId?: mongoose.Types.ObjectId
+  status: 'pending' | 'quoted' | 'approved' | 'rejected' | 'completed'
+  clientDecision?: {
+    status: 'pending' | 'approved' | 'rejected'
+    decidedAt?: Date
+    comments?: string
+  }
+}
+
+export interface IMaintenanceReportBilling {
+  needsQuote: boolean
+  quoteId?: mongoose.Types.ObjectId
+  quoteStatus: 'not_started' | 'draft' | 'sent' | 'approved' | 'rejected'
+  invoiceId?: mongoose.Types.ObjectId
+  invoiceStatus: 'not_started' | 'draft' | 'sent' | 'paid' | 'overdue'
+  lastUpdatedAt?: Date
+}
+
+export interface IMaintenanceReportNextAction {
+  title: string
+  scheduledDate?: Date
+  assignedTo?: mongoose.Types.ObjectId
+  notes?: string
+  status: 'pending' | 'scheduled' | 'completed' | 'cancelled'
+}
+
 export interface IMaintenanceReport extends Document {
   reportId: string
   technicianId: mongoose.Types.ObjectId
@@ -24,15 +87,28 @@ export interface IMaintenanceReport extends Document {
     [key: string]: any
   }
   
-  // Observations
-  initialObservations: string
-  problemDescription?: string
-  problemSeverity: 'low' | 'medium' | 'high' | 'critical'
-  
-  // Tâches et résultats
-  tasksPerformed: string[]
-  results: string
-  recommendations: string[]
+    // Observations
+    initialObservations: string
+    problemDescription?: string
+    problemSeverity: 'low' | 'medium' | 'high' | 'critical'
+
+    // Tâches et résultats
+    tasksPerformed: string[]
+    results: string
+    recommendations: string[]
+
+    // Données structurées pour suivi
+    issuesDetected: IMaintenanceReportIssue[]
+    materialsUsed: IMaintenanceReportMaterial[]
+    followUpRecommendations: IMaintenanceReportRecommendation[]
+    nextActions: IMaintenanceReportNextAction[]
+    billing: IMaintenanceReportBilling
+    clientAcknowledgement?: {
+      status: 'pending' | 'acknowledged' | 'contested'
+      name?: string
+      signedAt?: Date
+      comments?: string
+    }
   
   // Fichiers et photos
   photos: {
@@ -151,7 +227,125 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
   
   tasksPerformed: [{ type: String }],
   results: { type: String, required: true },
-  recommendations: [{ type: String }],
+    recommendations: [{ type: String }],
+
+    issuesDetected: {
+      type: [{
+        reference: { type: String, required: true },
+        component: { type: String, required: true },
+        location: String,
+        description: { type: String, required: true },
+        severity: {
+          type: String,
+          enum: ['low', 'medium', 'high', 'critical'],
+          default: 'medium'
+        },
+        impact: String,
+        immediateAction: String,
+        photos: [{ type: String }],
+        requiresQuote: { type: Boolean, default: false },
+        recommendedSolution: String,
+        estimatedCost: Number,
+        estimatedDurationHours: Number,
+        status: {
+          type: String,
+          enum: ['identified', 'in_progress', 'resolved'],
+          default: 'identified'
+        }
+      }],
+      default: []
+    },
+
+    materialsUsed: {
+      type: [{
+        name: { type: String, required: true },
+        sku: String,
+        category: String,
+        quantity: { type: Number, default: 1 },
+        unitCost: Number,
+        unitPrice: Number,
+        totalCost: Number,
+        totalPrice: Number,
+        supplierReference: String
+      }],
+      default: []
+    },
+
+    followUpRecommendations: {
+      type: [{
+        title: { type: String, required: true },
+        description: String,
+        priority: {
+          type: String,
+          enum: ['low', 'medium', 'high', 'urgent'],
+          default: 'medium'
+        },
+        category: String,
+        recommendedDate: Date,
+        estimatedCost: Number,
+        estimatedDurationHours: Number,
+        requiresQuote: { type: Boolean, default: true },
+        quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+        status: {
+          type: String,
+          enum: ['pending', 'quoted', 'approved', 'rejected', 'completed'],
+          default: 'pending'
+        },
+        clientDecision: {
+          status: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected'],
+            default: 'pending'
+          },
+          decidedAt: Date,
+          comments: String
+        }
+      }],
+      default: []
+    },
+
+    nextActions: {
+      type: [{
+        title: { type: String, required: true },
+        scheduledDate: Date,
+        assignedTo: { type: Schema.Types.ObjectId, ref: 'Technician' },
+        notes: String,
+        status: {
+          type: String,
+          enum: ['pending', 'scheduled', 'completed', 'cancelled'],
+          default: 'pending'
+        }
+      }],
+      default: []
+    },
+
+    billing: {
+      needsQuote: { type: Boolean, default: false },
+      quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+      quoteStatus: {
+        type: String,
+        enum: ['not_started', 'draft', 'sent', 'approved', 'rejected'],
+        default: 'not_started'
+      },
+      invoiceId: { type: Schema.Types.ObjectId, ref: 'Invoice' },
+      invoiceStatus: {
+        type: String,
+        enum: ['not_started', 'draft', 'sent', 'paid', 'overdue'],
+        default: 'not_started'
+      },
+      lastUpdatedAt: { type: Date, default: Date.now }
+    },
+
+    clientAcknowledgement: {
+      status: {
+        type: String,
+        enum: ['pending', 'acknowledged', 'contested'],
+        default: 'pending'
+      },
+      name: String,
+      signedAt: Date,
+      comments: String
+    },
   
   photos: {
     before: [{
@@ -252,6 +446,9 @@ MaintenanceReportSchema.index({ status: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ technicianId: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ clientId: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ projectId: 1 })
+MaintenanceReportSchema.index({ 'billing.quoteStatus': 1 })
+MaintenanceReportSchema.index({ 'followUpRecommendations.status': 1 })
+MaintenanceReportSchema.index({ 'issuesDetected.severity': 1 })
 
 // Middleware pour auto-générer reportId
 MaintenanceReportSchema.pre('save', function(next) {

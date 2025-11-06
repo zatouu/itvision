@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Validation des données requises
-    const validationErrors = validateReportForSubmission(report)
+      // Validation des données requises
+      const validationErrors = validateReportForSubmission(report)
     if (validationErrors.length > 0) {
       return NextResponse.json(
         { 
@@ -64,6 +64,27 @@ export async function POST(request: NextRequest) {
       )
     }
     
+      const followUps = Array.isArray(report.followUpRecommendations) ? report.followUpRecommendations : []
+      const needsQuote = followUps.some((entry: any) => entry?.requiresQuote && entry?.status !== 'completed')
+
+      if (!report.billing) {
+        report.billing = {
+          needsQuote,
+          quoteStatus: needsQuote ? 'draft' : 'not_started',
+          invoiceStatus: 'not_started',
+          lastUpdatedAt: new Date()
+        } as any
+      } else {
+        report.billing.needsQuote = needsQuote
+        if (needsQuote && report.billing.quoteStatus === 'not_started') {
+          report.billing.quoteStatus = 'draft'
+        }
+        if (!needsQuote && !report.billing.quoteId && ['draft', 'sent'].includes(report.billing.quoteStatus)) {
+          report.billing.quoteStatus = 'not_started'
+        }
+        report.billing.lastUpdatedAt = new Date()
+      }
+
     // Calcul temps de création du rapport
     const creationTime = new Date().getTime() - new Date(report.createdAt).getTime()
     const timeToCompleteMinutes = Math.round(creationTime / 60000)
@@ -73,11 +94,13 @@ export async function POST(request: NextRequest) {
     report.analytics.timeToComplete = timeToCompleteMinutes
     
     // Ajout entrée historique
-    report.addHistoryEntry('submitted_for_validation', technicianId, {
-      finalChecks,
-      timeToComplete: timeToCompleteMinutes,
-      submissionTimestamp: new Date()
-    })
+      report.addHistoryEntry('submitted_for_validation', technicianId, {
+        finalChecks,
+        timeToComplete: timeToCompleteMinutes,
+        submissionTimestamp: new Date(),
+        needsQuote,
+        followUpCount: followUps.length
+      })
     
     await report.save()
     
@@ -171,6 +194,40 @@ function validateReportForSubmission(report: any): string[] {
   // Vérification signatures si intervention terminée
   if (report.status !== 'draft' && !report.signatures?.technician) {
     errors.push('Signature du technicien requise')
+  }
+
+  if (Array.isArray(report.materialsUsed)) {
+    const invalidMaterials = report.materialsUsed.filter((material: any) => !material || material.quantity <= 0)
+    if (invalidMaterials.length > 0) {
+      errors.push('Certaines lignes matériel ont une quantité invalide (≥1 requis)')
+    }
+  }
+
+  if (Array.isArray(report.issuesDetected)) {
+    report.issuesDetected.forEach((issue: any, index: number) => {
+      if (issue?.requiresQuote && !issue?.recommendedSolution) {
+        errors.push(`La recommandation détaillée est obligatoire pour le problème ${issue?.reference || index + 1}`)
+      }
+    })
+  }
+
+  if (Array.isArray(report.followUpRecommendations)) {
+    report.followUpRecommendations.forEach((rec: any, index: number) => {
+      if (rec?.requiresQuote && typeof rec?.estimatedCost !== 'number') {
+        errors.push(`La recommandation ${rec?.title || index + 1} doit être chiffrée pour générer un devis`)
+      }
+    })
+  }
+
+  const hasUrgentFollowUp = Array.isArray(report.followUpRecommendations)
+    ? report.followUpRecommendations.some((rec: any) => rec?.priority === 'urgent')
+    : false
+  const hasUpcomingNextAction = Array.isArray(report.nextActions)
+    ? report.nextActions.some((action: any) => ['pending', 'scheduled'].includes(action?.status))
+    : false
+
+  if (hasUrgentFollowUp && !hasUpcomingNextAction) {
+    errors.push('Planifiez une action de suivi pour les recommandations urgentes')
   }
   
   return errors
