@@ -61,6 +61,9 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     widthCm,
     heightCm,
     volumeM3,
+    packagingWeightKg,
+    colorOptions,
+    variantOptions,
     availabilityNote,
     isPublished,
     isFeatured,
@@ -92,6 +95,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   normalized.widthCm = parseNumber(widthCm)
   normalized.heightCm = parseNumber(heightCm)
   normalized.volumeM3 = parseNumber(volumeM3)
+  normalized.packagingWeightKg = parseNumber(packagingWeightKg)
 
   if (typeof image === 'string') normalized.image = image
 
@@ -100,6 +104,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
 
   const parsedFeatures = parseStringArray(features)
   if (parsedFeatures) normalized.features = parsedFeatures
+
+  const parsedColors = parseStringArray(colorOptions)
+  if (parsedColors) normalized.colorOptions = parsedColors
+
+  const parsedVariants = parseStringArray(variantOptions)
+  if (parsedVariants) normalized.variantOptions = parsedVariants
 
   if (sourcing && typeof sourcing === 'object') {
     const normalizedSourcing: IProduct['sourcing'] = {

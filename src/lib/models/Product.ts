@@ -22,6 +22,9 @@ export interface IProduct extends Document {
   widthCm?: number
   heightCm?: number
   volumeM3?: number
+  packagingWeightKg?: number
+  colorOptions?: string[]
+  variantOptions?: string[]
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
@@ -64,6 +67,9 @@ const ProductSchema = new Schema<IProduct>({
   widthCm: { type: Number },
   heightCm: { type: Number },
   volumeM3: { type: Number },
+  packagingWeightKg: { type: Number },
+  colorOptions: { type: [String], default: [] },
+  variantOptions: { type: [String], default: [] },
   availabilityNote: { type: String },
   isPublished: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
