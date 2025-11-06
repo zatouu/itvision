@@ -85,7 +85,7 @@ export default function AdminProductManager() {
     widthCm: undefined,
     heightCm: undefined,
     volumeM3: undefined,
-    availabilityNote: '',
+    availabilityNote: 'Commande import Chine (freight 3j / 15j / 60j)',
     sourcing: {},
     shippingOverrides: [],
     isPublished: true,
@@ -97,6 +97,7 @@ export default function AdminProductManager() {
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
+  const [autoPrice, setAutoPrice] = useState(false)
 
   const refresh = async () => {
     setLoading(true)
@@ -114,6 +115,22 @@ export default function AdminProductManager() {
   }
 
   useEffect(() => { refresh() }, [])
+
+  useEffect(() => {
+    if (!autoPrice || !editing) return
+    if (typeof editing.baseCost !== 'number') return
+    const margin = typeof editing.marginRate === 'number' ? editing.marginRate : empty.marginRate
+    const computed = Math.round(editing.baseCost * (1 + margin / 100))
+    if (editing.price === computed) return
+    setEditing(prev => {
+      if (!prev || !autoPrice) return prev
+      if (typeof prev.baseCost !== 'number') return prev
+      const marginPrev = typeof prev.marginRate === 'number' ? prev.marginRate : empty.marginRate
+      const recomputed = Math.round(prev.baseCost * (1 + marginPrev / 100))
+      if (prev.price === recomputed) return prev
+      return { ...prev, price: recomputed }
+    })
+  }, [autoPrice, editing?.baseCost, editing?.marginRate])
 
   const onSave = async () => {
     if (!editing) return
@@ -138,6 +155,7 @@ export default function AdminProductManager() {
     })
     if (!res.ok) return alert('Erreur lors de la sauvegarde')
     setEditing(null)
+    setAutoPrice(false)
     await refresh()
   }
 
@@ -159,6 +177,14 @@ export default function AdminProductManager() {
     return '-'
   }
 
+  const suggestedSalePrice = (product: Product): number | undefined => {
+    if (typeof product.baseCost !== 'number') return undefined
+    const margin = typeof product.marginRate === 'number' ? product.marginRate : empty.marginRate
+    return Math.round(product.baseCost * (1 + margin / 100))
+  }
+
+  const suggestedPrice = editing ? suggestedSalePrice(editing) : undefined
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -166,7 +192,7 @@ export default function AdminProductManager() {
           <h1 className="text-2xl font-bold">Gestion des Produits</h1>
           <p className="text-sm text-gray-500">Pilotez votre sourcing Chine & vos tarifs transport depuis une seule interface.</p>
         </div>
-        <button onClick={() => setEditing({ ...empty })} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
+        <button onClick={() => { setAutoPrice(true); setEditing({ ...empty }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
           <Plus className="h-4 w-4" /> Nouveau produit
         </button>
       </div>
@@ -226,7 +252,7 @@ export default function AdminProductManager() {
                     {product.weightKg && <div className="text-xs text-gray-400 mt-1">{product.weightKg} kg</div>}
                   </td>
                   <td className="p-3 text-right">
-                    <button className="inline-flex items-center gap-1 px-2 py-1 rounded border mr-2" onClick={() => setEditing({ ...empty, ...product, gallery: product.gallery || [], features: product.features || [], shippingOverrides: ensureOverrides(product.shippingOverrides), sourcing: product.sourcing || {} })}><Pencil className="h-4 w-4" /> Éditer</button>
+                    <button className="inline-flex items-center gap-1 px-2 py-1 rounded border mr-2" onClick={() => { setAutoPrice(false); setEditing({ ...empty, ...product, gallery: product.gallery || [], features: product.features || [], shippingOverrides: ensureOverrides(product.shippingOverrides), sourcing: product.sourcing || {} }) }}><Pencil className="h-4 w-4" /> Éditer</button>
                     <button className="inline-flex items-center gap-1 px-2 py-1 rounded border text-red-600" onClick={() => onDelete(product._id)}><Trash2 className="h-4 w-4" /> Supprimer</button>
                   </td>
                 </tr>
@@ -237,7 +263,7 @@ export default function AdminProductManager() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center overflow-y-auto" onClick={() => setEditing(null)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center overflow-y-auto" onClick={() => { setEditing(null); setAutoPrice(false) }}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-6 my-10" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
               {editing._id ? 'Modifier' : 'Nouveau'} produit
@@ -317,7 +343,10 @@ export default function AdminProductManager() {
                   <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
                     <label className="space-y-1">
                       Prix public (optionnel)
-                      <input className="border rounded-lg px-3 py-2" type="number" value={editing.price ?? ''} onChange={e => setEditing({ ...editing, price: e.target.value ? Number(e.target.value) : undefined })} />
+                      <input className="border rounded-lg px-3 py-2" type="number" value={editing.price ?? ''} onChange={e => {
+                        setAutoPrice(false)
+                        setEditing({ ...editing, price: e.target.value ? Number(e.target.value) : undefined })
+                      }} />
                     </label>
                     <label className="space-y-1">
                       Coût fournisseur (FCFA)
@@ -339,6 +368,24 @@ export default function AdminProductManager() {
                       Promesse client (jours)
                       <input className="border rounded-lg px-3 py-2" type="number" value={editing.leadTimeDays ?? ''} onChange={e => setEditing({ ...editing, leadTimeDays: e.target.value ? Number(e.target.value) : undefined })} />
                     </label>
+                    <div className="col-span-2 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600">
+                      <label className="inline-flex items-center gap-2">
+                        <input type="checkbox" checked={autoPrice} onChange={e => {
+                          const checked = e.target.checked
+                          setAutoPrice(checked)
+                          if (checked && editing) {
+                            const computed = suggestedSalePrice(editing)
+                            if (typeof computed === 'number') {
+                              setEditing(prev => (prev ? { ...prev, price: computed } : prev))
+                            }
+                          }
+                        }} />
+                        <span>Calcul automatique du prix public (coût + marge)</span>
+                      </label>
+                      {autoPrice && typeof suggestedPrice === 'number' && (
+                        <span className="font-semibold text-emerald-600">{formatCurrency(suggestedPrice, editing.currency)}</span>
+                      )}
+                    </div>
                   </div>
                   <label className="space-y-1 text-xs text-gray-500">
                     Message disponibilité / logistique
@@ -453,7 +500,7 @@ export default function AdminProductManager() {
             </div>
 
             <div className="mt-6 flex justify-end gap-2">
-              <button className="px-4 py-2 rounded border" onClick={() => setEditing(null)}>Annuler</button>
+              <button className="px-4 py-2 rounded border" onClick={() => { setEditing(null); setAutoPrice(false) }}>Annuler</button>
               <button className="px-4 py-2 rounded bg-emerald-600 text-white" onClick={onSave}>Enregistrer</button>
             </div>
           </div>
