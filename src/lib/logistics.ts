@@ -101,8 +101,11 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
   const weightKg = typeof product.weightKg === 'number' ? product.weightKg : undefined
   const volumeM3 = computeVolume(product)
   const overrides = product.shippingOverrides
+  const isInStock = product.stockStatus === 'in_stock'
 
-  const shippingOptions: ShippingOptionPricing[] = Object.values(BASE_SHIPPING_RATES)
+  const shippingOptions: ShippingOptionPricing[] = isInStock
+    ? []
+    : Object.values(BASE_SHIPPING_RATES)
     .map((method) => {
       let billedAmount: number | null = null
 
@@ -141,7 +144,7 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
     })
     .filter((option): option is ShippingOptionPricing => option !== null)
 
-  const availabilityLabel = product.stockStatus === 'in_stock'
+  const availabilityLabel = isInStock
     ? 'Disponible immédiatement à Dakar'
     : `Commande sur demande (${product.leadTimeDays ?? 15} jours estimés)`
 

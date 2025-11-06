@@ -361,7 +361,7 @@ export default function AdminProductManager() {
                 value={(editing.features || []).join('\n')}
                 onChange={e => setEditing({
                   ...editing,
-                  features: e.target.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+                  features: e.target.value.split(/\r?\n/).map(line => line.trim())
                 })}
               />
             </label>
@@ -374,7 +374,7 @@ export default function AdminProductManager() {
                   value={(editing.colorOptions || []).join('\n')}
                   onChange={e => setEditing({
                     ...editing,
-                    colorOptions: e.target.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+                    colorOptions: e.target.value.split(/\r?\n/).map(line => line.trim())
                   })}
                 />
               </label>
@@ -386,7 +386,7 @@ export default function AdminProductManager() {
                   value={(editing.variantOptions || []).join('\n')}
                   onChange={e => setEditing({
                     ...editing,
-                    variantOptions: e.target.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+                    variantOptions: e.target.value.split(/\r?\n/).map(line => line.trim())
                   })}
                 />
               </label>

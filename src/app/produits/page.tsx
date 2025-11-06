@@ -37,6 +37,7 @@ interface ApiProduct {
   rating: number
   shippingOptions: ShippingOptionSummary[]
   availabilityLabel?: string
+  availabilityStatus?: 'in_stock' | 'preorder' | string
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -63,7 +64,8 @@ const getFallbackProducts = (): ApiProduct[] => {
         { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 22000, total: 185500, currency: 'FCFA' },
         { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 95000, total: 258500, currency: 'FCFA' }
       ],
-      availabilityLabel: 'Commande sur demande (15 jours)' 
+      availabilityLabel: 'Commande sur demande (15 jours)',
+      availabilityStatus: 'preorder'
     },
     {
       _id: 'fallback-2',
@@ -83,7 +85,8 @@ const getFallbackProducts = (): ApiProduct[] => {
         { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 45000, total: 275000, currency: 'FCFA' },
         { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 90000, total: 320000, currency: 'FCFA' }
       ],
-      availabilityLabel: 'Commande sur demande (15 jours)'
+      availabilityLabel: 'Commande sur demande (15 jours)',
+      availabilityStatus: 'preorder'
     },
     {
       _id: 'fallback-3',
@@ -102,7 +105,8 @@ const getFallbackProducts = (): ApiProduct[] => {
         { id: 'air_express', label: 'Express aérien 3 jours', description: 'Livraison 72h Dakar', durationDays: 3, cost: 65000, total: 325000, currency: 'FCFA' },
         { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 42000, total: 302000, currency: 'FCFA' }
       ],
-      availabilityLabel: 'Disponible immédiatement à Dakar'
+      availabilityLabel: 'Disponible immédiatement à Dakar',
+      availabilityStatus: 'in_stock'
     },
     {
       _id: 'fallback-4',
@@ -121,7 +125,8 @@ const getFallbackProducts = (): ApiProduct[] => {
         { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 65000, total: 415000, currency: 'FCFA' },
         { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 120000, total: 470000, currency: 'FCFA' }
       ],
-      availabilityLabel: 'Commande sur demande (15 jours)'
+      availabilityLabel: 'Commande sur demande (15 jours)',
+      availabilityStatus: 'preorder'
     }
   ]
 }
@@ -224,7 +229,8 @@ export default function ProduitsPage() {
                 features: features.length ? features : ['Import direct Chine', 'Livraison Dakar sécurisée'],
                 rating: item.isFeatured ? 4.9 : 4.7,
                 shippingOptions: shipping,
-                availabilityLabel: item.availability?.label || undefined
+                availabilityLabel: item.availability?.label || undefined,
+                availabilityStatus: item.availability?.status || 'preorder'
               }
             })
             setProducts(formatted)
@@ -908,10 +914,12 @@ export default function ProduitsPage() {
                                 currency={product.currency || 'FCFA'}
                                 requiresQuote={product.requiresQuote}
                                 deliveryDays={product.deliveryDays || 0}
-                                features={product.features && product.features.length ? product.features : [product.description]}
+                                features={product.features && product.features.length ? product.features.filter(Boolean) : [product.description]}
                                 rating={product.rating || 4.7}
                                 images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
                                 shippingOptions={product.shippingOptions}
+                                availabilityStatus={product.availabilityStatus}
+                                detailHref={`/produits/${product._id}`}
                               />
                             ))}
                         </div>

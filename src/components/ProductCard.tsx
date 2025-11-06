@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Star, CheckCircle, ShoppingCart, Plane, Ship } from 'lucide-react'
+import Link from 'next/link'
+import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -27,6 +28,8 @@ export interface ProductCardProps {
   rating: number
   images: string[]
   shippingOptions?: ShippingOption[]
+  availabilityStatus?: 'in_stock' | 'preorder' | string
+  detailHref?: string
 }
 
 const shippingIcon = (methodId?: string) => {
@@ -35,31 +38,55 @@ const shippingIcon = (methodId?: string) => {
   return Plane
 }
 
-export default function ProductCard({ name, model, price, priceAmount, currency = 'Fcfa', requiresQuote, deliveryDays = 0, features, rating, images, shippingOptions = [] }: ProductCardProps) {
+export default function ProductCard({
+  name,
+  model,
+  price,
+  priceAmount,
+  currency = 'Fcfa',
+  requiresQuote,
+  deliveryDays = 0,
+  features,
+  rating,
+  images,
+  shippingOptions = [],
+  availabilityStatus,
+  detailHref
+}: ProductCardProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(shippingOptions[0]?.id ?? null)
+  const shippingEnabled = shippingOptions.length > 0 && availabilityStatus !== 'in_stock'
 
   useEffect(() => {
-    if (shippingOptions.length === 0) {
+    if (!shippingEnabled) {
       setSelectedShippingId(null)
-    } else if (!selectedShippingId || !shippingOptions.find(option => option.id === selectedShippingId)) {
+      return
+    }
+    if (!selectedShippingId || !shippingOptions.find(option => option.id === selectedShippingId)) {
       setSelectedShippingId(shippingOptions[0].id)
     }
-  }, [shippingOptions, selectedShippingId])
+  }, [shippingOptions, selectedShippingId, shippingEnabled])
 
-  const activeShipping = selectedShippingId ? shippingOptions.find(option => option.id === selectedShippingId) || null : null
+  const activeShipping = shippingEnabled && selectedShippingId
+    ? shippingOptions.find(option => option.id === selectedShippingId) || null
+    : null
   const effectiveCurrency = activeShipping?.currency || currency
   const computedDeliveryDays = activeShipping?.durationDays ?? deliveryDays
-  const computedPriceAmount = !requiresQuote ? (activeShipping ? activeShipping.total : priceAmount) : undefined
+  const computedPriceAmount = !requiresQuote
+    ? (shippingEnabled && activeShipping ? activeShipping.total : priceAmount)
+    : undefined
   const computedPriceLabel = computedPriceAmount && !requiresQuote
     ? `${computedPriceAmount.toLocaleString('fr-FR')} ${effectiveCurrency}`
     : price || 'Sur devis'
 
   const whatsappUrl = () => {
+    const transportLabel = shippingEnabled
+      ? activeShipping?.label || 'À définir'
+      : 'Retrait / livraison locale Dakar'
     const msg = encodeURIComponent(
       `Bonjour, je souhaite un devis pour: ${name}${model ? ` (${model})` : ''}.
-Mode de transport souhaité: ${activeShipping?.label || 'À définir'}.
+Mode de transport souhaité: ${transportLabel}.
 Merci de me recontacter.`
     )
     return `https://wa.me/221774133440?text=${msg}`
@@ -170,7 +197,7 @@ Merci de me recontacter.`
           ))}
         </ul>
 
-        {shippingOptions.length > 0 && !showQuote && (
+        {shippingEnabled && !showQuote && (
           <div className="mt-3">
             <div className="text-xs text-gray-500 mb-1">Choisir le transport</div>
             <div className="flex flex-wrap gap-2">
@@ -218,6 +245,18 @@ Merci de me recontacter.`
             Demander un devis
           </a>
         </div>
+
+        {detailHref && (
+          <div className="mt-3 flex justify-end">
+            <Link
+              href={detailHref}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+            >
+              Voir la fiche produit
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )
