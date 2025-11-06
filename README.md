@@ -136,6 +136,7 @@ npm run import:aliexpress -- --keyword "hikvision" --limit 5 --dry-run # importe
 - **Synchronisation clients ↔ techniciens** : l’API `GET /api/tech/clients` expose un annuaire filtré (sans données sensibles) partageable avec le portail terrain.
 - **Annuaire technicien enrichi** : les techniciens voient immédiatement les nouveaux clients, avec coordonnées, contrats actifs et CTA de planification.
 - **Suivi portails** : compteurs globaux (clients actifs, accès portail client, techniciens disponibles) pour monitorer la relation back-office ↔ terrain ↔ client.
+- **Support tickets V2** : centre support client (`/client-portal`) et dashboard admin (`/admin/tickets`) avec fil de discussion, suivi SLA et affectation.
 
 ### ✅ v1.3 - Système de Réservation Avancé
 - **Emails de confirmation** : Templates professionnels pour les RDV
@@ -181,3 +182,4 @@ SMTP_PASS=your-app-password
 - `NOUVELLES_FONCTIONNALITES.md` - Fonctionnalités v1.1 (authentification)
 - `AMELIORATIONS_AVANCEES.md` - Fonctionnalités v1.2 (administration)
 - `AMELIORATIONS_RESERVATION.md` - Fonctionnalités v1.3 (réservation)
+- `SUPPORT_TICKETS.md` - Architecture et microservice potentiel pour le module support
