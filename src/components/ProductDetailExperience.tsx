@@ -392,11 +392,20 @@ Merci de me recontacter.`
     <div className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent" />
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10">
-        <div className="text-sm text-slate-400 mb-6 flex items-center gap-2">
-          <Link href="/produits" className="hover:text-emerald-400 transition">Catalogue</Link>
+        {/* Breadcrumb amélioré */}
+        <nav className="text-sm text-slate-400 mb-6 flex items-center gap-2 flex-wrap" aria-label="Fil d'Ariane">
+          <Link href="/" className="hover:text-emerald-400 transition">Accueil</Link>
           <span className="text-slate-600">/</span>
-          <span className="text-slate-200/80">{product.category || 'Fiche produit'}</span>
-        </div>
+          <Link href="/produits" className="hover:text-emerald-400 transition">Produits</Link>
+          {product.category && (
+            <>
+              <span className="text-slate-600">/</span>
+              <span className="text-slate-200/80">{product.category}</span>
+            </>
+          )}
+          <span className="text-slate-600">/</span>
+          <span className="text-slate-200/80 line-clamp-1">{product.name}</span>
+        </nav>
 
         <div className="flex flex-col xl:flex-row gap-8">
           <aside className="hidden xl:block w-64 space-y-4">
@@ -467,19 +476,11 @@ Merci de me recontacter.`
                       className="object-contain p-6"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
-                    {/* Badge style AliExpress/1688 - charte emerald */}
-                    {product.sourcing?.platform && (
-                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : 'Import Chine'}
-                      </div>
-                    )}
-                    {!product.sourcing?.platform && (
-                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Qualité Pro Chine
-                      </div>
-                    )}
+                    {/* Badge qualité - charte emerald */}
+                    <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Qualité Professionnelle
+                    </div>
                     <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold', availabilityClass)}>
                       <Clock className="h-3.5 w-3.5" />
                       {product.availability.label}
@@ -509,27 +510,13 @@ Merci de me recontacter.`
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {/* Style 1688 - informations techniques */}
+                      {/* Informations techniques */}
                       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-bold">Informations sourcing</div>
+                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-bold">Informations produit</div>
                         <div className="mt-2 text-sm text-slate-300 flex flex-col gap-2">
-                          {product.sourcing?.platform && (
-                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
-                              <span className="text-slate-400">Plateforme :</span>
-                              <span className="font-bold text-emerald-400">
-                                {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : product.sourcing.platform.toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          {product.sourcing?.supplierName && (
-                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
-                              <span className="text-slate-400">Fournisseur :</span>
-                              <span className="font-semibold text-slate-100">{product.sourcing.supplierName}</span>
-                            </div>
-                          )}
                           {baseCostLabel && (
                             <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
-                              <span className="text-slate-400">Coût fournisseur :</span>
+                              <span className="text-slate-400">Prix de base :</span>
                               <strong className="text-slate-100">{baseCostLabel}</strong>
                             </div>
                           )}
@@ -547,7 +534,7 @@ Merci de me recontacter.`
                           )}
                         </div>
                       </div>
-                      {/* Style AliExpress - badge de confiance - charte emerald */}
+                      {/* Badge de confiance - charte emerald */}
                       <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-4 flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-xs font-bold text-emerald-200">
                           <Star className="h-4 w-4 text-emerald-400 fill-emerald-400" /> 
@@ -803,15 +790,59 @@ Merci de me recontacter.`
                           </ul>
                         )}
                         {tab.type === 'logistics' && (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {logisticsEntries.map((entry, index) => (
-                              <div key={`${tab.id}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-                                <div className="text-xs uppercase tracking-wide text-slate-500">{entry.label}</div>
-                                <div className="mt-1 text-sm text-slate-100">{entry.value || '—'}</div>
+                          <div className="space-y-4">
+                            {/* Spécifications techniques */}
+                            {logisticsEntries.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-semibold text-slate-200 mb-3">Spécifications techniques</h4>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {logisticsEntries.map((entry, index) => (
+                                    <div key={`${tab.id}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 hover:border-emerald-500/30 transition">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">{entry.label}</div>
+                                      <div className="text-sm font-medium text-slate-100">{entry.value || '—'}</div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            ))}
-                            {logisticsEntries.length === 0 && (
-                              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-400">
+                            )}
+                            
+                            {/* Informations logistiques */}
+                            {product.logistics.weightKg || product.logistics.dimensions || product.logistics.volumeM3 ? (
+                              <div>
+                                <h4 className="text-sm font-semibold text-slate-200 mb-3">Informations logistiques</h4>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {product.logistics.weightKg && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Poids net</div>
+                                      <div className="text-sm font-medium text-slate-100">{product.logistics.weightKg.toFixed(2)} kg</div>
+                                    </div>
+                                  )}
+                                  {product.logistics.packagingWeightKg && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Poids emballage</div>
+                                      <div className="text-sm font-medium text-slate-100">{product.logistics.packagingWeightKg.toFixed(2)} kg</div>
+                                    </div>
+                                  )}
+                                  {product.logistics.volumeM3 && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Volume</div>
+                                      <div className="text-sm font-medium text-slate-100">{product.logistics.volumeM3.toFixed(3)} m³</div>
+                                    </div>
+                                  )}
+                                  {product.logistics.dimensions && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Dimensions (L × l × H)</div>
+                                      <div className="text-sm font-medium text-slate-100">
+                                        {product.logistics.dimensions.lengthCm} × {product.logistics.dimensions.widthCm} × {product.logistics.dimensions.heightCm} cm
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null}
+                            
+                            {logisticsEntries.length === 0 && !product.logistics.weightKg && !product.logistics.dimensions && (
+                              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-400 text-center py-8">
                                 Informations logistiques détaillées disponibles sur demande.
                               </div>
                             )}

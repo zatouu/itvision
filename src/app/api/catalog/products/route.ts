@@ -51,7 +51,8 @@ export async function GET() {
           productUrl: product.sourcing.productUrl ?? null
         },
         createdAt: product.createdAt,
-        updatedAt: product.updatedAt
+        updatedAt: product.updatedAt,
+        isFeatured: product.isFeatured ?? false
       }
     })
 

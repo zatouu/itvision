@@ -30,6 +30,9 @@ export interface ProductCardProps {
   shippingOptions?: ShippingOption[]
   availabilityStatus?: 'in_stock' | 'preorder' | string
   detailHref?: string
+  isNew?: boolean
+  isPopular?: boolean
+  createdAt?: string
 }
 
 const shippingIcon = (methodId?: string) => {
@@ -51,8 +54,16 @@ export default function ProductCard({
   images,
   shippingOptions = [],
   availabilityStatus,
-  detailHref
+  detailHref,
+  isNew = false,
+  isPopular = false,
+  createdAt
 }: ProductCardProps) {
+  // Déterminer si le produit est nouveau (créé il y a moins de 30 jours)
+  const isRecentlyNew = createdAt 
+    ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
+    : false
+  const showNewBadge = isNew || isRecentlyNew
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(shippingOptions[0]?.id ?? null)
@@ -148,12 +159,24 @@ Merci de me recontacter.`
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden group hover:shadow-xl hover:border-emerald-400 transition-all h-full flex flex-col relative">
-      {/* Badge style AliExpress/1688 - charte emerald */}
-      {availabilityStatus === 'in_stock' && (
-        <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
-          EN STOCK
-        </div>
-      )}
+      {/* Badges utiles - charte emerald */}
+      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+        {showNewBadge && (
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+            NOUVEAU
+          </div>
+        )}
+        {isPopular && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+            POPULAIRE
+          </div>
+        )}
+        {availabilityStatus === 'in_stock' && !showNewBadge && !isPopular && (
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+            EN STOCK
+          </div>
+        )}
+      </div>
       {computedDeliveryDays > 0 && computedDeliveryDays <= 3 && (
         <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
           EXPRESS

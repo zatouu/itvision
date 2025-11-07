@@ -1,7 +1,7 @@
 "use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
@@ -38,6 +38,8 @@ interface ApiProduct {
   shippingOptions: ShippingOptionSummary[]
   availabilityLabel?: string
   availabilityStatus?: 'in_stock' | 'preorder' | string
+  createdAt?: string
+  isFeatured?: boolean
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -142,6 +144,10 @@ export default function ProduitsPage() {
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' | 'rating-desc'>('default')
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'in_stock' | 'preorder'>('all')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   useEffect(() => {
     const sync = () => {
@@ -230,7 +236,9 @@ export default function ProduitsPage() {
                 rating: item.isFeatured ? 4.9 : 4.7,
                 shippingOptions: shipping,
                 availabilityLabel: item.availability?.label || undefined,
-                availabilityStatus: item.availability?.status || 'preorder'
+                availabilityStatus: item.availability?.status || 'preorder',
+                createdAt: item.createdAt || undefined,
+                isFeatured: item.isFeatured || false
               }
             })
             setProducts(formatted)
@@ -249,6 +257,14 @@ export default function ProduitsPage() {
 
       fetchProducts()
     }, [])
+
+  // Debounce de la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
   const categories = [
     {
       id: 'cameras',
@@ -846,6 +862,89 @@ export default function ProduitsPage() {
                     </label>
                   </div>
                 </div>
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">Disponibilité</h3>
+                  <div className="space-y-1 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} />
+                      <span>Tous</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} />
+                      <span>En stock</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} />
+                      <span>Sur commande</span>
+                    </label>
+                  </div>
+                </div>
+                {/* Filtres actifs */}
+                {(selected.length > 0 || onlyPrice || onlyQuote || availabilityFilter !== 'all' || sortBy !== 'default') && (
+                  <div className="bg-white border rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2">Filtres actifs</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selected.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setSelected(selected.filter(c => c !== cat))}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          {cat}
+                          <X className="h-3 w-3" />
+                        </button>
+                      ))}
+                      {onlyPrice && (
+                        <button
+                          onClick={() => setOnlyPrice(false)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          Avec prix
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                      {onlyQuote && (
+                        <button
+                          onClick={() => setOnlyQuote(false)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          Sur devis
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                      {availabilityFilter !== 'all' && (
+                        <button
+                          onClick={() => setAvailabilityFilter('all')}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          {availabilityFilter === 'in_stock' ? 'En stock' : 'Sur commande'}
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                      {sortBy !== 'default' && (
+                        <button
+                          onClick={() => setSortBy('default')}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          Tri actif
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSelected([])
+                          setOnlyPrice(false)
+                          setOnlyQuote(false)
+                          setAvailabilityFilter('all')
+                          setSortBy('default')
+                        }}
+                        className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 underline"
+                      >
+                        Tout effacer
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </aside>
 
@@ -877,33 +976,97 @@ export default function ProduitsPage() {
                         return acc
                       }, {} as Record<string, ApiProduct[]>)
                     ).map(([categoryName, categoryProducts]) => {
-                      const filtered = categoryProducts.filter(product => {
+                      let filtered = categoryProducts.filter(product => {
                         const text = `${product.name} ${product.description}`.toLowerCase()
-                        const matchesSearch = search.trim().length === 0 || text.includes(search.toLowerCase())
+                        const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
                         const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
                         const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
-                        return matchesSearch && matchesTarif && matchesCategory
+                        const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
+                        return matchesSearch && matchesTarif && matchesCategory && matchesAvailability
                       })
+
+                      // Tri des produits
+                      if (sortBy !== 'default') {
+                        filtered = [...filtered].sort((a, b) => {
+                          switch (sortBy) {
+                            case 'price-asc':
+                              return (a.priceAmount || 0) - (b.priceAmount || 0)
+                            case 'price-desc':
+                              return (b.priceAmount || 0) - (a.priceAmount || 0)
+                            case 'name-asc':
+                              return a.name.localeCompare(b.name, 'fr')
+                            case 'name-desc':
+                              return b.name.localeCompare(a.name, 'fr')
+                            case 'rating-desc':
+                              return (b.rating || 0) - (a.rating || 0)
+                            default:
+                              return 0
+                          }
+                        })
+                      }
 
                       if (filtered.length === 0) return null
 
                       return (
                         <div key={categoryName} className="mb-16 last:mb-0">
-                        {/* Category Header */}
-                        <div className="text-center mb-16">
-                          <div className="flex items-center justify-center mb-4">
-                            <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-2xl shadow-lg">
-                              <Package className="h-7 w-7 text-white" />
+                        {/* Category Header avec contrôles */}
+                        <div className="mb-8">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                            <div className="text-center sm:text-left">
+                              <div className="flex items-center justify-center sm:justify-start gap-3 mb-3">
+                                <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-xl shadow-lg">
+                                  <Package className="h-6 w-6 text-white" />
+                                </div>
+                                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{categoryName}</h2>
+                              </div>
+                              <p className="text-sm text-gray-600">
+                                {filtered.length} produit{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            
+                            {/* Contrôles tri et vue */}
+                            <div className="flex items-center gap-3">
+                              {/* Mode vue */}
+                              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
+                                <button
+                                  onClick={() => setViewMode('grid')}
+                                  className={`p-1.5 rounded transition ${viewMode === 'grid' ? 'bg-emerald-100 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                  aria-label="Vue grille"
+                                >
+                                  <Grid className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setViewMode('list')}
+                                  className={`p-1.5 rounded transition ${viewMode === 'list' ? 'bg-emerald-100 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                  aria-label="Vue liste"
+                                >
+                                  <List className="h-4 w-4" />
+                                </button>
+                              </div>
+                              
+                              {/* Tri */}
+                              <div className="relative">
+                                <select
+                                  value={sortBy}
+                                  onChange={(e) => setSortBy(e.target.value as any)}
+                                  className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                >
+                                  <option value="default">Trier par</option>
+                                  <option value="price-asc">Prix croissant</option>
+                                  <option value="price-desc">Prix décroissant</option>
+                                  <option value="name-asc">Nom A-Z</option>
+                                  <option value="name-desc">Nom Z-A</option>
+                                  <option value="rating-desc">Meilleures notes</option>
+                                </select>
+                                <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                              </div>
                             </div>
                           </div>
-                          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{categoryName}</h2>
-                          <p className="text-base text-gray-600 max-w-2xl mx-auto">
-                            {filtered.length} produit{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
-                          </p>
                         </div>
 
-                        {/* Products Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                        {/* Products Grid ou List */}
+                        {viewMode === 'grid' ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                             {filtered.map((product) => (
                               <ProductCard
                                 key={product._id}
@@ -920,9 +1083,78 @@ export default function ProduitsPage() {
                                 shippingOptions={product.shippingOptions}
                                 availabilityStatus={product.availabilityStatus}
                                 detailHref={`/produits/${product._id}`}
+                                isPopular={product.rating >= 4.8}
+                                createdAt={product.createdAt}
                               />
                             ))}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {filtered.map((product) => (
+                              <Link
+                                key={product._id}
+                                href={`/produits/${product._id}`}
+                                className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-emerald-300 transition-all"
+                              >
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                  <div className="relative w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                                    <Image
+                                      src={product.image || product.gallery?.[0] || '/file.svg'}
+                                      alt={product.name}
+                                      fill
+                                      className="object-contain p-2"
+                                      sizes="(max-width: 640px) 100vw, 128px"
+                                    />
+                                    {product.availabilityStatus === 'in_stock' && (
+                                      <div className="absolute top-2 left-2 bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                                        EN STOCK
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-4 mb-2">
+                                      <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
+                                        {product.tagline && <p className="text-sm text-gray-500 line-clamp-1">{product.tagline}</p>}
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <div className="text-2xl font-bold text-emerald-600">
+                                          {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                                        </div>
+                                        {product.deliveryDays > 0 && (
+                                          <div className="text-xs text-gray-500 flex items-center gap-1 justify-end mt-1">
+                                            <Clock className="h-3 w-3" />
+                                            {product.deliveryDays}j
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {product.features && product.features.length > 0 && (
+                                      <ul className="flex flex-wrap gap-2 mb-3">
+                                        {product.features.slice(0, 3).map((f, i) => (
+                                          <li key={i} className="flex items-center gap-1 text-xs text-gray-600">
+                                            <CheckCircle className="h-3 w-3 text-emerald-500" />
+                                            <span className="line-clamp-1">{f}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1 text-sm">
+                                        <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
+                                        <span className="font-semibold text-gray-700">{(product.rating || 4.7).toFixed(1)}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm text-emerald-600 font-medium">Voir détails</span>
+                                        <ArrowRight className="h-4 w-4 text-emerald-600" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -977,6 +1209,23 @@ export default function ProduitsPage() {
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} />
                   <span>Sur devis</span>
+                </label>
+              </div>
+            </div>
+            <div className="bg-white border rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 mb-2">Disponibilité</h4>
+              <div className="space-y-1 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} />
+                  <span>Tous</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} />
+                  <span>En stock</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} />
+                  <span>Sur commande</span>
                 </label>
               </div>
             </div>
