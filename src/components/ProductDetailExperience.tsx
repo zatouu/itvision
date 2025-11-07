@@ -115,6 +115,7 @@ type InfoTab =
   | { id: 'description'; label: string; type: 'text'; content: string }
   | { id: 'features' | 'support'; label: string; type: 'list'; content: string[] }
   | { id: 'logistics'; label: string; type: 'logistics' }
+  | { id: 'reviews'; label: string; type: 'reviews' }
 
 const shippingIcon = (methodId?: string) => {
   if (!methodId) return Plane
@@ -155,6 +156,9 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
   const [showImageModal, setShowImageModal] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [reviews, setReviews] = useState<any[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [averageRating, setAverageRating] = useState(4.7)
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
@@ -251,6 +255,120 @@ Merci de me recontacter.`
       }
     } finally {
       setAdding(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      // Import dynamique de jsPDF pour éviter les erreurs SSR
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+
+      const doc = new jsPDF()
+      
+      // Titre
+      doc.setFontSize(20)
+      doc.setTextColor(16, 185, 129) // Emerald
+      doc.text(product.name, 14, 20)
+      
+      // Tagline
+      if (product.tagline) {
+        doc.setFontSize(12)
+        doc.setTextColor(100, 100, 100)
+        doc.text(product.tagline, 14, 30)
+      }
+      
+      // Description
+      if (product.description) {
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        const splitDescription = doc.splitTextToSize(product.description, 180)
+        doc.text(splitDescription, 14, 45)
+      }
+      
+      // Prix
+      let yPos = 65
+      doc.setFontSize(14)
+      doc.setTextColor(16, 185, 129)
+      doc.text(`Prix: ${product.pricing.priceLabel || 'Sur devis'}`, 14, yPos)
+      
+      // Disponibilité
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Disponibilité: ${product.availability.label || 'Sur commande'}`, 14, yPos)
+      
+      // Caractéristiques
+      if (product.features && product.features.length > 0) {
+        yPos += 15
+        doc.setFontSize(12)
+        doc.setTextColor(16, 185, 129)
+        doc.text('Caractéristiques principales:', 14, yPos)
+        
+        yPos += 8
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        product.features.slice(0, 10).forEach((feature, index) => {
+          doc.text(`• ${feature}`, 20, yPos + (index * 6))
+        })
+        yPos += product.features.slice(0, 10).length * 6
+      }
+      
+      // Informations logistiques
+      if (product.logistics) {
+        yPos += 15
+        doc.setFontSize(12)
+        doc.setTextColor(16, 185, 129)
+        doc.text('Informations logistiques:', 14, yPos)
+        
+        yPos += 8
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        
+        const logisticsData: string[][] = []
+        if (product.logistics.weightKg) {
+          logisticsData.push(['Poids', `${product.logistics.weightKg} kg`])
+        }
+        if (product.logistics.dimensions) {
+          logisticsData.push([
+            'Dimensions',
+            `${product.logistics.dimensions.lengthCm} × ${product.logistics.dimensions.widthCm} × ${product.logistics.dimensions.heightCm} cm`
+          ])
+        }
+        if (product.logistics.volumeM3) {
+          logisticsData.push(['Volume', `${product.logistics.volumeM3} m³`])
+        }
+        
+        if (logisticsData.length > 0) {
+          autoTable(doc, {
+            startY: yPos,
+            head: [['Propriété', 'Valeur']],
+            body: logisticsData,
+            theme: 'striped',
+            headStyles: { fillColor: [16, 185, 129] },
+            margin: { left: 14, right: 14 }
+          })
+        }
+      }
+      
+      // Pied de page
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(
+          `IT Vision - ${new Date().toLocaleDateString('fr-FR')} - Page ${i}/${pageCount}`,
+          14,
+          doc.internal.pageSize.height - 10
+        )
+      }
+      
+      // Sauvegarder
+      doc.save(`${product.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Impossible d\'exporter le PDF. Veuillez réessayer.')
     }
   }
 
@@ -483,10 +601,61 @@ Merci de me recontacter.`
         'Maintenance préventive et curative disponible',
         product.sourcing?.notes ? `Notes acheteur : ${product.sourcing.notes}` : 'Support import dédié Chine & Sénégal'
       ]
+    },
+    {
+      id: 'reviews',
+      label: 'Avis clients',
+      type: 'reviews'
     }
   ]
 
   const [activeTab, setActiveTab] = useState<InfoTab['id']>(infoTabs[0].id)
+
+  // Charger les avis
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      setReviewsLoading(true)
+      // Simuler des avis pour l'instant (à remplacer par un appel API réel)
+      setTimeout(() => {
+        const mockReviews = [
+          {
+            id: '1',
+            userName: 'Jean D.',
+            rating: 5,
+            title: 'Excellent produit',
+            comment: 'Produit de très bonne qualité, livraison rapide et installation professionnelle. Je recommande !',
+            verified: true,
+            helpful: 12,
+            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: '2',
+            userName: 'Marie L.',
+            rating: 4,
+            title: 'Très satisfait',
+            comment: 'Bon rapport qualité/prix. Le support client est réactif et professionnel.',
+            verified: true,
+            helpful: 8,
+            createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: '3',
+            userName: 'Pierre M.',
+            rating: 5,
+            title: 'Parfait',
+            comment: 'Installation rapide, produit conforme à la description. Service impeccable.',
+            verified: false,
+            helpful: 5,
+            createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]
+        setReviews(mockReviews)
+        const avg = mockReviews.reduce((sum, r) => sum + r.rating, 0) / mockReviews.length
+        setAverageRating(avg)
+        setReviewsLoading(false)
+      }, 500)
+    }
+  }, [activeTab])
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200">
@@ -619,20 +788,29 @@ Merci de me recontacter.`
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={toggleFavorite}
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                              isFavorite
-                                ? 'border-red-500/50 bg-red-500/20 text-red-300 hover:border-red-400/60'
-                                : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200'
-                            }`}
-                            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                          >
-                            <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-red-400' : ''}`} /> 
-                            {isFavorite ? 'Favori' : 'Favoris'}
-                          </button>
-                          <div className="relative group">
+                    <button
+                      type="button"
+                      onClick={toggleFavorite}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        isFavorite
+                          ? 'border-red-500/50 bg-red-500/20 text-red-300 hover:border-red-400/60'
+                          : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200'
+                      }`}
+                      aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-red-400' : ''}`} />
+                      {isFavorite ? 'Favori' : 'Favoris'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportPDF}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
+                      aria-label="Exporter en PDF"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      PDF
+                    </button>
+                    <div className="relative group">
                             <button
                               type="button"
                               onClick={() => handleShare()}
@@ -974,6 +1152,107 @@ Merci de me recontacter.`
                               </li>
                             ))}
                           </ul>
+                        )}
+                        {tab.type === 'reviews' && (
+                          <div className="space-y-6">
+                            {/* Résumé des avis */}
+                            <div className="flex items-center gap-6 pb-6 border-b border-slate-800">
+                              <div className="text-center">
+                                <div className="text-5xl font-bold text-emerald-400">{averageRating.toFixed(1)}</div>
+                                <div className="flex items-center justify-center gap-1 mt-2">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`h-5 w-5 ${
+                                        star <= Math.round(averageRating)
+                                          ? 'text-yellow-400 fill-yellow-400'
+                                          : 'text-slate-600'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="text-sm text-slate-400 mt-2">{reviews.length} avis</div>
+                              </div>
+                              <div className="flex-1 space-y-2">
+                                {[5, 4, 3, 2, 1].map((rating) => {
+                                  const count = reviews.filter(r => r.rating === rating).length
+                                  const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0
+                                  return (
+                                    <div key={rating} className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-400 w-8">{rating} étoiles</span>
+                                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-emerald-500 transition-all"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs text-slate-500 w-8 text-right">{count}</span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Liste des avis */}
+                            {reviewsLoading ? (
+                              <div className="text-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto"></div>
+                              </div>
+                            ) : reviews.length === 0 ? (
+                              <div className="text-center py-8 text-slate-400">
+                                <p>Aucun avis pour le moment.</p>
+                                <p className="text-xs mt-2">Soyez le premier à laisser un avis !</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {reviews.map((review) => (
+                                  <div key={review.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
+                                          {review.userName.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-slate-100">{review.userName}</span>
+                                            {review.verified && (
+                                              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-medium rounded-full border border-emerald-500/30">
+                                                Vérifié
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1 mt-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                              <Star
+                                                key={star}
+                                                className={`h-3 w-3 ${
+                                                  star <= review.rating
+                                                    ? 'text-yellow-400 fill-yellow-400'
+                                                    : 'text-slate-600'
+                                                }`}
+                                              />
+                                            ))}
+                                            <span className="text-xs text-slate-400 ml-1">
+                                              {new Date(review.createdAt).toLocaleDateString('fr-FR')}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {review.title && (
+                                      <h4 className="text-sm font-semibold text-slate-200 mb-2">{review.title}</h4>
+                                    )}
+                                    <p className="text-sm text-slate-300 leading-relaxed">{review.comment}</p>
+                                    {review.helpful > 0 && (
+                                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+                                        <span>{review.helpful} personne{review.helpful > 1 ? 's' : ''} a trouvé cet avis utile</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                         {tab.type === 'logistics' && (
                           <div className="space-y-4">

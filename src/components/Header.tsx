@@ -7,6 +7,7 @@ import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, Ci
 import { cn } from '@/lib/utils'
 import UnifiedLoginButton from './UnifiedLoginButton'
 import WishlistIcon from './WishlistIcon'
+import ThemeToggle from './ThemeToggle'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -305,6 +306,7 @@ const Header = () => {
             
             {/* Actions */}
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <WishlistIcon />
               <UnifiedLoginButton variant="header" />
             </div>
@@ -390,6 +392,7 @@ const Header = () => {
               
               {/* Actions mobile */}
               <div className="px-4 flex items-center gap-3">
+                <ThemeToggle />
                 <Link
                   href="/produits/favoris"
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"

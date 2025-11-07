@@ -152,6 +152,11 @@ export default function ProduitsPage() {
   const [showCompareBar, setShowCompareBar] = useState(false)
   const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null)
   const [deliveryRange, setDeliveryRange] = useState<{ min: number; max: number } | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [savedFilters, setSavedFilters] = useState<Array<{ name: string; filters: any }>>([])
 
   useEffect(() => {
     const sync = () => {
@@ -182,7 +187,7 @@ export default function ProduitsPage() {
           setLoading(true)
           setError(null)
 
-          const response = await fetch('/api/catalog/products', {
+          const response = await fetch(`/api/catalog/products?page=${currentPage}&limit=24`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -196,6 +201,12 @@ export default function ProduitsPage() {
           const data = await response.json()
 
           if (data.success && Array.isArray(data.products)) {
+            // Gestion de la pagination
+            if (data.pagination) {
+              setCurrentPage(data.pagination.page || 1)
+              setTotalPages(data.pagination.totalPages || 1)
+              setHasMore(data.pagination.hasMore || false)
+            }
             const formatted: ApiProduct[] = data.products.map((item: any): ApiProduct => {
               const shipping: ShippingOptionSummary[] = Array.isArray(item.pricing?.shippingOptions)
                 ? item.pricing.shippingOptions.map((opt: any) => ({
@@ -260,7 +271,51 @@ export default function ProduitsPage() {
       }
 
       fetchProducts()
-    }, [])
+    }, [currentPage])
+
+  // Charger les filtres sauvegardés et l'historique
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('savedFilters')
+      if (saved) {
+        setSavedFilters(JSON.parse(saved))
+      }
+      
+      // Restaurer les filtres depuis l'URL ou localStorage
+      const urlParams = new URLSearchParams(window.location.search)
+      const savedState = localStorage.getItem('productFilters')
+      if (savedState) {
+        const state = JSON.parse(savedState)
+        if (state.search) setSearch(state.search)
+        if (state.category) setSelectedCategory(state.category)
+        if (state.sortBy) setSortBy(state.sortBy)
+        if (state.availabilityFilter) setAvailabilityFilter(state.availabilityFilter)
+        if (state.priceRange) setPriceRange(state.priceRange)
+        if (state.deliveryRange) setDeliveryRange(state.deliveryRange)
+        if (state.viewMode) setViewMode(state.viewMode)
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error)
+    }
+  }, [])
+
+  // Sauvegarder les filtres dans localStorage
+  useEffect(() => {
+    try {
+      const state = {
+        search,
+        category: selectedCategory,
+        sortBy,
+        availabilityFilter,
+        priceRange,
+        deliveryRange,
+        viewMode
+      }
+      localStorage.setItem('productFilters', JSON.stringify(state))
+    } catch (error) {
+      console.error('Error saving filters:', error)
+    }
+  }, [search, selectedCategory, sortBy, availabilityFilter, priceRange, deliveryRange, viewMode])
 
   // Debounce de la recherche
   useEffect(() => {
@@ -981,8 +1036,69 @@ export default function ProduitsPage() {
                     </label>
                   </div>
                 </div>
+                {/* Filtres sauvegardés */}
+                {savedFilters.length > 0 && (
+                  <div className="bg-white border rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2">Filtres sauvegardés</h3>
+                    <div className="space-y-2">
+                      {savedFilters.map((saved, index) => (
+                        <div key={index} className="flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              if (saved.filters.search) setSearch(saved.filters.search)
+                              if (saved.filters.category) setSelectedCategory(saved.filters.category)
+                              if (saved.filters.sortBy) setSortBy(saved.filters.sortBy)
+                              if (saved.filters.availabilityFilter) setAvailabilityFilter(saved.filters.availabilityFilter)
+                              if (saved.filters.priceRange) setPriceRange(saved.filters.priceRange)
+                              if (saved.filters.deliveryRange) setDeliveryRange(saved.filters.deliveryRange)
+                              if (saved.filters.viewMode) setViewMode(saved.filters.viewMode)
+                            }}
+                            className="flex-1 text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded"
+                          >
+                            {saved.name}
+                          </button>
+                          <button
+                            onClick={() => {
+                              const updated = savedFilters.filter((_, i) => i !== index)
+                              setSavedFilters(updated)
+                              localStorage.setItem('savedFilters', JSON.stringify(updated))
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const name = prompt('Nom du filtre:')
+                        if (name) {
+                          const newSaved = {
+                            name,
+                            filters: {
+                              search,
+                              category: selectedCategory,
+                              sortBy,
+                              availabilityFilter,
+                              priceRange,
+                              deliveryRange,
+                              viewMode
+                            }
+                          }
+                          const updated = [...savedFilters, newSaved]
+                          setSavedFilters(updated)
+                          localStorage.setItem('savedFilters', JSON.stringify(updated))
+                        }
+                      }}
+                      className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50"
+                    >
+                      Sauvegarder les filtres actuels
+                    </button>
+                  </div>
+                )}
                 {/* Filtres actifs */}
-                {(selected.length > 0 || onlyPrice || onlyQuote || availabilityFilter !== 'all' || sortBy !== 'default') && (
+                {(selected.length > 0 || onlyPrice || onlyQuote || availabilityFilter !== 'all' || sortBy !== 'default' || priceRange || deliveryRange) && (
                   <div className="bg-white border rounded-xl p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">Filtres actifs</h3>
                     <div className="flex flex-wrap gap-2">
@@ -1295,6 +1411,54 @@ export default function ProduitsPage() {
                       <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
                       <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
+                    </div>
+                  )}
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="mt-12 flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1 || loading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        Précédent
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum
+                          if (totalPages <= 5) {
+                            pageNum = i + 1
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i
+                          } else {
+                            pageNum = currentPage - 2 + i
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              disabled={loading}
+                              className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+                                currentPage === pageNum
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'text-gray-700 bg-white border border-gray-200 hover:bg-gray-50'
+                              } disabled:opacity-50`}
+                            >
+                              {pageNum}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages || loading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        Suivant
+                      </button>
                     </div>
                   )}
                 </div>
