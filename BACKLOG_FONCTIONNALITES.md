@@ -1,6 +1,6 @@
 ## Backlog des fonctionnalités à câbler ou améliorer
 
-Date: 2025-10-17
+Date: 2025-11-05
 
 ### Projets (Gestion de Projets IT Vision)
 
@@ -10,7 +10,7 @@ Date: 2025-10-17
 | Persistance côté serveur | Remplacer le fallback `localStorage` par une source serveur par défaut (Mongo) + pagination/tri/filtre serveur | Moyenne | Élevé |
 | Recherche et filtres avancés | Filtres par statut, service, dates; recherche texte côté serveur | Facile | Moyen |
 | Progression de phase sync | Utiliser `/api/projects/advance` partout (modale, liste) avec retours d’état et toasts | Facile | Moyen |
-| Notifications projet | Notification admin/assignés lors de changement de phase/milestone; intégration `notifications-memory` (ou persistant) | Moyenne | Élevé |
+| Notifications projet | Notification admin/assignés lors de changement de phase/milestone; intégration `notifications-memory` (ou persistant) | Moyenne | Élevé |
 | Pièces jointes | Upload/preview documents (contrats, devis, photos) via `/documents` avec validations MIME/taille | Moyenne | Élevé |
 | Quote ↔ Projet | Synchroniser le devis attaché (PATCH `/quote`) + export PDF + envoi client | Moyenne | Élevé |
 | Rôles et droits | RBAC: visibilité/édition par rôle (ADMIN, PM, TECH) sur champs critiques | Difficile | Élevé |
@@ -35,6 +35,8 @@ Date: 2025-10-17
 | Marges & alertes | Calculs de marge avec seuils et warnings | Facile | Moyen |
 | Export PDF | Devis PDF brandé + options (conditions, signature) | Moyenne | Élevé |
 | Sauvegarde & attachement | Sauvegarder devis et l’attacher au projet (PATCH `/quote`) | Facile | Élevé |
+| **Catalog Product UX** | Consolider la fiche produit immersive : cache client, contrôles accessibilité, tests e2e, préchargement données similaires, UI réactive | Moyenne | Élevé |
+| **Keycloak IAM** | Planifier intégration Keycloak (SSO, fédération, mapping rôles) + adaptation NextAuth aux tokens OIDC | Moyenne | Élevé |
 
 ### Wizard Diagnostic (Digitalisation)
 
@@ -60,7 +62,7 @@ Date: 2025-10-17
 
 | Élément | Description | Faisabilité | Apport |
 | --- | --- | --- | --- |
-| Unifier tokens | Harmoniser `auth-token`/`admin-auth-token`/`tech-auth-token`; plan Keycloak | Moyenne | Élevé |
+| Unifier tokens | Harmoniser `auth-token`/`admin-auth-token`/`tech-auth-token` ; migration vers Keycloak | Moyenne | Élevé |
 | CSRF | Généraliser `csrf-protection` sur POST/PUT/PATCH/DELETE | Facile | Élevé |
 | Rate limiting | Limiter routes sensibles + logs sécurité | Facile | Moyen |
 | RBAC central | Middleware rôle/permissions réutilisable | Moyenne | Élevé |
@@ -82,3 +84,12 @@ Date: 2025-10-17
 | Variables d’env | Vérifier SMTP, ADMIN_EMAIL, JWT_SECRET en env | Facile | Élevé |
 | Logs & métrologie | Journaux structurés + métriques (latences, erreurs) | Moyenne | Moyen |
 | Erreurs contrôlées | Pages d’erreur amicales + boundary React | Facile | Moyen |
+
+### Portail Client & Techniciens (Roadmap)
+
+- ✅ **Vue Project Live** (Phase 1 livrée) : résumé projet client, timeline, docs, techniciens assignés, création de ticket directe.
+- ✅ **Fiche produit immersive** : layout type marketplace (galerie verticale, card tarif transport, modal négociation, sticky CTA mobile).
+- 🔜 **Module Tickets client complet** : fil de discussion, pièces jointes, suivi SLA et routage admin (phase 1.2).
+- 🔜 **Job Dispatch temps réel** : diffusion d’interventions aux techniciens, réponses/négociation, notifications push/SMS (phase 1.3).
+- 🔜 **Keycloak IAM** : intégration SSO, mapping rôles & groupes, refonte auth frontend/backend.
+

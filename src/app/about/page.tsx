@@ -111,10 +111,10 @@ export default function AboutPage() {
                 <p>
                   Fondée en <strong className="text-emerald-600">décembre 2019</strong>, <strong className="text-emerald-600">IT Vision</strong> est née de la passion 
                   de ses fondateurs pour les technologies avancées et leur vision d&apos;un écosystème connecté 
-                  intelligent au service de la sécurité et de l'efficacité.
+                  intelligent au service de la sécurité et de l&apos;efficacité.
                 </p>
                 <p>
-                  Nous avons démarré avec l'IoT (LoRa/LoRaWAN, MQTT) pour la collecte de données et l'automation,
+                  Nous avons démarré avec l&apos;IoT (LoRa/LoRaWAN, MQTT) pour la collecte de données et l&apos;automation,
                   puis étendu notre offre vers la <strong className="text-emerald-600">sécurité électronique</strong> et la
                   <strong className="text-emerald-600"> domotique</strong>, avec un rôle de facilitateur pour la
                   <strong className="text-emerald-600"> digitalisation des processus des PME</strong>.
@@ -122,13 +122,13 @@ export default function AboutPage() {
                 <p>
                   Notre approche unique combine <strong>expertise technique pointue</strong> (protocols mesh, LoRaWAN, MQTT), 
                   <strong>solutions sur-mesure</strong> et <strong>innovation constante</strong>. Chaque projet nous permet 
-                  de repousser les limites du possible dans l'écosystème connecté africain.
+                  de repousser les limites du possible dans l&apos;écosystème connecté africain.
                 </p>
               </div>
             </div>
             <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl p-8 text-center">
               <div className="text-6xl mb-4">📈</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">5+ ans d'expérience</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">5+ ans d&apos;expérience</h3>
               <p className="text-gray-600">Sécurité électronique, domotique et digitalisation des PME depuis 2019</p>
             </div>
           </div>

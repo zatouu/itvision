@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0')
     
     // Construction du filtre
-    let filter: any = {}
+    const filter: any = {}
     
     if (status !== 'all') {
       filter.status = status

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0')
     
     // Construction du filtre selon le rôle
-    let where: any = {}
+    const where: any = {}
     
     if (role === 'TECHNICIAN') {
       // Les techniciens ne voient que leurs rapports

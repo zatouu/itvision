@@ -9,6 +9,7 @@ type Project = {
   description?: string
   address: string
   clientId: string
+  clientName?: string
   status?: string
   startDate: string
   endDate?: string
@@ -23,16 +24,28 @@ export default function ProjectManagerPanel() {
   const [editing, setEditing] = useState<Project | null>(null)
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
 
-  const refresh = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/projects?status=all&limit=50', { credentials: 'include' })
-      const json = await res.json()
-      setItems(json.projects || [])
-    } finally {
-      setLoading(false)
+    const refresh = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch('/api/projects?status=all&limit=50', { credentials: 'include' })
+        const json = await res.json()
+        const projects: Project[] = (json.projects || []).map((p: any) => {
+          const client = p?.clientId
+          const normalizedClientId = typeof client === 'string' ? client : (client?.id || client?._id || '')
+          const clientName = typeof client === 'object' && client ? (client.name || client.company || client.username || '') : undefined
+
+          return {
+            ...p,
+            clientId: normalizedClientId,
+            clientName
+          }
+        })
+
+        setItems(projects)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
 
   useEffect(() => { refresh() }, [])
 
@@ -93,7 +106,7 @@ export default function ProjectManagerPanel() {
               items.map(p => (
                 <tr key={p._id} className="border-t">
                   <td className="p-3 font-medium text-gray-900">{p.name}</td>
-                  <td className="p-3 text-gray-600">{p.clientId?.name || p.clientId}</td>
+                    <td className="p-3 text-gray-600">{p.clientName || p.clientId || '-'}</td>
                   <td className="p-3 text-gray-600">{String((p as any).status || '').toUpperCase()}</td>
                   <td className="p-3 text-gray-600">{p.startDate ? new Date(p.startDate).toLocaleDateString('fr-FR') : '-'}</td>
                   <td className="p-3 text-gray-900">{p.value ? p.value.toLocaleString?.() : '-'}</td>

@@ -10,7 +10,8 @@ import {
   Calculator,
   Users,
   Calendar,
-  Settings
+  Settings,
+  MessageCircle
 } from 'lucide-react'
 
 type NavItem = {
@@ -24,6 +25,7 @@ const navItems: NavItem[] = [
   { label: 'Projets', href: '/admin/planning', icon: FolderKanban },
   { label: 'Services & Produits', href: '/admin/catalog', icon: Package },
   { label: 'Devis & Tarification', href: '/admin/quotes', icon: Calculator },
+  { label: 'Tickets Support', href: '/admin/tickets', icon: MessageCircle },
   { label: 'Équipe & Techniciens', href: '/admin/users', icon: Users },
   { label: 'Planning', href: '/admin/planning', icon: Calendar },
   { label: 'Administration', href: '/admin/migration', icon: Settings }

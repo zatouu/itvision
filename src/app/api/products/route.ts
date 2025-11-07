@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product, { type IProduct } from '@/lib/models/Product'
 import jwt from 'jsonwebtoken'
 
 function requireManagerRole(request: NextRequest) {
@@ -17,6 +17,130 @@ function requireManagerRole(request: NextRequest) {
   }
 }
 
+const parseNumber = (value: any): number | undefined => {
+  if (value === null || value === undefined || value === '') return undefined
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : undefined
+}
+
+const parseStringArray = (value: unknown): string[] | undefined => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/\r?\n|,/) // accept comma or newline separated
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  return undefined
+}
+
+const buildProductPayload = (payload: any): Partial<IProduct> => {
+  const {
+    name,
+    category,
+    description,
+    tagline,
+    price,
+    baseCost,
+    marginRate,
+    currency,
+    image,
+    gallery,
+    features,
+    requiresQuote,
+    deliveryDays,
+    stockStatus,
+    stockQuantity,
+    leadTimeDays,
+    weightKg,
+    lengthCm,
+    widthCm,
+    heightCm,
+    volumeM3,
+    packagingWeightKg,
+    colorOptions,
+    variantOptions,
+    availabilityNote,
+    isPublished,
+    isFeatured,
+    sourcing,
+    shippingOverrides
+  } = payload || {}
+
+  const normalized: Partial<IProduct> = {
+    name,
+    category,
+    description,
+    tagline,
+    currency,
+    availabilityNote,
+    requiresQuote: typeof requiresQuote === 'boolean' ? requiresQuote : undefined,
+    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : undefined,
+    isPublished: typeof isPublished === 'boolean' ? isPublished : undefined,
+    isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
+  }
+
+  normalized.price = parseNumber(price)
+  normalized.baseCost = parseNumber(baseCost)
+  normalized.marginRate = parseNumber(marginRate)
+  normalized.deliveryDays = parseNumber(deliveryDays)
+  normalized.stockQuantity = parseNumber(stockQuantity)
+  normalized.leadTimeDays = parseNumber(leadTimeDays)
+  normalized.weightKg = parseNumber(weightKg)
+  normalized.lengthCm = parseNumber(lengthCm)
+  normalized.widthCm = parseNumber(widthCm)
+  normalized.heightCm = parseNumber(heightCm)
+  normalized.volumeM3 = parseNumber(volumeM3)
+  normalized.packagingWeightKg = parseNumber(packagingWeightKg)
+
+  if (typeof image === 'string') normalized.image = image
+
+  const parsedGallery = parseStringArray(gallery)
+  if (parsedGallery) normalized.gallery = parsedGallery
+
+  const parsedFeatures = parseStringArray(features)
+  if (parsedFeatures) normalized.features = parsedFeatures
+
+  const parsedColors = parseStringArray(colorOptions)
+  if (parsedColors) normalized.colorOptions = parsedColors
+
+  const parsedVariants = parseStringArray(variantOptions)
+  if (parsedVariants) normalized.variantOptions = parsedVariants
+
+  if (sourcing && typeof sourcing === 'object') {
+    const normalizedSourcing: IProduct['sourcing'] = {
+      platform: typeof sourcing.platform === 'string' ? sourcing.platform : undefined,
+      supplierName: typeof sourcing.supplierName === 'string' ? sourcing.supplierName : undefined,
+      supplierContact: typeof sourcing.supplierContact === 'string' ? sourcing.supplierContact : undefined,
+      productUrl: typeof sourcing.productUrl === 'string' ? sourcing.productUrl : undefined,
+      notes: typeof sourcing.notes === 'string' ? sourcing.notes : undefined
+    }
+    normalized.sourcing = normalizedSourcing
+  }
+
+  if (Array.isArray(shippingOverrides)) {
+    const overrides: NonNullable<IProduct['shippingOverrides']> = []
+    for (const raw of shippingOverrides) {
+      if (!raw || typeof raw !== 'object' || typeof raw.methodId !== 'string') continue
+      overrides.push({
+        methodId: raw.methodId,
+        ratePerKg: parseNumber(raw.ratePerKg),
+        ratePerM3: parseNumber(raw.ratePerM3),
+        flatFee: parseNumber(raw.flatFee)
+      })
+    }
+    if (overrides.length > 0) {
+      normalized.shippingOverrides = overrides
+    }
+  }
+
+  return normalized
+}
+
 // GET /api/products?search=&category=&limit=20&skip=0
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +153,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
     const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0)
 
-    const query: any = {}
+      const query: any = {}
     if (q) query.name = new RegExp(q, 'i')
     if (category) query.category = category
 
@@ -51,10 +175,10 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
-    const { name, category, description, price, currency, image, requiresQuote, deliveryDays } = body || {}
-    if (!name) return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 })
+    const payload = buildProductPayload(body)
+    if (!payload.name) return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 })
 
-    const created = await Product.create({ name, category, description, price, currency, image, requiresQuote, deliveryDays })
+    const created = await Product.create(payload)
     return NextResponse.json({ success: true, item: created }, { status: 201 })
   } catch (e) {
     return NextResponse.json({ success: false, error: 'Failed to create' }, { status: 500 })
@@ -68,9 +192,10 @@ export async function PATCH(request: NextRequest) {
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
-    const { id, ...data } = body || {}
+    const { id, ...rest } = body || {}
     if (!id) return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 })
-    await Product.updateOne({ _id: id }, { $set: data })
+    const payload = buildProductPayload(rest)
+    await Product.updateOne({ _id: id }, { $set: payload })
     const updated = await Product.findById(id).lean()
     return NextResponse.json({ success: true, item: updated })
   } catch (e) {

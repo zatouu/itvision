@@ -26,7 +26,10 @@ import {
   Target,
   Navigation,
   Wifi,
-  WifiOff
+  WifiOff,
+  Building2,
+  Phone,
+  Mail
 } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
 import AuthPortal from './AuthPortal'
@@ -40,6 +43,23 @@ interface TechnicianSession {
   isAuthenticated: boolean
 }
 
+interface ClientSummary {
+  id: string
+  clientId: string
+  name: string
+  company?: string
+  contactPerson?: string
+  email: string
+  phone: string
+  address?: string
+  activeContracts: Array<{
+    contractId: string
+    type: string
+    startDate: string | Date
+    endDate?: string | Date
+  }>
+}
+
 interface TechnicianPortalProps {
   initialSession?: TechnicianSession | null
 }
@@ -48,10 +68,11 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   const router = useRouter()
   const [session, setSession] = useState<TechnicianSession | null>(initialSession)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'reports' | 'create-report' | 'profile'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'reports' | 'create-report' | 'profile' | 'clients'>('dashboard')
   const [isOnline, setIsOnline] = useState(true)
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null)
   const [reports, setReports] = useState<any[]>([])
+  const [clients, setClients] = useState<ClientSummary[]>([])
   const [stats, setStats] = useState({
     todayReports: 0,
     pendingReports: 0,
@@ -59,7 +80,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     avgResponseTime: '2h 30min',
     weekHours: 0,
     clientSatisfaction: 0,
-    slaOnTime: 0
+    slaOnTime: 0,
+    activeClients: 0
   })
 
   // Surveillance de la connectivité
@@ -96,6 +118,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   useEffect(() => {
     if (session) {
       loadTechnicianData()
+      loadClientDirectory()
     }
   }, [session])
 
@@ -175,17 +198,34 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         }
       ])
 
-      setStats({
-        todayReports: 3,
-        pendingReports: 2,
-        completedToday: 1,
-        avgResponseTime: '2h 15min',
-        weekHours: 18,
-        clientSatisfaction: 4.7,
-        slaOnTime: 92
-      })
+        setStats((prev) => ({
+          ...prev,
+          todayReports: 3,
+          pendingReports: 2,
+          completedToday: 1,
+          avgResponseTime: '2h 15min',
+          weekHours: 18,
+          clientSatisfaction: 4.7,
+          slaOnTime: 92
+        }))
     } catch (error) {
       console.error('Erreur chargement données:', error)
+    }
+  }
+
+  const loadClientDirectory = async () => {
+    try {
+      const response = await fetch('/api/tech/clients?limit=12', { credentials: 'include' })
+      if (!response.ok) return
+      const data = await response.json()
+      const safeClients: ClientSummary[] = Array.isArray(data.clients) ? data.clients : []
+      setClients(safeClients)
+      setStats((prev) => ({
+        ...prev,
+        activeClients: safeClients.filter((client) => Array.isArray(client.activeContracts) && client.activeContracts.length > 0).length || safeClients.length
+      }))
+    } catch (error) {
+      console.error('Erreur chargement clients:', error)
     }
   }
 
@@ -219,8 +259,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
   const renderDashboard = () => (
     <div className="space-y-6">
-      {/* Statistiques du jour */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Statistiques du jour */}
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
@@ -261,8 +301,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           </div>
         </div>
 
-        {/* Nouvelles cartes KPI */}
-        <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+          {/* Nouvelles cartes KPI */}
+          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-2xl font-bold text-emerald-600">{stats.weekHours}h</div>
@@ -282,21 +322,31 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           </div>
         </div>
 
-        <div className="bg-teal-50 rounded-xl p-4 border border-teal-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-teal-600">{stats.slaOnTime}%</div>
-              <div className="text-sm text-teal-700">SLA respecté</div>
+          <div className="bg-teal-50 rounded-xl p-4 border border-teal-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-teal-600">{stats.slaOnTime}%</div>
+                <div className="text-sm text-teal-700">SLA respecté</div>
+              </div>
+              <CheckCircle className="h-8 w-8 text-teal-600" />
             </div>
-            <CheckCircle className="h-8 w-8 text-teal-600" />
           </div>
-        </div>
+
+          <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-indigo-600">{clients.length}</div>
+                <div className="text-sm text-indigo-700">Clients actifs</div>
+              </div>
+              <Building2 className="h-8 w-8 text-indigo-600" />
+            </div>
+          </div>
       </div>
 
       {/* Actions rapides */}
       <div className="bg-white rounded-xl p-6 border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <button
             onClick={() => setCurrentView('create-report')}
             className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
@@ -304,19 +354,27 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
             <Plus className="h-6 w-6" />
             <span>Nouveau rapport</span>
           </button>
-          
-          <button
-            onClick={() => setCurrentView('reports')}
-            className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
-          >
-            <FileText className="h-6 w-6" />
-            <span>Mes rapports</span>
-          </button>
-          
-          <button className="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3">
-            <MapPin className="h-6 w-6" />
-            <span>Navigation</span>
-          </button>
+            
+            <button
+              onClick={() => setCurrentView('reports')}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
+            >
+              <FileText className="h-6 w-6" />
+              <span>Mes rapports</span>
+            </button>
+            
+            <button
+              onClick={() => setCurrentView('clients')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
+            >
+              <Building2 className="h-6 w-6" />
+              <span>Annuaire clients</span>
+            </button>
+
+            <button className="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3">
+              <Navigation className="h-6 w-6" />
+              <span>Navigation</span>
+            </button>
         </div>
       </div>
 
@@ -408,6 +466,81 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     </div>
   )
 
+  const renderClientDirectory = () => (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Clients assignables</h2>
+          <p className="text-sm text-gray-600">Synchronisés depuis l’interface admin. Utilisez ces fiches pour planifier vos interventions ou contacter vos référents.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={loadClientDirectory}
+            className="px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-sm"
+          >
+            Rafraîchir
+          </button>
+          <button
+            onClick={() => setCurrentView('dashboard')}
+            className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 text-sm"
+          >
+            Retour tableau
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {clients.map((client) => (
+          <div key={client.id} className="bg-white border border-gray-200 rounded-xl p-5 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-lg font-semibold text-gray-900">{client.company || client.name}</div>
+                <div className="text-xs text-gray-500">ID: {client.clientId}</div>
+              </div>
+              <span className={`px-2 py-1 text-xs rounded-full ${client.activeContracts.length > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}`}>
+                {client.activeContracts.length > 0 ? `${client.activeContracts.length} contrat(s)` : 'Sans contrat'}
+              </span>
+            </div>
+
+            {client.contactPerson && (
+              <div className="flex items-center text-sm text-gray-600">
+                <User className="h-4 w-4 mr-2 text-gray-400" />
+                {client.contactPerson}
+              </div>
+            )}
+
+            <div className="flex items-center text-sm text-gray-600">
+              <Phone className="h-4 w-4 mr-2 text-gray-400" />
+              <a href={`tel:${client.phone}`} className="hover:text-emerald-600">{client.phone}</a>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Mail className="h-4 w-4 mr-2 text-gray-400" />
+              <a href={`mailto:${client.email}`} className="hover:text-emerald-600">{client.email}</a>
+            </div>
+
+            {client.address && (
+              <div className="text-sm text-gray-500">
+                <Navigation className="h-4 w-4 inline text-gray-400 mr-2" />
+                {client.address}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors">Planifier</button>
+              <button className="flex-1 px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">Contacter</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {clients.length === 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
+          Aucun client disponible actuellement. Ajoutez des clients côté admin ou rafraîchissez plus tard.
+        </div>
+      )}
+    </div>
+  )
+
   const renderCreateReport = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -483,11 +616,12 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
-            {[
-              { id: 'dashboard', label: 'Tableau de bord', icon: Activity },
-              { id: 'reports', label: 'Rapports', icon: FileText },
-              { id: 'create-report', label: 'Nouveau rapport', icon: Plus }
-            ].map((item) => {
+              {[
+                { id: 'dashboard', label: 'Tableau de bord', icon: Activity },
+                { id: 'reports', label: 'Rapports', icon: FileText },
+                { id: 'clients', label: 'Clients', icon: Building2 },
+                { id: 'create-report', label: 'Nouveau rapport', icon: Plus }
+              ].map((item) => {
               const Icon = item.icon
               return (
                 <button
@@ -509,11 +643,12 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       </nav>
 
       {/* Contenu principal */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'dashboard' && renderDashboard()}
-        {currentView === 'reports' && renderReports()}
-        {currentView === 'create-report' && renderCreateReport()}
-      </main>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {currentView === 'dashboard' && renderDashboard()}
+          {currentView === 'reports' && renderReports()}
+          {currentView === 'clients' && renderClientDirectory()}
+          {currentView === 'create-report' && renderCreateReport()}
+        </main>
     </div>
   )
 }

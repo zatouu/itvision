@@ -43,8 +43,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const proj = await Project.findById(id)
     if (!proj) return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
-    // @ts-ignore
-    proj.products = (proj.products || []).map((p: any) => p.productId === productId ? { ...p.toObject?.() || p, ...updates } : p)
+    // @ts-expect-error champ virtual issu du schéma mongoose non typé
+    proj.products = (proj.products || []).map((p: any) => (p.productId === productId ? { ...p.toObject?.() || p, ...updates } : p))
     await proj.save()
     return NextResponse.json({ success: true, project: proj })
   } catch (e) {

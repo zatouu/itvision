@@ -25,6 +25,11 @@ NEXT_PUBLIC_API_URL=https://votre-domaine
 # Uploads
 UPLOAD_DIR=./public/uploads
 
+# Import catalogue (AliExpress via RapidAPI)
+# ALIEXPRESS_RAPIDAPI_KEY=your-rapidapi-key
+# ALIEXPRESS_USD_TO_XOF=620           # optionnel, taux de conversion USD→FCFA
+# ALIEXPRESS_DEFAULT_MARGIN=30        # optionnel, marge (%) appliquée
+
 # Prisma (optionnel, uniquement si vous utilisez les routes Prisma)
 # Exemple SQLite: DATABASE_URL=file:./prisma/dev.db
 # Exemple Postgres: DATABASE_URL=postgresql://user:pass@host:5432/db
@@ -109,11 +114,31 @@ npm run build         # build prod
 npm run start         # start prod
 npm run lint          # lint
 npm run test:features # tester les nouvelles fonctionnalités
+npm run import:aliexpress -- --keyword "hikvision" --limit 5 --dry-run # importer des fiches AliExpress (dry-run)
 ```
+
+### Import catalogue AliExpress
+1. Créez un compte RapidAPI et souscrivez à une API AliExpress (ex. *aliexpress-datahub*).
+2. Ajoutez la clé dans vos variables d'environnement (`ALIEXPRESS_RAPIDAPI_KEY`).
+3. Lancez un import de test (dry-run) :
+   ```bash
+   ALIEXPRESS_RAPIDAPI_KEY=xxx npm run import:aliexpress -- --keyword "caméra hikvision" --limit 10 --dry-run
+   ```
+4. Retirez `--dry-run` pour créer ou mettre à jour les produits (ils seront stockés comme `preorder` avec sourcing Chine et calcul transport automatique).
+5. Finalisez dans `/admin/produits` (poids, dimensions, marge ou overrides transport) avant publication.
+
+📘 Documentation complète : voir [`ALIEXPRESS_IMPORT.md`](./ALIEXPRESS_IMPORT.md).
 
 ## 🆕 Nouvelles Fonctionnalités
 
-### ✅ v1.3 - Système de Réservation Avancé (Dernière)
+### ✅ v1.4 - Hub Admin & Portails synchronisés (Dernière)
+- **Tableau de bord admin repensé** : carte KPI responsive, actions rapides et accès directs aux portails clients/techniciens.
+- **Synchronisation clients ↔ techniciens** : l’API `GET /api/tech/clients` expose un annuaire filtré (sans données sensibles) partageable avec le portail terrain.
+- **Annuaire technicien enrichi** : les techniciens voient immédiatement les nouveaux clients, avec coordonnées, contrats actifs et CTA de planification.
+- **Suivi portails** : compteurs globaux (clients actifs, accès portail client, techniciens disponibles) pour monitorer la relation back-office ↔ terrain ↔ client.
+- **Support tickets V2** : centre support client (`/client-portal`) et dashboard admin (`/admin/tickets`) avec fil de discussion, suivi SLA et affectation.
+
+### ✅ v1.3 - Système de Réservation Avancé
 - **Emails de confirmation** : Templates professionnels pour les RDV
 - **Calendrier intégré** : Interface de réservation améliorée avec créneaux visuels
 - **Multi-canal** : WhatsApp + Email + SMS + Fichiers .ics
@@ -157,3 +182,4 @@ SMTP_PASS=your-app-password
 - `NOUVELLES_FONCTIONNALITES.md` - Fonctionnalités v1.1 (authentification)
 - `AMELIORATIONS_AVANCEES.md` - Fonctionnalités v1.2 (administration)
 - `AMELIORATIONS_RESERVATION.md` - Fonctionnalités v1.3 (réservation)
+- `SUPPORT_TICKETS.md` - Architecture et microservice potentiel pour le module support

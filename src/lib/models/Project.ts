@@ -23,6 +23,13 @@ export interface IProject extends Document {
     address: string
     access?: string
     constraints?: string[]
+    contacts?: Array<{
+      name: string
+      role?: string
+      phone?: string
+      email?: string
+      availability?: string
+    }>
   }
   assignedTo?: string[]
   value?: number
@@ -70,6 +77,12 @@ export interface IProject extends Document {
     author: string
     clientVisible: boolean
   }>
+  statusHistory?: Array<{
+    date: Date
+    status: IProject['status']
+    author?: string
+    note?: string
+  }>
   risks?: Array<{
     id: string
     title: string
@@ -87,6 +100,23 @@ export interface IProject extends Document {
     uploadDate: Date
     clientVisible: boolean
   }>
+  sharedNotes?: Array<{
+    id: string
+    author: string
+    role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT'
+    createdAt: Date
+    message: string
+    clientVisible?: boolean
+  }>
+  nextMaintenance?: Date | null
+  maintenanceWindow?: string
+  metrics?: {
+    tasksTotal?: number
+    tasksCompleted?: number
+    budgetPlanned?: number
+    budgetUsed?: number
+    satisfactionScore?: number
+  }
   clientAccess?: boolean
   createdAt: Date
   updatedAt: Date
@@ -113,7 +143,14 @@ const ProjectSchema = new Schema<IProject>({
     name: String,
     address: String,
     access: String,
-    constraints: [String]
+    constraints: [String],
+    contacts: [{
+      name: String,
+      role: String,
+      phone: String,
+      email: String,
+      availability: String
+    }]
   },
   assignedTo: [String],
   value: { type: Number, default: 0 },
@@ -137,30 +174,36 @@ const ProjectSchema = new Schema<IProject>({
     margin: Number,
     validUntil: Date,
     status: { type: String, enum: ['draft', 'sent', 'viewed', 'approved', 'rejected'], default: 'draft' }
-  },
-  products: [{
-    productId: String,
-    name: String,
-    brand: String,
-    model: String,
-    quantity: Number,
-    unitPrice: Number,
-    totalPrice: Number,
-    status: { type: String, enum: ['planned', 'ordered', 'received', 'installed'], default: 'planned' },
-    supplier: String,
-    leadTime: String,
-    orderDate: Date,
-    receivedDate: Date
-  }],
-  timeline: [{
-    id: String,
-    date: Date,
-    type: { type: String, enum: ['created', 'quoted', 'approved', 'started', 'milestone', 'issue', 'completed'] },
-    title: String,
-    description: String,
-    author: String,
-    clientVisible: Boolean
-  }],
+    },
+    products: [{
+      productId: String,
+      name: String,
+      brand: String,
+      model: String,
+      quantity: Number,
+      unitPrice: Number,
+      totalPrice: Number,
+      status: { type: String, enum: ['planned', 'ordered', 'received', 'installed'], default: 'planned' },
+      supplier: String,
+      leadTime: String,
+      orderDate: Date,
+      receivedDate: Date
+    }],
+    timeline: [{
+      id: String,
+      date: Date,
+      type: { type: String, enum: ['created', 'quoted', 'approved', 'started', 'milestone', 'issue', 'completed'] },
+      title: String,
+      description: String,
+      author: String,
+      clientVisible: Boolean
+    }],
+    statusHistory: [{
+      date: Date,
+      status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'] },
+      author: String,
+      note: String
+    }],
   risks: [{
     id: String,
     title: String,
@@ -169,15 +212,32 @@ const ProjectSchema = new Schema<IProject>({
     impact: { type: String, enum: ['low', 'medium', 'high'] },
     mitigation: String,
     status: { type: String, enum: ['identified', 'monitoring', 'mitigated', 'occurred'], default: 'identified' }
-  }],
-  documents: [{
-    id: String,
-    name: String,
-    type: { type: String, enum: ['quote', 'contract', 'invoice', 'technical', 'photo', 'manual'] },
-    url: String,
-    uploadDate: Date,
-    clientVisible: { type: Boolean, default: false }
-  }],
+    }],
+    documents: [{
+      id: String,
+      name: String,
+      type: { type: String, enum: ['quote', 'contract', 'invoice', 'technical', 'photo', 'manual'] },
+      url: String,
+      uploadDate: Date,
+      clientVisible: { type: Boolean, default: false }
+    }],
+    sharedNotes: [{
+      id: String,
+      author: String,
+      role: { type: String, enum: ['ADMIN', 'TECHNICIAN', 'CLIENT'], default: 'ADMIN' },
+      createdAt: { type: Date, default: Date.now },
+      message: String,
+      clientVisible: { type: Boolean, default: false }
+    }],
+    nextMaintenance: Date,
+    maintenanceWindow: String,
+    metrics: {
+      tasksTotal: Number,
+      tasksCompleted: Number,
+      budgetPlanned: Number,
+      budgetUsed: Number,
+      satisfactionScore: Number
+    },
   clientAccess: { type: Boolean, default: false },
 }, { timestamps: true })
 
