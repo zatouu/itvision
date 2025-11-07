@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight } from 'lucide-react'
+import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight, Clock } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -147,59 +147,82 @@ Merci de me recontacter.`
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
 
   return (
-    <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden group hover:shadow-md transition-all h-full flex flex-col">
-      <div className="p-2.5 pb-0">
-        <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-lg hover:border-emerald-300 transition-all h-full flex flex-col">
+      <div className="p-3 pb-0 relative">
+        <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 group-hover:from-emerald-50 group-hover:to-emerald-100 transition-colors">
           <Image
             src={images[activeIndex] || '/file.svg'}
             alt={name}
             fill
-            className="object-contain p-3"
+            className="object-contain p-3 transition-transform group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
             priority={false}
           />
-          <div className="absolute top-3 right-3 bg-white/80 backdrop-blur px-2 py-1 rounded-full text-xs font-medium text-gray-700 flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" /> {rating.toFixed(1)}
+          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-semibold text-gray-800 flex items-center gap-1 shadow-sm">
+            <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" /> {rating.toFixed(1)}
           </div>
+          {availabilityStatus === 'in_stock' && (
+            <div className="absolute top-3 left-3 bg-emerald-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm">
+              En stock
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          {images.slice(0, 4).map((src, idx) => (
-            <button
-              key={idx}
-              onClick={() => setActiveIndex(idx)}
-              className={`relative h-10 w-10 rounded-md overflow-hidden border ${activeIndex === idx ? 'border-emerald-500' : 'border-gray-200'}`}
-              aria-label={`Image ${idx + 1}`}
-            >
-              <Image src={src} alt={`${name} ${idx + 1}`} fill className="object-contain" />
-            </button>
-          ))}
-        </div>
+        {images.length > 1 && (
+          <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1">
+            {images.slice(0, 4).map((src, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveIndex(idx)}
+                className={`relative h-12 w-12 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
+                  activeIndex === idx 
+                    ? 'border-emerald-500 ring-2 ring-emerald-200' 
+                    : 'border-gray-200 hover:border-emerald-300'
+                }`}
+                aria-label={`Image ${idx + 1}`}
+              >
+                <Image src={src} alt={`${name} ${idx + 1}`} fill className="object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-4 flex flex-col justify-between flex-1">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 leading-snug">{name}</h3>
-            {model && <p className="text-xs text-gray-500 mt-1">{model}</p>}
+        <div className="mb-3">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-bold text-gray-900 leading-snug line-clamp-2">{name}</h3>
+              {model && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{model}</p>}
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-500">{showQuote ? 'Tarif' : 'Prix total'}</div>
-            <div className={`text-lg font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>{computedPriceLabel}</div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-right">
+              <div className="text-xs text-gray-500 mb-0.5">{showQuote ? 'Tarif' : 'Prix total'}</div>
+              <div className={`text-xl font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>
+                {computedPriceLabel}
+              </div>
+            </div>
+            {computedDeliveryDays > 0 && (
+              <div className="text-xs text-gray-500 flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {computedDeliveryDays}j
+              </div>
+            )}
           </div>
         </div>
 
-        <ul className="mt-1 space-y-2">
-          {features.slice(0, 4).map((f, i) => (
+        <ul className="mt-1 space-y-1.5 mb-3">
+          {features.slice(0, 3).map((f, i) => (
             <li key={i} className="flex items-start text-sm text-gray-700">
-              <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 mr-2 flex-shrink-0" />
-              <span>{f}</span>
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 mr-2 flex-shrink-0" />
+              <span className="line-clamp-1">{f}</span>
             </li>
           ))}
         </ul>
 
         {shippingEnabled && !showQuote && (
-          <div className="mt-3">
-            <div className="text-xs text-gray-500 mb-1">Choisir le transport</div>
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="text-xs font-medium text-gray-700 mb-2">Options de transport</div>
             <div className="flex flex-wrap gap-2">
               {shippingOptions.map(option => {
                 const Icon = shippingIcon(option.id)
@@ -208,30 +231,37 @@ Merci de me recontacter.`
                   <button
                     key={option.id}
                     onClick={() => setSelectedShippingId(option.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1 ${active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'border-gray-200 text-gray-600 hover:border-emerald-400'}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                      active 
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' 
+                        : 'border-gray-200 text-gray-600 hover:border-emerald-400 hover:bg-emerald-50'
+                    }`}
                   >
-                    <Icon className="h-3.5 w-3.5" /> {option.label.split(' ')[0]} · {option.durationDays} j
+                    <Icon className="h-3.5 w-3.5" /> 
+                    <span>{option.label.split(' ')[0]}</span>
+                    <span className="text-[10px] opacity-80">{option.durationDays}j</span>
                   </button>
                 )
               })}
             </div>
             {activeShipping && (
-              <div className="mt-2 text-xs text-gray-600">
+              <div className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-1.5">
                 <span className="font-medium text-gray-900">{activeShipping.label}</span>
-                <span>{` · ${activeShipping.durationDays} jours · Transport ${activeShipping.cost.toLocaleString('fr-FR')} ${activeShipping.currency}`}</span>
+                <span className="text-gray-500">{` · ${activeShipping.durationDays} jours · +${activeShipping.cost.toLocaleString('fr-FR')} ${activeShipping.currency}`}</span>
               </div>
             )}
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-end gap-2">
+        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-2">
           {!!computedPriceAmount && !showQuote && (
             <button
               onClick={addToCart}
               disabled={adding}
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-md text-sm font-semibold shadow"
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all hover:shadow-md disabled:opacity-50"
             >
-              <ShoppingCart className="h-4 w-4" /> {adding ? 'Ajout...' : primaryCtaLabel}
+              <ShoppingCart className="h-4 w-4" /> 
+              <span>{adding ? 'Ajout...' : primaryCtaLabel}</span>
             </button>
           )}
           <a
@@ -239,20 +269,26 @@ Merci de me recontacter.`
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackEvent('quote_request', { productId: `${name}-${model || ''}` })}
-            className={`inline-flex items-center gap-2 ${showQuote ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} px-3 py-2 rounded-md text-sm font-semibold`}
+            className={`inline-flex items-center justify-center gap-2 ${
+              showQuote 
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            } px-4 py-2.5 rounded-lg text-sm font-semibold transition-all`}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
-            Demander un devis
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+            </svg>
+            <span className="hidden sm:inline">Devis</span>
           </a>
         </div>
 
         {detailHref && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 pt-3 border-t border-gray-100">
             <Link
               href={detailHref}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+              className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors w-full justify-center"
             >
-              Voir la fiche produit
+              <span>Voir les détails</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

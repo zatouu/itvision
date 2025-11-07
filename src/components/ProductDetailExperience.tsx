@@ -467,10 +467,18 @@ Merci de me recontacter.`
                       className="object-contain p-6"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
-                    <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Qualité Pro Chine
-                    </div>
+                    {product.sourcing?.platform && (
+                      <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : 'Import Chine'}
+                      </div>
+                    )}
+                    {!product.sourcing?.platform && (
+                      <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Qualité Pro Chine
+                      </div>
+                    )}
                     <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold', availabilityClass)}>
                       <Clock className="h-3.5 w-3.5" />
                       {product.availability.label}
@@ -501,9 +509,23 @@ Merci de me recontacter.`
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                        <div className="text-xs uppercase tracking-wide text-slate-500">Synthèse import</div>
-                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-1">
-                          {baseCostLabel && <span>Coût fournisseur Chine : <strong className="text-slate-100">{baseCostLabel}</strong></span>}
+                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Synthèse import</div>
+                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-1.5">
+                          {product.sourcing?.platform && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-400">Plateforme :</span>
+                              <span className="font-semibold text-emerald-300">
+                                {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : product.sourcing.platform}
+                              </span>
+                            </div>
+                          )}
+                          {product.sourcing?.supplierName && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-400">Fournisseur :</span>
+                              <span className="font-semibold text-slate-100">{product.sourcing.supplierName}</span>
+                            </div>
+                          )}
+                          {baseCostLabel && <span>Coût fournisseur : <strong className="text-slate-100">{baseCostLabel}</strong></span>}
                           {marginLabel && <span>Marge configurée : <strong className="text-slate-100">{marginLabel}</strong></span>}
                           {deliveryDays && <span>Délai estimé : <strong className="text-slate-100">{deliveryDays} jours</strong></span>}
                         </div>
