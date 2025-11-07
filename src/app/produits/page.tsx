@@ -287,12 +287,14 @@ export default function ProduitsPage() {
       if (savedState) {
         const state = JSON.parse(savedState)
         if (state.search) setSearch(state.search)
-        if (state.category) setSelectedCategory(state.category)
+        if (state.selected && Array.isArray(state.selected)) setSelected(state.selected)
         if (state.sortBy) setSortBy(state.sortBy)
         if (state.availabilityFilter) setAvailabilityFilter(state.availabilityFilter)
         if (state.priceRange) setPriceRange(state.priceRange)
         if (state.deliveryRange) setDeliveryRange(state.deliveryRange)
         if (state.viewMode) setViewMode(state.viewMode)
+        if (state.onlyPrice !== undefined) setOnlyPrice(state.onlyPrice)
+        if (state.onlyQuote !== undefined) setOnlyQuote(state.onlyQuote)
       }
     } catch (error) {
       console.error('Error loading saved filters:', error)
@@ -304,7 +306,9 @@ export default function ProduitsPage() {
     try {
       const state = {
         search,
-        category: selectedCategory,
+        selected,
+        onlyPrice,
+        onlyQuote,
         sortBy,
         availabilityFilter,
         priceRange,
@@ -315,7 +319,7 @@ export default function ProduitsPage() {
     } catch (error) {
       console.error('Error saving filters:', error)
     }
-  }, [search, selectedCategory, sortBy, availabilityFilter, priceRange, deliveryRange, viewMode])
+  }, [search, selected, onlyPrice, onlyQuote, sortBy, availabilityFilter, priceRange, deliveryRange, viewMode])
 
   // Debounce de la recherche
   useEffect(() => {
@@ -1046,7 +1050,9 @@ export default function ProduitsPage() {
                           <button
                             onClick={() => {
                               if (saved.filters.search) setSearch(saved.filters.search)
-                              if (saved.filters.category) setSelectedCategory(saved.filters.category)
+                              if (saved.filters.selected && Array.isArray(saved.filters.selected)) setSelected(saved.filters.selected)
+                              if (saved.filters.onlyPrice !== undefined) setOnlyPrice(saved.filters.onlyPrice)
+                              if (saved.filters.onlyQuote !== undefined) setOnlyQuote(saved.filters.onlyQuote)
                               if (saved.filters.sortBy) setSortBy(saved.filters.sortBy)
                               if (saved.filters.availabilityFilter) setAvailabilityFilter(saved.filters.availabilityFilter)
                               if (saved.filters.priceRange) setPriceRange(saved.filters.priceRange)
@@ -1078,7 +1084,9 @@ export default function ProduitsPage() {
                             name,
                             filters: {
                               search,
-                              category: selectedCategory,
+                              selected,
+                              onlyPrice,
+                              onlyQuote,
                               sortBy,
                               availabilityFilter,
                               priceRange,
