@@ -150,6 +150,8 @@ export default function ProduitsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [comparingProducts, setComparingProducts] = useState<Set<string>>(new Set())
   const [showCompareBar, setShowCompareBar] = useState(false)
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null)
+  const [deliveryRange, setDeliveryRange] = useState<{ min: number; max: number } | null>(null)
 
   useEffect(() => {
     const sync = () => {
@@ -861,6 +863,77 @@ export default function ProduitsPage() {
                     className="w-full border rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
+                
+                {/* Filtres avancés */}
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Filtres avancés</h3>
+                  
+                  {/* Prix */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Prix (FCFA)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        onChange={(e) => {
+                          const min = e.target.value ? parseInt(e.target.value) : 0
+                          setPriceRange(prev => ({ min, max: prev?.max || 999999999 }))
+                        }}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        onChange={(e) => {
+                          const max = e.target.value ? parseInt(e.target.value) : 999999999
+                          setPriceRange(prev => ({ min: prev?.min || 0, max }))
+                        }}
+                      />
+                    </div>
+                    {priceRange && (
+                      <button
+                        onClick={() => setPriceRange(null)}
+                        className="mt-2 text-xs text-emerald-600 hover:text-emerald-700"
+                      >
+                        Effacer
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Délai */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Délai (jours)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        onChange={(e) => {
+                          const min = e.target.value ? parseInt(e.target.value) : 0
+                          setDeliveryRange(prev => ({ min, max: prev?.max || 999 }))
+                        }}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        onChange={(e) => {
+                          const max = e.target.value ? parseInt(e.target.value) : 999
+                          setDeliveryRange(prev => ({ min: prev?.min || 0, max }))
+                        }}
+                      />
+                    </div>
+                    {deliveryRange && (
+                      <button
+                        onClick={() => setDeliveryRange(null)}
+                        className="mt-2 text-xs text-emerald-600 hover:text-emerald-700"
+                      >
+                        Effacer
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="bg-white border rounded-xl p-4">
                   <h3 className="font-semibold text-gray-900 mb-2">Catégories</h3>
                   <div className="space-y-1 text-sm">
@@ -959,6 +1032,24 @@ export default function ProduitsPage() {
                           <X className="h-3 w-3" />
                         </button>
                       )}
+                      {priceRange && (
+                        <button
+                          onClick={() => setPriceRange(null)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          Prix: {priceRange.min.toLocaleString('fr-FR')} - {priceRange.max.toLocaleString('fr-FR')} FCFA
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                      {deliveryRange && (
+                        <button
+                          onClick={() => setDeliveryRange(null)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          Délai: {deliveryRange.min} - {deliveryRange.max} jours
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setSelected([])
@@ -966,6 +1057,8 @@ export default function ProduitsPage() {
                           setOnlyQuote(false)
                           setAvailabilityFilter('all')
                           setSortBy('default')
+                          setPriceRange(null)
+                          setDeliveryRange(null)
                         }}
                         className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 underline"
                       >
@@ -1011,7 +1104,14 @@ export default function ProduitsPage() {
                         const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
                         const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
                         const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
-                        return matchesSearch && matchesTarif && matchesCategory && matchesAvailability
+                        
+                        // Filtres avancés
+                        const matchesPrice = !priceRange || !product.priceAmount || 
+                          (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
+                        const matchesDelivery = !deliveryRange || !product.deliveryDays ||
+                          (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
+                        
+                        return matchesSearch && matchesTarif && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
                       })
 
                       // Tri des produits
