@@ -24,8 +24,9 @@ const fetchSimilarProducts = async (product: any) => {
     .lean()
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const product = await fetchProductById(params.id)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const product = await fetchProductById(id)
   if (!product) {
     return {
       title: 'Produit introuvable | Catalogue IT Vision',
@@ -48,8 +49,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   }
 }
 
-export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-  const product = await fetchProductById(params.id)
+export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const product = await fetchProductById(id)
   if (!product) {
     notFound()
   }

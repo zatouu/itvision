@@ -433,53 +433,52 @@ Merci de me recontacter.`
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px] p-6 sm:p-8">
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr]">
-                  <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
-                    <div className="order-2 sm:order-1 flex sm:flex-col gap-2">
-                      {gallery.map((src, index) => (
-                        <button
-                          key={`${src}-${index}`}
-                          type="button"
-                          onClick={() => setActiveImageIndex(index)}
-                          className={clsx(
-                            'relative h-16 w-16 overflow-hidden rounded-xl border transition',
-                            activeImageIndex === index
-                              ? 'border-emerald-400/70 ring-2 ring-emerald-500/40'
-                              : 'border-slate-800 hover:border-emerald-400/50'
-                          )}
-                          aria-label={`Image ${index + 1}`}
-                        >
-                          <Image src={src} alt={`${product.name} ${index + 1}`} fill className="object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                    <motion.div
-                      key={activeImageIndex}
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.25 }}
-                      className="order-1 sm:order-2 relative aspect-video rounded-3xl border border-slate-800 bg-slate-950/60"
-                    >
-                      <Image
-                        src={gallery[activeImageIndex] || '/file.svg'}
-                        alt={product.name}
-                        fill
-                        className="object-contain p-6"
-                        sizes="(max-width: 1024px) 100vw, 50vw"
-                      />
-                      <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Qualité Pro Chine
-                      </div>
-                      <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold', availabilityClass)}>
-                        <Clock className="h-3.5 w-3.5" />
-                        {product.availability.label}
-                      </div>
-                    </motion.div>
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] p-6 sm:p-8">
+                <div className="grid gap-4 lg:grid-cols-[110px_minmax(0,1fr)]">
+                  <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible">
+                    {gallery.map((src, index) => (
+                      <button
+                        key={`${src}-${index}`}
+                        type="button"
+                        onClick={() => setActiveImageIndex(index)}
+                        className={clsx(
+                          'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition',
+                          activeImageIndex === index
+                            ? 'border-emerald-400/70 ring-2 ring-emerald-500/40'
+                            : 'border-slate-800 hover:border-emerald-400/50'
+                        )}
+                        aria-label={`Image ${index + 1}`}
+                      >
+                        <Image src={src} alt={`${product.name} ${index + 1}`} fill className="object-cover" />
+                      </button>
+                    ))}
                   </div>
+                  <motion.div
+                    key={activeImageIndex}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.25 }}
+                    className="relative aspect-[5/4] w-full rounded-3xl border border-slate-800 bg-slate-950/60"
+                  >
+                    <Image
+                      src={gallery[activeImageIndex] || '/file.svg'}
+                      alt={product.name}
+                      fill
+                      className="object-contain p-6"
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                    />
+                    <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Qualité Pro Chine
+                    </div>
+                    <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold', availabilityClass)}>
+                      <Clock className="h-3.5 w-3.5" />
+                      {product.availability.label}
+                    </div>
+                  </motion.div>
+                </div>
 
-                  <div className="space-y-5">
+                <div className="space-y-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-300">
@@ -591,8 +590,8 @@ Merci de me recontacter.`
                   </div>
                 </div>
 
-                <div className="xl:pl-2">
-                  <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 xl:sticky xl:top-24 shadow-emerald-500/10 shadow-2xl space-y-5">
+                <div className="w-full">
+                  <div className="w-full rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 shadow-emerald-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-emerald-200">Tarif catalogue</div>
                       <div className="mt-1 text-3xl font-bold text-emerald-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
