@@ -147,36 +147,46 @@ Merci de me recontacter.`
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-lg hover:border-emerald-300 transition-all h-full flex flex-col">
-      <div className="p-3 pb-0 relative">
-        <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 group-hover:from-emerald-50 group-hover:to-emerald-100 transition-colors">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden group hover:shadow-xl hover:border-orange-400 transition-all h-full flex flex-col relative">
+      {/* Badge style AliExpress/1688 */}
+      {availabilityStatus === 'in_stock' && (
+        <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+          EN STOCK
+        </div>
+      )}
+      {computedDeliveryDays > 0 && computedDeliveryDays <= 3 && (
+        <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+          EXPRESS
+        </div>
+      )}
+      
+      <div className="p-2.5 pb-0 relative bg-white">
+        <div className="relative w-full aspect-square rounded-md overflow-hidden bg-white border border-gray-100 group-hover:border-orange-300 transition-all">
           <Image
             src={images[activeIndex] || '/file.svg'}
             alt={name}
             fill
-            className="object-contain p-3 transition-transform group-hover:scale-105"
+            className="object-contain p-2 transition-transform group-hover:scale-110 duration-300"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
             priority={false}
           />
-          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-semibold text-gray-800 flex items-center gap-1 shadow-sm">
-            <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" /> {rating.toFixed(1)}
+          {/* Rating badge style AliExpress */}
+          <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-[11px] font-bold text-gray-800 flex items-center gap-1 shadow-md border border-gray-200">
+            <Star className="h-3 w-3 text-orange-500 fill-orange-500" /> 
+            <span className="text-orange-600">{rating.toFixed(1)}</span>
           </div>
-          {availabilityStatus === 'in_stock' && (
-            <div className="absolute top-3 left-3 bg-emerald-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm">
-              En stock
-            </div>
-          )}
         </div>
+        {/* Miniatures style AliExpress */}
         {images.length > 1 && (
-          <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1">
-            {images.slice(0, 4).map((src, idx) => (
+          <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 scrollbar-hide">
+            {images.slice(0, 5).map((src, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveIndex(idx)}
-                className={`relative h-12 w-12 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
+                className={`relative h-10 w-10 rounded border-2 flex-shrink-0 transition-all ${
                   activeIndex === idx 
-                    ? 'border-emerald-500 ring-2 ring-emerald-200' 
-                    : 'border-gray-200 hover:border-emerald-300'
+                    ? 'border-orange-500 ring-1 ring-orange-200' 
+                    : 'border-gray-200 hover:border-orange-300'
                 }`}
                 aria-label={`Image ${idx + 1}`}
               >
@@ -187,81 +197,83 @@ Merci de me recontacter.`
         )}
       </div>
 
-      <div className="p-4 flex flex-col justify-between flex-1">
-        <div className="mb-3">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-bold text-gray-900 leading-snug line-clamp-2">{name}</h3>
-              {model && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{model}</p>}
-            </div>
-          </div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-right">
-              <div className="text-xs text-gray-500 mb-0.5">{showQuote ? 'Tarif' : 'Prix total'}</div>
-              <div className={`text-xl font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>
-                {computedPriceLabel}
-              </div>
-            </div>
-            {computedDeliveryDays > 0 && (
-              <div className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {computedDeliveryDays}j
-              </div>
-            )}
-          </div>
+      <div className="p-3 flex flex-col justify-between flex-1 bg-gray-50">
+        {/* Titre style 1688 - compact */}
+        <div className="mb-2">
+          <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2 min-h-[2.5rem] mb-1">
+            {name}
+          </h3>
+          {model && (
+            <p className="text-[11px] text-gray-500 line-clamp-1 mb-2">{model}</p>
+          )}
         </div>
 
-        <ul className="mt-1 space-y-1.5 mb-3">
-          {features.slice(0, 3).map((f, i) => (
-            <li key={i} className="flex items-start text-sm text-gray-700">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 mr-2 flex-shrink-0" />
-              <span className="line-clamp-1">{f}</span>
-            </li>
-          ))}
-        </ul>
+        {/* Prix style AliExpress - gros et visible */}
+        <div className="mb-2">
+          <div className="flex items-baseline gap-1">
+            <span className={`text-2xl font-bold ${showQuote ? 'text-gray-700' : 'text-orange-600'}`}>
+              {computedPriceLabel}
+            </span>
+            {!showQuote && computedDeliveryDays > 0 && (
+              <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                <Clock className="h-3 w-3" />
+                {computedDeliveryDays}j
+              </span>
+            )}
+          </div>
+          {showQuote && (
+            <div className="text-xs text-gray-500 mt-0.5">Prix sur demande</div>
+          )}
+        </div>
 
+        {/* Features style 1688 - compact et technique */}
+        {features.length > 0 && (
+          <div className="mb-2 space-y-0.5">
+            {features.slice(0, 2).map((f, i) => (
+              <div key={i} className="text-[11px] text-gray-600 line-clamp-1 flex items-center gap-1">
+                <span className="text-orange-500">•</span>
+                <span>{f}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Shipping options style AliExpress - compact */}
         {shippingEnabled && !showQuote && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="text-xs font-medium text-gray-700 mb-2">Options de transport</div>
-            <div className="flex flex-wrap gap-2">
-              {shippingOptions.map(option => {
+          <div className="mb-2 pt-2 border-t border-gray-200">
+            <div className="flex flex-wrap gap-1">
+              {shippingOptions.slice(0, 2).map(option => {
                 const Icon = shippingIcon(option.id)
                 const active = option.id === selectedShippingId
                 return (
                   <button
                     key={option.id}
                     onClick={() => setSelectedShippingId(option.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                    className={`px-2 py-1 rounded text-[10px] font-medium border transition-all flex items-center gap-1 ${
                       active 
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' 
-                        : 'border-gray-200 text-gray-600 hover:border-emerald-400 hover:bg-emerald-50'
+                        ? 'bg-orange-500 text-white border-orange-500' 
+                        : 'border-gray-300 text-gray-600 hover:border-orange-400 bg-white'
                     }`}
                   >
-                    <Icon className="h-3.5 w-3.5" /> 
-                    <span>{option.label.split(' ')[0]}</span>
-                    <span className="text-[10px] opacity-80">{option.durationDays}j</span>
+                    <Icon className="h-3 w-3" /> 
+                    <span>{option.durationDays}j</span>
                   </button>
                 )
               })}
             </div>
-            {activeShipping && (
-              <div className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-1.5">
-                <span className="font-medium text-gray-900">{activeShipping.label}</span>
-                <span className="text-gray-500">{` · ${activeShipping.durationDays} jours · +${activeShipping.cost.toLocaleString('fr-FR')} ${activeShipping.currency}`}</span>
-              </div>
-            )}
           </div>
         )}
 
-        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-2">
+        {/* Actions style AliExpress - gros boutons */}
+        <div className="mt-2 pt-2 border-t border-gray-200 flex items-center gap-2">
           {!!computedPriceAmount && !showQuote && (
             <button
               onClick={addToCart}
               disabled={adding}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all hover:shadow-md disabled:opacity-50"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-3 py-2 rounded-md text-sm font-bold shadow-md transition-all hover:shadow-lg disabled:opacity-50"
             >
               <ShoppingCart className="h-4 w-4" /> 
-              <span>{adding ? 'Ajout...' : primaryCtaLabel}</span>
+              <span>{adding ? '...' : primaryCtaLabel}</span>
             </button>
           )}
           <a
@@ -269,27 +281,28 @@ Merci de me recontacter.`
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackEvent('quote_request', { productId: `${name}-${model || ''}` })}
-            className={`inline-flex items-center justify-center gap-2 ${
+            className={`inline-flex items-center justify-center gap-1.5 ${
               showQuote 
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            } px-4 py-2.5 rounded-lg text-sm font-semibold transition-all`}
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white' 
+                : 'bg-white border-2 border-gray-300 hover:border-orange-400 text-gray-700'
+            } px-3 py-2 rounded-md text-sm font-bold transition-all shadow-sm`}
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
             </svg>
-            <span className="hidden sm:inline">Devis</span>
+            <span className="text-xs">Contact</span>
           </a>
         </div>
 
+        {/* Link style 1688 - discret */}
         {detailHref && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="mt-1.5">
             <Link
               href={detailHref}
-              className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors w-full justify-center"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 hover:text-orange-700 transition-colors w-full justify-center"
             >
-              <span>Voir les détails</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>Voir détails</span>
+              <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         )}

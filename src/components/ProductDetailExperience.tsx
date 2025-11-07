@@ -467,14 +467,15 @@ Merci de me recontacter.`
                       className="object-contain p-6"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
+                    {/* Badge style AliExpress/1688 */}
                     {product.sourcing?.platform && (
-                      <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
+                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-orange-400/50 shadow-lg">
                         <Sparkles className="h-3.5 w-3.5" />
                         {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : 'Import Chine'}
                       </div>
                     )}
                     {!product.sourcing?.platform && (
-                      <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
+                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-500/90 to-cyan-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-blue-400/50 shadow-lg">
                         <Sparkles className="h-3.5 w-3.5" />
                         Qualité Pro Chine
                       </div>
@@ -508,34 +509,52 @@ Merci de me recontacter.`
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
+                      {/* Style 1688 - informations techniques */}
                       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Synthèse import</div>
-                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-1.5">
+                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-bold">Informations sourcing</div>
+                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-2">
                           {product.sourcing?.platform && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
                               <span className="text-slate-400">Plateforme :</span>
-                              <span className="font-semibold text-emerald-300">
-                                {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : product.sourcing.platform}
+                              <span className="font-bold text-orange-400">
+                                {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : product.sourcing.platform.toUpperCase()}
                               </span>
                             </div>
                           )}
                           {product.sourcing?.supplierName && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
                               <span className="text-slate-400">Fournisseur :</span>
                               <span className="font-semibold text-slate-100">{product.sourcing.supplierName}</span>
                             </div>
                           )}
-                          {baseCostLabel && <span>Coût fournisseur : <strong className="text-slate-100">{baseCostLabel}</strong></span>}
-                          {marginLabel && <span>Marge configurée : <strong className="text-slate-100">{marginLabel}</strong></span>}
-                          {deliveryDays && <span>Délai estimé : <strong className="text-slate-100">{deliveryDays} jours</strong></span>}
+                          {baseCostLabel && (
+                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
+                              <span className="text-slate-400">Coût fournisseur :</span>
+                              <strong className="text-slate-100">{baseCostLabel}</strong>
+                            </div>
+                          )}
+                          {marginLabel && (
+                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
+                              <span className="text-slate-400">Marge :</span>
+                              <strong className="text-slate-100">{marginLabel}</strong>
+                            </div>
+                          )}
+                          {deliveryDays && (
+                            <div className="flex items-center justify-between py-1.5">
+                              <span className="text-slate-400">Délai estimé :</span>
+                              <strong className="text-slate-100">{deliveryDays} jours</strong>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-200">
-                          <Star className="h-3.5 w-3.5 text-emerald-300" /> Indicateurs fiabilité
+                      {/* Style AliExpress - badge de confiance */}
+                      <div className="rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-red-500/10 p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-orange-200">
+                          <Star className="h-4 w-4 text-orange-400 fill-orange-400" /> 
+                          <span>Fiabilité vérifiée</span>
                         </div>
-                        <div className="text-sm text-emerald-50/90">
-                          +50 projets réalisés via IT Vision • Livraison 3 à 15 jours • Contrôle qualité Dakar
+                        <div className="text-sm text-orange-50/90">
+                          +50 projets réalisés • Livraison 3-15j • Contrôle qualité Dakar
                         </div>
                       </div>
                     </div>
@@ -613,17 +632,23 @@ Merci de me recontacter.`
                 </div>
 
                 <div className="w-full">
-                  <div className="w-full rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 shadow-emerald-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
+                  <div className="w-full rounded-3xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-red-500/10 p-6 shadow-orange-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-emerald-200">Tarif catalogue</div>
-                      <div className="mt-1 text-3xl font-bold text-emerald-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
+                      <div className="text-xs uppercase tracking-wide text-orange-200 font-bold">Prix catalogue</div>
+                      <div className="mt-1 text-4xl font-bold text-orange-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
                       {!showQuote && quantity > 1 && (
-                        <div className="text-xs text-emerald-200/80">{quantity} unité(s) • prix unitaire {unitPriceLabel}</div>
+                        <div className="text-xs text-orange-200/80 mt-1">{quantity} unité(s) × {unitPriceLabel}</div>
+                      )}
+                      {!showQuote && quantity === 1 && unitPriceLabel && (
+                        <div className="text-xs text-orange-200/80 mt-1">Prix unitaire</div>
                       )}
                     </div>
 
-                    <div className={clsx('rounded-2xl px-3 py-2 text-xs font-semibold', availabilityClass)}>
-                      {product.availability.note || product.pricing.availabilitySubLabel || 'Suivi logistique assuré par IT Vision'}
+                    <div className={clsx('rounded-2xl px-3 py-2.5 text-xs font-bold border', availabilityClass)}>
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>{product.availability.note || product.pricing.availabilitySubLabel || 'Suivi logistique assuré par IT Vision'}</span>
+                      </div>
                     </div>
 
                     {shippingEnabled && (
@@ -639,10 +664,10 @@ Merci de me recontacter.`
                                 type="button"
                                 onClick={() => setSelectedShippingId(option.id)}
                                 className={clsx(
-                                  'flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition',
+                                  'flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition',
                                   active
-                                    ? 'border-emerald-400/80 bg-emerald-400/20 text-emerald-100 shadow-lg shadow-emerald-500/15'
-                                    : 'border-emerald-400/20 bg-transparent text-emerald-200 hover:border-emerald-300/60'
+                                    ? 'border-orange-400/80 bg-gradient-to-r from-orange-500/30 to-red-500/30 text-orange-100 shadow-lg shadow-orange-500/20'
+                                    : 'border-orange-400/20 bg-transparent text-orange-200 hover:border-orange-300/60'
                                 )}
                               >
                                 <Icon className="h-3.5 w-3.5" />
@@ -652,22 +677,27 @@ Merci de me recontacter.`
                           })}
                         </div>
                         {activeShipping && (
-                          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100">
-                            Transport {activeShipping.label} : {formatCurrency(activeShipping.cost, activeShipping.currency)} (HT) — {activeShipping.durationDays} jours
+                          <div className="rounded-2xl border border-orange-400/30 bg-gradient-to-r from-orange-500/10 to-red-500/10 px-3 py-2 text-xs text-orange-100 font-medium">
+                            <div className="flex items-center justify-between">
+                              <span>{activeShipping.label}</span>
+                              <span className="font-bold">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
+                            </div>
+                            <div className="text-[10px] text-orange-200/80 mt-1">Délai : {activeShipping.durationDays} jours</div>
                           </div>
                         )}
                       </div>
                     )}
 
                     <div className="space-y-3">
+                      {/* Boutons style AliExpress - gros et colorés */}
                       {!showQuote && (
                         <button
                           type="button"
                           onClick={() => addToCart(true)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 px-4 py-3 text-sm font-bold text-white transition shadow-lg hover:shadow-xl disabled:opacity-50"
                         >
-                          <ShoppingCart className="h-4 w-4" /> {adding ? 'Ajout…' : 'Acheter maintenant'}
+                          <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Acheter maintenant'}
                         </button>
                       )}
                       {!showQuote && (
@@ -675,15 +705,15 @@ Merci de me recontacter.`
                           type="button"
                           onClick={() => addToCart(false)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-orange-400/60 bg-transparent px-4 py-3 text-sm font-bold text-orange-200 transition hover:border-orange-300 hover:bg-orange-500/10"
                         >
-                          <ShoppingCart className="h-4 w-4" /> {adding ? 'Ajout…' : 'Ajouter au panier'}
+                          <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Ajouter au panier'}
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => setShowNegotiation(true)}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/80"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-orange-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-orange-200 hover:border-orange-300/80 hover:bg-orange-500/10"
                       >
                         <MessageCircle className="h-4 w-4" /> Négocier le tarif
                       </button>
@@ -692,9 +722,12 @@ Merci de me recontacter.`
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => trackEvent('quote_request', { productId: product.id, quantity })}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/30 bg-slate-900/40 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/70"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500/50 bg-green-500/10 px-4 py-2.5 text-sm font-bold text-green-200 hover:border-green-400 hover:bg-green-500/20 transition"
                       >
-                        <MessageCircle className="h-4 w-4" /> Demander un devis WhatsApp
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+                        </svg>
+                        Demander un devis WhatsApp
                       </a>
                     </div>
                   </div>
