@@ -147,10 +147,10 @@ Merci de me recontacter.`
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden group hover:shadow-xl hover:border-orange-400 transition-all h-full flex flex-col relative">
-      {/* Badge style AliExpress/1688 */}
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden group hover:shadow-xl hover:border-emerald-400 transition-all h-full flex flex-col relative">
+      {/* Badge style AliExpress/1688 - charte emerald */}
       {availabilityStatus === 'in_stock' && (
-        <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+        <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
           EN STOCK
         </div>
       )}
@@ -161,7 +161,7 @@ Merci de me recontacter.`
       )}
       
       <div className="p-2.5 pb-0 relative bg-white">
-        <div className="relative w-full aspect-square rounded-md overflow-hidden bg-white border border-gray-100 group-hover:border-orange-300 transition-all">
+        <div className="relative w-full aspect-square rounded-md overflow-hidden bg-white border border-gray-100 group-hover:border-emerald-300 transition-all">
           <Image
             src={images[activeIndex] || '/file.svg'}
             alt={name}
@@ -170,10 +170,10 @@ Merci de me recontacter.`
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
             priority={false}
           />
-          {/* Rating badge style AliExpress */}
+          {/* Rating badge style AliExpress - charte emerald */}
           <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-[11px] font-bold text-gray-800 flex items-center gap-1 shadow-md border border-gray-200">
-            <Star className="h-3 w-3 text-orange-500 fill-orange-500" /> 
-            <span className="text-orange-600">{rating.toFixed(1)}</span>
+            <Star className="h-3 w-3 text-emerald-500 fill-emerald-500" /> 
+            <span className="text-emerald-600">{rating.toFixed(1)}</span>
           </div>
         </div>
         {/* Miniatures style AliExpress */}
@@ -185,8 +185,8 @@ Merci de me recontacter.`
                 onClick={() => setActiveIndex(idx)}
                 className={`relative h-10 w-10 rounded border-2 flex-shrink-0 transition-all ${
                   activeIndex === idx 
-                    ? 'border-orange-500 ring-1 ring-orange-200' 
-                    : 'border-gray-200 hover:border-orange-300'
+                    ? 'border-emerald-500 ring-1 ring-emerald-200' 
+                    : 'border-gray-200 hover:border-emerald-300'
                 }`}
                 aria-label={`Image ${idx + 1}`}
               >
@@ -208,10 +208,10 @@ Merci de me recontacter.`
           )}
         </div>
 
-        {/* Prix style AliExpress - gros et visible */}
+        {/* Prix style AliExpress - gros et visible - charte emerald */}
         <div className="mb-2">
           <div className="flex items-baseline gap-1">
-            <span className={`text-2xl font-bold ${showQuote ? 'text-gray-700' : 'text-orange-600'}`}>
+            <span className={`text-2xl font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>
               {computedPriceLabel}
             </span>
             {!showQuote && computedDeliveryDays > 0 && (
@@ -226,19 +226,19 @@ Merci de me recontacter.`
           )}
         </div>
 
-        {/* Features style 1688 - compact et technique */}
+        {/* Features style 1688 - compact et technique - charte emerald */}
         {features.length > 0 && (
           <div className="mb-2 space-y-0.5">
             {features.slice(0, 2).map((f, i) => (
               <div key={i} className="text-[11px] text-gray-600 line-clamp-1 flex items-center gap-1">
-                <span className="text-orange-500">•</span>
+                <span className="text-emerald-500">•</span>
                 <span>{f}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Shipping options style AliExpress - compact */}
+        {/* Shipping options style AliExpress - compact - charte emerald */}
         {shippingEnabled && !showQuote && (
           <div className="mb-2 pt-2 border-t border-gray-200">
             <div className="flex flex-wrap gap-1">
@@ -251,8 +251,8 @@ Merci de me recontacter.`
                     onClick={() => setSelectedShippingId(option.id)}
                     className={`px-2 py-1 rounded text-[10px] font-medium border transition-all flex items-center gap-1 ${
                       active 
-                        ? 'bg-orange-500 text-white border-orange-500' 
-                        : 'border-gray-300 text-gray-600 hover:border-orange-400 bg-white'
+                        ? 'bg-emerald-500 text-white border-emerald-500' 
+                        : 'border-gray-300 text-gray-600 hover:border-emerald-400 bg-white'
                     }`}
                   >
                     <Icon className="h-3 w-3" /> 
@@ -264,13 +264,13 @@ Merci de me recontacter.`
           </div>
         )}
 
-        {/* Actions style AliExpress - gros boutons */}
+        {/* Actions style AliExpress - gros boutons - charte emerald */}
         <div className="mt-2 pt-2 border-t border-gray-200 flex items-center gap-2">
           {!!computedPriceAmount && !showQuote && (
             <button
               onClick={addToCart}
               disabled={adding}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-3 py-2 rounded-md text-sm font-bold shadow-md transition-all hover:shadow-lg disabled:opacity-50"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-3 py-2 rounded-md text-sm font-bold shadow-md transition-all hover:shadow-lg disabled:opacity-50"
             >
               <ShoppingCart className="h-4 w-4" /> 
               <span>{adding ? '...' : primaryCtaLabel}</span>
@@ -283,8 +283,8 @@ Merci de me recontacter.`
             onClick={() => trackEvent('quote_request', { productId: `${name}-${model || ''}` })}
             className={`inline-flex items-center justify-center gap-1.5 ${
               showQuote 
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white' 
-                : 'bg-white border-2 border-gray-300 hover:border-orange-400 text-gray-700'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white' 
+                : 'bg-white border-2 border-gray-300 hover:border-emerald-400 text-gray-700'
             } px-3 py-2 rounded-md text-sm font-bold transition-all shadow-sm`}
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -294,12 +294,12 @@ Merci de me recontacter.`
           </a>
         </div>
 
-        {/* Link style 1688 - discret */}
+        {/* Link style 1688 - discret - charte emerald */}
         {detailHref && (
           <div className="mt-1.5">
             <Link
               href={detailHref}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 hover:text-orange-700 transition-colors w-full justify-center"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 transition-colors w-full justify-center"
             >
               <span>Voir détails</span>
               <ArrowRight className="h-3 w-3" />

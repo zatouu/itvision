@@ -467,15 +467,15 @@ Merci de me recontacter.`
                       className="object-contain p-6"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
-                    {/* Badge style AliExpress/1688 */}
+                    {/* Badge style AliExpress/1688 - charte emerald */}
                     {product.sourcing?.platform && (
-                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-orange-400/50 shadow-lg">
+                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
                         <Sparkles className="h-3.5 w-3.5" />
                         {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : 'Import Chine'}
                       </div>
                     )}
                     {!product.sourcing?.platform && (
-                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-500/90 to-cyan-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-blue-400/50 shadow-lg">
+                      <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
                         <Sparkles className="h-3.5 w-3.5" />
                         Qualité Pro Chine
                       </div>
@@ -516,7 +516,7 @@ Merci de me recontacter.`
                           {product.sourcing?.platform && (
                             <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
                               <span className="text-slate-400">Plateforme :</span>
-                              <span className="font-bold text-orange-400">
+                              <span className="font-bold text-emerald-400">
                                 {product.sourcing.platform === 'aliexpress' ? 'AliExpress' : product.sourcing.platform === '1688' ? '1688' : product.sourcing.platform.toUpperCase()}
                               </span>
                             </div>
@@ -547,13 +547,13 @@ Merci de me recontacter.`
                           )}
                         </div>
                       </div>
-                      {/* Style AliExpress - badge de confiance */}
-                      <div className="rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-red-500/10 p-4 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-orange-200">
-                          <Star className="h-4 w-4 text-orange-400 fill-orange-400" /> 
+                      {/* Style AliExpress - badge de confiance - charte emerald */}
+                      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-200">
+                          <Star className="h-4 w-4 text-emerald-400 fill-emerald-400" /> 
                           <span>Fiabilité vérifiée</span>
                         </div>
-                        <div className="text-sm text-orange-50/90">
+                        <div className="text-sm text-emerald-50/90">
                           +50 projets réalisés • Livraison 3-15j • Contrôle qualité Dakar
                         </div>
                       </div>
@@ -632,15 +632,15 @@ Merci de me recontacter.`
                 </div>
 
                 <div className="w-full">
-                  <div className="w-full rounded-3xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-red-500/10 p-6 shadow-orange-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
+                  <div className="w-full rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 shadow-emerald-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-orange-200 font-bold">Prix catalogue</div>
-                      <div className="mt-1 text-4xl font-bold text-orange-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
+                      <div className="text-xs uppercase tracking-wide text-emerald-200 font-bold">Prix catalogue</div>
+                      <div className="mt-1 text-4xl font-bold text-emerald-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
                       {!showQuote && quantity > 1 && (
-                        <div className="text-xs text-orange-200/80 mt-1">{quantity} unité(s) × {unitPriceLabel}</div>
+                        <div className="text-xs text-emerald-200/80 mt-1">{quantity} unité(s) × {unitPriceLabel}</div>
                       )}
                       {!showQuote && quantity === 1 && unitPriceLabel && (
-                        <div className="text-xs text-orange-200/80 mt-1">Prix unitaire</div>
+                        <div className="text-xs text-emerald-200/80 mt-1">Prix unitaire</div>
                       )}
                     </div>
 
@@ -666,8 +666,8 @@ Merci de me recontacter.`
                                 className={clsx(
                                   'flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition',
                                   active
-                                    ? 'border-orange-400/80 bg-gradient-to-r from-orange-500/30 to-red-500/30 text-orange-100 shadow-lg shadow-orange-500/20'
-                                    : 'border-orange-400/20 bg-transparent text-orange-200 hover:border-orange-300/60'
+                                    ? 'border-emerald-400/80 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 text-emerald-100 shadow-lg shadow-emerald-500/20'
+                                    : 'border-emerald-400/20 bg-transparent text-emerald-200 hover:border-emerald-300/60'
                                 )}
                               >
                                 <Icon className="h-3.5 w-3.5" />
@@ -677,25 +677,25 @@ Merci de me recontacter.`
                           })}
                         </div>
                         {activeShipping && (
-                          <div className="rounded-2xl border border-orange-400/30 bg-gradient-to-r from-orange-500/10 to-red-500/10 px-3 py-2 text-xs text-orange-100 font-medium">
+                          <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 px-3 py-2 text-xs text-emerald-100 font-medium">
                             <div className="flex items-center justify-between">
                               <span>{activeShipping.label}</span>
                               <span className="font-bold">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
                             </div>
-                            <div className="text-[10px] text-orange-200/80 mt-1">Délai : {activeShipping.durationDays} jours</div>
+                            <div className="text-[10px] text-emerald-200/80 mt-1">Délai : {activeShipping.durationDays} jours</div>
                           </div>
                         )}
                       </div>
                     )}
 
                     <div className="space-y-3">
-                      {/* Boutons style AliExpress - gros et colorés */}
+                      {/* Boutons style AliExpress - gros et colorés - charte emerald */}
                       {!showQuote && (
                         <button
                           type="button"
                           onClick={() => addToCart(true)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 px-4 py-3 text-sm font-bold text-white transition shadow-lg hover:shadow-xl disabled:opacity-50"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 px-4 py-3 text-sm font-bold text-white transition shadow-lg hover:shadow-xl disabled:opacity-50"
                         >
                           <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Acheter maintenant'}
                         </button>
@@ -705,7 +705,7 @@ Merci de me recontacter.`
                           type="button"
                           onClick={() => addToCart(false)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-orange-400/60 bg-transparent px-4 py-3 text-sm font-bold text-orange-200 transition hover:border-orange-300 hover:bg-orange-500/10"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-400/60 bg-transparent px-4 py-3 text-sm font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-500/10"
                         >
                           <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Ajouter au panier'}
                         </button>
@@ -713,7 +713,7 @@ Merci de me recontacter.`
                       <button
                         type="button"
                         onClick={() => setShowNegotiation(true)}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-orange-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-orange-200 hover:border-orange-300/80 hover:bg-orange-500/10"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/80 hover:bg-emerald-500/10"
                       >
                         <MessageCircle className="h-4 w-4" /> Négocier le tarif
                       </button>
