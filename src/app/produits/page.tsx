@@ -1,7 +1,7 @@
 "use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
@@ -148,6 +148,8 @@ export default function ProduitsPage() {
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'in_stock' | 'preorder'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [comparingProducts, setComparingProducts] = useState<Set<string>>(new Set())
+  const [showCompareBar, setShowCompareBar] = useState(false)
 
   useEffect(() => {
     const sync = () => {
@@ -265,6 +267,33 @@ export default function ProduitsPage() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  // Gestion de la comparaison
+  const handleCompareToggle = (productId: string, isSelected: boolean) => {
+    setComparingProducts((prev) => {
+      const newSet = new Set(prev)
+      if (isSelected) {
+        if (newSet.size >= 3) {
+          alert('Vous ne pouvez comparer que 3 produits maximum')
+          return prev
+        }
+        newSet.add(productId)
+      } else {
+        newSet.delete(productId)
+      }
+      setShowCompareBar(newSet.size > 0)
+      return newSet
+    })
+  }
+
+  const handleCompare = () => {
+    if (comparingProducts.size < 2) {
+      alert('Sélectionnez au moins 2 produits à comparer')
+      return
+    }
+    const ids = Array.from(comparingProducts).join(',')
+    window.location.href = `/produits/compare?ids=${ids}`
+  }
   const categories = [
     {
       id: 'cameras',
@@ -1085,6 +1114,8 @@ export default function ProduitsPage() {
                                 detailHref={`/produits/${product._id}`}
                                 isPopular={product.rating >= 4.8}
                                 createdAt={product.createdAt}
+                                onCompareToggle={handleCompareToggle}
+                                isComparing={comparingProducts.has(product._id)}
                               />
                             ))}
                           </div>
@@ -1273,6 +1304,37 @@ export default function ProduitsPage() {
           </div>
         </div>
       </section>
+
+      {/* Barre de comparaison */}
+      {showCompareBar && comparingProducts.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-emerald-300 rounded-xl shadow-2xl px-6 py-4 flex items-center gap-4 max-w-2xl">
+          <div className="flex items-center gap-2">
+            <GitCompare className="h-5 w-5 text-emerald-600" />
+            <span className="text-sm font-semibold text-gray-900">
+              {comparingProducts.size} produit{comparingProducts.size > 1 ? 's' : ''} sélectionné{comparingProducts.size > 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setComparingProducts(new Set())
+                setShowCompareBar(false)
+              }}
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              Effacer
+            </button>
+            <button
+              onClick={handleCompare}
+              disabled={comparingProducts.size < 2}
+              className="px-4 py-1.5 text-sm font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Comparer ({comparingProducts.size})
+            </button>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>

@@ -20,7 +20,10 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
-  Truck
+  Truck,
+  X,
+  ZoomIn,
+  Heart
 } from 'lucide-react'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
@@ -150,6 +153,8 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [negotiationStatus, setNegotiationStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [recent, setRecent] = useState<RecentProduct[]>([])
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
@@ -319,6 +324,73 @@ Merci de me recontacter.`
     return () => clearTimeout(timeout)
   }, [shareFeedback])
 
+  // Navigation clavier pour le modal image
+  useEffect(() => {
+    if (!showImageModal) return
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowImageModal(false)
+      } else if (e.key === 'ArrowLeft') {
+        setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
+      } else if (e.key === 'ArrowRight') {
+        setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showImageModal, gallery.length])
+
+  // Vérifier si le produit est en favoris
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      setIsFavorite(favorites.includes(product.id))
+    } catch {
+      setIsFavorite(false)
+    }
+  }, [product.id])
+
+  // Écouter les mises à jour de la wishlist
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleWishlistUpdate = () => {
+      try {
+        const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+        setIsFavorite(favorites.includes(product.id))
+      } catch {
+        setIsFavorite(false)
+      }
+    }
+    window.addEventListener('wishlist:updated', handleWishlistUpdate)
+    return () => window.removeEventListener('wishlist:updated', handleWishlistUpdate)
+  }, [product.id])
+
+  const toggleFavorite = () => {
+    if (typeof window === 'undefined') return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      
+      if (isFavorite) {
+        const updated = favorites.filter((id: string) => id !== product.id)
+        localStorage.setItem('wishlist:items', JSON.stringify(updated))
+        setIsFavorite(false)
+        trackEvent('remove_from_wishlist', { productId: product.id })
+      } else {
+        favorites.push(product.id)
+        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
+        setIsFavorite(true)
+        trackEvent('add_to_wishlist', { productId: product.id })
+      }
+      
+      window.dispatchEvent(new CustomEvent('wishlist:updated'))
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
+
   const logisticsEntries = useMemo(() => {
     const entries: { label: string; value: string | null }[] = []
     if (product.availability.leadTimeDays) {
@@ -451,14 +523,21 @@ Merci de me recontacter.`
                         type="button"
                         onClick={() => setActiveImageIndex(index)}
                         className={clsx(
-                          'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition',
+                          'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition cursor-pointer',
                           activeImageIndex === index
                             ? 'border-emerald-400/70 ring-2 ring-emerald-500/40'
                             : 'border-slate-800 hover:border-emerald-400/50'
                         )}
                         aria-label={`Image ${index + 1}`}
                       >
-                        <Image src={src} alt={`${product.name} ${index + 1}`} fill className="object-cover" />
+                        <Image 
+                          src={src} 
+                          alt={`${product.name} ${index + 1}`} 
+                          fill 
+                          className="object-cover"
+                          loading="lazy"
+                          sizes="64px"
+                        />
                       </button>
                     ))}
                   </div>
@@ -469,13 +548,26 @@ Merci de me recontacter.`
                     transition={{ duration: 0.25 }}
                     className="relative aspect-[5/4] w-full rounded-3xl border border-slate-800 bg-slate-950/60"
                   >
-                    <Image
-                      src={gallery[activeImageIndex] || '/file.svg'}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-6"
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowImageModal(true)}
+                      className="absolute inset-0 cursor-zoom-in group"
+                      aria-label="Agrandir l'image"
+                    >
+                      <Image
+                        src={gallery[activeImageIndex] || '/file.svg'}
+                        alt={product.name}
+                        fill
+                        className="object-contain p-6"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        loading="lazy"
+                        priority={activeImageIndex === 0}
+                      />
+                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 text-xs text-slate-200">
+                        <ZoomIn className="h-4 w-4" />
+                        <span>Cliquer pour agrandir</span>
+                      </div>
+                    </button>
                     {/* Badge qualité - charte emerald */}
                     <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
                       <Sparkles className="h-3.5 w-3.5" />
@@ -498,13 +590,28 @@ Merci de me recontacter.`
                         {product.tagline && <p className="mt-1 text-sm text-slate-300/90">{product.tagline}</p>}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <button
-                          type="button"
-                          onClick={handleShare}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
-                        >
-                          <Share2 className="h-3.5 w-3.5" /> Partager
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={toggleFavorite}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                              isFavorite
+                                ? 'border-red-500/50 bg-red-500/20 text-red-300 hover:border-red-400/60'
+                                : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200'
+                            }`}
+                            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                          >
+                            <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-red-400' : ''}`} /> 
+                            {isFavorite ? 'Favori' : 'Favoris'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleShare}
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
+                          >
+                            <Share2 className="h-3.5 w-3.5" /> Partager
+                          </button>
+                        </div>
                         {shareFeedback && <span className="text-[11px] text-emerald-300">{shareFeedback}</span>}
                       </div>
                     </div>
@@ -986,6 +1093,102 @@ Merci de me recontacter.`
                   {negotiationStatus === 'sent' ? 'Message envoyé !' : 'Envoyer'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal zoom image */}
+      <AnimatePresence>
+        {showImageModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowImageModal(false)}
+          >
+            <motion.div
+              className="relative max-w-7xl max-h-[90vh] w-full h-full p-8"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-800/80 text-slate-200 hover:bg-slate-700 transition"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <div className="relative w-full h-full flex items-center justify-center">
+                <Image
+                  src={gallery[activeImageIndex] || '/file.svg'}
+                  alt={product.name}
+                  fill
+                  className="object-contain p-8"
+                  sizes="90vw"
+                  priority
+                />
+              </div>
+              
+              {/* Navigation images */}
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-800/80 text-slate-200 hover:bg-slate-700 transition"
+                    aria-label="Image précédente"
+                  >
+                    <ArrowRight className="h-5 w-5 rotate-180" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-800/80 text-slate-200 hover:bg-slate-700 transition"
+                    aria-label="Image suivante"
+                  >
+                    <ArrowRight className="h-5 w-5" />
+                  </button>
+                  
+                  {/* Miniatures en bas */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
+                    {gallery.map((src, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveImageIndex(idx)
+                        }}
+                        className={clsx(
+                          'relative h-16 w-16 flex-shrink-0 rounded-lg border-2 overflow-hidden transition',
+                          activeImageIndex === idx
+                            ? 'border-emerald-400 ring-2 ring-emerald-500/50'
+                            : 'border-slate-700 hover:border-slate-600'
+                        )}
+                      >
+                        <Image src={src} alt={`${product.name} ${idx + 1}`} fill className="object-cover" sizes="64px" />
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Indicateur */}
+                  <div className="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-slate-800/80 text-xs text-slate-200">
+                    {activeImageIndex + 1} / {gallery.length}
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

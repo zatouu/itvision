@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight, Clock } from 'lucide-react'
+import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight, Clock, Heart, GitCompare } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -33,6 +33,8 @@ export interface ProductCardProps {
   isNew?: boolean
   isPopular?: boolean
   createdAt?: string
+  onCompareToggle?: (productId: string, isSelected: boolean) => void
+  isComparing?: boolean
 }
 
 const shippingIcon = (methodId?: string) => {
@@ -57,7 +59,9 @@ export default function ProductCard({
   detailHref,
   isNew = false,
   isPopular = false,
-  createdAt
+  createdAt,
+  onCompareToggle,
+  isComparing = false
 }: ProductCardProps) {
   // Déterminer si le produit est nouveau (créé il y a moins de 30 jours)
   const isRecentlyNew = createdAt 
@@ -67,7 +71,44 @@ export default function ProductCard({
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(shippingOptions[0]?.id ?? null)
+  const [isFavorite, setIsFavorite] = useState(false)
   const shippingEnabled = shippingOptions.length > 0 && availabilityStatus !== 'in_stock'
+  
+  // Vérifier si le produit est en favoris
+  useEffect(() => {
+    if (typeof window === 'undefined' || !detailHref) return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      const productId = detailHref.split('/').pop()
+      setIsFavorite(favorites.some((id: string) => id === productId))
+    } catch {
+      setIsFavorite(false)
+    }
+  }, [detailHref])
+  
+  const toggleFavorite = () => {
+    if (typeof window === 'undefined' || !detailHref) return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      const productId = detailHref.split('/').pop()
+      
+      if (isFavorite) {
+        const updated = favorites.filter((id: string) => id !== productId)
+        localStorage.setItem('wishlist:items', JSON.stringify(updated))
+        setIsFavorite(false)
+        trackEvent('remove_from_wishlist', { productId })
+      } else {
+        favorites.push(productId)
+        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
+        setIsFavorite(true)
+        trackEvent('add_to_wishlist', { productId })
+      }
+      
+      window.dispatchEvent(new CustomEvent('wishlist:updated'))
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
 
   useEffect(() => {
     if (!shippingEnabled) {
@@ -191,13 +232,56 @@ Merci de me recontacter.`
             fill
             className="object-contain p-2 transition-transform group-hover:scale-110 duration-300"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
-            priority={false}
+            loading="lazy"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
           />
           {/* Rating badge style AliExpress - charte emerald */}
           <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-[11px] font-bold text-gray-800 flex items-center gap-1 shadow-md border border-gray-200">
             <Star className="h-3 w-3 text-emerald-500 fill-emerald-500" /> 
             <span className="text-emerald-600">{rating.toFixed(1)}</span>
           </div>
+          
+          {/* Boutons actions */}
+          {detailHref && (
+            <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5">
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  toggleFavorite()
+                }}
+                className="p-1.5 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-gray-200 hover:bg-white transition-colors"
+                aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                <Heart 
+                  className={`h-3.5 w-3.5 transition-colors ${
+                    isFavorite 
+                      ? 'text-red-500 fill-red-500' 
+                      : 'text-gray-400 hover:text-red-400'
+                  }`} 
+                />
+              </button>
+              {onCompareToggle && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const productId = detailHref.split('/').pop() || ''
+                    onCompareToggle(productId, !isComparing)
+                  }}
+                  className={`p-1.5 rounded-full backdrop-blur-sm shadow-md border transition-colors ${
+                    isComparing
+                      ? 'bg-emerald-500/90 border-emerald-500 text-white'
+                      : 'bg-white/90 border-gray-200 text-gray-400 hover:text-emerald-500 hover:border-emerald-300'
+                  }`}
+                  aria-label={isComparing ? 'Retirer de la comparaison' : 'Ajouter à la comparaison'}
+                >
+                  <GitCompare className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {/* Miniatures style AliExpress */}
         {images.length > 1 && (
@@ -213,7 +297,14 @@ Merci de me recontacter.`
                 }`}
                 aria-label={`Image ${idx + 1}`}
               >
-                <Image src={src} alt={`${name} ${idx + 1}`} fill className="object-cover" />
+                <Image 
+                  src={src} 
+                  alt={`${name} ${idx + 1}`} 
+                  fill 
+                  className="object-cover"
+                  loading="lazy"
+                  sizes="40px"
+                />
               </button>
             ))}
           </div>
