@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight, Clock, Heart, GitCompare } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
@@ -136,10 +135,9 @@ export default function ProductCard({
     const transportLabel = shippingEnabled
       ? activeShipping?.label || 'À définir'
       : 'Retrait / livraison locale Dakar'
+    const modelText = model ? ` (${model})` : ''
     const msg = encodeURIComponent(
-      `Bonjour, je souhaite un devis pour: ${name}${model ? ` (${model})` : ''}.
-Mode de transport souhaité: ${transportLabel}.
-Merci de me recontacter.`
+      `Bonjour, je souhaite un devis pour: ${name}${modelText}.\nMode de transport souhaité: ${transportLabel}.\nMerci de me recontacter.`
     )
     return `https://wa.me/221774133440?text=${msg}`
   }
@@ -193,7 +191,7 @@ Merci de me recontacter.`
     }
   }
 
-  const showQuote = typeof requiresQuote === 'boolean' ? requiresQuote : (price ? /devis/i.test(price) : !computedPriceAmount)
+  const showQuote = typeof requiresQuote === 'boolean' ? requiresQuote : (price ? (/devis/i).test(price) : !computedPriceAmount)
   const isBuy = !!computedPriceAmount && !showQuote && (computedDeliveryDays <= 2)
   const isOrder = !!computedPriceAmount && !showQuote && (computedDeliveryDays > 2)
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
