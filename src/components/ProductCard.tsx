@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight } from 'lucide-react'
+import { Star, CheckCircle, ShoppingCart, Plane, Ship, ArrowRight, Clock, Heart, GitCompare } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -30,6 +30,11 @@ export interface ProductCardProps {
   shippingOptions?: ShippingOption[]
   availabilityStatus?: 'in_stock' | 'preorder' | string
   detailHref?: string
+  isNew?: boolean
+  isPopular?: boolean
+  createdAt?: string
+  onCompareToggle?: (productId: string, isSelected: boolean) => void
+  isComparing?: boolean
 }
 
 const shippingIcon = (methodId?: string) => {
@@ -51,12 +56,59 @@ export default function ProductCard({
   images,
   shippingOptions = [],
   availabilityStatus,
-  detailHref
+  detailHref,
+  isNew = false,
+  isPopular = false,
+  createdAt,
+  onCompareToggle,
+  isComparing = false
 }: ProductCardProps) {
+  // Déterminer si le produit est nouveau (créé il y a moins de 30 jours)
+  const isRecentlyNew = createdAt 
+    ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
+    : false
+  const showNewBadge = isNew || isRecentlyNew
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(shippingOptions[0]?.id ?? null)
+  const [isFavorite, setIsFavorite] = useState(false)
   const shippingEnabled = shippingOptions.length > 0 && availabilityStatus !== 'in_stock'
+  
+  // Vérifier si le produit est en favoris
+  useEffect(() => {
+    if (typeof window === 'undefined' || !detailHref) return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      const productId = detailHref.split('/').pop()
+      setIsFavorite(favorites.some((id: string) => id === productId))
+    } catch {
+      setIsFavorite(false)
+    }
+  }, [detailHref])
+  
+  const toggleFavorite = () => {
+    if (typeof window === 'undefined' || !detailHref) return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      const productId = detailHref.split('/').pop()
+      
+      if (isFavorite) {
+        const updated = favorites.filter((id: string) => id !== productId)
+        localStorage.setItem('wishlist:items', JSON.stringify(updated))
+        setIsFavorite(false)
+        trackEvent('remove_from_wishlist', { productId })
+      } else {
+        favorites.push(productId)
+        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
+        setIsFavorite(true)
+        trackEvent('add_to_wishlist', { productId })
+      }
+      
+      window.dispatchEvent(new CustomEvent('wishlist:updated'))
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
 
   useEffect(() => {
     if (!shippingEnabled) {
@@ -147,91 +199,195 @@ Merci de me recontacter.`
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
 
   return (
-    <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden group hover:shadow-md transition-all h-full flex flex-col">
-      <div className="p-2.5 pb-0">
-        <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden group hover:shadow-xl hover:border-emerald-400 transition-all h-full flex flex-col relative">
+      {/* Badges utiles - charte emerald */}
+      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+        {showNewBadge && (
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+            NOUVEAU
+          </div>
+        )}
+        {isPopular && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+            POPULAIRE
+          </div>
+        )}
+        {availabilityStatus === 'in_stock' && !showNewBadge && !isPopular && (
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+            EN STOCK
+          </div>
+        )}
+      </div>
+      {computedDeliveryDays > 0 && computedDeliveryDays <= 3 && (
+        <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">
+          EXPRESS
+        </div>
+      )}
+      
+      <div className="p-2.5 pb-0 relative bg-white">
+        <div className="relative w-full aspect-square rounded-md overflow-hidden bg-white border border-gray-100 group-hover:border-emerald-300 transition-all">
           <Image
             src={images[activeIndex] || '/file.svg'}
             alt={name}
             fill
-            className="object-contain p-3"
+            className="object-contain p-2 transition-transform group-hover:scale-110 duration-300"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
-            priority={false}
+            loading="lazy"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
           />
-          <div className="absolute top-3 right-3 bg-white/80 backdrop-blur px-2 py-1 rounded-full text-xs font-medium text-gray-700 flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" /> {rating.toFixed(1)}
+          {/* Rating badge style AliExpress - charte emerald */}
+          <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-[11px] font-bold text-gray-800 flex items-center gap-1 shadow-md border border-gray-200">
+            <Star className="h-3 w-3 text-emerald-500 fill-emerald-500" /> 
+            <span className="text-emerald-600">{rating.toFixed(1)}</span>
           </div>
+          
+          {/* Boutons actions */}
+          {detailHref && (
+            <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5">
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  toggleFavorite()
+                }}
+                className="p-1.5 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-gray-200 hover:bg-white transition-colors"
+                aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                <Heart 
+                  className={`h-3.5 w-3.5 transition-colors ${
+                    isFavorite 
+                      ? 'text-red-500 fill-red-500' 
+                      : 'text-gray-400 hover:text-red-400'
+                  }`} 
+                />
+              </button>
+              {onCompareToggle && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const productId = detailHref.split('/').pop() || ''
+                    onCompareToggle(productId, !isComparing)
+                  }}
+                  className={`p-1.5 rounded-full backdrop-blur-sm shadow-md border transition-colors ${
+                    isComparing
+                      ? 'bg-emerald-500/90 border-emerald-500 text-white'
+                      : 'bg-white/90 border-gray-200 text-gray-400 hover:text-emerald-500 hover:border-emerald-300'
+                  }`}
+                  aria-label={isComparing ? 'Retirer de la comparaison' : 'Ajouter à la comparaison'}
+                >
+                  <GitCompare className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          {images.slice(0, 4).map((src, idx) => (
-            <button
-              key={idx}
-              onClick={() => setActiveIndex(idx)}
-              className={`relative h-10 w-10 rounded-md overflow-hidden border ${activeIndex === idx ? 'border-emerald-500' : 'border-gray-200'}`}
-              aria-label={`Image ${idx + 1}`}
-            >
-              <Image src={src} alt={`${name} ${idx + 1}`} fill className="object-contain" />
-            </button>
-          ))}
-        </div>
+        {/* Miniatures style AliExpress */}
+        {images.length > 1 && (
+          <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 scrollbar-hide">
+            {images.slice(0, 5).map((src, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveIndex(idx)}
+                className={`relative h-10 w-10 rounded border-2 flex-shrink-0 transition-all ${
+                  activeIndex === idx 
+                    ? 'border-emerald-500 ring-1 ring-emerald-200' 
+                    : 'border-gray-200 hover:border-emerald-300'
+                }`}
+                aria-label={`Image ${idx + 1}`}
+              >
+                <Image 
+                  src={src} 
+                  alt={`${name} ${idx + 1}`} 
+                  fill 
+                  className="object-cover"
+                  loading="lazy"
+                  sizes="40px"
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="p-4 flex flex-col justify-between flex-1">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 leading-snug">{name}</h3>
-            {model && <p className="text-xs text-gray-500 mt-1">{model}</p>}
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-500">{showQuote ? 'Tarif' : 'Prix total'}</div>
-            <div className={`text-lg font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>{computedPriceLabel}</div>
-          </div>
+      <div className="p-3 flex flex-col justify-between flex-1 bg-gray-50">
+        {/* Titre style 1688 - compact */}
+        <div className="mb-2">
+          <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2 min-h-[2.5rem] mb-1">
+            {name}
+          </h3>
+          {model && (
+            <p className="text-[11px] text-gray-500 line-clamp-1 mb-2">{model}</p>
+          )}
         </div>
 
-        <ul className="mt-1 space-y-2">
-          {features.slice(0, 4).map((f, i) => (
-            <li key={i} className="flex items-start text-sm text-gray-700">
-              <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 mr-2 flex-shrink-0" />
-              <span>{f}</span>
-            </li>
-          ))}
-        </ul>
+        {/* Prix style AliExpress - gros et visible - charte emerald */}
+        <div className="mb-2">
+          <div className="flex items-baseline gap-1">
+            <span className={`text-2xl font-bold ${showQuote ? 'text-gray-700' : 'text-emerald-600'}`}>
+              {computedPriceLabel}
+            </span>
+            {!showQuote && computedDeliveryDays > 0 && (
+              <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                <Clock className="h-3 w-3" />
+                {computedDeliveryDays}j
+              </span>
+            )}
+          </div>
+          {showQuote && (
+            <div className="text-xs text-gray-500 mt-0.5">Prix sur demande</div>
+          )}
+        </div>
 
+        {/* Features style 1688 - compact et technique - charte emerald */}
+        {features.length > 0 && (
+          <div className="mb-2 space-y-0.5">
+            {features.slice(0, 2).map((f, i) => (
+              <div key={i} className="text-[11px] text-gray-600 line-clamp-1 flex items-center gap-1">
+                <span className="text-emerald-500">•</span>
+                <span>{f}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Shipping options style AliExpress - compact - charte emerald */}
         {shippingEnabled && !showQuote && (
-          <div className="mt-3">
-            <div className="text-xs text-gray-500 mb-1">Choisir le transport</div>
-            <div className="flex flex-wrap gap-2">
-              {shippingOptions.map(option => {
+          <div className="mb-2 pt-2 border-t border-gray-200">
+            <div className="flex flex-wrap gap-1">
+              {shippingOptions.slice(0, 2).map(option => {
                 const Icon = shippingIcon(option.id)
                 const active = option.id === selectedShippingId
                 return (
                   <button
                     key={option.id}
                     onClick={() => setSelectedShippingId(option.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1 ${active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'border-gray-200 text-gray-600 hover:border-emerald-400'}`}
+                    className={`px-2 py-1 rounded text-[10px] font-medium border transition-all flex items-center gap-1 ${
+                      active 
+                        ? 'bg-emerald-500 text-white border-emerald-500' 
+                        : 'border-gray-300 text-gray-600 hover:border-emerald-400 bg-white'
+                    }`}
                   >
-                    <Icon className="h-3.5 w-3.5" /> {option.label.split(' ')[0]} · {option.durationDays} j
+                    <Icon className="h-3 w-3" /> 
+                    <span>{option.durationDays}j</span>
                   </button>
                 )
               })}
             </div>
-            {activeShipping && (
-              <div className="mt-2 text-xs text-gray-600">
-                <span className="font-medium text-gray-900">{activeShipping.label}</span>
-                <span>{` · ${activeShipping.durationDays} jours · Transport ${activeShipping.cost.toLocaleString('fr-FR')} ${activeShipping.currency}`}</span>
-              </div>
-            )}
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-end gap-2">
+        {/* Actions style AliExpress - gros boutons - charte emerald */}
+        <div className="mt-2 pt-2 border-t border-gray-200 flex items-center gap-2">
           {!!computedPriceAmount && !showQuote && (
             <button
               onClick={addToCart}
               disabled={adding}
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-md text-sm font-semibold shadow"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-3 py-2 rounded-md text-sm font-bold shadow-md transition-all hover:shadow-lg disabled:opacity-50"
             >
-              <ShoppingCart className="h-4 w-4" /> {adding ? 'Ajout...' : primaryCtaLabel}
+              <ShoppingCart className="h-4 w-4" /> 
+              <span>{adding ? '...' : primaryCtaLabel}</span>
             </button>
           )}
           <a
@@ -239,21 +395,28 @@ Merci de me recontacter.`
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackEvent('quote_request', { productId: `${name}-${model || ''}` })}
-            className={`inline-flex items-center gap-2 ${showQuote ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} px-3 py-2 rounded-md text-sm font-semibold`}
+            className={`inline-flex items-center justify-center gap-1.5 ${
+              showQuote 
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white' 
+                : 'bg-white border-2 border-gray-300 hover:border-emerald-400 text-gray-700'
+            } px-3 py-2 rounded-md text-sm font-bold transition-all shadow-sm`}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
-            Demander un devis
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+            </svg>
+            <span className="text-xs">Contact</span>
           </a>
         </div>
 
+        {/* Link style 1688 - discret - charte emerald */}
         {detailHref && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-1.5">
             <Link
               href={detailHref}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 transition-colors w-full justify-center"
             >
-              Voir la fiche produit
-              <ArrowRight className="h-4 w-4" />
+              <span>Voir détails</span>
+              <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         )}

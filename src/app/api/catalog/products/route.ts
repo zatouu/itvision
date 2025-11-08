@@ -1,16 +1,24 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
 
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const limit = parseInt(searchParams.get('limit') || '24', 10)
+    const skip = (page - 1) * limit
+
     const products = await Product.find({ isPublished: { $ne: false } })
       .sort({ isFeatured: -1, createdAt: -1 })
-      .limit(120)
+      .skip(skip)
+      .limit(limit)
       .lean()
+
+    const total = await Product.countDocuments({ isPublished: { $ne: false } })
 
     const payload = products.map((product) => {
       const pricing = computeProductPricing(product)
@@ -51,11 +59,22 @@ export async function GET() {
           productUrl: product.sourcing.productUrl ?? null
         },
         createdAt: product.createdAt,
-        updatedAt: product.updatedAt
+        updatedAt: product.updatedAt,
+        isFeatured: product.isFeatured ?? false
       }
     })
 
-    return NextResponse.json({ success: true, products: payload })
+    return NextResponse.json({ 
+      success: true, 
+      products: payload,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + limit < total
+      }
+    })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to load catalog' }, { status: 500 })
   }

@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck } from 'lucide-react'
+import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import UnifiedLoginButton from './UnifiedLoginButton'
+import WishlistIcon from './WishlistIcon'
+import ThemeToggle from './ThemeToggle'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -302,8 +304,12 @@ const Header = () => {
             {/* Séparateur */}
             <div className="h-8 w-px bg-gray-200 mx-4"></div>
             
-            {/* Bouton de connexion modernisé */}
-            <UnifiedLoginButton variant="header" />
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <WishlistIcon />
+              <UnifiedLoginButton variant="header" />
+            </div>
           </div>
 
           {/* Supprimer le CTA devis redondant pour aérer la barre */}
@@ -384,9 +390,18 @@ const Header = () => {
               {/* Séparateur pour mobile */}
               <div className="border-t border-gray-200 my-3"></div>
               
-              {/* Bouton de connexion unifié pour mobile */}
-              <div className="px-4">
-                <UnifiedLoginButton variant="default" className="w-full" />
+              {/* Actions mobile */}
+              <div className="px-4 flex items-center gap-3">
+                <ThemeToggle />
+                <Link
+                  href="/produits/favoris"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Heart className="h-4 w-4" />
+                  Favoris
+                </Link>
+                <UnifiedLoginButton variant="default" className="flex-1" />
               </div>
               
               <Link

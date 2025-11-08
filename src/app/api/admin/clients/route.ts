@@ -33,12 +33,41 @@ export async function GET(request: NextRequest) {
     }
     if (company) query.company = new RegExp(company, 'i')
 
-    const [clients, total] = await Promise.all([
+    const [clientsRaw, total, totalClients, activeClients, portalEnabledClients] = await Promise.all([
       Client.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Client.countDocuments(query)
+      Client.countDocuments(query),
+      Client.countDocuments({}),
+      Client.countDocuments({ isActive: true }),
+      Client.countDocuments({ 'permissions.canAccessPortal': true })
     ])
 
-    return NextResponse.json({ success: true, clients, total, skip, limit })
+    // Enrichir les clients avec les contrats actifs calculés
+    const clients = clientsRaw.map((client: any) => ({
+      ...client,
+      activeContracts: Array.isArray(client.contracts)
+        ? client.contracts.filter((contract: any) => {
+            const isActive = contract.status === 'active'
+            const notExpired = !contract.endDate || new Date(contract.endDate) > new Date()
+            return isActive && notExpired
+          }).map((contract: any) => ({
+            contractId: contract.contractId,
+            type: contract.type
+          }))
+        : []
+    }))
+
+    return NextResponse.json({ 
+      success: true, 
+      clients, 
+      total, 
+      skip, 
+      limit,
+      metrics: {
+        totalClients,
+        activeClients,
+        portalEnabledClients
+      }
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
     const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500

@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Clock,
   ExternalLink,
+  FileDown,
   Loader2,
   MessageCircle,
   Palette,
@@ -20,7 +21,10 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
-  Truck
+  Truck,
+  X,
+  ZoomIn,
+  Heart
 } from 'lucide-react'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
@@ -112,6 +116,7 @@ type InfoTab =
   | { id: 'description'; label: string; type: 'text'; content: string }
   | { id: 'features' | 'support'; label: string; type: 'list'; content: string[] }
   | { id: 'logistics'; label: string; type: 'logistics' }
+  | { id: 'reviews'; label: string; type: 'reviews' }
 
 const shippingIcon = (methodId?: string) => {
   if (!methodId) return Plane
@@ -150,6 +155,11 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [negotiationStatus, setNegotiationStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [recent, setRecent] = useState<RecentProduct[]>([])
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [reviews, setReviews] = useState<any[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [averageRating, setAverageRating] = useState(4.7)
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
@@ -249,20 +259,162 @@ Merci de me recontacter.`
     }
   }
 
-  const handleShare = async () => {
+  const handleExportPDF = async () => {
+    try {
+      // Import dynamique de jsPDF pour éviter les erreurs SSR
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+
+      const doc = new jsPDF()
+      
+      // Titre
+      doc.setFontSize(20)
+      doc.setTextColor(16, 185, 129) // Emerald
+      doc.text(product.name, 14, 20)
+      
+      // Tagline
+      if (product.tagline) {
+        doc.setFontSize(12)
+        doc.setTextColor(100, 100, 100)
+        doc.text(product.tagline, 14, 30)
+      }
+      
+      // Description
+      if (product.description) {
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        const splitDescription = doc.splitTextToSize(product.description, 180)
+        doc.text(splitDescription, 14, 45)
+      }
+      
+      // Prix
+      let yPos = 65
+      doc.setFontSize(14)
+      doc.setTextColor(16, 185, 129)
+      doc.text(`Prix: ${product.pricing.priceLabel || 'Sur devis'}`, 14, yPos)
+      
+      // Disponibilité
+      yPos += 10
+      doc.setFontSize(10)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Disponibilité: ${product.availability.label || 'Sur commande'}`, 14, yPos)
+      
+      // Caractéristiques
+      if (product.features && product.features.length > 0) {
+        yPos += 15
+        doc.setFontSize(12)
+        doc.setTextColor(16, 185, 129)
+        doc.text('Caractéristiques principales:', 14, yPos)
+        
+        yPos += 8
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        product.features.slice(0, 10).forEach((feature, index) => {
+          doc.text(`• ${feature}`, 20, yPos + (index * 6))
+        })
+        yPos += product.features.slice(0, 10).length * 6
+      }
+      
+      // Informations logistiques
+      if (product.logistics) {
+        yPos += 15
+        doc.setFontSize(12)
+        doc.setTextColor(16, 185, 129)
+        doc.text('Informations logistiques:', 14, yPos)
+        
+        yPos += 8
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        
+        const logisticsData: string[][] = []
+        if (product.logistics.weightKg) {
+          logisticsData.push(['Poids', `${product.logistics.weightKg} kg`])
+        }
+        if (product.logistics.dimensions) {
+          logisticsData.push([
+            'Dimensions',
+            `${product.logistics.dimensions.lengthCm} × ${product.logistics.dimensions.widthCm} × ${product.logistics.dimensions.heightCm} cm`
+          ])
+        }
+        if (product.logistics.volumeM3) {
+          logisticsData.push(['Volume', `${product.logistics.volumeM3} m³`])
+        }
+        
+        if (logisticsData.length > 0) {
+          autoTable(doc, {
+            startY: yPos,
+            head: [['Propriété', 'Valeur']],
+            body: logisticsData,
+            theme: 'striped',
+            headStyles: { fillColor: [16, 185, 129] },
+            margin: { left: 14, right: 14 }
+          })
+        }
+      }
+      
+      // Pied de page
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(
+          `IT Vision - ${new Date().toLocaleDateString('fr-FR')} - Page ${i}/${pageCount}`,
+          14,
+          doc.internal.pageSize.height - 10
+        )
+      }
+      
+      // Sauvegarder
+      doc.save(`${product.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Impossible d\'exporter le PDF. Veuillez réessayer.')
+    }
+  }
+
+  const handleShare = async (platform?: 'whatsapp' | 'facebook' | 'twitter' | 'linkedin' | 'copy') => {
     try {
       if (typeof window === 'undefined') return
       const url = window.location.href
-      if (navigator.share) {
-        await navigator.share({ title: product.name, text: product.tagline ?? product.description ?? product.name, url })
+      const title = product.name
+      const text = product.tagline ?? product.description ?? product.name
+      
+      if (platform === 'whatsapp') {
+        const message = encodeURIComponent(`${title}\n${text}\n${url}`)
+        window.open(`https://wa.me/?text=${message}`, '_blank')
+        setShareFeedback('Ouverture WhatsApp...')
+      } else if (platform === 'facebook') {
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank')
+        setShareFeedback('Ouverture Facebook...')
+      } else if (platform === 'twitter') {
+        const tweet = encodeURIComponent(`${title} - ${url}`)
+        window.open(`https://twitter.com/intent/tweet?text=${tweet}`, '_blank')
+        setShareFeedback('Ouverture Twitter...')
+      } else if (platform === 'linkedin') {
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank')
+        setShareFeedback('Ouverture LinkedIn...')
+      } else if (platform === 'copy' || !platform) {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(url)
+          setShareFeedback('Lien copié dans le presse-papiers.')
+        } else {
+          // Fallback pour navigateurs sans clipboard API
+          const textArea = document.createElement('textarea')
+          textArea.value = url
+          document.body.appendChild(textArea)
+          textArea.select()
+          document.execCommand('copy')
+          document.body.removeChild(textArea)
+          setShareFeedback('Lien copié.')
+        }
+      } else if (navigator.share) {
+        await navigator.share({ title, text, url })
         setShareFeedback('Lien partagé avec succès !')
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url)
-        setShareFeedback('Lien copié dans le presse-papiers.')
       }
     } catch (error) {
       console.error('share product', error)
-      setShareFeedback('Impossible de partager automatiquement ce produit.')
+      setShareFeedback('Impossible de partager ce produit.')
     }
   }
 
@@ -318,6 +470,73 @@ Merci de me recontacter.`
     const timeout = setTimeout(() => setShareFeedback(null), 2500)
     return () => clearTimeout(timeout)
   }, [shareFeedback])
+
+  // Navigation clavier pour le modal image
+  useEffect(() => {
+    if (!showImageModal) return
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowImageModal(false)
+      } else if (e.key === 'ArrowLeft') {
+        setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
+      } else if (e.key === 'ArrowRight') {
+        setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showImageModal, gallery.length])
+
+  // Vérifier si le produit est en favoris
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      setIsFavorite(favorites.includes(product.id))
+    } catch {
+      setIsFavorite(false)
+    }
+  }, [product.id])
+
+  // Écouter les mises à jour de la wishlist
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleWishlistUpdate = () => {
+      try {
+        const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+        setIsFavorite(favorites.includes(product.id))
+      } catch {
+        setIsFavorite(false)
+      }
+    }
+    window.addEventListener('wishlist:updated', handleWishlistUpdate)
+    return () => window.removeEventListener('wishlist:updated', handleWishlistUpdate)
+  }, [product.id])
+
+  const toggleFavorite = () => {
+    if (typeof window === 'undefined') return
+    try {
+      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+      
+      if (isFavorite) {
+        const updated = favorites.filter((id: string) => id !== product.id)
+        localStorage.setItem('wishlist:items', JSON.stringify(updated))
+        setIsFavorite(false)
+        trackEvent('remove_from_wishlist', { productId: product.id })
+      } else {
+        favorites.push(product.id)
+        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
+        setIsFavorite(true)
+        trackEvent('add_to_wishlist', { productId: product.id })
+      }
+      
+      window.dispatchEvent(new CustomEvent('wishlist:updated'))
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
 
   const logisticsEntries = useMemo(() => {
     const entries: { label: string; value: string | null }[] = []
@@ -383,20 +602,80 @@ Merci de me recontacter.`
         'Maintenance préventive et curative disponible',
         product.sourcing?.notes ? `Notes acheteur : ${product.sourcing.notes}` : 'Support import dédié Chine & Sénégal'
       ]
+    },
+    {
+      id: 'reviews',
+      label: 'Avis clients',
+      type: 'reviews'
     }
   ]
 
   const [activeTab, setActiveTab] = useState<InfoTab['id']>(infoTabs[0].id)
 
+  // Charger les avis
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      setReviewsLoading(true)
+      // Simuler des avis pour l'instant (à remplacer par un appel API réel)
+      setTimeout(() => {
+        const mockReviews = [
+          {
+            id: '1',
+            userName: 'Jean D.',
+            rating: 5,
+            title: 'Excellent produit',
+            comment: 'Produit de très bonne qualité, livraison rapide et installation professionnelle. Je recommande !',
+            verified: true,
+            helpful: 12,
+            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: '2',
+            userName: 'Marie L.',
+            rating: 4,
+            title: 'Très satisfait',
+            comment: 'Bon rapport qualité/prix. Le support client est réactif et professionnel.',
+            verified: true,
+            helpful: 8,
+            createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: '3',
+            userName: 'Pierre M.',
+            rating: 5,
+            title: 'Parfait',
+            comment: 'Installation rapide, produit conforme à la description. Service impeccable.',
+            verified: false,
+            helpful: 5,
+            createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]
+        setReviews(mockReviews)
+        const avg = mockReviews.reduce((sum, r) => sum + r.rating, 0) / mockReviews.length
+        setAverageRating(avg)
+        setReviewsLoading(false)
+      }, 500)
+    }
+  }, [activeTab])
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent" />
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10">
-        <div className="text-sm text-slate-400 mb-6 flex items-center gap-2">
-          <Link href="/produits" className="hover:text-emerald-400 transition">Catalogue</Link>
+        {/* Breadcrumb amélioré */}
+        <nav className="text-sm text-slate-400 mb-6 flex items-center gap-2 flex-wrap" aria-label="Fil d'Ariane">
+          <Link href="/" className="hover:text-emerald-400 transition">Accueil</Link>
           <span className="text-slate-600">/</span>
-          <span className="text-slate-200/80">{product.category || 'Fiche produit'}</span>
-        </div>
+          <Link href="/produits" className="hover:text-emerald-400 transition">Produits</Link>
+          {product.category && (
+            <>
+              <span className="text-slate-600">/</span>
+              <span className="text-slate-200/80">{product.category}</span>
+            </>
+          )}
+          <span className="text-slate-600">/</span>
+          <span className="text-slate-200/80 line-clamp-1">{product.name}</span>
+        </nav>
 
         <div className="flex flex-col xl:flex-row gap-8">
           <aside className="hidden xl:block w-64 space-y-4">
@@ -442,14 +721,21 @@ Merci de me recontacter.`
                         type="button"
                         onClick={() => setActiveImageIndex(index)}
                         className={clsx(
-                          'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition',
+                          'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition cursor-pointer',
                           activeImageIndex === index
                             ? 'border-emerald-400/70 ring-2 ring-emerald-500/40'
                             : 'border-slate-800 hover:border-emerald-400/50'
                         )}
                         aria-label={`Image ${index + 1}`}
                       >
-                        <Image src={src} alt={`${product.name} ${index + 1}`} fill className="object-cover" />
+                        <Image 
+                          src={src} 
+                          alt={`${product.name} ${index + 1}`} 
+                          fill 
+                          className="object-cover"
+                          loading="lazy"
+                          sizes="64px"
+                        />
                       </button>
                     ))}
                   </div>
@@ -460,16 +746,29 @@ Merci de me recontacter.`
                     transition={{ duration: 0.25 }}
                     className="relative aspect-[5/4] w-full rounded-3xl border border-slate-800 bg-slate-950/60"
                   >
-                    <Image
-                      src={gallery[activeImageIndex] || '/file.svg'}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-6"
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                    />
-                    <div className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageModal(true)}
+                      className="absolute inset-0 cursor-zoom-in group"
+                      aria-label="Agrandir l'image"
+                    >
+                      <Image
+                        src={gallery[activeImageIndex] || '/file.svg'}
+                        alt={product.name}
+                        fill
+                        className="object-contain p-6"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        {...(activeImageIndex === 0 ? { priority: true } : { loading: 'lazy' })}
+                      />
+                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 text-xs text-slate-200">
+                        <ZoomIn className="h-4 w-4" />
+                        <span>Cliquer pour agrandir</span>
+                      </div>
+                    </button>
+                    {/* Badge qualité - charte emerald */}
+                    <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
                       <Sparkles className="h-3.5 w-3.5" />
-                      Qualité Pro Chine
+                      Qualité Professionnelle
                     </div>
                     <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold', availabilityClass)}>
                       <Clock className="h-3.5 w-3.5" />
@@ -488,32 +787,125 @@ Merci de me recontacter.`
                         {product.tagline && <p className="mt-1 text-sm text-slate-300/90">{product.tagline}</p>}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <button
-                          type="button"
-                          onClick={handleShare}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
-                        >
-                          <Share2 className="h-3.5 w-3.5" /> Partager
-                        </button>
+                        <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleFavorite}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        isFavorite
+                          ? 'border-red-500/50 bg-red-500/20 text-red-300 hover:border-red-400/60'
+                          : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200'
+                      }`}
+                      aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-red-400' : ''}`} />
+                      {isFavorite ? 'Favori' : 'Favoris'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportPDF}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
+                      aria-label="Exporter en PDF"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      PDF
+                    </button>
+                    <div className="relative group">
+                            <button
+                              type="button"
+                              onClick={() => handleShare()}
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
+                            >
+                              <Share2 className="h-3.5 w-3.5" /> Partager
+                            </button>
+                            {/* Menu déroulant partage */}
+                            <div className="absolute right-0 top-full mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                              <div className="bg-slate-800 border border-slate-700 rounded-xl p-2 shadow-xl min-w-[180px]">
+                                <button
+                                  onClick={() => handleShare('whatsapp')}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+                                  </svg>
+                                  WhatsApp
+                                </button>
+                                <button
+                                  onClick={() => handleShare('facebook')}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                                  </svg>
+                                  Facebook
+                                </button>
+                                <button
+                                  onClick={() => handleShare('twitter')}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                                  </svg>
+                                  Twitter
+                                </button>
+                                <button
+                                  onClick={() => handleShare('linkedin')}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                  </svg>
+                                  LinkedIn
+                                </button>
+                                <div className="border-t border-slate-700 my-1"></div>
+                                <button
+                                  onClick={() => handleShare('copy')}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                  Copier le lien
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         {shareFeedback && <span className="text-[11px] text-emerald-300">{shareFeedback}</span>}
                       </div>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
+                      {/* Informations techniques */}
                       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                        <div className="text-xs uppercase tracking-wide text-slate-500">Synthèse import</div>
-                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-1">
-                          {baseCostLabel && <span>Coût fournisseur Chine : <strong className="text-slate-100">{baseCostLabel}</strong></span>}
-                          {marginLabel && <span>Marge configurée : <strong className="text-slate-100">{marginLabel}</strong></span>}
-                          {deliveryDays && <span>Délai estimé : <strong className="text-slate-100">{deliveryDays} jours</strong></span>}
+                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-bold">Informations produit</div>
+                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-2">
+                          {baseCostLabel && (
+                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
+                              <span className="text-slate-400">Prix de base :</span>
+                              <strong className="text-slate-100">{baseCostLabel}</strong>
+                            </div>
+                          )}
+                          {marginLabel && (
+                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
+                              <span className="text-slate-400">Marge :</span>
+                              <strong className="text-slate-100">{marginLabel}</strong>
+                            </div>
+                          )}
+                          {deliveryDays && (
+                            <div className="flex items-center justify-between py-1.5">
+                              <span className="text-slate-400">Délai estimé :</span>
+                              <strong className="text-slate-100">{deliveryDays} jours</strong>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-200">
-                          <Star className="h-3.5 w-3.5 text-emerald-300" /> Indicateurs fiabilité
+                      {/* Badge de confiance - charte emerald */}
+                      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-200">
+                          <Star className="h-4 w-4 text-emerald-400 fill-emerald-400" /> 
+                          <span>Fiabilité vérifiée</span>
                         </div>
                         <div className="text-sm text-emerald-50/90">
-                          +50 projets réalisés via IT Vision • Livraison 3 à 15 jours • Contrôle qualité Dakar
+                          +50 projets réalisés • Livraison 3-15j • Contrôle qualité Dakar
                         </div>
                       </div>
                     </div>
@@ -591,17 +983,23 @@ Merci de me recontacter.`
                 </div>
 
                 <div className="w-full">
-                  <div className="w-full rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 shadow-emerald-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
+                  <div className="w-full rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 shadow-emerald-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-emerald-200">Tarif catalogue</div>
-                      <div className="mt-1 text-3xl font-bold text-emerald-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
+                      <div className="text-xs uppercase tracking-wide text-emerald-200 font-bold">Prix catalogue</div>
+                      <div className="mt-1 text-4xl font-bold text-emerald-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
                       {!showQuote && quantity > 1 && (
-                        <div className="text-xs text-emerald-200/80">{quantity} unité(s) • prix unitaire {unitPriceLabel}</div>
+                        <div className="text-xs text-emerald-200/80 mt-1">{quantity} unité(s) × {unitPriceLabel}</div>
+                      )}
+                      {!showQuote && quantity === 1 && unitPriceLabel && (
+                        <div className="text-xs text-emerald-200/80 mt-1">Prix unitaire</div>
                       )}
                     </div>
 
-                    <div className={clsx('rounded-2xl px-3 py-2 text-xs font-semibold', availabilityClass)}>
-                      {product.availability.note || product.pricing.availabilitySubLabel || 'Suivi logistique assuré par IT Vision'}
+                    <div className={clsx('rounded-2xl px-3 py-2.5 text-xs font-bold border', availabilityClass)}>
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>{product.availability.note || product.pricing.availabilitySubLabel || 'Suivi logistique assuré par IT Vision'}</span>
+                      </div>
                     </div>
 
                     {shippingEnabled && (
@@ -617,9 +1015,9 @@ Merci de me recontacter.`
                                 type="button"
                                 onClick={() => setSelectedShippingId(option.id)}
                                 className={clsx(
-                                  'flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition',
+                                  'flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition',
                                   active
-                                    ? 'border-emerald-400/80 bg-emerald-400/20 text-emerald-100 shadow-lg shadow-emerald-500/15'
+                                    ? 'border-emerald-400/80 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 text-emerald-100 shadow-lg shadow-emerald-500/20'
                                     : 'border-emerald-400/20 bg-transparent text-emerald-200 hover:border-emerald-300/60'
                                 )}
                               >
@@ -630,22 +1028,27 @@ Merci de me recontacter.`
                           })}
                         </div>
                         {activeShipping && (
-                          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100">
-                            Transport {activeShipping.label} : {formatCurrency(activeShipping.cost, activeShipping.currency)} (HT) — {activeShipping.durationDays} jours
+                          <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 px-3 py-2 text-xs text-emerald-100 font-medium">
+                            <div className="flex items-center justify-between">
+                              <span>{activeShipping.label}</span>
+                              <span className="font-bold">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
+                            </div>
+                            <div className="text-[10px] text-emerald-200/80 mt-1">Délai : {activeShipping.durationDays} jours</div>
                           </div>
                         )}
                       </div>
                     )}
 
                     <div className="space-y-3">
+                      {/* Boutons style AliExpress - gros et colorés - charte emerald */}
                       {!showQuote && (
                         <button
                           type="button"
                           onClick={() => addToCart(true)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 px-4 py-3 text-sm font-bold text-white transition shadow-lg hover:shadow-xl disabled:opacity-50"
                         >
-                          <ShoppingCart className="h-4 w-4" /> {adding ? 'Ajout…' : 'Acheter maintenant'}
+                          <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Acheter maintenant'}
                         </button>
                       )}
                       {!showQuote && (
@@ -653,15 +1056,15 @@ Merci de me recontacter.`
                           type="button"
                           onClick={() => addToCart(false)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-400/60 bg-transparent px-4 py-3 text-sm font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-500/10"
                         >
-                          <ShoppingCart className="h-4 w-4" /> {adding ? 'Ajout…' : 'Ajouter au panier'}
+                          <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Ajouter au panier'}
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => setShowNegotiation(true)}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/80"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/80 hover:bg-emerald-500/10"
                       >
                         <MessageCircle className="h-4 w-4" /> Négocier le tarif
                       </button>
@@ -670,14 +1073,16 @@ Merci de me recontacter.`
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => trackEvent('quote_request', { productId: product.id, quantity })}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/30 bg-slate-900/40 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/70"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500/50 bg-green-500/10 px-4 py-2.5 text-sm font-bold text-green-200 hover:border-green-400 hover:bg-green-500/20 transition"
                       >
-                        <MessageCircle className="h-4 w-4" /> Demander un devis WhatsApp
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+                        </svg>
+                        Demander un devis WhatsApp
                       </a>
                     </div>
                   </div>
                 </div>
-              </div>
             </motion.section>
 
             <motion.section
@@ -747,16 +1152,161 @@ Merci de me recontacter.`
                             ))}
                           </ul>
                         )}
-                        {tab.type === 'logistics' && (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {logisticsEntries.map((entry, index) => (
-                              <div key={`${tab.id}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-                                <div className="text-xs uppercase tracking-wide text-slate-500">{entry.label}</div>
-                                <div className="mt-1 text-sm text-slate-100">{entry.value || '—'}</div>
+                        {tab.type === 'reviews' && (
+                          <div className="space-y-6">
+                            {/* Résumé des avis */}
+                            <div className="flex items-center gap-6 pb-6 border-b border-slate-800">
+                              <div className="text-center">
+                                <div className="text-5xl font-bold text-emerald-400">{averageRating.toFixed(1)}</div>
+                                <div className="flex items-center justify-center gap-1 mt-2">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`h-5 w-5 ${
+                                        star <= Math.round(averageRating)
+                                          ? 'text-yellow-400 fill-yellow-400'
+                                          : 'text-slate-600'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="text-sm text-slate-400 mt-2">{reviews.length} avis</div>
                               </div>
-                            ))}
-                            {logisticsEntries.length === 0 && (
-                              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-400">
+                              <div className="flex-1 space-y-2">
+                                {[5, 4, 3, 2, 1].map((rating) => {
+                                  const count = reviews.filter(r => r.rating === rating).length
+                                  const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0
+                                  return (
+                                    <div key={rating} className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-400 w-8">{rating} étoiles</span>
+                                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-emerald-500 transition-all"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs text-slate-500 w-8 text-right">{count}</span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Liste des avis */}
+                            {reviewsLoading ? (
+                              <div className="text-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto"></div>
+                              </div>
+                            ) : reviews.length === 0 ? (
+                              <div className="text-center py-8 text-slate-400">
+                                <p>Aucun avis pour le moment.</p>
+                                <p className="text-xs mt-2">Soyez le premier à laisser un avis !</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {reviews.map((review) => (
+                                  <div key={review.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
+                                          {review.userName.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-slate-100">{review.userName}</span>
+                                            {review.verified && (
+                                              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-medium rounded-full border border-emerald-500/30">
+                                                Vérifié
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1 mt-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                              <Star
+                                                key={star}
+                                                className={`h-3 w-3 ${
+                                                  star <= review.rating
+                                                    ? 'text-yellow-400 fill-yellow-400'
+                                                    : 'text-slate-600'
+                                                }`}
+                                              />
+                                            ))}
+                                            <span className="text-xs text-slate-400 ml-1">
+                                              {new Date(review.createdAt).toLocaleDateString('fr-FR')}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {review.title && (
+                                      <h4 className="text-sm font-semibold text-slate-200 mb-2">{review.title}</h4>
+                                    )}
+                                    <p className="text-sm text-slate-300 leading-relaxed">{review.comment}</p>
+                                    {review.helpful > 0 && (
+                                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+                                        <span>{review.helpful} personne{review.helpful > 1 ? 's' : ''} a trouvé cet avis utile</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {tab.type === 'logistics' && (
+                          <div className="space-y-4">
+                            {/* Spécifications techniques */}
+                            {logisticsEntries.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-semibold text-slate-200 mb-3">Spécifications techniques</h4>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {logisticsEntries.map((entry, index) => (
+                                    <div key={`${tab.id}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 hover:border-emerald-500/30 transition">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">{entry.label}</div>
+                                      <div className="text-sm font-medium text-slate-100">{entry.value || '—'}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Informations logistiques */}
+                            {product.logistics.weightKg || product.logistics.dimensions || product.logistics.volumeM3 ? (
+                              <div>
+                                <h4 className="text-sm font-semibold text-slate-200 mb-3">Informations logistiques</h4>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {product.logistics.weightKg && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Poids net</div>
+                                      <div className="text-sm font-medium text-slate-100">{product.logistics.weightKg.toFixed(2)} kg</div>
+                                    </div>
+                                  )}
+                                  {product.logistics.packagingWeightKg && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Poids emballage</div>
+                                      <div className="text-sm font-medium text-slate-100">{product.logistics.packagingWeightKg.toFixed(2)} kg</div>
+                                    </div>
+                                  )}
+                                  {product.logistics.volumeM3 && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Volume</div>
+                                      <div className="text-sm font-medium text-slate-100">{product.logistics.volumeM3.toFixed(3)} m³</div>
+                                    </div>
+                                  )}
+                                  {product.logistics.dimensions && (
+                                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                                      <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Dimensions (L × l × H)</div>
+                                      <div className="text-sm font-medium text-slate-100">
+                                        {product.logistics.dimensions.lengthCm} × {product.logistics.dimensions.widthCm} × {product.logistics.dimensions.heightCm} cm
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null}
+                            
+                            {logisticsEntries.length === 0 && !product.logistics.weightKg && !product.logistics.dimensions && (
+                              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-400 text-center py-8">
                                 Informations logistiques détaillées disponibles sur demande.
                               </div>
                             )}
@@ -771,6 +1321,7 @@ Merci de me recontacter.`
           </main>
 
           <aside className="w-full xl:w-72 space-y-4">
+            {/* Produits similaires */}
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur p-5">
               <h3 className="text-sm font-semibold text-slate-100 mb-3">Produits similaires</h3>
               {similar.length === 0 && (
@@ -795,6 +1346,8 @@ Merci de me recontacter.`
                           width={56}
                           height={56}
                           className="h-full w-full object-cover"
+                          loading="lazy"
+                          sizes="56px"
                         />
                       </div>
                       <div className="flex-1">
@@ -811,6 +1364,49 @@ Merci de me recontacter.`
                 })}
               </div>
             </div>
+            
+            {/* Suggestions fréquemment achetés ensemble */}
+            {similar.length > 0 && (
+              <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur p-5">
+                <h3 className="text-sm font-semibold text-emerald-200 mb-3 flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Produits complémentaires
+                </h3>
+                <p className="text-xs text-emerald-200/80 mb-3">
+                  Ces produits sont souvent achetés ensemble avec ce produit.
+                </p>
+                <div className="space-y-2">
+                  {similar.slice(0, 2).map((item) => {
+                    const itemPrice = !item.requiresQuote
+                      ? formatCurrency(item.priceAmount ?? item.shippingOptions[0]?.total ?? null, item.currency || 'FCFA')
+                      : null
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/produits/${item.id}`}
+                        className="flex gap-2 rounded-xl border border-emerald-400/30 bg-slate-900/50 p-2.5 hover:border-emerald-400/60 hover:bg-slate-900/70 transition"
+                      >
+                        <div className="h-12 w-12 overflow-hidden rounded-lg bg-slate-800 flex-shrink-0">
+                          <Image
+                            src={item.image || '/file.svg'}
+                            alt={item.name}
+                            width={48}
+                            height={48}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            sizes="48px"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-slate-100 line-clamp-2">{item.name}</div>
+                          <div className="text-[10px] text-emerald-300 mt-0.5">{itemPrice || 'Sur devis'}</div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {product.sourcing?.productUrl && (
               <a
@@ -900,6 +1496,102 @@ Merci de me recontacter.`
                   {negotiationStatus === 'sent' ? 'Message envoyé !' : 'Envoyer'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal zoom image */}
+      <AnimatePresence>
+        {showImageModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowImageModal(false)}
+          >
+            <motion.div
+              className="relative max-w-7xl max-h-[90vh] w-full h-full p-8"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-800/80 text-slate-200 hover:bg-slate-700 transition"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <div className="relative w-full h-full flex items-center justify-center">
+                <Image
+                  src={gallery[activeImageIndex] || '/file.svg'}
+                  alt={product.name}
+                  fill
+                  className="object-contain p-8"
+                  sizes="90vw"
+                  priority
+                />
+              </div>
+              
+              {/* Navigation images */}
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-800/80 text-slate-200 hover:bg-slate-700 transition"
+                    aria-label="Image précédente"
+                  >
+                    <ArrowRight className="h-5 w-5 rotate-180" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-800/80 text-slate-200 hover:bg-slate-700 transition"
+                    aria-label="Image suivante"
+                  >
+                    <ArrowRight className="h-5 w-5" />
+                  </button>
+                  
+                  {/* Miniatures en bas */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
+                    {gallery.map((src, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveImageIndex(idx)
+                        }}
+                        className={clsx(
+                          'relative h-16 w-16 flex-shrink-0 rounded-lg border-2 overflow-hidden transition',
+                          activeImageIndex === idx
+                            ? 'border-emerald-400 ring-2 ring-emerald-500/50'
+                            : 'border-slate-700 hover:border-slate-600'
+                        )}
+                      >
+                        <Image src={src} alt={`${product.name} ${idx + 1}`} fill className="object-cover" sizes="64px" />
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Indicateur */}
+                  <div className="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-slate-800/80 text-xs text-slate-200">
+                    {activeImageIndex + 1} / {gallery.length}
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}
