@@ -102,119 +102,116 @@ export default function PriceActions({
           </div>
         </motion.div>
 
-        {/* Modes de transport */}
-        {shippingEnabled && (
+        {/* Switch Mode de transport */}
+        {shippingEnabled && shippingOptions.length > 0 && (
           <motion.div
             className="space-y-3"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <div className="text-xs uppercase tracking-wider text-emerald-200/70 font-bold">Modes de transport</div>
-            <div className="flex flex-wrap gap-2">
-              {shippingOptions.map((option, idx) => {
-                const Icon = shippingIcon(option.id)
-                const active = option.id === selectedShippingId
-                return (
-                  <motion.button
-                    key={option.id}
-                    type="button"
-                    onClick={() => onShippingChange(option.id)}
-                    className={clsx(
-                      'flex items-center gap-2 rounded-full border px-4 py-2.5 text-xs font-bold transition-all duration-300',
-                      active
-                        ? 'border-emerald-400/80 bg-gradient-to-r from-emerald-500/40 to-teal-500/40 text-emerald-100 shadow-lg shadow-emerald-500/30 scale-105'
-                        : 'border-emerald-400/20 bg-slate-900/30 text-emerald-200 hover:border-emerald-300/60 hover:scale-105'
-                    )}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.7 + idx * 0.05 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{option.label}</span>
-                  </motion.button>
-                )
-              })}
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-wider text-emerald-200/70 font-bold">
+                Mode de transport
+              </div>
+              <div className="text-[10px] text-emerald-300/60">
+                {activeShipping?.durationDays} jours
+              </div>
             </div>
+            
+            {/* Switch moderne */}
+            <div className="relative">
+              <select
+                value={selectedShippingId || ''}
+                onChange={(e) => onShippingChange(e.target.value)}
+                className="w-full appearance-none rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 backdrop-blur-sm px-4 py-3 text-sm text-emerald-100 font-medium cursor-pointer hover:border-emerald-400/60 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              >
+                {shippingOptions.map((option) => {
+                  const Icon = shippingIcon(option.id)
+                  return (
+                    <option key={option.id} value={option.id} className="bg-slate-900 text-slate-100">
+                      {option.label} - {formatCurrency(option.cost, option.currency)} ({option.durationDays}j)
+                    </option>
+                  )
+                })}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="h-4 w-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
             {activeShipping && (
               <motion.div
-                className="rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 to-teal-500/15 backdrop-blur-sm px-4 py-3 text-xs text-emerald-100 font-medium"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.8 }}
+                className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-200/80"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span>{activeShipping.label}</span>
-                  <span className="font-bold text-base">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
-                </div>
-                <div className="text-[11px] text-emerald-200/80">
-                  Délai estimé : {activeShipping.durationDays} jours
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const Icon = shippingIcon(activeShipping.id)
+                    return <Icon className="h-3.5 w-3.5" />
+                  })()}
+                  <span>
+                    Transport : <strong className="text-emerald-100">{formatCurrency(activeShipping.cost, activeShipping.currency)}</strong>
+                  </span>
                 </div>
               </motion.div>
             )}
           </motion.div>
         )}
 
-        {/* Boutons d'action avec effets de halo */}
+        {/* Bouton d'action principal simplifié */}
         <motion.div
           className="space-y-3"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
         >
+          {/* Bouton principal unique selon disponibilité */}
+          <motion.button
+            type="button"
+            onClick={() => showQuote ? onWhatsApp() : onAddToCart(true)}
+            disabled={adding}
+            className="w-full inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 px-6 py-4 text-base font-bold text-white transition-all shadow-lg shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {adding ? (
+              <>
+                <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Traitement...
+              </>
+            ) : showQuote ? (
+              <>
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+                </svg>
+                Commander via WhatsApp
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="h-5 w-5" />
+                Acheter maintenant
+              </>
+            )}
+          </motion.button>
+
+          {/* Bouton secondaire - Ajouter au panier (uniquement si pas sur devis) */}
           {!showQuote && (
-            <>
-              <motion.button
-                type="button"
-                onClick={() => onAddToCart(true)}
-                disabled={adding}
-                className="w-full inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 px-6 py-4 text-base font-bold text-white transition-all shadow-lg shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {adding ? 'Ajout en cours...' : 'Acheter maintenant'}
-              </motion.button>
-              
-              <motion.button
-                type="button"
-                onClick={() => onAddToCart(false)}
-                disabled={adding}
-                className="w-full inline-flex items-center justify-center gap-3 rounded-xl border-2 border-emerald-400/70 bg-transparent backdrop-blur-sm px-6 py-4 text-base font-bold text-emerald-200 transition-all hover:border-emerald-300 hover:bg-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {adding ? 'Ajout...' : 'Ajouter au panier'}
-              </motion.button>
-            </>
+            <motion.button
+              type="button"
+              onClick={() => onAddToCart(false)}
+              disabled={adding}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-400/70 bg-transparent backdrop-blur-sm px-6 py-3 text-sm font-semibold text-emerald-200 transition-all hover:border-emerald-300 hover:bg-emerald-500/15 hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              Ajouter au panier
+            </motion.button>
           )}
-          
-          <motion.button
-            type="button"
-            onClick={onNegotiate}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300/50 bg-slate-900/60 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-emerald-200 hover:border-emerald-300/80 hover:bg-emerald-500/15 hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Négocier le tarif
-          </motion.button>
-          
-          <motion.button
-            type="button"
-            onClick={onWhatsApp}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500/60 bg-green-500/15 backdrop-blur-sm px-6 py-3 text-sm font-bold text-green-200 hover:border-green-400 hover:bg-green-500/25 hover:shadow-lg hover:shadow-green-500/30 transition-all"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
-            </svg>
-            Demander un devis WhatsApp
-          </motion.button>
         </motion.div>
       </div>
     </motion.div>

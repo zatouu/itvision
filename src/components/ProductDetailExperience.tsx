@@ -610,6 +610,7 @@ Merci de me recontacter.`
                   }}
                   formatCurrency={formatCurrency}
                 />
+              </div>
             </motion.section>
 
             {/* Section onglets produit (description, caractéristiques, etc.) */}
