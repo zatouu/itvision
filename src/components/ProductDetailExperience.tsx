@@ -659,22 +659,21 @@ Merci de me recontacter.`
   }, [activeTab])
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent" />
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10">
-        {/* Breadcrumb amélioré */}
-        <nav className="text-sm text-slate-400 mb-6 flex items-center gap-2 flex-wrap" aria-label="Fil d'Ariane">
-          <Link href="/" className="hover:text-emerald-400 transition">Accueil</Link>
-          <span className="text-slate-600">/</span>
-          <Link href="/produits" className="hover:text-emerald-400 transition">Produits</Link>
+    <div className="relative min-h-screen bg-gradient-to-br from-white via-gray-50 to-emerald-50/30">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-12">
+        {/* Breadcrumb moderne */}
+        <nav className="text-sm text-gray-600 mb-8 flex items-center gap-2 flex-wrap" aria-label="Fil d'Ariane">
+          <Link href="/" className="hover:text-emerald-600 transition font-medium">Accueil</Link>
+          <span className="text-gray-400">/</span>
+          <Link href="/produits" className="hover:text-emerald-600 transition font-medium">Produits</Link>
           {product.category && (
             <>
-              <span className="text-slate-600">/</span>
-              <span className="text-slate-200/80">{product.category}</span>
+              <span className="text-gray-400">/</span>
+              <span className="text-gray-700">{product.category}</span>
             </>
           )}
-          <span className="text-slate-600">/</span>
-          <span className="text-slate-200/80 line-clamp-1">{product.name}</span>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-900 font-semibold line-clamp-1">{product.name}</span>
         </nav>
 
         <div className="flex flex-col xl:flex-row gap-8">
@@ -705,26 +704,26 @@ Merci de me recontacter.`
             </div>
           </aside>
 
-          <main className="flex-1 space-y-10">
+          <main className="flex-1 space-y-8">
             <motion.section
-              className="rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-emerald-500/5"
+              className="rounded-3xl border-2 border-gray-200 bg-white shadow-xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
               <div className="grid gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] p-6 sm:p-8">
-                <div className="grid gap-4 lg:grid-cols-[110px_minmax(0,1fr)]">
-                  <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible">
+                <div className="grid gap-6 lg:grid-cols-[120px_minmax(0,1fr)]">
+                  <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
                     {gallery.map((src, index) => (
                       <button
                         key={`${src}-${index}`}
                         type="button"
                         onClick={() => setActiveImageIndex(index)}
                         className={clsx(
-                          'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition cursor-pointer',
+                          'relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer',
                           activeImageIndex === index
-                            ? 'border-emerald-400/70 ring-2 ring-emerald-500/40'
-                            : 'border-slate-800 hover:border-emerald-400/50'
+                            ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
+                            : 'border-gray-200 hover:border-emerald-300 hover:shadow-md'
                         )}
                         aria-label={`Image ${index + 1}`}
                       >
@@ -734,7 +733,7 @@ Merci de me recontacter.`
                           fill 
                           className="object-cover"
                           loading="lazy"
-                          sizes="64px"
+                          sizes="80px"
                         />
                       </button>
                     ))}
@@ -744,7 +743,7 @@ Merci de me recontacter.`
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.25 }}
-                    className="relative aspect-[5/4] w-full rounded-3xl border border-slate-800 bg-slate-950/60"
+                    className="relative aspect-[5/4] w-full rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-white shadow-inner"
                   >
                     <button
                       type="button"
@@ -760,17 +759,21 @@ Merci de me recontacter.`
                         sizes="(max-width: 1024px) 100vw, 50vw"
                         {...(activeImageIndex === 0 ? { priority: true } : { loading: 'lazy' })}
                       />
-                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 text-xs text-slate-200">
+                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg border border-gray-200">
                         <ZoomIn className="h-4 w-4" />
                         <span>Cliquer pour agrandir</span>
                       </div>
                     </button>
-                    {/* Badge qualité - charte emerald */}
-                    <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/90 to-teal-500/90 backdrop-blur-sm px-3 py-1.5 text-xs font-bold text-white border border-emerald-400/50 shadow-lg">
-                      <Sparkles className="h-3.5 w-3.5" />
+                    {/* Badge qualité moderne */}
+                    <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 backdrop-blur-sm px-4 py-2 text-xs font-bold text-white shadow-xl border border-emerald-400/50">
+                      <Sparkles className="h-4 w-4" />
                       Qualité Professionnelle
                     </div>
-                    <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold', availabilityClass)}>
+                    <div className={clsx('absolute top-4 right-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold shadow-lg', 
+                      product.availability.status === 'in_stock' 
+                        ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-300'
+                        : 'bg-amber-100 text-amber-700 border-2 border-amber-300'
+                    )}>
                       <Clock className="h-3.5 w-3.5" />
                       {product.availability.label}
                     </div>
@@ -778,52 +781,52 @@ Merci de me recontacter.`
                 </div>
 
                 <div className="space-y-6">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-300">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex-1">
+                        <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full mb-3">
                           <ShieldCheck className="h-4 w-4" /> Sourcing sécurisé IT Vision
                         </div>
-                        <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-50 leading-tight">{product.name}</h1>
-                        {product.tagline && <p className="mt-1 text-sm text-slate-300/90">{product.tagline}</p>}
+                        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight mb-2">{product.name}</h1>
+                        {product.tagline && <p className="text-base text-gray-600 font-medium">{product.tagline}</p>}
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={toggleFavorite}
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold transition ${
                         isFavorite
-                          ? 'border-red-500/50 bg-red-500/20 text-red-300 hover:border-red-400/60'
-                          : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200'
+                          ? 'border-red-500 bg-red-50 text-red-600 hover:bg-red-100'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-400 hover:text-emerald-600'
                       }`}
                       aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                     >
-                      <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-red-400' : ''}`} />
+                      <Heart className={`h-4 w-4 ${isFavorite ? 'fill-red-500' : ''}`} />
                       {isFavorite ? 'Favori' : 'Favoris'}
                     </button>
                     <button
                       type="button"
                       onClick={handleExportPDF}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
+                      className="inline-flex items-center gap-2 rounded-full border-2 border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 transition"
                       aria-label="Exporter en PDF"
                     >
-                      <FileDown className="h-3.5 w-3.5" />
+                      <FileDown className="h-4 w-4" />
                       PDF
                     </button>
                     <div className="relative group">
                             <button
                               type="button"
                               onClick={() => handleShare()}
-                              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400/40 hover:text-emerald-200 transition"
+                              className="inline-flex items-center gap-2 rounded-full border-2 border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 transition"
                             >
-                              <Share2 className="h-3.5 w-3.5" /> Partager
+                              <Share2 className="h-4 w-4" /> Partager
                             </button>
                             {/* Menu déroulant partage */}
                             <div className="absolute right-0 top-full mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                              <div className="bg-slate-800 border border-slate-700 rounded-xl p-2 shadow-xl min-w-[180px]">
+                              <div className="bg-white border-2 border-gray-200 rounded-xl p-2 shadow-xl min-w-[180px]">
                                 <button
                                   onClick={() => handleShare('whatsapp')}
-                                  className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2 transition-colors"
                                 >
                                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
@@ -869,42 +872,42 @@ Merci de me recontacter.`
                             </div>
                           </div>
                         </div>
-                        {shareFeedback && <span className="text-[11px] text-emerald-300">{shareFeedback}</span>}
+                        {shareFeedback && <span className="text-xs text-emerald-600 font-medium">{shareFeedback}</span>}
                       </div>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       {/* Informations techniques */}
-                      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-bold">Informations produit</div>
-                        <div className="mt-2 text-sm text-slate-300 flex flex-col gap-2">
+                      <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                        <div className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-bold">Informations produit</div>
+                        <div className="mt-2 text-sm text-gray-700 flex flex-col gap-3">
                           {baseCostLabel && (
-                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
-                              <span className="text-slate-400">Prix de base :</span>
-                              <strong className="text-slate-100">{baseCostLabel}</strong>
+                            <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                              <span className="text-gray-600 font-medium">Prix de base :</span>
+                              <strong className="text-gray-900 font-bold">{baseCostLabel}</strong>
                             </div>
                           )}
                           {marginLabel && (
-                            <div className="flex items-center justify-between py-1.5 border-b border-slate-700/50">
-                              <span className="text-slate-400">Marge :</span>
-                              <strong className="text-slate-100">{marginLabel}</strong>
+                            <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                              <span className="text-gray-600 font-medium">Marge :</span>
+                              <strong className="text-gray-900 font-bold">{marginLabel}</strong>
                             </div>
                           )}
                           {deliveryDays && (
-                            <div className="flex items-center justify-between py-1.5">
-                              <span className="text-slate-400">Délai estimé :</span>
-                              <strong className="text-slate-100">{deliveryDays} jours</strong>
+                            <div className="flex items-center justify-between py-2">
+                              <span className="text-gray-600 font-medium">Délai estimé :</span>
+                              <strong className="text-gray-900 font-bold">{deliveryDays} jours</strong>
                             </div>
                           )}
                         </div>
                       </div>
-                      {/* Badge de confiance - charte emerald */}
-                      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-4 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-200">
-                          <Star className="h-4 w-4 text-emerald-400 fill-emerald-400" /> 
+                      {/* Badge de confiance moderne */}
+                      <div className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 flex flex-col gap-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                          <Star className="h-5 w-5 text-emerald-600 fill-emerald-600" /> 
                           <span>Fiabilité vérifiée</span>
                         </div>
-                        <div className="text-sm text-emerald-50/90">
+                        <div className="text-sm text-gray-700 font-medium">
                           +50 projets réalisés • Livraison 3-15j • Contrôle qualité Dakar
                         </div>
                       </div>
@@ -982,29 +985,33 @@ Merci de me recontacter.`
                   </div>
                 </div>
 
-                <div className="w-full">
-                  <div className="w-full rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 shadow-emerald-500/10 shadow-2xl space-y-5 lg:max-w-[420px]">
+                <div className="w-full lg:sticky lg:top-24">
+                  <div className="w-full rounded-3xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-6 shadow-xl space-y-5 lg:max-w-[420px]">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-emerald-200 font-bold">Prix catalogue</div>
-                      <div className="mt-1 text-4xl font-bold text-emerald-100">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
+                      <div className="text-xs uppercase tracking-wide text-emerald-700 font-bold mb-2">Prix catalogue</div>
+                      <div className="mt-1 text-5xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">{totalPriceLabel || unitPriceLabel || 'Sur devis'}</div>
                       {!showQuote && quantity > 1 && (
-                        <div className="text-xs text-emerald-200/80 mt-1">{quantity} unité(s) × {unitPriceLabel}</div>
+                        <div className="text-sm text-gray-600 mt-2 font-medium">{quantity} unité(s) × {unitPriceLabel}</div>
                       )}
                       {!showQuote && quantity === 1 && unitPriceLabel && (
-                        <div className="text-xs text-emerald-200/80 mt-1">Prix unitaire</div>
+                        <div className="text-sm text-gray-600 mt-2 font-medium">Prix unitaire</div>
                       )}
                     </div>
 
-                    <div className={clsx('rounded-2xl px-3 py-2.5 text-xs font-bold border', availabilityClass)}>
+                    <div className={clsx('rounded-2xl px-4 py-3 text-sm font-semibold border-2', 
+                      product.availability.status === 'in_stock'
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                        : 'bg-amber-100 border-amber-300 text-amber-800'
+                    )}>
                       <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <ShieldCheck className="h-4 w-4" />
                         <span>{product.availability.note || product.pricing.availabilitySubLabel || 'Suivi logistique assuré par IT Vision'}</span>
                       </div>
                     </div>
 
                     {shippingEnabled && (
-                      <div className="space-y-2">
-                        <div className="text-xs uppercase tracking-wide text-emerald-200/70">Modes de transport</div>
+                      <div className="space-y-3">
+                        <div className="text-xs uppercase tracking-wide text-emerald-700 font-bold">Modes de transport</div>
                         <div className="flex flex-wrap gap-2">
                           {product.pricing.shippingOptions.map((option) => {
                             const Icon = shippingIcon(option.id)
@@ -1015,38 +1022,38 @@ Merci de me recontacter.`
                                 type="button"
                                 onClick={() => setSelectedShippingId(option.id)}
                                 className={clsx(
-                                  'flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition',
+                                  'flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all',
                                   active
-                                    ? 'border-emerald-400/80 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 text-emerald-100 shadow-lg shadow-emerald-500/20'
-                                    : 'border-emerald-400/20 bg-transparent text-emerald-200 hover:border-emerald-300/60'
+                                    ? 'border-emerald-500 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                                 )}
                               >
-                                <Icon className="h-3.5 w-3.5" />
+                                <Icon className="h-4 w-4" />
                                 <span>{option.label}</span>
                               </button>
                             )
                           })}
                         </div>
                         {activeShipping && (
-                          <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 px-3 py-2 text-xs text-emerald-100 font-medium">
-                            <div className="flex items-center justify-between">
-                              <span>{activeShipping.label}</span>
-                              <span className="font-bold">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
+                          <div className="rounded-xl border-2 border-emerald-300 bg-white px-4 py-3 text-sm text-gray-700 font-medium shadow-sm">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold">{activeShipping.label}</span>
+                              <span className="font-bold text-emerald-600">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
                             </div>
-                            <div className="text-[10px] text-emerald-200/80 mt-1">Délai : {activeShipping.durationDays} jours</div>
+                            <div className="text-xs text-gray-500">Délai : {activeShipping.durationDays} jours</div>
                           </div>
                         )}
                       </div>
                     )}
 
                     <div className="space-y-3">
-                      {/* Boutons style AliExpress - gros et colorés - charte emerald */}
+                      {/* Boutons modernes */}
                       {!showQuote && (
                         <button
                           type="button"
                           onClick={() => addToCart(true)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 px-4 py-3 text-sm font-bold text-white transition shadow-lg hover:shadow-xl disabled:opacity-50"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:via-emerald-700 hover:to-teal-700 px-6 py-4 text-base font-bold text-white transition-all shadow-lg hover:shadow-xl disabled:opacity-50 transform hover:scale-105"
                         >
                           <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Acheter maintenant'}
                         </button>
@@ -1056,7 +1063,7 @@ Merci de me recontacter.`
                           type="button"
                           onClick={() => addToCart(false)}
                           disabled={adding}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-400/60 bg-transparent px-4 py-3 text-sm font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-500/10"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-white px-6 py-4 text-base font-bold text-emerald-600 transition-all hover:bg-emerald-50 hover:border-emerald-600 disabled:opacity-50"
                         >
                           <ShoppingCart className="h-5 w-5" /> {adding ? 'Ajout…' : 'Ajouter au panier'}
                         </button>
@@ -1064,7 +1071,7 @@ Merci de me recontacter.`
                       <button
                         type="button"
                         onClick={() => setShowNegotiation(true)}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300/40 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-emerald-200 hover:border-emerald-300/80 hover:bg-emerald-500/10"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
                       >
                         <MessageCircle className="h-4 w-4" /> Négocier le tarif
                       </button>
@@ -1073,7 +1080,7 @@ Merci de me recontacter.`
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => trackEvent('quote_request', { productId: product.id, quantity })}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500/50 bg-green-500/10 px-4 py-2.5 text-sm font-bold text-green-200 hover:border-green-400 hover:bg-green-500/20 transition"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500 bg-green-50 px-6 py-3 text-sm font-bold text-green-700 hover:border-green-600 hover:bg-green-100 transition-all shadow-sm"
                       >
                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
