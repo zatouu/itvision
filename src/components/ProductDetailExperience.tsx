@@ -1083,7 +1083,6 @@ Merci de me recontacter.`
                     </div>
                   </div>
                 </div>
-              </div>
             </motion.section>
 
             <motion.section
