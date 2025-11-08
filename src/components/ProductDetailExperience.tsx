@@ -1082,8 +1082,6 @@ Merci de me recontacter.`
                       </a>
                     </div>
                   </div>
-                </div>
-              </div>
             </motion.section>
 
             <motion.section
