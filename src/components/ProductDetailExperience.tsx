@@ -758,8 +758,7 @@ Merci de me recontacter.`
                         fill
                         className="object-contain p-6"
                         sizes="(max-width: 1024px) 100vw, 50vw"
-                        loading="lazy"
-                        priority={activeImageIndex === 0}
+                        {...(activeImageIndex === 0 ? { priority: true } : { loading: 'lazy' })}
                       />
                       <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 text-xs text-slate-200">
                         <ZoomIn className="h-4 w-4" />
