@@ -148,7 +148,8 @@ export default function ProductCard({
       const raw = typeof window !== 'undefined' ? localStorage.getItem('cart:items') : null
       const items = raw ? JSON.parse(raw) : []
       const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
-      const id = `${name}-${model || ''}${shippingKey}`.replace(/\s+/g, '-').toLowerCase()
+      const productName = `${name}-${model || ''}${shippingKey}`
+      const id = productName.replace(/\s+/g, '-').toLowerCase()
       const existsIndex = items.findIndex((i: any) => i.id === id)
       if (existsIndex >= 0) {
         items[existsIndex].qty += 1
@@ -191,7 +192,8 @@ export default function ProductCard({
     }
   }
 
-  const showQuote = typeof requiresQuote === 'boolean' ? requiresQuote : (price ? (/devis/i).test(price) : !computedPriceAmount)
+  const devisRegex = /devis/i
+  const showQuote = typeof requiresQuote === 'boolean' ? requiresQuote : (price ? devisRegex.test(price) : !computedPriceAmount)
   const isBuy = !!computedPriceAmount && !showQuote && (computedDeliveryDays <= 2)
   const isOrder = !!computedPriceAmount && !showQuote && (computedDeliveryDays > 2)
   const primaryCtaLabel = isBuy ? 'Acheter' : isOrder ? 'Commander' : 'Demander un devis'
