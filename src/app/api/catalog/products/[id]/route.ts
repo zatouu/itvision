@@ -9,17 +9,18 @@ const toObjectId = (value: string) => {
   return new mongoose.Types.ObjectId(value)
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
 
-    const objectId = toObjectId(params.id)
+    const { id } = await context.params
+    const objectId = toObjectId(id)
     if (!objectId) {
       return NextResponse.json({ success: false, error: 'Invalid product identifier' }, { status: 400 })
     }
 
     const product = await Product.findById(objectId).lean()
-    if (!product) {
+    if (!product || Array.isArray(product)) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     }
 

@@ -1,12 +1,12 @@
 "use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -328,6 +328,44 @@ export default function ProduitsPage() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  // Calcul des produits filtrés et triés
+  const filteredProducts = useMemo(() => {
+    let filtered = products.filter(product => {
+      const text = `${product.name} ${product.description}`.toLowerCase()
+      const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
+      const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
+      const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
+      const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
+      const matchesPrice = !priceRange || !product.priceAmount || 
+        (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
+      const matchesDelivery = !deliveryRange || !product.deliveryDays ||
+        (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
+      return matchesSearch && matchesTarif && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
+    })
+
+    // Tri des produits
+    if (sortBy !== 'default') {
+      filtered = [...filtered].sort((a, b) => {
+        switch (sortBy) {
+          case 'price-asc':
+            return (a.priceAmount || 0) - (b.priceAmount || 0)
+          case 'price-desc':
+            return (b.priceAmount || 0) - (a.priceAmount || 0)
+          case 'name-asc':
+            return a.name.localeCompare(b.name, 'fr')
+          case 'name-desc':
+            return b.name.localeCompare(a.name, 'fr')
+          case 'rating-desc':
+            return (b.rating || 0) - (a.rating || 0)
+          default:
+            return 0
+        }
+      })
+    }
+
+    return filtered
+  }, [products, debouncedSearch, onlyPrice, onlyQuote, selected, availabilityFilter, priceRange, deliveryRange, sortBy])
 
   // Gestion de la comparaison
   const handleCompareToggle = (productId: string, isSelected: boolean) => {
@@ -993,23 +1031,23 @@ export default function ProduitsPage() {
                     )}
                   </div>
                 </div>
-                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                    <Package className="h-5 w-5 text-emerald-600" />
+                <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
+                    <Package className="h-4 w-4 text-emerald-600" />
                     Catégories
                   </h3>
-                  <div className="space-y-2 text-sm max-h-64 overflow-y-auto scrollbar-hide">
+                  <div className="space-y-1 text-xs max-h-48 overflow-y-auto scrollbar-hide">
                     {Array.from(new Set(products.map(p => p.category || 'Catalogue import Chine'))).map((category) => (
-                      <label key={category} className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-emerald-50 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={selected.includes(category)}
                           onChange={(e)=>{
                             setSelected((prev)=> e.target.checked ? [...prev, category] : prev.filter(id=>id!==category))
                           }}
-                          className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                          className="w-3.5 h-3.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                         />
-                        <span className="font-medium text-gray-700">{category}</span>
+                        <span className="text-gray-700">{category}</span>
                       </label>
                     ))}
                   </div>
@@ -1222,117 +1260,69 @@ export default function ProduitsPage() {
                   </button>
                 </div>
               ) : (
-                  <div className="space-y-16">
-                    {/* Grouper les produits par catégorie */}
-                    {Object.entries(
-                      products.reduce((acc, product) => {
-                        const categoryKey = product.category || 'Catalogue import Chine'
-                        if (!acc[categoryKey]) acc[categoryKey] = []
-                        acc[categoryKey].push(product)
-                        return acc
-                      }, {} as Record<string, ApiProduct[]>)
-                    ).map(([categoryName, categoryProducts]) => {
-                      let filtered = categoryProducts.filter(product => {
-                        const text = `${product.name} ${product.description}`.toLowerCase()
-                        const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
-                        const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
-                        const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
-                        const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
-                        
-                        // Filtres avancés
-                        const matchesPrice = !priceRange || !product.priceAmount || 
-                          (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
-                        const matchesDelivery = !deliveryRange || !product.deliveryDays ||
-                          (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
-                        
-                        return matchesSearch && matchesTarif && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
-                      })
-
-                      // Tri des produits
-                      if (sortBy !== 'default') {
-                        filtered = [...filtered].sort((a, b) => {
-                          switch (sortBy) {
-                            case 'price-asc':
-                              return (a.priceAmount || 0) - (b.priceAmount || 0)
-                            case 'price-desc':
-                              return (b.priceAmount || 0) - (a.priceAmount || 0)
-                            case 'name-asc':
-                              return a.name.localeCompare(b.name, 'fr')
-                            case 'name-desc':
-                              return b.name.localeCompare(a.name, 'fr')
-                            case 'rating-desc':
-                              return (b.rating || 0) - (a.rating || 0)
-                            default:
-                              return 0
-                          }
-                        })
-                      }
-
-                      if (filtered.length === 0) return null
-
-                      return (
-                        <div key={categoryName} className="mb-16 last:mb-0">
-                        {/* Category Header avec contrôles modernes */}
-                        <div className="mb-10">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                            <div className="text-center sm:text-left">
-                              <div className="flex items-center justify-center sm:justify-start gap-4 mb-3">
-                                <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 rounded-2xl shadow-xl">
-                                  <Package className="h-7 w-7 text-white" />
-                                </div>
-                                <div>
-                                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-1">{categoryName}</h2>
-                                  <p className="text-sm text-gray-600 font-medium">
-                                    {filtered.length} produit{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Contrôles tri et vue modernes */}
-                            <div className="flex items-center gap-3">
-                              {/* Mode vue */}
-                              <div className="flex items-center gap-1 bg-white border-2 border-gray-200 rounded-xl p-1 shadow-sm">
-                                <button
-                                  onClick={() => setViewMode('grid')}
-                                  className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
-                                  aria-label="Vue grille"
-                                >
-                                  <Grid className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => setViewMode('list')}
-                                  className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
-                                  aria-label="Vue liste"
-                                >
-                                  <List className="h-4 w-4" />
-                                </button>
-                              </div>
-                              
-                              {/* Tri */}
-                              <div className="relative">
-                                <select
-                                  value={sortBy}
-                                  onChange={(e) => setSortBy(e.target.value as any)}
-                                  className="appearance-none bg-white border-2 border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-semibold text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm transition-all"
-                                >
-                                  <option value="default">Trier par</option>
-                                  <option value="price-asc">Prix croissant</option>
-                                  <option value="price-desc">Prix décroissant</option>
-                                  <option value="name-asc">Nom A-Z</option>
-                                  <option value="name-desc">Nom Z-A</option>
-                                  <option value="rating-desc">Meilleures notes</option>
-                                </select>
-                                <ArrowUpDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                              </div>
-                            </div>
-                          </div>
+                  <div className="space-y-6">
+                    {/* Contrôles tri et vue en haut */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <Package className="h-5 w-5 text-emerald-600" />
+                        <div>
+                          <h2 className="text-lg font-bold text-gray-900">
+                            {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
+                          </h2>
                         </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        {/* Mode vue */}
+                        <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+                          <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            aria-label="Vue grille"
+                          >
+                            <Grid className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            aria-label="Vue liste"
+                          >
+                            <List className="h-4 w-4" />
+                          </button>
+                        </div>
+                        
+                        {/* Tri */}
+                        <div className="relative">
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                          >
+                            <option value="default">Trier par</option>
+                            <option value="price-asc">Prix croissant</option>
+                            <option value="price-desc">Prix décroissant</option>
+                            <option value="name-asc">Nom A-Z</option>
+                            <option value="name-desc">Nom Z-A</option>
+                            <option value="rating-desc">Meilleures notes</option>
+                          </select>
+                          <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
 
+                    {/* Affichage des produits filtrés */}
+                    {filteredProducts.length === 0 ? (
+                      <div className="text-center py-16">
+                        <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
+                        <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
+                      </div>
+                    ) : (
+                      <>
                         {/* Products Grid ou List */}
                         {viewMode === 'grid' ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-                            {filtered.map((product) => (
+                            {filteredProducts.map((product) => (
                               <ProductCard
                                 key={product._id}
                                 name={product.name}
@@ -1357,7 +1347,7 @@ export default function ProduitsPage() {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {filtered.map((product) => (
+                            {filteredProducts.map((product) => (
                               <Link
                                 key={product._id}
                                 href={`/produits/${product._id}`}
@@ -1388,7 +1378,7 @@ export default function ProduitsPage() {
                                         <div className="text-2xl font-bold text-emerald-600">
                                           {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
                                         </div>
-                                        {product.deliveryDays > 0 && (
+                                        {(product.deliveryDays || 0) > 0 && (
                                           <div className="text-xs text-gray-500 flex items-center gap-1 justify-end mt-1">
                                             <Clock className="h-3 w-3" />
                                             {product.deliveryDays}j
@@ -1422,17 +1412,11 @@ export default function ProduitsPage() {
                             ))}
                           </div>
                         )}
-                      </div>
-                    )
-                  })}
+                      </>
+                    )}
+                  </div>
+              )}
 
-                  {products.length === 0 && !loading && (
-                    <div className="text-center py-16">
-                      <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
-                      <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
-                    </div>
-                  )}
 
                   {/* Pagination */}
                   {totalPages > 1 && (
@@ -1482,10 +1466,8 @@ export default function ProduitsPage() {
                     </div>
                   )}
                 </div>
-              )}
             </div>
           </div>
-                  </div>
       </section>
 
       {/* Mobile Filters Drawer */}

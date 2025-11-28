@@ -152,13 +152,13 @@ export default function AdminProductManager() {
   useEffect(() => {
     if (!autoPrice || !editing) return
     if (typeof editing.baseCost !== 'number') return
-    const margin = typeof editing.marginRate === 'number' ? editing.marginRate : empty.marginRate
+    const margin = typeof editing.marginRate === 'number' ? editing.marginRate : (empty.marginRate || 0)
     const computed = Math.round(editing.baseCost * (1 + margin / 100))
     if (editing.price === computed) return
     setEditing(prev => {
       if (!prev || !autoPrice) return prev
       if (typeof prev.baseCost !== 'number') return prev
-      const marginPrev = typeof prev.marginRate === 'number' ? prev.marginRate : empty.marginRate
+      const marginPrev = typeof prev.marginRate === 'number' ? prev.marginRate : (empty.marginRate || 0)
       const recomputed = Math.round(prev.baseCost * (1 + marginPrev / 100))
       if (prev.price === recomputed) return prev
       return { ...prev, price: recomputed }
@@ -214,7 +214,7 @@ export default function AdminProductManager() {
 
   const suggestedSalePrice = (product: Product): number | undefined => {
     if (typeof product.baseCost !== 'number') return undefined
-    const margin = typeof product.marginRate === 'number' ? product.marginRate : empty.marginRate
+    const margin = typeof product.marginRate === 'number' ? product.marginRate : (empty.marginRate || 0)
     return Math.round(product.baseCost * (1 + margin / 100))
   }
 
@@ -299,7 +299,7 @@ export default function AdminProductManager() {
     }
   }
 
-  const renderInfoTab = (): JSX.Element | null => {
+  const renderInfoTab = () => {
     if (!editing) return null
     return (
       <div className="space-y-6">
@@ -469,7 +469,7 @@ export default function AdminProductManager() {
     )
   }
 
-  const renderDetailsTab = (): JSX.Element | null => {
+  const renderDetailsTab = () => {
     if (!editing) return null
     return (
       <div className="space-y-6">
@@ -612,7 +612,7 @@ export default function AdminProductManager() {
     )
   }
 
-  const renderMediaTab = (): JSX.Element | null => {
+  const renderMediaTab = () => {
     if (!editing) return null
     return (
       <div className="space-y-6">
@@ -726,7 +726,7 @@ export default function AdminProductManager() {
     )
   }
 
-  const renderPricingTab = (): JSX.Element | null => {
+  const renderPricingTab = () => {
     if (!editing) return null
     const shippingOverrides = ensureOverrides(editing.shippingOverrides)
     return (
@@ -913,11 +913,11 @@ export default function AdminProductManager() {
     )
   }
 
-  const renderImportTab = (): JSX.Element | null => (
+  const renderImportTab = () => (
     <ImportTab onImported={handleImportedProduct} formatCurrency={formatCurrency} />
   )
 
-  const renderTabContent = (): JSX.Element | null => {
+  const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
         return renderInfoTab()

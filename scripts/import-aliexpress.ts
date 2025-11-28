@@ -40,7 +40,7 @@ const API_HOST = 'aliexpress-datahub.p.rapidapi.com'
 const API_ENDPOINT = `https://${API_HOST}/item_search`
 
 const FX_RATE = Number(process.env.ALIEXPRESS_USD_TO_XOF || 620)
-const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 30)
+const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 30)cc
 
 type CliOptions = {
   keyword: string

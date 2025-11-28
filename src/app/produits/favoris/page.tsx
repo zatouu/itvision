@@ -49,7 +49,7 @@ export default function WishlistPage() {
         try {
           setLoading(true)
           const responses = await Promise.all(
-            favorites.map(id => fetch(`/api/catalog/products/${id}`))
+            favorites.map((id: string) => fetch(`/api/catalog/products/${id}`))
           )
 
           const data = await Promise.all(

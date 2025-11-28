@@ -1,7 +1,30 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Calendar, Clock, MapPin, User, Settings, Plus, Filter, Search, CheckCircle, AlertCircle, Users, Zap, Wrench, Camera, Lock, Home, Flame, Cable } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  User,
+  Settings,
+  Plus,
+  Filter,
+  Search,
+  CheckCircle,
+  AlertCircle,
+  Users,
+  Zap,
+  Wrench,
+  Camera,
+  Lock,
+  Home,
+  Flame,
+  Cable,
+  Megaphone,
+  ArrowUpCircle,
+  ShieldCheck,
+  X
+} from 'lucide-react'
 
 interface Technician {
   id: string
@@ -20,6 +43,13 @@ interface Technician {
   currentLoad: number // 0-100%
   rating: number
   specialties: string[]
+}
+
+interface PreferredTechnician {
+  _id: string
+  name: string
+  email?: string
+  phone?: string
 }
 
 interface Intervention {
@@ -42,26 +72,147 @@ interface Intervention {
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
   createdAt: string
   urgency: boolean
+  contractId?: string
+  clientId?: string
+  origin?: 'manual' | 'auto'
+  isContractual?: boolean
+  preferredTechnicians?: PreferredTechnician[]
+  marketplaceActivityId?: string
+  marketplaceReason?: string
 }
 
-const DynamicSchedulingSystem = () => {
+type MarketplaceActivityInfo = {
+  status: string
+  bidsCount: number
+  bestBid?: number
+  allowMarketplace: boolean
+  activityId: string
+  category?: string
+  marketplaceReason?: string
+}
+
+type SchedulingFilterMode = 'all' | 'marketplace' | 'installations'
+
+type DynamicSchedulingProps = {
+  defaultViewMode?: 'calendar' | 'list' | 'technicians'
+  filterMode?: SchedulingFilterMode
+  showNewInterventionShortcut?: boolean
+}
+
+const DynamicSchedulingSystem = ({
+  defaultViewMode = 'calendar',
+  filterMode = 'all',
+  showNewInterventionShortcut = false
+}: DynamicSchedulingProps) => {
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [interventions, setInterventions] = useState<Intervention[]>([])
+  const [showVisitsPanel, setShowVisitsPanel] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [viewMode, setViewMode] = useState<'calendar' | 'list' | 'technicians'>('calendar')
+  const [viewMode, setViewMode] = useState<'calendar' | 'list' | 'technicians'>(defaultViewMode)
   const [filterService, setFilterService] = useState<string>('all')
   const [filterZone, setFilterZone] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null)
+  const [activitiesMap, setActivitiesMap] = useState<Record<string, MarketplaceActivityInfo>>({})
+  const [publishingVisitId, setPublishingVisitId] = useState<string | null>(null)
+  const [showNewInterventionModal, setShowNewInterventionModal] = useState(false)
+  const [newInterventionSubmitting, setNewInterventionSubmitting] = useState(false)
+  const [newInterventionError, setNewInterventionError] = useState<string | null>(null)
+  const [newInterventionForm, setNewInterventionForm] = useState({
+    title: '',
+    service: 'maintenance',
+    priority: 'medium',
+    estimatedDuration: 2,
+    description: '',
+    clientName: '',
+    clientPhone: '',
+    clientZone: 'Dakar-Centre',
+    clientAddress: '',
+    clientEmail: '',
+    scheduledDate: '',
+    scheduledTime: ''
+  })
+
+  const updateNewInterventionField = (field: keyof typeof newInterventionForm, value: string | number) => {
+    setNewInterventionForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleCreateNewIntervention = async () => {
+    if (!newInterventionForm.title.trim() || !newInterventionForm.clientName.trim()) {
+      setNewInterventionError('Merci de renseigner un titre et un client.')
+      return
+    }
+    setNewInterventionSubmitting(true)
+    setNewInterventionError(null)
+    try {
+      const payload = {
+        title: newInterventionForm.title.trim(),
+        description: newInterventionForm.description.trim(),
+        service: newInterventionForm.service,
+        priority: newInterventionForm.priority,
+        estimatedDuration: Number(newInterventionForm.estimatedDuration) || 2,
+        requiredSkills: [newInterventionForm.service],
+        client: {
+          name: newInterventionForm.clientName,
+          address: newInterventionForm.clientAddress || 'Site client',
+          phone: newInterventionForm.clientPhone,
+          zone: newInterventionForm.clientZone || 'Dakar',
+          email: newInterventionForm.clientEmail
+        },
+        scheduledDate: newInterventionForm.scheduledDate || undefined,
+        scheduledTime: newInterventionForm.scheduledTime || undefined
+      }
+      const res = await fetch('/api/interventions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.intervention) {
+        throw new Error(data.error || 'Création impossible')
+      }
+      const normalized = normalizeInterventionFromApi(data.intervention)
+      normalized.client = normalized.client || payload.client
+      normalized.origin = 'manual'
+      normalized.isContractual = false
+      setInterventions((prev) => [normalized, ...prev])
+      setShowNewInterventionModal(false)
+      setNewInterventionForm({
+        title: '',
+        service: 'maintenance',
+        priority: 'medium',
+        estimatedDuration: 2,
+        description: '',
+        clientName: '',
+        clientPhone: '',
+        clientZone: 'Dakar-Centre',
+        clientAddress: '',
+        clientEmail: '',
+        scheduledDate: '',
+        scheduledTime: ''
+      })
+    } catch (error) {
+      setNewInterventionError(error instanceof Error ? error.message : 'Erreur réseau')
+    } finally {
+      setNewInterventionSubmitting(false)
+    }
+  }
 
   // Chargement depuis l'API
   useEffect(() => {
     ;(async () => {
       try {
-        const [tRes, iRes] = await Promise.all([
+        const horizon = new Date()
+        horizon.setMonth(horizon.getMonth() + 2)
+        const fromParam = new Date().toISOString().split('T')[0]
+        const toParam = horizon.toISOString().split('T')[0]
+        const [tRes, iRes, visitsRes, activitiesRes] = await Promise.all([
           fetch('/api/technicians?limit=100', { credentials: 'include' }),
-          fetch('/api/interventions?limit=100', { credentials: 'include' })
+          fetch('/api/interventions?limit=100', { credentials: 'include' }),
+          fetch(`/api/maintenance/visits?from=${fromParam}&to=${toParam}`, { credentials: 'include' }),
+          fetch('/api/maintenance/activities?status=open', { credentials: 'include' })
         ])
         if (tRes.ok) {
           const tJson = await tRes.json()
@@ -79,9 +230,10 @@ const DynamicSchedulingSystem = () => {
           }))
           setTechnicians(list)
         }
+        let mergedInterventions: Intervention[] = []
         if (iRes.ok) {
           const iJson = await iRes.json()
-          const iv: Intervention[] = (iJson.interventions || []).map((it: any) => ({
+          mergedInterventions = (iJson.interventions || []).map((it: any) => ({
             id: it._id || it.id,
             title: it.title,
             description: it.description,
@@ -95,10 +247,99 @@ const DynamicSchedulingSystem = () => {
             assignedTechnician: it.assignedTechnician,
             status: it.status,
             createdAt: it.createdAt,
-            urgency: it.priority === 'urgent'
+            urgency: it.priority === 'urgent',
+            origin: 'manual',
+            contractId: it.contractId,
+            clientId: it.clientId,
+            isContractual: Boolean(it.isContractual),
+            preferredTechnicians: Array.isArray(it.preferredTechnicians) ? it.preferredTechnicians : []
           }))
-          setInterventions(iv)
         }
+        let maintenanceEvents: Intervention[] = []
+        if (visitsRes.ok) {
+          const visitsJson = await visitsRes.json()
+          maintenanceEvents = (visitsJson.visits || []).map((visit: any) => ({
+            id: visit.id,
+            title: `Visite ${visit.contractName}`,
+            description: `Maintenance préventive programmée sur ${visit.site || 'site client'}`,
+            client: {
+              name: visit.clientName,
+              address: visit.site || visit.clientName,
+              phone: '',
+              zone: visit.zone || 'Dakar'
+            },
+            service: 'maintenance',
+            priority: visit.priority || 'medium',
+            estimatedDuration: visit.estimatedDurationHours || 4,
+            requiredSkills: ['maintenance'],
+            scheduledDate: visit.date?.split('T')[0],
+            scheduledTime: '09:00',
+            assignedTechnician: undefined,
+            status: 'scheduled',
+            createdAt: new Date().toISOString(),
+            urgency: visit.priority === 'high',
+            contractId: visit.contractId,
+            clientId: visit.clientId,
+            origin: 'auto',
+            isContractual: visit.isContractual,
+            preferredTechnicians: Array.isArray(visit.preferredTechnicians) ? visit.preferredTechnicians : []
+          }))
+          mergedInterventions = [...mergedInterventions, ...maintenanceEvents]
+        }
+        let marketplaceGenerated: Intervention[] = []
+        if (activitiesRes.ok) {
+          const activitiesJson = await activitiesRes.json()
+          const map: Record<string, MarketplaceActivityInfo> = {}
+          ;(activitiesJson.activities || []).forEach((activity: any) => {
+            const key = activity.visitId || activity.id
+            map[key] = {
+              status: activity.status,
+              bidsCount: activity.bidsCount,
+              bestBid: activity.bestBidAmount,
+              allowMarketplace: activity.allowMarketplace,
+              activityId: activity.id,
+              category: activity.category,
+              marketplaceReason: activity.marketplaceReason
+            }
+            if (activity.category === 'product_install') {
+              marketplaceGenerated.push({
+                id: activity.id,
+                title: activity.productName ? `Installation ${activity.productName}` : 'Installation produit',
+                description: `Demande d'installation post-achat pour ${activity.clientName}`,
+                client: {
+                  name: activity.clientName,
+                  address: activity.site || activity.clientContact?.address || 'Site client',
+                  phone: activity.clientContact?.phone || '',
+                  zone: activity.clientContact?.address?.split(',')?.[0] || 'Dakar'
+                },
+                service: 'installation',
+                priority: 'medium',
+                estimatedDuration: 6,
+                requiredSkills: ['installation'],
+                scheduledDate: activity.installationOptions?.preferredDate
+                  ? activity.installationOptions.preferredDate.split('T')[0]
+                  : undefined,
+                scheduledTime: undefined,
+                assignedTechnician: undefined,
+                status: 'pending',
+                createdAt: activity.date,
+                urgency: false,
+                contractId: undefined,
+                clientId: activity.clientId,
+                origin: 'marketplace',
+                isContractual: false,
+                preferredTechnicians: [],
+                marketplaceActivityId: activity.id,
+                marketplaceReason: activity.marketplaceReason
+              })
+            }
+          })
+          setActivitiesMap(map)
+        }
+        if (marketplaceGenerated.length) {
+          mergedInterventions = [...mergedInterventions, ...marketplaceGenerated]
+        }
+        setInterventions(mergedInterventions)
       } catch {}
     })()
   }, [])
@@ -130,8 +371,27 @@ const DynamicSchedulingSystem = () => {
     return service ? service.icon : Wrench
   }
 
+const publishActivityPayload = (
+  visit: Intervention,
+  options?: { overrideReason?: string }
+) => ({
+  visitId: visit.id,
+  contractId: visit.contractId,
+  contractName: visit.title,
+  clientId: visit.clientId,
+  clientName: visit.client.name,
+  site: visit.client.address,
+  date: visit.scheduledDate,
+  category: visit.isContractual ? 'contract_visit' : 'ad_hoc',
+  isContractual: options?.overrideReason ? false : Boolean(visit.isContractual),
+  allowMarketplace: true,
+  preferredTechnicians: visit.preferredTechnicians?.map((tech) => tech._id),
+  marketplaceReason: options?.overrideReason
+})
+
   // Algorithme d'affectation automatique
   const findBestTechnician = (intervention: Intervention): Technician | null => {
+    const targetZone = intervention.client?.zone
     const availableTechnicians = technicians.filter(tech => {
       // Vérifier les compétences requises
       const hasRequiredSkills = intervention.requiredSkills.every(skill => 
@@ -139,7 +399,7 @@ const DynamicSchedulingSystem = () => {
       )
       
       // Vérifier la zone (priorité aux techniciens de la même zone)
-      const sameZone = tech.zone === intervention.client.zone
+      const sameZone = targetZone ? tech.zone === targetZone : false
       
       // Vérifier la charge de travail (ne pas dépasser 90%)
       const notOverloaded = tech.currentLoad < 90
@@ -154,7 +414,7 @@ const DynamicSchedulingSystem = () => {
       let score = 0
       
       // Bonus pour la même zone
-      if (tech.zone === intervention.client.zone) score += 30
+      if (targetZone && tech.zone === targetZone) score += 30
       
       // Bonus pour charge de travail faible
       score += (100 - tech.currentLoad) * 0.3
@@ -202,21 +462,173 @@ const DynamicSchedulingSystem = () => {
     }
   }
 
+const markAsContractual = (
+  interventionId: string,
+  setInterventions: React.Dispatch<React.SetStateAction<Intervention[]>>
+) => {
+  setInterventions((prev) =>
+    prev.map((int) =>
+      int.id === interventionId
+        ? { ...int, isContractual: true, marketplaceReason: undefined }
+        : int
+    )
+  )
+}
+
+const assignPreferredTechnician = (
+  intervention: Intervention,
+  setInterventions: React.Dispatch<React.SetStateAction<Intervention[]>>
+) => {
+  if (!intervention.preferredTechnicians?.length) {
+    alert('Aucun technicien référent n’est défini pour ce contrat.')
+    return
+  }
+  const candidate = intervention.preferredTechnicians[0]
+  setInterventions((prev) =>
+    prev.map((int) =>
+      int.id === intervention.id
+        ? {
+            ...int,
+            assignedTechnician: candidate._id || candidate.name,
+            status: 'scheduled'
+          }
+        : int
+    )
+  )
+  alert(`Intervention assignée à ${candidate.name}`)
+}
+
+const handleMarketplacePublish = (
+  intervention: Intervention,
+  activitiesMap: Record<string, MarketplaceActivityInfo>,
+  setPublishing: (id: string | null) => void,
+  setActivities: React.Dispatch<React.SetStateAction<Record<string, MarketplaceActivityInfo>>>,
+  setInterventions: React.Dispatch<React.SetStateAction<Intervention[]>>
+) => {
+  if (activitiesMap[intervention.id]) return
+  if (intervention.isContractual) {
+    const reason = window.prompt('Motif de publication (ex: Tech indisponible, urgence hors SLA) ?')
+    if (!reason) return
+    publishVisitToMarketplace(intervention, setPublishing, setActivities, { overrideReason: reason })
+    setInterventions((prev) =>
+      prev.map((int) =>
+        int.id === intervention.id
+          ? { ...int, isContractual: false, marketplaceReason: reason }
+          : int
+      )
+    )
+  } else {
+    publishVisitToMarketplace(intervention, setPublishing, setActivities)
+  }
+}
+
+const normalizeInterventionFromApi = (payload: any): Intervention => ({
+  id: payload._id || payload.id,
+  title: payload.title,
+  description: payload.description || '',
+  client: payload.client || {
+    name: payload.client?.name || 'Client',
+    address: payload.client?.address || 'Adresse',
+    phone: payload.client?.phone || '',
+    zone: payload.client?.zone || 'Dakar'
+  },
+  service: payload.service || 'maintenance',
+  priority: payload.priority || 'medium',
+  estimatedDuration: payload.estimatedDuration || 2,
+  requiredSkills: payload.requiredSkills || [payload.service || 'maintenance'],
+  scheduledDate: payload.scheduledDate,
+  scheduledTime: payload.scheduledTime,
+  assignedTechnician: payload.assignedTechnician,
+  status: payload.status || 'pending',
+  createdAt: payload.createdAt || new Date().toISOString(),
+  urgency: payload.priority === 'urgent',
+  contractId: payload.contractId,
+  clientId: payload.clientId,
+  origin: 'manual',
+  isContractual: Boolean(payload.isCoveredByContract),
+  preferredTechnicians: Array.isArray(payload.preferredTechnicians) ? payload.preferredTechnicians : []
+})
+
+const publishVisitToMarketplace = async (
+  visit: Intervention,
+  setPublishing: (id: string | null) => void,
+  setActivities: React.Dispatch<React.SetStateAction<Record<string, MarketplaceActivityInfo>>>,
+  options?: { overrideReason?: string }
+) => {
+  setPublishing(visit.id)
+  try {
+    const payload = publishActivityPayload(visit, options)
+    const res = await fetch('/api/maintenance/activities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      alert(data.error || 'Publication impossible')
+      setPublishing(null)
+      return
+    }
+    const data = await res.json()
+    setActivities((prev) => ({
+      ...prev,
+      [visit.id]: {
+        status: 'open',
+        bidsCount: 0,
+        bestBid: undefined,
+        allowMarketplace: true,
+        activityId: data.activityId,
+        category: payload.category,
+        marketplaceReason: options?.overrideReason
+      }
+    }))
+  } catch (error) {
+    alert('Erreur réseau : publication marketplace')
+  } finally {
+    setPublishing(null)
+  }
+}
+
+  useEffect(() => {
+    setViewMode(defaultViewMode)
+  }, [defaultViewMode])
+
   const filteredInterventions = interventions.filter(intervention => {
+    const clientZone = intervention.client?.zone || ''
+    const clientName = intervention.client?.name || ''
     const matchesService = filterService === 'all' || intervention.service === filterService
-    const matchesZone = filterZone === 'all' || intervention.client.zone === filterZone
+    const matchesZone = filterZone === 'all' || clientZone === filterZone
     const matchesSearch = searchTerm === '' || 
       intervention.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      intervention.client.name.toLowerCase().includes(searchTerm.toLowerCase())
+      clientName.toLowerCase().includes(searchTerm.toLowerCase())
     
     return matchesService && matchesZone && matchesSearch
   })
 
+  const visibleInterventions = useMemo(() => {
+    if (filterMode === 'marketplace') {
+      return filteredInterventions.filter(
+        (intervention) =>
+          intervention.origin === 'marketplace' || Boolean(activitiesMap[intervention.id])
+      )
+    }
+    if (filterMode === 'installations') {
+      return filteredInterventions.filter(
+        (intervention) =>
+          intervention.service === 'installation' ||
+          intervention.title.toLowerCase().includes('installation')
+      )
+    }
+    return filteredInterventions
+  }, [filteredInterventions, filterMode, activitiesMap])
+
   return (
+    <>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Planification Dynamique</h1>
             <p className="text-gray-600">Gestion intelligente des interventions et affectation automatique</p>
@@ -254,6 +666,21 @@ const DynamicSchedulingSystem = () => {
               <Users className="h-4 w-4 inline mr-2" />
               Techniciens
             </button>
+            <button
+              onClick={() => setShowVisitsPanel((prev) => !prev)}
+              className="px-4 py-2 rounded-lg font-medium bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              {showVisitsPanel ? 'Masquer visites' : 'Visites maintenance'}
+            </button>
+            {showNewInterventionShortcut && (
+              <button
+                onClick={() => setShowNewInterventionModal(true)}
+                className="px-4 py-2 rounded-lg font-medium bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700"
+              >
+                <Plus className="h-4 w-4 inline mr-2" />
+                Nouvelle intervention
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -304,22 +731,91 @@ const DynamicSchedulingSystem = () => {
       </div>
 
       <div className="flex-1 p-6">
+        {showVisitsPanel && (
+          <div className="mb-6 bg-white border border-emerald-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-emerald-700">Visites maintenance programmées</p>
+                <p className="text-xs text-gray-500">Issues des contrats actifs (prochaine fenêtre de 60 jours)</p>
+              </div>
+              <span className="text-xs font-semibold text-gray-500">
+          {visibleInterventions.filter((v) => v.origin === 'auto').length} visites
+              </span>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3 max-h-64 overflow-auto pr-2">
+              {visibleInterventions
+                .filter((v) => v.origin === 'auto')
+                .sort((a, b) => (a.scheduledDate || '').localeCompare(b.scheduledDate || ''))
+                .map((visit) => (
+                  <div
+                    key={visit.id}
+                    className="border border-emerald-100 rounded-xl p-3 bg-emerald-50/40 flex items-center justify-between gap-3"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-800">{visit.title}</p>
+                      <p className="text-xs text-emerald-600">{visit.client.name} • {visit.client.address}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {visit.scheduledDate} • {visit.estimatedDuration}h prévues
+                      </p>
+                      {activitiesMap[visit.id] && (
+                        <p className="text-xs text-emerald-600 mt-1">
+                          {activitiesMap[visit.id].bidsCount} offre(s) • meilleure offre {activitiesMap[visit.id].bestBid ? `${activitiesMap[visit.id].bestBid?.toLocaleString('fr-FR')} FCFA` : 'en attente'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="text-xs font-semibold text-emerald-600">Préventif</span>
+                      {!activitiesMap[visit.id] ? (
+                        <button
+                          disabled={publishingVisitId === visit.id}
+                          onClick={() =>
+                            handleMarketplacePublish(
+                              visit,
+                              activitiesMap,
+                              setPublishingVisitId,
+                              setActivitiesMap,
+                              setInterventions
+                            )
+                          }
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
+                        >
+                          <Megaphone className="h-3.5 w-3.5" />
+                          {publishingVisitId === visit.id ? 'Publication...' : 'Publier'}
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <ArrowUpCircle className="h-3.5 w-3.5" />
+                          Marketplace
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {viewMode === 'list' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
-                Interventions en attente ({filteredInterventions.filter(i => i.status === 'pending').length})
+                Interventions en attente ({visibleInterventions.filter(i => i.status === 'pending').length})
               </h2>
-              <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+              <button
+                onClick={() => setShowNewInterventionModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
                 <Plus className="h-4 w-4 inline mr-2" />
                 Nouvelle intervention
               </button>
             </div>
 
             <div className="grid gap-4">
-              {filteredInterventions.map(intervention => {
+              {visibleInterventions.map(intervention => {
                 const ServiceIcon = getServiceIcon(intervention.service)
                 const assignedTech = technicians.find(t => t.id === intervention.assignedTechnician)
+                const activityInfo = activitiesMap[intervention.id]
+                const isPublishing = publishingVisitId === intervention.id
                 
                 return (
                   <div key={intervention.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -331,17 +827,33 @@ const DynamicSchedulingSystem = () => {
                           </div>
                           <div>
                             <h3 className="font-semibold text-gray-900">{intervention.title}</h3>
-                            <p className="text-sm text-gray-600">{intervention.client.name}</p>
+                            <p className="text-sm text-gray-600">
+                              {intervention.client?.name || 'Client à confirmer'}
+                            </p>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(intervention.priority)}`}>
-                            {intervention.priority.toUpperCase()}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(intervention.priority || 'medium')}`}>
+                            {(intervention.priority || 'medium').toUpperCase()}
                           </span>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                              intervention.isContractual
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-amber-50 text-amber-700 border-amber-100'
+                            }`}
+                          >
+                            {intervention.isContractual ? 'Contrat' : 'Hors contrat'}
+                          </span>
+                          {intervention.origin === 'marketplace' && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium border bg-purple-50 text-purple-700 border-purple-100">
+                              Marketplace
+                            </span>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
-                          <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2">
                             <MapPin className="h-4 w-4" />
-                            <span>{intervention.client.zone}</span>
+                            <span>{intervention.client?.zone || 'Zone à préciser'}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Clock className="h-4 w-4" />
@@ -368,16 +880,100 @@ const DynamicSchedulingSystem = () => {
                             </span>
                           ))}
                         </div>
+                        {intervention.isContractual ? (
+                          <div className="mt-4 bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-emerald-700 space-y-2">
+                            <div className="flex items-center gap-2 font-semibold">
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Couvert par contrat
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {intervention.preferredTechnicians?.length ? (
+                                intervention.preferredTechnicians.map((tech) => (
+                                  <span
+                                    key={`${intervention.id}-pref-${tech._id}`}
+                                    className="px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700"
+                                  >
+                                    {tech.name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-emerald-600/80">Aucun technicien attitré</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                            Intervention hors contrat – privilégier la publication marketplace
+                          </div>
+                        )}
+                        {activityInfo && (
+                          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-emerald-700">
+                            <ArrowUpCircle className="h-4 w-4" />
+                            <span className="font-semibold">
+                              Marketplace ouvert • {activityInfo.bidsCount} offre(s)
+                              {activityInfo.bestBid
+                                ? ` • meilleure offre ${activityInfo.bestBid.toLocaleString('fr-FR')} F CFA`
+                                : ''}
+                            </span>
+                            {activityInfo.marketplaceReason && (
+                              <span className="text-gray-500">
+                                Motif : {activityInfo.marketplaceReason}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-col space-y-2 ml-4">
-                        {intervention.status === 'pending' && (
+                        {intervention.status === 'pending' && intervention.origin !== 'marketplace' && (
                           <button
                             onClick={() => autoAssignIntervention(intervention)}
                             className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:from-emerald-600 hover:to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2"
                           >
                             <Zap className="h-4 w-4" />
                             <span>Auto-assigner</span>
+                          </button>
+                        )}
+                        {intervention.isContractual && intervention.preferredTechnicians?.length ? (
+                          <button
+                            onClick={() => assignPreferredTechnician(intervention, setInterventions)}
+                            className="border border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+                          >
+                            <Users className="h-4 w-4" />
+                            <span>Affecter tech attitré</span>
+                          </button>
+                        ) : null}
+                        {!activityInfo && intervention.origin !== 'marketplace' && (
+                          <button
+                            onClick={() =>
+                              handleMarketplacePublish(
+                                intervention,
+                                activitiesMap,
+                                setPublishingVisitId,
+                                setActivitiesMap,
+                                setInterventions
+                              )
+                            }
+                            disabled={isPublishing}
+                            className="border border-purple-200 text-purple-700 hover:bg-purple-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 disabled:opacity-50"
+                          >
+                            <Megaphone className="h-4 w-4" />
+                            <span>
+                              {isPublishing
+                                ? 'Publication...'
+                                : intervention.isContractual
+                                  ? 'Remplacer via marketplace'
+                                  : 'Publier marketplace'}
+                            </span>
+                          </button>
+                        )}
+                        {!intervention.isContractual && intervention.origin !== 'marketplace' && (
+                          <button
+                            onClick={() => markAsContractual(intervention.id, setInterventions)}
+                            className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+                          >
+                            <ShieldCheck className="h-4 w-4 text-gray-500" />
+                            <span>Marquer contractuel</span>
                           </button>
                         )}
                         
@@ -517,7 +1113,9 @@ const DynamicSchedulingSystem = () => {
                           <ServiceIcon className="h-5 w-5 text-emerald-600" />
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{intervention.scheduledTime} - {intervention.title}</p>
-                            <p className="text-sm text-gray-600">{assignedTech?.name} • {intervention.client.zone}</p>
+                            <p className="text-sm text-gray-600">
+                              {assignedTech?.name || 'Non assigné'} • {intervention.client?.zone || 'Zone à préciser'}
+                            </p>
                           </div>
                           <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(intervention.priority)}`}>
                             {intervention.priority}
@@ -542,7 +1140,7 @@ const DynamicSchedulingSystem = () => {
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{intervention.title}</p>
                             <p className="text-sm text-gray-600">
-                              {intervention.client.name} • {intervention.client.zone}
+                              {intervention.client?.name || 'Client'} • {intervention.client?.zone || 'Zone'}
                               {bestTech && (
                                 <span className="ml-2 text-emerald-600">
                                   → Suggéré: {bestTech.name}
@@ -626,6 +1224,167 @@ const DynamicSchedulingSystem = () => {
         )}
       </div>
     </div>
+    {showNewInterventionModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-xs uppercase text-emerald-600 font-semibold">Nouvelle intervention hors contrat</p>
+                <h3 className="text-lg font-semibold text-gray-900">Publier une intervention ponctuelle</h3>
+                <p className="text-sm text-gray-500">Idéal pour les dépannages ou maintenances isolées non couvertes.</p>
+              </div>
+              <button
+                onClick={() => setShowNewInterventionModal(false)}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500">Titre intervention</label>
+                  <input
+                    value={newInterventionForm.title}
+                    onChange={(e) => updateNewInterventionField('title', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Ex: Maintenance curative showroom"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Service</label>
+                  <select
+                    value={newInterventionForm.service}
+                    onChange={(e) => updateNewInterventionField('service', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  >
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Priorité</label>
+                  <select
+                    value={newInterventionForm.priority}
+                    onChange={(e) => updateNewInterventionField('priority', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  >
+                    <option value="low">Basse</option>
+                    <option value="medium">Normale</option>
+                    <option value="high">Haute</option>
+                    <option value="urgent">Urgente</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Durée estimée (h)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newInterventionForm.estimatedDuration}
+                    onChange={(e) => updateNewInterventionField('estimatedDuration', Number(e.target.value))}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Description</label>
+                <textarea
+                  value={newInterventionForm.description}
+                  onChange={(e) => updateNewInterventionField('description', e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  placeholder="Contexte, symptômes, périmètre attendu…"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500">Client / site</label>
+                  <input
+                    value={newInterventionForm.clientName}
+                    onChange={(e) => updateNewInterventionField('clientName', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    placeholder="Nom client ou site"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Téléphone</label>
+                  <input
+                    value={newInterventionForm.clientPhone}
+                    onChange={(e) => updateNewInterventionField('clientPhone', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    placeholder="+221..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Adresse</label>
+                  <input
+                    value={newInterventionForm.clientAddress}
+                    onChange={(e) => updateNewInterventionField('clientAddress', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    placeholder="Quartier, immeuble…"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Zone</label>
+                  <select
+                    value={newInterventionForm.clientZone}
+                    onChange={(e) => updateNewInterventionField('clientZone', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  >
+                    {zones.map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500">Date souhaitée (optionnel)</label>
+                  <input
+                    type="date"
+                    value={newInterventionForm.scheduledDate}
+                    onChange={(e) => updateNewInterventionField('scheduledDate', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Créneau</label>
+                  <input
+                    type="time"
+                    value={newInterventionForm.scheduledTime}
+                    onChange={(e) => updateNewInterventionField('scheduledTime', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {newInterventionError && (
+                <p className="text-sm text-red-600">{newInterventionError}</p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowNewInterventionModal(false)}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreateNewIntervention}
+                disabled={newInterventionSubmitting}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {newInterventionSubmitting ? 'Création...' : 'Créer & publier'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

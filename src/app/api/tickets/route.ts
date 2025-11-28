@@ -99,6 +99,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // S'assurer que tous les messages ont les champs requis
+    if (ticket.messages && Array.isArray(ticket.messages)) {
+      ticket.messages = ticket.messages.map((msg: any) => {
+        if (!msg.authorId) {
+          msg.authorId = new mongoose.Types.ObjectId(clientId)
+        }
+        if (!msg.authorRole) {
+          msg.authorRole = role
+        }
+        if (!msg.createdAt) {
+          msg.createdAt = new Date()
+        }
+        return msg
+      })
+    }
+
     await ticket.save()
 
     await Notification.create({
@@ -192,6 +208,22 @@ export async function PATCH(request: NextRequest) {
         message: addMessage,
         createdAt: new Date()
       }, status)
+    }
+
+    // Réparer les messages existants qui n'ont pas authorId/authorRole
+    if (ticket.messages && Array.isArray(ticket.messages)) {
+      ticket.messages = ticket.messages.map((msg: any) => {
+        if (!msg.authorId) {
+          msg.authorId = ticket.clientId || authorId
+        }
+        if (!msg.authorRole) {
+          msg.authorRole = 'CLIENT'
+        }
+        if (!msg.createdAt) {
+          msg.createdAt = new Date()
+        }
+        return msg
+      })
     }
 
     await ticket.save()

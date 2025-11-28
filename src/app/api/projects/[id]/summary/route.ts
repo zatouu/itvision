@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, context: any) {
   try {
     await connectMongoose()
 
-    const { params } = context
+    const params = await context.params
     const { userId, role } = extractToken(request)
     const projectId = params.id
 

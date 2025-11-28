@@ -10,7 +10,14 @@ export interface IClient extends Document {
   // Profil
   company?: string
   address?: string
+  city?: string
+  country?: string
   contactPerson?: string
+  notes?: string
+  tags?: string[]
+  category?: string
+  rating?: number
+  lastContact?: Date
   
   // Statut
   isActive: boolean
@@ -75,7 +82,7 @@ const ClientSchema = new Schema<IClient>({
   },
   passwordHash: {
     type: String,
-    required: true,
+    required: false,
     minlength: 6
   },
   
@@ -88,9 +95,39 @@ const ClientSchema = new Schema<IClient>({
     type: String,
     trim: true
   },
+  city: {
+    type: String,
+    trim: true
+  },
+  country: {
+    type: String,
+    trim: true,
+    default: 'Sénégal'
+  },
   contactPerson: {
     type: String,
     trim: true
+  },
+  notes: {
+    type: String,
+    trim: true
+  },
+  tags: [{
+    type: String,
+    trim: true
+  }],
+  category: {
+    type: String,
+    trim: true
+  },
+  rating: {
+    type: Number,
+    min: 0,
+    max: 5,
+    default: 0
+  },
+  lastContact: {
+    type: Date
   },
   
   // Statut
@@ -207,7 +244,10 @@ ClientSchema.methods.toPublicJSON = function() {
     phone: this.phone,
     company: this.company,
     address: this.address,
+    city: this.city,
+    country: this.country,
     contactPerson: this.contactPerson,
+    notes: this.notes,
     isActive: this.isActive,
     contracts: this.contracts,
     preferences: this.preferences,

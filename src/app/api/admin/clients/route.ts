@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get('q') || '').trim()
     const company = (searchParams.get('company') || '').trim()
+    const status = (searchParams.get('status') || '').trim()
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = parseInt(searchParams.get('skip') || '0')
 
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
       ]
     }
     if (company) query.company = new RegExp(company, 'i')
+    if (status === 'active') query.isActive = true
+    if (status === 'inactive') query.isActive = false
 
     const [clientsRaw, total, totalClients, activeClients, portalEnabledClients] = await Promise.all([
       Client.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -72,5 +75,67 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Erreur'
     const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500
     return NextResponse.json({ error: message }, { status })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    await connectMongoose()
+    requireAdmin(request)
+
+    const body = await request.json()
+    const { name, email, phone, company, address, city, country, canAccessPortal, notes, tags, category, rating } = body
+
+    // Validation
+    if (!name || !email || !phone) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Les champs nom, email et téléphone sont obligatoires' 
+      }, { status: 400 })
+    }
+
+    // Vérifier si l'email existe déjà
+    const existingClient = await Client.findOne({ email })
+    if (existingClient) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Un client avec cet email existe déjà' 
+      }, { status: 400 })
+    }
+
+    // Générer un clientId unique
+    const count = await Client.countDocuments()
+    const clientId = `CL${String(count + 1).padStart(4, '0')}`
+
+    // Créer le client
+    const client = await Client.create({
+      clientId,
+      name,
+      email,
+      phone,
+      company: company || '',
+      address: address || '',
+      city: city || '',
+      country: country || 'Sénégal',
+      isActive: true,
+      permissions: {
+        canAccessPortal: canAccessPortal ?? true
+      },
+      notes: notes || '',
+      tags: tags || [],
+      category: category || '',
+      rating: rating || 0,
+      lastContact: new Date()
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      client,
+      message: 'Client créé avec succès'
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erreur lors de la création'
+    const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500
+    return NextResponse.json({ error: message, success: false }, { status })
   }
 }

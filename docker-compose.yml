@@ -8,18 +8,20 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-AdminPassword123!}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-AdminPassword123}
       MONGO_INITDB_DATABASE: itvision_db
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-AppPassword123}
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
       - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    command: ["mongod", "--bind_ip_all"]
     networks:
       - itvision-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "admin", "-p", "${MONGO_ROOT_PASSWORD:-AdminPassword123}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -33,7 +35,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://itvision_app:${MONGO_APP_PASSWORD:-AppPassword123!}@mongodb:27017/itvision_db
+      - MONGODB_URI=mongodb://itvision_app:${MONGO_APP_PASSWORD:-AppPassword123}@mongodb:27017/itvision_db?authSource=itvision_db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-nextauth-secret-change-in-production}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost}
       - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-change-in-production}

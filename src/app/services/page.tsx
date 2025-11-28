@@ -5,7 +5,7 @@ import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import MaintenanceForm from '@/components/MaintenanceForm'
-import { Camera, Lock, Home, Flame, Cable, Wrench, CheckCircle, Phone, ArrowRight, Star, Clock } from 'lucide-react'
+import { Camera, Lock, Home, Flame, Cable, Wrench, CheckCircle, Phone, ArrowRight, Star, Clock, ShieldCheck, Calendar, FileText, BarChart3, Activity } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ServicesPage() {
@@ -178,6 +178,135 @@ export default function ServicesPage() {
       price: "Devis sur WhatsApp",
       rating: 4.7,
       testimonial: "Service après-vente exceptionnel. - Fatima Samb, Directrice Administrative"
+    }
+  ]
+
+  const maintenancePlans = [
+    {
+      id: 'basic',
+      title: 'Basic Care',
+      badge: 'Essentiel',
+      price: '400 000 F CFA/an',
+      visits: '2 visites/an',
+      sla: 'SLA 48h ouvrées',
+      support: 'Support 8h-18h',
+      description: "Pour les petites installations qui ont besoin d'un suivi régulier et de conformité.",
+      features: [
+        'Contrat annuel + renouvellement assisté',
+        'Checklist préventive standard',
+        'Rapport PDF simplifié',
+        'Hotline prioritaire niveau 2'
+      ],
+      accent: 'from-white to-slate-50'
+    },
+    {
+      id: 'preventive',
+      title: 'Préventif Plus',
+      badge: 'Best-seller',
+      price: '1 200 000 F CFA/an',
+      visits: '4 visites/an',
+      sla: 'SLA 24h',
+      support: 'Monitoring heures ouvrables',
+      description: 'Pour garder vos équipements en “comme neuf” avec reporting détaillé.',
+      features: [
+        'Planning trimestriel verrouillé',
+        'Nettoyage caméra + recalibrage',
+        'Rapport détaillé + photos + recommandations',
+        'Simulation budget pièces critiques'
+      ],
+      accent: 'from-emerald-50 to-green-50',
+      highlight: true
+    },
+    {
+      id: 'curative',
+      title: 'Curatif Express',
+      badge: 'Réactif',
+      price: '600 000 F CFA/an',
+      visits: 'Interventions illimitées',
+      sla: 'SLA 24-48h',
+      support: 'Support 7j/7',
+      description: 'Pour les sites qui veulent prioriser la reprise rapide en cas de panne.',
+      features: [
+        'Tickets illimités (hors pièces)',
+        'Temps de réponse garanti 24-48h',
+        'Suivi en temps réel depuis le portail',
+        'Rapport curatif + devis instantané'
+      ],
+      accent: 'from-orange-50 to-rose-50'
+    },
+    {
+      id: 'full',
+      title: 'Full Service 24/7',
+      badge: 'Premium',
+      price: '3 500 000 F CFA/an',
+      visits: '4 visites + curatif illimité',
+      sla: 'SLA 4h / 24h',
+      support: 'Support 24/7 + pièces incluses',
+      description: 'Couverture totale : préventif, curatif, pièces, reporting exécutif.',
+      features: [
+        'Pièces critiques incluses',
+        'Supervision distante & alerting',
+        'Rapport exécutif + KPIs trimestriels',
+        'Préparation du renouvellement automatique'
+      ],
+      accent: 'from-purple-50 to-indigo-50'
+    }
+  ]
+
+  const maintenanceWorkflow = [
+    {
+      title: 'Audit & inventaire',
+      description: 'Cartographie complète des équipements, tests de charge, photos et numéros de série.',
+      result: 'Baseline technique validée',
+      icon: Activity
+    },
+    {
+      title: 'Contrat & SLA',
+      description: 'Sélection du pack, rédaction du contrat, définition des SLA et des interlocuteurs.',
+      result: 'Contrat signé + plan financier',
+      icon: ShieldCheck
+    },
+    {
+      title: 'Programmation & interventions',
+      description: 'Planification des visites préventives, tickets curatifs, notifications automatiques.',
+      result: 'Calendrier partagé + rappels',
+      icon: Calendar
+    },
+    {
+      title: 'Rapports & renouvellement',
+      description: 'Rapports PDF, recommandations chiffrées, préparation du renouvellement automatique.',
+      result: 'Visibilité budgétaire & conformité',
+      icon: FileText
+    }
+  ]
+
+  const maintenanceOperations = [
+    {
+      title: 'Programmation proactive',
+      icon: Activity,
+      points: [
+        "Visites planifiées 12 mois à l'avance",
+        'Relances automatiques (J-7 / J-1)',
+        "Assignation techniciens depuis l'admin"
+      ]
+    },
+    {
+      title: 'Contrats & SLA pilotés',
+      icon: ShieldCheck,
+      points: [
+        'Suivi interventions incluses/restantes',
+        'Alertes expiration & renouvellement',
+        'Upgrades instantanés (Full, Curatif...)'
+      ]
+    },
+    {
+      title: 'Rapports & budgets',
+      icon: BarChart3,
+      points: [
+        'Rapports PDF signés + photos',
+        'KPIs : disponibilité, temps de réponse',
+        'Projection budget récurrent'
+      ]
     }
   ]
 
@@ -394,56 +523,267 @@ export default function ServicesPage() {
       </section>
 
       {/* Section Maintenance Importance */}
-      <section className="py-16 bg-gradient-to-r from-orange-100 via-red-50 to-orange-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-2xl shadow-xl border-l-8 border-orange-500 p-8">
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full">
-                  <Wrench className="h-8 w-8 text-orange-600" />
+      <section className="py-20 bg-gradient-to-br from-orange-50 via-rose-50 to-emerald-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center space-y-4">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white text-sm font-semibold text-orange-600 shadow-md">
+              <ShieldCheck className="h-4 w-4" />
+              Après l'installation
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
+              Maintenance & Support pilotés par contrat
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              On ne se contente pas d'installer. Nous encadrons vos équipements dans des contrats clairs,
+              planifions les visites et assurons un reporting complet pour sécuriser votre investissement.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white rounded-2xl shadow-xl border border-orange-100 p-8">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full">
+                    <Wrench className="h-8 w-8 text-orange-600" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  ⚠️ Important : La maintenance est ESSENTIELLE
-                </h3>
-                <div className="prose prose-lg max-w-none">
-                  <p className="text-gray-700 mb-4">
-                    <strong>La vidéosurveillance sans maintenance est vouée à l'instabilité.</strong> 
-                    Vos caméras peuvent sembler fonctionner, mais des dysfonctionnements silencieux 
-                    compromettent votre sécurité sans que vous le sachiez.
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                    ⚠️ Sans maintenance, la sécurité se dégrade silencieusement
+                  </h3>
+                  <p className="text-gray-700">
+                    Un système peut sembler fonctionner alors que les enregistrements sont incomplets,
+                    les firmwares obsolètes ou les capteurs décalés. La vraie stabilité vient d'un plan
+                    de maintenance pensé dès le devis.
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                      <h4 className="font-semibold text-red-800 mb-2">Sans maintenance :</h4>
-                      <ul className="text-red-700 text-sm space-y-1">
-                        <li>• Pannes inattendues au pire moment</li>
-                        <li>• Dégradation progressive de la qualité</li>
-                        <li>• Perte d'enregistrements critiques</li>
-                        <li>• Coûts de réparation élevés</li>
-                        <li>• Obsolescence prématurée</li>
-                      </ul>
-                    </div>
-                    <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
-                      <h4 className="font-semibold text-green-800 mb-2">Avec notre maintenance :</h4>
-                      <ul className="text-green-700 text-sm space-y-1">
-                        <li>• Prévention des pannes critiques</li>
-                        <li>• Performance optimale garantie</li>
-                        <li>• Enregistrements fiables 24h/24</li>
-                        <li>• Coûts prévisibles et maîtrisés</li>
-                        <li>• Durée de vie maximisée</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-blue-800 font-medium">
-                      💡 <strong>Peu importe qui a installé votre système</strong> - nous assurons la maintenance 
-                      de TOUS les équipements de sécurité électronique. Notre expertise couvre toutes les marques 
-                      et technologies.
-                    </p>
-                  </div>
                 </div>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+                  <h4 className="font-semibold text-red-800 mb-2">Sans maintenance :</h4>
+                  <ul className="text-red-700 text-sm space-y-1.5">
+                    <li>• Pannes au pire moment</li>
+                    <li>• Dégradation progressive de la qualité</li>
+                    <li>• Perte d'enregistrements critiques</li>
+                    <li>• Factures curatives imprévisibles</li>
+                    <li>• Obsolescence prématurée</li>
+                  </ul>
+                </div>
+                <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+                  <h4 className="font-semibold text-green-800 mb-2">Avec IT Vision :</h4>
+                  <ul className="text-green-700 text-sm space-y-1.5">
+                    <li>• Prévention des pannes critiques</li>
+                    <li>• Performance optimisée 24h/24</li>
+                    <li>• KPIs disponibles dans le portail</li>
+                    <li>• Budget maîtrisé (contrat annuel)</li>
+                    <li>• Durée de vie maximisée</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-blue-800 font-medium">
+                  💡 <strong>Peu importe qui a installé votre système</strong> : nous reprenons la maintenance de tous les
+                  équipements de sécurité électronique, toutes marques confondues.
+                </p>
+              </div>
+            </div>
+            <div className="bg-emerald-900 text-white rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+              <div className="absolute inset-0 opacity-40 bg-gradient-to-br from-emerald-700 via-teal-700 to-emerald-900" />
+              <div className="relative space-y-6">
+                <h3 className="text-3xl font-semibold">Ce que couvre notre maintenance</h3>
+                <ul className="space-y-5">
+                  <li className="flex items-start gap-3">
+                    <ShieldCheck className="h-6 w-6 text-emerald-300 flex-shrink-0" />
+                    <div>
+                      <p className="text-lg font-semibold">Contrats annuels pilotés</p>
+                      <p className="text-sm text-white/80">Préventif, curatif, full service avec SLA adaptés à votre activité.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Calendar className="h-6 w-6 text-emerald-300 flex-shrink-0" />
+                    <div>
+                      <p className="text-lg font-semibold">Programmation & rappels</p>
+                      <p className="text-sm text-white/80">Planification 12 mois à l'avance + rappels automatiques.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <FileText className="h-6 w-6 text-emerald-300 flex-shrink-0" />
+                    <div>
+                      <p className="text-lg font-semibold">Rapports signés & KPIs</p>
+                      <p className="text-sm text-white/80">Rapports PDF, photos, recommandations chiffrées, suivi portail client.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <BarChart3 className="h-6 w-6 text-emerald-300 flex-shrink-0" />
+                    <div>
+                      <p className="text-lg font-semibold">Renouvellement et budget</p>
+                      <p className="text-sm text-white/80">Projection du budget récurrent et alertes 60 jours avant expiration.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div className="relative mt-8">
+                <button
+                  onClick={() => setIsMaintenanceFormOpen(true)}
+                  className="w-full bg-white text-emerald-700 font-semibold py-3 rounded-xl shadow-lg hover:bg-emerald-50 transition flex items-center justify-center gap-2"
+                >
+                  Construire mon plan maintenance
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <p className="text-xs text-white/70 text-center mt-3">
+                  Contrats livrés avec reporting numérique et hotline dédiée
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-orange-600">Contrats standardisés</p>
+                <h3 className="text-3xl font-bold text-gray-900 mt-2">Choisissez votre contrat de maintenance</h3>
+                <p className="text-gray-600 mt-2 max-w-2xl">
+                  Chaque contrat inclut la programmation des visites, les rapports numériques et un accès au portail client
+                  pour suivre les interventions et les recommandations.
+                </p>
+              </div>
+              <div className="text-sm text-gray-500">
+                Tarifs indicatifs – ajustés après audit de votre parc.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {maintenancePlans.map((plan) => {
+                const isHighlighted = Boolean(plan.highlight)
+                return (
+                  <div
+                    key={plan.id}
+                    className={`rounded-2xl border p-6 shadow-lg bg-gradient-to-br ${plan.accent} ${
+                      isHighlighted ? 'border-emerald-300 shadow-emerald-200/60' : 'border-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <span
+                        className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                          isHighlighted ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {plan.badge}
+                      </span>
+                      {isHighlighted && (
+                        <span className="text-xs font-semibold text-emerald-700">Recommandé</span>
+                      )}
+                    </div>
+                    <h4 className="text-xl font-bold text-gray-900">{plan.title}</h4>
+                    <p className="text-sm text-gray-500 mt-1">{plan.description}</p>
+                    <div className="mt-5">
+                      <p className="text-3xl font-bold text-emerald-600">{plan.price}</p>
+                      <p className="text-sm text-gray-500">{plan.visits}</p>
+                      <p className="text-sm text-gray-500">{plan.sla}</p>
+                      <p className="text-sm text-gray-500">{plan.support}</p>
+                    </div>
+                    <ul className="mt-6 space-y-2">
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                          <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => setIsMaintenanceFormOpen(true)}
+                      className={`mt-6 w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 ${
+                        isHighlighted
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50'
+                      } transition`}
+                    >
+                      Demander ce contrat
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="bg-gray-900 rounded-3xl p-8 text-white shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+              <div>
+                <p className="text-sm uppercase tracking-wide text-emerald-200">Parcours maintenance</p>
+                <h3 className="text-3xl font-bold">Un workflow clair après chaque installation</h3>
+              </div>
+              <p className="text-sm text-white/70 max-w-xl">
+                Un contrat = un parcours : diagnostic initial, signature, programmation automatique, reporting et
+                renouvellement accompagné.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {maintenanceWorkflow.map((step, index) => {
+                const Icon = step.icon
+                return (
+                  <div key={step.title} className="relative bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full border border-white/30 flex items-center justify-center text-sm font-bold">
+                        {index + 1}
+                      </div>
+                      <div className="p-2 bg-white/10 rounded-xl">
+                        <Icon className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                    <h4 className="text-lg font-semibold mb-2">{step.title}</h4>
+                    <p className="text-sm text-white/80">{step.description}</p>
+                    <p className="text-xs uppercase tracking-wide text-emerald-200 mt-4">{step.result}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {maintenanceOperations.map((operation) => {
+              const Icon = operation.icon
+              return (
+                <div key={operation.title} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-lg">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold mb-4">
+                    <Icon className="h-4 w-4" />
+                    {operation.title}
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    {operation.points.map((point) => (
+                      <li key={point} className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2" />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="bg-emerald-700 rounded-3xl text-white p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6 shadow-2xl">
+            <div>
+              <p className="text-sm uppercase tracking-wide text-white/70">Contrat sur-mesure</p>
+              <h3 className="text-3xl font-bold mt-2">Besoin d'une maintenance adaptée à un parc complexe ?</h3>
+              <p className="text-white/80 mt-2 max-w-2xl">
+                Nous construisons des contrats hybrides (multi-sites, équipements multi-marques, astreinte 24/7) avec
+                planification partagée et budget prévisionnel.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <button
+                onClick={() => setIsMaintenanceFormOpen(true)}
+                className="flex-1 bg-white text-emerald-700 font-semibold py-3 rounded-xl shadow-lg hover:bg-emerald-50 transition"
+              >
+                Planifier ma maintenance
+              </button>
+              <a
+                href="tel:+221774133440"
+                className="flex-1 border-2 border-white text-white font-semibold py-3 rounded-xl text-center hover:bg-white hover:text-emerald-700 transition"
+              >
+                Appeler IT Vision
+              </a>
             </div>
           </div>
         </div>
