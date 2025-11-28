@@ -155,17 +155,6 @@ export function generateMaintenanceContractPdf(contract: ContractExportData): Ar
     equipmentY = (doc as any).lastAutoTable?.finalY || techY + 60
   }
 
-  if (contract.preferredTechnicians?.length) {
-    sections.push(paragraph('Techniciens attitrés', true))
-    contract.preferredTechnicians.forEach((tech) => {
-      sections.push(
-        paragraph(
-          `• ${tech.name}${tech.email ? ` – ${tech.email}` : ''}${tech.phone ? ` – ${tech.phone}` : ''}`
-        )
-      )
-    })
-  }
-
   if (contract.notes) {
     const notesY = equipmentY + 30
     doc.setFontSize(12)
@@ -236,6 +225,17 @@ export async function generateMaintenanceContractDocx(contract: ContractExportDa
     })
   }
 
+  if (contract.preferredTechnicians?.length) {
+    sections.push(paragraph('Techniciens attitrés', true))
+    contract.preferredTechnicians.forEach((tech) => {
+      sections.push(
+        paragraph(
+          `• ${tech.name}${tech.email ? ` – ${tech.email}` : ''}${tech.phone ? ` – ${tech.phone}` : ''}`
+        )
+      )
+    })
+  }
+
   if (contract.notes) {
     sections.push(paragraph('Clauses & obligations', true))
     sections.push(paragraph(contract.notes))
@@ -255,7 +255,9 @@ export async function generateMaintenanceContractDocx(contract: ContractExportDa
     ]
   })
 
-  const buffer = await Packer.toBuffer(doc)
-  return buffer
+  const nodeBuffer = await Packer.toBuffer(doc)
+  const arrayBuffer = new ArrayBuffer(nodeBuffer.byteLength)
+  new Uint8Array(arrayBuffer).set(nodeBuffer)
+  return arrayBuffer
 }
 

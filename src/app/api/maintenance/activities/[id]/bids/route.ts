@@ -5,6 +5,8 @@ import MaintenanceBid from '@/lib/models/MaintenanceBid'
 import Technician from '@/lib/models/Technician'
 import { jwtVerify } from 'jose'
 
+type RouteContext = { params: Promise<{ id: string }> }
+
 async function verifyToken(request: NextRequest) {
   const token =
     request.cookies.get('auth-token')?.value ||
@@ -19,30 +21,31 @@ async function verifyToken(request: NextRequest) {
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const { id } = await context.params
     const { role } = await verifyToken(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
     await connectMongoose()
-    const bids = await MaintenanceBid.find({ activityId: params.id }).sort({ createdAt: -1 }).lean()
+    const bids = await MaintenanceBid.find({ activityId: id }).sort({ createdAt: -1 }).lean()
 
     return NextResponse.json({
       success: true,
-      bids: bids.map((bid) => ({
-        id: bid._id.toString(),
-        amount: bid.amount,
-        availability: bid.availability,
-        message: bid.message,
-        status: bid.status,
-        technicianName: bid.technicianName,
-        technicianPhone: bid.technicianPhone,
-        createdAt: bid.createdAt
-      }))
+      bids: bids.map((bid) => {
+        const doc = bid as Record<string, any>
+        return {
+          id: doc._id?.toString?.() || '',
+          amount: doc.amount,
+          availability: doc.availability,
+          message: doc.message,
+          status: doc.status,
+          technicianName: doc.technicianName,
+          technicianPhone: doc.technicianPhone,
+          createdAt: doc.createdAt
+        }
+      })
     })
   } catch (error) {
     console.error('Erreur récupération offres maintenance:', error)
@@ -51,18 +54,16 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const { id } = await context.params
     const { role, technicianId, userId } = await verifyToken(request)
     if (!['TECHNICIAN', 'ADMIN'].includes(role)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     await connectMongoose()
-    const activity = await MaintenanceActivity.findById(params.id)
+    const activity = await MaintenanceActivity.findById(id)
     if (!activity || activity.status !== 'open') {
       return NextResponse.json({ error: 'Activité non disponible' }, { status: 400 })
     }
@@ -79,12 +80,13 @@ export async function POST(
 
     if (role === 'TECHNICIAN') {
       const technician = await Technician.findOne({ userId }).lean()
-      if (!technician) {
+      const technicianRecord = technician && !Array.isArray(technician) ? (technician as Record<string, any>) : null
+      if (!technicianRecord) {
         return NextResponse.json({ error: 'Technicien introuvable' }, { status: 404 })
       }
-      techId = technician._id.toString()
-      technicianName = technician.name || technician.email || 'Technicien'
-      technicianPhone = technician.phone
+      techId = technicianRecord._id?.toString?.() || undefined
+      technicianName = technicianRecord.name || technicianRecord.email || 'Technicien'
+      technicianPhone = technicianRecord.phone
     } else {
       technicianName = body.technicianName || 'Technicien (admin)'
       technicianPhone = body.technicianPhone

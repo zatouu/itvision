@@ -5,6 +5,8 @@ import User from '@/lib/models/User'
 import { generateMaintenanceContractDocx, generateMaintenanceContractPdf } from '@/lib/contracts/export'
 import { jwtVerify } from 'jose'
 
+type RouteContext = { params: Promise<{ id: string }> }
+
 async function verifyAdmin(request: NextRequest) {
   const token =
     request.cookies.get('auth-token')?.value ||
@@ -18,15 +20,12 @@ async function verifyAdmin(request: NextRequest) {
   return { userId: payload.userId as string }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
     await verifyAdmin(request)
     await connectMongoose()
 
-    const { id } = params
+    const { id } = await context.params
     const format = (request.nextUrl.searchParams.get('format') || 'pdf').toLowerCase()
 
     const contract = await MaintenanceContract.findById(id)
@@ -35,19 +34,26 @@ export async function GET(
       .populate('preferredTechnicians', 'name email phone')
       .lean()
 
-    if (!contract) {
+    const contractRecord =
+      contract && !Array.isArray(contract) ? (contract as Record<string, any>) : null
+
+    if (!contractRecord) {
       return NextResponse.json({ error: 'Contrat introuvable' }, { status: 404 })
     }
 
+    const clientUserRaw =
+      (await User.findById(contractRecord.clientId).lean()) ||
+      (contractRecord.clientId as unknown as Record<string, any>)
     const clientUser =
-      (await User.findById(contract.clientId).lean()) ||
-      (contract.clientId as unknown as Record<string, any>)
+      clientUserRaw && !Array.isArray(clientUserRaw)
+        ? (clientUserRaw as Record<string, any>)
+        : null
 
     const exportData = {
-      contractNumber: contract.contractNumber,
-      name: contract.name,
-      type: contract.type,
-      status: contract.status,
+      contractNumber: contractRecord.contractNumber,
+      name: contractRecord.name,
+      type: contractRecord.type,
+      status: contractRecord.status,
       client: {
         name: clientUser?.name || '',
         company: clientUser?.company || clientUser?.name,
@@ -56,33 +62,33 @@ export async function GET(
         phone: clientUser?.phone,
         contactPerson: clientUser?.contactPerson
       },
-      project: contract.projectId
+      project: contractRecord.projectId
         ? {
-            name: (contract.projectId as any)?.name,
-            address: (contract.projectId as any)?.address
+            name: (contractRecord.projectId as any)?.name,
+            address: (contractRecord.projectId as any)?.address
           }
         : undefined,
-      startDate: contract.startDate?.toISOString(),
-      endDate: contract.endDate?.toISOString(),
-      paymentTerms: contract.paymentTerms || contract.specialConditions,
+      startDate: contractRecord.startDate?.toISOString(),
+      endDate: contractRecord.endDate?.toISOString(),
+      paymentTerms: contractRecord.paymentTerms || contractRecord.specialConditions,
       coverage: {
-        responseTime: contract.coverage?.responseTime,
-        supportHours: contract.coverage?.supportHours,
-        interventionsIncluded: contract.coverage?.interventionsIncluded
+        responseTime: contractRecord.coverage?.responseTime,
+        supportHours: contractRecord.coverage?.supportHours,
+        interventionsIncluded: contractRecord.coverage?.interventionsIncluded
       },
-      services: contract.services?.map((service: any) => ({
+      services: contractRecord.services?.map((service: any) => ({
         name: service?.name,
         description: service?.description,
         frequency: service?.frequency
       })),
-      equipment: contract.equipment?.map((equipment: any) => ({
+      equipment: contractRecord.equipment?.map((equipment: any) => ({
         type: equipment?.type,
         quantity: equipment?.quantity,
         location: equipment?.location
       })),
-      notes: contract.notes,
-      preferredTechnicians: Array.isArray(contract.preferredTechnicians)
-        ? (contract.preferredTechnicians as any[]).map((tech) => ({
+      notes: contractRecord.notes,
+      preferredTechnicians: Array.isArray(contractRecord.preferredTechnicians)
+        ? (contractRecord.preferredTechnicians as any[]).map((tech) => ({
             _id: tech._id?.toString?.() || '',
             name: tech?.name || 'Technicien',
             email: tech?.email,
@@ -98,7 +104,7 @@ export async function GET(
         headers: {
           'Content-Type':
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'Content-Disposition': `attachment; filename="${contract.contractNumber || contract.name}.docx"`
+          'Content-Disposition': `attachment; filename="${contractRecord.contractNumber || contractRecord.name}.docx"`
         }
       })
     }
@@ -108,7 +114,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${contract.contractNumber || contract.name}.pdf"`
+        'Content-Disposition': `attachment; filename="${contractRecord.contractNumber || contractRecord.name}.pdf"`
       }
     })
   } catch (error) {

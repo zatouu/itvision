@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
 
     // Récupérer les infos du client
     const client = await User.findById(userId).select('name email company phone').lean()
+    const clientProfile = client && !Array.isArray(client) ? client : null
+    const clientDisplayName = clientProfile?.name || email
 
     // Formater la description avec les détails
     let fullDescription = description + '\n\n'
@@ -107,14 +109,16 @@ export async function POST(request: NextRequest) {
       category: 'billing',
       priority: 'medium',
       status: 'open',
-      messages: [{
-        authorId: userId,
-        authorName: client?.name || email,
-        authorRole: 'CLIENT',
-        message: fullDescription,
-        createdAt: new Date(),
-        isStaff: false
-      }],
+      messages: [
+        {
+          authorId: userId,
+          authorName: clientDisplayName,
+          authorRole: 'CLIENT',
+          message: fullDescription,
+          createdAt: new Date(),
+          isStaff: false
+        }
+      ],
       metadata: {
         type: 'quote_request',
         quoteCategory: category,
@@ -132,7 +136,7 @@ export async function POST(request: NextRequest) {
     emitGroupNotification('admins', {
       type: 'info',
       title: 'Nouvelle Demande de Devis',
-      message: `${client?.name || email} demande un devis : ${title}`,
+      message: `${clientDisplayName} demande un devis : ${title}`,
       data: { ticketId: ticket._id.toString() }
     })
 

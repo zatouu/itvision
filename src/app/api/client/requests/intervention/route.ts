@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
 
     // Récupérer les infos du client
     const client = await User.findById(userId).select('name email company phone').lean()
+    const clientProfile = client && !Array.isArray(client) ? client : null
+    const clientDisplayName = clientProfile?.name || email
 
     // Déterminer la priorité selon le type
     const priority = type === 'urgent' ? 'urgent' : 'high'
@@ -87,14 +89,16 @@ export async function POST(request: NextRequest) {
       category: 'technical',
       priority,
       status: 'open',
-      messages: [{
-        authorId: userId,
-        authorName: client?.name || email,
-        authorRole: 'CLIENT',
-        message: description,
-        createdAt: new Date(),
-        isStaff: false
-      }],
+      messages: [
+        {
+          authorId: userId,
+          authorName: clientDisplayName,
+          authorRole: 'CLIENT',
+          message: description,
+          createdAt: new Date(),
+          isStaff: false
+        }
+      ],
       metadata: {
         type: 'intervention_request',
         interventionType: type,
@@ -110,14 +114,14 @@ export async function POST(request: NextRequest) {
     emitGroupNotification('admins', {
       type: type === 'urgent' ? 'warning' : 'info',
       title: type === 'urgent' ? '🚨 Intervention Urgente' : 'Nouvelle Demande d\'Intervention',
-      message: `${client?.name || email} demande une intervention : ${title}`,
+      message: `${clientDisplayName} demande une intervention : ${title}`,
       data: { ticketId: ticket._id.toString() }
     })
 
     emitGroupNotification('technicians', {
       type: type === 'urgent' ? 'warning' : 'info',
       title: type === 'urgent' ? '🚨 Intervention Urgente' : 'Nouvelle Demande d\'Intervention',
-      message: `${client?.name || email} - ${site}`,
+      message: `${clientDisplayName} - ${site}`,
       data: { ticketId: ticket._id.toString() }
     })
 

@@ -52,6 +52,16 @@ export interface IMaintenanceContract extends Document {
     location: string
     serialNumbers?: string[]
   }>
+
+  preferredTechnicians?: Array<
+    | Types.ObjectId
+    | {
+        _id?: Types.ObjectId | string
+        name?: string
+        email?: string
+        phone?: string
+      }
+  >
   
   // Interventions liées
   interventions: Types.ObjectId[]

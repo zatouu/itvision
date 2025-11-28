@@ -40,7 +40,7 @@ const API_HOST = 'aliexpress-datahub.p.rapidapi.com'
 const API_ENDPOINT = `https://${API_HOST}/item_search`
 
 const FX_RATE = Number(process.env.ALIEXPRESS_USD_TO_XOF || 620)
-const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 30)cc
+const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 30)
 
 type CliOptions = {
   keyword: string
@@ -86,8 +86,8 @@ const ensureMinimumWeight = (weight?: number | null) => {
 const extractFeatures = (item: AliExpressItem): string[] => {
   const features = new Set<string>()
   if (item.shop_name) features.add(`Boutique: ${item.shop_name}`)
-  if (item.orders) features.add(`${item.orders} commandes`) 
-  if (item.total_rated) features.add(`${item.total_rated} avis`) 
+  if (item.orders) features.add(`${item.orders} commandes`)
+  if (item.total_rated) features.add(`${item.total_rated} avis`)
   if (Array.isArray(item.product_properties)) {
     item.product_properties
       .filter((prop): prop is AliExpressItemProperty => Boolean(prop?.attr_name && prop?.attr_value))

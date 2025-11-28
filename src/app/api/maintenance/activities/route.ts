@@ -44,34 +44,37 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      activities: activities.map((activity) => ({
-        id: activity._id.toString(),
-        visitId: activity.visitId,
-        contractId: activity.contractId?.toString(),
-        contractName: activity.contractName,
-        clientName: activity.clientName,
-        site: activity.site,
-        date: activity.date,
-        status: activity.status,
-        bidsCount: activity.bidsCount,
-        bestBidAmount: activity.bestBidAmount,
-        category: activity.category,
-        allowMarketplace: activity.allowMarketplace,
-        isContractual: activity.isContractual,
-        productId: activity.productId,
-        productName: activity.productName,
-        installationOptions: activity.installationOptions,
-        clientContact: activity.clientContact,
-        marketplaceReason: activity.marketplaceReason,
-        preferredTechnicians: Array.isArray(activity.preferredTechnicians)
-          ? activity.preferredTechnicians.map((tech: any) => ({
-              _id: tech?._id?.toString?.(),
-              name: tech?.name,
-              email: tech?.email,
-              phone: tech?.phone
-            }))
-          : undefined
-      }))
+      activities: activities.map((activity) => {
+        const doc = activity as Record<string, any>
+        return {
+          id: doc._id?.toString?.() || '',
+          visitId: doc.visitId,
+          contractId: doc.contractId?.toString?.(),
+          contractName: doc.contractName,
+          clientName: doc.clientName,
+          site: doc.site,
+          date: doc.date,
+          status: doc.status,
+          bidsCount: doc.bidsCount,
+          bestBidAmount: doc.bestBidAmount,
+          category: doc.category,
+          allowMarketplace: doc.allowMarketplace,
+          isContractual: doc.isContractual,
+          productId: doc.productId,
+          productName: doc.productName,
+          installationOptions: doc.installationOptions,
+          clientContact: doc.clientContact,
+          marketplaceReason: doc.marketplaceReason,
+          preferredTechnicians: Array.isArray(doc.preferredTechnicians)
+            ? doc.preferredTechnicians.map((tech: any) => ({
+                _id: tech?._id?.toString?.(),
+                name: tech?.name,
+                email: tech?.email,
+                phone: tech?.phone
+              }))
+            : undefined
+        }
+      })
     })
   } catch (error) {
     console.error('Erreur chargement activités maintenance:', error)
