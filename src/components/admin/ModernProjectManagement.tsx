@@ -8,8 +8,9 @@ import {
   DollarSign, CheckCircle2, AlertCircle, XCircle, Pause, Play, Target,
   Briefcase, FileText, Package, Activity, Award, BarChart3, PieChart,
   ArrowUp, ArrowDown, Minus, MapPin, Phone, Mail, Building2, Wrench,
-  ChevronRight, Star, TrendingDown, Zap, Settings, X
+  ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle
 } from 'lucide-react'
+import { useToastContext } from '@/components/ToastProvider'
 
 interface Project {
   _id: string
@@ -105,6 +106,7 @@ type ViewMode = 'kanban' | 'list' | 'calendar' | 'analytics'
 
 export default function ModernProjectManagement() {
   const router = useRouter()
+  const toast = useToastContext()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('kanban')
@@ -121,6 +123,8 @@ export default function ModernProjectManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showProjectDetail, setShowProjectDetail] = useState(false)
+  const [projectPendingDeletion, setProjectPendingDeletion] = useState<Project | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchProjects = async () => {
     setLoading(true)
@@ -159,6 +163,7 @@ export default function ModernProjectManagement() {
       setClients(formatted.filter(client => client.id))
     } catch (clientError) {
       console.error('Chargement des clients impossible', clientError)
+      toast.error('Chargement clients impossible', { description: 'Impossible de récupérer la liste des clients. Essayez de rafraîchir.' })
     } finally {
       setClientsLoading(false)
     }
@@ -202,6 +207,7 @@ export default function ModernProjectManagement() {
     setCreateModalError('')
 
     try {
+      const projectName = newProjectData.name.trim()
       const payload: Record<string, any> = {
         name: newProjectData.name.trim(),
         address: newProjectData.address.trim(),
@@ -245,10 +251,46 @@ export default function ModernProjectManagement() {
       await fetchProjects()
       setNewProjectData(buildDefaultProjectForm())
       closeCreateModal()
+      toast.success('Projet créé', { description: projectName || 'Le projet a été ajouté.' })
     } catch (creationError: any) {
       setCreateModalError(creationError?.message || 'Erreur lors de la création')
+      toast.error('Création impossible', { description: creationError?.message || 'Vérifiez les informations et réessayez.' })
     } finally {
       setCreatingProject(false)
+    }
+  }
+
+  const requestProjectDeletion = (project: Project) => {
+    setProjectPendingDeletion(project)
+  }
+
+  const cancelProjectDeletion = () => {
+    setProjectPendingDeletion(null)
+    setIsDeleting(false)
+  }
+
+  const deleteSelectedProject = async () => {
+    if (!projectPendingDeletion?._id) return
+    setIsDeleting(true)
+    const targetName = projectPendingDeletion.name
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: projectPendingDeletion._id })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || 'Suppression impossible')
+      }
+      toast.success('Projet supprimé', { description: `${targetName} a été retiré.` })
+      await fetchProjects()
+      cancelProjectDeletion()
+    } catch (error) {
+      toast.error('Suppression échouée', { description: error instanceof Error ? error.message : 'Réessayez plus tard.' })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -762,9 +804,10 @@ export default function ModernProjectManagement() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            // Delete action
+                            requestProjectDeletion(project)
                           }}
                           className="text-red-600 hover:text-red-900"
+                          aria-label="Supprimer le projet"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1070,6 +1113,42 @@ export default function ModernProjectManagement() {
               >
                 {creatingProject && <RefreshCw className="h-4 w-4 animate-spin" />}
                 {creatingProject ? 'Création...' : 'Créer le projet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {projectPendingDeletion && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <AlertTriangle className="h-6 w-6" />
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">Supprimer le projet ?</p>
+                  <p className="text-sm text-gray-500">Cette action est irréversible.</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                Confirmez la suppression de <span className="font-semibold text-gray-900">{projectPendingDeletion.name}</span>. 
+                Toutes les données associées seront définitivement retirées de la plateforme.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={cancelProjectDeletion}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={deleteSelectedProject}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700 disabled:opacity-60"
+              >
+                {isDeleting && <RefreshCw className="h-4 w-4 animate-spin" />}
+                Supprimer
               </button>
             </div>
           </div>
