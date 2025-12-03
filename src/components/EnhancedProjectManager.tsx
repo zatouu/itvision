@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Pencil, RefreshCw, Save, X, Users, Calendar, CheckCircle, AlertCircle, Clock, Zap, UserPlus, Search } from 'lucide-react'
 
 type Project = {
@@ -39,6 +40,10 @@ export default function EnhancedProjectManager() {
   const [clientSearch, setClientSearch] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', email: '', phone: '' })
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const editProjectId = useMemo(() => searchParams?.get('editProject') || null, [searchParams])
 
   const refresh = async () => {
     setLoading(true)
@@ -76,6 +81,25 @@ export default function EnhancedProjectManager() {
   }
 
   useEffect(() => { refresh() }, [])
+
+  useEffect(() => {
+    if (!editProjectId || items.length === 0) return
+    const projectToEdit = items.find(p => String(p._id) === editProjectId)
+    if (projectToEdit) {
+      setEditing({ ...projectToEdit })
+      setSelectedQuoteId('')
+      setShowAssignModal(false)
+      setShowNewClient(false)
+    }
+  }, [editProjectId, items])
+
+  const clearEditProjectParam = () => {
+    if (!editProjectId) return
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    params.delete('editProject')
+    const next = params.size ? `${pathname}?${params.toString()}` : pathname
+    router.replace(next, { scroll: false })
+  }
 
   useEffect(() => {
     if (selectedQuoteId && quotes.length > 0) {
@@ -139,6 +163,7 @@ export default function EnhancedProjectManager() {
       const createdId = j.project?._id || editing._id
       await refresh()
       setEditing(null)
+      clearEditProjectParam()
       if (!editing._id && createdId) {
         setNewProjectId(String(createdId))
         setShowAssignModal(true)
@@ -225,7 +250,7 @@ export default function EnhancedProjectManager() {
           <p className="text-gray-600">Workflow complet : création, affectation et suivi</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setEditing({ name: '', address: '', clientId: '', startDate: new Date().toISOString().slice(0,10), status: 'lead', progress: 0 }); setSelectedQuoteId('') }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm">
+          <button onClick={() => { clearEditProjectParam(); setEditing({ name: '', address: '', clientId: '', startDate: new Date().toISOString().slice(0,10), status: 'lead', progress: 0 }); setSelectedQuoteId('') }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm">
             <Plus className="h-4 w-4" /> Nouveau projet
           </button>
           <button onClick={refresh} className="inline-flex items-center gap-2 border px-4 py-2 rounded-lg text-sm">
@@ -314,7 +339,7 @@ export default function EnhancedProjectManager() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => { setEditing(null); setSelectedQuoteId('') }}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => { setEditing(null); setSelectedQuoteId(''); clearEditProjectParam() }}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b">
               <h3 className="text-lg font-semibold">{editing._id ? 'Modifier' : 'Nouveau'} projet</h3>
@@ -419,7 +444,7 @@ export default function EnhancedProjectManager() {
               </div>
             </div>
             <div className="p-6 border-t flex justify-end gap-2">
-              <button className="px-4 py-2 rounded border" onClick={() => { setEditing(null); setSelectedQuoteId('') }}>
+              <button className="px-4 py-2 rounded border" onClick={() => { setEditing(null); setSelectedQuoteId(''); clearEditProjectParam() }}>
                 <X className="h-4 w-4 inline mr-1" /> Annuler
               </button>
               <button className="px-4 py-2 rounded bg-emerald-600 text-white" onClick={onSave}>

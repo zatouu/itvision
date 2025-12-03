@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   LayoutGrid, List, Calendar as CalendarIcon, TrendingUp, Plus, Search, Filter,
   RefreshCw, Download, MoreVertical, Eye, Edit3, Trash2, Users, Clock,
@@ -103,6 +104,7 @@ const buildDefaultProjectForm = (): NewProjectForm => ({
 type ViewMode = 'kanban' | 'list' | 'calendar' | 'analytics'
 
 export default function ModernProjectManagement() {
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('kanban')
@@ -165,6 +167,11 @@ export default function ModernProjectManagement() {
   useEffect(() => {
     fetchProjects()
   }, [])
+
+  const redirectToProjectEditor = (projectId?: string) => {
+    const baseUrl = projectId ? `/admin/planning?editProject=${projectId}` : '/admin/planning'
+    router.push(baseUrl)
+  }
 
   useEffect(() => {
     fetchClients()
@@ -602,7 +609,14 @@ export default function ModernProjectManagement() {
                             <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 flex-1">
                               {project.name}
                             </h4>
-                            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                redirectToProjectEditor(project._id)
+                              }}
+                              aria-label="Modifier ce projet"
+                            >
                               <MoreVertical className="h-4 w-4 text-gray-400" />
                             </button>
                           </div>
@@ -738,9 +752,10 @@ export default function ModernProjectManagement() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            // Edit action
+                            redirectToProjectEditor(project._id)
                           }}
                           className="text-gray-600 hover:text-gray-900 mr-3"
+                          aria-label="Modifier le projet"
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
@@ -1169,6 +1184,14 @@ export default function ModernProjectManagement() {
                 </button>
                 <button
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg hover:scale-105"
+                  onClick={() => {
+                    setShowProjectDetail(false)
+                    if (selectedProject?._id) {
+                      redirectToProjectEditor(selectedProject._id)
+                    } else {
+                      redirectToProjectEditor()
+                    }
+                  }}
                 >
                   Modifier le projet
                 </button>
