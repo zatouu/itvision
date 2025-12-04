@@ -4,7 +4,15 @@ import { csrfProtection } from '@/lib/csrf-protection'
 
 // Routes protégées par rôle
 const PROTECTED_ROUTES = {
-  admin: ['/admin'],
+  admin: [
+    '/admin',
+    '/admin-reports',
+    '/admin-factures',
+    '/admin-prix',
+    '/admin-produits',
+    '/validation-rapports',
+    '/workflows'
+  ],
   client: ['/client-portal', '/client-portal-v2'],
   technician: ['/tech-interface'],
 }
@@ -60,7 +68,23 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 function getRequiredRole(pathname: string): string | null {
-  if (pathname.startsWith('/admin')) return 'ADMIN'
+  // Routes admin (y compris celles en dehors de /admin/)
+  const adminRoutes = [
+    '/admin',
+    '/admin-reports',
+    '/admin-factures',
+    '/admin-prix',
+    '/admin-produits',
+    '/validation-rapports',
+    '/workflows'
+  ]
+  
+  for (const route of adminRoutes) {
+    if (pathname === route || pathname.startsWith(route + '/')) {
+      return 'ADMIN'
+    }
+  }
+  
   if (pathname.startsWith('/client-portal')) return 'CLIENT'
   if (pathname.startsWith('/tech-interface')) return 'TECHNICIAN'
   return null
