@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   LayoutGrid, List, Calendar as CalendarIcon, TrendingUp, Plus, Search, Filter,
   RefreshCw, Download, MoreVertical, Eye, Edit3, Trash2, Users, Clock,
   DollarSign, CheckCircle2, AlertCircle, XCircle, Pause, Play, Target,
   Briefcase, FileText, Package, Activity, Award, BarChart3, PieChart,
   ArrowUp, ArrowDown, Minus, MapPin, Phone, Mail, Building2, Wrench,
-  ChevronRight, Star, TrendingDown, Zap, Settings, X
+  ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle
 } from 'lucide-react'
+import { useToastContext } from '@/components/ToastProvider'
 
 interface Project {
   _id: string
@@ -57,20 +59,72 @@ interface KPI {
   color: string
 }
 
+interface ClientOption {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+}
+
+interface NewProjectForm {
+  name: string
+  clientId: string
+  address: string
+  startDate: string
+  endDate: string
+  status: string
+  serviceType: string
+  currentPhase: string
+  value: string
+  progress: string
+  description: string
+  clientCompany: string
+  clientContact: string
+  clientPhone: string
+  clientEmail: string
+}
+
+const buildDefaultProjectForm = (): NewProjectForm => ({
+  name: '',
+  clientId: '',
+  address: '',
+  startDate: new Date().toISOString().slice(0, 10),
+  endDate: '',
+  status: 'lead',
+  serviceType: '',
+  currentPhase: '',
+  value: '',
+  progress: '0',
+  description: '',
+  clientCompany: '',
+  clientContact: '',
+  clientPhone: '',
+  clientEmail: ''
+})
+
 type ViewMode = 'kanban' | 'list' | 'calendar' | 'analytics'
 
 export default function ModernProjectManagement() {
+  const router = useRouter()
+  const toast = useToastContext()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('kanban')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [error, setError] = useState('')
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [clientsLoading, setClientsLoading] = useState(false)
+  const [newProjectData, setNewProjectData] = useState<NewProjectForm>(() => buildDefaultProjectForm())
+  const [createModalError, setCreateModalError] = useState('')
+  const [creatingProject, setCreatingProject] = useState(false)
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showProjectDetail, setShowProjectDetail] = useState(false)
+  const [projectPendingDeletion, setProjectPendingDeletion] = useState<Project | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchProjects = async () => {
     setLoading(true)
@@ -92,9 +146,153 @@ export default function ModernProjectManagement() {
     }
   }
 
+  const fetchClients = async () => {
+    setClientsLoading(true)
+    try {
+      const res = await fetch('/api/admin/users?role=CLIENT&limit=200', { credentials: 'include' })
+      if (!res.ok) throw new Error('Erreur lors du chargement des clients')
+      const data = await res.json()
+      const formatted = Array.isArray(data?.users)
+        ? data.users.map((user: any) => ({
+            id: user._id || user.id,
+            name: user.name || user.username || 'Client',
+            email: user.email,
+            phone: user.phone
+          }))
+        : []
+      setClients(formatted.filter(client => client.id))
+    } catch (clientError) {
+      console.error('Chargement des clients impossible', clientError)
+      toast.error('Chargement clients impossible', { description: 'Impossible de récupérer la liste des clients. Essayez de rafraîchir.' })
+    } finally {
+      setClientsLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchProjects()
   }, [])
+
+  const redirectToProjectEditor = (projectId?: string) => {
+    const baseUrl = projectId ? `/admin/planning?editProject=${projectId}` : '/admin/planning'
+    router.push(baseUrl)
+  }
+
+  useEffect(() => {
+    fetchClients()
+  }, [])
+
+  const openCreateModal = () => {
+    setNewProjectData(buildDefaultProjectForm())
+    setCreateModalError('')
+    setShowCreateModal(true)
+  }
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false)
+    setCreateModalError('')
+  }
+
+  const handleNewProjectFieldChange = (field: keyof NewProjectForm, value: string) => {
+    setNewProjectData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleCreateProject = async () => {
+    if (!newProjectData.name.trim() || !newProjectData.address.trim() || !newProjectData.clientId || !newProjectData.startDate) {
+      setCreateModalError('Merci de remplir tous les champs obligatoires.')
+      return
+    }
+
+    setCreatingProject(true)
+    setCreateModalError('')
+
+    try {
+      const projectName = newProjectData.name.trim()
+      const payload: Record<string, any> = {
+        name: newProjectData.name.trim(),
+        address: newProjectData.address.trim(),
+        clientId: newProjectData.clientId,
+        startDate: newProjectData.startDate,
+        status: newProjectData.status || 'lead',
+        serviceType: newProjectData.serviceType || undefined,
+        currentPhase: newProjectData.currentPhase || undefined,
+        description: newProjectData.description || '',
+        progress: newProjectData.progress ? Number(newProjectData.progress) : 0,
+        value: newProjectData.value ? Number(newProjectData.value) : 0
+      }
+
+      if (newProjectData.endDate) {
+        payload.endDate = newProjectData.endDate
+      }
+
+      const snapshot = {
+        company: newProjectData.clientCompany,
+        contact: newProjectData.clientContact,
+        phone: newProjectData.clientPhone,
+        email: newProjectData.clientEmail
+      }
+
+      if (Object.values(snapshot).some(Boolean)) {
+        payload.clientSnapshot = snapshot
+      }
+
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Création impossible')
+      }
+
+      await fetchProjects()
+      setNewProjectData(buildDefaultProjectForm())
+      closeCreateModal()
+      toast.success('Projet créé', { description: projectName || 'Le projet a été ajouté.' })
+    } catch (creationError: any) {
+      setCreateModalError(creationError?.message || 'Erreur lors de la création')
+      toast.error('Création impossible', { description: creationError?.message || 'Vérifiez les informations et réessayez.' })
+    } finally {
+      setCreatingProject(false)
+    }
+  }
+
+  const requestProjectDeletion = (project: Project) => {
+    setProjectPendingDeletion(project)
+  }
+
+  const cancelProjectDeletion = () => {
+    setProjectPendingDeletion(null)
+    setIsDeleting(false)
+  }
+
+  const deleteSelectedProject = async () => {
+    if (!projectPendingDeletion?._id) return
+    setIsDeleting(true)
+    const targetName = projectPendingDeletion.name
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: projectPendingDeletion._id })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || 'Suppression impossible')
+      }
+      toast.success('Projet supprimé', { description: `${targetName} a été retiré.` })
+      await fetchProjects()
+      cancelProjectDeletion()
+    } catch (error) {
+      toast.error('Suppression échouée', { description: error instanceof Error ? error.message : 'Réessayez plus tard.' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   // Calcul des KPIs
   const kpis: KPI[] = useMemo(() => {
@@ -258,7 +456,7 @@ export default function ModernProjectManagement() {
             
             <div className="flex flex-wrap gap-3">
               <button 
-                onClick={() => setShowCreateModal(true)}
+                onClick={openCreateModal}
                 className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-xl hover:bg-white/90 transition-all font-semibold shadow-lg hover:scale-105"
               >
                 <Plus className="h-5 w-5" />
@@ -453,7 +651,14 @@ export default function ModernProjectManagement() {
                             <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 flex-1">
                               {project.name}
                             </h4>
-                            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                redirectToProjectEditor(project._id)
+                              }}
+                              aria-label="Modifier ce projet"
+                            >
                               <MoreVertical className="h-4 w-4 text-gray-400" />
                             </button>
                           </div>
@@ -589,18 +794,20 @@ export default function ModernProjectManagement() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            // Edit action
+                            redirectToProjectEditor(project._id)
                           }}
                           className="text-gray-600 hover:text-gray-900 mr-3"
+                          aria-label="Modifier le projet"
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            // Delete action
+                            requestProjectDeletion(project)
                           }}
                           className="text-red-600 hover:text-red-900"
+                          aria-label="Supprimer le projet"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -688,6 +895,264 @@ export default function ModernProjectManagement() {
             </div>
           )}
         </>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Créer un nouveau projet</h3>
+                <p className="text-sm text-gray-500">Définissez les informations essentielles avant lancement</p>
+              </div>
+              <button onClick={closeCreateModal} className="p-2 rounded-xl hover:bg-gray-100 transition-colors" aria-label="Fermer la fenêtre de création">
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            {createModalError && (
+              <div className="mx-6 mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {createModalError}
+              </div>
+            )}
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Nom du projet *</label>
+                  <input
+                    type="text"
+                    value={newProjectData.name}
+                    onChange={e => handleNewProjectFieldChange('name', e.target.value)}
+                    placeholder="Installation fibre client VIP"
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700">Client *</label>
+                    <button
+                      type="button"
+                      onClick={() => fetchClients()}
+                      className="text-xs inline-flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                      disabled={clientsLoading}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${clientsLoading ? 'animate-spin' : ''}`} />
+                      Rafraîchir
+                    </button>
+                  </div>
+                  <select
+                    value={newProjectData.clientId}
+                    onChange={e => handleNewProjectFieldChange('clientId', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                  >
+                    <option value="">Sélectionner un client</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name} {client.email ? `(${client.email})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {clients.length === 0 && (
+                    <p className="mt-1 text-xs text-orange-600">Aucun client chargé pour le moment.</p>
+                  )}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Adresse *</label>
+                  <input
+                    type="text"
+                    value={newProjectData.address}
+                    onChange={e => handleNewProjectFieldChange('address', e.target.value)}
+                    placeholder="Adresse complète du site"
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Date de début *</label>
+                  <input
+                    type="date"
+                    value={newProjectData.startDate}
+                    onChange={e => handleNewProjectFieldChange('startDate', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Date de fin</label>
+                  <input
+                    type="date"
+                    value={newProjectData.endDate}
+                    onChange={e => handleNewProjectFieldChange('endDate', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Statut</label>
+                  <select
+                    value={newProjectData.status}
+                    onChange={e => handleNewProjectFieldChange('status', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                  >
+                    <option value="lead">Prospect</option>
+                    <option value="quoted">Devis envoyé</option>
+                    <option value="approved">Approuvé</option>
+                    <option value="in_progress">En cours</option>
+                    <option value="testing">Tests</option>
+                    <option value="completed">Terminé</option>
+                    <option value="on_hold">En pause</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Type / Service</label>
+                  <input
+                    type="text"
+                    value={newProjectData.serviceType}
+                    onChange={e => handleNewProjectFieldChange('serviceType', e.target.value)}
+                    placeholder="Fibre, vidéosurveillance..."
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Phase actuelle</label>
+                  <input
+                    type="text"
+                    value={newProjectData.currentPhase}
+                    onChange={e => handleNewProjectFieldChange('currentPhase', e.target.value)}
+                    placeholder="Installation, recette..."
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Valeur (FCFA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newProjectData.value}
+                    onChange={e => handleNewProjectFieldChange('value', e.target.value)}
+                    placeholder="0"
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Progression (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newProjectData.progress}
+                    onChange={e => handleNewProjectFieldChange('progress', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <textarea
+                  value={newProjectData.description}
+                  onChange={e => handleNewProjectFieldChange('description', e.target.value)}
+                  rows={4}
+                  className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder="Contexte, objectifs, contraintes..."
+                />
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-gray-800 mb-2">Détails client (optionnel)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-600">Société</label>
+                    <input
+                      type="text"
+                      value={newProjectData.clientCompany}
+                      onChange={e => handleNewProjectFieldChange('clientCompany', e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Personne de contact</label>
+                    <input
+                      type="text"
+                      value={newProjectData.clientContact}
+                      onChange={e => handleNewProjectFieldChange('clientContact', e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={newProjectData.clientPhone}
+                      onChange={e => handleNewProjectFieldChange('clientPhone', e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Email</label>
+                    <input
+                      type="email"
+                      value={newProjectData.clientEmail}
+                      onChange={e => handleNewProjectFieldChange('clientEmail', e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50 rounded-b-3xl">
+              <button
+                onClick={closeCreateModal}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreateProject}
+                disabled={creatingProject}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 disabled:opacity-60"
+              >
+                {creatingProject && <RefreshCw className="h-4 w-4 animate-spin" />}
+                {creatingProject ? 'Création...' : 'Créer le projet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {projectPendingDeletion && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <AlertTriangle className="h-6 w-6" />
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">Supprimer le projet ?</p>
+                  <p className="text-sm text-gray-500">Cette action est irréversible.</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                Confirmez la suppression de <span className="font-semibold text-gray-900">{projectPendingDeletion.name}</span>. 
+                Toutes les données associées seront définitivement retirées de la plateforme.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={cancelProjectDeletion}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={deleteSelectedProject}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700 disabled:opacity-60"
+              >
+                {isDeleting && <RefreshCw className="h-4 w-4 animate-spin" />}
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal détails projet */}
@@ -798,6 +1263,14 @@ export default function ModernProjectManagement() {
                 </button>
                 <button
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg hover:scale-105"
+                  onClick={() => {
+                    setShowProjectDetail(false)
+                    if (selectedProject?._id) {
+                      redirectToProjectEditor(selectedProject._id)
+                    } else {
+                      redirectToProjectEditor()
+                    }
+                  }}
                 >
                   Modifier le projet
                 </button>

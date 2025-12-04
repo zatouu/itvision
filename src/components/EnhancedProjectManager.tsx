@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Pencil, RefreshCw, Save, X, Users, Calendar, CheckCircle, AlertCircle, Clock, Zap, UserPlus, Search } from 'lucide-react'
+import { useToastContext } from '@/components/ToastProvider'
 
 type Project = {
   _id?: string
@@ -39,6 +41,30 @@ export default function EnhancedProjectManager() {
   const [clientSearch, setClientSearch] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', email: '', phone: '' })
+  const toast = useToastContext()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const searchParamsString = searchParams?.toString() || ''
+  const editProjectId = useMemo(() => {
+    if (!searchParamsString) return null
+    const params = new URLSearchParams(searchParamsString)
+    return params.get('editProject')
+  }, [searchParamsString])
+
+  const updateEditProjectParam = useCallback((value: string | null) => {
+    if (!router || !pathname) return
+    const params = new URLSearchParams(searchParamsString)
+    if (value) {
+      params.set('editProject', value)
+    } else {
+      params.delete('editProject')
+    }
+    const next = params.size ? `${pathname}?${params.toString()}` : pathname
+    router.replace(next, { scroll: false })
+  }, [pathname, router, searchParamsString])
+
+  const clearEditProjectParam = useCallback(() => updateEditProjectParam(null), [updateEditProjectParam])
 
   const refresh = async () => {
     setLoading(true)
@@ -78,6 +104,32 @@ export default function EnhancedProjectManager() {
   useEffect(() => { refresh() }, [])
 
   useEffect(() => {
+    if (!editProjectId || items.length === 0 || loading) return
+    const projectToEdit = items.find(p => String(p._id) === editProjectId)
+    if (projectToEdit) {
+      setEditing({ ...projectToEdit })
+      setSelectedQuoteId('')
+      setShowAssignModal(false)
+      setShowNewClient(false)
+    } else {
+      toast.error('Projet introuvable', { description: "Le lien de modification n'est plus valide." })
+      clearEditProjectParam()
+    }
+  }, [clearEditProjectParam, editProjectId, items, loading, toast])
+
+  const handleEditProject = (project: Project) => {
+    setEditing({ ...project })
+    setSelectedQuoteId('')
+    setShowAssignModal(false)
+    setShowNewClient(false)
+    if (project._id) {
+      updateEditProjectParam(String(project._id))
+    } else {
+      clearEditProjectParam()
+    }
+  }
+
+  useEffect(() => {
     if (selectedQuoteId && quotes.length > 0) {
       const q = quotes.find(q => q._id === selectedQuoteId)
       if (q) {
@@ -98,7 +150,10 @@ export default function EnhancedProjectManager() {
   }, [selectedQuoteId, quotes])
 
   const createClient = async () => {
-    if (!newClient.name || !newClient.email) return alert('Nom et email requis')
+    if (!newClient.name || !newClient.email) {
+      toast.warning('Informations client manquantes', { description: 'Nom et email sont obligatoires pour créer un client.' })
+      return
+    }
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
@@ -112,41 +167,46 @@ export default function EnhancedProjectManager() {
           password: 'TempPass123!'
         })
       })
-      if (res.ok) {
-        const j = await res.json()
-        const created = { id: j.user.id, name: newClient.name, email: newClient.email, phone: newClient.phone }
-        setClients([...clients, created])
-        if (editing) setEditing({ ...editing, clientId: created.id })
-        setShowNewClient(false)
-        setNewClient({ name: '', email: '', phone: '' })
-        alert('Client créé')
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.user) {
+        throw new Error(data?.error || 'Création impossible')
       }
-    } catch {
-      alert('Erreur création client')
+      const created = { id: data.user.id, name: newClient.name, email: newClient.email, phone: newClient.phone }
+      setClients([...clients, created])
+      if (editing) setEditing({ ...editing, clientId: created.id })
+      setShowNewClient(false)
+      setNewClient({ name: '', email: '', phone: '' })
+      toast.success('Client créé', { description: `${newClient.name} est maintenant disponible.` })
+    } catch (error) {
+      toast.error('Impossible de créer le client', { description: error instanceof Error ? error.message : 'Réessayez ultérieurement.' })
     }
   }
 
   const onSave = async () => {
     if (!editing || !editing.name || !editing.address || !editing.clientId) {
-      return alert('Nom, adresse et client requis')
+      toast.warning('Champs requis manquants', { description: 'Nom, adresse et client doivent être renseignés.' })
+      return
     }
+    const editingSnapshot = { ...editing }
     try {
-      const method = editing._id ? 'PUT' : 'POST'
-      const body = editing._id ? { id: editing._id, ...editing } : editing
+      const method = editingSnapshot._id ? 'PUT' : 'POST'
+      const body = editingSnapshot._id ? { id: editingSnapshot._id, ...editingSnapshot } : editingSnapshot
       const res = await fetch('/api/projects', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      if (!res.ok) return alert('Erreur sauvegarde projet')
-      const j = await res.json()
-      const createdId = j.project?._id || editing._id
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.project) {
+        throw new Error(data?.error || 'Erreur sauvegarde projet')
+      }
+      const createdId = data.project?._id || editingSnapshot._id
       await refresh()
       setEditing(null)
-      if (!editing._id && createdId) {
+      clearEditProjectParam()
+      toast.success(editingSnapshot._id ? 'Projet mis à jour' : 'Projet créé', { description: editingSnapshot.name })
+      if (!editingSnapshot._id && createdId) {
         setNewProjectId(String(createdId))
         setShowAssignModal(true)
-      } else {
-        alert(editing._id ? 'Projet modifié' : 'Projet créé')
       }
-    } catch {
-      alert('Erreur sauvegarde projet')
+    } catch (error) {
+      toast.error("Impossible d'enregistrer le projet", { description: error instanceof Error ? error.message : 'Veuillez réessayer plus tard.' })
     }
   }
 
@@ -158,16 +218,21 @@ export default function EnhancedProjectManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: newProjectId, assignedTo: selectedTechnicians })
       })
-      if (!res.ok) return alert('Erreur affectation')
-      // Créer interventions
-      for (const techId of selectedTechnicians) {
-        await fetch('/api/interventions', {
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || 'Erreur affectation')
+      }
+      const projectDetails = items.find(p => String(p._id) === newProjectId)
+      const projectName = projectDetails?.name || 'Projet'
+      const projectService = projectDetails?.serviceType || ''
+      await Promise.all(selectedTechnicians.map(async techId => {
+        const interventionRes = await fetch('/api/interventions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title: items.find(p => String(p._id) === newProjectId)?.name || 'Intervention',
+            title: projectName,
             client: { name: '', address: '', zone: '' },
-            service: items.find(p => String(p._id) === newProjectId)?.serviceType || '',
+            service: projectService,
             projectId: newProjectId,
             assignedTechnician: techId,
             priority: 'medium',
@@ -176,14 +241,18 @@ export default function EnhancedProjectManager() {
             status: 'scheduled'
           })
         })
-      }
-      alert(`${selectedTechnicians.length} technicien(s) affecté(s)`)
+        if (!interventionRes.ok) {
+          const interventionData = await interventionRes.json().catch(() => null)
+          throw new Error(interventionData?.error || 'Création intervention impossible')
+        }
+      }))
+      toast.success('Techniciens affectés', { description: `${selectedTechnicians.length} technicien(s) assigné(s) à ${projectName}.` })
       setShowAssignModal(false)
       setNewProjectId(null)
       setSelectedTechnicians([])
       await refresh()
-    } catch {
-      alert('Erreur affectation techniciens')
+    } catch (error) {
+      toast.error("Affectation impossible", { description: error instanceof Error ? error.message : 'Veuillez réessayer.' })
     }
   }
 
@@ -225,7 +294,7 @@ export default function EnhancedProjectManager() {
           <p className="text-gray-600">Workflow complet : création, affectation et suivi</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setEditing({ name: '', address: '', clientId: '', startDate: new Date().toISOString().slice(0,10), status: 'lead', progress: 0 }); setSelectedQuoteId('') }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm">
+          <button onClick={() => { clearEditProjectParam(); setEditing({ name: '', address: '', clientId: '', startDate: new Date().toISOString().slice(0,10), status: 'lead', progress: 0 }); setSelectedQuoteId('') }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm">
             <Plus className="h-4 w-4" /> Nouveau projet
           </button>
           <button onClick={refresh} className="inline-flex items-center gap-2 border px-4 py-2 rounded-lg text-sm">
@@ -300,7 +369,7 @@ export default function EnhancedProjectManager() {
                         {assignedCount > 0 && (
                           <span className="text-xs text-gray-500">{assignedCount} tech.</span>
                         )}
-                        <button className="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs" onClick={() => setEditing({ ...p })}>
+                        <button className="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs" onClick={() => handleEditProject(p)}>
                           <Pencil className="h-3 w-3" /> Modifier
                         </button>
                       </div>
@@ -314,7 +383,7 @@ export default function EnhancedProjectManager() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => { setEditing(null); setSelectedQuoteId('') }}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => { setEditing(null); setSelectedQuoteId(''); clearEditProjectParam() }}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b">
               <h3 className="text-lg font-semibold">{editing._id ? 'Modifier' : 'Nouveau'} projet</h3>
@@ -419,7 +488,7 @@ export default function EnhancedProjectManager() {
               </div>
             </div>
             <div className="p-6 border-t flex justify-end gap-2">
-              <button className="px-4 py-2 rounded border" onClick={() => { setEditing(null); setSelectedQuoteId('') }}>
+              <button className="px-4 py-2 rounded border" onClick={() => { setEditing(null); setSelectedQuoteId(''); clearEditProjectParam() }}>
                 <X className="h-4 w-4 inline mr-1" /> Annuler
               </button>
               <button className="px-4 py-2 rounded bg-emerald-600 text-white" onClick={onSave}>
