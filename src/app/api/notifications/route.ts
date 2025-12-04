@@ -67,7 +67,10 @@ function requireAuth(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return decoded
+  return {
+    ...decoded,
+    role: String(decoded.role || '').toUpperCase()
+  }
 }
 
 // GET - Récupérer les notifications

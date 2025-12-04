@@ -31,7 +31,7 @@ async function verifyToken(request: NextRequest): Promise<DecodedToken> {
   
   return {
     userId: payload.userId as string,
-    role: payload.role as string,
+    role: String(payload.role || '').toUpperCase(),
     email: payload.email as string
   }
 }

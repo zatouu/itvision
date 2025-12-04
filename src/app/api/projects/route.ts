@@ -14,7 +14,10 @@ async function verifyToken(request: NextRequest) {
   }
 
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return decoded
+  return {
+    ...decoded,
+    role: String(decoded.role || '').toUpperCase()
+  }
 }
 
 // GET - Récupérer les projets
