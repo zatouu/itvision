@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
+import { safeSearchRegex } from '@/lib/security-utils'
 import Client from '@/lib/models/Client'
 
 function requireAdmin(request: NextRequest) {
@@ -25,14 +26,15 @@ export async function GET(request: NextRequest) {
 
     const query: any = {}
     if (q) {
+      const searchRegex = safeSearchRegex(q)
       query.$or = [
-        { name: new RegExp(q, 'i') },
-        { email: new RegExp(q, 'i') },
-        { phone: new RegExp(q, 'i') },
-        { company: new RegExp(q, 'i') },
+        { name: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { company: searchRegex },
       ]
     }
-    if (company) query.company = new RegExp(company, 'i')
+    if (company) query.company = safeSearchRegex(company)
     if (status === 'active') query.isActive = true
     if (status === 'inactive') query.isActive = false
 

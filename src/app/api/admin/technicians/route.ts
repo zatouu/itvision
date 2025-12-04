@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
+import { safeSearchRegex } from '@/lib/security-utils'
 import Technician from '@/lib/models/Technician'
 
 function requireAdmin(request: NextRequest) {
@@ -26,13 +27,14 @@ export async function GET(request: NextRequest) {
 
     const query: any = {}
     
-    // Recherche textuelle
+    // Recherche textuelle (sécurisée contre ReDoS)
     if (q) {
+      const searchRegex = safeSearchRegex(q)
       query.$or = [
-        { name: new RegExp(q, 'i') },
-        { email: new RegExp(q, 'i') },
-        { phone: new RegExp(q, 'i') },
-        { technicianId: new RegExp(q, 'i') },
+        { name: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { technicianId: searchRegex },
       ]
     }
     

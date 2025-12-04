@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
+import { safeSearchRegex } from '@/lib/security-utils'
 import Client from '@/lib/models/Client'
 
 function requireAuth(request: NextRequest) {
@@ -32,14 +33,15 @@ export async function GET(request: NextRequest) {
 
     const query: any = { isActive: true }
     if (q) {
+      const searchRegex = safeSearchRegex(q)
       query.$or = [
-        { name: new RegExp(q, 'i') },
-        { prenom: new RegExp(q, 'i') },
-        { email: new RegExp(q, 'i') },
-        { phone: new RegExp(q, 'i') },
-        { entreprise: new RegExp(q, 'i') },
-        { contactPrincipal: new RegExp(q, 'i') },
-        { company: new RegExp(q, 'i') }
+        { name: searchRegex },
+        { prenom: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { entreprise: searchRegex },
+        { contactPrincipal: searchRegex },
+        { company: searchRegex }
       ]
     }
 
