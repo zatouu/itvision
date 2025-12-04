@@ -143,6 +143,21 @@ export default function AdminDashboard() {
     avgUsageRate: 0
   })
   const [maintenanceTopClients, setMaintenanceTopClients] = useState<MaintenanceClientSummary[]>([])
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include' 
+      })
+    } catch {
+      // Ignorer les erreurs réseau
+    }
+    router.replace('/login')
+  }
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -447,12 +462,14 @@ export default function AdminDashboard() {
                   Clients
                 </Link>
                 
-                <form action="/api/auth/logout" method="post">
-                  <button className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-xs text-white hover:bg-white/10 transition">
-                    <LogOut className="h-3.5 w-3.5" />
-                    Déconnexion
-                  </button>
-                </form>
+                <button 
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-xs text-white hover:bg-white/10 transition disabled:opacity-50"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  {loggingOut ? 'Déconnexion...' : 'Déconnexion'}
+                </button>
               </div>
             </div>
           </div>
