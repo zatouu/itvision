@@ -1,85 +1,180 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
 
-export function middleware(request: NextRequest) {
+// Routes protégées par rôle
+const PROTECTED_ROUTES = {
+  admin: ['/admin'],
+  client: ['/client-portal', '/client-portal-v2'],
+  technician: ['/tech-interface'],
+}
+
+// Routes publiques (pas de vérification)
+const PUBLIC_ROUTES = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/api/auth',
+  '/api/health',
+  '/',
+  '/about',
+  '/services',
+  '/produits',
+  '/contact',
+  '/realisations',
+  '/cgv',
+  '/mentions-legales',
+  '/politique-confidentialite',
+  '/digitalisation',
+  '/domotique',
+  '/maintenance-digital',
+  '/portail-valeur',
+  '/generateur-devis',
+  '/intervention',
+  '/mobile-app',
+  '/gestion-projets',
+]
+
+async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; role?: string }> {
+  const token = request.cookies.get('auth-token')?.value
+  
+  if (!token) {
+    return { authenticated: false }
+  }
+
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    const { payload } = await jwtVerify(token, secret)
+    const role = String(payload.role || '').toUpperCase()
+    return { authenticated: true, role }
+  } catch {
+    return { authenticated: false }
+  }
+}
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  )
+}
+
+function getRequiredRole(pathname: string): string | null {
+  if (pathname.startsWith('/admin')) return 'ADMIN'
+  if (pathname.startsWith('/client-portal')) return 'CLIENT'
+  if (pathname.startsWith('/tech-interface')) return 'TECHNICIAN'
+  return null
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  
+  // Ignorer les fichiers statiques et les assets
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api/') ||
+    pathname.includes('.') // fichiers avec extension (images, etc.)
+  ) {
+    // Pour les API, on applique juste la protection CSRF
+    if (pathname.startsWith('/api/')) {
+      const response = NextResponse.next()
+      const csrfResult = csrfProtection.middleware(request)
+      if (csrfResult) return csrfResult
+      
+      // Headers de sécurité pour API
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+      return response
+    }
+    return NextResponse.next()
+  }
+
+  // Routes publiques - pas de vérification
+  if (isPublicRoute(pathname)) {
+    const response = NextResponse.next()
+    applySecurityHeaders(response, pathname)
+    return response
+  }
+
+  // Vérification de l'authentification pour les routes protégées
+  const requiredRole = getRequiredRole(pathname)
+  
+  if (requiredRole) {
+    const { authenticated, role } = await verifyAuth(request)
+    
+    if (!authenticated) {
+      // Rediriger vers la page de login appropriée
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    
+    // Vérifier le rôle
+    if (requiredRole === 'ADMIN' && role !== 'ADMIN') {
+      // Rediriger les non-admins vers leur portail
+      if (role === 'CLIENT') {
+        return NextResponse.redirect(new URL('/client-portal', request.url))
+      } else if (role === 'TECHNICIAN') {
+        return NextResponse.redirect(new URL('/tech-interface', request.url))
+      }
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
+    if (requiredRole === 'CLIENT' && !['CLIENT', 'ADMIN'].includes(role || '')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
+    if (requiredRole === 'TECHNICIAN' && !['TECHNICIAN', 'ADMIN'].includes(role || '')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
   // Créer la réponse
   const response = NextResponse.next()
+  applySecurityHeaders(response, pathname)
+  return response
+}
 
+function applySecurityHeaders(response: NextResponse, pathname: string) {
   // Headers de sécurité essentiels
-  const securityHeaders = {
-    // Prévention XSS
+  const securityHeaders: Record<string, string> = {
     'X-XSS-Protection': '1; mode=block',
-    
-    // Prévention du sniffing MIME
     'X-Content-Type-Options': 'nosniff',
-    
-    // Prévention du clickjacking
     'X-Frame-Options': 'DENY',
-    
-    // Politique de référent
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    
-    // Permissions Policy (anciennement Feature Policy)
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
-    
-    // Content Security Policy
     'Content-Security-Policy': [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Nécessaire pour Next.js
-      "style-src 'self' 'unsafe-inline'", // Nécessaire pour Tailwind
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self'",
-      "connect-src 'self'",
+      "connect-src 'self' wss:",
       "frame-src 'none'",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'"
     ].join('; '),
-    
-    // Strict Transport Security (HTTPS uniquement)
-    ...(process.env.NODE_ENV === 'production' && {
-      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
-    }),
-    
-    // Headers personnalisés pour l'application
-    'X-Application': 'Securite-Electronique',
+    'X-Application': 'IT-Vision-Plus',
     'X-Version': '1.0.0'
   }
 
-  // Appliquer tous les headers de sécurité
+  // HSTS en production
+  if (process.env.NODE_ENV === 'production') {
+    securityHeaders['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+  }
+
+  // Appliquer les headers
   Object.entries(securityHeaders).forEach(([key, value]) => {
-    if (value) {
-      response.headers.set(key, value)
-    }
+    response.headers.set(key, value)
   })
 
-  // Vérification CSRF pour les routes API
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    const csrfResult = csrfProtection.middleware(request)
-    if (csrfResult) {
-      return csrfResult
-    }
-  }
-
-  // Headers spécifiques selon le type de route
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    // API routes - headers JSON sécurisés
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
-  } else {
-    // Pages web - cache contrôlé
-    response.headers.set('Cache-Control', 'public, max-age=3600, must-revalidate')
-  }
-
-  // Headers de sécurité spéciaux pour les pages sensibles
-  if (request.nextUrl.pathname.includes('/admin') || 
-      request.nextUrl.pathname.includes('/login')) {
+  // Cache control pour les pages sensibles
+  if (pathname.includes('/admin') || pathname.includes('/login') || pathname.includes('/client-portal') || pathname.includes('/tech-interface')) {
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
-
-  return response
 }
 
 // Configuration des routes où appliquer le middleware
