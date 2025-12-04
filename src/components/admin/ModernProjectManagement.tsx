@@ -160,7 +160,7 @@ export default function ModernProjectManagement() {
             phone: user.phone
           }))
         : []
-      setClients(formatted.filter(client => client.id))
+      setClients(formatted.filter((client: { id?: string }) => client.id))
     } catch (clientError) {
       console.error('Chargement des clients impossible', clientError)
       toast.error('Chargement clients impossible', { description: 'Impossible de récupérer la liste des clients. Essayez de rafraîchir.' })

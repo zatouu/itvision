@@ -20,27 +20,27 @@ async function verifyAdmin(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await verifyAdmin(request)
     await connectMongoose()
 
-    const { id } = params
+    const { id } = await params
     const format = (request.nextUrl.searchParams.get('format') || 'pdf').toLowerCase()
 
     const contract = await MaintenanceContract.findById(id)
       .populate('clientId', 'name company email phone contactPerson address')
       .populate('projectId', 'name address')
       .populate('preferredTechnicians', 'name email phone')
-      .lean()
+      .lean() as any
 
     if (!contract) {
       return NextResponse.json({ error: 'Contrat introuvable' }, { status: 404 })
     }
 
     const clientUser =
-      (await User.findById(contract.clientId).lean()) ||
+      (await User.findById(contract.clientId).lean() as any) ||
       (contract.clientId as unknown as Record<string, any>)
 
     const exportData = {

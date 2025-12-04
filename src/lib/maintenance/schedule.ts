@@ -80,14 +80,14 @@ export const generateMaintenanceVisits = (
   while (cursor <= to && counter < 50) {
     sites.forEach((site) => {
       visits.push({
-        id: `${contract._id}-${site}-${cursor.toISOString().slice(0, 10)}`,
-        contractId: contract._id.toString(),
+        id: `${(contract as any)._id}-${site}-${cursor.toISOString().slice(0, 10)}`,
+        contractId: (contract as any)._id.toString(),
         contractName: contract.name,
-        clientId: contract.clientId.toString(),
+        clientId: (contract as any).clientId.toString(),
         clientName: (contract as any).clientId?.company || (contract as any).clientId?.name || 'Client',
         date: cursor.toISOString(),
         site,
-        priority: contract.isNearExpiration?.() ? 'high' : 'medium',
+        priority: (contract as any).isNearExpiration?.() ? 'high' : 'medium',
         estimatedDurationHours: 4,
         zone: undefined,
         isContractual: true,

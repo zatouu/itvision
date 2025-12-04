@@ -155,17 +155,6 @@ export function generateMaintenanceContractPdf(contract: ContractExportData): Ar
     equipmentY = (doc as any).lastAutoTable?.finalY || techY + 60
   }
 
-  if (contract.preferredTechnicians?.length) {
-    sections.push(paragraph('Techniciens attitrés', true))
-    contract.preferredTechnicians.forEach((tech) => {
-      sections.push(
-        paragraph(
-          `• ${tech.name}${tech.email ? ` – ${tech.email}` : ''}${tech.phone ? ` – ${tech.phone}` : ''}`
-        )
-      )
-    })
-  }
-
   if (contract.notes) {
     const notesY = equipmentY + 30
     doc.setFontSize(12)
@@ -256,6 +245,7 @@ export async function generateMaintenanceContractDocx(contract: ContractExportDa
   })
 
   const buffer = await Packer.toBuffer(doc)
-  return buffer
+  // Convert Node.js Buffer to ArrayBuffer
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
 }
 

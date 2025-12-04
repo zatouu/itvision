@@ -72,6 +72,9 @@ export interface IMaintenanceContract extends Document {
     note?: string
   }>
   
+  // Techniciens préférés
+  preferredTechnicians?: Types.ObjectId[]
+  
   // Notes et observations
   notes?: string
   specialConditions?: string

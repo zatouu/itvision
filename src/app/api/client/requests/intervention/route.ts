@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Récupérer les infos du client
-    const client = await User.findById(userId).select('name email company phone').lean()
+    const client = await User.findById(userId).select('name email company phone').lean() as { name?: string; email?: string; company?: string; phone?: string } | null
 
     // Déterminer la priorité selon le type
     const priority = type === 'urgent' ? 'urgent' : 'high'
