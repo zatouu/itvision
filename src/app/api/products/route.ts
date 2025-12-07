@@ -68,7 +68,13 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     isPublished,
     isFeatured,
     sourcing,
-    shippingOverrides
+    shippingOverrides,
+    // Champs 1688
+    price1688,
+    price1688Currency,
+    exchangeRate,
+    serviceFeeRate,
+    insuranceRate
   } = payload || {}
 
   const normalized: Partial<IProduct> = {
@@ -136,6 +142,15 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     if (overrides.length > 0) {
       normalized.shippingOverrides = overrides
     }
+  }
+
+  // Champs 1688
+  normalized.price1688 = parseNumber(price1688)
+  normalized.exchangeRate = parseNumber(exchangeRate)
+  normalized.serviceFeeRate = parseNumber(serviceFeeRate)
+  normalized.insuranceRate = parseNumber(insuranceRate)
+  if (typeof price1688Currency === 'string') {
+    normalized.price1688Currency = price1688Currency
   }
 
   return normalized

@@ -53,6 +53,14 @@ export const formatProductDetail = (product: any) => {
       productUrl: product.sourcing.productUrl ?? null,
       notes: product.sourcing.notes ?? null
     } : null,
+    // Informations 1688
+    pricing1688: product.price1688 ? {
+      price1688: product.price1688,
+      price1688Currency: product.price1688Currency ?? 'CNY',
+      exchangeRate: product.exchangeRate ?? 100,
+      serviceFeeRate: product.serviceFeeRate ?? null,
+      insuranceRate: product.insuranceRate ?? null
+    } : null,
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }

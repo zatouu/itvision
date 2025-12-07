@@ -35,6 +35,12 @@ export interface IProduct extends Document {
     productUrl?: string
     notes?: string
   }
+  // Informations 1688
+  price1688?: number // Prix en Yuan (¥)
+  price1688Currency?: string // Devise 1688 (par défaut 'CNY')
+  exchangeRate?: number // Taux de change (par défaut 1 ¥ = 100 FCFA)
+  serviceFeeRate?: number // Frais de service (5%, 10%, 15%)
+  insuranceRate?: number // Frais d'assurance (en %)
   shippingOverrides?: Array<{
     methodId: string
     ratePerKg?: number
@@ -80,6 +86,12 @@ const ProductSchema = new Schema<IProduct>({
     productUrl: { type: String },
     notes: { type: String }
   },
+  // Informations 1688
+  price1688: { type: Number },
+  price1688Currency: { type: String, default: 'CNY' },
+  exchangeRate: { type: Number, default: 100 }, // 1 ¥ = 100 FCFA
+  serviceFeeRate: { type: Number }, // 5, 10, ou 15
+  insuranceRate: { type: Number }, // Pourcentage d'assurance
   shippingOverrides: {
     type: [new Schema({
       methodId: { type: String, required: true },

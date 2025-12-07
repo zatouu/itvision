@@ -32,32 +32,49 @@ export interface ProductPricingSummary {
   availabilitySubLabel?: string
 }
 
-export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
+// Taux de transport réels (coûts internes)
+export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minimumCharge?: number }> = {
+  air_express: {
+    rate: 11000, // 11 000 CFA/kg (coût réel)
+    minimumCharge: 25000
+  },
   air_15: {
-    id: 'air_15',
-    label: 'Fret aérien 15 jours',
-    description: 'Acheminement économique depuis la Chine sous 10-15 jours ouvrés',
-    durationDays: 15,
-    billing: 'per_kg',
-    rate: 7500,
+    rate: 7500, // 7 500 CFA/kg (coût réel)
     minimumCharge: 18000
   },
+  sea_freight: {
+    rate: 135000, // 135 000 CFA/m³ (coût réel)
+    minimumCharge: 135000
+  }
+}
+
+// Taux de transport déclarés aux clients (prix facturé)
+export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
   air_express: {
     id: 'air_express',
     label: 'Express aérien 3 jours',
     description: 'Livraison express porte-à-porte en 72h en moyenne',
     durationDays: 3,
     billing: 'per_kg',
-    rate: 10500,
+    rate: 12000, // 12 000 CFA/kg (prix déclaré client)
     minimumCharge: 25000
+  },
+  air_15: {
+    id: 'air_15',
+    label: 'Fret aérien 6-10 jours',
+    description: 'Acheminement économique depuis la Chine sous 6-10 jours ouvrés',
+    durationDays: 8,
+    billing: 'per_kg',
+    rate: 8000, // 8 000 CFA/kg (prix déclaré client)
+    minimumCharge: 18000
   },
   sea_freight: {
     id: 'sea_freight',
-    label: 'Fret maritime 60 jours',
+    label: 'Fret maritime 50-60 jours',
     description: 'Groupage maritime économique via container consolidé',
-    durationDays: 60,
+    durationDays: 55,
     billing: 'per_cubic_meter',
-    rate: 145000,
+    rate: 145000, // 145 000 CFA/m³ (prix déclaré client)
     minimumCharge: 145000
   }
 }

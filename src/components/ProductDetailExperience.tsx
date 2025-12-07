@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
+import ProductPricing1688 from '@/components/ProductPricing1688'
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
   if (typeof amount !== 'number' || Number.isNaN(amount)) return null
@@ -85,6 +86,13 @@ export interface ProductDetailData {
     supplierContact?: string | null
     productUrl?: string | null
     notes?: string | null
+  } | null
+  pricing1688?: {
+    price1688: number
+    price1688Currency: string
+    exchangeRate: number
+    serviceFeeRate?: number | null
+    insuranceRate?: number | null
   } | null
 }
 
@@ -713,6 +721,17 @@ Merci de me recontacter.`
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Prix d'origine */}
+            {product.pricing1688 && (
+              <ProductPricing1688
+                productId={product.id}
+                pricing1688={product.pricing1688}
+                weightKg={product.logistics.weightKg}
+                volumeM3={product.logistics.volumeM3}
+                baseCost={product.pricing.baseCost}
+              />
             )}
 
             {/* Options produit */}
