@@ -49,8 +49,7 @@ import {
   Plus,
   Wrench,
   Download,
-  Briefcase,
-  Calculator
+  Briefcase
 } from 'lucide-react'
 import KPICard from '@/components/admin/KPICard'
 import ProgressRing from '@/components/admin/ProgressRing'
