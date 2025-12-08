@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product, { IProduct } from '@/lib/models/Product.validated'
 import { computeProductPricing } from '@/lib/logistics'
 import { simulatePricingFromProduct } from '@/lib/pricing1688.refactored'
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const total = await Product.countDocuments({ isPublished: { $ne: false } })
 
-    const payload = products.map((product) => {
+    const payload = products.map((product: any) => {
       const pricing = computeProductPricing(product)
       return {
         id: String(product._id),

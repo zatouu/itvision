@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
 import type { Pricing1688Input } from '@/lib/types/product.types'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product, { IProduct } from '@/lib/models/Product.validated'
 
 /**
  * POST /api/pricing/simulate
@@ -53,13 +53,14 @@ export async function POST(request: NextRequest) {
     let productData: Partial<Pricing1688Input> = {}
     if (productId) {
       await connectMongoose()
-      const product = await Product.findById(productId).lean()
-      if (!product) {
+      const productDoc = await Product.findById(productId).lean()
+      if (!productDoc || Array.isArray(productDoc)) {
         return NextResponse.json(
           { success: false, error: 'Produit non trouvé' },
           { status: 404 }
         )
       }
+      const product = productDoc as IProduct
 
       productData = {
         price1688: product.price1688,
