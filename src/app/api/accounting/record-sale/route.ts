@@ -34,17 +34,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Charger le produit pour obtenir les infos 1688
-    const product = await Product.findById(productId).lean() as IProduct | null
-    if (!product || Array.isArray(product)) {
+    const productDoc = await Product.findById(productId).lean()
+    if (!productDoc || Array.isArray(productDoc)) {
       return NextResponse.json(
         { error: 'Produit non trouvé' },
         { status: 404 }
       )
     }
+    // Type assertion pour accéder aux propriétés 1688
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const product = productDoc as any
 
     // Calculer le pricing 1688 si applicable
     let pricing1688Data: any = null
-    if (product.price1688 && shippingMethod) {
+    if (product?.price1688 && shippingMethod) {
       const simulation = simulatePricing1688({
         price1688: product.price1688,
         exchangeRate: product.exchangeRate || 100,
