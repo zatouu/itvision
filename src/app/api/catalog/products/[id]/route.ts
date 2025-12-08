@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product from '@/lib/models/Product.validated'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
 
 const toObjectId = (value: string) => {

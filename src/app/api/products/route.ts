@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { type IProduct } from '@/lib/models/Product'
+import Product, { type IProduct } from '@/lib/models/Product.validated'
 import jwt from 'jsonwebtoken'
 
 function requireManagerRole(request: NextRequest) {

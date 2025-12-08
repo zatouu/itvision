@@ -48,7 +48,9 @@ import {
   AlertCircle,
   Plus,
   Wrench,
-  Download
+  Download,
+  Briefcase,
+  Calculator
 } from 'lucide-react'
 import KPICard from '@/components/admin/KPICard'
 import ProgressRing from '@/components/admin/ProgressRing'
@@ -655,6 +657,26 @@ export default function AdminDashboard() {
                 <ShieldCheck className="h-6 w-6 text-emerald-600" />
               </div>
               <span className="text-sm font-medium text-gray-700 text-center">Centre maintenance</span>
+            </Link>
+
+            <Link 
+              href="/admin/marketplace" 
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
+            >
+              <div className="bg-blue-100 p-3 rounded-xl group-hover:bg-blue-200 transition">
+                <Briefcase className="h-6 w-6 text-blue-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 text-center">Marketplace</span>
+            </Link>
+
+            <Link 
+              href="/admin/comptabilite" 
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all"
+            >
+              <div className="bg-purple-100 p-3 rounded-xl group-hover:bg-purple-200 transition">
+                <Calculator className="h-6 w-6 text-purple-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 text-center">Comptabilité</span>
             </Link>
 
             <Link 

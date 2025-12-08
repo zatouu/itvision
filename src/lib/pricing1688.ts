@@ -3,6 +3,7 @@ import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingMethodId } from 
 
 // Taux de change par défaut : 1 ¥ = 100 FCFA
 const DEFAULT_EXCHANGE_RATE = 100
+export const DEFAULT_MANDATORY_INSURANCE_RATE = 2.5 // 2.5% d'assurance obligatoire par défaut
 
 // Taux de commission de service possibles
 export const SERVICE_FEE_RATES = [5, 10, 15] as const
@@ -151,7 +152,7 @@ export function simulatePricing1688(input: PricingSimulationInput): PricingSimul
     weightKg,
     volumeM3,
     serviceFeeRate = 10,
-    insuranceRate = 0,
+    insuranceRate,
     orderQuantity = 1,
     monthlyVolume = 0
   } = input
@@ -167,8 +168,12 @@ export function simulatePricing1688(input: PricingSimulationInput): PricingSimul
   const serviceFee = productCostFCFA * (serviceFeeRate / 100)
 
   // 4. Frais d'assurance (sur le coût total produit + transport réel)
+  // Assurance obligatoire par défaut si non spécifiée
+  const finalInsuranceRate = insuranceRate !== undefined 
+    ? insuranceRate 
+    : DEFAULT_MANDATORY_INSURANCE_RATE
   const insuranceBase = productCostFCFA + shippingCostReal
-  const insuranceFee = insuranceBase * (insuranceRate / 100)
+  const insuranceFee = insuranceBase * (finalInsuranceRate / 100)
 
   // 5. Coût total réel
   const totalRealCost = productCostFCFA + shippingCostReal + serviceFee + insuranceFee

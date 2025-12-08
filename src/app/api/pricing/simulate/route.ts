@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { simulatePricing1688, type PricingSimulationInput } from '@/lib/pricing1688'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product from '@/lib/models/Product.validated'
 
 /**
  * POST /api/pricing/simulate
@@ -130,7 +130,7 @@ export async function GET() {
         weightKg: 'number (optionnel) - Poids en kg',
         volumeM3: 'number (optionnel) - Volume en m³',
         serviceFeeRate: 'number (optionnel, défaut: 10) - 5, 10, ou 15',
-        insuranceRate: 'number (optionnel, défaut: 0) - Pourcentage d\'assurance',
+        insuranceRate: 'number (optionnel, défaut: 2.5%) - Pourcentage d\'assurance (obligatoire automatique si non spécifié)',
         orderQuantity: 'number (optionnel, défaut: 1) - Quantité commande',
         monthlyVolume: 'number (optionnel) - Volume mensuel moyen'
       },

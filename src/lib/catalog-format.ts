@@ -1,4 +1,5 @@
 import { computeProductPricing } from './logistics'
+import { simulatePricingFromProduct } from './pricing1688.refactored'
 
 const normalizeGallery = (product: any): string[] => {
   if (Array.isArray(product.gallery) && product.gallery.length > 0) {
@@ -53,14 +54,38 @@ export const formatProductDetail = (product: any) => {
       productUrl: product.sourcing.productUrl ?? null,
       notes: product.sourcing.notes ?? null
     } : null,
-    // Informations 1688
-    pricing1688: product.price1688 ? {
-      price1688: product.price1688,
-      price1688Currency: product.price1688Currency ?? 'CNY',
-      exchangeRate: product.exchangeRate ?? 100,
-      serviceFeeRate: product.serviceFeeRate ?? null,
-      insuranceRate: product.insuranceRate ?? null
-    } : null,
+    // Informations 1688 avec breakdown
+    pricing1688: product.price1688 ? (() => {
+      const pricing1688Data = {
+        price1688: product.price1688,
+        price1688Currency: product.price1688Currency ?? 'CNY',
+        exchangeRate: product.exchangeRate ?? 100,
+        serviceFeeRate: product.serviceFeeRate ?? null,
+        insuranceRate: product.insuranceRate ?? null
+      }
+      
+      // Calculer le breakdown si transport disponible
+      let breakdown = undefined
+      if (pricing.shippingOptions.length > 0) {
+        const defaultShipping = pricing.shippingOptions[0]
+        try {
+          const simulation = simulatePricingFromProduct(product, {
+            shippingMethod: defaultShipping.id as any,
+            weightKg: product.weightKg,
+            volumeM3: product.volumeM3,
+            orderQuantity: 1
+          })
+          breakdown = simulation
+        } catch (error) {
+          console.error('Erreur calcul breakdown pricing1688:', error)
+        }
+      }
+      
+      return {
+        ...pricing1688Data,
+        breakdown
+      }
+    })() : null,
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }

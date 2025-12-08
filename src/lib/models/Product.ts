@@ -14,7 +14,7 @@ export interface IProduct extends Document {
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
-  stockStatus?: 'in_stock' | 'preorder'
+  stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   stockQuantity?: number
   leadTimeDays?: number
   weightKg?: number
@@ -59,13 +59,13 @@ const ProductSchema = new Schema<IProduct>({
   price: { type: Number },
   baseCost: { type: Number },
   marginRate: { type: Number, default: 25 },
-  currency: { type: String, default: 'Fcfa' },
+  currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
   image: { type: String },
   gallery: { type: [String], default: [] },
   features: { type: [String], default: [] },
   requiresQuote: { type: Boolean, default: false },
   deliveryDays: { type: Number, default: 0 },
-  stockStatus: { type: String, enum: ['in_stock', 'preorder'], default: 'preorder' },
+  stockStatus: { type: String, enum: ['in_stock', 'preorder', 'out_of_stock'], default: 'preorder' },
   stockQuantity: { type: Number, default: 0 },
   leadTimeDays: { type: Number, default: 15 },
   weightKg: { type: Number },

@@ -27,13 +27,18 @@ export interface ProductCardProps {
   rating: number
   images: string[]
   shippingOptions?: ShippingOption[]
-  availabilityStatus?: 'in_stock' | 'preorder' | string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   detailHref?: string
   isNew?: boolean
   isPopular?: boolean
   createdAt?: string
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
+  pricing1688?: {
+    price1688: number
+    price1688Currency: string
+    exchangeRate: number
+  } | null
 }
 
 const PATH_SEPARATOR = '/'
@@ -62,7 +67,8 @@ export default function ProductCard({
   isPopular = false,
   createdAt,
   onCompareToggle,
-  isComparing = false
+  isComparing = false,
+  pricing1688
 }: ProductCardProps) {
   const isRecentlyNew = createdAt 
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
@@ -245,8 +251,14 @@ export default function ProductCard({
           {showNewBadge && (
             <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">NOUVEAU</span>
           )}
-          {isInStock && !showNewBadge && (
+          {pricing1688 && (
+            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">CHINE DIRECT</span>
+          )}
+          {isInStock && !showNewBadge && !pricing1688 && (
             <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">EN STOCK</span>
+          )}
+          {!isInStock && !showNewBadge && !pricing1688 && (
+            <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">SUR COMMANDE</span>
           )}
         </div>
         
