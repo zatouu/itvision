@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import AccountingEntry from '@/lib/models/AccountingEntry'
 import Product from '@/lib/models/Product.validated'
-import { simulatePricing1688 } from '@/lib/pricing1688'
+import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
 
 /**
  * POST /api/accounting/record-sale

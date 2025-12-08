@@ -3,7 +3,7 @@
  * Garantit la cohérence entre frontend et backend
  */
 
-import { ShippingMethodId } from '../logistics'
+import type { ShippingMethodId } from '../logistics'
 
 // ============================================================================
 // TYPES DE BASE

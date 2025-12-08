@@ -1,4 +1,4 @@
-import type { IProduct } from './models/Product'
+import type { IProduct } from './models/Product.validated'
 import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingMethodId } from './logistics'
 
 // Taux de change par défaut : 1 ¥ = 100 FCFA

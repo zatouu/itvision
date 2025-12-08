@@ -1,4 +1,4 @@
-import type { IProduct } from './models/Product'
+import type { IProduct } from './models/Product.validated'
 
 export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight'
 

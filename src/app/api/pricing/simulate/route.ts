@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { simulatePricing1688, type PricingSimulationInput } from '@/lib/pricing1688'
+import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
+import type { Pricing1688Input } from '@/lib/types/product.types'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Si productId fourni, charger le produit
-    let productData: Partial<PricingSimulationInput> = {}
+    let productData: Partial<Pricing1688Input> = {}
     if (productId) {
       await connectMongoose()
       const product = await Product.findById(productId).lean()
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Préparer les données de simulation
-    const simulationInput: PricingSimulationInput = {
+    const simulationInput: Pricing1688Input = {
       price1688: price1688 ?? productData.price1688,
       baseCost: baseCost ?? productData.baseCost,
       exchangeRate: exchangeRate ?? productData.exchangeRate,

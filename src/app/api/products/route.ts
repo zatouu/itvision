@@ -85,7 +85,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     currency,
     availabilityNote,
     requiresQuote: typeof requiresQuote === 'boolean' ? requiresQuote : undefined,
-    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : undefined,
+    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : stockStatus === 'out_of_stock' ? 'out_of_stock' : undefined,
     isPublished: typeof isPublished === 'boolean' ? isPublished : undefined,
     isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
   }

@@ -69,12 +69,22 @@ export const formatProductDetail = (product: any) => {
       if (pricing.shippingOptions.length > 0) {
         const defaultShipping = pricing.shippingOptions[0]
         try {
-          const simulation = simulatePricingFromProduct(product, {
-            shippingMethod: defaultShipping.id as any,
-            weightKg: product.weightKg,
-            volumeM3: product.volumeM3,
-            orderQuantity: 1
-          })
+          const simulation = simulatePricingFromProduct(
+            {
+              price1688: product.price1688,
+              baseCost: product.baseCost,
+              exchangeRate: product.exchangeRate,
+              serviceFeeRate: product.serviceFeeRate as any,
+              insuranceRate: product.insuranceRate,
+              weightKg: product.weightKg,
+              volumeM3: product.volumeM3,
+              shippingOverrides: product.shippingOverrides as any
+            },
+            {
+              shippingMethod: defaultShipping.id as any,
+              orderQuantity: 1
+            }
+          )
           breakdown = simulation
         } catch (error) {
           console.error('Erreur calcul breakdown pricing1688:', error)
