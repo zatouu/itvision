@@ -62,16 +62,16 @@ export async function POST(request: NextRequest) {
       pricing1688Data = {
         price1688: product.price1688,
         exchangeRate: product.exchangeRate || 100,
-        productCostFCFA: simulation.breakdown.productCostFCFA * quantity,
-        shippingCostReal: simulation.breakdown.shippingCostReal * quantity,
-        shippingCostClient: shippingCost || simulation.breakdown.shippingCostClient * quantity,
-        serviceFee: simulation.breakdown.serviceFee * quantity,
-        insuranceFee: simulation.breakdown.insuranceFee * quantity,
-        totalRealCost: simulation.breakdown.totalRealCost * quantity,
+        productCostFCFA: simulation.productCostFCFA * quantity,
+        shippingCostReal: simulation.shippingCostReal * quantity,
+        shippingCostClient: shippingCost || simulation.shippingCostClient * quantity,
+        serviceFee: simulation.serviceFee * quantity,
+        insuranceFee: simulation.insuranceFee * quantity,
+        totalRealCost: simulation.totalRealCost * quantity,
         totalClientPrice: (unitPrice * quantity) + (shippingCost || 0),
-        shippingMargin: (shippingCost || simulation.breakdown.shippingCostClient * quantity) - (simulation.breakdown.shippingCostReal * quantity),
-        netMargin: ((unitPrice * quantity) + (shippingCost || 0)) - (simulation.breakdown.totalRealCost * quantity),
-        marginPercentage: simulation.breakdown.marginPercentage,
+        shippingMargin: (shippingCost || simulation.shippingCostClient * quantity) - (simulation.shippingCostReal * quantity),
+        netMargin: ((unitPrice * quantity) + (shippingCost || 0)) - (simulation.totalRealCost * quantity),
+        marginPercentage: simulation.marginPercentage,
         shippingMethod
       }
     }
