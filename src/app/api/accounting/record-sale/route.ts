@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import AccountingEntry from '@/lib/models/AccountingEntry'
-import Product from '@/lib/models/Product.validated'
+import Product, { type IProduct } from '@/lib/models/Product.validated'
 import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
 
 /**
@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Charger le produit pour obtenir les infos 1688
-    const product = await Product.findById(productId).lean()
-    if (!product) {
+    const product = await Product.findById(productId).lean() as IProduct | null
+    if (!product || Array.isArray(product)) {
       return NextResponse.json(
         { error: 'Produit non trouvé' },
         { status: 404 }
