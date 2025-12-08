@@ -167,15 +167,15 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      installations: installations.map(inst => ({
-        id: inst._id.toString(),
-        productId: inst.productId.toString(),
+      installations: installations.map((inst: any) => ({
+        id: String(inst._id),
+        productId: String(inst.productId),
         productName: inst.productName,
         clientName: inst.clientName,
         clientContact: inst.clientContact,
         installationOptions: inst.installationOptions,
         status: inst.status,
-        assignedTechnicianId: inst.assignedTechnicianId?.toString(),
+        assignedTechnicianId: inst.assignedTechnicianId ? String(inst.assignedTechnicianId) : undefined,
         assignedTechnicianName: inst.assignedTechnicianName,
         scheduledDate: inst.scheduledDate,
         completedDate: inst.completedDate,
