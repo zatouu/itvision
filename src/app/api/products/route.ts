@@ -82,7 +82,9 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     category,
     description,
     tagline,
-    currency,
+    currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
+      ? currency 
+      : 'FCFA',
     availabilityNote,
     requiresQuote: typeof requiresQuote === 'boolean' ? requiresQuote : undefined,
     stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : stockStatus === 'out_of_stock' ? 'out_of_stock' : undefined,
@@ -147,10 +149,16 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   // Champs 1688
   normalized.price1688 = parseNumber(price1688)
   normalized.exchangeRate = parseNumber(exchangeRate)
-  normalized.serviceFeeRate = parseNumber(serviceFeeRate)
+  const parsedServiceFeeRate = parseNumber(serviceFeeRate)
+  normalized.serviceFeeRate = (parsedServiceFeeRate === 5 || parsedServiceFeeRate === 10 || parsedServiceFeeRate === 15) 
+    ? parsedServiceFeeRate 
+    : undefined
   normalized.insuranceRate = parseNumber(insuranceRate)
   if (typeof price1688Currency === 'string') {
-    normalized.price1688Currency = price1688Currency
+    const validCurrencies = ['FCFA', 'EUR', 'USD', 'CNY'] as const
+    normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 
+      ? (price1688Currency as 'FCFA' | 'EUR' | 'USD' | 'CNY')
+      : undefined
   }
 
   return normalized

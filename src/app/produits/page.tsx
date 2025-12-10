@@ -38,7 +38,7 @@ interface ApiProduct {
   rating: number
   shippingOptions: ShippingOptionSummary[]
   availabilityLabel?: string
-  availabilityStatus?: 'in_stock' | 'preorder' | string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   isFeatured?: boolean
   pricing1688?: {
@@ -262,7 +262,9 @@ export default function ProduitsPage() {
                 rating: item.isFeatured ? 4.9 : 4.7,
                 shippingOptions: shipping,
                 availabilityLabel: item.availability?.label || undefined,
-                availabilityStatus: item.availability?.status || 'preorder',
+                availabilityStatus: (item.availability?.status === 'in_stock' || item.availability?.status === 'preorder' || item.availability?.status === 'out_of_stock')
+                  ? item.availability.status
+                  : 'preorder',
                 createdAt: item.createdAt || undefined,
                 isFeatured: item.isFeatured || false
               }

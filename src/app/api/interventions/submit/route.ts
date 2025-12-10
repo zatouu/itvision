@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           marginTotal,
           totalHT,
           totalTTC,
-          currency: 'Fcfa',
+          currency: 'FCFA',
           assignedTechnicianId: technicienId,
           notes: `Devis généré automatiquement depuis l'intervention ${intervention.interventionNumber || intervention._id}\n\nObservations: ${observations || 'N/A'}`
         })

@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         )
       }
-      const product = productDoc as IProduct
+      const product = productDoc as unknown as IProduct
 
       productData = {
         price1688: product.price1688,

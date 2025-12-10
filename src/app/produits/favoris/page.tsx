@@ -23,7 +23,7 @@ interface WishlistProduct {
   features: string[]
   rating: number
   shippingOptions: any[]
-  availabilityStatus?: string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   pricing1688?: {
     price1688: number
@@ -83,7 +83,9 @@ export default function WishlistPage() {
                 features: product.features || [],
                 rating: 4.7,
                 shippingOptions: pricing.shippingOptions || [],
-                availabilityStatus: product.availability?.status,
+                availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
+                  ? product.availability.status
+                  : undefined,
                 createdAt: product.createdAt
               }
             })

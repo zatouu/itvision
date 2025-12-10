@@ -679,6 +679,16 @@ export default function AdminDashboard() {
             </Link>
 
             <Link 
+              href="/admin/analytics" 
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all"
+            >
+              <div className="bg-indigo-100 p-3 rounded-xl group-hover:bg-indigo-200 transition">
+                <BarChart3 className="h-6 w-6 text-indigo-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 text-center">Analytics</span>
+            </Link>
+
+            <Link 
               href="/admin/tickets" 
               className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50/50 transition-all"
             >

@@ -105,7 +105,7 @@ export interface SimilarProductSummary {
   priceAmount?: number | null
   currency?: string | null
   requiresQuote: boolean
-  availabilityStatus?: 'in_stock' | 'preorder' | string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   availabilityLabel?: string
   shippingOptions: ShippingOptionPricing[]
   deliveryDays?: number | null

@@ -23,7 +23,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!productDoc || Array.isArray(productDoc)) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     }
-    const product = productDoc as IProduct
+    const product = productDoc as unknown as IProduct
 
     const similarQuery: Record<string, unknown> = {
       _id: { $ne: product._id }

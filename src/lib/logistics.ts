@@ -123,7 +123,7 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
   const shippingOptions: ShippingOptionPricing[] = isInStock
     ? []
     : Object.values(BASE_SHIPPING_RATES)
-    .map((method) => {
+    .map((method): ShippingOptionPricing | null => {
       let billedAmount: number | null = null
 
       if (method.billing === 'per_kg') {

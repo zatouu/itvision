@@ -31,11 +31,22 @@ export const DEFAULT_MANDATORY_INSURANCE_RATE = 2.5 // 2.5% obligatoire
 export const SERVICE_FEE_RATES = [5, 10, 15] as const
 
 // Marges dynamiques selon volume
-export const DYNAMIC_MARGIN_TIERS = {
+type MarginTier = {
+  minQuantity: number
+  maxQuantity?: number // Optionnel pour le tier bulk (pas de limite supérieure)
+  marginMultiplier: number
+}
+
+export const DYNAMIC_MARGIN_TIERS: {
+  readonly low: MarginTier
+  readonly medium: MarginTier
+  readonly high: MarginTier
+  readonly bulk: MarginTier
+} = {
   low: { minQuantity: 1, maxQuantity: 5, marginMultiplier: 1.0 },      // Marge standard
   medium: { minQuantity: 6, maxQuantity: 20, marginMultiplier: 0.95 },   // -5% pour volume moyen
   high: { minQuantity: 21, maxQuantity: 50, marginMultiplier: 0.90 },   // -10% pour volume élevé
-  bulk: { minQuantity: 51, marginMultiplier: 0.85 }                      // -15% pour gros volume
+  bulk: { minQuantity: 51, marginMultiplier: 0.85 }                      // -15% pour gros volume (pas de limite supérieure)
 } as const
 
 // ============================================================================
