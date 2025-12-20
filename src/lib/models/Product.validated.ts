@@ -1,0 +1,403 @@
+/**
+ * Modèle Product avec validations Mongoose améliorées
+ * Refactor complet avec validations strictes
+ */
+
+import mongoose, { Schema, Document } from 'mongoose'
+import type { 
+  StockStatus, 
+  ServiceFeeRate, 
+  Currency,
+  ProductSourcing,
+  ShippingOverride
+} from '../types/product.types'
+
+export interface IProduct extends Document {
+  // Identité
+  name: string
+  category?: string
+  description?: string
+  tagline?: string
+  
+  // Pricing standard
+  price?: number
+  baseCost?: number
+  marginRate?: number
+  currency: Currency
+  
+  // Médias
+  image?: string
+  gallery: string[]
+  
+  // Caractéristiques
+  features: string[]
+  colorOptions: string[]
+  variantOptions: string[]
+  
+  // Disponibilité
+  requiresQuote: boolean
+  deliveryDays: number
+  stockStatus: StockStatus
+  stockQuantity: number
+  leadTimeDays: number
+  availabilityNote?: string
+  
+  // Publication
+  isPublished: boolean
+  isFeatured: boolean
+  
+  // Logistique
+  weightKg?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  volumeM3?: number
+  packagingWeightKg?: number
+  
+  // Sourcing
+  sourcing?: ProductSourcing
+  
+  // 1688
+  price1688?: number
+  price1688Currency: Currency
+  exchangeRate: number
+  serviceFeeRate?: ServiceFeeRate
+  insuranceRate?: number
+  shippingOverrides: ShippingOverride[]
+  
+  // Timestamps
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Validations personnalisées
+const validateServiceFeeRate = (value: number | undefined): boolean => {
+  if (value === undefined) return true
+  return value === 5 || value === 10 || value === 15
+}
+
+const validateStockStatus = (value: string): boolean => {
+  return ['in_stock', 'preorder', 'out_of_stock'].includes(value)
+}
+
+const validateCurrency = (value: string): boolean => {
+  return ['FCFA', 'EUR', 'USD', 'CNY'].includes(value)
+}
+
+const validatePositiveNumber = (value: number | undefined): boolean => {
+  if (value === undefined) return true
+  return value >= 0
+}
+
+const validateDimensions = function(this: IProduct) {
+  const { lengthCm, widthCm, heightCm } = this
+  if (lengthCm !== undefined || widthCm !== undefined || heightCm !== undefined) {
+    if (!lengthCm || !widthCm || !heightCm) {
+      throw new Error('Toutes les dimensions (longueur, largeur, hauteur) doivent être renseignées ensemble')
+    }
+    if (lengthCm <= 0 || widthCm <= 0 || heightCm <= 0) {
+      throw new Error('Les dimensions doivent être positives')
+    }
+  }
+  return true
+}
+
+const calculateVolume = function(this: IProduct) {
+  if (this.lengthCm && this.widthCm && this.heightCm) {
+    const volumeM3 = (this.lengthCm * this.widthCm * this.heightCm) / 1_000_000
+    if (!this.volumeM3 || Math.abs(this.volumeM3 - volumeM3) > 0.001) {
+      this.volumeM3 = Math.round(volumeM3 * 1000) / 1000 // Arrondi à 3 décimales
+    }
+  }
+}
+
+const ProductSchema = new Schema<IProduct>({
+  // Identité
+  name: {
+    type: String,
+    required: [true, 'Le nom du produit est requis'],
+    trim: true,
+    minlength: [2, 'Le nom doit contenir au moins 2 caractères'],
+    maxlength: [200, 'Le nom ne peut pas dépasser 200 caractères']
+  },
+  category: {
+    type: String,
+    trim: true,
+    index: true
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: [5000, 'La description ne peut pas dépasser 5000 caractères']
+  },
+  tagline: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Le tagline ne peut pas dépasser 200 caractères']
+  },
+  
+  // Pricing standard
+  price: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le prix doit être positif ou nul'
+    }
+  },
+  baseCost: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le coût de base doit être positif ou nul'
+    }
+  },
+  marginRate: {
+    type: Number,
+    default: 25,
+    min: [0, 'Le taux de marge ne peut pas être négatif'],
+    max: [100, 'Le taux de marge ne peut pas dépasser 100%']
+  },
+  currency: {
+    type: String,
+    default: 'FCFA',
+    enum: {
+      values: ['FCFA', 'EUR', 'USD', 'CNY'],
+      message: 'Devise invalide. Valeurs acceptées: FCFA, EUR, USD, CNY'
+    },
+    validate: {
+      validator: validateCurrency,
+      message: 'Devise invalide'
+    }
+  },
+  
+  // Médias
+  image: {
+    type: String,
+    trim: true
+  },
+  gallery: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: (arr: string[]) => arr.length <= 20,
+      message: 'Maximum 20 images dans la galerie'
+    }
+  },
+  
+  // Caractéristiques
+  features: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: (arr: string[]) => arr.length <= 50,
+      message: 'Maximum 50 caractéristiques'
+    }
+  },
+  colorOptions: {
+    type: [String],
+    default: []
+  },
+  variantOptions: {
+    type: [String],
+    default: []
+  },
+  
+  // Disponibilité
+  requiresQuote: {
+    type: Boolean,
+    default: false
+  },
+  deliveryDays: {
+    type: Number,
+    default: 0,
+    min: [0, 'Les jours de livraison ne peuvent pas être négatifs']
+  },
+  stockStatus: {
+    type: String,
+    enum: {
+      values: ['in_stock', 'preorder', 'out_of_stock'],
+      message: 'Statut de stock invalide'
+    },
+    default: 'preorder',
+    validate: {
+      validator: validateStockStatus,
+      message: 'Statut de stock invalide'
+    }
+  },
+  stockQuantity: {
+    type: Number,
+    default: 0,
+    min: [0, 'La quantité en stock ne peut pas être négative']
+  },
+  leadTimeDays: {
+    type: Number,
+    default: 15,
+    min: [0, 'Le délai de livraison ne peut pas être négatif']
+  },
+  availabilityNote: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'La note de disponibilité ne peut pas dépasser 500 caractères']
+  },
+  
+  // Publication
+  isPublished: {
+    type: Boolean,
+    default: true,
+    index: true
+  },
+  isFeatured: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  
+  // Logistique
+  weightKg: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le poids doit être positif ou nul'
+    }
+  },
+  lengthCm: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'La longueur doit être positive ou nulle'
+    }
+  },
+  widthCm: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'La largeur doit être positive ou nulle'
+    }
+  },
+  heightCm: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'La hauteur doit être positive ou nulle'
+    }
+  },
+  volumeM3: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le volume doit être positif ou nul'
+    }
+  },
+  packagingWeightKg: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le poids d\'emballage doit être positif ou nul'
+    }
+  },
+  
+  // Sourcing
+  sourcing: {
+    platform: { type: String, trim: true },
+    supplierName: { type: String, trim: true },
+    supplierContact: { type: String, trim: true },
+    productUrl: { type: String, trim: true },
+    notes: { type: String, trim: true, maxlength: [1000, 'Les notes de sourcing ne peuvent pas dépasser 1000 caractères'] }
+  },
+  
+  // 1688
+  price1688: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le prix 1688 doit être positif ou nul'
+    }
+  },
+  price1688Currency: {
+    type: String,
+    default: 'CNY',
+    enum: {
+      values: ['CNY', 'FCFA', 'EUR', 'USD'],
+      message: 'Devise 1688 invalide'
+    }
+  },
+  exchangeRate: {
+    type: Number,
+    default: 100,
+    min: [0.01, 'Le taux de change doit être positif'],
+    validate: {
+      validator: (value: number) => value > 0,
+      message: 'Le taux de change doit être strictement positif'
+    }
+  },
+  serviceFeeRate: {
+    type: Number,
+    validate: {
+      validator: validateServiceFeeRate,
+      message: 'Le taux de frais de service doit être 5, 10 ou 15'
+    }
+  },
+  insuranceRate: {
+    type: Number,
+    min: [0, 'Le taux d\'assurance ne peut pas être négatif'],
+    max: [100, 'Le taux d\'assurance ne peut pas dépasser 100%']
+  },
+  shippingOverrides: {
+    type: [new Schema({
+      methodId: {
+        type: String,
+        required: true,
+        enum: ['air_express', 'air_15', 'sea_freight']
+      },
+      ratePerKg: {
+        type: Number,
+        validate: {
+          validator: validatePositiveNumber,
+          message: 'Le taux par kg doit être positif ou nul'
+        }
+      },
+      ratePerM3: {
+        type: Number,
+        validate: {
+          validator: validatePositiveNumber,
+          message: 'Le taux par m³ doit être positif ou nul'
+        }
+      },
+      flatFee: {
+        type: Number,
+        validate: {
+          validator: validatePositiveNumber,
+          message: 'Le forfait doit être positif ou nul'
+        }
+      }
+    }, { _id: false })],
+    default: []
+  }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+})
+
+// Validation des dimensions avant sauvegarde
+ProductSchema.pre('save', function(next) {
+  try {
+    validateDimensions.call(this)
+    calculateVolume.call(this)
+    next()
+  } catch (error) {
+    next(error as Error)
+  }
+})
+
+// Index pour performances
+ProductSchema.index({ name: 'text', description: 'text', tagline: 'text' })
+ProductSchema.index({ category: 1, isPublished: 1 })
+ProductSchema.index({ isFeatured: 1, createdAt: -1 })
+ProductSchema.index({ price1688: 1 })
+ProductSchema.index({ stockStatus: 1, stockQuantity: 1 })
+
+// Export
+const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
+export default Product
+

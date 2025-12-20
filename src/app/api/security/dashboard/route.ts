@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   }
 
   const session = sessionResult as any
-  if (session.role !== 'admin' && session.role !== 'supervisor') {
+  const role = String(session.role || '').toUpperCase()
+  if (role !== 'ADMIN' && role !== 'SUPERVISOR') {
     return NextResponse.json(
       { error: 'Accès non autorisé' },
       { status: 403 }

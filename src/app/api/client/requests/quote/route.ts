@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Récupérer les infos du client
-    const client = await User.findById(userId).select('name email company phone').lean()
+    const client = await User.findById(userId).select('name email company phone').lean() as { name?: string; email?: string; company?: string; phone?: string } | null
 
     // Formater la description avec les détails
     let fullDescription = description + '\n\n'

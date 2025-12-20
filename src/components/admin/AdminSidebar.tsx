@@ -1,228 +1,199 @@
 'use client'
 
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
 import {
-  Home,
-  FolderKanban,
-  Package,
-  Tags,
-  Calculator,
-  Users,
-  Calendar,
-  Settings,
-  MessageCircle,
-  Building2,
-  Download,
+  LayoutDashboard,
+  BarChart3,
+  BookOpen,
   FileText,
+  Users,
+  Building2,
+  Package,
   Wrench,
-  UserCog,
-  ShieldCheck,
-  ChevronDown,
-  ChevronUp
+  Calculator,
+  Briefcase,
+  AlertCircle,
+  Settings,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react'
+import { useState } from 'react'
 
-type NavChild = {
+interface MenuItem {
+  id: string
   label: string
-  href: string
-}
-
-type NavEntry = {
-  label: string
+  icon: any
   href?: string
-  icon: React.ComponentType<{ className?: string }>
-  children?: NavChild[]
+  children?: MenuItem[]
 }
 
-const navEntries: NavEntry[] = [
-  { label: 'Dashboard', href: '/admin', icon: Home },
-  { label: 'Clients', href: '/admin/clients', icon: Building2 },
-  { label: 'Projets', href: '/admin/projects', icon: FolderKanban },
+const menuItems: MenuItem[] = [
   {
-    label: 'Maintenance',
-    icon: ShieldCheck,
-    children: [
-      { label: 'Centre maintenance', href: '/admin/maintenance' },
-      { label: 'Contrats', href: '/admin/maintenance?view=contracts' },
-      { label: 'Visites générées', href: '/admin/planning?source=maintenance' }
-    ]
-  },
-  { label: 'Techniciens', href: '/admin/technicians', icon: Wrench },
-  {
-    label: 'Planning',
-    icon: Calendar,
-    children: [
-      { label: 'Planning global', href: '/admin/planning' },
-      { label: 'Marketplace interventions', href: '/admin/planning?view=marketplace' },
-      { label: 'Installations produits', href: '/admin/planning?view=installations' }
-    ]
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    href: '/admin'
   },
   {
-    label: 'Services & Produits',
-    icon: Package,
+    id: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    href: '/admin/analytics'
+  },
+  {
+    id: 'administration',
+    label: 'Administration',
+    icon: Settings,
     children: [
-      { label: 'Catalogue', href: '/admin/catalog' },
-      { label: 'Produits import', href: '/admin/import-produits' },
-      { label: 'Tarifs & variantes', href: '/admin/prices' }
+      {
+        id: 'how-to',
+        label: 'Guide d\'utilisation',
+        icon: BookOpen,
+        href: '/admin/administration/how-to'
+      }
     ]
   },
   {
-    label: 'Devis & ventes',
+    id: 'devis',
+    label: 'Devis',
     icon: FileText,
-    children: [
-      { label: 'Générateur de devis', href: '/admin/devis' },
-      { label: 'Commandes', href: '/admin/orders' },
-      { label: 'Intelligence pricing', href: '/admin/pricing' }
-    ]
+    href: '/admin/devis'
   },
-  { label: 'Tickets Support', href: '/admin/tickets', icon: MessageCircle },
-  { label: 'Utilisateurs', href: '/admin/users', icon: UserCog },
-  { label: 'Administration', href: '/admin/migration', icon: Settings }
+  {
+    id: 'clients',
+    label: 'Clients',
+    icon: Building2,
+    href: '/admin/clients'
+  },
+  {
+    id: 'produits',
+    label: 'Produits',
+    icon: Package,
+    href: '/admin/produits'
+  },
+  {
+    id: 'technicians',
+    label: 'Techniciens',
+    icon: Users,
+    href: '/admin/technicians'
+  },
+  {
+    id: 'maintenance',
+    label: 'Maintenance',
+    icon: Wrench,
+    href: '/admin/maintenance'
+  },
+  {
+    id: 'marketplace',
+    label: 'Marketplace',
+    icon: Briefcase,
+    href: '/admin/marketplace'
+  },
+  {
+    id: 'comptabilite',
+    label: 'Comptabilité',
+    icon: Calculator,
+    href: '/admin/comptabilite'
+  },
+  {
+    id: 'tickets',
+    label: 'Support',
+    icon: AlertCircle,
+    href: '/admin/tickets'
+  }
 ]
 
 export default function AdminSidebar() {
   const pathname = usePathname()
-  const initialState = useMemo(() => {
-    const state: Record<string, boolean> = {}
-    navEntries.forEach((entry) => {
-      if (entry.children) {
-        state[entry.label] = entry.children.some((child) =>
-          pathname === child.href || pathname.startsWith(child.href)
-        )
-      }
-    })
-    return state
-  }, [pathname])
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(initialState)
+  const router = useRouter()
+  const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
 
-  useEffect(() => {
-    setOpenSections((prev) => {
-      const next = { ...prev }
-      navEntries.forEach((entry) => {
-        if (entry.children) {
-          const shouldBeOpen = entry.children.some(
-            (child) => pathname === child.href || pathname.startsWith(child.href)
-          )
-          if (shouldBeOpen) {
-            next[entry.label] = true
-          }
-        }
-      })
-      return next
-    })
-  }, [pathname])
+  const toggleMenu = (menuId: string) => {
+    setOpenMenus(prev =>
+      prev.includes(menuId)
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    )
+  }
 
-  const toggleSection = (label: string) => {
-    setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }))
+  const isActive = (href?: string) => {
+    if (!href) return false
+    if (href === '/admin') {
+      return pathname === '/admin'
+    }
+    return pathname.startsWith(href)
+  }
+
+  const hasActiveChild = (item: MenuItem): boolean => {
+    if (item.href && isActive(item.href)) return true
+    if (item.children) {
+      return item.children.some(child => hasActiveChild(child))
+    }
+    return false
+  }
+
+  const renderMenuItem = (item: MenuItem, level: number = 0) => {
+    const hasChildren = item.children && item.children.length > 0
+    const isOpen = openMenus.includes(item.id)
+    const active = isActive(item.href) || hasActiveChild(item)
+
+    if (hasChildren) {
+      return (
+        <div key={item.id}>
+          <button
+            onClick={() => toggleMenu(item.id)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+              active
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <item.icon className="h-5 w-5" />
+              <span className="font-medium">{item.label}</span>
+            </div>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+          {isOpen && (
+            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
+              {item.children!.map(child => renderMenuItem(child, level + 1))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        key={item.id}
+        href={item.href || '#'}
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+          active
+            ? 'bg-emerald-50 text-emerald-700 font-medium'
+            : 'text-gray-700 hover:bg-gray-50'
+        }`}
+        style={{ paddingLeft: `${16 + level * 16}px` }}
+      >
+        <item.icon className="h-5 w-5" />
+        <span>{item.label}</span>
+      </Link>
+    )
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 z-50">
-      <div className="h-16 flex items-center px-5 border-b border-gray-100">
-        <div className="text-sm font-semibold text-gray-900">
-          IT Vision Admin
-        </div>
+    <aside className="w-64 bg-white border-r border-gray-200">
+      <div className="p-6 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-gray-900">Admin Panel</h2>
+        <p className="text-sm text-gray-500 mt-1">IT Vision Plus</p>
       </div>
-      <nav className="py-4">
-        <ul className="px-2 space-y-1">
-          {navEntries.map((entry) => {
-            const Icon = entry.icon
-            const isActive =
-              entry.href
-                ? pathname === entry.href || (entry.href !== '/admin' && pathname.startsWith(entry.href))
-                : entry.children?.some((child) => pathname.startsWith(child.href))
-
-            if (!entry.children) {
-              return (
-                <li key={`${entry.label}-${entry.href}`}>
-                  <Link
-                    href={entry.href as string}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
-                    <span>{entry.label}</span>
-                  </Link>
-                </li>
-              )
-            }
-
-            const sectionOpen = openSections[entry.label]
-            return (
-              <li key={`${entry.label}-section`}>
-                <button
-                  type="button"
-                  onClick={() => toggleSection(entry.label)}
-                  className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    sectionOpen ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon className={`h-4 w-4 ${sectionOpen ? 'text-emerald-600' : 'text-gray-400'}`} />
-                    {entry.label}
-                  </span>
-                  {sectionOpen ? (
-                    <ChevronUp className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  )}
-                </button>
-                {sectionOpen && (
-                  <ul className="mt-1 ml-6 border-l border-gray-100 pl-3 space-y-1">
-                    {entry.children.map((child) => {
-                      const childActive = pathname === child.href || pathname.startsWith(child.href)
-                      return (
-                        <li key={`${entry.label}-${child.href}`}>
-                          <Link
-                            href={child.href}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                              childActive
-                                ? 'text-emerald-700 bg-emerald-50'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                          >
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-300" />
-                            {child.label}
-                          </Link>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-        <div className="mt-4 px-4">
-          <div className="text-xs uppercase text-gray-400 font-semibold mb-2">
-            Domaines
-          </div>
-          <ul className="space-y-1">
-            <li>
-              <Link href="/admin/catalog" className="flex items-center gap-2 text-xs px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
-                <Package className="h-3.5 w-3.5 text-gray-400" />
-                Catalogue & Produits
-              </Link>
-            </li>
-            <li>
-              <Link href="/admin/prices" className="flex items-center gap-2 text-xs px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
-                <Tags className="h-3.5 w-3.5 text-gray-400" />
-                Prix & Variantes
-              </Link>
-            </li>
-            <li>
-              <Link href="/admin/import-produits" className="flex items-center gap-2 text-xs px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
-                <Download className="h-3.5 w-3.5 text-gray-400" />
-                Import AliExpress
-              </Link>
-            </li>
-          </ul>
-        </div>
+      <nav className="p-4 space-y-1">
+        {menuItems.map(item => renderMenuItem(item))}
       </nav>
     </aside>
   )
 }
-
-

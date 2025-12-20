@@ -1792,7 +1792,7 @@ export default function ModernClientPortal() {
 
       {/* Modals */}
       <ProjectDetailModal
-        projectId={selectedProjectId}
+        projectId={selectedProjectId || ''}
         isOpen={isProjectModalOpen}
         onClose={() => {
           setIsProjectModalOpen(false)

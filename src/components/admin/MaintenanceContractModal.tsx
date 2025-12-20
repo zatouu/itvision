@@ -50,6 +50,7 @@ type TechnicianOption = {
   email?: string
   phone?: string
   zone?: string
+  skills?: string[]
 }
 
 type Props = {

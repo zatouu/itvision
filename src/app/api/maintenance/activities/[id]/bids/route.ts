@@ -21,15 +21,16 @@ async function verifyToken(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { role } = await verifyToken(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
     await connectMongoose()
-    const bids = await MaintenanceBid.find({ activityId: params.id }).sort({ createdAt: -1 }).lean()
+    const bids = await MaintenanceBid.find({ activityId: id }).sort({ createdAt: -1 }).lean() as any[]
 
     return NextResponse.json({
       success: true,
@@ -53,16 +54,17 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { role, technicianId, userId } = await verifyToken(request)
     if (!['TECHNICIAN', 'ADMIN'].includes(role)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     await connectMongoose()
-    const activity = await MaintenanceActivity.findById(params.id)
+    const activity = await MaintenanceActivity.findById(id)
     if (!activity || activity.status !== 'open') {
       return NextResponse.json({ error: 'Activité non disponible' }, { status: 400 })
     }
@@ -78,7 +80,7 @@ export async function POST(
     let technicianPhone: string | undefined
 
     if (role === 'TECHNICIAN') {
-      const technician = await Technician.findOne({ userId }).lean()
+      const technician = await Technician.findOne({ userId }).lean() as any
       if (!technician) {
         return NextResponse.json({ error: 'Technicien introuvable' }, { status: 404 })
       }

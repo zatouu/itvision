@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
+import type { ShippingMethodId } from '@/lib/logistics'
 
 type ShippingOverride = {
   methodId: string
@@ -48,6 +49,12 @@ type Product = {
   shippingOverrides?: ShippingOverride[]
   isPublished?: boolean
   isFeatured?: boolean
+  // Informations 1688
+  price1688?: number // Prix en Yuan (¥)
+  price1688Currency?: string // Devise 1688 (par défaut 'CNY')
+  exchangeRate?: number // Taux de change (par défaut 1 ¥ = 100 FCFA)
+  serviceFeeRate?: number // Frais de service (5%, 10%, 15%)
+  insuranceRate?: number // Frais d'assurance (en %)
 }
 
 async function fetchProducts(q = '', category = '') {
@@ -66,6 +73,203 @@ type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'import'
 const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => {
   if (!Array.isArray(overrides)) return []
   return overrides.filter(o => o && typeof o.methodId === 'string')
+}
+
+// Composant de simulation de pricing 1688
+function PricingSimulator({ product }: { product: Product }) {
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethodId>('air_express')
+  const [orderQuantity, setOrderQuantity] = useState(1)
+  const [monthlyVolume, setMonthlyVolume] = useState(0)
+  const [simulation, setSimulation] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  const runSimulation = async () => {
+    if (!product.price1688 && !product.baseCost) {
+      alert('Veuillez renseigner le prix 1688 ou le coût de base')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/pricing/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product._id,
+          price1688: product.price1688,
+          baseCost: product.baseCost,
+          exchangeRate: product.exchangeRate || 100,
+          shippingMethod,
+          weightKg: product.weightKg,
+          volumeM3: product.volumeM3,
+          serviceFeeRate: product.serviceFeeRate || 10,
+          insuranceRate: product.insuranceRate || 0,
+          orderQuantity,
+          monthlyVolume: monthlyVolume || undefined
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Erreur lors de la simulation')
+      }
+
+      const data = await response.json()
+      setSimulation(data.simulation)
+    } catch (error: any) {
+      alert(error.message || 'Erreur lors de la simulation')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!product.price1688 && !product.baseCost) {
+    return null
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+          <Calculator className="h-4 w-4" />
+          Simulateur de Pricing 1688
+        </div>
+        <button
+          onClick={runSimulation}
+          disabled={loading}
+          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Calcul...
+            </>
+          ) : (
+            <>
+              <Calculator className="h-4 w-4" />
+              Calculer
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-3">
+        <label className="space-y-1">
+          <span>Méthode de transport</span>
+          <select
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            value={shippingMethod}
+            onChange={e => setShippingMethod(e.target.value as ShippingMethodId)}
+          >
+            <option value="air_express">Express (3 jours)</option>
+            <option value="air_15">Fret aérien (6-10 jours)</option>
+            <option value="sea_freight">Maritime (50-60 jours)</option>
+          </select>
+        </label>
+        <label className="space-y-1">
+          <span>Quantité commande</span>
+          <input
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            type="number"
+            min="1"
+            value={orderQuantity}
+            onChange={e => setOrderQuantity(Number(e.target.value) || 1)}
+          />
+        </label>
+        <label className="space-y-1">
+          <span>Volume mensuel moyen (optionnel)</span>
+          <input
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            type="number"
+            min="0"
+            value={monthlyVolume}
+            onChange={e => setMonthlyVolume(Number(e.target.value) || 0)}
+          />
+        </label>
+      </div>
+
+      {simulation && (
+        <div className="mt-6 space-y-4">
+          <div className="rounded-lg border border-emerald-200 bg-white p-4">
+            <h4 className="mb-3 text-sm font-semibold text-gray-800">Détail des coûts</h4>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-gray-500">Coût produit:</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.productCostFCFA)}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Transport réel:</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.shippingCostReal)}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Frais service:</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.serviceFee)}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Frais assurance:</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.insuranceFee)}</div>
+              </div>
+              <div className="col-span-2 border-t border-gray-200 pt-2">
+                <span className="text-gray-500">Coût total réel:</span>
+                <div className="text-lg font-bold text-red-600">{formatCurrency(simulation.breakdown.totalRealCost)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-blue-200 bg-white p-4">
+            <h4 className="mb-3 text-sm font-semibold text-gray-800">Prix client</h4>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-gray-500">Transport déclaré:</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.shippingCostClient)}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Marge transport:</span>
+                <div className="font-semibold text-green-600">+{formatCurrency(simulation.breakdown.shippingMargin)}</div>
+              </div>
+              <div className="col-span-2 border-t border-gray-200 pt-2">
+                <span className="text-gray-500">Prix total facturé:</span>
+                <div className="text-lg font-bold text-blue-600">{formatCurrency(simulation.breakdown.totalClientPrice)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-purple-200 bg-white p-4">
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <TrendingUp className="h-4 w-4" />
+              Marges & Projections
+            </h4>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-gray-500">Marge nette:</span>
+                <div className={`text-lg font-bold ${simulation.breakdown.netMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(simulation.breakdown.netMargin)}
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-500">% de marge:</span>
+                <div className={`text-lg font-bold ${simulation.breakdown.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {simulation.breakdown.marginPercentage.toFixed(2)}%
+                </div>
+              </div>
+              {simulation.breakdown.cumulativeMargin !== undefined && (
+                <div>
+                  <span className="text-gray-500">Marge cumulée ({orderQuantity} unités):</span>
+                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.breakdown.cumulativeMargin)}</div>
+                </div>
+              )}
+              {simulation.breakdown.estimatedMonthlyProfit !== undefined && (
+                <div>
+                  <span className="text-gray-500">Bénéfice mensuel estimé:</span>
+                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.breakdown.estimatedMonthlyProfit)}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function AdminProductManager() {
@@ -98,7 +302,13 @@ export default function AdminProductManager() {
     sourcing: {},
     shippingOverrides: [],
     isPublished: true,
-    isFeatured: false
+    isFeatured: false,
+    // Informations 1688
+    price1688: undefined,
+    price1688Currency: 'CNY',
+    exchangeRate: 100, // 1 ¥ = 100 FCFA
+    serviceFeeRate: 10,
+    insuranceRate: 0
   }
 
   const [items, setItems] = useState<Product[]>([])
@@ -802,9 +1012,88 @@ export default function AdminProductManager() {
           </div>
           <label className="mt-4 inline-flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={!!editing.requiresQuote} onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })} />
-            Sur devis uniquement (désactive l’achat direct)
+            Sur devis uniquement (désactive l'achat direct)
           </label>
         </div>
+
+        {/* Section 1688 */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
+            <DollarSign className="h-4 w-4" />
+            Informations 1688 (Import Chine)
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
+            <label className="space-y-1">
+              <span>Prix 1688 (¥ Yuan)</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                type="number"
+                step="0.01"
+                value={editing.price1688 ?? ''}
+                onChange={e => {
+                  const value = e.target.value ? Number(e.target.value) : undefined
+                  setEditing({ ...editing, price1688: value })
+                  // Calcul automatique du baseCost si exchangeRate est défini
+                  if (value && editing.exchangeRate) {
+                    const calculatedBaseCost = value * editing.exchangeRate
+                    setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">Prix d'achat sur 1688 en Yuan</p>
+            </label>
+            <label className="space-y-1">
+              <span>Taux de change (1 ¥ = X FCFA)</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                type="number"
+                value={editing.exchangeRate ?? 100}
+                onChange={e => {
+                  const value = e.target.value ? Number(e.target.value) : 100
+                  setEditing({ ...editing, exchangeRate: value })
+                  // Recalculer baseCost si price1688 existe
+                  if (editing.price1688 && value) {
+                    const calculatedBaseCost = editing.price1688 * value
+                    setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">Par défaut: 1 ¥ = 100 FCFA</p>
+            </label>
+            <label className="space-y-1">
+              <span>Frais de service (%)</span>
+              <select
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                value={editing.serviceFeeRate ?? 10}
+                onChange={e => setEditing({ ...editing, serviceFeeRate: Number(e.target.value) })}
+              >
+                <option value={5}>5%</option>
+                <option value={10}>10%</option>
+                <option value={15}>15%</option>
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span>Frais d'assurance (%)</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                type="number"
+                step="0.1"
+                min="0"
+                value={editing.insuranceRate ?? 0}
+                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 0 })}
+              />
+              <p className="text-xs text-gray-500">Pourcentage sur coût total</p>
+            </label>
+          </div>
+          {editing.price1688 && editing.exchangeRate && (
+            <div className="mt-4 rounded-lg bg-white p-3 text-xs text-gray-600">
+              <strong>Coût produit calculé:</strong> {formatCurrency((editing.price1688 || 0) * (editing.exchangeRate || 100), 'FCFA')}
+            </div>
+          )}
+        </div>
+
+        {/* Simulateur de pricing */}
+        <PricingSimulator product={editing} />
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">

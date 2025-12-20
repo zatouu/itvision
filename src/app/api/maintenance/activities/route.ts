@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const activities = await MaintenanceActivity.find(query)
       .sort({ date: 1 })
       .populate('preferredTechnicians', 'name email phone')
-      .lean()
+      .lean() as any[]
 
     return NextResponse.json({
       success: true,

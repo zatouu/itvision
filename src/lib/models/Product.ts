@@ -14,7 +14,7 @@ export interface IProduct extends Document {
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
-  stockStatus?: 'in_stock' | 'preorder'
+  stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   stockQuantity?: number
   leadTimeDays?: number
   weightKg?: number
@@ -35,6 +35,12 @@ export interface IProduct extends Document {
     productUrl?: string
     notes?: string
   }
+  // Informations 1688
+  price1688?: number // Prix en Yuan (¥)
+  price1688Currency?: string // Devise 1688 (par défaut 'CNY')
+  exchangeRate?: number // Taux de change (par défaut 1 ¥ = 100 FCFA)
+  serviceFeeRate?: number // Frais de service (5%, 10%, 15%)
+  insuranceRate?: number // Frais d'assurance (en %)
   shippingOverrides?: Array<{
     methodId: string
     ratePerKg?: number
@@ -53,13 +59,13 @@ const ProductSchema = new Schema<IProduct>({
   price: { type: Number },
   baseCost: { type: Number },
   marginRate: { type: Number, default: 25 },
-  currency: { type: String, default: 'Fcfa' },
+  currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
   image: { type: String },
   gallery: { type: [String], default: [] },
   features: { type: [String], default: [] },
   requiresQuote: { type: Boolean, default: false },
   deliveryDays: { type: Number, default: 0 },
-  stockStatus: { type: String, enum: ['in_stock', 'preorder'], default: 'preorder' },
+  stockStatus: { type: String, enum: ['in_stock', 'preorder', 'out_of_stock'], default: 'preorder' },
   stockQuantity: { type: Number, default: 0 },
   leadTimeDays: { type: Number, default: 15 },
   weightKg: { type: Number },
@@ -80,6 +86,12 @@ const ProductSchema = new Schema<IProduct>({
     productUrl: { type: String },
     notes: { type: String }
   },
+  // Informations 1688
+  price1688: { type: Number },
+  price1688Currency: { type: String, default: 'CNY' },
+  exchangeRate: { type: Number, default: 100 }, // 1 ¥ = 100 FCFA
+  serviceFeeRate: { type: Number }, // 5, 10, ou 15
+  insuranceRate: { type: Number }, // Pourcentage d'assurance
   shippingOverrides: {
     type: [new Schema({
       methodId: { type: String, required: true },

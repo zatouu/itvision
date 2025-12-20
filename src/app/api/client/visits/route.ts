@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       ]
     })
       .populate('preferredTechnicians', 'name email phone')
-      .lean()
+      .lean() as any[]
 
     const activityVisits = activities.map((activity) => ({
       id: activity._id.toString(),

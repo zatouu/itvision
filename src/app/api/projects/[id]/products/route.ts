@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Projet manquant' }, { status: 400 })
     }
 
-    const project = await Project.findById(id).select('products name').lean()
+    const project = await Project.findById(id).select('products name').lean() as any
     if (!project) {
       return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
     }

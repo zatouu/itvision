@@ -4,7 +4,7 @@ let isConnected = false
 
 export async function connectMongoose(uri?: string) {
   // URI par défaut sans authentification pour développement local
-  const defaultUri = 'mongodb://localhost:27017/itvision_db'
+  const defaultUri = 'mongodb://admin:AdminPassword123@localhost:27017/itvision_db'
   const mongoUri = uri || process.env.MONGODB_URI || defaultUri
   if (!mongoUri) throw new Error('MONGODB_URI non défini')
   

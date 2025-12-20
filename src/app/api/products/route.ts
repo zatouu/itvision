@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { type IProduct } from '@/lib/models/Product'
+import Product, { type IProduct } from '@/lib/models/Product.validated'
 import jwt from 'jsonwebtoken'
 
 function requireManagerRole(request: NextRequest) {
@@ -68,7 +68,13 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     isPublished,
     isFeatured,
     sourcing,
-    shippingOverrides
+    shippingOverrides,
+    // Champs 1688
+    price1688,
+    price1688Currency,
+    exchangeRate,
+    serviceFeeRate,
+    insuranceRate
   } = payload || {}
 
   const normalized: Partial<IProduct> = {
@@ -76,10 +82,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     category,
     description,
     tagline,
-    currency,
+    currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
+      ? currency 
+      : 'FCFA',
     availabilityNote,
     requiresQuote: typeof requiresQuote === 'boolean' ? requiresQuote : undefined,
-    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : undefined,
+    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : stockStatus === 'out_of_stock' ? 'out_of_stock' : undefined,
     isPublished: typeof isPublished === 'boolean' ? isPublished : undefined,
     isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
   }
@@ -136,6 +144,21 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     if (overrides.length > 0) {
       normalized.shippingOverrides = overrides
     }
+  }
+
+  // Champs 1688
+  normalized.price1688 = parseNumber(price1688)
+  normalized.exchangeRate = parseNumber(exchangeRate)
+  const parsedServiceFeeRate = parseNumber(serviceFeeRate)
+  normalized.serviceFeeRate = (parsedServiceFeeRate === 5 || parsedServiceFeeRate === 10 || parsedServiceFeeRate === 15) 
+    ? parsedServiceFeeRate 
+    : undefined
+  normalized.insuranceRate = parseNumber(insuranceRate)
+  if (typeof price1688Currency === 'string') {
+    const validCurrencies = ['FCFA', 'EUR', 'USD', 'CNY'] as const
+    normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 
+      ? (price1688Currency as 'FCFA' | 'EUR' | 'USD' | 'CNY')
+      : undefined
   }
 
   return normalized

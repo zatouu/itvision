@@ -65,7 +65,9 @@ export async function POST(request: NextRequest) {
       marginTotal,
       totalHT,
       totalTTC,
-      currency: currency || 'Fcfa',
+      currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
+        ? currency 
+        : 'FCFA',
       notes
     })
     return NextResponse.json({ success: true, item: created }, { status: 201 })

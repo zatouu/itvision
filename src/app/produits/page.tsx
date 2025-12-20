@@ -22,7 +22,8 @@ interface ShippingOptionSummary {
 }
 
 interface ApiProduct {
-  _id: string
+  id: string
+  _id?: string // Deprecated, utiliser id
   name: string
   category: string
   description: string
@@ -37,9 +38,14 @@ interface ApiProduct {
   rating: number
   shippingOptions: ShippingOptionSummary[]
   availabilityLabel?: string
-  availabilityStatus?: 'in_stock' | 'preorder' | string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   isFeatured?: boolean
+  pricing1688?: {
+    price1688: number
+    price1688Currency: string
+    exchangeRate: number
+  } | null
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -48,7 +54,8 @@ interface ApiProduct {
 const getFallbackProducts = (): ApiProduct[] => {
   return [
     {
-      _id: 'fallback-1',
+      id: 'fallback-1',
+      _id: 'fallback-1', // Compatibilité
       name: 'Caméra IP Hikvision 4MP',
       category: 'Vidéosurveillance',
       description: 'Caméra de surveillance haute définition avec vision nocturne et IA détection humain/véhicule',
@@ -70,7 +77,8 @@ const getFallbackProducts = (): ApiProduct[] => {
       availabilityStatus: 'preorder'
     },
     {
-      _id: 'fallback-2',
+      id: 'fallback-2',
+      _id: 'fallback-2', // Compatibilité
       name: 'Terminal Contrôle d\'accès Facial',
       category: 'Contrôle d\'Accès',
       description: 'Terminal biométrique reconnaissance faciale & RFID pour entreprise',
@@ -91,7 +99,8 @@ const getFallbackProducts = (): ApiProduct[] => {
       availabilityStatus: 'preorder'
     },
     {
-      _id: 'fallback-3',
+      id: 'fallback-3',
+      _id: 'fallback-3', // Compatibilité
       name: 'Kit alarme sans fil AX PRO',
       category: 'Alarme',
       description: 'Pack alarme résidentielle Hikvision AX PRO avec application mobile',
@@ -111,7 +120,8 @@ const getFallbackProducts = (): ApiProduct[] => {
       availabilityStatus: 'in_stock'
     },
     {
-      _id: 'fallback-4',
+      id: 'fallback-4',
+      _id: 'fallback-4', // Compatibilité
       name: 'Switch PoE 16 ports Hikvision',
       category: 'Réseau',
       description: 'Switch PoE+ 16 ports pour infrastructure vidéosurveillance',
@@ -236,7 +246,8 @@ export default function ProduitsPage() {
               const features = [...featuresFromApi, ...shippingHighlights, ...availabilityHighlight]
 
               return {
-                _id: item.id,
+                id: item.id,
+                _id: item.id, // Deprecated - utiliser id
                 name: item.name,
                 category: item.category || 'Catalogue import Chine',
                 description: item.description || item.tagline || 'Équipement import direct Chine avec installation Dakar',
@@ -251,7 +262,9 @@ export default function ProduitsPage() {
                 rating: item.isFeatured ? 4.9 : 4.7,
                 shippingOptions: shipping,
                 availabilityLabel: item.availability?.label || undefined,
-                availabilityStatus: item.availability?.status || 'preorder',
+                availabilityStatus: (item.availability?.status === 'in_stock' || item.availability?.status === 'preorder' || item.availability?.status === 'out_of_stock')
+                  ? item.availability.status
+                  : 'preorder',
                 createdAt: item.createdAt || undefined,
                 isFeatured: item.isFeatured || false
               }
@@ -1324,7 +1337,7 @@ export default function ProduitsPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
                             {filteredProducts.map((product) => (
                               <ProductCard
-                                key={product._id}
+                                key={product.id || product._id}
                                 name={product.name}
                                 model={product.tagline}
                                 price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
@@ -1337,11 +1350,12 @@ export default function ProduitsPage() {
                                 images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
                                 shippingOptions={product.shippingOptions}
                                 availabilityStatus={product.availabilityStatus}
-                                detailHref={`/produits/${product._id}`}
+                                detailHref={`/produits/${product.id || product._id}`}
                                 isPopular={product.rating >= 4.8}
                                 createdAt={product.createdAt}
                                 onCompareToggle={handleCompareToggle}
-                                isComparing={comparingProducts.has(product._id)}
+                                isComparing={comparingProducts.has(product.id || product._id || '')}
+                                pricing1688={product.pricing1688}
                               />
                             ))}
                           </div>
@@ -1349,8 +1363,8 @@ export default function ProduitsPage() {
                           <div className="space-y-4">
                             {filteredProducts.map((product) => (
                               <Link
-                                key={product._id}
-                                href={`/produits/${product._id}`}
+                                key={product.id || product._id}
+                                href={`/produits/${product.id || product._id}`}
                                 className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-emerald-300 transition-all"
                               >
                                 <div className="flex flex-col sm:flex-row gap-4">

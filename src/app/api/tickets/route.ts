@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
       query.assignedTo = assignedTo
     }
     if (search) {
-      query.title = { $regex: new RegExp(search, 'i') }
+      // SÉCURITÉ: Échapper les caractères spéciaux pour éviter ReDoS
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      query.title = { $regex: new RegExp(escapedSearch, 'i') }
     }
 
     const tickets = await Ticket.find(query).sort({ [sortBy]: sortDir }).skip(skip).limit(limit).lean()

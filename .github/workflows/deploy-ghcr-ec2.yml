@@ -126,7 +126,7 @@ jobs:
             sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Démarrage/MAJ des services
-            sudo docker-compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
 
             # Nettoyage des anciennes images
             sudo docker image prune -f

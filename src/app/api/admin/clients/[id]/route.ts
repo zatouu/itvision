@@ -7,7 +7,7 @@ function requireAdmin(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  if (decoded.role !== 'ADMIN') throw new Error('Accès non autorisé')
+  if (String(decoded.role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
   return decoded
 }
 

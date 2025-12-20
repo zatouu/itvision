@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
 import Quote from '@/lib/models/Quote'
-import Product from '@/lib/models/Product'
+import Product from '@/lib/models/Product.validated'
 import User from '@/lib/models/User'
 import Project from '@/lib/models/Project'
 import Technician from '@/lib/models/Technician'
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           marginTotal,
           totalHT,
           totalTTC,
-          currency: 'Fcfa',
+          currency: 'FCFA',
           assignedTechnicianId: technicienId,
           notes: `Devis généré automatiquement depuis l'intervention ${intervention.interventionNumber || intervention._id}\n\nObservations: ${observations || 'N/A'}`
         })

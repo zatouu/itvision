@@ -74,7 +74,7 @@ interface Intervention {
   urgency: boolean
   contractId?: string
   clientId?: string
-  origin?: 'manual' | 'auto'
+  origin?: 'manual' | 'auto' | 'marketplace'
   isContractual?: boolean
   preferredTechnicians?: PreferredTechnician[]
   marketplaceActivityId?: string

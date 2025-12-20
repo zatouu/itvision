@@ -2,12 +2,49 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
+import jwt from 'jsonwebtoken'
+import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
+
+// Vérification d'authentification requise pour l'upload
+function verifyAuth(request: NextRequest): { authenticated: boolean; userId?: string; role?: string } {
+  const token = request.cookies.get('auth-token')?.value || 
+                request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  if (!token) return { authenticated: false }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    return { 
+      authenticated: true, 
+      userId: decoded.userId,
+      role: String(decoded.role || '').toUpperCase()
+    }
+  } catch {
+    return { authenticated: false }
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // SÉCURITÉ: Rate limiting (10 uploads par heure)
+    const rateLimitResponse = applyRateLimit(request, uploadRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
+    // SÉCURITÉ: Vérifier l'authentification
+    const auth = verifyAuth(request)
+    if (!auth.authenticated) {
+      return NextResponse.json(
+        { error: 'Authentification requise' },
+        { status: 401 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string || 'general'
+    
+    // SÉCURITÉ: Valider le type (éviter path traversal)
+    const safeType = type.replace(/[^a-zA-Z0-9_-]/g, '')
     
     if (!file) {
       return NextResponse.json(
@@ -41,7 +78,7 @@ export async function POST(request: NextRequest) {
     const filename = `${timestamp}-${randomString}${extension}`
 
     // Créer le dossier de destination
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', type)
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', safeType)
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true })
     }
@@ -52,7 +89,7 @@ export async function POST(request: NextRequest) {
     await writeFile(filepath, new Uint8Array(bytes))
 
     // URL publique
-    const publicUrl = `/uploads/${type}/${filename}`
+    const publicUrl = `/uploads/${safeType}/${filename}`
 
     return NextResponse.json({
       success: true,

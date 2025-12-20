@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product from '@/lib/models/Product.validated'
 
 interface AliExpressItemProperty {
   attr_name?: string
