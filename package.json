@@ -24,6 +24,10 @@
     "docker:logs": "docker-compose --env-file .env.docker logs -f",
     "docker:backup": "docker-compose --env-file .env.docker --profile backup run --rm backup",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "create:admin": "tsx scripts/create-admin-user.ts",
+    "create:admin:interactive": "tsx scripts/create-admin-user.ts",
+    "reinit:mongodb": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < docker/mongodb/init.js",
+    "reinit:mongodb:safe": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < scripts/reinit-mongodb-safe.js",
     "import:aliexpress": "tsx scripts/import-aliexpress.ts"
   },
   "dependencies": {
