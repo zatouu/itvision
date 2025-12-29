@@ -16,9 +16,12 @@ import {
   AlertCircle,
   Settings,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Menu,
+  X,
+  LogOut
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface MenuItem {
   id: string
@@ -108,6 +111,24 @@ export default function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Fermer le menu mobile lors du changement de page
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
+
+  // Empêcher le scroll du body quand le menu est ouvert
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isMobileMenuOpen])
 
   const toggleMenu = (menuId: string) => {
     setOpenMenus(prev =>
@@ -133,6 +154,17 @@ export default function AdminSidebar() {
     return false
   }
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      document.cookie = 'auth-token=; Max-Age=0; path=/'
+      router.push('/login')
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error)
+      router.push('/login')
+    }
+  }
+
   const renderMenuItem = (item: MenuItem, level: number = 0) => {
     const hasChildren = item.children && item.children.length > 0
     const isOpen = openMenus.includes(item.id)
@@ -143,20 +175,20 @@ export default function AdminSidebar() {
         <div key={item.id}>
           <button
             onClick={() => toggleMenu(item.id)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
                 ? 'bg-emerald-50 text-emerald-700'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center gap-3">
-              <item.icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              <span className="font-medium text-sm">{item.label}</span>
             </div>
             {isOpen ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 flex-shrink-0" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 flex-shrink-0" />
             )}
           </button>
           {isOpen && (
@@ -172,28 +204,92 @@ export default function AdminSidebar() {
       <Link
         key={item.id}
         href={item.href || '#'}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        onClick={() => setIsMobileMenuOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
           active
             ? 'bg-emerald-50 text-emerald-700 font-medium'
             : 'text-gray-700 hover:bg-gray-50'
         }`}
-        style={{ paddingLeft: `${16 + level * 16}px` }}
+        style={{ paddingLeft: `${12 + level * 16}px` }}
       >
-        <item.icon className="h-5 w-5" />
-        <span>{item.label}</span>
+        <item.icon className="h-5 w-5 flex-shrink-0" />
+        <span className="text-sm">{item.label}</span>
       </Link>
     )
   }
 
-  return (
-    <aside className="w-64 bg-white border-r border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">Admin Panel</h2>
-        <p className="text-sm text-gray-500 mt-1">IT Vision Plus</p>
+  const SidebarContent = () => (
+    <>
+      <div className="p-4 sm:p-6 border-b border-gray-200">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Admin Panel</h2>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">IT Vision Plus</p>
       </div>
-      <nav className="p-4 space-y-1">
+      <nav className="p-3 sm:p-4 space-y-1 flex-1 overflow-y-auto">
         {menuItems.map(item => renderMenuItem(item))}
       </nav>
-    </aside>
+      {/* Bouton déconnexion */}
+      <div className="p-3 sm:p-4 border-t border-gray-200">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          <span className="text-sm font-medium">Déconnexion</span>
+        </button>
+      </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Bouton menu mobile - Fixed top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="h-6 w-6 text-gray-700" />
+          </button>
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Admin Panel</h2>
+          </div>
+        </div>
+      </div>
+
+      {/* Spacer pour le contenu sur mobile */}
+      <div className="lg:hidden h-14" />
+
+      {/* Overlay mobile */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar mobile - Slide from left */}
+      <aside 
+        className={`lg:hidden fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Bouton fermer */}
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Fermer le menu"
+        >
+          <X className="h-5 w-5 text-gray-500" />
+        </button>
+        <SidebarContent />
+      </aside>
+
+      {/* Sidebar desktop - Fixed */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:flex-shrink-0 bg-white border-r border-gray-200 h-screen sticky top-0">
+        <SidebarContent />
+      </aside>
+    </>
   )
 }
