@@ -75,12 +75,10 @@ const nextConfig = {
   // Optimisations de sécurité
   poweredByHeader: false, // Masquer le header "Powered by Next.js"
   
-  // Configuration stricte pour la production
-  ...(process.env.NODE_ENV === 'production' && {
-    output: 'standalone',
-    compress: true,
-    trailingSlash: false
-  })
+  // Configuration pour le déploiement Docker
+  output: 'standalone',
+  compress: true,
+  trailingSlash: false
 };
 
 export default nextConfig;

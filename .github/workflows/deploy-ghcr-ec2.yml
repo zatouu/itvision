@@ -110,16 +110,15 @@ jobs:
             cd $APP_DIR
 
             # Construire .env.ec2 à partir des secrets GitHub
-            cat > .env.ec2 << 'EOF'
-            MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
-            MONGO_APP_PASSWORD=${{ secrets.MONGO_APP_PASSWORD }}
-            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
-            IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            # Lien Mongo pour l'app (utilisateur applicatif)
-            MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
-            EOF
+            cat > .env.ec2 <<EOF
+MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
+MONGO_APP_PASSWORD=${{ secrets.MONGO_APP_PASSWORD }}
+NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
+EOF
 
             # Pull de l'image (recommandé: PAT dédié avec read:packages)
             sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
