@@ -5,12 +5,17 @@
 
 import type { Server } from 'socket.io'
 
+declare global {
+  // eslint-disable-next-line no-var
+  var io: Server | undefined
+}
+
 /**
  * Obtenir l'instance Socket.io globale
  */
 export function getIO(): Server | null {
-  if (typeof global.io !== 'undefined') {
-    return global.io as Server
+  if (typeof globalThis.io !== 'undefined') {
+    return globalThis.io ?? null
   }
   return null
 }

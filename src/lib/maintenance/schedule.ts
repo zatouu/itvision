@@ -59,6 +59,16 @@ export const generateMaintenanceVisits = (
   options?: { from?: Date; to?: Date }
 ): MaintenanceVisit[] => {
   if (contract.status !== 'active') return []
+  const contractRecord = contract as unknown as Record<string, any>
+  const contractIdString =
+    contractRecord._id?.toString?.() || (typeof contractRecord._id === 'string' ? contractRecord._id : '')
+  const clientIdString =
+    contractRecord.clientId?.toString?.() ||
+    (typeof contractRecord.clientId === 'string' ? contractRecord.clientId : '')
+  const nearExpiration =
+    typeof (contract as unknown as { isNearExpiration?: () => boolean }).isNearExpiration === 'function'
+      ? (contract as unknown as { isNearExpiration?: () => boolean }).isNearExpiration!()
+      : false
   const from = options?.from ?? new Date()
   const to = options?.to ?? addDays(from, 90)
   const startDate = contract.startDate ? new Date(contract.startDate) : new Date()
@@ -80,19 +90,23 @@ export const generateMaintenanceVisits = (
   while (cursor <= to && counter < 50) {
     sites.forEach((site) => {
       visits.push({
-        id: `${contract._id}-${site}-${cursor.toISOString().slice(0, 10)}`,
-        contractId: contract._id.toString(),
+        id: `${contractIdString || contract.name}-${site}-${cursor.toISOString().slice(0, 10)}`,
+        contractId: contractIdString,
         contractName: contract.name,
-        clientId: contract.clientId.toString(),
-        clientName: (contract as any).clientId?.company || (contract as any).clientId?.name || 'Client',
+        clientId: clientIdString,
+        clientName:
+          contractRecord.clientId?.company ||
+          contractRecord.clientId?.name ||
+          contractRecord.clientName ||
+          'Client',
         date: cursor.toISOString(),
         site,
-        priority: contract.isNearExpiration?.() ? 'high' : 'medium',
+        priority: nearExpiration ? 'high' : 'medium',
         estimatedDurationHours: 4,
         zone: undefined,
         isContractual: true,
-        preferredTechnicians: Array.isArray((contract as any).preferredTechnicians)
-          ? (contract as any).preferredTechnicians.map((tech: any) => ({
+        preferredTechnicians: Array.isArray(contractRecord.preferredTechnicians)
+          ? contractRecord.preferredTechnicians.map((tech: any) => ({
               _id: tech?._id?.toString?.() || tech?.toString?.() || '',
               name: tech?.name || 'Technicien',
               email: tech?.email,

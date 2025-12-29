@@ -52,7 +52,7 @@ interface Project {
 }
 
 interface ProjectDetailModalProps {
-  projectId: string
+  projectId: string | null
   isOpen: boolean
   onClose: () => void
 }

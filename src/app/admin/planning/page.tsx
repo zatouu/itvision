@@ -1,12 +1,19 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DynamicSchedulingSystem from '@/components/DynamicSchedulingSystem'
 import EnhancedProjectManager from '@/components/EnhancedProjectManager'
 import Breadcrumb from '@/components/Breadcrumb'
 import AdminTabs from '@/components/admin/AdminTabs'
 
-export default function AdminPlanningPage() {
+const PlanningFallback = () => (
+  <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">
+    Chargement du planning en cours...
+  </div>
+)
+
+const PlanningContent = () => {
   const searchParams = useSearchParams()
   const view = searchParams.get('view')
   const isMarketplaceView = view === 'marketplace'
@@ -30,5 +37,13 @@ export default function AdminPlanningPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function AdminPlanningPage() {
+  return (
+    <Suspense fallback={<PlanningFallback />}>
+      <PlanningContent />
+    </Suspense>
   )
 }

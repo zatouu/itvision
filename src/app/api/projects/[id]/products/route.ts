@@ -21,17 +21,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const project = await Project.findById(id).select('products name').lean()
-    if (!project) {
+    const projectRecord =
+      project && !Array.isArray(project) ? (project as Record<string, any>) : null
+    if (!projectRecord) {
       return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
     }
 
     return NextResponse.json({
       success: true,
       project: {
-        id: project._id?.toString(),
-        name: project.name
+        id: projectRecord._id?.toString?.(),
+        name: projectRecord.name
       },
-      products: Array.isArray(project.products) ? project.products : []
+      products: Array.isArray(projectRecord.products) ? projectRecord.products : []
     })
   } catch (error) {
     console.error('Erreur récupération produits projet:', error)

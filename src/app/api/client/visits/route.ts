@@ -107,40 +107,44 @@ export async function GET(request: NextRequest) {
       .populate('preferredTechnicians', 'name email phone')
       .lean()
 
-    const activityVisits = activities.map((activity) => ({
-      id: activity._id.toString(),
-      date: activity.date?.toISOString?.() || new Date().toISOString(),
-      site: activity.site,
-      contractId: activity.contractId?.toString(),
-      contractName: activity.contractName,
-      clientName: activity.clientName,
-      source: getSourceLabel(activity),
-      status: activity.status,
-      isContractual: activity.isContractual,
-      preferredTechnicians: Array.isArray(activity.preferredTechnicians)
-        ? activity.preferredTechnicians.map((tech: any) => ({
-            _id: tech?._id?.toString?.() || '',
-            name: tech?.name || 'Technicien',
-            email: tech?.email,
-            phone: tech?.phone
-          }))
-        : [],
-      marketplace: {
-        activityId: activity._id.toString(),
-        allowMarketplace: activity.allowMarketplace,
-        reason: activity.marketplaceReason,
-        bidsCount: activity.bidsCount,
-        bestBidAmount: activity.bestBidAmount,
-        category: activity.category,
-        product: activity.category === 'product_install'
-          ? {
-              productId: activity.productId,
-              productName: activity.productName,
-              options: activity.installationOptions
-            }
-          : undefined
+    const activityVisits = activities.map((activity) => {
+      const doc = activity as Record<string, any>
+      return {
+        id: doc._id?.toString?.() || '',
+        date: doc.date?.toISOString?.() || new Date().toISOString(),
+        site: doc.site,
+        contractId: doc.contractId?.toString?.(),
+        contractName: doc.contractName,
+        clientName: doc.clientName,
+        source: getSourceLabel(doc),
+        status: doc.status,
+        isContractual: doc.isContractual,
+        preferredTechnicians: Array.isArray(doc.preferredTechnicians)
+          ? doc.preferredTechnicians.map((tech: any) => ({
+              _id: tech?._id?.toString?.() || '',
+              name: tech?.name || 'Technicien',
+              email: tech?.email,
+              phone: tech?.phone
+            }))
+          : [],
+        marketplace: {
+          activityId: doc._id?.toString?.() || '',
+          allowMarketplace: doc.allowMarketplace,
+          reason: doc.marketplaceReason,
+          bidsCount: doc.bidsCount,
+          bestBidAmount: doc.bestBidAmount,
+          category: doc.category,
+          product:
+            doc.category === 'product_install'
+              ? {
+                  productId: doc.productId,
+                  productName: doc.productName,
+                  options: doc.installationOptions
+                }
+              : undefined
+        }
       }
-    }))
+    })
 
     let visits = [...contractVisits, ...activityVisits]
 

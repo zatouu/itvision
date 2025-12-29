@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
 
     // Récupérer les infos du client
     const client = await User.findById(userId).select('name email company phone').lean()
+    const clientProfile = client && !Array.isArray(client) ? client : null
+    const clientName = clientProfile?.name || email
 
     // Créer le projet avec statut "pending" (en attente de validation admin)
     const project = await Project.create({
@@ -72,17 +74,19 @@ export async function POST(request: NextRequest) {
       preferredStartDate: preferredStartDate || null,
       urgency: urgency || 'normal',
       requestedBy: {
-        name: client?.name,
-        email: client?.email,
-        company: client?.company,
-        phone: client?.phone
+        name: clientProfile?.name,
+        email: clientProfile?.email,
+        company: clientProfile?.company,
+        phone: clientProfile?.phone
       },
-      timeline: [{
-        date: new Date(),
-        phase: 'Demande de projet',
-        description: `Demande soumise par ${client?.name}`,
-        status: 'completed'
-      }],
+      timeline: [
+        {
+          date: new Date(),
+          phase: 'Demande de projet',
+          description: `Demande soumise par ${clientName}`,
+          status: 'completed'
+        }
+      ],
       statusHistory: [{
         status: 'pending',
         date: new Date(),
@@ -96,7 +100,7 @@ export async function POST(request: NextRequest) {
     emitGroupNotification('admins', {
       type: 'info',
       title: 'Nouvelle Demande de Projet',
-      message: `${client?.name || email} a demandé un nouveau projet : ${name}`,
+      message: `${clientName} a demandé un nouveau projet : ${name}`,
       data: { projectId: project._id.toString() }
     })
 
