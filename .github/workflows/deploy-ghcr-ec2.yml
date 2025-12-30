@@ -2,7 +2,9 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ cursor/fix-dockerfile-healthcheck-syntax-error-1702 ]
+    branches: 
+      - main
+      - cursor/build-failure-analysis-edde
   workflow_dispatch:
 
 env:
