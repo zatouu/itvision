@@ -88,10 +88,21 @@ jobs:
 
       - name: Deploy on EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
+          MONGO_APP_PASSWORD: ${{ secrets.MONGO_APP_PASSWORD }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          REGISTRY: ${{ env.REGISTRY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          envs: MONGO_ROOT_PASSWORD,MONGO_APP_PASSWORD,NEXTAUTH_SECRET,JWT_SECRET,NEXT_PUBLIC_SITE_URL,GHCR_USERNAME,GHCR_TOKEN,IMAGE,REGISTRY
           script: |
             set -e
             export APP_DIR=~/itvision
@@ -111,20 +122,18 @@ jobs:
 
             cd $APP_DIR
 
-            # Construire .env.ec2 à partir des secrets GitHub
-            cat > .env.ec2 <<EOF
-MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
-MONGO_APP_PASSWORD=${{ secrets.MONGO_APP_PASSWORD }}
-NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
-IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
-EOF
+            # Construire .env.ec2 à partir des variables d'environnement
+            echo "MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}" > .env.ec2
+            echo "MONGO_APP_PASSWORD=${MONGO_APP_PASSWORD}" >> .env.ec2
+            echo "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" >> .env.ec2
+            echo "JWT_SECRET=${JWT_SECRET}" >> .env.ec2
+            echo "NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}" >> .env.ec2
+            echo "IMAGE=${IMAGE}" >> .env.ec2
+            echo "MONGODB_URI=mongodb://itvision_app:${MONGO_APP_PASSWORD}@mongodb:27017/itvision_db" >> .env.ec2
 
-            # Pull de l'image (recommandé: PAT dédié avec read:packages)
-            sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
-            sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            # Pull de l'image
+            sudo docker login ${REGISTRY} -u ${GHCR_USERNAME} -p ${GHCR_TOKEN}
+            sudo docker pull ${IMAGE}
 
             # Démarrage/MAJ des services
             sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
