@@ -10,11 +10,14 @@ import { connectMongoose } from '@/lib/mongoose'
 import PageVisit from '@/lib/models/PageVisit'
 import jwt from 'jsonwebtoken'
 
+// Secret JWT harmonisé avec le reste de l'application
+const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789'
+
 function requireAdmin(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || 
     request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+  const decoded = jwt.verify(token, JWT_SECRET) as any
   if (String(decoded.role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
   return decoded
 }

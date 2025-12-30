@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Génération du token JWT (rôle normalisé en majuscules)
+    // Secret harmonisé avec le middleware et les autres APIs
+    const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789'
     const normalizedRole = String(user.role || '').toUpperCase()
     const token = jwt.sign(
       { 
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
         role: normalizedRole,
         username: user.username
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      jwtSecret,
       { expiresIn: remember ? '30d' : '7d' }
     )
 
@@ -162,7 +164,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+    // Secret harmonisé avec le middleware et les autres APIs
+    const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789'
+    const decoded = jwt.verify(token, jwtSecret) as any
     
     return NextResponse.json({
       user: {

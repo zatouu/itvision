@@ -52,11 +52,13 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   }
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    // IMPORTANT: Doit correspondre au secret utilisé dans /api/auth/login
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789')
     const { payload } = await jwtVerify(token, secret)
     const role = String(payload.role || '').toUpperCase()
     return { authenticated: true, role }
-  } catch {
+  } catch (error) {
+    console.error('[Middleware] JWT verification failed:', error)
     return { authenticated: false }
   }
 }
