@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import AdminBreadcrumb from '@/components/admin/AdminBreadcrumb'
 import VisitsAnalytics from '@/components/admin/VisitsAnalytics'
 import { BarChart3, AlertCircle, RefreshCw } from 'lucide-react'
 
@@ -110,6 +111,9 @@ export default function AdminAnalyticsPage() {
       <AdminSidebar />
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20">
+          {/* Fil d'Ariane */}
+          <AdminBreadcrumb className="mb-4" />
+          
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Analytics & Statistiques</h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">Analysez le trafic et les performances de votre site</p>

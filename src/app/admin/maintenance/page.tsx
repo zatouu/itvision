@@ -1,22 +1,13 @@
-import Breadcrumb from '@/components/Breadcrumb'
+'use client'
+
+import AdminPageWrapper from '@/components/admin/AdminPageWrapper'
 import MaintenanceCenter from '@/components/admin/MaintenanceCenter'
 
 export default function AdminMaintenancePage() {
   return (
-    <div>
-      <Breadcrumb 
-        backHref="/admin" 
-        backLabel="Retour au dashboard"
-        items={[
-          { label: 'Accueil', href: '/' },
-          { label: 'Administration', href: '/admin' },
-          { label: 'Centre Maintenance' }
-        ]}
-      />
-      <div className="mt-4">
-        <MaintenanceCenter />
-      </div>
-    </div>
+    <AdminPageWrapper>
+      <MaintenanceCenter />
+    </AdminPageWrapper>
   )
 }
 

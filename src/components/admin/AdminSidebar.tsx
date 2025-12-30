@@ -17,13 +17,29 @@ import {
   Settings,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Menu,
   X,
-  LogOut
+  LogOut,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 
-interface MenuItem {
+// Context pour partager l'état collapsed
+interface SidebarContextType {
+  isCollapsed: boolean
+  setIsCollapsed: (value: boolean) => void
+}
+
+const SidebarContext = createContext<SidebarContextType>({
+  isCollapsed: false,
+  setIsCollapsed: () => {}
+})
+
+export const useSidebar = () => useContext(SidebarContext)
+
+export interface MenuItem {
   id: string
   label: string
   icon: any
@@ -31,7 +47,7 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
-const menuItems: MenuItem[] = [
+export const menuItems: MenuItem[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -107,18 +123,87 @@ const menuItems: MenuItem[] = [
   }
 ]
 
+// Helper pour trouver le breadcrumb depuis le pathname
+export function getBreadcrumbFromPath(pathname: string): { label: string; href: string; icon?: any }[] {
+  const breadcrumbs: { label: string; href: string; icon?: any }[] = [
+    { label: 'Admin', href: '/admin', icon: LayoutDashboard }
+  ]
+
+  if (pathname === '/admin') {
+    return breadcrumbs
+  }
+
+  // Chercher dans les menuItems
+  const findMenuItem = (items: MenuItem[], path: string): MenuItem | null => {
+    for (const item of items) {
+      if (item.href === path) return item
+      if (item.children) {
+        const found = findMenuItem(item.children, path)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  // Chercher le parent si c'est un enfant
+  const findParent = (items: MenuItem[], childId: string): MenuItem | null => {
+    for (const item of items) {
+      if (item.children?.some(child => child.id === childId)) {
+        return item
+      }
+    }
+    return null
+  }
+
+  const currentItem = findMenuItem(menuItems, pathname)
+  
+  if (currentItem) {
+    // Vérifier s'il y a un parent
+    const parent = findParent(menuItems, currentItem.id)
+    if (parent) {
+      breadcrumbs.push({ label: parent.label, href: '#', icon: parent.icon })
+    }
+    breadcrumbs.push({ label: currentItem.label, href: pathname, icon: currentItem.icon })
+  } else {
+    // Fallback: construire depuis le path
+    const segments = pathname.split('/').filter(Boolean)
+    let currentPath = ''
+    for (let i = 1; i < segments.length; i++) {
+      currentPath += '/' + segments[i]
+      const label = segments[i].charAt(0).toUpperCase() + segments[i].slice(1).replace(/-/g, ' ')
+      breadcrumbs.push({ label, href: '/admin' + currentPath })
+    }
+  }
+
+  return breadcrumbs
+}
+
 export default function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Charger l'état collapsed depuis localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-sidebar-collapsed')
+    if (saved !== null) {
+      setIsCollapsed(saved === 'true')
+    }
+  }, [])
+
+  // Sauvegarder l'état collapsed
+  useEffect(() => {
+    localStorage.setItem('admin-sidebar-collapsed', String(isCollapsed))
+  }, [isCollapsed])
 
   // Fermer le menu mobile lors du changement de page
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [pathname])
 
-  // Empêcher le scroll du body quand le menu est ouvert
+  // Empêcher le scroll du body quand le menu mobile est ouvert
   useEffect(() => {
     if (isMobileMenuOpen) {
       document.body.style.overflow = 'hidden'
@@ -170,6 +255,57 @@ export default function AdminSidebar() {
     const isOpen = openMenus.includes(item.id)
     const active = isActive(item.href) || hasActiveChild(item)
 
+    // Mode collapsed - afficher seulement les icônes
+    if (isCollapsed && level === 0) {
+      if (hasChildren) {
+        return (
+          <div key={item.id} className="relative group">
+            <button
+              onClick={() => toggleMenu(item.id)}
+              className={`w-full flex items-center justify-center p-3 rounded-lg transition-colors ${
+                active
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              title={item.label}
+            >
+              <item.icon className="h-5 w-5" />
+            </button>
+            {/* Tooltip */}
+            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 hidden group-hover:block">
+              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                {item.label}
+                <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <Link
+          key={item.id}
+          href={item.href || '#'}
+          className={`relative group flex items-center justify-center p-3 rounded-lg transition-colors ${
+            active
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'text-gray-700 hover:bg-gray-50'
+          }`}
+          title={item.label}
+        >
+          <item.icon className="h-5 w-5" />
+          {/* Tooltip */}
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 hidden group-hover:block">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+              {item.label}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
+            </div>
+          </div>
+        </Link>
+      )
+    }
+
+    // Mode expanded
     if (hasChildren) {
       return (
         <div key={item.id}>
@@ -218,17 +354,26 @@ export default function AdminSidebar() {
     )
   }
 
-  const SidebarContent = () => (
+  // Contenu sidebar expanded
+  const SidebarContentExpanded = () => (
     <>
-      <div className="p-4 sm:p-6 border-b border-gray-200">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Admin Panel</h2>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">IT Vision Plus</p>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Admin Panel</h2>
+          <p className="text-xs text-gray-500 mt-0.5">IT Vision Plus</p>
+        </div>
+        <button
+          onClick={() => setIsCollapsed(true)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors hidden lg:flex"
+          title="Réduire le menu"
+        >
+          <PanelLeftClose className="h-5 w-5" />
+        </button>
       </div>
-      <nav className="p-3 sm:p-4 space-y-1 flex-1 overflow-y-auto">
+      <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
         {menuItems.map(item => renderMenuItem(item))}
       </nav>
-      {/* Bouton déconnexion */}
-      <div className="p-3 sm:p-4 border-t border-gray-200">
+      <div className="p-3 border-t border-gray-200">
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -240,8 +385,42 @@ export default function AdminSidebar() {
     </>
   )
 
-  return (
+  // Contenu sidebar collapsed
+  const SidebarContentCollapsed = () => (
     <>
+      <div className="p-3 border-b border-gray-200 flex items-center justify-center">
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+          title="Étendre le menu"
+        >
+          <PanelLeft className="h-5 w-5" />
+        </button>
+      </div>
+      <nav className="p-2 space-y-1 flex-1 overflow-y-auto">
+        {menuItems.map(item => renderMenuItem(item))}
+      </nav>
+      <div className="p-2 border-t border-gray-200">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center p-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors group relative"
+          title="Déconnexion"
+        >
+          <LogOut className="h-5 w-5" />
+          {/* Tooltip */}
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 hidden group-hover:block">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+              Déconnexion
+              <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
+            </div>
+          </div>
+        </button>
+      </div>
+    </>
+  )
+
+  return (
+    <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed }}>
       {/* Bouton menu mobile - Fixed top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -275,21 +454,24 @@ export default function AdminSidebar() {
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Bouton fermer */}
         <button
           onClick={() => setIsMobileMenuOpen(false)}
-          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-gray-100 transition-colors z-10"
           aria-label="Fermer le menu"
         >
           <X className="h-5 w-5 text-gray-500" />
         </button>
-        <SidebarContent />
+        <SidebarContentExpanded />
       </aside>
 
-      {/* Sidebar desktop - Fixed */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:flex-shrink-0 bg-white border-r border-gray-200 h-screen sticky top-0">
-        <SidebarContent />
+      {/* Sidebar desktop - Collapsible */}
+      <aside 
+        className={`hidden lg:flex lg:flex-col lg:flex-shrink-0 bg-white border-r border-gray-200 h-screen sticky top-0 transition-all duration-300 ease-in-out ${
+          isCollapsed ? 'lg:w-16' : 'lg:w-64'
+        }`}
+      >
+        {isCollapsed ? <SidebarContentCollapsed /> : <SidebarContentExpanded />}
       </aside>
-    </>
+    </SidebarContext.Provider>
   )
 }

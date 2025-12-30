@@ -2,9 +2,9 @@
 
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import AdminPageWrapper from '@/components/admin/AdminPageWrapper'
 import DynamicSchedulingSystem from '@/components/DynamicSchedulingSystem'
 import EnhancedProjectManager from '@/components/EnhancedProjectManager'
-import Breadcrumb from '@/components/Breadcrumb'
 import AdminTabs from '@/components/admin/AdminTabs'
 
 function PlanningContent() {
@@ -32,14 +32,13 @@ function PlanningContent() {
 
 export default function AdminPlanningPage() {
   return (
-    <div>
-      <Breadcrumb backHref="/admin" backLabel="Retour au dashboard" />
-      <div className="mt-4 mb-6">
+    <AdminPageWrapper>
+      <div className="mb-6">
         <AdminTabs context="team" />
       </div>
       <Suspense fallback={<div className="animate-pulse">Chargement...</div>}>
         <PlanningContent />
       </Suspense>
-    </div>
+    </AdminPageWrapper>
   )
 }
