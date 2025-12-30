@@ -80,9 +80,11 @@ export async function POST(request: NextRequest) {
         request.headers.get('authorization')?.replace('Bearer ', '')
       
       if (token) {
+        // Secret harmonisé avec le reste de l'application
+        const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789'
         const { payload } = await jwtVerify(
           token,
-          new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+          new TextEncoder().encode(jwtSecret)
         )
         userId = payload.userId as string
         userRole = payload.role as string
