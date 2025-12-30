@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
 
+// Rôles qui peuvent accéder à l'interface admin (dupliqué ici car on ne peut pas importer dans middleware edge)
+const ADMIN_ROLES = ['ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'SUPER_ADMIN']
+
 // Routes protégées par rôle
 const PROTECTED_ROUTES = {
   admin: [
@@ -137,7 +140,7 @@ export async function middleware(request: NextRequest) {
     }
     
     // Vérifier le rôle
-    if (requiredRole === 'ADMIN' && role !== 'ADMIN') {
+    if (requiredRole === 'ADMIN' && !ADMIN_ROLES.includes(role || '')) {
       // Rediriger les non-admins vers leur portail
       if (role === 'CLIENT') {
         return NextResponse.redirect(new URL('/client-portal', request.url))

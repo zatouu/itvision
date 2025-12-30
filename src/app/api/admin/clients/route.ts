@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
 import { safeSearchRegex } from '@/lib/security-utils'
 import Client from '@/lib/models/Client'
-
-function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  if (String(decoded.role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
-  return decoded
-}
+import { requireFullAdminAuth } from '@/lib/auth-roles'
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    requireAdmin(request)
+    requireFullAdminAuth(request)
 
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get('q') || '').trim()
@@ -83,7 +75,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    requireAdmin(request)
+    requireFullAdminAuth(request)
 
     const body = await request.json()
     const { name, email, phone, company, address, city, country, canAccessPortal, notes, tags, category, rating } = body

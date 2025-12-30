@@ -6,6 +6,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar'
 import AdminBreadcrumb from '@/components/admin/AdminBreadcrumb'
 import VisitsAnalytics from '@/components/admin/VisitsAnalytics'
 import { BarChart3, AlertCircle, RefreshCw } from 'lucide-react'
+import { isAdminRole } from '@/lib/auth-roles'
 
 export default function AdminAnalyticsPage() {
   const router = useRouter()
@@ -27,8 +28,8 @@ export default function AdminAnalyticsPage() {
       
       const authData = await authResponse.json()
       
-      // Vérifier que l'utilisateur est admin
-      if (authData.user?.role?.toUpperCase() !== 'ADMIN') {
+      // Vérifier que l'utilisateur a un rôle admin (ADMIN, PRODUCT_MANAGER, ACCOUNTANT, etc.)
+      if (!isAdminRole(authData.user?.role)) {
         setError('Accès réservé aux administrateurs')
         return
       }
