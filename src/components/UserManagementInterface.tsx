@@ -33,6 +33,7 @@ import {
   Smartphone
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
+import UserFormModal from './admin/UserFormModal'
 
 type UserRole = 'CLIENT' | 'TECHNICIAN' | 'ADMIN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SUPER_ADMIN'
 
@@ -698,275 +699,78 @@ export default function UserManagementInterface() {
         )}
       </div>
 
-      {/* Modal Création */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Nouvel Utilisateur</h3>
-              <button
-                onClick={() => { setShowCreateModal(false); resetForm(); }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-              {/* Avatar */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Avatar</label>
-                <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border">
-                    {formData.avatarUrl ? (
-                      <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center text-gray-400">
-                        <User className="h-6 w-6" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <ImageUpload
-                      onUpload={(url) => setFormData({ ...formData, avatarUrl: url })}
-                      maxFiles={1}
-                      type="avatars"
-                      existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+      {/* Modal Création - Nouveau design moderne */}
+      <UserFormModal
+        isOpen={showCreateModal}
+        onClose={() => { setShowCreateModal(false); resetForm(); }}
+        onSubmit={async (data) => {
+          const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          })
+          const result = await response.json()
+          if (!result.success) {
+            throw new Error(result.error || 'Erreur lors de la création')
+          }
+          // Si on crée un technicien, créer aussi l'entrée technicien
+          if (data.role === 'TECHNICIAN') {
+            try {
+              await fetch('/api/technicians', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: data.name,
+                  email: data.email,
+                  phone: data.phone,
+                  specialties: [],
+                  experience: 0,
+                  isAvailable: true,
+                  password: data.password
+                })
+              })
+            } catch {}
+          }
+          setSuccess('Utilisateur créé avec succès')
+          fetchUsers()
+        }}
+      />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rôle *</label>
-                <select
-                  required
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {USER_ROLES.map(role => (
-                    <option key={role.value} value={role.value}>
-                      {role.label} - {role.description}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  {USER_ROLES.find(r => r.value === formData.role)?.description}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe *</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={formData.password || ''}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowCreateModal(false); resetForm(); }}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
-                >
-                  {isSubmitting ? (
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Créer
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Modification */}
-      {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Modifier Utilisateur</h3>
-              <button
-                onClick={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
-              {/* Avatar */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Avatar</label>
-                <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border">
-                    {formData.avatarUrl ? (
-                      <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center text-gray-400">
-                        <User className="h-6 w-6" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <ImageUpload
-                      onUpload={(url) => setFormData({ ...formData, avatarUrl: url })}
-                      maxFiles={1}
-                      type="avatars"
-                      existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur</label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rôle *</label>
-                <select
-                  required
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {USER_ROLES.map(role => (
-                    <option key={role.value} value={role.value}>
-                      {role.label} - {role.description}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  {USER_ROLES.find(r => r.value === formData.role)?.description}
-                </p>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
-                >
-                  {isSubmitting ? (
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Modifier
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal Modification - Nouveau design moderne */}
+      <UserFormModal
+        isOpen={showEditModal && !!selectedUser}
+        onClose={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}
+        onSubmit={async (data) => {
+          if (!selectedUser) return
+          const response = await fetch('/api/admin/users', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: selectedUser._id,
+              name: data.name,
+              phone: data.phone,
+              avatarUrl: data.avatarUrl,
+              role: data.role,
+              isActive: selectedUser.isActive
+            })
+          })
+          const result = await response.json()
+          if (!result.success) {
+            throw new Error(result.error || 'Erreur lors de la modification')
+          }
+          setSuccess('Utilisateur modifié avec succès')
+          fetchUsers()
+        }}
+        initialData={selectedUser ? {
+          username: selectedUser.username,
+          email: selectedUser.email,
+          name: selectedUser.name,
+          phone: selectedUser.phone || '',
+          avatarUrl: selectedUser.avatarUrl || '',
+          role: selectedUser.role
+        } : undefined}
+        isEdit={true}
+      />
 
       {/* Modal Affectation Projet */}
       {showAssignModal && assignUser && (
