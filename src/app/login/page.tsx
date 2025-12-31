@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { User, Wrench, Shield, ArrowRight, Eye, EyeOff, LogIn, Lock, ArrowLeft, Home } from 'lucide-react'
 
 interface LoginCredentials {
-  email: string
+  identifier: string  // Email ou nom d'utilisateur
   password: string
   userType?: 'client' | 'technician' | 'admin'
 }
@@ -14,7 +14,7 @@ interface LoginCredentials {
 export default function UnifiedLoginPage() {
   const router = useRouter()
   const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: '',
+    identifier: '',
     password: ''
   })
   // Un seul formulaire: plus de sélection de profil
@@ -105,7 +105,7 @@ export default function UnifiedLoginPage() {
         }
         
         if (remember) {
-          try { localStorage.setItem('rememberEmail', credentials.email) } catch {}
+          try { localStorage.setItem('rememberIdentifier', credentials.identifier) } catch {}
         }
       } else {
         const errorData = await response.json()
@@ -167,17 +167,18 @@ export default function UnifiedLoginPage() {
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email ou nom d'utilisateur
                 </label>
                 <input
-                  id="email"
-                  type="email"
+                  id="identifier"
+                  type="text"
                   required
-                  value={credentials.email}
-                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                  value={credentials.identifier}
+                  onChange={(e) => setCredentials({ ...credentials, identifier: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                  placeholder="votre.email@example.com"
+                  placeholder="email@exemple.com ou nom.utilisateur"
+                  autoComplete="username"
                 />
               </div>
 

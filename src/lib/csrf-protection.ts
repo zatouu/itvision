@@ -81,6 +81,24 @@ class CSRFProtection {
       return null
     }
 
+    // Exclure les routes admin protégées par JWT (le JWT sert déjà de protection CSRF)
+    // Ces routes vérifient l'authentification via le token JWT dans le cookie httpOnly
+    if (pathname.startsWith('/api/admin/')) {
+      return null
+    }
+
+    // Exclure les routes d'upload et autres routes internes authentifiées
+    if (pathname.startsWith('/api/upload') || 
+        pathname.startsWith('/api/products') ||
+        pathname.startsWith('/api/technicians') ||
+        pathname.startsWith('/api/clients') ||
+        pathname.startsWith('/api/projects') ||
+        pathname.startsWith('/api/maintenance') ||
+        pathname.startsWith('/api/notifications') ||
+        pathname.startsWith('/api/tickets')) {
+      return null
+    }
+
     const csrfToken = request.headers.get('x-csrf-token') || 
                      request.headers.get('csrf-token')
 
