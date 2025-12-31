@@ -34,6 +34,8 @@ import {
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
+type UserRole = 'CLIENT' | 'TECHNICIAN' | 'ADMIN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SUPER_ADMIN'
+
 interface User {
   _id: string
   username: string
@@ -41,7 +43,7 @@ interface User {
   name: string
   phone?: string
   avatarUrl?: string
-  role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
+  role: UserRole
   isActive: boolean
   loginAttempts: number
   lockedUntil?: string
@@ -56,9 +58,19 @@ interface UserFormData {
   name: string
   phone: string
   avatarUrl?: string
-  role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
+  role: UserRole
   password?: string
 }
+
+// Définition des rôles avec descriptions
+const USER_ROLES: { value: UserRole; label: string; description: string; color: string }[] = [
+  { value: 'CLIENT', label: 'Client', description: 'Accès au portail client', color: 'bg-green-100 text-green-800' },
+  { value: 'TECHNICIAN', label: 'Technicien', description: 'Interventions terrain', color: 'bg-blue-100 text-blue-800' },
+  { value: 'PRODUCT_MANAGER', label: 'Gestionnaire Produits', description: 'Gestion du catalogue produits uniquement', color: 'bg-purple-100 text-purple-800' },
+  { value: 'ACCOUNTANT', label: 'Comptable', description: 'Accès comptabilité et facturation', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'ADMIN', label: 'Administrateur', description: 'Accès complet à l\'administration', color: 'bg-red-100 text-red-800' },
+  { value: 'SUPER_ADMIN', label: 'Super Admin', description: 'Tous les droits + gestion utilisateurs', color: 'bg-gray-800 text-white' }
+]
 
 export default function UserManagementInterface() {
   const [users, setUsers] = useState<User[]>([])
@@ -302,12 +314,13 @@ export default function UserManagementInterface() {
   }
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'ADMIN': return 'bg-red-100 text-red-800'
-      case 'TECHNICIAN': return 'bg-blue-100 text-blue-800'
-      case 'CLIENT': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+    const roleInfo = USER_ROLES.find(r => r.value === role)
+    return roleInfo?.color || 'bg-gray-100 text-gray-800'
+  }
+
+  const getRoleLabel = (role: string) => {
+    const roleInfo = USER_ROLES.find(r => r.value === role)
+    return roleInfo?.label || role
   }
 
   const getStatusColor = (user: User) => {
@@ -404,9 +417,9 @@ export default function UserManagementInterface() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Tous les rôles</option>
-                <option value="CLIENT">Clients</option>
-                <option value="TECHNICIAN">Techniciens</option>
-                <option value="ADMIN">Administrateurs</option>
+                {USER_ROLES.map(role => (
+                  <option key={role.value} value={role.value}>{role.label}</option>
+                ))}
               </select>
             </div>
 
@@ -517,7 +530,7 @@ export default function UserManagementInterface() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
-                        {user.role}
+                        {getRoleLabel(user.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -771,13 +784,18 @@ export default function UserManagementInterface() {
                 <select
                   required
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="CLIENT">Client</option>
-                  <option value="TECHNICIAN">Technicien</option>
-                  <option value="ADMIN">Administrateur</option>
+                  {USER_ROLES.map(role => (
+                    <option key={role.value} value={role.value}>
+                      {role.label} - {role.description}
+                    </option>
+                  ))}
                 </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {USER_ROLES.find(r => r.value === formData.role)?.description}
+                </p>
               </div>
 
               <div>
@@ -910,13 +928,18 @@ export default function UserManagementInterface() {
                 <select
                   required
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="CLIENT">Client</option>
-                  <option value="TECHNICIAN">Technicien</option>
-                  <option value="ADMIN">Administrateur</option>
+                  {USER_ROLES.map(role => (
+                    <option key={role.value} value={role.value}>
+                      {role.label} - {role.description}
+                    </option>
+                  ))}
                 </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {USER_ROLES.find(r => r.value === formData.role)?.description}
+                </p>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">

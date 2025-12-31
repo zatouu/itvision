@@ -66,6 +66,12 @@ export const menuItems: MenuItem[] = [
     icon: Settings,
     children: [
       {
+        id: 'users',
+        label: 'Utilisateurs',
+        icon: Users,
+        href: '/admin/users'
+      },
+      {
         id: 'how-to',
         label: 'Guide d\'utilisation',
         icon: BookOpen,
