@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect } from 'react'
 import ToastProvider from '@/components/ToastProvider'
+import SessionManager from '@/components/admin/SessionManager'
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -21,6 +22,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <ToastProvider>
       <div className="h-screen overflow-hidden bg-gray-50">
         {children}
+        {/* Gestionnaire de session - vérifie l'inactivité et alerte avant expiration */}
+        <SessionManager 
+          inactivityMinutes={30} 
+          checkIntervalSeconds={60} 
+        />
       </div>
     </ToastProvider>
   )
