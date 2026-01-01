@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Zap } from 'lucide-react'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
+import ProductFormSimplified from '@/components/admin/ProductFormSimplified'
+import { PRODUCT_CATEGORIES } from '@/lib/product-constants'
 
 type ShippingOverride = {
   methodId: string
@@ -16,6 +18,7 @@ type Product = {
   _id?: string
   name: string
   category?: string
+  subcategory?: string
   description?: string
   tagline?: string
   price?: number
@@ -27,7 +30,7 @@ type Product = {
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
-  stockStatus?: 'in_stock' | 'preorder'
+  stockStatus?: 'in_stock' | 'preorder' | 'coming_soon'
   stockQuantity?: number
   leadTimeDays?: number
   weightKg?: number
@@ -321,6 +324,7 @@ export default function AdminProductManager() {
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const [newGalleryInput, setNewGalleryInput] = useState('')
+  const [useSimplifiedForm, setUseSimplifiedForm] = useState(true) // Nouveau: mode simplifié par défaut
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
@@ -1235,13 +1239,24 @@ export default function AdminProductManager() {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher par nom" className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
-        <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Catégorie" className="w-48 border rounded-lg px-3 py-2 text-sm" />
-        <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm">Filtrer</button>
+        <select 
+          value={category} 
+          onChange={e => setCategory(e.target.value)} 
+          className="w-48 border rounded-lg px-3 py-2 text-sm bg-white"
+        >
+          <option value="">Toutes catégories</option>
+          {PRODUCT_CATEGORIES.map(cat => (
+            <option key={cat.id} value={cat.id}>{cat.icon} {cat.label}</option>
+          ))}
+        </select>
+        <button onClick={refresh} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition">
+          Filtrer
+        </button>
       </div>
 
       <div className="overflow-x-auto bg-white rounded-xl border">
@@ -1268,7 +1283,11 @@ export default function AdminProductManager() {
                     {product.tagline && <div className="text-xs text-gray-500 mt-0.5">{product.tagline}</div>}
                   </td>
                   <td className="p-3 text-gray-600">
-                    <div className="text-sm">{product.category || '-'}</div>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <span>{PRODUCT_CATEGORIES.find(c => c.id === product.category)?.icon || '📦'}</span>
+                      <span>{PRODUCT_CATEGORIES.find(c => c.id === product.category)?.label || product.category || '-'}</span>
+                    </div>
+                    {product.subcategory && <div className="text-xs text-gray-400 mt-0.5">{product.subcategory}</div>}
                     <div className="text-xs text-gray-400 mt-1">{product.requiresQuote ? 'Sur devis' : 'Tarif direct'}</div>
                   </td>
                   <td className="p-3 text-gray-900">
@@ -1324,7 +1343,7 @@ export default function AdminProductManager() {
           onClick={() => setEditing(null)}
         >
           <div
-            className="mx-auto w-full max-w-6xl rounded-2xl bg-white shadow-2xl"
+            className="mx-auto w-full max-w-4xl rounded-2xl bg-white shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
@@ -1333,64 +1352,98 @@ export default function AdminProductManager() {
                   {editing._id ? 'Modifier le produit' : 'Créer un produit'}
                   {!editing._id && (
                     <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600">
-                      Workflow import & logistique
+                      Ajout rapide
                     </span>
                   )}
                 </h3>
-                <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                <p className="text-sm text-gray-500">
+                  {useSimplifiedForm 
+                    ? 'Remplissez les sections pour ajouter votre produit rapidement.' 
+                    : 'Mode avancé avec tous les détails techniques.'}
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                className="rounded-lg border border-transparent p-1.5 text-gray-400 transition hover:border-gray-200 hover:bg-gray-100 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Toggle mode simplifié / avancé */}
+                <button
+                  type="button"
+                  onClick={() => setUseSimplifiedForm(!useSimplifiedForm)}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                    useSimplifiedForm 
+                      ? 'bg-emerald-100 text-emerald-700' 
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  {useSimplifiedForm ? 'Mode simplifié' : 'Mode avancé'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(null)}
+                  className="rounded-lg border border-transparent p-1.5 text-gray-400 transition hover:border-gray-200 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col gap-6 px-6 py-6 md:flex-row">
-              <nav className="flex flex-wrap gap-3 md:w-64 md:flex-col">
-                {tabs.map(tab => {
-                  const Icon = tab.icon
-                  const isActive = activeTab === tab.id
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex-1 md:flex-none inline-flex items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${
-                        isActive
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm'
-                          : 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/60'
-                      }`}
-                    >
-                      <Icon className={`mt-0.5 h-4 w-4 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
-                      <div>
-                        <div className="text-sm font-semibold">{tab.label}</div>
-                        <div className="text-xs text-gray-500">{tab.description}</div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </nav>
-              <div className="flex-1 space-y-6">
-                {renderTabContent()}
-                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                    onClick={() => setEditing(null)}
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                    onClick={onSave}
-                  >
-                    Enregistrer
-                  </button>
+
+            {/* Contenu du formulaire */}
+            <div className="px-6 py-6 max-h-[75vh] overflow-y-auto">
+              {useSimplifiedForm ? (
+                <ProductFormSimplified
+                  product={editing}
+                  onChange={setEditing}
+                  onSave={onSave}
+                  onCancel={() => setEditing(null)}
+                  isNew={!editing._id}
+                />
+              ) : (
+                /* Mode avancé - Ancien formulaire avec onglets */
+                <div className="flex flex-col gap-6 md:flex-row">
+                  <nav className="flex flex-wrap gap-3 md:w-64 md:flex-col">
+                    {tabs.map(tab => {
+                      const Icon = tab.icon
+                      const isActive = activeTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`flex-1 md:flex-none inline-flex items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                            isActive
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm'
+                              : 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/60'
+                          }`}
+                        >
+                          <Icon className={`mt-0.5 h-4 w-4 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                          <div>
+                            <div className="text-sm font-semibold">{tab.label}</div>
+                            <div className="text-xs text-gray-500">{tab.description}</div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </nav>
+                  <div className="flex-1 space-y-6">
+                    {renderTabContent()}
+                    <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                        onClick={() => setEditing(null)}
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                        onClick={onSave}
+                      >
+                        Enregistrer
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

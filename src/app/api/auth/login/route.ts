@@ -9,25 +9,34 @@ import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const { email, password, userType, remember } = await request.json()
+    const { email, username, identifier, password, userType, remember } = await request.json()
 
     // Rate limit tentatives de login
     const limited = applyRateLimit(request, authRateLimiter)
     if (limited) return limited
 
-    if (!email || !password) {
+    // Supporter: email, username, ou identifier (qui peut être l'un ou l'autre)
+    const loginIdentifier = identifier || email || username
+    
+    if (!loginIdentifier || !password) {
       logLoginAttempt(false, request, undefined, { reason: 'missing_credentials' })
       return NextResponse.json(
-        { error: 'Email et mot de passe requis' },
+        { error: 'Email/nom d\'utilisateur et mot de passe requis' },
         { status: 400 }
       )
     }
 
-    // Recherche de l'utilisateur dans la base de données
-    const user = (await User.findOne({ email: email.toLowerCase() }).lean()) as any
+    // Recherche de l'utilisateur par email OU username
+    const normalizedIdentifier = loginIdentifier.toLowerCase().trim()
+    const user = (await User.findOne({
+      $or: [
+        { email: normalizedIdentifier },
+        { username: normalizedIdentifier }
+      ]
+    }).lean()) as any
     
     if (!user) {
-      logLoginAttempt(false, request, undefined, { reason: 'user_not_found', email })
+      logLoginAttempt(false, request, undefined, { reason: 'user_not_found', identifier: normalizedIdentifier })
       return NextResponse.json(
         { error: 'Utilisateur non trouvé' },
         { status: 401 }
@@ -80,6 +89,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Génération du token JWT (rôle normalisé en majuscules)
+    // Secret harmonisé avec le middleware et les autres APIs
+    const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789'
     const normalizedRole = String(user.role || '').toUpperCase()
     const token = jwt.sign(
       { 
@@ -88,7 +99,7 @@ export async function POST(request: NextRequest) {
         role: normalizedRole,
         username: user.username
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      jwtSecret,
       { expiresIn: remember ? '30d' : '7d' }
     )
 
@@ -162,7 +173,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+    // Secret harmonisé avec le middleware et les autres APIs
+    const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789'
+    const decoded = jwt.verify(token, jwtSecret) as any
     
     return NextResponse.json({
       user: {

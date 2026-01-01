@@ -402,10 +402,10 @@ export default function AdminDashboard() {
   const getUsageRateDisplay = (usageRate: number) => Math.min(100, Math.max(0, Math.round(usageRate || 0)))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/30 to-emerald-50/20 flex">
+    <div className="h-screen flex overflow-hidden bg-gradient-to-br from-gray-50 via-green-50/30 to-emerald-50/20">
       <AdminSidebar />
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6 lg:space-y-8 pb-20">
         
         {/* En-tête avec gradient vert */}
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 text-white p-8 lg:p-12 shadow-2xl">

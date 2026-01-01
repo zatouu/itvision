@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
 
+// Rôles qui peuvent accéder à l'interface admin (dupliqué ici car on ne peut pas importer dans middleware edge)
+const ADMIN_ROLES = ['ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'SUPER_ADMIN']
+
 // Routes protégées par rôle
 const PROTECTED_ROUTES = {
   admin: [
@@ -52,11 +55,13 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   }
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    // IMPORTANT: Doit correspondre au secret utilisé dans /api/auth/login
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789')
     const { payload } = await jwtVerify(token, secret)
     const role = String(payload.role || '').toUpperCase()
     return { authenticated: true, role }
-  } catch {
+  } catch (error) {
+    console.error('[Middleware] JWT verification failed:', error)
     return { authenticated: false }
   }
 }
@@ -135,7 +140,7 @@ export async function middleware(request: NextRequest) {
     }
     
     // Vérifier le rôle
-    if (requiredRole === 'ADMIN' && role !== 'ADMIN') {
+    if (requiredRole === 'ADMIN' && !ADMIN_ROLES.includes(role || '')) {
       // Rediriger les non-admins vers leur portail
       if (role === 'CLIENT') {
         return NextResponse.redirect(new URL('/client-portal', request.url))

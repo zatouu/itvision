@@ -7,7 +7,7 @@ export interface IUser extends Document {
   name: string
   avatarUrl?: string
   phone?: string
-  role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN' | 'PRODUCT_MANAGER'
+  role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'SUPER_ADMIN'
   isActive: boolean
   loginAttempts: number
   lockedUntil?: Date
@@ -27,7 +27,7 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, required: true },
   avatarUrl: { type: String },
   phone: { type: String },
-  role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'ADMIN', 'PRODUCT_MANAGER'], default: 'CLIENT', index: true },
+  role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'SUPER_ADMIN'], default: 'CLIENT', index: true },
   isActive: { type: Boolean, default: true, index: true },
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date },
