@@ -2,7 +2,7 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ cursor/fix-dockerfile-healthcheck-syntax-error-1702 ]
+    branches: [ main, cursor/* ]
   workflow_dispatch:
 
 env:
@@ -90,6 +90,8 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 300s
+          command_timeout: 600s
           script: |
             set -e
             export APP_DIR=~/itvision
@@ -121,9 +123,27 @@ jobs:
             MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
             EOF
 
-            # Pull de l'image (recommandé: PAT dédié avec read:packages)
-            sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
-            sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            # Login au registre GHCR (méthode sécurisée avec stdin)
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+            
+            # Pull de l'image avec retry (3 tentatives en cas de timeout réseau)
+            MAX_RETRIES=3
+            RETRY_DELAY=10
+            for i in $(seq 1 $MAX_RETRIES); do
+              echo "Tentative $i/$MAX_RETRIES de pull de l'image..."
+              if sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest; then
+                echo "Pull réussi!"
+                break
+              else
+                if [ $i -eq $MAX_RETRIES ]; then
+                  echo "Échec après $MAX_RETRIES tentatives"
+                  exit 1
+                fi
+                echo "Échec, nouvelle tentative dans ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+                RETRY_DELAY=$((RETRY_DELAY * 2))
+              fi
+            done
 
             # Démarrage/MAJ des services
             sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
