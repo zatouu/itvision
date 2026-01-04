@@ -576,7 +576,7 @@ Merci de me recontacter.`
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
           {/* Galerie d'images */}
           <div className="space-y-4">
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group">
+            <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
               <button
                 type="button"
                 onClick={() => setShowImageModal(true)}
@@ -587,8 +587,8 @@ Merci de me recontacter.`
                   src={gallery[activeImageIndex] || '/file.svg'}
                   alt={product.name}
                   fill
-                  className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
                   priority
                 />
                 <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg">
@@ -1321,7 +1321,7 @@ Merci de me recontacter.`
             onClick={() => setShowImageModal(false)}
           >
             <motion.div
-              className="relative max-w-7xl max-h-[90vh] w-full h-full p-8"
+              className="relative max-w-4xl max-h-[80vh] w-full h-full p-4"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1330,18 +1330,18 @@ Merci de me recontacter.`
               <button
                 type="button"
                 onClick={() => setShowImageModal(false)}
-                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
+                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
                 aria-label="Fermer"
               >
                 <X className="h-5 w-5" />
               </button>
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center bg-white/5 rounded-xl">
                 <Image
                   src={gallery[activeImageIndex] || '/file.svg'}
                   alt={product.name}
                   fill
-                  className="object-contain p-8"
-                  sizes="90vw"
+                  className="object-contain p-4"
+                  sizes="(max-width: 768px) 100vw, 800px"
                   priority
                 />
               </div>
