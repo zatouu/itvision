@@ -278,14 +278,14 @@ export default function AdminProductManager() {
     category: '',
     description: '',
     tagline: '',
-    price: undefined,
-    baseCost: undefined,
-    marginRate: 25,
+    price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
+    baseCost: undefined, // Coût d'achat fournisseur
+    marginRate: 30, // Marge par défaut 30%
     currency: 'FCFA',
     image: '',
     gallery: [],
     features: [],
-    requiresQuote: false,
+    requiresQuote: false, // Par défaut: afficher un prix (non sur devis)
     stockStatus: 'preorder',
     stockQuantity: 0,
     leadTimeDays: 15,
@@ -298,7 +298,7 @@ export default function AdminProductManager() {
     packagingWeightKg: undefined,
     colorOptions: [],
     variantOptions: [],
-    availabilityNote: 'Commande import Chine (freight 3j / 15j / 60j)',
+    availabilityNote: 'Import direct Chine avec livraison express (3j), aérien (15j) ou maritime (60j)',
     sourcing: {},
     shippingOverrides: [],
     isPublished: true,
@@ -356,6 +356,7 @@ export default function AdminProductManager() {
       setUploadingMain(false)
       setUploadingGallery(false)
       setNewGalleryInput('')
+      setSaveError(null)
     }
   }, [editing])
 
@@ -375,33 +376,53 @@ export default function AdminProductManager() {
     })
   }, [autoPrice, editing?.baseCost, editing?.marginRate])
 
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
   const onSave = async () => {
     if (!editing) return
-    const method = editing._id ? 'PATCH' : 'POST'
-    const payload: Record<string, unknown> = {
-      ...editing,
-      gallery: (editing.gallery || []).filter(Boolean),
-      features: (editing.features || []).filter(Boolean),
-      colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
-      variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),
-      shippingOverrides: ensureOverrides(editing.shippingOverrides).map(override => ({
-        ...override,
-        ratePerKg: override.ratePerKg ?? undefined,
-        ratePerM3: override.ratePerM3 ?? undefined,
-        flatFee: override.flatFee ?? undefined
-      }))
-    }
-    if (editing._id) payload.id = editing._id
+    setSaveError(null)
+    setSaving(true)
+    
+    try {
+      const method = editing._id ? 'PATCH' : 'POST'
+      const payload: Record<string, unknown> = {
+        ...editing,
+        gallery: (editing.gallery || []).filter(Boolean),
+        features: (editing.features || []).filter(Boolean),
+        colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
+        variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),
+        shippingOverrides: ensureOverrides(editing.shippingOverrides).map(override => ({
+          ...override,
+          ratePerKg: override.ratePerKg ?? undefined,
+          ratePerM3: override.ratePerM3 ?? undefined,
+          flatFee: override.flatFee ?? undefined
+        }))
+      }
+      if (editing._id) payload.id = editing._id
 
-    const res = await fetch('/api/products', {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    if (!res.ok) return alert('Erreur lors de la sauvegarde')
-    setEditing(null)
-    setAutoPrice(false)
-    await refresh()
+      const res = await fetch('/api/products', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        const errorMsg = data?.error || 'Erreur lors de la sauvegarde'
+        setSaveError(errorMsg)
+        return
+      }
+      
+      setEditing(null)
+      setAutoPrice(false)
+      await refresh()
+    } catch (error: any) {
+      setSaveError(error?.message || 'Erreur réseau lors de la sauvegarde')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const onDelete = async (id?: string) => {
@@ -1010,10 +1031,56 @@ export default function AdminProductManager() {
               </span>
             )}
           </div>
-          <label className="mt-4 inline-flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={!!editing.requiresQuote} onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })} />
-            Sur devis uniquement (désactive l'achat direct)
-          </label>
+          {/* Indicateur de validation du prix */}
+          {!editing.requiresQuote && !editing.price && !editing.baseCost && !editing.price1688 && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
+              <svg className="h-5 w-5 flex-shrink-0 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <div className="font-medium">Prix requis</div>
+                <div className="text-xs">Renseignez un prix (prix public, coût de base ou prix 1688) ou cochez "Sur devis" ci-dessous.</div>
+              </div>
+            </div>
+          )}
+          
+          {/* Indicateur de prix valide */}
+          {!editing.requiresQuote && (editing.price || editing.baseCost || editing.price1688) && (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-center gap-2">
+              <svg className="h-5 w-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>
+                <strong>Prix affiché:</strong> {
+                  editing.price 
+                    ? formatCurrency(editing.price, editing.currency)
+                    : editing.baseCost && editing.marginRate
+                      ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
+                      : editing.price1688 && editing.exchangeRate
+                        ? `Calculé depuis 1688: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
+                        : 'Sera calculé automatiquement'
+                }
+              </span>
+            </div>
+          )}
+          
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={!!editing.requiresQuote} 
+                onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })} 
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              />
+              <div>
+                <span className="font-medium text-gray-900">Sur devis uniquement</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  À utiliser uniquement pour les produits spéciaux nécessitant une étude personnalisée (installations complexes, projets sur mesure).
+                  La plupart des produits doivent avoir un prix affiché.
+                </p>
+              </div>
+            </label>
+          </div>
         </div>
 
         {/* Section 1688 */}
@@ -1235,13 +1302,39 @@ export default function AdminProductManager() {
         </button>
       </div>
 
+      {/* Statistiques rapides */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-gray-900">{items.length}</div>
+          <div className="text-xs text-gray-500">Produits total</div>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-emerald-600">
+            {items.filter(p => p.price || p.baseCost || p.price1688).length}
+          </div>
+          <div className="text-xs text-gray-500">Avec prix</div>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-orange-600">
+            {items.filter(p => p.requiresQuote).length}
+          </div>
+          <div className="text-xs text-gray-500">Sur devis</div>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-red-600">
+            {items.filter(p => !p.requiresQuote && !p.price && !p.baseCost && !p.price1688).length}
+          </div>
+          <div className="text-xs text-gray-500">Prix manquants</div>
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher par nom" className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
         <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Catégorie" className="w-48 border rounded-lg px-3 py-2 text-sm" />
-        <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm">Filtrer</button>
+        <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition">Filtrer</button>
       </div>
 
       <div className="overflow-x-auto bg-white rounded-xl border">
@@ -1264,17 +1357,49 @@ export default function AdminProductManager() {
               items.map(product => (
                 <tr key={product._id} className="border-t">
                   <td className="p-3">
-                    <div className="font-semibold text-gray-900">{product.name}</div>
-                    {product.tagline && <div className="text-xs text-gray-500 mt-0.5">{product.tagline}</div>}
+                    <div className="flex items-start gap-2">
+                      {product.image && (
+                        <div className="w-10 h-10 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                          <img src={product.image} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 line-clamp-1">{product.name}</div>
+                        {product.tagline && <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{product.tagline}</div>}
+                        <div className="flex items-center gap-1 mt-1">
+                          {product.isPublished !== false ? (
+                            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Publié</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Brouillon</span>
+                          )}
+                          {product.isFeatured && (
+                            <span className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">⭐ Mis en avant</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td className="p-3 text-gray-600">
                     <div className="text-sm">{product.category || '-'}</div>
                     <div className="text-xs text-gray-400 mt-1">{product.requiresQuote ? 'Sur devis' : 'Tarif direct'}</div>
                   </td>
                   <td className="p-3 text-gray-900">
-                    <div className="text-sm font-semibold text-emerald-600">{computedDisplayPrice(product)}</div>
+                    {product.requiresQuote ? (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-orange-100 text-orange-700 text-xs font-medium">
+                        Sur devis
+                      </div>
+                    ) : !product.price && !product.baseCost && !product.price1688 ? (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-medium">
+                        ⚠️ Prix manquant
+                      </div>
+                    ) : (
+                      <div className="text-sm font-semibold text-emerald-600">{computedDisplayPrice(product)}</div>
+                    )}
                     {typeof product.baseCost === 'number' && (
                       <div className="text-xs text-gray-500">Coût: {formatCurrency(product.baseCost, product.currency)}</div>
+                    )}
+                    {typeof product.price1688 === 'number' && (
+                      <div className="text-xs text-blue-600">1688: ¥{product.price1688}</div>
                     )}
                     {typeof product.marginRate === 'number' && (
                       <div className="text-xs text-gray-400">Marge: {product.marginRate}%</div>
@@ -1374,20 +1499,36 @@ export default function AdminProductManager() {
               </nav>
               <div className="flex-1 space-y-6">
                 {renderTabContent()}
+                {/* Message d'erreur de sauvegarde */}
+                {saveError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                    <svg className="h-5 w-5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">Erreur de sauvegarde</div>
+                      <div>{saveError}</div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                    onClick={() => setEditing(null)}
+                    onClick={() => { setEditing(null); setSaveError(null) }}
+                    disabled={saving}
                   >
                     Annuler
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     onClick={onSave}
+                    disabled={saving}
                   >
-                    Enregistrer
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {saving ? 'Enregistrement...' : 'Enregistrer'}
                   </button>
                 </div>
               </div>

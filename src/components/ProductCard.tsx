@@ -249,16 +249,22 @@ export default function ProductCard({
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
           {showNewBadge && (
-            <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">NOUVEAU</span>
+            <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">NOUVEAU</span>
+          )}
+          {isPopular && !showNewBadge && (
+            <span className="bg-purple-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
+              <Star className="h-2.5 w-2.5 fill-white" />
+              TOP VENTE
+            </span>
           )}
           {pricing1688 && (
-            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">CHINE DIRECT</span>
+            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">IMPORT CHINE</span>
           )}
-          {isInStock && !showNewBadge && !pricing1688 && (
-            <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">EN STOCK</span>
+          {isInStock && (
+            <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">EN STOCK DAKAR</span>
           )}
-          {!isInStock && !showNewBadge && !pricing1688 && (
-            <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">SUR COMMANDE</span>
+          {!isInStock && !showNewBadge && !pricing1688 && !isPopular && (
+            <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">SUR COMMANDE</span>
           )}
         </div>
         
@@ -286,6 +292,20 @@ export default function ProductCard({
         </h3>
         {model && (
           <p className="text-xs text-gray-500 line-clamp-1 mb-2">{model}</p>
+        )}
+
+        {/* Features clés (limitées à 2 pour la carte) */}
+        {features && features.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {features.slice(0, 2).map((feature, idx) => (
+              <span 
+                key={idx} 
+                className="inline-flex items-center text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded"
+              >
+                {feature.length > 30 ? feature.substring(0, 30) + '...' : feature}
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Prix avec variation selon transport */}
