@@ -1310,67 +1310,107 @@ Merci de me recontacter.`
         )}
       </AnimatePresence>
 
-      {/* Modal zoom image */}
+      {/* Modal galerie d'images */}
       <AnimatePresence>
         {showImageModal && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowImageModal(false)}
           >
             <motion.div
-              className="relative max-w-4xl max-h-[80vh] w-full h-full p-4"
+              className="relative w-full max-w-5xl mx-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => setShowImageModal(false)}
-                className="absolute top-2 right-2 z-10 p-2 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
-                aria-label="Fermer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <div className="relative w-full h-full flex items-center justify-center bg-white/5 rounded-xl">
+              {/* Header avec titre et bouton fermer */}
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-800/80 border-b border-gray-700">
+                <h3 className="text-white font-medium text-sm truncate pr-4">{product.name}</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowImageModal(false)}
+                  className="p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition flex-shrink-0"
+                  aria-label="Fermer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Image principale */}
+              <div className="relative aspect-[4/3] bg-gray-950">
                 <Image
                   src={gallery[activeImageIndex] || '/file.svg'}
                   alt={product.name}
                   fill
                   className="object-contain p-4"
-                  sizes="(max-width: 768px) 100vw, 800px"
+                  sizes="(max-width: 768px) 100vw, 900px"
                   priority
                 />
+                
+                {/* Boutons navigation gauche/droite */}
+                {gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
+                      }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition"
+                      aria-label="Image précédente"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition"
+                      aria-label="Image suivante"
+                    >
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
               </div>
+
+              {/* Mini galerie de miniatures */}
               {gallery.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
-                    }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm text-xs text-white">
-                    {activeImageIndex + 1} / {gallery.length}
+                <div className="px-4 py-3 bg-gray-800/80 border-t border-gray-700">
+                  <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
+                    {gallery.map((src, index) => (
+                      <button
+                        key={`modal-thumb-${index}`}
+                        type="button"
+                        onClick={() => setActiveImageIndex(index)}
+                        className={clsx(
+                          'relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all',
+                          activeImageIndex === index
+                            ? 'border-emerald-500 ring-2 ring-emerald-400/50 scale-105'
+                            : 'border-gray-600 hover:border-gray-400 opacity-60 hover:opacity-100'
+                        )}
+                        aria-label={`Voir image ${index + 1}`}
+                      >
+                        <Image
+                          src={src}
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      </button>
+                    ))}
                   </div>
-                </>
+                  <p className="text-center text-xs text-gray-400 mt-2">
+                    {activeImageIndex + 1} / {gallery.length}
+                  </p>
+                </div>
               )}
             </motion.div>
           </motion.div>
