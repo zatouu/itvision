@@ -25,11 +25,7 @@ interface WishlistProduct {
   shippingOptions: any[]
   availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
-  pricing1688?: {
-    price1688: number
-    price1688Currency: string
-    exchangeRate: number
-  } | null
+  isImported?: boolean
 }
 
 export default function WishlistPage() {
@@ -234,7 +230,7 @@ export default function WishlistPage() {
                 detailHref={`/produits/${product.id || product._id}`}
                 isPopular={product.rating >= 4.8}
                 createdAt={product.createdAt}
-                pricing1688={product.pricing1688}
+                isImported={product.isImported}
               />
             ))}
           </div>

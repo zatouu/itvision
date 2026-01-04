@@ -41,11 +41,7 @@ interface ApiProduct {
   availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   isFeatured?: boolean
-  pricing1688?: {
-    price1688: number
-    price1688Currency: string
-    exchangeRate: number
-  } | null
+  isImported?: boolean // Indicateur si produit importé (sans exposer les détails)
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -1355,7 +1351,7 @@ export default function ProduitsPage() {
                                 createdAt={product.createdAt}
                                 onCompareToggle={handleCompareToggle}
                                 isComparing={comparingProducts.has(product.id || product._id || '')}
-                                pricing1688={product.pricing1688}
+                                isImported={product.isImported}
                               />
                             ))}
                           </div>

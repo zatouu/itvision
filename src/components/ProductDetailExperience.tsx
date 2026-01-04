@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
-import ProductPricing1688 from '@/components/ProductPricing1688'
+// Note: Les informations de prix source ne sont pas exposées au client
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
   if (typeof amount !== 'number' || Number.isNaN(amount)) return null
@@ -80,20 +80,7 @@ export interface ProductDetailData {
     volumeM3: number | null
     dimensions: ProductDimensions | null
   }
-  sourcing: {
-    platform?: string | null
-    supplierName?: string | null
-    supplierContact?: string | null
-    productUrl?: string | null
-    notes?: string | null
-  } | null
-  pricing1688?: {
-    price1688: number
-    price1688Currency: string
-    exchangeRate: number
-    serviceFeeRate?: number | null
-    insuranceRate?: number | null
-  } | null
+  isImported?: boolean // Indicateur si produit importé (sans exposer les détails source)
 }
 
 export interface SimilarProductSummary {
@@ -526,14 +513,9 @@ Merci de me recontacter.`
       const { lengthCm, widthCm, heightCm } = product.logistics.dimensions
       entries.push({ label: 'Dimensions colis', value: `${lengthCm} × ${widthCm} × ${heightCm} cm` })
     }
-    if (product.sourcing?.platform) {
-      entries.push({ label: 'Plateforme sourcing', value: product.sourcing.platform })
-    }
-    if (product.sourcing?.supplierName) {
-      entries.push({ label: 'Fournisseur', value: product.sourcing.supplierName })
-    }
+    // Note: Les informations de sourcing ne sont pas exposées au client
     return entries
-  }, [product.logistics, product.availability.leadTimeDays, product.sourcing])
+  }, [product.logistics, product.availability.leadTimeDays])
 
   useEffect(() => {
     if (activeTab === 'reviews') {
@@ -723,15 +705,14 @@ Merci de me recontacter.`
               </div>
             )}
 
-            {/* Prix d'origine */}
-            {product.pricing1688 && (
-              <ProductPricing1688
-                productId={product.id}
-                pricing1688={product.pricing1688}
-                weightKg={product.logistics.weightKg}
-                volumeM3={product.logistics.volumeM3}
-                baseCost={product.pricing.baseCost}
-              />
+            {/* Indicateur import (discret) */}
+            {product.isImported && (
+              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+                </svg>
+                <span>Produit importé • Livraison express ou économique disponible</span>
+              </div>
             )}
 
             {/* Options produit */}
@@ -1130,7 +1111,7 @@ Merci de me recontacter.`
                       'Garantie constructeur 12 mois (extensions possibles)',
                       'Assistance IT Vision 7j/7 sur Dakar & Sénégal',
                       'Maintenance préventive et curative disponible',
-                      product.sourcing?.notes ? `Notes acheteur : ${product.sourcing.notes}` : 'Support import dédié Chine & Sénégal'
+                      'Support import dédié & livraison sécurisée'
                     ].map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
                         <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />

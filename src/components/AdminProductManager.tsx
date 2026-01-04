@@ -75,7 +75,7 @@ const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => 
   return overrides.filter(o => o && typeof o.methodId === 'string')
 }
 
-// Composant de simulation de pricing 1688
+// Composant de simulation de pricing source (import)
 function PricingSimulator({ product }: { product: Product }) {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethodId>('air_express')
   const [orderQuantity, setOrderQuantity] = useState(1)
@@ -85,7 +85,7 @@ function PricingSimulator({ product }: { product: Product }) {
 
   const runSimulation = async () => {
     if (!product.price1688 && !product.baseCost) {
-      alert('Veuillez renseigner le prix 1688 ou le coût de base')
+      alert('Veuillez renseigner le prix source ou le coût de base')
       return
     }
 
@@ -132,7 +132,7 @@ function PricingSimulator({ product }: { product: Product }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
           <Calculator className="h-4 w-4" />
-          Simulateur de Pricing 1688
+          Simulateur de Coût & Marge
         </div>
         <button
           onClick={runSimulation}
@@ -642,11 +642,11 @@ export default function AdminProductManager() {
                 })}
               >
                 <option value="">--</option>
-                <option value="aliexpress">AliExpress</option>
-                <option value="1688">1688</option>
-                <option value="alibaba">Alibaba</option>
-                <option value="taobao">Taobao</option>
-                <option value="factory">Usine partenaire</option>
+                <option value="aliexpress">Plateforme A</option>
+                <option value="1688">Plateforme B</option>
+                <option value="alibaba">Plateforme C</option>
+                <option value="taobao">Plateforme D</option>
+                <option value="factory">Fournisseur direct</option>
               </select>
             </label>
             <label className="space-y-1">
@@ -1039,7 +1039,7 @@ export default function AdminProductManager() {
               </svg>
               <div>
                 <div className="font-medium">Prix requis</div>
-                <div className="text-xs">Renseignez un prix (prix public, coût de base ou prix 1688) ou cochez "Sur devis" ci-dessous.</div>
+                <div className="text-xs">Renseignez un prix (prix public, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
               </div>
             </div>
           )}
@@ -1057,7 +1057,7 @@ export default function AdminProductManager() {
                     : editing.baseCost && editing.marginRate
                       ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
                       : editing.price1688 && editing.exchangeRate
-                        ? `Calculé depuis 1688: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
+                        ? `Calculé depuis prix source: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
                         : 'Sera calculé automatiquement'
                 }
               </span>
@@ -1083,15 +1083,16 @@ export default function AdminProductManager() {
           </div>
         </div>
 
-        {/* Section 1688 */}
+        {/* Section Prix Source */}
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
             <DollarSign className="h-4 w-4" />
-            Informations 1688 (Import Chine)
+            Prix Source (Import)
           </div>
+          <p className="text-xs text-gray-600 mt-1">Informations confidentielles - non visibles par le client</p>
           <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
             <label className="space-y-1">
-              <span>Prix 1688 (¥ Yuan)</span>
+              <span>Prix source (¥ Yuan)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 type="number"
@@ -1107,7 +1108,7 @@ export default function AdminProductManager() {
                   }
                 }}
               />
-              <p className="text-xs text-gray-500">Prix d'achat sur 1688 en Yuan</p>
+              <p className="text-xs text-gray-500">Prix d'achat fournisseur en Yuan</p>
             </label>
             <label className="space-y-1">
               <span>Taux de change (1 ¥ = X FCFA)</span>
@@ -1118,7 +1119,7 @@ export default function AdminProductManager() {
                 onChange={e => {
                   const value = e.target.value ? Number(e.target.value) : 100
                   setEditing({ ...editing, exchangeRate: value })
-                  // Recalculer baseCost si price1688 existe
+                  // Recalculer baseCost si prix source existe
                   if (editing.price1688 && value) {
                     const calculatedBaseCost = editing.price1688 * value
                     setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
@@ -1399,7 +1400,7 @@ export default function AdminProductManager() {
                       <div className="text-xs text-gray-500">Coût: {formatCurrency(product.baseCost, product.currency)}</div>
                     )}
                     {typeof product.price1688 === 'number' && (
-                      <div className="text-xs text-blue-600">1688: ¥{product.price1688}</div>
+                      <div className="text-xs text-blue-600">Source: ¥{product.price1688}</div>
                     )}
                     {typeof product.marginRate === 'number' && (
                       <div className="text-xs text-gray-400">Marge: {product.marginRate}%</div>

@@ -34,11 +34,7 @@ export interface ProductCardProps {
   createdAt?: string
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
-  pricing1688?: {
-    price1688: number
-    price1688Currency: string
-    exchangeRate: number
-  } | null
+  isImported?: boolean // Produit importé (sans exposer les détails source)
 }
 
 const PATH_SEPARATOR = '/'
@@ -68,7 +64,7 @@ export default function ProductCard({
   createdAt,
   onCompareToggle,
   isComparing = false,
-  pricing1688
+  isImported = false
 }: ProductCardProps) {
   const isRecentlyNew = createdAt 
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
@@ -257,13 +253,13 @@ export default function ProductCard({
               TOP VENTE
             </span>
           )}
-          {pricing1688 && (
-            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">IMPORT CHINE</span>
+          {isImported && !isInStock && (
+            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">IMPORT</span>
           )}
           {isInStock && (
             <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">EN STOCK DAKAR</span>
           )}
-          {!isInStock && !showNewBadge && !pricing1688 && !isPopular && (
+          {!isInStock && !showNewBadge && !isImported && !isPopular && (
             <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">SUR COMMANDE</span>
           )}
         </div>
