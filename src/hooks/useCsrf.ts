@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface UseCsrfReturn {
   csrfToken: string | null
@@ -11,13 +11,17 @@ interface UseCsrfReturn {
 }
 
 /**
- * Hook pour gérer les tokens CSRF
- * Récupère automatiquement un token CSRF et le fournit pour les requêtes
+ * Hook pour gérer les tokens CSRF avec le pattern double-submit cookie
+ * 
+ * Note: Pour les routes admin protégées par JWT (/api/admin/*), 
+ * le CSRF n'est pas nécessaire car le JWT dans le cookie httpOnly 
+ * protège déjà contre les attaques CSRF.
  */
 export function useCsrf(): UseCsrfReturn {
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const tokenRef = useRef<string | null>(null)
 
   const fetchToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -32,8 +36,9 @@ export function useCsrf(): UseCsrfReturn {
 
       if (response.ok) {
         const data = await response.json()
-        const token = data.csrfToken || response.headers.get('X-CSRF-Token')
+        const token = data.csrfToken
         setCsrfToken(token)
+        tokenRef.current = token
         return token
       } else {
         setError('Impossible de récupérer le token CSRF')
@@ -67,8 +72,8 @@ export function useCsrf(): UseCsrfReturn {
     url: string,
     options: RequestInit = {}
   ): Promise<Response> => {
-    // S'assurer qu'on a un token
-    let token = csrfToken
+    // S'assurer qu'on a un token à jour
+    let token = tokenRef.current
     if (!token) {
       token = await fetchToken()
     }
@@ -78,16 +83,36 @@ export function useCsrf(): UseCsrfReturn {
       ...(options.headers as Record<string, string> || {})
     }
 
+    // Ajouter le token CSRF si disponible
     if (token) {
       headers['X-CSRF-Token'] = token
     }
 
-    return fetch(url, {
+    const response = await fetch(url, {
       ...options,
       headers,
       credentials: 'include'
     })
-  }, [csrfToken, fetchToken])
+
+    // Si on reçoit une erreur 403 CSRF, renouveler le token et réessayer une fois
+    if (response.status === 403) {
+      const data = await response.clone().json().catch(() => ({}))
+      if (data.error?.includes('CSRF')) {
+        console.log('Token CSRF expiré, renouvellement...')
+        const newToken = await fetchToken()
+        if (newToken) {
+          headers['X-CSRF-Token'] = newToken
+          return fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include'
+          })
+        }
+      }
+    }
+
+    return response
+  }, [fetchToken])
 
   return {
     csrfToken,
