@@ -33,6 +33,11 @@
   "dependencies": {
     "@next/font": "^14.2.15",
     "@prisma/client": "^6.15.0",
+    "@tiptap/extension-placeholder": "^3.14.0",
+    "@tiptap/extension-underline": "^3.14.0",
+    "@tiptap/pm": "^3.14.0",
+    "@tiptap/react": "^3.14.0",
+    "@tiptap/starter-kit": "^3.14.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",

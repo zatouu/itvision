@@ -1,7 +1,10 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, lazy, Suspense } from 'react'
 import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
+
+// Éditeur de texte riche chargé dynamiquement
+const RichTextEditor = lazy(() => import('./RichTextEditor'))
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
 
@@ -558,13 +561,25 @@ export default function AdminProductManager() {
               value={editing.category || ''}
               onChange={e => setEditing({ ...editing, category: e.target.value })}
             />
-            <textarea
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              rows={4}
-              placeholder="Description détaillée / argumentaire commercial"
-              value={editing.description || ''}
-              onChange={e => setEditing({ ...editing, description: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Description détaillée
+              </label>
+              <Suspense fallback={
+                <div className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm h-[160px] flex items-center justify-center bg-gray-50">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                </div>
+              }>
+                <RichTextEditor
+                  value={editing.description || ''}
+                  onChange={(html) => setEditing({ ...editing, description: html })}
+                  placeholder="Décrivez le produit : caractéristiques, avantages, utilisations..."
+                />
+              </Suspense>
+              <p className="mt-1 text-xs text-gray-400">
+                Utilisez la barre d&apos;outils pour mettre en forme : gras, italique, listes, titres...
+              </p>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
             <label className="inline-flex items-center gap-2">

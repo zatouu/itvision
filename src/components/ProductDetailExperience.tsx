@@ -1043,11 +1043,15 @@ Merci de me recontacter.`
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="prose max-w-none"
+                  className="prose prose-emerald max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-800"
                 >
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                    {product.description || 'Description détaillée disponible sur demande auprès de nos équipes sourcing.'}
-                  </p>
+                  {product.description ? (
+                    <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      Description détaillée disponible sur demande auprès de nos équipes sourcing.
+                    </p>
+                  )}
                 </motion.div>
               )}
 
