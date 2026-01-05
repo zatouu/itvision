@@ -63,12 +63,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const similar = formatSimilarProducts(similarRaw)
 
   return (
-    <>
+    <div className="min-h-screen bg-white">
       <Header />
-      <main className="pt-[120px]">
+      <main className="pt-[120px] bg-gradient-to-b from-gray-50 to-white">
         <ProductDetailExperience product={detail} similar={similar} />
       </main>
       <Footer />
-    </>
+    </div>
   )
 }
