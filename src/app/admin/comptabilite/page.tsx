@@ -11,7 +11,7 @@ export default async function AdminComptabilitePage() {
     if (token) {
       const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
       const role = String(decoded.role || '').toUpperCase()
-      allowed = ['ADMIN', 'ACCOUNTANT'].includes(role)
+      allowed = ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'].includes(role)
     }
   } catch {}
 
@@ -31,11 +31,6 @@ export default async function AdminComptabilitePage() {
       <Breadcrumb 
         backHref="/admin" 
         backLabel="Retour au dashboard"
-        items={[
-          { label: 'Accueil', href: '/' },
-          { label: 'Administration', href: '/admin' },
-          { label: 'Comptabilité' }
-        ]}
       />
       <div className="mt-4">
         <AccountingDashboard />

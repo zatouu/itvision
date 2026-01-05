@@ -1,6 +1,5 @@
 'use client'
 
-import AdminSidebar from '@/components/admin/AdminSidebar'
 import {
   BookOpen,
   FileText,
@@ -137,10 +136,7 @@ export default function AdminHowToPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-emerald-100 rounded-lg">
@@ -191,8 +187,6 @@ export default function AdminHowToPage() {
               <li>• Configurez les notifications pour être alerté des événements importants</li>
             </ul>
           </div>
-        </div>
-      </main>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, memo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Users, 
@@ -34,6 +34,7 @@ import {
   Briefcase
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
+import { useCsrf } from '@/hooks/useCsrf'
 
 // Types
 interface UserData {
@@ -441,6 +442,7 @@ function SimpleModal({
 
 // Composant principal
 export default function UserManagementInterface() {
+  const { fetchWithCsrf } = useCsrf()
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -504,9 +506,8 @@ export default function UserManagementInterface() {
     setError('')
 
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetchWithCsrf('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
 
@@ -515,9 +516,8 @@ export default function UserManagementInterface() {
       if (data.success) {
         if (formData.role === 'TECHNICIAN') {
           try {
-            await fetch('/api/technicians', {
+            await fetchWithCsrf('/api/technicians', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 name: formData.name,
                 email: formData.email,
@@ -552,9 +552,8 @@ export default function UserManagementInterface() {
     setError('')
 
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetchWithCsrf('/api/admin/users', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: selectedUser._id,
           name: formData.name,
@@ -589,9 +588,8 @@ export default function UserManagementInterface() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetchWithCsrf('/api/admin/users', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           id: selectedUser._id, 
           action: 'reset_password', 
@@ -619,9 +617,8 @@ export default function UserManagementInterface() {
   // Actions sur les utilisateurs
   const handleUserAction = async (userId: string, action: string) => {
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetchWithCsrf('/api/admin/users', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: userId, action })
       })
 

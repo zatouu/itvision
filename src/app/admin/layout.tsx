@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect } from 'react'
 import ToastProvider from '@/components/ToastProvider'
+import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -12,9 +13,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <ToastProvider>
-      {children}
+      <div className="min-h-screen bg-gray-50 flex">
+        <AdminSidebar />
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </ToastProvider>
   )
 }
-
-

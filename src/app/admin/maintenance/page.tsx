@@ -7,11 +7,6 @@ export default function AdminMaintenancePage() {
       <Breadcrumb 
         backHref="/admin" 
         backLabel="Retour au dashboard"
-        items={[
-          { label: 'Accueil', href: '/' },
-          { label: 'Administration', href: '/admin' },
-          { label: 'Centre Maintenance' }
-        ]}
       />
       <div className="mt-4">
         <MaintenanceCenter />
