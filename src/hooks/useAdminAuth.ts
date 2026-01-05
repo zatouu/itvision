@@ -47,9 +47,10 @@ export function useAdminAuth(redirectOnFail = true): UseAdminAuthReturn {
       if (response.ok) {
         const data = await response.json()
         
-        // Vérifier que l'utilisateur est bien admin
+        // Vérifier que l'utilisateur est bien admin (ADMIN ou SUPER_ADMIN)
         const userRole = data.user?.role?.toUpperCase()
-        if (userRole === 'ADMIN') {
+        const adminRoles = ['ADMIN', 'SUPER_ADMIN']
+        if (adminRoles.includes(userRole)) {
           setUser({
             id: data.user.id || data.user._id,
             email: data.user.email,
@@ -63,11 +64,15 @@ export function useAdminAuth(redirectOnFail = true): UseAdminAuthReturn {
           setError('Accès réservé aux administrateurs')
           setIsAuthenticated(false)
           if (redirectOnFail) {
-            // Rediriger vers le portail approprié
+            // Rediriger vers le portail approprié selon le rôle
             if (userRole === 'CLIENT') {
               router.replace('/client-portal')
             } else if (userRole === 'TECHNICIAN') {
               router.replace('/tech-interface')
+            } else if (userRole === 'PRODUCT_MANAGER') {
+              router.replace('/admin/products')
+            } else if (userRole === 'ACCOUNTANT') {
+              router.replace('/admin/accounting')
             } else {
               router.replace('/login')
             }

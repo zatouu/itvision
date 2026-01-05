@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Users, 
   Plus, 
   Search, 
   Edit3, 
-  Trash2, 
   Eye, 
   EyeOff, 
   Shield, 
@@ -18,7 +17,6 @@ import {
   RefreshCw, 
   AlertTriangle, 
   CheckCircle, 
-  Clock, 
   Mail, 
   Phone, 
   X,
@@ -26,16 +24,18 @@ import {
   User,
   Key,
   Smartphone,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   UserPlus,
-  Settings
+  Settings,
+  Package,
+  Calculator,
+  Crown,
+  Briefcase
 } from 'lucide-react'
-import ModernModal, { ModalActions, ModalPrimaryButton, ModalSecondaryButton } from './ui/ModernModal'
 import ImageUpload from './ImageUpload'
 
+// Types
 interface UserData {
   _id: string
   username: string
@@ -43,7 +43,7 @@ interface UserData {
   name: string
   phone?: string
   avatarUrl?: string
-  role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
+  role: string
   isActive: boolean
   loginAttempts: number
   lockedUntil?: string
@@ -58,10 +58,388 @@ interface UserFormData {
   name: string
   phone: string
   avatarUrl?: string
-  role: 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
+  role: string
   password?: string
 }
 
+// Configuration des rôles
+const ROLES = [
+  { value: 'CLIENT', label: 'Client', icon: User, color: 'emerald', description: 'Accès au portail client' },
+  { value: 'TECHNICIAN', label: 'Technicien', icon: Settings, color: 'blue', description: 'Interventions et maintenance' },
+  { value: 'PRODUCT_MANAGER', label: 'Gestionnaire Produits', icon: Package, color: 'purple', description: 'Gestion du catalogue produits' },
+  { value: 'ACCOUNTANT', label: 'Comptable', icon: Calculator, color: 'orange', description: 'Accès comptabilité et factures' },
+  { value: 'ADMIN', label: 'Administrateur', icon: Briefcase, color: 'red', description: 'Gestion générale (sans config système)' },
+  { value: 'SUPER_ADMIN', label: 'Super Admin', icon: Crown, color: 'yellow', description: 'Accès complet à tout le système' }
+]
+
+// Composant formulaire isolé pour éviter les re-renders
+const UserFormFields = memo(function UserFormFields({
+  initialData,
+  isEdit,
+  onSubmit,
+  onCancel,
+  isSubmitting
+}: {
+  initialData: UserFormData
+  isEdit: boolean
+  onSubmit: (data: UserFormData) => void
+  onCancel: () => void
+  isSubmitting: boolean
+}) {
+  const [formData, setFormData] = useState<UserFormData>(initialData)
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(formData)
+  }
+
+  const selectedRole = ROLES.find(r => r.value === formData.role)
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="space-y-5">
+        {/* Avatar */}
+        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+          <div className="relative">
+            <div className="h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+              {formData.avatarUrl ? (
+                <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-8 w-8 text-white" />
+              )}
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-700 mb-2">Photo de profil</p>
+            <ImageUpload
+              onUpload={(url) => setFormData(prev => ({ ...prev, avatarUrl: url }))}
+              maxFiles={1}
+              type="avatars"
+              existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
+            />
+          </div>
+        </div>
+
+        {/* Nom complet */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Nom complet <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+            placeholder="Jean Dupont"
+          />
+        </div>
+
+        {/* Username + Email en grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Nom d&apos;utilisateur <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              disabled={isEdit}
+              value={formData.username}
+              onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder="jean.dupont"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Email <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              required
+              disabled={isEdit}
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder="jean@exemple.com"
+            />
+          </div>
+        </div>
+
+        {/* Téléphone */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Téléphone</label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+            placeholder="+221 77 123 45 67"
+          />
+        </div>
+
+        {/* Rôle avec cartes */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Rôle <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {ROLES.map((role) => {
+              const Icon = role.icon
+              const isSelected = formData.role === role.value
+              return (
+                <button
+                  key={role.value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role: role.value }))}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    isSelected
+                      ? `border-${role.color}-500 bg-${role.color}-50 ring-2 ring-${role.color}-200`
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`h-4 w-4 ${isSelected ? `text-${role.color}-600` : 'text-gray-500'}`} />
+                    <span className={`text-sm font-semibold ${isSelected ? `text-${role.color}-700` : 'text-gray-700'}`}>
+                      {role.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 line-clamp-1">{role.description}</p>
+                </button>
+              )
+            })}
+          </div>
+          {selectedRole && (
+            <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+              <selectedRole.icon className="h-3 w-3" />
+              {selectedRole.description}
+            </p>
+          )}
+        </div>
+
+        {/* Mot de passe (création seulement) */}
+        {!isEdit && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Mot de passe <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required={!isEdit}
+                value={formData.password || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Min. 8 caractères avec majuscule, minuscule et chiffre</p>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-5 py-2.5 text-gray-700 font-medium rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
+        >
+          Annuler
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/25"
+        >
+          {isSubmitting ? (
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {isEdit ? 'Enregistrer' : 'Créer'}
+        </button>
+      </div>
+    </form>
+  )
+})
+
+// Composant formulaire mot de passe isolé
+const PasswordResetForm = memo(function PasswordResetForm({
+  userName,
+  onSubmit,
+  onCancel,
+  isSubmitting
+}: {
+  userName: string
+  onSubmit: (password: string) => void
+  onCancel: () => void
+  isSubmitting: boolean
+}) {
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (password.length >= 8) {
+      onSubmit(password)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="space-y-4">
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+          <p className="text-sm text-yellow-800">
+            <AlertTriangle className="h-4 w-4 inline mr-2" />
+            L&apos;utilisateur <strong>{userName}</strong> devra utiliser ce nouveau mot de passe pour se connecter.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Nouveau mot de passe
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+              placeholder="••••••••"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Min. 8 caractères</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-5 py-2.5 text-gray-700 font-medium rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
+        >
+          Annuler
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting || password.length < 8}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/25"
+        >
+          {isSubmitting ? (
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <Key className="h-4 w-4" />
+          )}
+          Réinitialiser
+        </button>
+      </div>
+    </form>
+  )
+})
+
+// Modal simple sans animation complexe
+function SimpleModal({ 
+  isOpen, 
+  onClose, 
+  title, 
+  subtitle,
+  icon,
+  children,
+  size = 'lg'
+}: { 
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  subtitle?: string
+  icon?: React.ReactNode
+  children: React.ReactNode
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [isOpen])
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    if (isOpen) document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  const sizeClass = size === 'sm' ? 'max-w-sm' : size === 'md' ? 'max-w-md' : 'max-w-lg'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className={`relative w-full ${sizeClass} bg-white rounded-2xl shadow-2xl overflow-hidden`}>
+        {/* Header */}
+        <div className="px-6 py-5 bg-gradient-to-r from-emerald-500 to-teal-600">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              {icon && (
+                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                  {icon}
+                </div>
+              )}
+              <div>
+                <h2 className="text-xl font-bold text-white">{title}</h2>
+                {subtitle && (
+                  <p className="text-sm text-white/80 mt-0.5">{subtitle}</p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        {/* Content */}
+        <div className="px-6 py-5 max-h-[calc(100vh-200px)] overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Composant principal
 export default function UserManagementInterface() {
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,21 +449,10 @@ export default function UserManagementInterface() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
-  const [formData, setFormData] = useState<UserFormData>({
-    username: '',
-    email: '',
-    name: '',
-    phone: '',
-    avatarUrl: '',
-    role: 'CLIENT'
-  })
-  const [newPassword, setNewPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const usersPerPage = 10
@@ -94,7 +461,7 @@ export default function UserManagementInterface() {
   const stats = {
     total: totalUsers,
     active: users.filter(u => u.isActive).length,
-    admins: users.filter(u => u.role === 'ADMIN').length,
+    admins: users.filter(u => ['ADMIN', 'SUPER_ADMIN'].includes(u.role)).length,
     technicians: users.filter(u => u.role === 'TECHNICIAN').length,
     clients: users.filter(u => u.role === 'CLIENT').length
   }
@@ -132,8 +499,7 @@ export default function UserManagementInterface() {
   }, [currentPage, searchTerm, roleFilter, statusFilter])
 
   // Créer un utilisateur
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleCreateUser = async (formData: UserFormData) => {
     setIsSubmitting(true)
     setError('')
 
@@ -166,7 +532,6 @@ export default function UserManagementInterface() {
         }
         setSuccess('Utilisateur créé avec succès')
         setShowCreateModal(false)
-        resetForm()
         fetchUsers()
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -180,8 +545,7 @@ export default function UserManagementInterface() {
   }
 
   // Modifier un utilisateur
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleUpdateUser = async (formData: UserFormData) => {
     if (!selectedUser) return
 
     setIsSubmitting(true)
@@ -207,7 +571,6 @@ export default function UserManagementInterface() {
         setSuccess('Utilisateur modifié avec succès')
         setShowEditModal(false)
         setSelectedUser(null)
-        resetForm()
         fetchUsers()
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -221,8 +584,8 @@ export default function UserManagementInterface() {
   }
 
   // Réinitialiser le mot de passe
-  const handleResetPassword = async () => {
-    if (!selectedUser || !newPassword) return
+  const handleResetPassword = async (newPassword: string) => {
+    if (!selectedUser) return
 
     setIsSubmitting(true)
     try {
@@ -241,7 +604,6 @@ export default function UserManagementInterface() {
       if (data.success) {
         setSuccess('Mot de passe réinitialisé')
         setShowPasswordModal(false)
-        setNewPassword('')
         setSelectedUser(null)
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -255,18 +617,18 @@ export default function UserManagementInterface() {
   }
 
   // Actions sur les utilisateurs
-  const handleUserAction = async (userId: string, action: string, payload?: any) => {
+  const handleUserAction = async (userId: string, action: string) => {
     try {
       const response = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: userId, action, ...payload })
+        body: JSON.stringify({ id: userId, action })
       })
 
       const data = await response.json()
 
       if (data.success) {
-        setSuccess(`Action effectuée avec succès`)
+        setSuccess('Action effectuée avec succès')
         fetchUsers()
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -277,47 +639,34 @@ export default function UserManagementInterface() {
     }
   }
 
-  const resetForm = () => {
-    setFormData({
-      username: '',
-      email: '',
-      name: '',
-      phone: '',
-      avatarUrl: '',
-      role: 'CLIENT'
-    })
-    setNewPassword('')
-  }
-
   const openEditModal = (user: UserData) => {
     setSelectedUser(user)
-    setFormData({
-      username: user.username,
-      email: user.email,
-      name: user.name,
-      phone: user.phone || '',
-      avatarUrl: user.avatarUrl || '',
-      role: user.role
-    })
     setShowEditModal(true)
   }
 
   const openPasswordModal = (user: UserData) => {
     setSelectedUser(user)
-    setNewPassword('')
     setShowPasswordModal(true)
   }
 
   const getRoleBadge = (role: string) => {
-    const config = {
-      ADMIN: { bg: 'bg-red-100', text: 'text-red-700', label: 'Admin' },
-      TECHNICIAN: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Technicien' },
-      CLIENT: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Client' }
+    const roleConfig = ROLES.find(r => r.value === role)
+    if (!roleConfig) {
+      return <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700">{role}</span>
     }
-    const c = config[role as keyof typeof config] || { bg: 'bg-gray-100', text: 'text-gray-700', label: role }
+    const colorClasses: Record<string, string> = {
+      emerald: 'bg-emerald-100 text-emerald-700',
+      blue: 'bg-blue-100 text-blue-700',
+      purple: 'bg-purple-100 text-purple-700',
+      orange: 'bg-orange-100 text-orange-700',
+      red: 'bg-red-100 text-red-700',
+      yellow: 'bg-yellow-100 text-yellow-800'
+    }
+    const Icon = roleConfig.icon
     return (
-      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${c.bg} ${c.text}`}>
-        {c.label}
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${colorClasses[roleConfig.color]}`}>
+        <Icon className="h-3 w-3" />
+        {roleConfig.label}
       </span>
     )
   }
@@ -334,135 +683,14 @@ export default function UserManagementInterface() {
 
   const totalPages = Math.ceil(totalUsers / usersPerPage)
 
-  // Formulaire utilisateur (réutilisable)
-  const UserForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <div className="space-y-5">
-      {/* Avatar */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-            {formData.avatarUrl ? (
-              <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-            ) : (
-              <User className="h-8 w-8 text-white" />
-            )}
-          </div>
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-700 mb-2">Photo de profil</p>
-          <ImageUpload
-            onUpload={(url) => setFormData({ ...formData, avatarUrl: url })}
-            maxFiles={1}
-            type="avatars"
-            existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
-          />
-        </div>
-      </div>
-
-      {/* Nom complet */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Nom complet <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          required
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
-          placeholder="Jean Dupont"
-        />
-      </div>
-
-      {/* Username + Email en grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Nom d&apos;utilisateur <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            disabled={isEdit}
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-            placeholder="jean.dupont"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            required
-            disabled={isEdit}
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-            placeholder="jean@exemple.com"
-          />
-        </div>
-      </div>
-
-      {/* Téléphone + Rôle */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Téléphone</label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
-            placeholder="+221 77 123 45 67"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Rôle <span className="text-red-500">*</span>
-          </label>
-          <select
-            required
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
-          >
-            <option value="CLIENT">👤 Client</option>
-            <option value="TECHNICIAN">🔧 Technicien</option>
-            <option value="ADMIN">👑 Administrateur</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Mot de passe (création seulement) */}
-      {!isEdit && (
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Mot de passe <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              required
-              value={formData.password || ''}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
-              placeholder="••••••••"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">Min. 8 caractères avec majuscule, minuscule et chiffre</p>
-        </div>
-      )}
-    </div>
-  )
+  const emptyFormData: UserFormData = {
+    username: '',
+    email: '',
+    name: '',
+    phone: '',
+    avatarUrl: '',
+    role: 'CLIENT'
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -502,11 +730,11 @@ export default function UserManagementInterface() {
         {/* Stats rapides */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           {[
-            { label: 'Total', value: stats.total, icon: Users, color: 'blue' },
-            { label: 'Actifs', value: stats.active, icon: UserCheck, color: 'green' },
-            { label: 'Admins', value: stats.admins, icon: Shield, color: 'red' },
-            { label: 'Techniciens', value: stats.technicians, icon: Settings, color: 'purple' },
-            { label: 'Clients', value: stats.clients, icon: User, color: 'emerald' }
+            { label: 'Total', value: stats.total, icon: Users, bg: 'bg-blue-100', iconColor: 'text-blue-600' },
+            { label: 'Actifs', value: stats.active, icon: UserCheck, bg: 'bg-green-100', iconColor: 'text-green-600' },
+            { label: 'Admins', value: stats.admins, icon: Shield, bg: 'bg-red-100', iconColor: 'text-red-600' },
+            { label: 'Techniciens', value: stats.technicians, icon: Settings, bg: 'bg-purple-100', iconColor: 'text-purple-600' },
+            { label: 'Clients', value: stats.clients, icon: User, bg: 'bg-emerald-100', iconColor: 'text-emerald-600' }
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -516,8 +744,8 @@ export default function UserManagementInterface() {
               className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-${stat.color}-100`}>
-                  <stat.icon className={`h-5 w-5 text-${stat.color}-600`} />
+                <div className={`p-2 rounded-lg ${stat.bg}`}>
+                  <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
@@ -584,9 +812,9 @@ export default function UserManagementInterface() {
                 className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
               >
                 <option value="all">Tous les rôles</option>
-                <option value="CLIENT">Clients</option>
-                <option value="TECHNICIAN">Techniciens</option>
-                <option value="ADMIN">Administrateurs</option>
+                {ROLES.map(role => (
+                  <option key={role.value} value={role.value}>{role.label}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -697,7 +925,7 @@ export default function UserManagementInterface() {
                           {user.loginAttempts > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-700">
                               <AlertTriangle className="h-3 w-3" />
-                              {user.loginAttempts} tentatives
+                              {user.loginAttempts}
                             </span>
                           )}
                         </div>
@@ -808,116 +1036,70 @@ export default function UserManagementInterface() {
       </div>
 
       {/* Modal Création */}
-      <ModernModal
+      <SimpleModal
         isOpen={showCreateModal}
-        onClose={() => { setShowCreateModal(false); resetForm(); }}
+        onClose={() => setShowCreateModal(false)}
         title="Nouvel utilisateur"
-        subtitle="Créez un nouveau compte utilisateur"
+        subtitle="Créez un nouveau compte"
         icon={<UserPlus className="h-6 w-6 text-white" />}
         size="lg"
-        footer={
-          <ModalActions>
-            <ModalSecondaryButton onClick={() => { setShowCreateModal(false); resetForm(); }}>
-              Annuler
-            </ModalSecondaryButton>
-            <ModalPrimaryButton
-              onClick={() => document.getElementById('create-form')?.dispatchEvent(new Event('submit', { bubbles: true }))}
-              loading={isSubmitting}
-              icon={<Save className="h-4 w-4" />}
-            >
-              Créer l&apos;utilisateur
-            </ModalPrimaryButton>
-          </ModalActions>
-        }
       >
-        <form id="create-form" onSubmit={handleCreateUser}>
-          <UserForm isEdit={false} />
-        </form>
-      </ModernModal>
+        <UserFormFields
+          initialData={emptyFormData}
+          isEdit={false}
+          onSubmit={handleCreateUser}
+          onCancel={() => setShowCreateModal(false)}
+          isSubmitting={isSubmitting}
+        />
+      </SimpleModal>
 
       {/* Modal Modification */}
-      <ModernModal
-        isOpen={showEditModal}
-        onClose={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}
+      <SimpleModal
+        isOpen={showEditModal && !!selectedUser}
+        onClose={() => { setShowEditModal(false); setSelectedUser(null); }}
         title="Modifier l'utilisateur"
         subtitle={selectedUser?.name}
         icon={<Edit3 className="h-6 w-6 text-white" />}
         size="lg"
-        footer={
-          <ModalActions>
-            <ModalSecondaryButton onClick={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}>
-              Annuler
-            </ModalSecondaryButton>
-            <ModalPrimaryButton
-              onClick={() => document.getElementById('edit-form')?.dispatchEvent(new Event('submit', { bubbles: true }))}
-              loading={isSubmitting}
-              icon={<Save className="h-4 w-4" />}
-            >
-              Enregistrer
-            </ModalPrimaryButton>
-          </ModalActions>
-        }
       >
-        <form id="edit-form" onSubmit={handleUpdateUser}>
-          <UserForm isEdit={true} />
-        </form>
-      </ModernModal>
+        {selectedUser && (
+          <UserFormFields
+            key={selectedUser._id}
+            initialData={{
+              username: selectedUser.username,
+              email: selectedUser.email,
+              name: selectedUser.name,
+              phone: selectedUser.phone || '',
+              avatarUrl: selectedUser.avatarUrl || '',
+              role: selectedUser.role
+            }}
+            isEdit={true}
+            onSubmit={handleUpdateUser}
+            onCancel={() => { setShowEditModal(false); setSelectedUser(null); }}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </SimpleModal>
 
       {/* Modal Mot de passe */}
-      <ModernModal
-        isOpen={showPasswordModal}
-        onClose={() => { setShowPasswordModal(false); setSelectedUser(null); setNewPassword(''); }}
+      <SimpleModal
+        isOpen={showPasswordModal && !!selectedUser}
+        onClose={() => { setShowPasswordModal(false); setSelectedUser(null); }}
         title="Réinitialiser le mot de passe"
         subtitle={selectedUser?.name}
         icon={<Key className="h-6 w-6 text-white" />}
         size="sm"
-        footer={
-          <ModalActions>
-            <ModalSecondaryButton onClick={() => { setShowPasswordModal(false); setSelectedUser(null); setNewPassword(''); }}>
-              Annuler
-            </ModalSecondaryButton>
-            <ModalPrimaryButton
-              onClick={handleResetPassword}
-              loading={isSubmitting}
-              disabled={!newPassword || newPassword.length < 8}
-              icon={<Key className="h-4 w-4" />}
-            >
-              Réinitialiser
-            </ModalPrimaryButton>
-          </ModalActions>
-        }
       >
-        <div className="space-y-4">
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <p className="text-sm text-yellow-800">
-              <AlertTriangle className="h-4 w-4 inline mr-2" />
-              L&apos;utilisateur devra utiliser ce nouveau mot de passe pour se connecter.
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Nouveau mot de passe
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
-                placeholder="••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Min. 8 caractères</p>
-          </div>
-        </div>
-      </ModernModal>
+        {selectedUser && (
+          <PasswordResetForm
+            key={`pwd-${selectedUser._id}`}
+            userName={selectedUser.name}
+            onSubmit={handleResetPassword}
+            onCancel={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </SimpleModal>
     </div>
   )
 }

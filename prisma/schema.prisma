@@ -32,7 +32,10 @@ model User {
 enum UserRole {
   CLIENT
   TECHNICIAN
+  PRODUCT_MANAGER
+  ACCOUNTANT
   ADMIN
+  SUPER_ADMIN
 }
 
 // Table des projets

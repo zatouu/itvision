@@ -134,22 +134,29 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
     
+    // Rôles ayant accès admin
+    const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
+    
     // Vérifier le rôle
-    if (requiredRole === 'ADMIN' && role !== 'ADMIN') {
+    if (requiredRole === 'ADMIN' && !ADMIN_ROLES.includes(role || '')) {
       // Rediriger les non-admins vers leur portail
       if (role === 'CLIENT') {
         return NextResponse.redirect(new URL('/client-portal', request.url))
       } else if (role === 'TECHNICIAN') {
         return NextResponse.redirect(new URL('/tech-interface', request.url))
+      } else if (role === 'PRODUCT_MANAGER') {
+        return NextResponse.redirect(new URL('/admin/products', request.url))
+      } else if (role === 'ACCOUNTANT') {
+        return NextResponse.redirect(new URL('/admin/accounting', request.url))
       }
       return NextResponse.redirect(new URL('/login', request.url))
     }
     
-    if (requiredRole === 'CLIENT' && !['CLIENT', 'ADMIN'].includes(role || '')) {
+    if (requiredRole === 'CLIENT' && !['CLIENT', ...ADMIN_ROLES].includes(role || '')) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
     
-    if (requiredRole === 'TECHNICIAN' && !['TECHNICIAN', 'ADMIN'].includes(role || '')) {
+    if (requiredRole === 'TECHNICIAN' && !['TECHNICIAN', ...ADMIN_ROLES].includes(role || '')) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }
