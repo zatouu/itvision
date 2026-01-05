@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import ProductDetailExperience from '@/components/ProductDetailExperience'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
@@ -60,5 +62,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const detail = formatProductDetail(product)
   const similar = formatSimilarProducts(similarRaw)
 
-  return <ProductDetailExperience product={detail} similar={similar} />
+  return (
+    <>
+      <Header />
+      <main className="pt-[120px]">
+        <ProductDetailExperience product={detail} similar={similar} />
+      </main>
+      <Footer />
+    </>
+  )
 }
