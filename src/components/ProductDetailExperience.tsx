@@ -751,124 +751,116 @@ Merci de me recontacter.`
             )}
           </div>
 
-          {/* Informations produit */}
-          <div className="space-y-6">
-            {/* Titre et tagline */}
+          {/* Informations produit - Compact */}
+          <div className="space-y-4">
+            {/* Titre */}
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full mb-3">
-                <ShieldCheck className="h-4 w-4" />
-                Sourcing sécurisé IT Vision
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                  <ShieldCheck className="h-3 w-3" />
+                  IT Vision
+                </span>
+                {product.isImported && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    Import Chine
+                  </span>
+                )}
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mb-3">{product.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{product.name}</h1>
               {product.tagline && (
-                <p className="text-lg text-gray-600 font-medium">{product.tagline}</p>
+                <p className="text-sm text-gray-600 mt-1">{product.tagline}</p>
               )}
             </div>
 
-            {/* Prix */}
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border-2 border-emerald-200">
-              <div className="text-sm text-emerald-700 font-semibold mb-2">Prix catalogue</div>
-              <div className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                {totalPriceLabel || unitPriceLabel || 'Sur devis'}
-              </div>
-              {!showQuote && quantity > 1 && (
-                <div className="text-sm text-gray-600">{quantity} unité(s) × {unitPriceLabel}</div>
-              )}
-              
-              {/* Détail des frais pour produits importés */}
-              {product.pricing.fees && product.pricing.salePrice && !showQuote && (
-                <div className="mt-4 pt-4 border-t border-emerald-200/50 space-y-2">
-                  <div className="text-xs font-semibold text-emerald-700 mb-2">Détail du prix :</div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Prix produit</span>
-                    <span>{formatCurrency(product.pricing.salePrice, product.pricing.currency)}</span>
+            {/* Prix + Transport compact */}
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                {/* Prix */}
+                <div>
+                  <div className="text-3xl sm:text-4xl font-extrabold text-emerald-600">
+                    {totalPriceLabel || unitPriceLabel || 'Sur devis'}
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
-                    <span>{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
-                    <span>{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}</span>
-                  </div>
-                  {activeShipping && (
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Transport ({activeShipping.label})</span>
-                      <span>{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
+                  {!showQuote && quantity > 1 && (
+                    <div className="text-xs text-gray-500">{quantity} × {unitPriceLabel}</div>
+                  )}
+                  {deliveryDays && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                      <Clock className="h-3 w-3" />
+                      <span>Livraison ~{deliveryDays}j</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm font-bold text-emerald-700 pt-2 border-t border-emerald-200/50">
-                    <span>Total TTC</span>
-                    <span>{unitPriceLabel}</span>
-                  </div>
                 </div>
-              )}
-              
-              {deliveryDays && (
-                <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                  <Clock className="h-4 w-4" />
-                  <span>Délai estimé : {deliveryDays} jours</span>
-                </div>
-              )}
-            </div>
-
-            {/* Options de livraison */}
-            {shippingEnabled && (
-              <div className="space-y-3">
-                <div className="text-sm font-semibold text-gray-900">Modes de transport</div>
-                <div className="flex flex-wrap gap-2">
-                  {product.pricing.shippingOptions.map((option) => {
-                    const Icon = shippingIcon(option.id)
-                    const active = option.id === selectedShippingId
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setSelectedShippingId(option.id)}
-                        className={clsx(
-                          'flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all',
-                          active
-                            ? 'border-emerald-500 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{option.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                {activeShipping && (
-                  <div className="rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-gray-900">{activeShipping.label}</span>
-                      <span className="font-bold text-emerald-600">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
-                    </div>
-                    <div className="text-xs text-gray-500">Délai : {activeShipping.durationDays} jours</div>
+                
+                {/* Boutons transport - Style tabs compact */}
+                {shippingEnabled && product.pricing.shippingOptions.length > 0 && (
+                  <div className="flex bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
+                    {product.pricing.shippingOptions.map((option) => {
+                      const active = option.id === selectedShippingId
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setSelectedShippingId(option.id)}
+                          className={clsx(
+                            'px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap',
+                            active
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'text-gray-600 hover:bg-gray-100'
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
-            )}
+              
+              {/* Détail prix (compact, toggle possible) */}
+              {product.pricing.fees && product.pricing.salePrice && !showQuote && (
+                <div className="mt-3 pt-3 border-t border-emerald-200/50 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div className="text-gray-600">
+                    <span className="block text-gray-400">Produit</span>
+                    {formatCurrency(product.pricing.salePrice, product.pricing.currency)}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="block text-gray-400">Service {product.pricing.fees.serviceFeeRate}%</span>
+                    +{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="block text-gray-400">Assurance {product.pricing.fees.insuranceRate}%</span>
+                    +{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}
+                  </div>
+                  {activeShipping && (
+                    <div className="text-gray-600">
+                      <span className="block text-gray-400">Transport</span>
+                      +{formatCurrency(activeShipping.cost, activeShipping.currency)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-            {/* Indicateur import (discret) */}
-            {product.isImported && (
-              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
-                </svg>
-                <span>Produit importé • Livraison express ou économique disponible</span>
+            {/* Conseil achats en gros */}
+            {product.isImported && !showQuote && (
+              <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-amber-700">Conseil :</span>
+                  <span className="text-amber-600"> Commandez en gros pour réduire les frais de transport au kilo ! Plus de quantité = meilleur prix unitaire.</span>
+                </div>
               </div>
             )}
 
-            {/* Options produit avec prix et images (style 1688) */}
-            <div className="space-y-4">
-              {/* Variantes avancées avec prix */}
+            {/* Options produit compact */}
+            <div className="space-y-3">
+              {/* Variantes avec prix (compact) */}
               {product.variantGroups && product.variantGroups.length > 0 && (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {product.variantGroups.map((group) => (
-                    <div key={group.name} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-                      <div className="text-sm font-semibold text-gray-900 mb-3">{group.name}</div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    <div key={group.name} className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-600 w-16">{group.name}:</span>
+                      <div className="flex flex-wrap gap-1">
                         {group.variants.map((variant) => {
                           const isSelected = selectedVariants[group.name] === variant.id
                           return (
@@ -877,62 +869,28 @@ Merci de me recontacter.`
                               type="button"
                               onClick={() => {
                                 setSelectedVariants(prev => ({ ...prev, [group.name]: variant.id }))
-                                // Changer l'image si la variante a une image
                                 if (variant.image) {
                                   const imgIndex = gallery.findIndex(img => img === variant.image)
-                                  if (imgIndex >= 0) {
-                                    setActiveImageIndex(imgIndex)
-                                  }
+                                  if (imgIndex >= 0) setActiveImageIndex(imgIndex)
                                 }
                               }}
                               className={clsx(
-                                'flex flex-col items-center p-2 rounded-lg border-2 transition-all',
+                                'flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all',
                                 isSelected
-                                  ? 'border-emerald-500 bg-emerald-50 shadow-md'
-                                  : 'border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm',
-                                variant.stock === 0 && 'opacity-50'
+                                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
+                                  : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300',
+                                variant.stock === 0 && 'opacity-50 line-through'
                               )}
                             >
-                              {/* Image miniature */}
-                              {variant.image ? (
-                                <div className="w-12 h-12 mb-2 rounded-lg overflow-hidden bg-gray-100">
-                                  <img 
-                                    src={variant.image} 
-                                    alt={variant.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-12 h-12 mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
-                                  <Package className="w-5 h-5" />
-                                </div>
+                              {variant.image && (
+                                <img src={variant.image} alt="" className="w-4 h-4 rounded object-cover" />
                               )}
-                              
-                              {/* Nom de la variante */}
-                              <span className={clsx(
-                                'text-xs font-medium text-center leading-tight',
-                                isSelected ? 'text-emerald-700' : 'text-gray-700'
-                              )}>
-                                {variant.name}
-                              </span>
-                              
-                              {/* Prix */}
-                              {variant.priceFCFA !== undefined && variant.priceFCFA > 0 && (
-                                <span className={clsx(
-                                  'text-xs font-semibold mt-1',
-                                  isSelected ? 'text-emerald-600' : 'text-gray-500'
-                                )}>
+                              <span>{variant.name}</span>
+                              {variant.priceFCFA && variant.priceFCFA > 0 && (
+                                <span className="text-[10px] text-gray-400">
                                   {formatCurrency(variant.priceFCFA, 'FCFA')}
                                 </span>
                               )}
-                              
-                              {/* Stock */}
-                              <span className={clsx(
-                                'text-[10px] mt-1',
-                                variant.stock > 0 ? 'text-green-600' : 'text-red-500'
-                              )}>
-                                {variant.stock > 0 ? `${variant.stock} en stock` : 'Rupture'}
-                              </span>
                             </button>
                           )
                         })}
@@ -942,21 +900,21 @@ Merci de me recontacter.`
                 </div>
               )}
 
-              {/* Options legacy: Couleurs (affichées si pas de variantGroups ou en complément) */}
+              {/* Options legacy compactes */}
               {product.colorOptions.filter(Boolean).length > 0 && (!product.variantGroups || product.variantGroups.length === 0) && (
-                <div>
-                  <div className="text-sm font-semibold text-gray-900 mb-2">Couleurs disponibles</div>
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-600 w-16">Couleur:</span>
+                  <div className="flex flex-wrap gap-1">
                     {product.colorOptions.filter(Boolean).map((color) => (
                       <button
                         key={color}
                         type="button"
                         onClick={() => setSelectedColor(color)}
                         className={clsx(
-                          'rounded-full px-4 py-2 text-sm font-medium border-2 transition-all',
+                          'px-2 py-1 text-xs rounded-md border transition-all',
                           selectedColor === color
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300'
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300'
                         )}
                       >
                         {color}
@@ -966,21 +924,20 @@ Merci de me recontacter.`
                 </div>
               )}
 
-              {/* Options legacy: Variantes simples */}
               {product.variantOptions.filter(Boolean).length > 0 && (!product.variantGroups || product.variantGroups.length === 0) && (
-                <div>
-                  <div className="text-sm font-semibold text-gray-900 mb-2">Variantes</div>
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-600 w-16">Option:</span>
+                  <div className="flex flex-wrap gap-1">
                     {product.variantOptions.filter(Boolean).map((variant) => (
                       <button
                         key={variant}
                         type="button"
                         onClick={() => setSelectedVariant(variant)}
                         className={clsx(
-                          'rounded-xl px-4 py-2 text-sm font-medium border-2 transition-all',
+                          'px-2 py-1 text-xs rounded-md border transition-all',
                           selectedVariant === variant
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300'
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300'
                         )}
                       >
                         {variant}
@@ -990,14 +947,13 @@ Merci de me recontacter.`
                 </div>
               )}
 
-              {/* Quantité */}
-              <div className="flex items-center gap-4">
-                <label htmlFor="quantity" className="text-sm font-semibold text-gray-900">Quantité</label>
-                <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl overflow-hidden">
+              {/* Quantité + Actions sur la même ligne */}
+              <div className="flex items-center gap-3 pt-2">
+                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     type="button"
                     onClick={() => handleQuantityChange(quantity - 1)}
-                    className="px-3 py-2 hover:bg-gray-100 transition-colors"
+                    className="px-2 py-1 hover:bg-gray-100 text-gray-600"
                   >
                     −
                   </button>
@@ -1007,40 +963,42 @@ Merci de me recontacter.`
                     min={1}
                     value={quantity}
                     onChange={(e) => handleQuantityChange(Number(e.target.value))}
-                    className="w-16 text-center border-0 focus:ring-0 focus:outline-none"
+                    className="w-12 text-center border-x border-gray-200 py-1 text-sm focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    className="px-3 py-2 hover:bg-gray-100 transition-colors"
+                    className="px-2 py-1 hover:bg-gray-100 text-gray-600"
                   >
                     +
                   </button>
                 </div>
+                <span className="text-xs text-gray-500">unité(s)</span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-3 pt-4 border-t border-gray-200">
+            {/* Actions compactes */}
+            <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
               {!showQuote && (
                 <>
                   <button
                     type="button"
                     onClick={() => addToCart(true)}
                     disabled={adding}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-4 text-base font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                    className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 text-sm font-bold transition-all shadow-md disabled:opacity-50"
                   >
-                    <ShoppingCart className="h-5 w-5" />
-                    {adding ? 'Ajout...' : 'Acheter maintenant'}
+                    <ShoppingCart className="h-4 w-4" />
+                    {adding ? 'Ajout...' : 'Acheter'}
                   </button>
                   <button
                     type="button"
                     onClick={() => addToCart(false)}
                     disabled={adding}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-white text-emerald-600 px-6 py-3 text-base font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-500 text-emerald-600 px-3 py-2.5 text-sm font-medium hover:bg-emerald-50 transition-all disabled:opacity-50"
+                    title="Ajouter au panier"
                   >
-                    <ShoppingCart className="h-5 w-5" />
-                    {adding ? 'Ajout...' : 'Ajouter au panier'}
+                    <ShoppingCart className="h-4 w-4" />
+                    <span className="hidden sm:inline">Panier</span>
                   </button>
                 </>
               )}
@@ -1049,191 +1007,65 @@ Merci de me recontacter.`
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackEvent('quote_request', { productId: product.id, quantity })}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500 bg-green-50 text-green-700 px-6 py-3 text-base font-semibold hover:bg-green-100 transition-all"
+                className="inline-flex items-center justify-center gap-1 rounded-lg bg-green-500 text-white px-3 py-2.5 text-sm font-medium hover:bg-green-600 transition-all"
+                title="Devis WhatsApp"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
                 </svg>
-                Demander un devis WhatsApp
+                <span className="hidden sm:inline">Devis</span>
               </a>
               <button
                 type="button"
                 onClick={() => setShowNegotiation(true)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-gray-300 bg-white text-gray-700 px-6 py-3 text-base font-semibold hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-300 text-gray-600 px-3 py-2.5 text-sm font-medium hover:border-emerald-400 hover:text-emerald-600 transition-all"
+                title="Négocier"
               >
-                <MessageCircle className="h-5 w-5" />
-                Négocier le tarif
+                <MessageCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">Négocier</span>
               </button>
-            </div>
-
-            <section className="bg-white border border-emerald-100 rounded-2xl p-4 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Installation & marketplace techniciens</p>
-                  <p className="text-xs text-gray-500">
-                    Confiez l’installation à notre réseau : la mission part sur le marketplace, les techniciens
-                    proposent leur prix et leur dispo.
-                  </p>
-                </div>
-                <label className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600">
-                  <input
-                    type="checkbox"
-                    checked={wantsInstallation}
-                    onChange={(e) => setWantsInstallation(e.target.checked)}
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Activer
-                </label>
-              </div>
-              {wantsInstallation && (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500">Contact sur site</label>
-                      <input
-                        value={installationForm.contactName}
-                        onChange={(e) => updateInstallationForm('contactName', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Nom complet"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Téléphone</label>
-                      <input
-                        value={installationForm.contactPhone}
-                        onChange={(e) => updateInstallationForm('contactPhone', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="+221..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Email</label>
-                      <input
-                        type="email"
-                        value={installationForm.contactEmail}
-                        onChange={(e) => updateInstallationForm('contactEmail', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                        placeholder="client@exemple.com"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Adresse / site</label>
-                      <input
-                        value={installationForm.address}
-                        onChange={(e) => updateInstallationForm('address', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                        placeholder="Quartier, ville..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Date souhaitée</label>
-                      <input
-                        type="date"
-                        value={installationForm.preferredDate}
-                        onChange={(e) => updateInstallationForm('preferredDate', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 mt-6">
-                      <input
-                        type="checkbox"
-                        checked={installationForm.includeMaterials}
-                        onChange={(e) => updateInstallationForm('includeMaterials', e.target.checked)}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="text-sm text-gray-700">Inclure consommables & petits accessoires</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Notes / contraintes</label>
-                    <textarea
-                      value={installationForm.notes}
-                      onChange={(e) => updateInstallationForm('notes', e.target.value)}
-                      rows={3}
-                      className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                      placeholder="Ex: accès badge, créneaux horaires, quantité à installer..."
-                    />
-                  </div>
-                  {installationError && (
-                    <p className="text-sm text-red-600">{installationError}</p>
-                  )}
-                  {installationStatus === 'success' && (
-                    <p className="text-sm text-emerald-600">
-                      Demande publiée ! Référence marketplace {installationSuccessId?.slice(-6) || ''}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleInstallationRequest}
-                    disabled={installationStatus === 'loading'}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 via-emerald-500 to-emerald-600 hover:via-emerald-600 text-white px-6 py-3 text-base font-semibold shadow-lg transition disabled:opacity-60"
-                  >
-                    <Megaphone className="h-5 w-5" />
-                    {installationStatus === 'loading'
-                      ? 'Publication en cours...'
-                      : 'Publier la mission installation'}
-                  </button>
-                  <p className="text-xs text-gray-500 text-center">
-                    Les techniciens certifiés répondent depuis leur application. Vous validez l’offre idéale depuis
-                    votre portail client.
-                  </p>
-                </>
-              )}
-            </section>
-
-            {/* Actions secondaires */}
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
                 onClick={toggleFavorite}
                 className={clsx(
-                  'inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-semibold transition',
-                  isFavorite
-                    ? 'border-red-500 bg-red-50 text-red-600'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-400'
+                  'inline-flex items-center justify-center rounded-lg border px-2.5 py-2.5 transition-all',
+                  isFavorite ? 'border-red-300 bg-red-50 text-red-500' : 'border-gray-300 text-gray-400 hover:text-red-500'
                 )}
+                title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               >
-                <Heart className={clsx('h-4 w-4', isFavorite && 'fill-red-500')} />
-                {isFavorite ? 'Favori' : 'Favoris'}
+                <Heart className={clsx('h-4 w-4', isFavorite && 'fill-current')} />
               </button>
-              <button
-                type="button"
-                onClick={handleExportPDF}
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 transition"
-              >
-                <FileDown className="h-4 w-4" />
-                PDF
-              </button>
-              <div className="relative group">
-                <button
-                  type="button"
-                  onClick={() => handleShare()}
-                  className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 transition"
-                >
-                  <Share2 className="h-4 w-4" />
-                  Partager
-                </button>
-                <div className="absolute right-0 top-full mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 bg-white border-2 border-gray-200 rounded-xl p-2 shadow-xl min-w-[180px]">
-                  <button
-                    onClick={() => handleShare('whatsapp')}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2"
-                  >
-                    WhatsApp
-                  </button>
-                  <button
-                    onClick={() => handleShare('facebook')}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2"
-                  >
-                    Facebook
-                  </button>
-                  <button
-                    onClick={() => handleShare('copy')}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2"
-                  >
-                    Copier le lien
-                  </button>
+            </div>
+
+            {/* Installation compacte (repliée par défaut) */}
+            <details className="border border-gray-200 rounded-lg text-xs">
+              <summary className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 font-medium text-gray-600">
+                <Megaphone className="h-3 w-3 text-purple-500" />
+                Demander une installation (techniciens certifiés)
+              </summary>
+              <div className="p-3 space-y-2 bg-white">
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={installationForm.contactName} onChange={(e) => updateInstallationForm('contactName', e.target.value)} className="border rounded px-2 py-1" placeholder="Nom" />
+                  <input value={installationForm.contactPhone} onChange={(e) => updateInstallationForm('contactPhone', e.target.value)} className="border rounded px-2 py-1" placeholder="Tél" />
+                  <input value={installationForm.address} onChange={(e) => updateInstallationForm('address', e.target.value)} className="border rounded px-2 py-1" placeholder="Adresse" />
+                  <input type="date" value={installationForm.preferredDate} onChange={(e) => updateInstallationForm('preferredDate', e.target.value)} className="border rounded px-2 py-1" />
                 </div>
+                {installationError && <p className="text-red-600">{installationError}</p>}
+                {installationStatus === 'success' && <p className="text-emerald-600">✓ Demande publiée</p>}
+                <button onClick={handleInstallationRequest} disabled={installationStatus === 'loading'} className="w-full bg-purple-500 text-white rounded py-1.5 font-medium hover:bg-purple-600 disabled:opacity-60">
+                  {installationStatus === 'loading' ? 'Publication...' : 'Publier mission'}
+                </button>
               </div>
+            </details>
+
+            {/* Actions secondaires compactes */}
+            <div className="flex items-center gap-2 text-xs pt-2">
+              <button onClick={handleExportPDF} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Télécharger PDF">
+                <FileDown className="h-3 w-3" /> PDF
+              </button>
+              <button onClick={() => handleShare('copy')} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Copier le lien">
+                <Share2 className="h-3 w-3" /> Lien
+              </button>
             </div>
           </div>
         </div>

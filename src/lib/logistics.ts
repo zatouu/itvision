@@ -66,29 +66,29 @@ export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minim
 export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
   air_express: {
     id: 'air_express',
-    label: 'Express aérien 3 jours',
-    description: 'Livraison express porte-à-porte en 72h en moyenne',
+    label: 'Express 3j',
+    description: 'Livraison express porte-à-porte',
     durationDays: 3,
     billing: 'per_kg',
-    rate: 12000, // 12 000 CFA/kg (prix client par défaut)
+    rate: 12000, // 12 000 CFA/kg
     minimumCharge: 20000
   },
   air_15: {
     id: 'air_15',
-    label: 'Fret aérien 6-10 jours',
-    description: 'Acheminement économique depuis la Chine sous 6-10 jours ouvrés',
-    durationDays: 8,
+    label: 'Aérien 15j',
+    description: 'Fret aérien économique',
+    durationDays: 15,
     billing: 'per_kg',
-    rate: 8000, // 8 000 CFA/kg (prix client par défaut)
+    rate: 8000, // 8 000 CFA/kg
     minimumCharge: 15000
   },
   sea_freight: {
     id: 'sea_freight',
-    label: 'Fret maritime 50-60 jours',
-    description: 'Groupage maritime économique via container consolidé',
-    durationDays: 55,
+    label: 'Maritime 60j',
+    description: 'Groupage maritime économique',
+    durationDays: 60,
     billing: 'per_cubic_meter',
-    rate: 140000, // 140 000 CFA/m³ (prix client par défaut)
+    rate: 140000, // 140 000 CFA/m³
     minimumCharge: 140000
   }
 }
