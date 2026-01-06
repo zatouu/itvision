@@ -9,7 +9,9 @@ import type {
   ServiceFeeRate, 
   Currency,
   ProductSourcing,
-  ShippingOverride
+  ShippingOverride,
+  ProductVariant,
+  ProductVariantGroup
 } from '../types/product.types'
 
 export interface IProduct extends Document {
@@ -31,8 +33,11 @@ export interface IProduct extends Document {
   
   // Caractéristiques
   features: string[]
-  colorOptions: string[]
-  variantOptions: string[]
+  colorOptions: string[] // Conservé pour compatibilité
+  variantOptions: string[] // Conservé pour compatibilité
+  
+  // Variantes avec prix et images (style 1688)
+  variantGroups: ProductVariantGroup[]
   
   // Disponibilité
   requiresQuote: boolean
@@ -46,13 +51,17 @@ export interface IProduct extends Document {
   isPublished: boolean
   isFeatured: boolean
   
-  // Logistique
-  weightKg?: number
+  // Logistique - Poids
+  netWeightKg?: number // Poids net du produit
+  weightKg?: number // Poids brut (avec emballage) - legacy, alias de grossWeightKg
+  grossWeightKg?: number // Poids brut avec emballage
+  packagingWeightKg?: number // Poids de l'emballage seul
+  
+  // Logistique - Dimensions
   lengthCm?: number
   widthCm?: number
   heightCm?: number
   volumeM3?: number
-  packagingWeightKg?: number
   
   // Sourcing
   sourcing?: ProductSourcing
@@ -202,6 +211,24 @@ const ProductSchema = new Schema<IProduct>({
     default: []
   },
   
+  // Variantes avec prix et images (style 1688)
+  variantGroups: {
+    type: [new Schema({
+      name: { type: String, required: true, trim: true },
+      variants: [{
+        id: { type: String, required: true },
+        name: { type: String, required: true, trim: true },
+        sku: { type: String, trim: true },
+        image: { type: String, trim: true },
+        price1688: { type: Number, min: 0 },
+        priceFCFA: { type: Number, min: 0 },
+        stock: { type: Number, default: 0, min: 0 },
+        isDefault: { type: Boolean, default: false }
+      }]
+    }, { _id: false })],
+    default: []
+  },
+  
   // Disponibilité
   requiresQuote: {
     type: Boolean,
@@ -252,12 +279,26 @@ const ProductSchema = new Schema<IProduct>({
     index: true
   },
   
-  // Logistique
+  // Logistique - Poids
+  netWeightKg: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le poids net doit être positif ou nul'
+    }
+  },
   weightKg: {
     type: Number,
     validate: {
       validator: validatePositiveNumber,
       message: 'Le poids doit être positif ou nul'
+    }
+  },
+  grossWeightKg: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le poids brut doit être positif ou nul'
     }
   },
   lengthCm: {
@@ -379,11 +420,30 @@ const ProductSchema = new Schema<IProduct>({
   toObject: { virtuals: true }
 })
 
+// Calcul du poids d'emballage et synchronisation
+const calculatePackagingWeight = function(this: IProduct) {
+  // Synchroniser weightKg et grossWeightKg (legacy support)
+  if (this.grossWeightKg && !this.weightKg) {
+    this.weightKg = this.grossWeightKg
+  } else if (this.weightKg && !this.grossWeightKg) {
+    this.grossWeightKg = this.weightKg
+  }
+  
+  // Calculer le poids d'emballage si on a poids net et brut
+  if (this.netWeightKg && this.grossWeightKg && !this.packagingWeightKg) {
+    const packaging = this.grossWeightKg - this.netWeightKg
+    if (packaging >= 0) {
+      this.packagingWeightKg = Math.round(packaging * 1000) / 1000
+    }
+  }
+}
+
 // Validation des dimensions avant sauvegarde
 ProductSchema.pre('save', function(next) {
   try {
     validateDimensions.call(this)
     calculateVolume.call(this)
+    calculatePackagingWeight.call(this)
     next()
   } catch (error) {
     next(error as Error)

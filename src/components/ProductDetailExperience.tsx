@@ -45,6 +45,30 @@ interface ProductDimensions {
   heightCm: number
 }
 
+// Type pour les variantes de produit
+export interface ProductVariant {
+  id: string
+  name: string
+  sku?: string
+  image?: string
+  price1688?: number
+  priceFCFA?: number
+  stock: number
+  isDefault?: boolean
+}
+
+export interface ProductVariantGroup {
+  name: string
+  variants: ProductVariant[]
+}
+
+// Type pour les poids
+export interface ProductWeights {
+  netWeightKg: number | null // Poids net
+  grossWeightKg: number | null // Poids brut avec emballage
+  packagingWeightKg: number | null // Poids emballage seul
+}
+
 export interface ProductDetailData {
   id: string
   name: string
@@ -56,6 +80,8 @@ export interface ProductDetailData {
   features: string[]
   colorOptions: string[]
   variantOptions: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: ProductVariantGroup[]
   requiresQuote: boolean
   currency?: string | null
   pricing: {
@@ -87,6 +113,8 @@ export interface ProductDetailData {
     volumeM3: number | null
     dimensions: ProductDimensions | null
   }
+  // Poids détaillés
+  weights?: ProductWeights
   isImported?: boolean // Indicateur si produit importé (sans exposer les détails source)
 }
 
@@ -136,6 +164,15 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(getDefaultShippingOption())
   const [selectedColor, setSelectedColor] = useState<string | null>(product.colorOptions.filter(Boolean)[0] ?? null)
   const [selectedVariant, setSelectedVariant] = useState<string | null>(product.variantOptions.filter(Boolean)[0] ?? null)
+  // Variantes avec prix (style 1688) - Map: groupName -> variantId
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    product.variantGroups?.forEach(group => {
+      const defaultVar = group.variants.find(v => v.isDefault) || group.variants[0]
+      if (defaultVar) initial[group.name] = defaultVar.id
+    })
+    return initial
+  })
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
   const [showNegotiation, setShowNegotiation] = useState(false)
@@ -164,6 +201,57 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
+  // Calcul du prix et de l'image basés sur les variantes sélectionnées
+  const selectedVariantDetails = useMemo(() => {
+    if (!product.variantGroups || product.variantGroups.length === 0) {
+      return { 
+        totalVariantPrice: null, 
+        variantImage: null,
+        totalStock: product.availability.stockQuantity,
+        selectedItems: []
+      }
+    }
+
+    const selectedItems: { groupName: string; variant: ProductVariant }[] = []
+    let totalVariantPrice = 0
+    let hasPrice = false
+    let variantImage: string | null = null
+    let totalStock = 0
+
+    for (const group of product.variantGroups) {
+      const selectedId = selectedVariants[group.name]
+      const selectedVar = group.variants.find(v => v.id === selectedId)
+      
+      if (selectedVar) {
+        selectedItems.push({ groupName: group.name, variant: selectedVar })
+        
+        // Utiliser l'image de la variante si disponible
+        if (selectedVar.image && !variantImage) {
+          variantImage = selectedVar.image
+        }
+        
+        // Additionner les prix des variantes (en FCFA)
+        if (selectedVar.priceFCFA !== undefined && selectedVar.priceFCFA > 0) {
+          totalVariantPrice += selectedVar.priceFCFA
+          hasPrice = true
+        }
+        
+        // Utiliser le stock de la variante
+        totalStock = Math.min(totalStock === 0 ? selectedVar.stock : totalStock, selectedVar.stock)
+      }
+    }
+
+    return {
+      totalVariantPrice: hasPrice ? totalVariantPrice : null,
+      variantImage,
+      totalStock,
+      selectedItems
+    }
+  }, [product.variantGroups, selectedVariants, product.availability.stockQuantity])
+
+  // Prix effectif : prix variante ou prix standard
+  const effectivePrice = selectedVariantDetails.totalVariantPrice ?? product.pricing.salePrice
+
   useEffect(() => {
     if (!shippingEnabled) {
       setSelectedShippingId(null)
@@ -181,8 +269,12 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     ? product.pricing.shippingOptions.find((option) => option.id === selectedShippingId) || null
     : null
 
+  // Prix unitaire: prend en compte le prix de la variante sélectionnée si disponible
+  const basePrice = effectivePrice ?? product.pricing.salePrice
   const unitPrice = !product.requiresQuote
-    ? (shippingEnabled && activeShipping ? activeShipping.total : product.pricing.salePrice)
+    ? (shippingEnabled && activeShipping 
+        ? (activeShipping.total + (selectedVariantDetails.totalVariantPrice ?? 0) - (product.pricing.salePrice ?? 0))
+        : basePrice)
     : null
 
   const totalPrice = useMemo(() => {
@@ -504,25 +596,41 @@ Merci de me recontacter.`
 
   const logisticsEntries = useMemo(() => {
     const entries: { label: string; value: string | null }[] = []
+    
     if (product.availability.leadTimeDays) {
       entries.push({ label: 'Délai moyen Chine', value: `${product.availability.leadTimeDays} jours` })
     }
-    if (product.logistics.weightKg) {
-      entries.push({ label: 'Poids net', value: `${product.logistics.weightKg.toFixed(2)} kg` })
+    
+    // Poids détaillés (priorité aux données structurées)
+    const weights = product.weights
+    if (weights?.netWeightKg) {
+      entries.push({ label: 'Poids net (produit)', value: `${weights.netWeightKg.toFixed(2)} kg` })
     }
-    if (product.logistics.packagingWeightKg) {
-      entries.push({ label: 'Poids emballage', value: `${product.logistics.packagingWeightKg.toFixed(2)} kg` })
+    if (weights?.grossWeightKg) {
+      entries.push({ label: 'Poids brut (avec emballage)', value: `${weights.grossWeightKg.toFixed(2)} kg` })
+    } else if (product.logistics.weightKg && !weights?.netWeightKg) {
+      // Fallback legacy
+      entries.push({ label: 'Poids', value: `${product.logistics.weightKg.toFixed(2)} kg` })
     }
+    if (weights?.packagingWeightKg || product.logistics.packagingWeightKg) {
+      const pkgWeight = weights?.packagingWeightKg ?? product.logistics.packagingWeightKg
+      entries.push({ label: 'Poids emballage', value: `${pkgWeight?.toFixed(2)} kg` })
+    }
+    
+    // Volume
     if (product.logistics.volumeM3) {
       entries.push({ label: 'Volume', value: `${product.logistics.volumeM3.toFixed(3)} m³` })
     }
+    
+    // Dimensions
     if (product.logistics.dimensions) {
       const { lengthCm, widthCm, heightCm } = product.logistics.dimensions
       entries.push({ label: 'Dimensions colis', value: `${lengthCm} × ${widthCm} × ${heightCm} cm` })
     }
+    
     // Note: Les informations de sourcing ne sont pas exposées au client
     return entries
-  }, [product.logistics, product.availability.leadTimeDays])
+  }, [product.logistics, product.weights, product.availability.leadTimeDays])
 
   useEffect(() => {
     if (activeTab === 'reviews') {
@@ -752,9 +860,90 @@ Merci de me recontacter.`
               </div>
             )}
 
-            {/* Options produit */}
+            {/* Options produit avec prix et images (style 1688) */}
             <div className="space-y-4">
-              {product.colorOptions.filter(Boolean).length > 0 && (
+              {/* Variantes avancées avec prix */}
+              {product.variantGroups && product.variantGroups.length > 0 && (
+                <div className="space-y-4">
+                  {product.variantGroups.map((group) => (
+                    <div key={group.name} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                      <div className="text-sm font-semibold text-gray-900 mb-3">{group.name}</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {group.variants.map((variant) => {
+                          const isSelected = selectedVariants[group.name] === variant.id
+                          return (
+                            <button
+                              key={variant.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedVariants(prev => ({ ...prev, [group.name]: variant.id }))
+                                // Changer l'image si la variante a une image
+                                if (variant.image) {
+                                  const imgIndex = gallery.findIndex(img => img === variant.image)
+                                  if (imgIndex >= 0) {
+                                    setActiveImageIndex(imgIndex)
+                                  }
+                                }
+                              }}
+                              className={clsx(
+                                'flex flex-col items-center p-2 rounded-lg border-2 transition-all',
+                                isSelected
+                                  ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                                  : 'border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm',
+                                variant.stock === 0 && 'opacity-50'
+                              )}
+                            >
+                              {/* Image miniature */}
+                              {variant.image ? (
+                                <div className="w-12 h-12 mb-2 rounded-lg overflow-hidden bg-gray-100">
+                                  <img 
+                                    src={variant.image} 
+                                    alt={variant.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-12 h-12 mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
+                                  <Package className="w-5 h-5" />
+                                </div>
+                              )}
+                              
+                              {/* Nom de la variante */}
+                              <span className={clsx(
+                                'text-xs font-medium text-center leading-tight',
+                                isSelected ? 'text-emerald-700' : 'text-gray-700'
+                              )}>
+                                {variant.name}
+                              </span>
+                              
+                              {/* Prix */}
+                              {variant.priceFCFA !== undefined && variant.priceFCFA > 0 && (
+                                <span className={clsx(
+                                  'text-xs font-semibold mt-1',
+                                  isSelected ? 'text-emerald-600' : 'text-gray-500'
+                                )}>
+                                  {formatCurrency(variant.priceFCFA, 'FCFA')}
+                                </span>
+                              )}
+                              
+                              {/* Stock */}
+                              <span className={clsx(
+                                'text-[10px] mt-1',
+                                variant.stock > 0 ? 'text-green-600' : 'text-red-500'
+                              )}>
+                                {variant.stock > 0 ? `${variant.stock} en stock` : 'Rupture'}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Options legacy: Couleurs (affichées si pas de variantGroups ou en complément) */}
+              {product.colorOptions.filter(Boolean).length > 0 && (!product.variantGroups || product.variantGroups.length === 0) && (
                 <div>
                   <div className="text-sm font-semibold text-gray-900 mb-2">Couleurs disponibles</div>
                   <div className="flex flex-wrap gap-2">
@@ -777,7 +966,8 @@ Merci de me recontacter.`
                 </div>
               )}
 
-              {product.variantOptions.filter(Boolean).length > 0 && (
+              {/* Options legacy: Variantes simples */}
+              {product.variantOptions.filter(Boolean).length > 0 && (!product.variantGroups || product.variantGroups.length === 0) && (
                 <div>
                   <div className="text-sm font-semibold text-gray-900 mb-2">Variantes</div>
                   <div className="flex flex-wrap gap-2">

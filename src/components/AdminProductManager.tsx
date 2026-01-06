@@ -15,6 +15,23 @@ type ShippingOverride = {
   flatFee?: number
 }
 
+// Type pour les variantes de produit (style 1688)
+type ProductVariant = {
+  id: string
+  name: string
+  sku?: string
+  image?: string
+  price1688?: number
+  priceFCFA?: number
+  stock: number
+  isDefault?: boolean
+}
+
+type ProductVariantGroup = {
+  name: string
+  variants: ProductVariant[]
+}
+
 type Product = {
   _id?: string
   name: string
@@ -33,14 +50,21 @@ type Product = {
   stockStatus?: 'in_stock' | 'preorder'
   stockQuantity?: number
   leadTimeDays?: number
-  weightKg?: number
+  // Poids
+  netWeightKg?: number // Poids net du produit
+  weightKg?: number // Poids brut (legacy)
+  grossWeightKg?: number // Poids brut avec emballage
+  packagingWeightKg?: number // Poids de l'emballage
+  // Dimensions
   lengthCm?: number
   widthCm?: number
   heightCm?: number
   volumeM3?: number
-  packagingWeightKg?: number
+  // Options (legacy)
   colorOptions?: string[]
   variantOptions?: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: ProductVariantGroup[]
   availabilityNote?: string
   sourcing?: {
     platform?: string
@@ -71,7 +95,7 @@ const formatCurrency = (amount?: number, currency = 'FCFA') => {
   return `${amount.toLocaleString('fr-FR')} ${currency}`
 }
 
-type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'import'
+type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'import'
 
 const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => {
   if (!Array.isArray(overrides)) return []
@@ -293,14 +317,21 @@ export default function AdminProductManager() {
     stockQuantity: 0,
     leadTimeDays: 15,
     deliveryDays: 15,
+    // Poids
+    netWeightKg: undefined,
     weightKg: undefined,
+    grossWeightKg: undefined,
+    packagingWeightKg: undefined,
+    // Dimensions
     lengthCm: undefined,
     widthCm: undefined,
     heightCm: undefined,
     volumeM3: undefined,
-    packagingWeightKg: undefined,
+    // Options (legacy)
     colorOptions: [],
     variantOptions: [],
+    // Variantes avec prix et images
+    variantGroups: [],
     availabilityNote: 'Import direct Chine avec livraison express (3j), aérien (15j) ou maritime (60j)',
     sourcing: {},
     shippingOverrides: [],
@@ -327,8 +358,9 @@ export default function AdminProductManager() {
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
-    { id: 'details', label: 'Détails & logistique', description: 'Dimensions, disponibilité, transport', icon: Layers },
+    { id: 'details', label: 'Détails & logistique', description: 'Poids, dimensions, disponibilité', icon: Layers },
     { id: 'media', label: 'Médias', description: 'Visuels et galerie', icon: ImageIcon },
+    { id: 'variants', label: 'Variantes', description: 'Couleurs, options avec prix', icon: Settings },
     { id: 'pricing', label: 'Tarifs & livraison', description: 'Prix public, marges, transport', icon: Package },
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
@@ -777,7 +809,8 @@ export default function AdminProductManager() {
             <Truck className="h-4 w-4" />
             Poids & dimensions
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-3">
+          <p className="text-xs text-gray-500 mt-1">Le poids brut est utilisé pour calculer les frais de transport</p>
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-4">
             <label className="space-y-1">
               <span>Poids net (kg)</span>
               <input
@@ -785,17 +818,34 @@ export default function AdminProductManager() {
                 type="number"
                 min="0"
                 step="0.01"
-                value={editing.weightKg ?? ''}
-                onChange={e => setEditing({ ...editing, weightKg: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="Sans emballage"
+                value={editing.netWeightKg ?? ''}
+                onChange={e => setEditing({ ...editing, netWeightKg: e.target.value ? Number(e.target.value) : undefined })}
               />
             </label>
             <label className="space-y-1">
-              <span>Poids avec emballage (kg)</span>
+              <span>Poids brut (kg) *</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Avec emballage"
+                value={editing.grossWeightKg ?? editing.weightKg ?? ''}
+                onChange={e => {
+                  const val = e.target.value ? Number(e.target.value) : undefined
+                  setEditing({ ...editing, grossWeightKg: val, weightKg: val })
+                }}
+              />
+            </label>
+            <label className="space-y-1">
+              <span>Poids emballage (kg)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 type="number"
                 min="0"
                 step="0.01"
+                placeholder="Auto-calculé"
                 value={editing.packagingWeightKg ?? ''}
                 onChange={e => setEditing({ ...editing, packagingWeightKg: e.target.value ? Number(e.target.value) : undefined })}
               />
@@ -807,6 +857,7 @@ export default function AdminProductManager() {
                 type="number"
                 min="0"
                 step="0.001"
+                placeholder="Auto si dimensions"
                 value={editing.volumeM3 ?? ''}
                 onChange={e => setEditing({ ...editing, volumeM3: e.target.value ? Number(e.target.value) : undefined })}
               />
@@ -1295,6 +1346,281 @@ export default function AdminProductManager() {
     <ImportTab onImported={handleImportedProduct} formatCurrency={formatCurrency} />
   )
 
+  // Génère un ID unique pour les variantes
+  const generateVariantId = () => `var_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
+  // Ajoute un groupe de variantes
+  const addVariantGroup = () => {
+    if (!editing) return
+    const newGroup: ProductVariantGroup = {
+      name: 'Nouveau groupe',
+      variants: [{
+        id: generateVariantId(),
+        name: 'Variante 1',
+        stock: 0,
+        isDefault: true
+      }]
+    }
+    setEditing({
+      ...editing,
+      variantGroups: [...(editing.variantGroups || []), newGroup]
+    })
+  }
+
+  // Supprime un groupe de variantes
+  const removeVariantGroup = (groupIndex: number) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups.splice(groupIndex, 1)
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Met à jour le nom d'un groupe
+  const updateVariantGroupName = (groupIndex: number, name: string) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex] = { ...groups[groupIndex], name }
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Ajoute une variante à un groupe
+  const addVariant = (groupIndex: number) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex].variants.push({
+      id: generateVariantId(),
+      name: `Variante ${groups[groupIndex].variants.length + 1}`,
+      stock: 0
+    })
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Supprime une variante
+  const removeVariant = (groupIndex: number, variantIndex: number) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex].variants.splice(variantIndex, 1)
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Met à jour une variante
+  const updateVariant = (groupIndex: number, variantIndex: number, updates: Partial<ProductVariant>) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex].variants[variantIndex] = {
+      ...groups[groupIndex].variants[variantIndex],
+      ...updates
+    }
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  const renderVariantsTab = () => {
+    if (!editing) return null
+    const exchangeRate = editing.exchangeRate || 100
+    
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+              <Settings className="h-4 w-4" />
+              Variantes du produit (style 1688)
+            </div>
+            <button
+              type="button"
+              onClick={addVariantGroup}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
+            >
+              <Plus className="h-4 w-4" /> Ajouter un groupe
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-500 mb-4">
+            Créez des variantes avec leurs prix et images spécifiques (ex: Couleur, Taille, Norme...). 
+            Le prix en Yuan sera automatiquement converti en FCFA.
+          </p>
+
+          {(!editing.variantGroups || editing.variantGroups.length === 0) ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <Settings className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">Aucune variante configurée</p>
+              <p className="text-xs text-gray-400 mt-1">Cliquez sur "Ajouter un groupe" pour créer des variantes</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {editing.variantGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <input
+                      type="text"
+                      className="text-lg font-semibold text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none px-1"
+                      value={group.name}
+                      onChange={e => updateVariantGroupName(groupIndex, e.target.value)}
+                      placeholder="Nom du groupe (ex: Couleur)"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => addVariant(groupIndex)}
+                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        + Variante
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeVariantGroup(groupIndex)}
+                        className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                      >
+                        Supprimer groupe
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {group.variants.map((variant, variantIndex) => (
+                      <div key={variant.id} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                        {/* Image variante */}
+                        <div className="w-16 h-16 flex-shrink-0">
+                          {variant.image ? (
+                            <img src={variant.image} alt={variant.name} className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                              <ImageIcon className="h-6 w-6" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Infos variante */}
+                        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2">
+                          <div>
+                            <label className="text-xs text-gray-500">Nom *</label>
+                            <input
+                              type="text"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.name}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { name: e.target.value })}
+                              placeholder="Ex: Blanc US"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix (¥)</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.price1688 ?? ''}
+                              onChange={e => {
+                                const price1688 = e.target.value ? Number(e.target.value) : undefined
+                                const priceFCFA = price1688 ? Math.round(price1688 * exchangeRate) : undefined
+                                updateVariant(groupIndex, variantIndex, { price1688, priceFCFA })
+                              }}
+                              placeholder="57"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix FCFA</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
+                              value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
+                              readOnly
+                              placeholder="Auto"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Stock</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.stock}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { stock: Number(e.target.value) || 0 })}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Image URL</label>
+                            <input
+                              type="text"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.image || ''}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
+                              placeholder="https://..."
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex flex-col gap-1">
+                          <label className="flex items-center gap-1 text-xs">
+                            <input
+                              type="radio"
+                              name={`default-${groupIndex}`}
+                              checked={variant.isDefault}
+                              onChange={() => {
+                                // Désélectionner toutes les autres variantes du groupe
+                                const groups = [...(editing.variantGroups || [])]
+                                groups[groupIndex].variants = groups[groupIndex].variants.map((v, i) => ({
+                                  ...v,
+                                  isDefault: i === variantIndex
+                                }))
+                                setEditing({ ...editing, variantGroups: groups })
+                              }}
+                            />
+                            Défaut
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(groupIndex, variantIndex)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Résumé des variantes */}
+        {editing.variantGroups && editing.variantGroups.length > 0 && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="text-sm font-semibold text-blue-800 mb-2">Résumé des variantes</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-blue-600">Groupes :</span>{' '}
+                <strong>{editing.variantGroups.length}</strong>
+              </div>
+              <div>
+                <span className="text-blue-600">Total variantes :</span>{' '}
+                <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.length, 0)}</strong>
+              </div>
+              <div>
+                <span className="text-blue-600">Stock total :</span>{' '}
+                <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.reduce((s, v) => s + v.stock, 0), 0)}</strong>
+              </div>
+              <div>
+                <span className="text-blue-600">Prix min/max :</span>{' '}
+                <strong>
+                  {(() => {
+                    const prices = editing.variantGroups.flatMap(g => g.variants.map(v => v.price1688).filter(p => p !== undefined)) as number[]
+                    if (prices.length === 0) return '-'
+                    const min = Math.min(...prices)
+                    const max = Math.max(...prices)
+                    return min === max ? `¥${min}` : `¥${min} - ¥${max}`
+                  })()}
+                </strong>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
@@ -1303,6 +1629,8 @@ export default function AdminProductManager() {
         return renderDetailsTab()
       case 'media':
         return renderMediaTab()
+      case 'variants':
+        return renderVariantsTab()
       case 'pricing':
         return renderPricingTab()
       case 'import':

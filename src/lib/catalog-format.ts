@@ -11,6 +11,27 @@ const normalizeGallery = (product: any): string[] => {
   return ['/file.svg']
 }
 
+// Normalise les variantes avec prix (style 1688)
+const normalizeVariantGroups = (product: any) => {
+  if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
+    return []
+  }
+  
+  return product.variantGroups.map((group: any) => ({
+    name: group.name || 'Option',
+    variants: Array.isArray(group.variants) ? group.variants.map((v: any) => ({
+      id: v.id || `var_${Math.random().toString(36).slice(2)}`,
+      name: v.name || 'Variante',
+      sku: v.sku || undefined,
+      image: v.image || undefined,
+      // Le prix source (price1688) n'est pas exposé au client, seulement priceFCFA
+      priceFCFA: v.priceFCFA ?? undefined,
+      stock: v.stock ?? 0,
+      isDefault: v.isDefault ?? false
+    })) : []
+  })).filter((g: any) => g.variants.length > 0)
+}
+
 export const formatProductDetail = (product: any) => {
   const pricing = computeProductPricing(product)
 
@@ -25,6 +46,8 @@ export const formatProductDetail = (product: any) => {
     features: Array.isArray(product.features) ? product.features : [],
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],
+    // Variantes avec prix et images (style 1688)
+    variantGroups: normalizeVariantGroups(product),
     requiresQuote: product.requiresQuote ?? false,
     currency: pricing.currency,
     pricing,
@@ -36,7 +59,7 @@ export const formatProductDetail = (product: any) => {
       leadTimeDays: product.leadTimeDays ?? null
     },
     logistics: {
-      weightKg: product.weightKg ?? null,
+      weightKg: product.weightKg ?? product.grossWeightKg ?? null,
       packagingWeightKg: product.packagingWeightKg ?? null,
       volumeM3: product.volumeM3 ?? null,
       dimensions: product.lengthCm && product.widthCm && product.heightCm
@@ -46,6 +69,12 @@ export const formatProductDetail = (product: any) => {
             heightCm: product.heightCm
           }
         : null
+    },
+    // Poids détaillés
+    weights: {
+      netWeightKg: product.netWeightKg ?? null,
+      grossWeightKg: product.grossWeightKg ?? product.weightKg ?? null,
+      packagingWeightKg: product.packagingWeightKg ?? null
     },
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé

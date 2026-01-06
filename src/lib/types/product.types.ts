@@ -98,6 +98,43 @@ export interface ShippingOverride {
 }
 
 // ============================================================================
+// VARIANTES DE PRODUIT (Style 1688)
+// ============================================================================
+
+export interface ProductVariant {
+  id: string // Identifiant unique de la variante
+  name: string // Nom de la variante (ex: "Blanc US Standard", "Norme européenne blanche")
+  sku?: string // SKU optionnel
+  image?: string // Image spécifique à la variante
+  price1688?: number // Prix en Yuan pour cette variante
+  priceFCFA?: number // Prix en FCFA calculé
+  stock: number // Stock disponible pour cette variante
+  isDefault?: boolean // Si c'est la variante par défaut
+}
+
+export interface ProductVariantGroup {
+  name: string // Nom du groupe (ex: "Couleur", "Taille", "Norme")
+  variants: ProductVariant[]
+}
+
+// ============================================================================
+// POIDS ET DIMENSIONS
+// ============================================================================
+
+export interface ProductWeight {
+  netWeightKg: number | null // Poids net du produit
+  grossWeightKg: number | null // Poids brut avec emballage
+  packagingWeightKg: number | null // Poids de l'emballage seul
+}
+
+export interface ProductVolume {
+  volumeM3: number | null // Volume calculé ou saisi
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
+}
+
+// ============================================================================
 // AVAILABILITY
 // ============================================================================
 
@@ -147,15 +184,20 @@ export interface ProductResponse {
   features: string[]
   colorOptions: string[]
   variantOptions: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: ProductVariantGroup[]
   requiresQuote: boolean
   pricing: ProductPricing
   pricing1688: Pricing1688Data | null
   availability: ProductAvailability
   logistics: ProductLogistics
+  // Poids détaillés
+  weights?: ProductWeight
   sourcing: ProductSourcing | null
   createdAt: string | null
   updatedAt: string | null
   isFeatured: boolean
+  isImported?: boolean
   rating?: number
 }
 
@@ -201,14 +243,21 @@ export interface ProductCreateInput {
   stockStatus?: StockStatus
   stockQuantity?: number
   leadTimeDays?: number
-  weightKg?: number
+  // Poids
+  netWeightKg?: number // Poids net du produit
+  weightKg?: number // Poids brut (legacy)
+  grossWeightKg?: number // Poids brut avec emballage
+  packagingWeightKg?: number // Poids de l'emballage
+  // Dimensions
   lengthCm?: number
   widthCm?: number
   heightCm?: number
   volumeM3?: number
-  packagingWeightKg?: number
+  // Options (legacy)
   colorOptions?: string[]
   variantOptions?: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: ProductVariantGroup[]
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
