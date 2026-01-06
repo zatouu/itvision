@@ -102,6 +102,57 @@ const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => 
   return overrides.filter(o => o && typeof o.methodId === 'string')
 }
 
+// Clé pour le localStorage des brouillons
+const DRAFT_STORAGE_KEY = 'admin_product_draft'
+
+// Sauvegarde le brouillon dans le localStorage
+const saveDraft = (product: Product) => {
+  try {
+    if (typeof window !== 'undefined') {
+      const draft = {
+        data: product,
+        timestamp: Date.now(),
+        version: 1
+      }
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+    }
+  } catch (e) {
+    console.warn('Impossible de sauvegarder le brouillon:', e)
+  }
+}
+
+// Charge le brouillon depuis le localStorage
+const loadDraft = (): Product | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY)
+      if (saved) {
+        const draft = JSON.parse(saved)
+        // Vérifier que le brouillon n'est pas trop vieux (24h max)
+        if (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
+          return draft.data
+        } else {
+          localStorage.removeItem(DRAFT_STORAGE_KEY)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Impossible de charger le brouillon:', e)
+  }
+  return null
+}
+
+// Supprime le brouillon
+const clearDraft = () => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DRAFT_STORAGE_KEY)
+    }
+  } catch (e) {
+    // Ignore
+  }
+}
+
 // Composant de simulation de pricing source (import)
 function PricingSimulator({ product }: { product: Product }) {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethodId>('air_express')
@@ -109,42 +160,61 @@ function PricingSimulator({ product }: { product: Product }) {
   const [monthlyVolume, setMonthlyVolume] = useState(0)
   const [simulation, setSimulation] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const runSimulation = async () => {
+    // Validation des données requises
     if (!product.price1688 && !product.baseCost) {
-      alert('Veuillez renseigner le prix source ou le coût de base')
+      setError('Veuillez renseigner le prix source ou le coût de base')
+      return
+    }
+
+    // Validation du poids pour le calcul transport
+    const weight = product.grossWeightKg || product.weightKg
+    if (!weight && !product.volumeM3) {
+      setError('Veuillez renseigner le poids brut ou le volume pour calculer le transport')
       return
     }
 
     setLoading(true)
+    setError(null)
+    
     try {
+      const payload = {
+        productId: product._id || undefined,
+        price1688: product.price1688 || undefined,
+        baseCost: product.baseCost || undefined,
+        exchangeRate: product.exchangeRate || 100,
+        shippingMethod,
+        weightKg: weight || undefined,
+        volumeM3: product.volumeM3 || undefined,
+        serviceFeeRate: product.serviceFeeRate || 10,
+        insuranceRate: typeof product.insuranceRate === 'number' ? product.insuranceRate : 2.5,
+        orderQuantity: orderQuantity || 1,
+        monthlyVolume: monthlyVolume || undefined
+      }
+
       const response = await fetch('/api/pricing/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product._id,
-          price1688: product.price1688,
-          baseCost: product.baseCost,
-          exchangeRate: product.exchangeRate || 100,
-          shippingMethod,
-          weightKg: product.weightKg,
-          volumeM3: product.volumeM3,
-          serviceFeeRate: product.serviceFeeRate || 10,
-          insuranceRate: product.insuranceRate || 0,
-          orderQuantity,
-          monthlyVolume: monthlyVolume || undefined
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Erreur lors de la simulation')
+        const errorData = await response.json().catch(() => ({ error: 'Erreur serveur' }))
+        throw new Error(errorData.error || 'Erreur lors de la simulation')
       }
 
       const data = await response.json()
-      setSimulation(data.simulation)
-    } catch (error: any) {
-      alert(error.message || 'Erreur lors de la simulation')
+      if (data.success && data.simulation) {
+        setSimulation(data.simulation)
+      } else {
+        throw new Error('Réponse invalide du serveur')
+      }
+    } catch (err: any) {
+      console.error('Erreur simulation:', err)
+      setError(err.message || 'Erreur lors de la simulation')
+      setSimulation(null)
     } finally {
       setLoading(false)
     }
@@ -179,6 +249,13 @@ function PricingSimulator({ product }: { product: Product }) {
           )}
         </button>
       </div>
+
+      {/* Message d'erreur */}
+      {error && (
+        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <strong>Erreur :</strong> {error}
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-3">
         <label className="space-y-1">
@@ -222,23 +299,23 @@ function PricingSimulator({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500">Coût produit:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.productCostFCFA)}</div>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.productCostFCFA)}</div>
               </div>
               <div>
                 <span className="text-gray-500">Transport réel:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.shippingCostReal)}</div>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.shippingCostReal)}</div>
               </div>
               <div>
-                <span className="text-gray-500">Frais service:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.serviceFee)}</div>
+                <span className="text-gray-500">Frais service ({product.serviceFeeRate || 10}%):</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.serviceFee)}</div>
               </div>
               <div>
-                <span className="text-gray-500">Frais assurance:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.insuranceFee)}</div>
+                <span className="text-gray-500">Assurance ({product.insuranceRate || 2.5}%):</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.insuranceFee)}</div>
               </div>
               <div className="col-span-2 border-t border-gray-200 pt-2">
                 <span className="text-gray-500">Coût total réel:</span>
-                <div className="text-lg font-bold text-red-600">{formatCurrency(simulation.breakdown.totalRealCost)}</div>
+                <div className="text-lg font-bold text-red-600">{formatCurrency(simulation.totalRealCost)}</div>
               </div>
             </div>
           </div>
@@ -248,15 +325,15 @@ function PricingSimulator({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500">Transport déclaré:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.shippingCostClient)}</div>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.shippingCostClient)}</div>
               </div>
               <div>
                 <span className="text-gray-500">Marge transport:</span>
-                <div className="font-semibold text-green-600">+{formatCurrency(simulation.breakdown.shippingMargin)}</div>
+                <div className="font-semibold text-green-600">+{formatCurrency(simulation.shippingMargin)}</div>
               </div>
               <div className="col-span-2 border-t border-gray-200 pt-2">
                 <span className="text-gray-500">Prix total facturé:</span>
-                <div className="text-lg font-bold text-blue-600">{formatCurrency(simulation.breakdown.totalClientPrice)}</div>
+                <div className="text-lg font-bold text-blue-600">{formatCurrency(simulation.totalClientPrice)}</div>
               </div>
             </div>
           </div>
@@ -269,26 +346,26 @@ function PricingSimulator({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500">Marge nette:</span>
-                <div className={`text-lg font-bold ${simulation.breakdown.netMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(simulation.breakdown.netMargin)}
+                <div className={`text-lg font-bold ${(simulation.netMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(simulation.netMargin)}
                 </div>
               </div>
               <div>
                 <span className="text-gray-500">% de marge:</span>
-                <div className={`text-lg font-bold ${simulation.breakdown.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {simulation.breakdown.marginPercentage.toFixed(2)}%
+                <div className={`text-lg font-bold ${(simulation.marginPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(simulation.marginPercentage || 0).toFixed(2)}%
                 </div>
               </div>
-              {simulation.breakdown.cumulativeMargin !== undefined && (
+              {simulation.cumulativeMargin !== undefined && (
                 <div>
                   <span className="text-gray-500">Marge cumulée ({orderQuantity} unités):</span>
-                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.breakdown.cumulativeMargin)}</div>
+                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.cumulativeMargin)}</div>
                 </div>
               )}
-              {simulation.breakdown.estimatedMonthlyProfit !== undefined && (
+              {simulation.estimatedMonthlyProfit !== undefined && (
                 <div>
                   <span className="text-gray-500">Bénéfice mensuel estimé:</span>
-                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.breakdown.estimatedMonthlyProfit)}</div>
+                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.estimatedMonthlyProfit)}</div>
                 </div>
               )}
             </div>
@@ -342,7 +419,7 @@ export default function AdminProductManager() {
     price1688Currency: 'CNY',
     exchangeRate: 100, // 1 ¥ = 100 FCFA
     serviceFeeRate: 10,
-    insuranceRate: 0
+    insuranceRate: 2.5 // Assurance obligatoire par défaut
   }
 
   const [items, setItems] = useState<Product[]>([])
@@ -383,6 +460,57 @@ export default function AdminProductManager() {
   }
 
   useEffect(() => { refresh() }, [])
+
+  // État pour le brouillon
+  const [hasDraft, setHasDraft] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [draftRestored, setDraftRestored] = useState(false)
+
+  // Vérifier s'il y a un brouillon au chargement
+  useEffect(() => {
+    const draft = loadDraft()
+    if (draft && !draftRestored) {
+      setHasDraft(true)
+    }
+  }, [draftRestored])
+
+  // Sauvegarde automatique du brouillon (toutes les 5 secondes si modifications)
+  useEffect(() => {
+    if (!editing || editing._id) return // Ne sauvegarder que les nouveaux produits
+
+    const timeoutId = setTimeout(() => {
+      saveDraft(editing)
+      setLastSaved(new Date())
+    }, 5000)
+
+    return () => clearTimeout(timeoutId)
+  }, [editing])
+
+  // Sauvegarde immédiate lors de changements importants
+  const saveImmediateDraft = () => {
+    if (editing && !editing._id) {
+      saveDraft(editing)
+      setLastSaved(new Date())
+    }
+  }
+
+  // Restaurer le brouillon
+  const restoreDraft = () => {
+    const draft = loadDraft()
+    if (draft) {
+      setEditing(draft)
+      setHasDraft(false)
+      setDraftRestored(true)
+      setActiveTab('info')
+    }
+  }
+
+  // Ignorer le brouillon
+  const dismissDraft = () => {
+    clearDraft()
+    setHasDraft(false)
+    setDraftRestored(true)
+  }
 
   useEffect(() => {
     if (!editing) {
@@ -450,10 +578,18 @@ export default function AdminProductManager() {
         return
       }
       
+      // Sauvegarde réussie - supprimer le brouillon
+      clearDraft()
       setEditing(null)
       setAutoPrice(false)
+      setLastSaved(null)
       await refresh()
     } catch (error: any) {
+      // Sauvegarder en brouillon en cas d'erreur
+      if (editing && !editing._id) {
+        saveDraft(editing)
+        setLastSaved(new Date())
+      }
       setSaveError(error?.message || 'Erreur réseau lors de la sauvegarde')
     } finally {
       setSaving(false)
@@ -1219,15 +1355,69 @@ export default function AdminProductManager() {
                 type="number"
                 step="0.1"
                 min="0"
-                value={editing.insuranceRate ?? 0}
-                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 0 })}
+                value={editing.insuranceRate ?? 2.5}
+                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 2.5 })}
               />
-              <p className="text-xs text-gray-500">Pourcentage sur coût total</p>
+              <p className="text-xs text-gray-500">Par défaut: 2.5% (obligatoire)</p>
             </label>
           </div>
-          {editing.price1688 && editing.exchangeRate && (
-            <div className="mt-4 rounded-lg bg-white p-3 text-xs text-gray-600">
-              <strong>Coût produit calculé:</strong> {formatCurrency((editing.price1688 || 0) * (editing.exchangeRate || 100), 'FCFA')}
+          {/* Récapitulatif prix automatique */}
+          {(editing.price1688 || editing.baseCost) && (
+            <div className="mt-4 rounded-lg bg-white border border-blue-100 p-4">
+              <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-blue-600" />
+                Récapitulatif prix automatique
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-gray-500 block">Coût produit</span>
+                  <span className="font-bold text-gray-800">
+                    {formatCurrency(
+                      editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100)),
+                      'FCFA'
+                    )}
+                  </span>
+                  {editing.price1688 && (
+                    <span className="text-gray-400 block text-[10px]">
+                      ({editing.price1688} ¥ × {editing.exchangeRate || 100})
+                    </span>
+                  )}
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-gray-500 block">Frais service ({editing.serviceFeeRate || 10}%)</span>
+                  <span className="font-bold text-orange-600">
+                    +{formatCurrency(
+                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.serviceFeeRate || 10) / 100)),
+                      'FCFA'
+                    )}
+                  </span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-gray-500 block">Assurance ({editing.insuranceRate || 2.5}%)</span>
+                  <span className="font-bold text-purple-600">
+                    +{formatCurrency(
+                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.insuranceRate || 2.5) / 100)),
+                      'FCFA'
+                    )}
+                  </span>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
+                  <span className="text-emerald-600 block font-medium">Sous-total client</span>
+                  <span className="font-bold text-emerald-700 text-sm">
+                    {formatCurrency(
+                      Math.round(
+                        (editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * 
+                        (1 + ((editing.serviceFeeRate || 10) / 100) + ((editing.insuranceRate || 2.5) / 100))
+                      ),
+                      'FCFA'
+                    )}
+                  </span>
+                  <span className="text-emerald-500 block text-[10px]">+ transport selon mode choisi</span>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-gray-500 italic">
+                * Le prix final client inclut ce sous-total + les frais de transport selon le mode de livraison choisi.
+              </p>
             </div>
           )}
         </div>
@@ -1652,6 +1842,35 @@ export default function AdminProductManager() {
         </button>
       </div>
 
+      {/* Alerte brouillon disponible */}
+      {hasDraft && !editing && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+              <Package className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-amber-800">Brouillon disponible</h3>
+              <p className="text-sm text-amber-600">Un produit non sauvegardé a été récupéré. Souhaitez-vous le restaurer ?</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={dismissDraft}
+              className="px-4 py-2 text-sm text-amber-700 hover:bg-amber-100 rounded-lg"
+            >
+              Ignorer
+            </button>
+            <button
+              onClick={restoreDraft}
+              className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+            >
+              Restaurer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Statistiques rapides */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4">
@@ -1812,7 +2031,18 @@ export default function AdminProductManager() {
                     </span>
                   )}
                 </h3>
-                <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                  {/* Indicateur de sauvegarde automatique */}
+                  {!editing._id && lastSaved && (
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Brouillon sauvegardé ({lastSaved.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
