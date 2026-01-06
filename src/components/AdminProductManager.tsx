@@ -473,14 +473,20 @@ export default function AdminProductManager() {
   const uploadMediaFile = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('type', 'products') // Type spécifique pour les produits
+    
     const res = await fetch('/api/upload', {
       method: 'POST',
-      body: formData
+      body: formData,
+      credentials: 'include' // Important pour l'authentification
     })
+    
     if (!res.ok) {
-      const message = await res.text().catch(() => '')
-      throw new Error(message || 'Téléversement impossible')
+      const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
+      console.error('Erreur upload:', res.status, errorData)
+      throw new Error(errorData.error || `Erreur ${res.status}`)
     }
+    
     const data = await res.json()
     const url = data?.url
     if (typeof url !== 'string') {

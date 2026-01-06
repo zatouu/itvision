@@ -178,8 +178,8 @@ export function simulatePricing1688(input: PricingSimulationInput): PricingSimul
   // 5. Coût total réel
   const totalRealCost = productCostFCFA + shippingCostReal + serviceFee + insuranceFee
 
-  // 6. Prix total facturé client
-  const totalClientPrice = productCostFCFA + shippingCostClient
+  // 6. Prix total facturé client (inclut frais de service et assurance)
+  const totalClientPrice = productCostFCFA + shippingCostClient + serviceFee + insuranceFee
 
   // 7. Marges
   const shippingMargin = shippingCostClient - shippingCostReal

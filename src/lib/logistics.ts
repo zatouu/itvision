@@ -22,6 +22,17 @@ export interface ShippingOptionPricing {
   currency: string
 }
 
+// Taux par défaut pour les frais additionnels
+export const DEFAULT_SERVICE_FEE_RATE = 10 // 10% de frais de service
+export const DEFAULT_INSURANCE_RATE = 2.5 // 2.5% d'assurance
+
+export interface PricingFees {
+  serviceFeeRate: number // Pourcentage
+  serviceFeeAmount: number // Montant en FCFA
+  insuranceRate: number // Pourcentage
+  insuranceAmount: number // Montant en FCFA
+}
+
 export interface ProductPricingSummary {
   baseCost: number | null
   marginRate: number
@@ -30,6 +41,9 @@ export interface ProductPricingSummary {
   shippingOptions: ShippingOptionPricing[]
   availabilityLabel: string
   availabilitySubLabel?: string
+  // Frais additionnels (pour import)
+  fees?: PricingFees
+  totalWithFees?: number | null // Prix total incluant frais de service et assurance
 }
 
 // Taux de transport réels (coûts internes)
@@ -119,6 +133,30 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
   const volumeM3 = computeVolume(product)
   const overrides = product.shippingOverrides
   const isInStock = product.stockStatus === 'in_stock'
+  
+  // Déterminer si le produit est importé
+  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform)))
+
+  // Calcul des frais additionnels (uniquement pour les produits importés avec un prix)
+  let fees: PricingFees | undefined
+  let totalWithFees: number | null = null
+  
+  if (isImported && salePrice !== null && salePrice > 0) {
+    const serviceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : DEFAULT_SERVICE_FEE_RATE
+    const insuranceRate = typeof product.insuranceRate === 'number' ? product.insuranceRate : DEFAULT_INSURANCE_RATE
+    
+    const serviceFeeAmount = roundCurrency(salePrice * (serviceFeeRate / 100)) ?? 0
+    const insuranceAmount = roundCurrency(salePrice * (insuranceRate / 100)) ?? 0
+    
+    fees = {
+      serviceFeeRate,
+      serviceFeeAmount,
+      insuranceRate,
+      insuranceAmount
+    }
+    
+    totalWithFees = roundCurrency(salePrice + serviceFeeAmount + insuranceAmount)
+  }
 
   const shippingOptions: ShippingOptionPricing[] = isInStock
     ? []
@@ -147,7 +185,9 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
       const cost = roundCurrency(Math.max(billedAmount, minCharge) + flatFee)
       if (cost === null) return null
 
-      const total = salePrice !== null ? roundCurrency(salePrice + cost) : null
+      // Total = prix produit + frais + transport
+      const basePrice = totalWithFees ?? salePrice
+      const total = basePrice !== null ? roundCurrency(basePrice + cost) : null
 
       return {
         id: method.id,
@@ -172,7 +212,9 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
     currency,
     shippingOptions,
     availabilityLabel,
-    availabilitySubLabel: product.availabilityNote || undefined
+    availabilitySubLabel: product.availabilityNote || undefined,
+    fees,
+    totalWithFees
   }
 }
 

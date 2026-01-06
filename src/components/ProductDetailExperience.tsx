@@ -66,6 +66,13 @@ export interface ProductDetailData {
     shippingOptions: ShippingOptionPricing[]
     availabilityLabel: string
     availabilitySubLabel?: string
+    fees?: {
+      serviceFeeRate: number
+      serviceFeeAmount: number
+      insuranceRate: number
+      insuranceAmount: number
+    }
+    totalWithFees?: number | null
   }
   availability: {
     status: 'in_stock' | 'preorder' | string
@@ -659,6 +666,36 @@ Merci de me recontacter.`
               {!showQuote && quantity > 1 && (
                 <div className="text-sm text-gray-600">{quantity} unité(s) × {unitPriceLabel}</div>
               )}
+              
+              {/* Détail des frais pour produits importés */}
+              {product.pricing.fees && product.pricing.salePrice && !showQuote && (
+                <div className="mt-4 pt-4 border-t border-emerald-200/50 space-y-2">
+                  <div className="text-xs font-semibold text-emerald-700 mb-2">Détail du prix :</div>
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Prix produit</span>
+                    <span>{formatCurrency(product.pricing.salePrice, product.pricing.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
+                    <span>{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
+                    <span>{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}</span>
+                  </div>
+                  {activeShipping && (
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Transport ({activeShipping.label})</span>
+                      <span>{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold text-emerald-700 pt-2 border-t border-emerald-200/50">
+                    <span>Total TTC</span>
+                    <span>{unitPriceLabel}</span>
+                  </div>
+                </div>
+              )}
+              
               {deliveryDays && (
                 <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
                   <Clock className="h-4 w-4" />

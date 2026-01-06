@@ -48,23 +48,21 @@ export function csrfMiddleware(request: NextRequest): Response | null {
     '/api/login/',
     '/api/analytics/track',
     '/api/webhook',
-    '/api/csrf'
+    '/api/csrf',
+    '/api/upload' // Upload de fichiers (FormData, pas JSON)
   ]
 
   if (excludedPaths.some(path => pathname.includes(path) || pathname.startsWith(path))) {
     return null
   }
 
-  // Pour les routes admin protégées par JWT, on fait confiance à l'authentification
+  // Pour toutes les routes API protégées par JWT, on fait confiance à l'authentification
   // Le JWT est déjà une protection contre CSRF car il est envoyé via cookie httpOnly
   // et ne peut pas être lu par un site malveillant
-  if (pathname.startsWith('/api/admin/')) {
-    // Vérifier qu'il y a un token d'auth valide
-    const authToken = request.cookies.get('auth-token')?.value
-    if (authToken) {
-      // L'utilisateur est authentifié, le JWT protège déjà contre CSRF
-      return null
-    }
+  const authToken = request.cookies.get('auth-token')?.value
+  if (authToken) {
+    // L'utilisateur est authentifié, le JWT protège déjà contre CSRF
+    return null
   }
 
   // Pour les autres routes, vérifier le token CSRF
