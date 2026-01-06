@@ -130,20 +130,26 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     normalized.sourcing = normalizedSourcing
   }
 
+  // Toujours traiter les shippingOverrides (même tableau vide pour réinitialiser)
   if (Array.isArray(shippingOverrides)) {
     const overrides: NonNullable<IProduct['shippingOverrides']> = []
     for (const raw of shippingOverrides) {
       if (!raw || typeof raw !== 'object' || typeof raw.methodId !== 'string') continue
-      overrides.push({
-        methodId: raw.methodId,
-        ratePerKg: parseNumber(raw.ratePerKg),
-        ratePerM3: parseNumber(raw.ratePerM3),
-        flatFee: parseNumber(raw.flatFee)
-      })
+      // Ne conserver que les overrides avec au moins une valeur définie
+      const hasValue = parseNumber(raw.ratePerKg) !== undefined || 
+                       parseNumber(raw.ratePerM3) !== undefined || 
+                       parseNumber(raw.flatFee) !== undefined
+      if (hasValue) {
+        overrides.push({
+          methodId: raw.methodId,
+          ratePerKg: parseNumber(raw.ratePerKg),
+          ratePerM3: parseNumber(raw.ratePerM3),
+          flatFee: parseNumber(raw.flatFee)
+        })
+      }
     }
-    if (overrides.length > 0) {
-      normalized.shippingOverrides = overrides
-    }
+    // Toujours définir les overrides (tableau vide = réinitialisation aux valeurs par défaut)
+    normalized.shippingOverrides = overrides
   }
 
   // Champs 1688

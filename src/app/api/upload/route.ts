@@ -53,11 +53,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Vérifier le type de fichier
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
+    // Vérifier le type de fichier (image/jpeg couvre .jpg et .jpeg)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    // Certains navigateurs/systèmes peuvent envoyer un type incorrect pour les JPG
+    const isJpeg = file.type === 'image/jpeg' || 
+                   file.type === 'image/jpg' || 
+                   file.name.toLowerCase().endsWith('.jpg') || 
+                   file.name.toLowerCase().endsWith('.jpeg')
+    const isAllowed = allowedTypes.includes(file.type) || isJpeg
+    
+    if (!isAllowed) {
       return NextResponse.json(
-        { error: 'Type de fichier non autorisé' },
+        { error: `Type de fichier non autorisé: ${file.type}` },
         { status: 400 }
       )
     }
@@ -88,13 +95,19 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     await writeFile(filepath, new Uint8Array(bytes))
 
-    // URL publique
-    const publicUrl = `/uploads/${safeType}/${filename}`
+    // URL publique - utiliser l'API pour servir les fichiers en mode standalone
+    // En développement, les fichiers statiques fonctionnent directement
+    // En production standalone, on utilise l'API pour servir les fichiers
+    const publicUrl = `/api/uploads/${safeType}/${filename}`
+    
+    // URL alternative directe (fonctionne si nginx est configuré pour servir /uploads)
+    const staticUrl = `/uploads/${safeType}/${filename}`
 
     return NextResponse.json({
       success: true,
       filename,
-      url: publicUrl,
+      url: publicUrl, // URL via API (toujours fonctionnelle)
+      staticUrl, // URL directe (si serveur configuré)
       size: file.size,
       type: file.type
     })

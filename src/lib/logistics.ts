@@ -46,23 +46,23 @@ export interface ProductPricingSummary {
   totalWithFees?: number | null // Prix total incluant frais de service et assurance
 }
 
-// Taux de transport réels (coûts internes)
+// Taux de transport réels (coûts internes - pour calcul marge)
 export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minimumCharge?: number }> = {
   air_express: {
-    rate: 11000, // 11 000 CFA/kg (coût réel)
-    minimumCharge: 25000
+    rate: 11000, // 11 000 CFA/kg (coût réel interne)
+    minimumCharge: 20000
   },
   air_15: {
-    rate: 7500, // 7 500 CFA/kg (coût réel)
-    minimumCharge: 18000
+    rate: 7000, // 7 000 CFA/kg (coût réel interne)
+    minimumCharge: 15000
   },
   sea_freight: {
-    rate: 135000, // 135 000 CFA/m³ (coût réel)
-    minimumCharge: 135000
+    rate: 130000, // 130 000 CFA/m³ (coût réel interne)
+    minimumCharge: 130000
   }
 }
 
-// Taux de transport déclarés aux clients (prix facturé)
+// Taux de transport déclarés aux clients (prix facturé par défaut)
 export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
   air_express: {
     id: 'air_express',
@@ -70,8 +70,8 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Livraison express porte-à-porte en 72h en moyenne',
     durationDays: 3,
     billing: 'per_kg',
-    rate: 12000, // 12 000 CFA/kg (prix déclaré client)
-    minimumCharge: 25000
+    rate: 12000, // 12 000 CFA/kg (prix client par défaut)
+    minimumCharge: 20000
   },
   air_15: {
     id: 'air_15',
@@ -79,8 +79,8 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Acheminement économique depuis la Chine sous 6-10 jours ouvrés',
     durationDays: 8,
     billing: 'per_kg',
-    rate: 8000, // 8 000 CFA/kg (prix déclaré client)
-    minimumCharge: 18000
+    rate: 8000, // 8 000 CFA/kg (prix client par défaut)
+    minimumCharge: 15000
   },
   sea_freight: {
     id: 'sea_freight',
@@ -88,8 +88,8 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Groupage maritime économique via container consolidé',
     durationDays: 55,
     billing: 'per_cubic_meter',
-    rate: 145000, // 145 000 CFA/m³ (prix déclaré client)
-    minimumCharge: 145000
+    rate: 140000, // 140 000 CFA/m³ (prix client par défaut)
+    minimumCharge: 140000
   }
 }
 
