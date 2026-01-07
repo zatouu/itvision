@@ -1,11 +1,13 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
 export default function PanierPage() {
+  const router = useRouter()
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
   const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
@@ -124,16 +126,30 @@ export default function PanierPage() {
     }
     setSending(true)
     try {
+      // Mapper les valeurs du panier vers le format API
+      const shippingMap: Record<string, string> = {
+        express: 'express_3j',
+        air: 'air_15j',
+        sea: 'maritime_60j'
+      }
+      
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart: items, name, phone, address })
+        body: JSON.stringify({ 
+          cart: items, 
+          name, 
+          phone, 
+          address, 
+          shippingMethod: shippingMap[shippingMethod] 
+        })
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        alert(`Commande enregistrée (${data.orderId})`)
         localStorage.removeItem('cart:items')
         setItems([])
+        // Rediriger vers la page de confirmation
+        router.push(`/commandes/${data.orderId}`)
       } else {
         alert('Erreur: ' + (data.error || 'erreur inconnue'))
       }
