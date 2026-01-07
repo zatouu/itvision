@@ -231,8 +231,10 @@ export default function ProduitsPage() {
                 : null
 
               const salePrice = typeof item.pricing?.salePrice === 'number' ? item.pricing.salePrice : undefined
+              const baseCost = typeof item.pricing?.baseCost === 'number' ? item.pricing.baseCost : undefined
+              // Listing must show only the source price (baseCost). If not available, fall back to salePrice.
               const priceAmount = !item.requiresQuote
-                ? (bestShipping ? bestShipping.total : salePrice)
+                ? (baseCost ?? salePrice)
                 : undefined
 
               const featuresFromApi = Array.isArray(item.features) ? item.features.filter(Boolean) : []

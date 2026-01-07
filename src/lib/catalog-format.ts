@@ -98,7 +98,8 @@ export const formatSimilarProducts = (products: any[]) => {
       category: item.category ?? 'Catalogue import Chine',
       image: normalizeGallery(item)[0] ?? '/file.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
-      priceAmount: !item.requiresQuote ? (bestShipping?.total ?? pricing.salePrice) : null,
+      // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice
+      priceAmount: !item.requiresQuote ? (pricing.baseCost ?? pricing.salePrice) : null,
       currency: pricing.currency,
       requiresQuote: item.requiresQuote ?? false,
       availabilityStatus: item.stockStatus ?? 'preorder',
