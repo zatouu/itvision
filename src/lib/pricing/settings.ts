@@ -1,6 +1,7 @@
-// serveur uniquement : utiliser require pour éviter les erreurs de types côté client
-const fs: any = require('fs')
-const path: any = require('path')
+// Serveur uniquement : cacher le require à webpack/next pour éviter le bundling côté client
+const _req: any = eval('require')
+const fs: any = _req('fs')
+const path: any = _req('path')
 
 const FILE_PATH = path.resolve(process.cwd(), 'data', 'pricing-settings.json')
 
