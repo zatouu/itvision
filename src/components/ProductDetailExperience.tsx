@@ -347,18 +347,25 @@ Merci de me recontacter.`
           const exists = items.find((it: any) => it.id === vId)
           const priceForVariant = (typeof variant.priceFCFA === 'number' && variant.priceFCFA > 0)
             ? variant.priceFCFA
-            : basePrice
+            : basePrice ?? 0
+          // Calculer le prix avec frais inclus (ce qui s'affiche au panier)
+          const priceWithFeesVariant = product.pricing.fees
+            ? priceForVariant + (product.pricing.fees.serviceFeeAmount || 0) + (product.pricing.fees.insuranceAmount || 0)
+            : priceForVariant
 
           if (exists) {
             exists.qty += qty
-            exists.price = priceForVariant
+            exists.price = priceWithFeesVariant
             exists.currency = currency
+            // ajouter poids/volume si disponible (product level, pas variant level)
+            exists.unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
+            exists.unitVolumeM3 = product.logistics.volumeM3 ?? undefined
           } else {
             const newItem: any = {
               id: vId,
               name: `${product.name} — ${variant.name}`,
               qty,
-              price: priceForVariant,
+              price: priceWithFeesVariant,
               currency,
               requiresQuote: !!product.requiresQuote,
               variantId
@@ -376,16 +383,23 @@ Merci de me recontacter.`
               newItem.insuranceRate = product.pricing.fees.insuranceRate
               newItem.insuranceAmount = product.pricing.fees.insuranceAmount
             }
+            // ajouter poids/volume unitaire (product level, pas variant level)
+            newItem.unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
+            newItem.unitVolumeM3 = product.logistics.volumeM3 ?? undefined
             items.push(newItem)
           }
         }
       } else {
         const existsIndex = items.findIndex((item: any) => item.id === id)
+        // Calculer le prix avec frais inclus (ce qui s'affiche au panier)
+        const priceWithFees = product.pricing.fees
+          ? (basePrice ?? 0) + (product.pricing.fees.serviceFeeAmount || 0) + (product.pricing.fees.insuranceAmount || 0)
+          : (basePrice ?? 0)
 
         if (existsIndex >= 0) {
           items[existsIndex].qty += Math.max(1, quantity)
-          // Stocker le prix produit (hors transport). Le transport et les frais sont attachés en méta.
-          items[existsIndex].price = basePrice
+          // Stocker le prix avec frais déjà inclus (sourcing + service + assurance, hors transport)
+          items[existsIndex].price = priceWithFees
           items[existsIndex].currency = currency
           if (activeShipping) {
             items[existsIndex].shipping = {
@@ -401,8 +415,8 @@ Merci de me recontacter.`
             id,
             name: product.name,
             qty: Math.max(1, quantity),
-            // Prix principal = prix produit (sourcing + marge) — transport non inclus
-            price: basePrice,
+            // Prix avec frais déjà inclus (sourcing + service + assurance, hors transport)
+            price: priceWithFees,
             currency,
             requiresQuote: !!product.requiresQuote,
             shipping: activeShipping ? {
@@ -421,6 +435,9 @@ Merci de me recontacter.`
             items[lastIndex].insuranceRate = product.pricing.fees.insuranceRate
             items[lastIndex].insuranceAmount = product.pricing.fees.insuranceAmount
           }
+          // ajouter poids/volume unitaire
+          items[lastIndex].unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
+          items[lastIndex].unitVolumeM3 = product.logistics.volumeM3 ?? undefined
         }
       }
 

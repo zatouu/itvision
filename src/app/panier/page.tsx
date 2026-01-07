@@ -8,6 +8,7 @@ const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleStr
 export default function PanierPage() {
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
+  const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
@@ -22,6 +23,46 @@ export default function PanierPage() {
       console.error(e)
     }
   }, [])
+
+  const SHIPPING_RATES = {
+    express: { label: 'Express 3j', ratePerKg: 12000, billing: 'per_kg' },
+    air: { label: 'Fret aérien 10–15j', ratePerKg: 8000, billing: 'per_kg' },
+    sea: { label: 'Maritime 60j', ratePerM3: 140000, billing: 'per_m3' }
+  }
+
+  const transportGlobal = useMemo(() => {
+    // total weight and volume
+    let totalWeight = 0
+    let totalVolume = 0
+    for (const it of items) {
+      const qty = it.qty || 1
+      const w = typeof it.unitWeightKg === 'number' ? it.unitWeightKg : (typeof it.weightKg === 'number' ? it.weightKg : 0)
+      const v = typeof it.unitVolumeM3 === 'number' ? it.unitVolumeM3 : (typeof it.volumeM3 === 'number' ? it.volumeM3 : 0)
+      totalWeight += w * qty
+      totalVolume += v * qty
+    }
+
+    if (shippingMethod === 'sea') {
+      const rate = SHIPPING_RATES.sea.ratePerM3
+      return Math.round((totalVolume || 0) * rate)
+    }
+
+    const ratePerKg = shippingMethod === 'express' ? SHIPPING_RATES.express.ratePerKg : SHIPPING_RATES.air.ratePerKg
+    return Math.round((totalWeight || 0) * ratePerKg)
+  }, [items, shippingMethod])
+
+  const weightSummary = useMemo(() => {
+    let totalWeight = 0
+    let totalVolume = 0
+    for (const it of items) {
+      const qty = it.qty || 1
+      const w = typeof it.unitWeightKg === 'number' ? it.unitWeightKg : (typeof it.weightKg === 'number' ? it.weightKg : 0)
+      const v = typeof it.unitVolumeM3 === 'number' ? it.unitVolumeM3 : (typeof it.volumeM3 === 'number' ? it.volumeM3 : 0)
+      totalWeight += w * qty
+      totalVolume += v * qty
+    }
+    return { totalWeight, totalVolume }
+  }, [items])
 
   // Charger la liste des produits récemment consultés et écouter les updates
   useEffect(() => {
@@ -47,37 +88,22 @@ export default function PanierPage() {
 
   const breakdown = useMemo(() => {
     let products = 0
-    let service = 0
-    let insurance = 0
     let transport = 0
 
     for (const it of items) {
       const qty = it.qty || 1
       const price = typeof it.price === 'number' ? it.price : 0
+      // NB: price inclut déjà frais de service + assurance (pré-calculé au panier produit)
       products += price * qty
 
-      // service fee: prefer explicit amount, else rate, else range.min if present
-      let svc = 0
-      if (typeof it.serviceFeeAmount === 'number') svc = it.serviceFeeAmount * qty
-      else if (typeof it.serviceFeeRate === 'number') svc = Math.round(price * (it.serviceFeeRate / 100)) * qty
-      else if (it.serviceFeeRange && typeof it.serviceFeeRange.min === 'number') svc = Math.round(price * (it.serviceFeeRange.min / 100)) * qty
-      service += svc
-
-      // insurance
-      let ins = 0
-      if (typeof it.insuranceAmount === 'number') ins = it.insuranceAmount * qty
-      else if (typeof it.insurancePercent === 'number') ins = Math.round(price * (it.insurancePercent / 100)) * qty
-      insurance += ins
-
-      // transport
+      // transport (par item shipping)
       if (it.shipping && typeof it.shipping.cost === 'number') transport += it.shipping.cost * qty
     }
 
-    const subtotal = products
-    // Transport ne fait PAS partie du total ici — il est calculé globalement au checkout
-    const total = subtotal + service + insurance
-    return { products, service, insurance, transport, subtotal, total }
-  }, [items])
+    // Total = produits (avec frais) + transport global
+    const total = products + transportGlobal
+    return { products, transport, total }
+  }, [items, transportGlobal])
 
   const removeItem = (id: string) => {
     const next = items.filter(i => i.id !== id)
@@ -171,28 +197,36 @@ export default function PanierPage() {
         {/* Récap à droite */}
         <aside>
           <div className="rounded-lg border p-4 space-y-3 bg-white sticky top-6">
+            <div className="text-sm font-medium mb-2">Mode de transport (calcul global)</div>
+            <div className="flex flex-col gap-2">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="ship" checked={shippingMethod === 'express'} onChange={() => setShippingMethod('express')} />
+                <span className="ml-1">Express 3j — 12 000 FCFA/kg</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="ship" checked={shippingMethod === 'air'} onChange={() => setShippingMethod('air')} />
+                <span className="ml-1">Fret aérien 10–15j — 8 000 FCFA/kg</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="ship" checked={shippingMethod === 'sea'} onChange={() => setShippingMethod('sea')} />
+                <span className="ml-1">Maritime 60j — 140 000 FCFA/m³</span>
+              </label>
+              <div className="text-xs text-gray-500">Poids total: {weightSummary.totalWeight.toFixed(2)} kg · Volume total: {weightSummary.totalVolume.toFixed(3)} m³</div>
+            </div>
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Produits</span>
+              <span>Sous-total (produits avec frais inclus)</span>
               <span>{formatCurrency(breakdown.products)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Frais de service</span>
-              <span>{formatCurrency(breakdown.service)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Assurance</span>
-              <span>{formatCurrency(breakdown.insurance)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Transport (estimation par article — non inclus)</span>
-              <span>{formatCurrency(breakdown.transport)}</span>
+              <span>Transport global ({SHIPPING_RATES[shippingMethod].label})</span>
+              <span>{formatCurrency(transportGlobal)}</span>
             </div>
             <div className="border-t pt-3 flex flex-col gap-2">
               <div className="flex justify-between font-semibold text-lg">
-                <span>Sous-total (produits + frais)</span>
+                <span>Total final</span>
                 <span>{formatCurrency(breakdown.total)}</span>
               </div>
-              <div className="text-sm text-gray-500">Transport final calculé au récapitulatif/checkout selon poids total.</div>
+              <div className="text-sm text-gray-500">Le transport est calculé globalement selon le poids/volume total.</div>
             </div>
 
             <button onClick={submit} disabled={sending || items.length === 0} className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded font-semibold">
