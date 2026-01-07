@@ -18,9 +18,11 @@ import {
   CheckCircle,
   Loader2,
   Package,
-  Home
+  Home,
+  TrendingDown
 } from 'lucide-react'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
+import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
@@ -108,18 +110,28 @@ export default function PanierPage() {
 
   const breakdown = useMemo(() => {
     let products = 0
-    let transport = 0
+    let totalQuantity = 0
 
     for (const it of items) {
       const qty = it.qty || 1
       const price = typeof it.price === 'number' ? it.price : 0
       products += price * qty
-
-      if (it.shipping && typeof it.shipping.cost === 'number') transport += it.shipping.cost * qty
+      totalQuantity += qty
     }
 
-    const total = products + transportGlobal
-    return { products, transport, total }
+    // Appliquer les tarifs progressifs
+    const pricingTier = applyTierDiscount(products, totalQuantity)
+
+    const total = pricingTier.finalPrice + transportGlobal
+    return {
+      products: products,
+      discountAmount: pricingTier.discountAmount,
+      discountPercent: pricingTier.discountPercent,
+      finalProducts: pricingTier.finalPrice,
+      totalQuantity,
+      tier: pricingTier.tier,
+      total
+    }
   }, [items, transportGlobal])
 
   const removeItem = (id: string) => {
@@ -366,9 +378,39 @@ export default function PanierPage() {
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-3">
-                    📦 Poids: {weightSummary.totalWeight.toFixed(2)}kg · 📊 Volume: {weightSummary.totalVolume.toFixed(3)}m³
+                    📦 Poids: {weightSummary.totalWeight.toFixed(2)}kg · 📊 Volume: {weightSummary.totalVolume.toFixed(3)}m³ · 📊 Quantité: {breakdown.totalQuantity}
                   </p>
                 </div>
+
+                {/* Avertissement quantité minimale */}
+                {breakdown.totalQuantity < 5 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3"
+                  >
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-red-700 font-semibold">Quantité minimale: 5 produits</p>
+                      <p className="text-red-600 text-xs mt-1">Actuellement: {breakdown.totalQuantity} produits ({5 - breakdown.totalQuantity} manquant(s))</p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Tarifs progressifs */}
+                {breakdown.tier && breakdown.discountAmount > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex gap-3"
+                  >
+                    <TrendingDown className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-emerald-700 font-semibold">{breakdown.tier.label}</p>
+                      <p className="text-emerald-600 text-xs mt-1">Réduction appliquée: -{formatCurrency(breakdown.discountAmount)}</p>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Prices */}
                 <div className="space-y-3 mb-6">
@@ -376,10 +418,20 @@ export default function PanierPage() {
                     <span>Produits (avec frais)</span>
                     <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-700 pb-3 border-b">
+                  {breakdown.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-700 font-semibold">
+                      <span>Réduction progressive ({breakdown.discountPercent}%)</span>
+                      <span>-{formatCurrency(breakdown.discountAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-semibold text-gray-900 pb-3 border-b">
+                    <span>Sous-total</span>
+                    <span>{formatCurrency(breakdown.finalProducts)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-700">
                     <span className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-orange-600" />
-                      Transport
+                      Transport (min 1kg)
                     </span>
                     <span className="font-semibold">{formatCurrency(transportGlobal)}</span>
                   </div>
@@ -399,7 +451,8 @@ export default function PanierPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setStep(2)}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white py-4 rounded-xl font-bold transition shadow-lg"
+                  disabled={breakdown.totalQuantity < 5}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition shadow-lg"
                 >
                   Continuer vers l'adresse
                   <ArrowRight className="w-5 h-5" />

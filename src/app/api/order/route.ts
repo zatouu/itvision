@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import { connectDB } from '@/lib/db'
+import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
 
 export async function POST(req: NextRequest) {
   let mongoConnected = false
@@ -50,14 +51,25 @@ export async function POST(req: NextRequest) {
     let subtotal = 0 // Produits avec frais inclus
     let totalWeight = 0
     let totalVolume = 0
+    let totalQuantity = 0
 
     for (const item of cart) {
       if (!item.id || typeof item.price !== 'number') continue
-      subtotal += item.price * (item.qty || 1)
+      const qty = item.qty || 1
+      subtotal += item.price * qty
+      totalQuantity += qty
       
       // Accumuler poids/volume
-      if (item.unitWeightKg) totalWeight += item.unitWeightKg * (item.qty || 1)
-      if (item.unitVolumeM3) totalVolume += item.unitVolumeM3 * (item.qty || 1)
+      if (item.unitWeightKg) totalWeight += item.unitWeightKg * qty
+      if (item.unitVolumeM3) totalVolume += item.unitVolumeM3 * qty
+    }
+
+    // Validation: quantité minimale
+    if (totalQuantity < 5) {
+      return NextResponse.json(
+        { success: false, error: `Quantité minimale: 5 produits (actuellement ${totalQuantity})` },
+        { status: 400 }
+      )
     }
 
     // Calculer le transport global basé sur la méthode de livraison
@@ -81,14 +93,21 @@ export async function POST(req: NextRequest) {
     }
 
     let transportCost = 0
+    // Appliquer le poids minimum de 1kg
+    const effectiveWeight = Math.max(totalWeight || 0, 1)
+    const effectiveVolume = Math.max(totalVolume || 0, 0.001)
+
     if (rate.billing === 'per_kg') {
-      transportCost = Math.round((totalWeight || 0) * rate.rate)
+      transportCost = Math.round(effectiveWeight * rate.rate)
     } else {
-      transportCost = Math.round((totalVolume || 0) * rate.rate)
+      transportCost = Math.round(effectiveVolume * rate.rate)
     }
     if (typeof rate.minimumCharge === 'number') transportCost = Math.max(transportCost, rate.minimumCharge)
 
-    const total = subtotal + transportCost
+    // Appliquer les tarifs progressifs selon la quantité
+    const pricingTier = applyTierDiscount(subtotal, totalQuantity)
+    const finalSubtotal = pricingTier.finalPrice
+    const total = finalSubtotal + transportCost
 
     // Se connecter à MongoDB et sauvegarder la commande
     await connectDB()
