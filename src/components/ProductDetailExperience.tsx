@@ -175,6 +175,11 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     return initial
   })
   const [quantity, setQuantity] = useState(1)
+  const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {}
+    product.variantGroups?.forEach(group => group.variants.forEach(v => { map[v.id] = 0 }))
+    return map
+  })
   const [adding, setAdding] = useState(false)
   const [showNegotiation, setShowNegotiation] = useState(false)
   const [negotiationMessage, setNegotiationMessage] = useState('Bonjour, je souhaite discuter du tarif et des délais pour ce produit.')
@@ -250,8 +255,10 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     }
   }, [product.variantGroups, selectedVariants, product.availability.stockQuantity])
 
-  // Prix effectif : prix variante ou prix standard
-  const effectivePrice = selectedVariantDetails.totalVariantPrice ?? product.pricing.salePrice
+  // Prix effectif : prix variante ou prix standard.
+  // Pour les produits importés, préférer le `totalWithFees` (coût fournisseur + frais)
+  // afin d'afficher un prix client clair (hors transport) — sinon utiliser `salePrice`.
+  const effectivePrice = selectedVariantDetails.totalVariantPrice ?? (product.pricing.totalWithFees ?? product.pricing.salePrice)
 
   useEffect(() => {
     if (!shippingEnabled) {
@@ -297,6 +304,14 @@ Merci de me recontacter.`
     return `https://wa.me/221774133440?text=${message}`
   }
 
+  const incrementVariant = (variantId: string) => {
+    setVariantQuantities(prev => ({ ...prev, [variantId]: (prev[variantId] || 0) + 1 }))
+  }
+
+  const decrementVariant = (variantId: string) => {
+    setVariantQuantities(prev => ({ ...prev, [variantId]: Math.max(0, (prev[variantId] || 0) - 1) }))
+  }
+
   const addToCart = (redirect = false) => {
     try {
       setAdding(true)
@@ -306,46 +321,90 @@ Merci de me recontacter.`
       const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
       const id = `${product.id}${shippingKey}`
       const currency = activeShipping?.currency || product.pricing.currency
-      const existsIndex = items.findIndex((item: any) => item.id === id)
+      // Si l'utilisateur a renseigné des quantités par variante, ajouter chaque variante séparément
+      const variantEntries = Object.entries(variantQuantities || {}).filter(([, q]) => q > 0)
+      if (variantEntries.length > 0) {
+        for (const [variantId, qty] of variantEntries) {
+          const variant = product.variantGroups?.flatMap(g => g.variants).find(v => v.id === variantId)
+          if (!variant) continue
+          const vId = `${product.id}-${variantId}${shippingKey}`
+          const exists = items.find((it: any) => it.id === vId)
+          const priceForVariant = (typeof variant.priceFCFA === 'number' && variant.priceFCFA > 0)
+            ? variant.priceFCFA
+            : basePrice
 
-      if (existsIndex >= 0) {
-        items[existsIndex].qty += Math.max(1, quantity)
-        // Stocker le prix produit (hors transport). Le transport et les frais sont attachés en méta.
-        items[existsIndex].price = basePrice
-        items[existsIndex].currency = currency
-        if (activeShipping) {
-          items[existsIndex].shipping = {
-            id: activeShipping.id,
-            label: activeShipping.label,
-            durationDays: activeShipping.durationDays,
-            cost: activeShipping.cost,
-            currency: activeShipping.currency
+          if (exists) {
+            exists.qty += qty
+            exists.price = priceForVariant
+            exists.currency = currency
+          } else {
+            const newItem: any = {
+              id: vId,
+              name: `${product.name} — ${variant.name}`,
+              qty,
+              price: priceForVariant,
+              currency,
+              requiresQuote: !!product.requiresQuote,
+              variantId
+            }
+            if (activeShipping) newItem.shipping = {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              cost: activeShipping.cost,
+              currency: activeShipping.currency
+            }
+            if (product.pricing.fees) {
+              newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate
+              newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount
+              newItem.insuranceRate = product.pricing.fees.insuranceRate
+              newItem.insuranceAmount = product.pricing.fees.insuranceAmount
+            }
+            items.push(newItem)
           }
         }
       } else {
-        items.push({
-          id,
-          name: product.name,
-          qty: Math.max(1, quantity),
-          // Prix principal = prix produit (sourcing + marge) — transport non inclus
-          price: basePrice,
-          currency,
-          requiresQuote: !!product.requiresQuote,
-          shipping: activeShipping ? {
-            id: activeShipping.id,
-            label: activeShipping.label,
-            durationDays: activeShipping.durationDays,
-            cost: activeShipping.cost,
-            currency: activeShipping.currency
-          } : undefined
-        })
-        // Ajouter méta frais/assurance pour que le panier/checkout puisse calculer le total final
-        const lastIndex = items.length - 1
-        if (product.pricing.fees) {
-          items[lastIndex].serviceFeeRate = product.pricing.fees.serviceFeeRate
-          items[lastIndex].serviceFeeAmount = product.pricing.fees.serviceFeeAmount
-          items[lastIndex].insuranceRate = product.pricing.fees.insuranceRate
-          items[lastIndex].insuranceAmount = product.pricing.fees.insuranceAmount
+        const existsIndex = items.findIndex((item: any) => item.id === id)
+
+        if (existsIndex >= 0) {
+          items[existsIndex].qty += Math.max(1, quantity)
+          // Stocker le prix produit (hors transport). Le transport et les frais sont attachés en méta.
+          items[existsIndex].price = basePrice
+          items[existsIndex].currency = currency
+          if (activeShipping) {
+            items[existsIndex].shipping = {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              cost: activeShipping.cost,
+              currency: activeShipping.currency
+            }
+          }
+        } else {
+          items.push({
+            id,
+            name: product.name,
+            qty: Math.max(1, quantity),
+            // Prix principal = prix produit (sourcing + marge) — transport non inclus
+            price: basePrice,
+            currency,
+            requiresQuote: !!product.requiresQuote,
+            shipping: activeShipping ? {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              cost: activeShipping.cost,
+              currency: activeShipping.currency
+            } : undefined
+          })
+          // Ajouter méta frais/assurance pour que le panier/checkout puisse calculer le total final
+          const lastIndex = items.length - 1
+          if (product.pricing.fees) {
+            items[lastIndex].serviceFeeRate = product.pricing.fees.serviceFeeRate
+            items[lastIndex].serviceFeeAmount = product.pricing.fees.serviceFeeAmount
+            items[lastIndex].insuranceRate = product.pricing.fees.insuranceRate
+            items[lastIndex].insuranceAmount = product.pricing.fees.insuranceAmount
+          }
         }
       }
 
@@ -816,6 +875,56 @@ Merci de me recontacter.`
                   <span className="font-medium">Livraison possible :</span>{' '}
                   {Array.from(new Set(product.pricing.shippingOptions.map(o => o.durationDays))).map((d, idx) => (
                     <span key={d} className="inline-block ml-1">{d}j{idx < product.pricing.shippingOptions.length - 1 ? ' /' : ''}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Aperçu détaillé des variantes avec contrôle de quantité par variante (style compact) */}
+              {product.variantGroups && product.variantGroups.length > 0 && (
+                <div className="mt-3 bg-white border border-gray-200 rounded-lg p-2">
+                  {product.variantGroups.map((group) => (
+                    <div key={`vg-${group.name}`} className="mb-2">
+                      <div className="text-sm font-semibold text-gray-700 mb-2">{group.name}</div>
+                      <div className="space-y-1">
+                        {group.variants.map((v) => (
+                          <div key={v.id} className="grid grid-cols-[auto_1fr_auto] gap-3 items-center py-2">
+                            <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                              {v.image ? (
+                                <img src={v.image} alt={v.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="text-xs text-gray-400">No image</div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-gray-800 truncate">{v.name}</div>
+                              <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                                <span className="font-semibold text-emerald-600">{v.priceFCFA ? formatCurrency(v.priceFCFA, 'FCFA') : (v.price1688 ? `${v.price1688} ¥` : '')}</span>
+                                {v.stock !== undefined && <span className="text-gray-400">• {v.stock} en stock</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => decrementVariant(v.id)}
+                                aria-label={`Retirer ${v.name}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-full border text-gray-700 bg-white hover:bg-gray-50"
+                              >
+                                −
+                              </button>
+                              <div className="w-8 text-center text-sm">{variantQuantities[v.id] || 0}</div>
+                              <button
+                                type="button"
+                                onClick={() => incrementVariant(v.id)}
+                                aria-label={`Ajouter ${v.name}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
