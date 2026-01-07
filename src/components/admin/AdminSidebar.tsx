@@ -20,7 +20,8 @@ import {
   ChevronDown,
   ChevronLeft,
   Menu,
-  ShoppingCart
+  ShoppingCart,
+  UsersRound
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -75,6 +76,12 @@ const menuItems: MenuItem[] = [
     label: 'Commandes',
     icon: ShoppingCart,
     href: '/admin/commandes'
+  },
+  {
+    id: 'achats-groupes',
+    label: 'Achats Groupés',
+    icon: UsersRound,
+    href: '/admin/achats-groupes'
   },
   {
     id: 'produits',

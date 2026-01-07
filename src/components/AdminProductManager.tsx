@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown } from 'lucide-react'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -76,6 +76,16 @@ type Product = {
   shippingOverrides?: ShippingOverride[]
   isPublished?: boolean
   isFeatured?: boolean
+  // Configuration achat groupé
+  groupBuyEnabled?: boolean
+  groupBuyMinQty?: number
+  groupBuyTargetQty?: number
+  priceTiers?: Array<{
+    minQty: number
+    maxQty?: number
+    price: number
+    discount?: number
+  }>
   // Informations 1688
   price1688?: number // Prix en Yuan (¥)
   price1688Currency?: string // Devise 1688 (par défaut 'CNY')
@@ -95,7 +105,7 @@ const formatCurrency = (amount?: number, currency = 'FCFA') => {
   return `${amount.toLocaleString('fr-FR')} ${currency}`
 }
 
-type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'import'
+type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'groupbuy' | 'import'
 
 const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => {
   if (!Array.isArray(overrides)) return []
@@ -414,6 +424,11 @@ export default function AdminProductManager() {
     shippingOverrides: [],
     isPublished: true,
     isFeatured: false,
+    // Configuration achat groupé
+    groupBuyEnabled: false,
+    groupBuyMinQty: 10,
+    groupBuyTargetQty: 50,
+    priceTiers: [],
     // Informations 1688
     price1688: undefined,
     price1688Currency: 'CNY',
@@ -439,6 +454,7 @@ export default function AdminProductManager() {
     { id: 'media', label: 'Médias', description: 'Visuels et galerie', icon: ImageIcon },
     { id: 'variants', label: 'Variantes', description: 'Couleurs, options avec prix', icon: Settings },
     { id: 'pricing', label: 'Tarifs & livraison', description: 'Prix public, marges, transport', icon: Package },
+    { id: 'groupbuy', label: 'Achat Groupé', description: 'Prix dégressifs par quantité', icon: Users },
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
 
@@ -1847,6 +1863,204 @@ export default function AdminProductManager() {
     )
   }
 
+  // Fonctions pour gérer les paliers de prix
+  const addPriceTier = () => {
+    if (!editing) return
+    const tiers = [...(editing.priceTiers || [])]
+    const lastTier = tiers[tiers.length - 1]
+    tiers.push({
+      minQty: lastTier ? lastTier.minQty + 50 : 10,
+      maxQty: undefined,
+      price: editing.price || 0,
+      discount: 0
+    })
+    setEditing({ ...editing, priceTiers: tiers })
+  }
+
+  const updatePriceTier = (index: number, updates: Partial<{ minQty: number; maxQty?: number; price: number; discount?: number }>) => {
+    if (!editing) return
+    const tiers = [...(editing.priceTiers || [])]
+    tiers[index] = { ...tiers[index], ...updates }
+    
+    // Calculer automatiquement le % de réduction si prix modifié
+    if (updates.price !== undefined && editing.price) {
+      tiers[index].discount = Math.round(((editing.price - updates.price) / editing.price) * 100)
+    }
+    
+    setEditing({ ...editing, priceTiers: tiers })
+  }
+
+  const removePriceTier = (index: number) => {
+    if (!editing) return
+    const tiers = [...(editing.priceTiers || [])]
+    tiers.splice(index, 1)
+    setEditing({ ...editing, priceTiers: tiers })
+  }
+
+  const renderGroupBuyTab = () => {
+    if (!editing) return null
+    
+    return (
+      <div className="space-y-6">
+        {/* Activation achat groupé */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-purple-700 mb-4">
+            <Users className="h-4 w-4" />
+            Configuration Achat Groupé
+          </div>
+          
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 mb-4">
+            <div>
+              <p className="font-semibold text-gray-900">Activer l&apos;achat groupé</p>
+              <p className="text-sm text-gray-600">Permet aux clients de créer/rejoindre des achats groupés pour ce produit</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!editing.groupBuyEnabled}
+                onChange={e => setEditing({ ...editing, groupBuyEnabled: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+          
+          {editing.groupBuyEnabled && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500">Quantité minimum pour lancer</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editing.groupBuyMinQty || 10}
+                  onChange={e => setEditing({ ...editing, groupBuyMinQty: parseInt(e.target.value) || 10 })}
+                  className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-400 mt-1">Min. pour valider la commande groupée</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Quantité cible idéale</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editing.groupBuyTargetQty || 50}
+                  onChange={e => setEditing({ ...editing, groupBuyTargetQty: parseInt(e.target.value) || 50 })}
+                  className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-400 mt-1">Objectif affiché aux participants</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Paliers de prix */}
+        {editing.groupBuyEnabled && (
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+                <TrendingDown className="h-4 w-4" />
+                Paliers de Prix Dégressifs
+              </div>
+              <button
+                type="button"
+                onClick={addPriceTier}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
+              >
+                <Plus className="h-4 w-4" /> Ajouter un palier
+              </button>
+            </div>
+            
+            <p className="text-xs text-gray-500 mb-4">
+              Définissez des prix dégressifs selon la quantité commandée. Plus la quantité est grande, plus le prix unitaire baisse.
+            </p>
+            
+            {/* Prix de référence */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500">Prix de base (unité)</p>
+              <p className="text-xl font-bold text-gray-900">{formatCurrency(editing.price, editing.currency)}</p>
+            </div>
+            
+            {(!editing.priceTiers || editing.priceTiers.length === 0) ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <TrendingDown className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">Aucun palier de prix configuré</p>
+                <p className="text-xs text-gray-400 mt-1">Ajoutez des paliers pour offrir des prix dégressifs</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {editing.priceTiers.map((tier, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex-1 grid grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">À partir de (qté)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={tier.minQty}
+                          onChange={e => updatePriceTier(index, { minQty: parseInt(e.target.value) || 1 })}
+                          className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Jusqu&apos;à (qté)</label>
+                        <input
+                          type="number"
+                          min={tier.minQty}
+                          value={tier.maxQty || ''}
+                          placeholder="∞"
+                          onChange={e => updatePriceTier(index, { maxQty: e.target.value ? parseInt(e.target.value) : undefined })}
+                          className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Prix unitaire (FCFA)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={tier.price}
+                          onChange={e => updatePriceTier(index, { price: parseInt(e.target.value) || 0 })}
+                          className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Réduction</label>
+                        <div className="mt-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-sm font-semibold text-center">
+                          -{tier.discount || 0}%
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePriceTier(index)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Aperçu */}
+            {editing.priceTiers && editing.priceTiers.length > 0 && (
+              <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                <p className="text-sm font-semibold text-purple-800 mb-2">Aperçu pour les clients</p>
+                <div className="flex flex-wrap gap-2">
+                  {editing.priceTiers.map((tier, i) => (
+                    <span key={i} className="px-3 py-1 bg-white rounded-full text-sm border border-purple-200">
+                      <strong>{tier.minQty}+</strong> = {formatCurrency(tier.price)} 
+                      {tier.discount ? <span className="text-emerald-600 ml-1">(-{tier.discount}%)</span> : null}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
@@ -1859,6 +2073,8 @@ export default function AdminProductManager() {
         return renderVariantsTab()
       case 'pricing':
         return renderPricingTab()
+      case 'groupbuy':
+        return renderGroupBuyTab()
       case 'import':
         return renderImportTab()
       default:

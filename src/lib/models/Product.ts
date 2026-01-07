@@ -1,5 +1,13 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+// Interface pour les paliers de prix dégressifs (achat groupé)
+export interface IPriceTier {
+  minQty: number      // Quantité minimum pour ce palier
+  maxQty?: number     // Quantité maximum (optionnel, null = illimité)
+  price: number       // Prix unitaire pour ce palier
+  discount?: number   // Réduction en % par rapport au prix de base
+}
+
 export interface IProduct extends Document {
   name: string
   category?: string
@@ -28,6 +36,11 @@ export interface IProduct extends Document {
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
+  // Configuration achat groupé
+  groupBuyEnabled?: boolean           // Active l'achat groupé pour ce produit
+  groupBuyMinQty?: number             // Quantité min totale pour lancer la commande
+  groupBuyTargetQty?: number          // Quantité cible idéale
+  priceTiers?: IPriceTier[]           // Paliers de prix dégressifs
   sourcing?: {
     platform?: string
     supplierName?: string
@@ -79,6 +92,19 @@ const ProductSchema = new Schema<IProduct>({
   availabilityNote: { type: String },
   isPublished: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
+  // Configuration achat groupé
+  groupBuyEnabled: { type: Boolean, default: false },
+  groupBuyMinQty: { type: Number, default: 10 },
+  groupBuyTargetQty: { type: Number, default: 50 },
+  priceTiers: {
+    type: [new Schema({
+      minQty: { type: Number, required: true },
+      maxQty: { type: Number },
+      price: { type: Number, required: true },
+      discount: { type: Number }
+    }, { _id: false })],
+    default: []
+  },
   sourcing: {
     platform: { type: String },
     supplierName: { type: String },

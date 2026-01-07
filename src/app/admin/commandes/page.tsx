@@ -37,6 +37,25 @@ const formatDate = (date?: string) => {
   if (!date) return '-'
   return new Date(date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })
 }
+const formatDateTime = (date?: string) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// Traductions des statuts
+const statusLabels: Record<string, string> = {
+  pending: 'En attente',
+  confirmed: 'Confirmée',
+  processing: 'En traitement',
+  shipped: 'Expédiée',
+  delivered: 'Livrée',
+  cancelled: 'Annulée'
+}
+const paymentLabels: Record<string, string> = {
+  pending: 'En attente',
+  completed: 'Payée',
+  failed: 'Échoué'
+}
 
 interface Order {
   _id?: string
@@ -68,8 +87,10 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null)
-  const [actionLoading, setActionLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null) // ID de la commande en cours
   const [notificationMessage, setNotificationMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Charger les commandes
   const fetchOrders = async () => {
@@ -92,60 +113,77 @@ export default function AdminOrdersPage() {
     fetchOrders()
   }, [])
 
+  // Fermer le menu quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = () => setShowActionsMenu(null)
+    if (showActionsMenu) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showActionsMenu])
+
   // Actions sur les commandes
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    setActionLoading(true)
+    setActionLoading(orderId)
     try {
       const res = await fetch(`/api/order/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ 
+          status: newStatus,
+          timelineAction: `Statut changé vers ${statusLabels[newStatus] || newStatus}`
+        })
       })
       if (!res.ok) throw new Error('Erreur lors de la mise à jour')
       
-      showNotification('success', `Commande ${orderId} mise à jour: ${newStatus}`)
+      showNotification('success', `Commande mise à jour: ${statusLabels[newStatus] || newStatus}`)
       await fetchOrders()
       setShowActionsMenu(null)
     } catch (e) {
       showNotification('error', e instanceof Error ? e.message : 'Erreur')
     } finally {
-      setActionLoading(false)
+      setActionLoading(null)
     }
   }
 
   const updatePaymentStatus = async (orderId: string, newStatus: string) => {
-    setActionLoading(true)
+    setActionLoading(orderId)
     try {
       const res = await fetch(`/api/order/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentStatus: newStatus })
+        body: JSON.stringify({ 
+          paymentStatus: newStatus,
+          timelineAction: `Paiement: ${paymentLabels[newStatus] || newStatus}`
+        })
       })
       if (!res.ok) throw new Error('Erreur lors de la mise à jour du paiement')
       
-      showNotification('success', `Paiement mis à jour: ${newStatus}`)
+      showNotification('success', `Paiement: ${paymentLabels[newStatus] || newStatus}`)
       await fetchOrders()
+      setShowActionsMenu(null)
     } catch (e) {
       showNotification('error', e instanceof Error ? e.message : 'Erreur')
     } finally {
-      setActionLoading(false)
+      setActionLoading(null)
     }
   }
 
   const deleteOrder = async (orderId: string) => {
-    if (!confirm(`Supprimer la commande ${orderId}?`)) return
+    if (!confirm(`⚠️ Supprimer définitivement la commande ${orderId}?\n\nCette action est irréversible.`)) return
     
-    setActionLoading(true)
+    setActionLoading(orderId)
     try {
       const res = await fetch(`/api/order/${orderId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Erreur lors de la suppression')
       
       showNotification('success', `Commande ${orderId} supprimée`)
+      setShowActionsMenu(null)
       await fetchOrders()
     } catch (e) {
       showNotification('error', e instanceof Error ? e.message : 'Erreur')
     } finally {
-      setActionLoading(false)
+      setActionLoading(null)
     }
   }
 
@@ -156,24 +194,31 @@ export default function AdminOrdersPage() {
 
   const exportOrders = () => {
     const csv = [
-      ['ID', 'Client', 'Téléphone', 'Montant', 'Statut', 'Paiement', 'Date'].join(','),
+      ['ID', 'Client', 'Téléphone', 'Email', 'Articles', 'Sous-total', 'Transport', 'Total', 'Statut', 'Paiement', 'Adresse', 'Date'].join(';'),
       ...filteredOrders.map(o => [
         o.orderId,
-        o.clientName,
+        `"${o.clientName}"`,
         o.clientPhone,
+        o.clientEmail || '',
+        o.items.length,
+        o.subtotal,
+        o.shipping?.totalCost || 0,
         o.total,
-        o.status,
-        o.paymentStatus,
-        formatDate(o.createdAt)
-      ].join(','))
+        statusLabels[o.status] || o.status,
+        paymentLabels[o.paymentStatus] || o.paymentStatus,
+        `"${o.address?.city || ''} ${o.address?.street || ''}"`,
+        formatDateTime(o.createdAt)
+      ].join(';'))
     ].join('\n')
 
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const BOM = '\uFEFF' // Pour Excel reconnaître UTF-8
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `commandes_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
+    showNotification('success', `${filteredOrders.length} commandes exportées`)
   }
 
   // Filtres et tri
@@ -195,6 +240,25 @@ export default function AdminOrdersPage() {
       result = result.filter(o => o.status === filterStatus)
     }
 
+    // Filtre date
+    if (dateFilter !== 'all') {
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      result = result.filter(o => {
+        const orderDate = new Date(o.createdAt)
+        if (dateFilter === 'today') {
+          return orderDate >= today
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+          return orderDate >= weekAgo
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+          return orderDate >= monthAgo
+        }
+        return true
+      })
+    }
+
     // Tri
     if (sortBy === 'amount') {
       result.sort((a, b) => b.total - a.total)
@@ -205,15 +269,21 @@ export default function AdminOrdersPage() {
     }
 
     return result
-  }, [orders, searchTerm, filterStatus, sortBy])
+  }, [orders, searchTerm, filterStatus, dateFilter, sortBy])
 
   // Stats
   const stats = useMemo(() => {
+    const paidOrders = orders.filter(o => o.paymentStatus === 'completed')
     return {
       total: orders.length,
       totalRevenue: orders.reduce((sum, o) => sum + o.total, 0),
+      paidRevenue: paidOrders.reduce((sum, o) => sum + o.total, 0),
       pending: orders.filter(o => o.status === 'pending').length,
-      confirmed: orders.filter(o => o.status === 'confirmed').length
+      confirmed: orders.filter(o => o.status === 'confirmed').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      shipped: orders.filter(o => o.status === 'shipped').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+      avgOrderValue: orders.length > 0 ? Math.round(orders.reduce((sum, o) => sum + o.total, 0) / orders.length) : 0
     }
   }, [orders])
 
@@ -276,14 +346,14 @@ export default function AdminOrdersPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-white/20 backdrop-blur rounded-lg p-4"
             >
-              <p className="text-white/80 text-sm">Total Commandes</p>
-              <p className="text-3xl font-bold text-white">{stats.total}</p>
+              <p className="text-white/80 text-sm">Total</p>
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -291,8 +361,9 @@ export default function AdminOrdersPage() {
               transition={{ delay: 0.05 }}
               className="bg-white/20 backdrop-blur rounded-lg p-4"
             >
-              <p className="text-white/80 text-sm">Revenu Total</p>
-              <p className="text-3xl font-bold text-white">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-white/80 text-sm">Revenu</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-white/60 text-xs mt-1">Payé: {formatCurrency(stats.paidRevenue)}</p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -301,7 +372,7 @@ export default function AdminOrdersPage() {
               className="bg-white/20 backdrop-blur rounded-lg p-4"
             >
               <p className="text-white/80 text-sm">En Attente</p>
-              <p className="text-3xl font-bold text-yellow-200">{stats.pending}</p>
+              <p className="text-2xl font-bold text-yellow-200">{stats.pending}</p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -309,8 +380,26 @@ export default function AdminOrdersPage() {
               transition={{ delay: 0.15 }}
               className="bg-white/20 backdrop-blur rounded-lg p-4"
             >
-              <p className="text-white/80 text-sm">Confirmées</p>
-              <p className="text-3xl font-bold text-blue-200">{stats.confirmed}</p>
+              <p className="text-white/80 text-sm">En cours</p>
+              <p className="text-2xl font-bold text-purple-200">{stats.confirmed + stats.processing}</p>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/20 backdrop-blur rounded-lg p-4"
+            >
+              <p className="text-white/80 text-sm">Expédiées</p>
+              <p className="text-2xl font-bold text-indigo-200">{stats.shipped}</p>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="bg-white/20 backdrop-blur rounded-lg p-4"
+            >
+              <p className="text-white/80 text-sm">Livrées</p>
+              <p className="text-2xl font-bold text-emerald-200">{stats.delivered}</p>
             </motion.div>
           </div>
         </div>
@@ -323,7 +412,7 @@ export default function AdminOrdersPage() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg mb-8"
         >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Recherche */}
             <div className="relative">
               <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -350,6 +439,20 @@ export default function AdminOrdersPage() {
                 <option value="shipped">Expédiée</option>
                 <option value="delivered">Livrée</option>
                 <option value="cancelled">Annulée</option>
+              </select>
+            </div>
+
+            {/* Filtre période */}
+            <div>
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as any)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              >
+                <option value="all">Toutes les dates</option>
+                <option value="today">Aujourd&apos;hui</option>
+                <option value="week">7 derniers jours</option>
+                <option value="month">30 derniers jours</option>
               </select>
             </div>
 
@@ -432,12 +535,12 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeColor(order.status)}`}>
-                          {order.status}
+                          {statusLabels[order.status] || order.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${paymentBadgeColor(order.paymentStatus)}`}>
-                          {order.paymentStatus}
+                          {paymentLabels[order.paymentStatus] || order.paymentStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
@@ -460,33 +563,45 @@ export default function AdminOrdersPage() {
                           {order.status === 'pending' && (
                             <button
                               onClick={() => updateOrderStatus(order.orderId, 'confirmed')}
-                              disabled={actionLoading}
+                              disabled={actionLoading === order.orderId}
                               className="p-2 hover:bg-emerald-100 text-emerald-600 rounded-lg transition disabled:opacity-50"
                               title="Confirmer"
                             >
-                              <Check className="w-4 h-4" />
+                              {actionLoading === order.orderId ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Check className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                           
                           {order.status === 'confirmed' && (
                             <button
                               onClick={() => updateOrderStatus(order.orderId, 'processing')}
-                              disabled={actionLoading}
+                              disabled={actionLoading === order.orderId}
                               className="p-2 hover:bg-purple-100 text-purple-600 rounded-lg transition disabled:opacity-50"
                               title="En traitement"
                             >
-                              <RefreshCw className="w-4 h-4" />
+                              {actionLoading === order.orderId ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Package className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                           
                           {order.status === 'processing' && (
                             <button
                               onClick={() => updateOrderStatus(order.orderId, 'shipped')}
-                              disabled={actionLoading}
+                              disabled={actionLoading === order.orderId}
                               className="p-2 hover:bg-indigo-100 text-indigo-600 rounded-lg transition disabled:opacity-50"
                               title="Expédier"
                             >
-                              <Truck className="w-4 h-4" />
+                              {actionLoading === order.orderId ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Truck className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                           
@@ -555,20 +670,33 @@ export default function AdminOrdersPage() {
             onClick={() => setShowDetailModal(false)}
           >
             <motion.div
-              className="bg-white rounded-2xl max-w-2xl w-full max-h-96 overflow-y-auto shadow-2xl"
+              className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-emerald-600 text-white p-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold">{selectedOrder.orderId}</h2>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="text-white/80 hover:text-white text-2xl"
-                >
-                  ×
-                </button>
+              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-emerald-600 text-white p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold">{selectedOrder.orderId}</h2>
+                    <p className="text-white/80 text-sm mt-1">Créée le {formatDateTime(selectedOrder.createdAt)}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowDetailModal(false)}
+                    className="text-white/80 hover:text-white text-2xl p-2"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeColor(selectedOrder.status)}`}>
+                    {statusLabels[selectedOrder.status] || selectedOrder.status}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${paymentBadgeColor(selectedOrder.paymentStatus)}`}>
+                    {paymentLabels[selectedOrder.paymentStatus] || selectedOrder.paymentStatus}
+                  </span>
+                </div>
               </div>
 
               <div className="p-6 space-y-6">

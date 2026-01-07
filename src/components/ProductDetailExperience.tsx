@@ -28,7 +28,9 @@ import {
   Package,
   TruckIcon,
   Info,
-  Megaphone
+  Megaphone,
+  Users,
+  TrendingDown
 } from 'lucide-react'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
@@ -117,6 +119,16 @@ export interface ProductDetailData {
   // Poids détaillés
   weights?: ProductWeights
   isImported?: boolean // Indicateur si produit importé (sans exposer les détails source)
+  // Configuration achat groupé
+  groupBuyEnabled?: boolean
+  groupBuyMinQty?: number
+  groupBuyTargetQty?: number
+  priceTiers?: Array<{
+    minQty: number
+    maxQty?: number
+    price: number
+    discount?: number
+  }>
 }
 
 export interface SimilarProductSummary {
@@ -1296,6 +1308,41 @@ Merci de me recontacter.`
                 <Heart className={clsx('h-4 w-4', isFavorite && 'fill-current')} />
               </button>
             </div>
+
+            {/* Achat Groupé - Si activé pour ce produit */}
+            {product.groupBuyEnabled && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  <span className="font-bold text-purple-800">Achat Groupé Disponible !</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Rejoignez d&apos;autres acheteurs pour obtenir un meilleur prix. 
+                  Plus on est nombreux, moins on paie !
+                </p>
+                {product.priceTiers && product.priceTiers.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {product.priceTiers.slice(0, 3).map((tier, i) => (
+                      <span key={i} className="text-xs px-2 py-1 bg-white rounded-full border border-purple-200">
+                        <TrendingDown className="w-3 h-3 inline mr-1 text-emerald-500" />
+                        {tier.minQty}+ = {formatCurrency(tier.price, product.pricing.currency)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <Link
+                  href={`/achats-groupes?productId=${product.id}`}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2.5 text-sm font-bold hover:from-purple-700 hover:to-blue-700 transition-all"
+                >
+                  <Users className="w-4 h-4" />
+                  Voir les achats groupés
+                </Link>
+              </motion.div>
+            )}
 
             {/* Installation compacte (repliée par défaut) */}
             <details className="border border-gray-200 rounded-lg text-xs">
