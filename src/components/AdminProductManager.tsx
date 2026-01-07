@@ -1727,14 +1727,50 @@ export default function AdminProductManager() {
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Image URL</label>
-                            <input
-                              type="text"
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
-                              value={variant.image || ''}
-                              onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
-                              placeholder="https://..."
-                            />
+                            <label className="text-xs text-gray-500">Image variante</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                value={variant.image || ''}
+                                onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
+                                placeholder="URL ou uploadée"
+                              />
+                              <label className="flex items-center gap-1 text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 cursor-pointer font-medium transition-colors">
+                                <Upload className="h-3 w-3" />
+                                <span>Uploader</span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      try {
+                                        const formData = new FormData()
+                                        formData.append('file', file)
+                                        formData.append('type', 'variants')
+                                        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                                        if (res.ok) {
+                                          const data = await res.json()
+                                          updateVariant(groupIndex, variantIndex, { image: data.url || data.staticUrl })
+                                          alert('✓ Image uploadée avec succès!')
+                                        } else {
+                                          const err = await res.json()
+                                          alert(`❌ Erreur: ${err.error}`)
+                                        }
+                                      } catch (err) {
+                                        console.error('Upload erreur:', err)
+                                        alert('Erreur lors de l\'upload')
+                                      }
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {variant.image && (
+                                <img src={variant.image} alt="preview" className="w-8 h-8 rounded border border-gray-200 object-cover" />
+                              )}
+                            </div>
                           </div>
                         </div>
                         

@@ -149,7 +149,8 @@ const shippingIcon = (methodId?: string) => {
 }
 
 export default function ProductDetailExperience({ product, similar }: ProductDetailExperienceProps) {
-  const gallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
+  // Galerie : images produit + images variantes
+  const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
   
   // Fonction pour trouver l'option de 15 jours par défaut
   const getDefaultShippingOption = () => {
@@ -174,6 +175,19 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     })
     return initial
   })
+
+  // Construire la galerie avec l'image de la variante sélectionnée au début
+  const gallery = useMemo(() => {
+    const variantImage = 
+      product.variantGroups
+        ?.flatMap(g => g.variants)
+        .find(v => Object.values(selectedVariants).includes(v.id))?.image
+    
+    if (variantImage && !baseGallery.includes(variantImage)) {
+      return [variantImage, ...baseGallery]
+    }
+    return baseGallery
+  }, [selectedVariants, product.variantGroups, baseGallery])
   const [quantity, setQuantity] = useState(1)
   const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>(() => {
     const map: Record<string, number> = {}
