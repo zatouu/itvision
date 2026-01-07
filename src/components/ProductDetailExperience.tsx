@@ -281,6 +281,22 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const basePrice = effectivePrice ?? product.pricing.salePrice
   const unitPrice = !product.requiresQuote ? basePrice : null
 
+  const variantSubtotal = useMemo(() => {
+    const entries = Object.entries(variantQuantities || {}).filter(([, q]) => q > 0)
+    if (entries.length === 0) return 0
+    let sum = 0
+    for (const [variantId, qty] of entries) {
+      const variant = product.variantGroups?.flatMap(g => g.variants).find(v => v.id === variantId)
+      const price = (variant && typeof variant.priceFCFA === 'number' && variant.priceFCFA > 0)
+        ? variant.priceFCFA
+        : (basePrice ?? 0)
+      sum += price * qty
+    }
+    return sum
+  }, [variantQuantities, product.variantGroups, basePrice])
+
+  const displayedSubtotal = variantSubtotal > 0 ? variantSubtotal : (unitPrice ? unitPrice * Math.max(1, quantity) : 0)
+
   const totalPrice = useMemo(() => {
     if (!unitPrice) return null
     return unitPrice * Math.max(1, quantity)
@@ -624,6 +640,26 @@ Merci de me recontacter.`
       setIsFavorite(false)
     }
   }, [product.id])
+
+  // Enregistrer le produit consulté pour recent:viewed (localStorage)
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return
+      const key = 'recent:viewed'
+      const variantId = Object.values(selectedVariants || {})[0] ?? null
+      const entry = { id: product.id, variantId, url: typeof window !== 'undefined' ? window.location.href : '', title: product.name, ts: Date.now() }
+      const raw = localStorage.getItem(key)
+      let arr = raw ? JSON.parse(raw) : []
+      arr = arr.filter((e: any) => !(e.id === entry.id && e.variantId === entry.variantId))
+      arr.unshift(entry)
+      arr = arr.slice(0, 20)
+      localStorage.setItem(key, JSON.stringify(arr))
+      window.dispatchEvent(new CustomEvent('recent:updated'))
+    } catch (e) {
+      console.error('recent view store error', e)
+    }
+    // Re-enregistrer quand le produit ou la sélection de variantes change
+  }, [product.id, JSON.stringify(selectedVariants)])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1158,6 +1194,12 @@ Merci de me recontacter.`
             </div>
 
             {/* Actions compactes */}
+            <div className="w-full mb-2">
+              <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 text-sm flex items-center justify-between">
+                <div className="text-gray-600">Sous-total produit</div>
+                <div className="font-semibold text-lg text-emerald-600">{formatCurrency(displayedSubtotal, product.pricing.currency)}</div>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
               {!showQuote && (
                 <>
