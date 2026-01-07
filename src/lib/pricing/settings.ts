@@ -1,5 +1,6 @@
-import fs from 'fs'
-import path from 'path'
+// serveur uniquement : utiliser require pour éviter les erreurs de types côté client
+const fs: any = require('fs')
+const path: any = require('path')
 
 const FILE_PATH = path.resolve(process.cwd(), 'data', 'pricing-settings.json')
 
