@@ -60,19 +60,53 @@ export async function PATCH(
   try {
     await connectDB()
 
-    const { address } = await req.json()
+    const body = await req.json()
+    const updateData: any = {}
 
-    if (!address || typeof address !== 'object') {
+    // Support de mise à jour de l'adresse (ancien comportement)
+    if (body.address && typeof body.address === 'object') {
+      updateData.address = body.address
+    }
+
+    // Support de mise à jour du statut
+    if (body.status) {
+      updateData.status = body.status
+    }
+
+    // Support de mise à jour du statut de paiement
+    if (body.paymentStatus) {
+      updateData.paymentStatus = body.paymentStatus
+    }
+
+    // Support de notes
+    if (body.notes !== undefined) {
+      updateData.notes = body.notes
+    }
+
+    // Ajout à la timeline si action fournie
+    if (body.timelineAction) {
+      updateData.$push = {
+        timeline: {
+          action: body.timelineAction,
+          date: new Date().toISOString(),
+          by: body.timelineBy || 'Admin'
+        }
+      }
+    }
+
+    updateData.updatedAt = new Date()
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Adresse invalide' },
+        { success: false, error: 'Aucune donnée à mettre à jour' },
         { status: 400 }
       )
     }
 
-    // Mettre à jour l'adresse de la commande
+    // Mettre à jour la commande
     const order = await Order.findOneAndUpdate(
       { orderId },
-      { address },
+      updateData,
       { new: true }
     ).lean() as any
 
@@ -83,23 +117,56 @@ export async function PATCH(
       )
     }
 
-    console.log(`Adresse mise à jour pour commande ${orderId}:`, address)
+    console.log(`Commande ${orderId} mise à jour:`, updateData)
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Adresse mise à jour avec succès',
-        order: {
-          orderId: order.orderId,
-          address: order.address
-        }
+        message: 'Commande mise à jour avec succès',
+        order
       },
       { status: 200 }
     )
   } catch (e) {
-    console.error('Erreur mise à jour adresse:', e)
+    console.error('Erreur mise à jour commande:', e)
     return NextResponse.json(
       { success: false, error: 'Erreur lors de la mise à jour' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  context: RouteContext
+) {
+  const { orderId } = await context.params
+  try {
+    await connectDB()
+
+    // Supprimer la commande
+    const result = await Order.deleteOne({ orderId })
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Commande non trouvée' },
+        { status: 404 }
+      )
+    }
+
+    console.log(`Commande ${orderId} supprimée`)
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Commande supprimée avec succès'
+      },
+      { status: 200 }
+    )
+  } catch (e) {
+    console.error('Erreur suppression commande:', e)
+    return NextResponse.json(
+      { success: false, error: 'Erreur lors de la suppression' },
       { status: 500 }
     )
   }

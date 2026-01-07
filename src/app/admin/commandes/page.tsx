@@ -19,7 +19,17 @@ import {
   Phone,
   MapPin,
   Badge,
-  MoreVertical
+  MoreVertical,
+  Check,
+  X,
+  Truck,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  FileText,
+  Send,
+  Bell
 } from 'lucide-react'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
@@ -29,6 +39,7 @@ const formatDate = (date?: string) => {
 }
 
 interface Order {
+  _id?: string
   orderId: string
   clientName: string
   clientPhone: string
@@ -41,7 +52,10 @@ interface Order {
   paymentStatus: string
   address?: any
   createdAt: string
+  updatedAt?: string
   currency: string
+  notes?: string
+  timeline?: { action: string; date: string; by: string }[]
 }
 
 export default function AdminOrdersPage() {
@@ -53,27 +67,114 @@ export default function AdminOrdersPage() {
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [notificationMessage, setNotificationMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Charger les commandes
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true)
-        const res = await fetch('/api/admin/orders')
-        if (!res.ok) throw new Error('Erreur lors du chargement')
-        const data = await res.json()
-        setOrders(data.orders || [])
-        setError(null)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur inconnue')
-        setOrders([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/admin/orders')
+      if (!res.ok) throw new Error('Erreur lors du chargement')
+      const data = await res.json()
+      setOrders(data.orders || [])
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur inconnue')
+      setOrders([])
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchOrders()
   }, [])
+
+  // Actions sur les commandes
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/order/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      if (!res.ok) throw new Error('Erreur lors de la mise à jour')
+      
+      showNotification('success', `Commande ${orderId} mise à jour: ${newStatus}`)
+      await fetchOrders()
+      setShowActionsMenu(null)
+    } catch (e) {
+      showNotification('error', e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const updatePaymentStatus = async (orderId: string, newStatus: string) => {
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/order/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentStatus: newStatus })
+      })
+      if (!res.ok) throw new Error('Erreur lors de la mise à jour du paiement')
+      
+      showNotification('success', `Paiement mis à jour: ${newStatus}`)
+      await fetchOrders()
+    } catch (e) {
+      showNotification('error', e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const deleteOrder = async (orderId: string) => {
+    if (!confirm(`Supprimer la commande ${orderId}?`)) return
+    
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/order/${orderId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Erreur lors de la suppression')
+      
+      showNotification('success', `Commande ${orderId} supprimée`)
+      await fetchOrders()
+    } catch (e) {
+      showNotification('error', e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotificationMessage({ type, message })
+    setTimeout(() => setNotificationMessage(null), 4000)
+  }
+
+  const exportOrders = () => {
+    const csv = [
+      ['ID', 'Client', 'Téléphone', 'Montant', 'Statut', 'Paiement', 'Date'].join(','),
+      ...filteredOrders.map(o => [
+        o.orderId,
+        o.clientName,
+        o.clientPhone,
+        o.total,
+        o.status,
+        o.paymentStatus,
+        formatDate(o.createdAt)
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `commandes_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+  }
 
   // Filtres et tri
   const filteredOrders = useMemo(() => {
@@ -139,6 +240,29 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-50">
+      {/* Notifications */}
+      <AnimatePresence>
+        {notificationMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
+              notificationMessage.type === 'success' 
+                ? 'bg-emerald-500 text-white' 
+                : 'bg-red-500 text-white'
+            }`}
+          >
+            {notificationMessage.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span className="font-semibold">{notificationMessage.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -243,7 +367,10 @@ export default function AdminOrdersPage() {
             </div>
 
             {/* Export */}
-            <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2">
+            <button 
+              onClick={exportOrders}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2"
+            >
               <Download className="w-4 h-4" />
               Exporter
             </button>
@@ -328,12 +455,84 @@ export default function AdminOrdersPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-2 hover:bg-emerald-100 text-emerald-600 rounded-lg transition" title="Éditer">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 hover:bg-red-100 text-red-600 rounded-lg transition" title="Supprimer">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          
+                          {/* Actions rapides */}
+                          {order.status === 'pending' && (
+                            <button
+                              onClick={() => updateOrderStatus(order.orderId, 'confirmed')}
+                              disabled={actionLoading}
+                              className="p-2 hover:bg-emerald-100 text-emerald-600 rounded-lg transition disabled:opacity-50"
+                              title="Confirmer"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {order.status === 'confirmed' && (
+                            <button
+                              onClick={() => updateOrderStatus(order.orderId, 'processing')}
+                              disabled={actionLoading}
+                              className="p-2 hover:bg-purple-100 text-purple-600 rounded-lg transition disabled:opacity-50"
+                              title="En traitement"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {order.status === 'processing' && (
+                            <button
+                              onClick={() => updateOrderStatus(order.orderId, 'shipped')}
+                              disabled={actionLoading}
+                              className="p-2 hover:bg-indigo-100 text-indigo-600 rounded-lg transition disabled:opacity-50"
+                              title="Expédier"
+                            >
+                              <Truck className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {/* Menu actions */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setShowActionsMenu(showActionsMenu === order.orderId ? null : order.orderId)}
+                              className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition"
+                              title="Plus d'actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            
+                            {showActionsMenu === order.orderId && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+                                <button
+                                  onClick={() => updateOrderStatus(order.orderId, 'delivered')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-emerald-50 text-emerald-700 rounded-t-lg transition"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  Marquer livré
+                                </button>
+                                <button
+                                  onClick={() => updateOrderStatus(order.orderId, 'cancelled')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-700 transition"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Annuler
+                                </button>
+                                <button
+                                  onClick={() => updatePaymentStatus(order.orderId, 'completed')}
+                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-50 text-blue-700 transition"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  Paiement reçu
+                                </button>
+                                <button
+                                  onClick={() => deleteOrder(order.orderId)}
+                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-700 rounded-b-lg transition"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Supprimer
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </motion.tr>

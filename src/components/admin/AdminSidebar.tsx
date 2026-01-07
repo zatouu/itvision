@@ -19,7 +19,8 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronLeft,
-  Menu
+  Menu,
+  ShoppingCart
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -68,6 +69,12 @@ const menuItems: MenuItem[] = [
     label: 'Clients',
     icon: Building2,
     href: '/admin/clients'
+  },
+  {
+    id: 'commandes',
+    label: 'Commandes',
+    icon: ShoppingCart,
+    href: '/admin/commandes'
   },
   {
     id: 'produits',
