@@ -20,6 +20,7 @@ import {
   Package,
   Home
 } from 'lucide-react'
+import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
@@ -30,9 +31,10 @@ export default function PanierPage() {
   const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [address, setAddress] = useState('')
+  const [address, setAddress] = useState<any>({}) // Objet structuré
   const [sending, setSending] = useState(false)
   const [step, setStep] = useState<1 | 2 | 3>(1) // 1: Panier, 2: Adresse, 3: Confirmation
+  const [addressValid, setAddressValid] = useState(false)
 
   useEffect(() => {
     try {
@@ -137,7 +139,7 @@ export default function PanierPage() {
   }
 
   const handleCheckout = async () => {
-    if (!name || !phone || !address) {
+    if (!name || !phone || !addressValid || !address) {
       alert('Veuillez remplir tous les champs')
       return
     }
@@ -453,29 +455,13 @@ export default function PanierPage() {
                     />
                   </motion.div>
 
-                  {/* Adresse */}
+                  {/* Composant AddressPickerSenegal */}
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      Adresse complète
-                    </label>
-                    <textarea
+                    <AddressPickerSenegal
                       value={address}
-                      onChange={e => setAddress(e.target.value)}
-                      placeholder="Rue, numéro, quartier, arrondissement..."
-                      rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-none"
+                      onChange={setAddress}
+                      onValidation={setAddressValid}
                     />
-                  </motion.div>
-
-                  {/* Validation info */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3"
-                  >
-                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-blue-700">Veuillez vérifier que votre adresse est correcte avant de continuer.</p>
                   </motion.div>
 
                   {/* Actions */}
@@ -492,7 +478,7 @@ export default function PanierPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setStep(3)}
-                      disabled={!name || !phone || !address}
+                      disabled={!name || !phone || !addressValid}
                       className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition"
                     >
                       Vérifier la commande
@@ -542,7 +528,15 @@ export default function PanierPage() {
                       <MapPin className="w-5 h-5 text-emerald-600" />
                       Adresse de livraison
                     </h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">{address}</p>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="text-gray-600">Rue:</span> <span className="font-semibold text-gray-900">{address?.street || '-'}</span></p>
+                      <p><span className="text-gray-600">Quartier:</span> <span className="font-semibold text-gray-900">{address?.neighborhood || '-'}</span></p>
+                      <p><span className="text-gray-600">Département:</span> <span className="font-semibold text-gray-900">{address?.department || '-'}</span></p>
+                      <p><span className="text-gray-600">Région:</span> <span className="font-semibold text-gray-900">{address?.region || '-'}</span></p>
+                      {address?.additionalInfo && (
+                        <p><span className="text-gray-600">Info supplémentaire:</span> <span className="font-semibold text-gray-900">{address.additionalInfo}</span></p>
+                      )}
+                    </div>
                   </motion.div>
 
                   {/* Articles */}

@@ -26,10 +26,19 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Validation: adresse
+    // Validation: adresse structurée
     if (!address || typeof address !== 'object') {
       return NextResponse.json(
-        { success: false, error: 'Adresse invalide' },
+        { success: false, error: 'Adresse invalide - veuillez remplir tous les champs' },
+        { status: 400 }
+      )
+    }
+
+    // Vérifier les champs obligatoires de l'adresse
+    const { region, department, neighborhood, street } = address
+    if (!region || !department || !neighborhood || !street) {
+      return NextResponse.json(
+        { success: false, error: 'Adresse incomplète - région, département, quartier et rue obligatoires' },
         { status: 400 }
       )
     }
