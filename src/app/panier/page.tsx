@@ -74,7 +74,8 @@ export default function PanierPage() {
     }
 
     const subtotal = products
-    const total = subtotal + service + insurance + transport
+    // Transport ne fait PAS partie du total ici — il est calculé globalement au checkout
+    const total = subtotal + service + insurance
     return { products, service, insurance, transport, subtotal, total }
   }, [items])
 
@@ -183,12 +184,15 @@ export default function PanierPage() {
               <span>{formatCurrency(breakdown.insurance)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Transport</span>
+              <span>Transport (estimation par article — non inclus)</span>
               <span>{formatCurrency(breakdown.transport)}</span>
             </div>
-            <div className="border-t pt-3 flex justify-between font-semibold text-lg">
-              <span>Total</span>
-              <span>{formatCurrency(breakdown.total)}</span>
+            <div className="border-t pt-3 flex flex-col gap-2">
+              <div className="flex justify-between font-semibold text-lg">
+                <span>Sous-total (produits + frais)</span>
+                <span>{formatCurrency(breakdown.total)}</span>
+              </div>
+              <div className="text-sm text-gray-500">Transport final calculé au récapitulatif/checkout selon poids total.</div>
             </div>
 
             <button onClick={submit} disabled={sending || items.length === 0} className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded font-semibold">

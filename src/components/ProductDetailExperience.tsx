@@ -897,7 +897,14 @@ Merci de me recontacter.`
                       </div>
                       <div className="border-t border-gray-100 pt-2 flex justify-between text-gray-800 font-semibold">
                         <span>Sous-total produit</span>
-                        <span>{formatCurrency(product.pricing.totalWithFees ?? (product.pricing.salePrice ?? 0), product.pricing.currency)}</span>
+                        <span>{formatCurrency(
+                          Math.round(
+                            (product.pricing.baseCost ?? (product.pricing.salePrice ?? 0)) +
+                            (product.pricing.fees.serviceFeeAmount ?? 0) +
+                            (product.pricing.fees.insuranceAmount ?? 0)
+                          ),
+                          product.pricing.currency
+                        )}</span>
                       </div>
                     </>
                   )}

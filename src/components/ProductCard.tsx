@@ -325,7 +325,7 @@ export default function ProductCard({
               </div>
               {basePrice > 0 && (
                 <div className="text-[10px] text-gray-400 mt-0.5">
-                  Prix sourcing: {basePrice.toLocaleString('fr-FR')} {currency} · +{serviceFeeRange.min}%–{serviceFeeRange.max}% frais service · +{insurancePercent}% assurance · transport selon choix
+                  Prix source • hors frais et transport
                 </div>
               )}
             </div>
