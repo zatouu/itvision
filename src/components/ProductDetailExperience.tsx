@@ -30,9 +30,10 @@ import {
   Info,
   Megaphone
 } from 'lucide-react'
+import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
-import ProductPricing1688 from '@/components/ProductPricing1688'
+// Note: Les informations de prix source ne sont pas exposées au client
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
   if (typeof amount !== 'number' || Number.isNaN(amount)) return null
@@ -43,6 +44,30 @@ interface ProductDimensions {
   lengthCm: number
   widthCm: number
   heightCm: number
+}
+
+// Type pour les variantes de produit
+export interface ProductVariant {
+  id: string
+  name: string
+  sku?: string
+  image?: string
+  price1688?: number
+  priceFCFA?: number
+  stock: number
+  isDefault?: boolean
+}
+
+export interface ProductVariantGroup {
+  name: string
+  variants: ProductVariant[]
+}
+
+// Type pour les poids
+export interface ProductWeights {
+  netWeightKg: number | null // Poids net
+  grossWeightKg: number | null // Poids brut avec emballage
+  packagingWeightKg: number | null // Poids emballage seul
 }
 
 export interface ProductDetailData {
@@ -56,6 +81,8 @@ export interface ProductDetailData {
   features: string[]
   colorOptions: string[]
   variantOptions: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: ProductVariantGroup[]
   requiresQuote: boolean
   currency?: string | null
   pricing: {
@@ -66,6 +93,13 @@ export interface ProductDetailData {
     shippingOptions: ShippingOptionPricing[]
     availabilityLabel: string
     availabilitySubLabel?: string
+    fees?: {
+      serviceFeeRate: number
+      serviceFeeAmount: number
+      insuranceRate: number
+      insuranceAmount: number
+    }
+    totalWithFees?: number | null
   }
   availability: {
     status: 'in_stock' | 'preorder' | string
@@ -80,20 +114,9 @@ export interface ProductDetailData {
     volumeM3: number | null
     dimensions: ProductDimensions | null
   }
-  sourcing: {
-    platform?: string | null
-    supplierName?: string | null
-    supplierContact?: string | null
-    productUrl?: string | null
-    notes?: string | null
-  } | null
-  pricing1688?: {
-    price1688: number
-    price1688Currency: string
-    exchangeRate: number
-    serviceFeeRate?: number | null
-    insuranceRate?: number | null
-  } | null
+  // Poids détaillés
+  weights?: ProductWeights
+  isImported?: boolean // Indicateur si produit importé (sans exposer les détails source)
 }
 
 export interface SimilarProductSummary {
@@ -126,7 +149,8 @@ const shippingIcon = (methodId?: string) => {
 }
 
 export default function ProductDetailExperience({ product, similar }: ProductDetailExperienceProps) {
-  const gallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
+  // Galerie : images produit + images variantes
+  const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
   
   // Fonction pour trouver l'option de 15 jours par défaut
   const getDefaultShippingOption = () => {
@@ -142,7 +166,34 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(getDefaultShippingOption())
   const [selectedColor, setSelectedColor] = useState<string | null>(product.colorOptions.filter(Boolean)[0] ?? null)
   const [selectedVariant, setSelectedVariant] = useState<string | null>(product.variantOptions.filter(Boolean)[0] ?? null)
+  // Variantes avec prix (style 1688) - Map: groupName -> variantId
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    product.variantGroups?.forEach(group => {
+      const defaultVar = group.variants.find(v => v.isDefault) || group.variants[0]
+      if (defaultVar) initial[group.name] = defaultVar.id
+    })
+    return initial
+  })
+
+  // Construire la galerie avec l'image de la variante sélectionnée au début
+  const gallery = useMemo(() => {
+    const variantImage = 
+      product.variantGroups
+        ?.flatMap(g => g.variants)
+        .find(v => Object.values(selectedVariants).includes(v.id))?.image
+    
+    if (variantImage && !baseGallery.includes(variantImage)) {
+      return [variantImage, ...baseGallery]
+    }
+    return baseGallery
+  }, [selectedVariants, product.variantGroups, baseGallery])
   const [quantity, setQuantity] = useState(1)
+  const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {}
+    product.variantGroups?.forEach(group => group.variants.forEach(v => { map[v.id] = 0 }))
+    return map
+  })
   const [adding, setAdding] = useState(false)
   const [showNegotiation, setShowNegotiation] = useState(false)
   const [negotiationMessage, setNegotiationMessage] = useState('Bonjour, je souhaite discuter du tarif et des délais pour ce produit.')
@@ -170,6 +221,59 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
+  // Calcul du prix et de l'image basés sur les variantes sélectionnées
+  const selectedVariantDetails = useMemo(() => {
+    if (!product.variantGroups || product.variantGroups.length === 0) {
+      return { 
+        totalVariantPrice: null, 
+        variantImage: null,
+        totalStock: product.availability.stockQuantity,
+        selectedItems: []
+      }
+    }
+
+    const selectedItems: { groupName: string; variant: ProductVariant }[] = []
+    let totalVariantPrice = 0
+    let hasPrice = false
+    let variantImage: string | null = null
+    let totalStock = 0
+
+    for (const group of product.variantGroups) {
+      const selectedId = selectedVariants[group.name]
+      const selectedVar = group.variants.find(v => v.id === selectedId)
+      
+      if (selectedVar) {
+        selectedItems.push({ groupName: group.name, variant: selectedVar })
+        
+        // Utiliser l'image de la variante si disponible
+        if (selectedVar.image && !variantImage) {
+          variantImage = selectedVar.image
+        }
+        
+        // Additionner les prix des variantes (en FCFA)
+        if (selectedVar.priceFCFA !== undefined && selectedVar.priceFCFA > 0) {
+          totalVariantPrice += selectedVar.priceFCFA
+          hasPrice = true
+        }
+        
+        // Utiliser le stock de la variante
+        totalStock = Math.min(totalStock === 0 ? selectedVar.stock : totalStock, selectedVar.stock)
+      }
+    }
+
+    return {
+      totalVariantPrice: hasPrice ? totalVariantPrice : null,
+      variantImage,
+      totalStock,
+      selectedItems
+    }
+  }, [product.variantGroups, selectedVariants, product.availability.stockQuantity])
+
+  // Prix effectif : prix variante ou prix standard.
+  // Pour les produits importés, préférer le `totalWithFees` (coût fournisseur + frais)
+  // afin d'afficher un prix client clair (hors transport) — sinon utiliser `salePrice`.
+  const effectivePrice = selectedVariantDetails.totalVariantPrice ?? (product.pricing.totalWithFees ?? product.pricing.salePrice)
+
   useEffect(() => {
     if (!shippingEnabled) {
       setSelectedShippingId(null)
@@ -187,9 +291,25 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     ? product.pricing.shippingOptions.find((option) => option.id === selectedShippingId) || null
     : null
 
-  const unitPrice = !product.requiresQuote
-    ? (shippingEnabled && activeShipping ? activeShipping.total : product.pricing.salePrice)
-    : null
+  // Prix unitaire (exclut le transport) : le prix affiché sur la page produit doit être le prix produit (sourcing + frais).
+  const basePrice = effectivePrice ?? product.pricing.salePrice
+  const unitPrice = !product.requiresQuote ? basePrice : null
+
+  const variantSubtotal = useMemo(() => {
+    const entries = Object.entries(variantQuantities || {}).filter(([, q]) => q > 0)
+    if (entries.length === 0) return 0
+    let sum = 0
+    for (const [variantId, qty] of entries) {
+      const variant = product.variantGroups?.flatMap(g => g.variants).find(v => v.id === variantId)
+      const price = (variant && typeof variant.priceFCFA === 'number' && variant.priceFCFA > 0)
+        ? variant.priceFCFA
+        : (basePrice ?? 0)
+      sum += price * qty
+    }
+    return sum
+  }, [variantQuantities, product.variantGroups, basePrice])
+
+  const displayedSubtotal = variantSubtotal > 0 ? variantSubtotal : (unitPrice ? unitPrice * Math.max(1, quantity) : 0)
 
   const totalPrice = useMemo(() => {
     if (!unitPrice) return null
@@ -214,6 +334,14 @@ Merci de me recontacter.`
     return `https://wa.me/221774133440?text=${message}`
   }
 
+  const incrementVariant = (variantId: string) => {
+    setVariantQuantities(prev => ({ ...prev, [variantId]: (prev[variantId] || 0) + 1 }))
+  }
+
+  const decrementVariant = (variantId: string) => {
+    setVariantQuantities(prev => ({ ...prev, [variantId]: Math.max(0, (prev[variantId] || 0) - 1) }))
+  }
+
   const addToCart = (redirect = false) => {
     try {
       setAdding(true)
@@ -223,37 +351,108 @@ Merci de me recontacter.`
       const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
       const id = `${product.id}${shippingKey}`
       const currency = activeShipping?.currency || product.pricing.currency
-      const existsIndex = items.findIndex((item: any) => item.id === id)
+      // Si l'utilisateur a renseigné des quantités par variante, ajouter chaque variante séparément
+      const variantEntries = Object.entries(variantQuantities || {}).filter(([, q]) => q > 0)
+      if (variantEntries.length > 0) {
+        for (const [variantId, qty] of variantEntries) {
+          const variant = product.variantGroups?.flatMap(g => g.variants).find(v => v.id === variantId)
+          if (!variant) continue
+          const vId = `${product.id}-${variantId}${shippingKey}`
+          const exists = items.find((it: any) => it.id === vId)
+          const priceForVariant = (typeof variant.priceFCFA === 'number' && variant.priceFCFA > 0)
+            ? variant.priceFCFA
+            : basePrice ?? 0
+          // Calculer le prix avec frais inclus (ce qui s'affiche au panier)
+          const priceWithFeesVariant = product.pricing.fees
+            ? priceForVariant + (product.pricing.fees.serviceFeeAmount || 0) + (product.pricing.fees.insuranceAmount || 0)
+            : priceForVariant
 
-      if (existsIndex >= 0) {
-        items[existsIndex].qty += Math.max(1, quantity)
-        items[existsIndex].price = unitPrice
-        items[existsIndex].currency = currency
-        if (activeShipping) {
-          items[existsIndex].shipping = {
-            id: activeShipping.id,
-            label: activeShipping.label,
-            durationDays: activeShipping.durationDays,
-            cost: activeShipping.cost,
-            currency: activeShipping.currency
+          if (exists) {
+            exists.qty += qty
+            exists.price = priceWithFeesVariant
+            exists.currency = currency
+            // ajouter poids/volume si disponible (product level, pas variant level)
+            exists.unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
+            exists.unitVolumeM3 = product.logistics.volumeM3 ?? undefined
+          } else {
+            const newItem: any = {
+              id: vId,
+              name: `${product.name} — ${variant.name}`,
+              qty,
+              price: priceWithFeesVariant,
+              currency,
+              requiresQuote: !!product.requiresQuote,
+              variantId
+            }
+            if (activeShipping) newItem.shipping = {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              cost: activeShipping.cost,
+              currency: activeShipping.currency
+            }
+            if (product.pricing.fees) {
+              newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate
+              newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount
+              newItem.insuranceRate = product.pricing.fees.insuranceRate
+              newItem.insuranceAmount = product.pricing.fees.insuranceAmount
+            }
+            // ajouter poids/volume unitaire (product level, pas variant level)
+            newItem.unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
+            newItem.unitVolumeM3 = product.logistics.volumeM3 ?? undefined
+            items.push(newItem)
           }
         }
       } else {
-        items.push({
-          id,
-          name: product.name,
-          qty: Math.max(1, quantity),
-          price: unitPrice,
-          currency,
-          requiresQuote: !!product.requiresQuote,
-          shipping: activeShipping ? {
-            id: activeShipping.id,
-            label: activeShipping.label,
-            durationDays: activeShipping.durationDays,
-            cost: activeShipping.cost,
-            currency: activeShipping.currency
-          } : undefined
-        })
+        const existsIndex = items.findIndex((item: any) => item.id === id)
+        // Calculer le prix avec frais inclus (ce qui s'affiche au panier)
+        const priceWithFees = product.pricing.fees
+          ? (basePrice ?? 0) + (product.pricing.fees.serviceFeeAmount || 0) + (product.pricing.fees.insuranceAmount || 0)
+          : (basePrice ?? 0)
+
+        if (existsIndex >= 0) {
+          items[existsIndex].qty += Math.max(1, quantity)
+          // Stocker le prix avec frais déjà inclus (sourcing + service + assurance, hors transport)
+          items[existsIndex].price = priceWithFees
+          items[existsIndex].currency = currency
+          if (activeShipping) {
+            items[existsIndex].shipping = {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              cost: activeShipping.cost,
+              currency: activeShipping.currency
+            }
+          }
+        } else {
+          items.push({
+            id,
+            name: product.name,
+            qty: Math.max(1, quantity),
+            // Prix avec frais déjà inclus (sourcing + service + assurance, hors transport)
+            price: priceWithFees,
+            currency,
+            requiresQuote: !!product.requiresQuote,
+            shipping: activeShipping ? {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              cost: activeShipping.cost,
+              currency: activeShipping.currency
+            } : undefined
+          })
+          // Ajouter méta frais/assurance pour que le panier/checkout puisse calculer le total final
+          const lastIndex = items.length - 1
+          if (product.pricing.fees) {
+            items[lastIndex].serviceFeeRate = product.pricing.fees.serviceFeeRate
+            items[lastIndex].serviceFeeAmount = product.pricing.fees.serviceFeeAmount
+            items[lastIndex].insuranceRate = product.pricing.fees.insuranceRate
+            items[lastIndex].insuranceAmount = product.pricing.fees.insuranceAmount
+          }
+          // ajouter poids/volume unitaire
+          items[lastIndex].unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
+          items[lastIndex].unitVolumeM3 = product.logistics.volumeM3 ?? undefined
+        }
       }
 
       window.localStorage.setItem('cart:items', JSON.stringify(items))
@@ -473,6 +672,26 @@ Merci de me recontacter.`
     }
   }, [product.id])
 
+  // Enregistrer le produit consulté pour recent:viewed (localStorage)
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return
+      const key = 'recent:viewed'
+      const variantId = Object.values(selectedVariants || {})[0] ?? null
+      const entry = { id: product.id, variantId, url: typeof window !== 'undefined' ? window.location.href : '', title: product.name, ts: Date.now() }
+      const raw = localStorage.getItem(key)
+      let arr = raw ? JSON.parse(raw) : []
+      arr = arr.filter((e: any) => !(e.id === entry.id && e.variantId === entry.variantId))
+      arr.unshift(entry)
+      arr = arr.slice(0, 20)
+      localStorage.setItem(key, JSON.stringify(arr))
+      window.dispatchEvent(new CustomEvent('recent:updated'))
+    } catch (e) {
+      console.error('recent view store error', e)
+    }
+    // Re-enregistrer quand le produit ou la sélection de variantes change
+  }, [product.id, JSON.stringify(selectedVariants)])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     const handleWishlistUpdate = () => {
@@ -510,30 +729,41 @@ Merci de me recontacter.`
 
   const logisticsEntries = useMemo(() => {
     const entries: { label: string; value: string | null }[] = []
+    
     if (product.availability.leadTimeDays) {
       entries.push({ label: 'Délai moyen Chine', value: `${product.availability.leadTimeDays} jours` })
     }
-    if (product.logistics.weightKg) {
-      entries.push({ label: 'Poids net', value: `${product.logistics.weightKg.toFixed(2)} kg` })
+    
+    // Poids détaillés (priorité aux données structurées)
+    const weights = product.weights
+    if (weights?.netWeightKg) {
+      entries.push({ label: 'Poids net (produit)', value: `${weights.netWeightKg.toFixed(2)} kg` })
     }
-    if (product.logistics.packagingWeightKg) {
-      entries.push({ label: 'Poids emballage', value: `${product.logistics.packagingWeightKg.toFixed(2)} kg` })
+    if (weights?.grossWeightKg) {
+      entries.push({ label: 'Poids brut (avec emballage)', value: `${weights.grossWeightKg.toFixed(2)} kg` })
+    } else if (product.logistics.weightKg && !weights?.netWeightKg) {
+      // Fallback legacy
+      entries.push({ label: 'Poids', value: `${product.logistics.weightKg.toFixed(2)} kg` })
     }
+    if (weights?.packagingWeightKg || product.logistics.packagingWeightKg) {
+      const pkgWeight = weights?.packagingWeightKg ?? product.logistics.packagingWeightKg
+      entries.push({ label: 'Poids emballage', value: `${pkgWeight?.toFixed(2)} kg` })
+    }
+    
+    // Volume
     if (product.logistics.volumeM3) {
       entries.push({ label: 'Volume', value: `${product.logistics.volumeM3.toFixed(3)} m³` })
     }
+    
+    // Dimensions
     if (product.logistics.dimensions) {
       const { lengthCm, widthCm, heightCm } = product.logistics.dimensions
       entries.push({ label: 'Dimensions colis', value: `${lengthCm} × ${widthCm} × ${heightCm} cm` })
     }
-    if (product.sourcing?.platform) {
-      entries.push({ label: 'Plateforme sourcing', value: product.sourcing.platform })
-    }
-    if (product.sourcing?.supplierName) {
-      entries.push({ label: 'Fournisseur', value: product.sourcing.supplierName })
-    }
+    
+    // Note: Les informations de sourcing ne sont pas exposées au client
     return entries
-  }, [product.logistics, product.availability.leadTimeDays, product.sourcing])
+  }, [product.logistics, product.weights, product.availability.leadTimeDays])
 
   useEffect(() => {
     if (activeTab === 'reviews') {
@@ -594,7 +824,7 @@ Merci de me recontacter.`
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
           {/* Galerie d'images */}
           <div className="space-y-4">
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group">
+            <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
               <button
                 type="button"
                 onClick={() => setShowImageModal(true)}
@@ -605,8 +835,8 @@ Merci de me recontacter.`
                   src={gallery[activeImageIndex] || '/file.svg'}
                   alt={product.name}
                   fill
-                  className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
                   priority
                 />
                 <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg">
@@ -654,102 +884,291 @@ Merci de me recontacter.`
             )}
           </div>
 
-          {/* Informations produit */}
-          <div className="space-y-6">
-            {/* Titre et tagline */}
+          {/* Informations produit - Compact */}
+          <div className="space-y-4">
+            {/* Titre */}
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full mb-3">
-                <ShieldCheck className="h-4 w-4" />
-                Sourcing sécurisé IT Vision
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                  <ShieldCheck className="h-3 w-3" />
+                  IT Vision
+                </span>
+                {product.isImported && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    Import Chine
+                  </span>
+                )}
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mb-3">{product.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{product.name}</h1>
               {product.tagline && (
-                <p className="text-lg text-gray-600 font-medium">{product.tagline}</p>
+                <p className="text-sm text-gray-600 mt-1">{product.tagline}</p>
               )}
             </div>
 
-            {/* Prix */}
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border-2 border-emerald-200">
-              <div className="text-sm text-emerald-700 font-semibold mb-2">Prix catalogue</div>
-              <div className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                {totalPriceLabel || unitPriceLabel || 'Sur devis'}
-              </div>
-              {!showQuote && quantity > 1 && (
-                <div className="text-sm text-gray-600">{quantity} unité(s) × {unitPriceLabel}</div>
-              )}
-              {deliveryDays && (
-                <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                  <Clock className="h-4 w-4" />
-                  <span>Délai estimé : {deliveryDays} jours</span>
-                </div>
-              )}
-            </div>
-
-            {/* Options de livraison */}
-            {shippingEnabled && (
-              <div className="space-y-3">
-                <div className="text-sm font-semibold text-gray-900">Modes de transport</div>
-                <div className="flex flex-wrap gap-2">
-                  {product.pricing.shippingOptions.map((option) => {
-                    const Icon = shippingIcon(option.id)
-                    const active = option.id === selectedShippingId
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setSelectedShippingId(option.id)}
-                        className={clsx(
-                          'flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all',
-                          active
-                            ? 'border-emerald-500 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{option.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                {activeShipping && (
-                  <div className="rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-gray-900">{activeShipping.label}</span>
-                      <span className="font-bold text-emerald-600">{formatCurrency(activeShipping.cost, activeShipping.currency)}</span>
+            {/* Structure de prix — explicite et simple */}
+            <div className="mt-4">
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Structure de prix</h3>
+                <div className="text-sm text-gray-700 space-y-2">
+                  {product.pricing.baseCost !== null && (
+                    <div className="flex justify-between">
+                      <span>Prix source (Chine)</span>
+                      <span className="font-medium">{formatCurrency(product.pricing.baseCost, product.pricing.currency)}</span>
                     </div>
-                    <div className="text-xs text-gray-500">Délai : {activeShipping.durationDays} jours</div>
+                  )}
+                  {product.pricing.fees && (
+                    <>
+                      <div className="flex justify-between">
+                        <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
+                        <span className="font-medium">+{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
+                        <span className="font-medium">+{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}</span>
+                      </div>
+                      <div className="border-t border-gray-100 pt-2 flex justify-between text-gray-800 font-semibold">
+                        <span>Sous-total produit</span>
+                        <span>{formatCurrency(
+                          Math.round(
+                            (product.pricing.baseCost ?? (product.pricing.salePrice ?? 0)) +
+                            (product.pricing.fees.serviceFeeAmount ?? 0) +
+                            (product.pricing.fees.insuranceAmount ?? 0)
+                          ),
+                          product.pricing.currency
+                        )}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="mt-2 text-xs text-gray-500">⚠ Transport non inclus — sélectionnez le mode sur la page pour voir l'impact. Le coût exact est calculé au récapitulatif selon le poids total de votre commande.</div>
+                </div>
+              </div>
+
+              {/* Badge livraison possible */}
+              {product.pricing.shippingOptions && product.pricing.shippingOptions.length > 0 && (
+                <div className="mt-3 text-sm text-gray-600">
+                  <span className="font-medium">Livraison possible :</span>{' '}
+                  {Array.from(new Set(product.pricing.shippingOptions.map(o => o.durationDays))).map((d, idx) => (
+                    <span key={d} className="inline-block ml-1">{d}j{idx < product.pricing.shippingOptions.length - 1 ? ' /' : ''}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Aperçu détaillé des variantes avec contrôle de quantité par variante (style compact) */}
+              {product.variantGroups && product.variantGroups.length > 0 && (
+                <div className="mt-3 bg-white border border-gray-200 rounded-lg p-2">
+                  {product.variantGroups.map((group) => (
+                    <div key={`vg-${group.name}`} className="mb-2">
+                      <div className="text-sm font-semibold text-gray-700 mb-2">{group.name}</div>
+                      <div className="space-y-1">
+                        {group.variants.map((v) => (
+                          <div key={v.id} className="grid grid-cols-[auto_1fr_auto] gap-3 items-center py-2">
+                            <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                              {v.image ? (
+                                <img src={v.image} alt={v.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="text-xs text-gray-400">No image</div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-gray-800 truncate">{v.name}</div>
+                              <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                                <span className="font-semibold text-emerald-600">{v.priceFCFA ? formatCurrency(v.priceFCFA, 'FCFA') : (v.price1688 ? `${v.price1688} ¥` : '')}</span>
+                                {v.stock !== undefined && <span className="text-gray-400">• {v.stock} en stock</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => decrementVariant(v.id)}
+                                aria-label={`Retirer ${v.name}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-full border text-gray-700 bg-white hover:bg-gray-50"
+                              >
+                                −
+                              </button>
+                              <div className="w-8 text-center text-sm">{variantQuantities[v.id] || 0}</div>
+                              <button
+                                type="button"
+                                onClick={() => incrementVariant(v.id)}
+                                aria-label={`Ajouter ${v.name}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Options de transport (taux affichés, pas de total) */}
+              <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">Options de transport (exemples de tarifs)</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  {Object.values(BASE_SHIPPING_RATES).map((rate) => (
+                    <div key={rate.id} className="flex justify-between">
+                      <div>
+                        <div className="font-medium">{rate.label}</div>
+                        <div className="text-xs text-gray-500">{rate.description}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">
+                          {rate.billing === 'per_kg' ? `${rate.rate.toLocaleString('fr-FR')} ${product.pricing.currency}/kg` : `${rate.rate.toLocaleString('fr-FR')} ${product.pricing.currency}/m³`}
+                        </div>
+                        {rate.minimumCharge && <div className="text-xs text-gray-500">min {rate.minimumCharge.toLocaleString('fr-FR')} {product.pricing.currency}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-gray-500">Le coût exact est calculé au récapitulatif selon le poids/volume total de votre commande.</div>
+              </div>
+            </div>
+
+            {/* Prix + Transport compact */}
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                {/* Prix */}
+                <div>
+                  <div className="text-3xl sm:text-4xl font-extrabold text-emerald-600">
+                    {totalPriceLabel || unitPriceLabel || 'Sur devis'}
+                  </div>
+                  {!showQuote && quantity > 1 && (
+                    <div className="text-xs text-gray-500">{quantity} × {unitPriceLabel}</div>
+                  )}
+                  {deliveryDays && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                      <Clock className="h-3 w-3" />
+                      <span>Livraison ~{deliveryDays}j</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Boutons transport - Style tabs compact */}
+                {shippingEnabled && product.pricing.shippingOptions.length > 0 && (
+                  <div className="flex bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
+                    {product.pricing.shippingOptions.map((option) => {
+                      const active = option.id === selectedShippingId
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setSelectedShippingId(option.id)}
+                          className={clsx(
+                            'px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap',
+                            active
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'text-gray-600 hover:bg-gray-100'
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
-            )}
+              
+              {/* Détail prix (compact, toggle possible) */}
+              {product.pricing.fees && product.pricing.salePrice && !showQuote && (
+                <div className="mt-3 pt-3 border-t border-emerald-200/50 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div className="text-gray-600">
+                    <span className="block text-gray-400">Produit</span>
+                    {formatCurrency(product.pricing.salePrice, product.pricing.currency)}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="block text-gray-400">Service {product.pricing.fees.serviceFeeRate}%</span>
+                    +{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="block text-gray-400">Assurance {product.pricing.fees.insuranceRate}%</span>
+                    +{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}
+                  </div>
+                  {activeShipping && (
+                    <div className="text-gray-600">
+                      <span className="block text-gray-400">Transport</span>
+                      +{formatCurrency(activeShipping.cost, activeShipping.currency)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-            {/* Prix d'origine */}
-            {product.pricing1688 && (
-              <ProductPricing1688
-                productId={product.id}
-                pricing1688={product.pricing1688}
-                weightKg={product.logistics.weightKg}
-                volumeM3={product.logistics.volumeM3}
-                baseCost={product.pricing.baseCost}
-              />
-            )}
-
-            {/* Options produit */}
-            <div className="space-y-4">
-              {product.colorOptions.filter(Boolean).length > 0 && (
+            {/* Conseil achats en gros */}
+            {product.isImported && !showQuote && (
+              <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <div className="text-sm font-semibold text-gray-900 mb-2">Couleurs disponibles</div>
-                  <div className="flex flex-wrap gap-2">
+                  <span className="font-semibold text-amber-700">Conseil :</span>
+                  <span className="text-amber-600"> Commandez en gros pour réduire les frais de transport au kilo ! Plus de quantité = meilleur prix unitaire.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Options produit compact */}
+            <div className="space-y-3">
+              {/* Variantes avec prix (compact) */}
+              {product.variantGroups && product.variantGroups.length > 0 && (
+                <div className="space-y-2">
+                  {product.variantGroups.map((group) => (
+                    <div key={group.name} className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-600 w-16">{group.name}:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {group.variants.map((variant) => {
+                          const isSelected = selectedVariants[group.name] === variant.id
+                          return (
+                            <button
+                              key={variant.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedVariants(prev => ({ ...prev, [group.name]: variant.id }))
+                                if (variant.image) {
+                                  const imgIndex = gallery.findIndex(img => img === variant.image)
+                                  if (imgIndex >= 0) setActiveImageIndex(imgIndex)
+                                }
+                              }}
+                              className={clsx(
+                                'flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all',
+                                isSelected
+                                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
+                                  : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300',
+                                variant.stock === 0 && 'opacity-50 line-through'
+                              )}
+                            >
+                              {variant.image && (
+                                <img src={variant.image} alt="" className="w-4 h-4 rounded object-cover" />
+                              )}
+                              <span>{variant.name}</span>
+                              {variant.priceFCFA && variant.priceFCFA > 0 && (
+                                <span className="text-[10px] text-gray-400">
+                                  {formatCurrency(variant.priceFCFA, 'FCFA')}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Options legacy compactes */}
+              {product.colorOptions.filter(Boolean).length > 0 && (!product.variantGroups || product.variantGroups.length === 0) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-600 w-16">Couleur:</span>
+                  <div className="flex flex-wrap gap-1">
                     {product.colorOptions.filter(Boolean).map((color) => (
                       <button
                         key={color}
                         type="button"
                         onClick={() => setSelectedColor(color)}
                         className={clsx(
-                          'rounded-full px-4 py-2 text-sm font-medium border-2 transition-all',
+                          'px-2 py-1 text-xs rounded-md border transition-all',
                           selectedColor === color
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300'
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300'
                         )}
                       >
                         {color}
@@ -759,20 +1178,20 @@ Merci de me recontacter.`
                 </div>
               )}
 
-              {product.variantOptions.filter(Boolean).length > 0 && (
-                <div>
-                  <div className="text-sm font-semibold text-gray-900 mb-2">Variantes</div>
-                  <div className="flex flex-wrap gap-2">
+              {product.variantOptions.filter(Boolean).length > 0 && (!product.variantGroups || product.variantGroups.length === 0) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-600 w-16">Option:</span>
+                  <div className="flex flex-wrap gap-1">
                     {product.variantOptions.filter(Boolean).map((variant) => (
                       <button
                         key={variant}
                         type="button"
                         onClick={() => setSelectedVariant(variant)}
                         className={clsx(
-                          'rounded-xl px-4 py-2 text-sm font-medium border-2 transition-all',
+                          'px-2 py-1 text-xs rounded-md border transition-all',
                           selectedVariant === variant
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300'
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300'
                         )}
                       >
                         {variant}
@@ -782,14 +1201,13 @@ Merci de me recontacter.`
                 </div>
               )}
 
-              {/* Quantité */}
-              <div className="flex items-center gap-4">
-                <label htmlFor="quantity" className="text-sm font-semibold text-gray-900">Quantité</label>
-                <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl overflow-hidden">
+              {/* Quantité + Actions sur la même ligne */}
+              <div className="flex items-center gap-3 pt-2">
+                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     type="button"
                     onClick={() => handleQuantityChange(quantity - 1)}
-                    className="px-3 py-2 hover:bg-gray-100 transition-colors"
+                    className="px-2 py-1 hover:bg-gray-100 text-gray-600"
                   >
                     −
                   </button>
@@ -799,40 +1217,48 @@ Merci de me recontacter.`
                     min={1}
                     value={quantity}
                     onChange={(e) => handleQuantityChange(Number(e.target.value))}
-                    className="w-16 text-center border-0 focus:ring-0 focus:outline-none"
+                    className="w-12 text-center border-x border-gray-200 py-1 text-sm focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    className="px-3 py-2 hover:bg-gray-100 transition-colors"
+                    className="px-2 py-1 hover:bg-gray-100 text-gray-600"
                   >
                     +
                   </button>
                 </div>
+                <span className="text-xs text-gray-500">unité(s)</span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-3 pt-4 border-t border-gray-200">
+            {/* Actions compactes */}
+            <div className="w-full mb-2">
+              <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 text-sm flex items-center justify-between">
+                <div className="text-gray-600">Sous-total produit</div>
+                <div className="font-semibold text-lg text-emerald-600">{formatCurrency(displayedSubtotal, product.pricing.currency)}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
               {!showQuote && (
                 <>
                   <button
                     type="button"
                     onClick={() => addToCart(true)}
                     disabled={adding}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-4 text-base font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                    className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 text-sm font-bold transition-all shadow-md disabled:opacity-50"
                   >
-                    <ShoppingCart className="h-5 w-5" />
-                    {adding ? 'Ajout...' : 'Acheter maintenant'}
+                    <ShoppingCart className="h-4 w-4" />
+                    {adding ? 'Ajout...' : 'Acheter'}
                   </button>
                   <button
                     type="button"
                     onClick={() => addToCart(false)}
                     disabled={adding}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-white text-emerald-600 px-6 py-3 text-base font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-500 text-emerald-600 px-3 py-2.5 text-sm font-medium hover:bg-emerald-50 transition-all disabled:opacity-50"
+                    title="Ajouter au panier"
                   >
-                    <ShoppingCart className="h-5 w-5" />
-                    {adding ? 'Ajout...' : 'Ajouter au panier'}
+                    <ShoppingCart className="h-4 w-4" />
+                    <span className="hidden sm:inline">Panier</span>
                   </button>
                 </>
               )}
@@ -841,191 +1267,65 @@ Merci de me recontacter.`
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackEvent('quote_request', { productId: product.id, quantity })}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green-500 bg-green-50 text-green-700 px-6 py-3 text-base font-semibold hover:bg-green-100 transition-all"
+                className="inline-flex items-center justify-center gap-1 rounded-lg bg-green-500 text-white px-3 py-2.5 text-sm font-medium hover:bg-green-600 transition-all"
+                title="Devis WhatsApp"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
                 </svg>
-                Demander un devis WhatsApp
+                <span className="hidden sm:inline">Devis</span>
               </a>
               <button
                 type="button"
                 onClick={() => setShowNegotiation(true)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border-2 border-gray-300 bg-white text-gray-700 px-6 py-3 text-base font-semibold hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-300 text-gray-600 px-3 py-2.5 text-sm font-medium hover:border-emerald-400 hover:text-emerald-600 transition-all"
+                title="Négocier"
               >
-                <MessageCircle className="h-5 w-5" />
-                Négocier le tarif
+                <MessageCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">Négocier</span>
               </button>
-            </div>
-
-            <section className="bg-white border border-emerald-100 rounded-2xl p-4 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Installation & marketplace techniciens</p>
-                  <p className="text-xs text-gray-500">
-                    Confiez l’installation à notre réseau : la mission part sur le marketplace, les techniciens
-                    proposent leur prix et leur dispo.
-                  </p>
-                </div>
-                <label className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600">
-                  <input
-                    type="checkbox"
-                    checked={wantsInstallation}
-                    onChange={(e) => setWantsInstallation(e.target.checked)}
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Activer
-                </label>
-              </div>
-              {wantsInstallation && (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500">Contact sur site</label>
-                      <input
-                        value={installationForm.contactName}
-                        onChange={(e) => updateInstallationForm('contactName', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Nom complet"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Téléphone</label>
-                      <input
-                        value={installationForm.contactPhone}
-                        onChange={(e) => updateInstallationForm('contactPhone', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="+221..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Email</label>
-                      <input
-                        type="email"
-                        value={installationForm.contactEmail}
-                        onChange={(e) => updateInstallationForm('contactEmail', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                        placeholder="client@exemple.com"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Adresse / site</label>
-                      <input
-                        value={installationForm.address}
-                        onChange={(e) => updateInstallationForm('address', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                        placeholder="Quartier, ville..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Date souhaitée</label>
-                      <input
-                        type="date"
-                        value={installationForm.preferredDate}
-                        onChange={(e) => updateInstallationForm('preferredDate', e.target.value)}
-                        className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 mt-6">
-                      <input
-                        type="checkbox"
-                        checked={installationForm.includeMaterials}
-                        onChange={(e) => updateInstallationForm('includeMaterials', e.target.checked)}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="text-sm text-gray-700">Inclure consommables & petits accessoires</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Notes / contraintes</label>
-                    <textarea
-                      value={installationForm.notes}
-                      onChange={(e) => updateInstallationForm('notes', e.target.value)}
-                      rows={3}
-                      className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                      placeholder="Ex: accès badge, créneaux horaires, quantité à installer..."
-                    />
-                  </div>
-                  {installationError && (
-                    <p className="text-sm text-red-600">{installationError}</p>
-                  )}
-                  {installationStatus === 'success' && (
-                    <p className="text-sm text-emerald-600">
-                      Demande publiée ! Référence marketplace {installationSuccessId?.slice(-6) || ''}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleInstallationRequest}
-                    disabled={installationStatus === 'loading'}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 via-emerald-500 to-emerald-600 hover:via-emerald-600 text-white px-6 py-3 text-base font-semibold shadow-lg transition disabled:opacity-60"
-                  >
-                    <Megaphone className="h-5 w-5" />
-                    {installationStatus === 'loading'
-                      ? 'Publication en cours...'
-                      : 'Publier la mission installation'}
-                  </button>
-                  <p className="text-xs text-gray-500 text-center">
-                    Les techniciens certifiés répondent depuis leur application. Vous validez l’offre idéale depuis
-                    votre portail client.
-                  </p>
-                </>
-              )}
-            </section>
-
-            {/* Actions secondaires */}
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
                 onClick={toggleFavorite}
                 className={clsx(
-                  'inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-semibold transition',
-                  isFavorite
-                    ? 'border-red-500 bg-red-50 text-red-600'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-400'
+                  'inline-flex items-center justify-center rounded-lg border px-2.5 py-2.5 transition-all',
+                  isFavorite ? 'border-red-300 bg-red-50 text-red-500' : 'border-gray-300 text-gray-400 hover:text-red-500'
                 )}
+                title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               >
-                <Heart className={clsx('h-4 w-4', isFavorite && 'fill-red-500')} />
-                {isFavorite ? 'Favori' : 'Favoris'}
+                <Heart className={clsx('h-4 w-4', isFavorite && 'fill-current')} />
               </button>
-              <button
-                type="button"
-                onClick={handleExportPDF}
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 transition"
-              >
-                <FileDown className="h-4 w-4" />
-                PDF
-              </button>
-              <div className="relative group">
-                <button
-                  type="button"
-                  onClick={() => handleShare()}
-                  className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-emerald-400 hover:text-emerald-600 transition"
-                >
-                  <Share2 className="h-4 w-4" />
-                  Partager
-                </button>
-                <div className="absolute right-0 top-full mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 bg-white border-2 border-gray-200 rounded-xl p-2 shadow-xl min-w-[180px]">
-                  <button
-                    onClick={() => handleShare('whatsapp')}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2"
-                  >
-                    WhatsApp
-                  </button>
-                  <button
-                    onClick={() => handleShare('facebook')}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2"
-                  >
-                    Facebook
-                  </button>
-                  <button
-                    onClick={() => handleShare('copy')}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2"
-                  >
-                    Copier le lien
-                  </button>
+            </div>
+
+            {/* Installation compacte (repliée par défaut) */}
+            <details className="border border-gray-200 rounded-lg text-xs">
+              <summary className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 font-medium text-gray-600">
+                <Megaphone className="h-3 w-3 text-purple-500" />
+                Demander une installation (techniciens certifiés)
+              </summary>
+              <div className="p-3 space-y-2 bg-white">
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={installationForm.contactName} onChange={(e) => updateInstallationForm('contactName', e.target.value)} className="border rounded px-2 py-1" placeholder="Nom" />
+                  <input value={installationForm.contactPhone} onChange={(e) => updateInstallationForm('contactPhone', e.target.value)} className="border rounded px-2 py-1" placeholder="Tél" />
+                  <input value={installationForm.address} onChange={(e) => updateInstallationForm('address', e.target.value)} className="border rounded px-2 py-1" placeholder="Adresse" />
+                  <input type="date" value={installationForm.preferredDate} onChange={(e) => updateInstallationForm('preferredDate', e.target.value)} className="border rounded px-2 py-1" />
                 </div>
+                {installationError && <p className="text-red-600">{installationError}</p>}
+                {installationStatus === 'success' && <p className="text-emerald-600">✓ Demande publiée</p>}
+                <button onClick={handleInstallationRequest} disabled={installationStatus === 'loading'} className="w-full bg-purple-500 text-white rounded py-1.5 font-medium hover:bg-purple-600 disabled:opacity-60">
+                  {installationStatus === 'loading' ? 'Publication...' : 'Publier mission'}
+                </button>
               </div>
+            </details>
+
+            {/* Actions secondaires compactes */}
+            <div className="flex items-center gap-2 text-xs pt-2">
+              <button onClick={handleExportPDF} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Télécharger PDF">
+                <FileDown className="h-3 w-3" /> PDF
+              </button>
+              <button onClick={() => handleShare('copy')} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Copier le lien">
+                <Share2 className="h-3 w-3" /> Lien
+              </button>
             </div>
           </div>
         </div>
@@ -1062,11 +1362,15 @@ Merci de me recontacter.`
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="prose max-w-none"
+                  className="prose prose-emerald max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-800"
                 >
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                    {product.description || 'Description détaillée disponible sur demande auprès de nos équipes sourcing.'}
-                  </p>
+                  {product.description ? (
+                    <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      Description détaillée disponible sur demande auprès de nos équipes sourcing.
+                    </p>
+                  )}
                 </motion.div>
               )}
 
@@ -1130,7 +1434,7 @@ Merci de me recontacter.`
                       'Garantie constructeur 12 mois (extensions possibles)',
                       'Assistance IT Vision 7j/7 sur Dakar & Sénégal',
                       'Maintenance préventive et curative disponible',
-                      product.sourcing?.notes ? `Notes acheteur : ${product.sourcing.notes}` : 'Support import dédié Chine & Sénégal'
+                      'Support import dédié & livraison sécurisée'
                     ].map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
                         <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
@@ -1329,67 +1633,107 @@ Merci de me recontacter.`
         )}
       </AnimatePresence>
 
-      {/* Modal zoom image */}
+      {/* Modal galerie d'images */}
       <AnimatePresence>
         {showImageModal && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowImageModal(false)}
           >
             <motion.div
-              className="relative max-w-7xl max-h-[90vh] w-full h-full p-8"
+              className="relative w-full max-w-5xl mx-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => setShowImageModal(false)}
-                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
-                aria-label="Fermer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <div className="relative w-full h-full flex items-center justify-center">
+              {/* Header avec titre et bouton fermer */}
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-800/80 border-b border-gray-700">
+                <h3 className="text-white font-medium text-sm truncate pr-4">{product.name}</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowImageModal(false)}
+                  className="p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition flex-shrink-0"
+                  aria-label="Fermer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Image principale */}
+              <div className="relative aspect-[4/3] bg-gray-950">
                 <Image
                   src={gallery[activeImageIndex] || '/file.svg'}
                   alt={product.name}
                   fill
-                  className="object-contain p-8"
-                  sizes="90vw"
+                  className="object-contain p-4"
+                  sizes="(max-width: 768px) 100vw, 900px"
                   priority
                 />
+                
+                {/* Boutons navigation gauche/droite */}
+                {gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
+                      }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition"
+                      aria-label="Image précédente"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition"
+                      aria-label="Image suivante"
+                    >
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
               </div>
+
+              {/* Mini galerie de miniatures */}
               {gallery.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActiveImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1))
-                    }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActiveImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1))
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm text-xs text-white">
-                    {activeImageIndex + 1} / {gallery.length}
+                <div className="px-4 py-3 bg-gray-800/80 border-t border-gray-700">
+                  <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
+                    {gallery.map((src, index) => (
+                      <button
+                        key={`modal-thumb-${index}`}
+                        type="button"
+                        onClick={() => setActiveImageIndex(index)}
+                        className={clsx(
+                          'relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all',
+                          activeImageIndex === index
+                            ? 'border-emerald-500 ring-2 ring-emerald-400/50 scale-105'
+                            : 'border-gray-600 hover:border-gray-400 opacity-60 hover:opacity-100'
+                        )}
+                        aria-label={`Voir image ${index + 1}`}
+                      >
+                        <Image
+                          src={src}
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      </button>
+                    ))}
                   </div>
-                </>
+                  <p className="text-center text-xs text-gray-400 mt-2">
+                    {activeImageIndex + 1} / {gallery.length}
+                  </p>
+                </div>
               )}
             </motion.div>
           </motion.div>

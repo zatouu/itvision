@@ -11,7 +11,7 @@ export default async function AdminMarketplacePage() {
     if (token) {
       const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
       const role = String(decoded.role || '').toUpperCase()
-      allowed = role === 'ADMIN'
+      allowed = ['ADMIN', 'SUPER_ADMIN'].includes(role)
     }
   } catch {}
 
@@ -31,11 +31,6 @@ export default async function AdminMarketplacePage() {
       <Breadcrumb 
         backHref="/admin" 
         backLabel="Retour au dashboard"
-        items={[
-          { label: 'Accueil', href: '/' },
-          { label: 'Administration', href: '/admin' },
-          { label: 'Marketplace' }
-        ]}
       />
       <div className="mt-4">
         <AdminMarketplaceManager />

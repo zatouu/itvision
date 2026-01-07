@@ -54,53 +54,9 @@ export async function GET(request: NextRequest) {
             : null
         },
         pricing,
-        sourcing: product.sourcing && {
-          platform: product.sourcing.platform ?? null,
-          supplierName: product.sourcing.supplierName ?? null,
-          productUrl: product.sourcing.productUrl ?? null
-        },
-        // Informations 1688 avec breakdown
-        pricing1688: product.price1688 ? (() => {
-          const pricing1688Data = {
-            price1688: product.price1688,
-            price1688Currency: product.price1688Currency ?? 'CNY',
-            exchangeRate: product.exchangeRate ?? 100,
-            serviceFeeRate: product.serviceFeeRate ?? null,
-            insuranceRate: product.insuranceRate ?? null
-          }
-          
-          // Calculer le breakdown si transport disponible
-          let breakdown = undefined
-          if (pricing.shippingOptions.length > 0) {
-            const defaultShipping = pricing.shippingOptions[0]
-            try {
-              const simulation = simulatePricingFromProduct(
-                {
-                  price1688: product.price1688,
-                  baseCost: product.baseCost,
-                  exchangeRate: product.exchangeRate,
-                  serviceFeeRate: product.serviceFeeRate as any,
-                  insuranceRate: product.insuranceRate,
-                  weightKg: product.weightKg,
-                  volumeM3: product.volumeM3,
-                  shippingOverrides: product.shippingOverrides
-                },
-                {
-                  shippingMethod: defaultShipping.id as any,
-                  orderQuantity: 1
-                }
-              )
-              breakdown = simulation
-            } catch (error) {
-              console.error('Erreur calcul breakdown pricing1688:', error)
-            }
-          }
-          
-          return {
-            ...pricing1688Data,
-            breakdown
-          }
-        })() : null,
+        // Note: Les informations de sourcing et prix source ne sont pas exposées au public
+        // Seul indicateur: si le produit est importé (pour affichage badge "Import")
+        isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         isFeatured: product.isFeatured ?? false

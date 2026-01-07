@@ -1,7 +1,10 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, lazy, Suspense } from 'react'
 import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
+
+// Éditeur de texte riche chargé dynamiquement
+const RichTextEditor = lazy(() => import('./RichTextEditor'))
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
 
@@ -10,6 +13,23 @@ type ShippingOverride = {
   ratePerKg?: number
   ratePerM3?: number
   flatFee?: number
+}
+
+// Type pour les variantes de produit (style 1688)
+type ProductVariant = {
+  id: string
+  name: string
+  sku?: string
+  image?: string
+  price1688?: number
+  priceFCFA?: number
+  stock: number
+  isDefault?: boolean
+}
+
+type ProductVariantGroup = {
+  name: string
+  variants: ProductVariant[]
 }
 
 type Product = {
@@ -30,14 +50,21 @@ type Product = {
   stockStatus?: 'in_stock' | 'preorder'
   stockQuantity?: number
   leadTimeDays?: number
-  weightKg?: number
+  // Poids
+  netWeightKg?: number // Poids net du produit
+  weightKg?: number // Poids brut (legacy)
+  grossWeightKg?: number // Poids brut avec emballage
+  packagingWeightKg?: number // Poids de l'emballage
+  // Dimensions
   lengthCm?: number
   widthCm?: number
   heightCm?: number
   volumeM3?: number
-  packagingWeightKg?: number
+  // Options (legacy)
   colorOptions?: string[]
   variantOptions?: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: ProductVariantGroup[]
   availabilityNote?: string
   sourcing?: {
     platform?: string
@@ -68,56 +95,126 @@ const formatCurrency = (amount?: number, currency = 'FCFA') => {
   return `${amount.toLocaleString('fr-FR')} ${currency}`
 }
 
-type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'import'
+type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'import'
 
 const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => {
   if (!Array.isArray(overrides)) return []
   return overrides.filter(o => o && typeof o.methodId === 'string')
 }
 
-// Composant de simulation de pricing 1688
+// Clé pour le localStorage des brouillons
+const DRAFT_STORAGE_KEY = 'admin_product_draft'
+
+// Sauvegarde le brouillon dans le localStorage
+const saveDraft = (product: Product) => {
+  try {
+    if (typeof window !== 'undefined') {
+      const draft = {
+        data: product,
+        timestamp: Date.now(),
+        version: 1
+      }
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+    }
+  } catch (e) {
+    console.warn('Impossible de sauvegarder le brouillon:', e)
+  }
+}
+
+// Charge le brouillon depuis le localStorage
+const loadDraft = (): Product | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY)
+      if (saved) {
+        const draft = JSON.parse(saved)
+        // Vérifier que le brouillon n'est pas trop vieux (24h max)
+        if (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
+          return draft.data
+        } else {
+          localStorage.removeItem(DRAFT_STORAGE_KEY)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Impossible de charger le brouillon:', e)
+  }
+  return null
+}
+
+// Supprime le brouillon
+const clearDraft = () => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DRAFT_STORAGE_KEY)
+    }
+  } catch (e) {
+    // Ignore
+  }
+}
+
+// Composant de simulation de pricing source (import)
 function PricingSimulator({ product }: { product: Product }) {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethodId>('air_express')
   const [orderQuantity, setOrderQuantity] = useState(1)
   const [monthlyVolume, setMonthlyVolume] = useState(0)
   const [simulation, setSimulation] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const runSimulation = async () => {
+    // Validation des données requises
     if (!product.price1688 && !product.baseCost) {
-      alert('Veuillez renseigner le prix 1688 ou le coût de base')
+      setError('Veuillez renseigner le prix source ou le coût de base')
+      return
+    }
+
+    // Validation du poids pour le calcul transport
+    const weight = product.grossWeightKg || product.weightKg
+    if (!weight && !product.volumeM3) {
+      setError('Veuillez renseigner le poids brut ou le volume pour calculer le transport')
       return
     }
 
     setLoading(true)
+    setError(null)
+    
     try {
+      const payload = {
+        productId: product._id || undefined,
+        price1688: product.price1688 || undefined,
+        baseCost: product.baseCost || undefined,
+        exchangeRate: product.exchangeRate || 100,
+        shippingMethod,
+        weightKg: weight || undefined,
+        volumeM3: product.volumeM3 || undefined,
+        serviceFeeRate: product.serviceFeeRate || 10,
+        insuranceRate: typeof product.insuranceRate === 'number' ? product.insuranceRate : 2.5,
+        orderQuantity: orderQuantity || 1,
+        monthlyVolume: monthlyVolume || undefined
+      }
+
       const response = await fetch('/api/pricing/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product._id,
-          price1688: product.price1688,
-          baseCost: product.baseCost,
-          exchangeRate: product.exchangeRate || 100,
-          shippingMethod,
-          weightKg: product.weightKg,
-          volumeM3: product.volumeM3,
-          serviceFeeRate: product.serviceFeeRate || 10,
-          insuranceRate: product.insuranceRate || 0,
-          orderQuantity,
-          monthlyVolume: monthlyVolume || undefined
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Erreur lors de la simulation')
+        const errorData = await response.json().catch(() => ({ error: 'Erreur serveur' }))
+        throw new Error(errorData.error || 'Erreur lors de la simulation')
       }
 
       const data = await response.json()
-      setSimulation(data.simulation)
-    } catch (error: any) {
-      alert(error.message || 'Erreur lors de la simulation')
+      if (data.success && data.simulation) {
+        setSimulation(data.simulation)
+      } else {
+        throw new Error('Réponse invalide du serveur')
+      }
+    } catch (err: any) {
+      console.error('Erreur simulation:', err)
+      setError(err.message || 'Erreur lors de la simulation')
+      setSimulation(null)
     } finally {
       setLoading(false)
     }
@@ -132,7 +229,7 @@ function PricingSimulator({ product }: { product: Product }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
           <Calculator className="h-4 w-4" />
-          Simulateur de Pricing 1688
+          Simulateur de Coût & Marge
         </div>
         <button
           onClick={runSimulation}
@@ -152,6 +249,13 @@ function PricingSimulator({ product }: { product: Product }) {
           )}
         </button>
       </div>
+
+      {/* Message d'erreur */}
+      {error && (
+        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <strong>Erreur :</strong> {error}
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-3">
         <label className="space-y-1">
@@ -195,23 +299,23 @@ function PricingSimulator({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500">Coût produit:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.productCostFCFA)}</div>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.productCostFCFA)}</div>
               </div>
               <div>
                 <span className="text-gray-500">Transport réel:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.shippingCostReal)}</div>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.shippingCostReal)}</div>
               </div>
               <div>
-                <span className="text-gray-500">Frais service:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.serviceFee)}</div>
+                <span className="text-gray-500">Frais service ({product.serviceFeeRate || 10}%):</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.serviceFee)}</div>
               </div>
               <div>
-                <span className="text-gray-500">Frais assurance:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.insuranceFee)}</div>
+                <span className="text-gray-500">Assurance ({product.insuranceRate || 2.5}%):</span>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.insuranceFee)}</div>
               </div>
               <div className="col-span-2 border-t border-gray-200 pt-2">
                 <span className="text-gray-500">Coût total réel:</span>
-                <div className="text-lg font-bold text-red-600">{formatCurrency(simulation.breakdown.totalRealCost)}</div>
+                <div className="text-lg font-bold text-red-600">{formatCurrency(simulation.totalRealCost)}</div>
               </div>
             </div>
           </div>
@@ -221,15 +325,15 @@ function PricingSimulator({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500">Transport déclaré:</span>
-                <div className="font-semibold text-gray-800">{formatCurrency(simulation.breakdown.shippingCostClient)}</div>
+                <div className="font-semibold text-gray-800">{formatCurrency(simulation.shippingCostClient)}</div>
               </div>
               <div>
                 <span className="text-gray-500">Marge transport:</span>
-                <div className="font-semibold text-green-600">+{formatCurrency(simulation.breakdown.shippingMargin)}</div>
+                <div className="font-semibold text-green-600">+{formatCurrency(simulation.shippingMargin)}</div>
               </div>
               <div className="col-span-2 border-t border-gray-200 pt-2">
                 <span className="text-gray-500">Prix total facturé:</span>
-                <div className="text-lg font-bold text-blue-600">{formatCurrency(simulation.breakdown.totalClientPrice)}</div>
+                <div className="text-lg font-bold text-blue-600">{formatCurrency(simulation.totalClientPrice)}</div>
               </div>
             </div>
           </div>
@@ -242,26 +346,26 @@ function PricingSimulator({ product }: { product: Product }) {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500">Marge nette:</span>
-                <div className={`text-lg font-bold ${simulation.breakdown.netMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(simulation.breakdown.netMargin)}
+                <div className={`text-lg font-bold ${(simulation.netMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(simulation.netMargin)}
                 </div>
               </div>
               <div>
                 <span className="text-gray-500">% de marge:</span>
-                <div className={`text-lg font-bold ${simulation.breakdown.marginPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {simulation.breakdown.marginPercentage.toFixed(2)}%
+                <div className={`text-lg font-bold ${(simulation.marginPercentage || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(simulation.marginPercentage || 0).toFixed(2)}%
                 </div>
               </div>
-              {simulation.breakdown.cumulativeMargin !== undefined && (
+              {simulation.cumulativeMargin !== undefined && (
                 <div>
                   <span className="text-gray-500">Marge cumulée ({orderQuantity} unités):</span>
-                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.breakdown.cumulativeMargin)}</div>
+                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.cumulativeMargin)}</div>
                 </div>
               )}
-              {simulation.breakdown.estimatedMonthlyProfit !== undefined && (
+              {simulation.estimatedMonthlyProfit !== undefined && (
                 <div>
                   <span className="text-gray-500">Bénéfice mensuel estimé:</span>
-                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.breakdown.estimatedMonthlyProfit)}</div>
+                  <div className="font-semibold text-purple-600">{formatCurrency(simulation.estimatedMonthlyProfit)}</div>
                 </div>
               )}
             </div>
@@ -278,27 +382,34 @@ export default function AdminProductManager() {
     category: '',
     description: '',
     tagline: '',
-    price: undefined,
-    baseCost: undefined,
-    marginRate: 25,
+    price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
+    baseCost: undefined, // Coût d'achat fournisseur
+    marginRate: 30, // Marge par défaut 30%
     currency: 'FCFA',
     image: '',
     gallery: [],
     features: [],
-    requiresQuote: false,
+    requiresQuote: false, // Par défaut: afficher un prix (non sur devis)
     stockStatus: 'preorder',
     stockQuantity: 0,
     leadTimeDays: 15,
     deliveryDays: 15,
+    // Poids
+    netWeightKg: undefined,
     weightKg: undefined,
+    grossWeightKg: undefined,
+    packagingWeightKg: undefined,
+    // Dimensions
     lengthCm: undefined,
     widthCm: undefined,
     heightCm: undefined,
     volumeM3: undefined,
-    packagingWeightKg: undefined,
+    // Options (legacy)
     colorOptions: [],
     variantOptions: [],
-    availabilityNote: 'Commande import Chine (freight 3j / 15j / 60j)',
+    // Variantes avec prix et images
+    variantGroups: [],
+    availabilityNote: 'Import direct Chine avec livraison express (3j), aérien (15j) ou maritime (60j)',
     sourcing: {},
     shippingOverrides: [],
     isPublished: true,
@@ -308,7 +419,7 @@ export default function AdminProductManager() {
     price1688Currency: 'CNY',
     exchangeRate: 100, // 1 ¥ = 100 FCFA
     serviceFeeRate: 10,
-    insuranceRate: 0
+    insuranceRate: 2.5 // Assurance obligatoire par défaut
   }
 
   const [items, setItems] = useState<Product[]>([])
@@ -324,8 +435,9 @@ export default function AdminProductManager() {
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
-    { id: 'details', label: 'Détails & logistique', description: 'Dimensions, disponibilité, transport', icon: Layers },
+    { id: 'details', label: 'Détails & logistique', description: 'Poids, dimensions, disponibilité', icon: Layers },
     { id: 'media', label: 'Médias', description: 'Visuels et galerie', icon: ImageIcon },
+    { id: 'variants', label: 'Variantes', description: 'Couleurs, options avec prix', icon: Settings },
     { id: 'pricing', label: 'Tarifs & livraison', description: 'Prix public, marges, transport', icon: Package },
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
@@ -349,6 +461,57 @@ export default function AdminProductManager() {
 
   useEffect(() => { refresh() }, [])
 
+  // État pour le brouillon
+  const [hasDraft, setHasDraft] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [draftRestored, setDraftRestored] = useState(false)
+
+  // Vérifier s'il y a un brouillon au chargement
+  useEffect(() => {
+    const draft = loadDraft()
+    if (draft && !draftRestored) {
+      setHasDraft(true)
+    }
+  }, [draftRestored])
+
+  // Sauvegarde automatique du brouillon (toutes les 5 secondes si modifications)
+  useEffect(() => {
+    if (!editing || editing._id) return // Ne sauvegarder que les nouveaux produits
+
+    const timeoutId = setTimeout(() => {
+      saveDraft(editing)
+      setLastSaved(new Date())
+    }, 5000)
+
+    return () => clearTimeout(timeoutId)
+  }, [editing])
+
+  // Sauvegarde immédiate lors de changements importants
+  const saveImmediateDraft = () => {
+    if (editing && !editing._id) {
+      saveDraft(editing)
+      setLastSaved(new Date())
+    }
+  }
+
+  // Restaurer le brouillon
+  const restoreDraft = () => {
+    const draft = loadDraft()
+    if (draft) {
+      setEditing(draft)
+      setHasDraft(false)
+      setDraftRestored(true)
+      setActiveTab('info')
+    }
+  }
+
+  // Ignorer le brouillon
+  const dismissDraft = () => {
+    clearDraft()
+    setHasDraft(false)
+    setDraftRestored(true)
+  }
+
   useEffect(() => {
     if (!editing) {
       setActiveTab('info')
@@ -356,6 +519,7 @@ export default function AdminProductManager() {
       setUploadingMain(false)
       setUploadingGallery(false)
       setNewGalleryInput('')
+      setSaveError(null)
     }
   }, [editing])
 
@@ -375,33 +539,61 @@ export default function AdminProductManager() {
     })
   }, [autoPrice, editing?.baseCost, editing?.marginRate])
 
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
   const onSave = async () => {
     if (!editing) return
-    const method = editing._id ? 'PATCH' : 'POST'
-    const payload: Record<string, unknown> = {
-      ...editing,
-      gallery: (editing.gallery || []).filter(Boolean),
-      features: (editing.features || []).filter(Boolean),
-      colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
-      variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),
-      shippingOverrides: ensureOverrides(editing.shippingOverrides).map(override => ({
-        ...override,
-        ratePerKg: override.ratePerKg ?? undefined,
-        ratePerM3: override.ratePerM3 ?? undefined,
-        flatFee: override.flatFee ?? undefined
-      }))
-    }
-    if (editing._id) payload.id = editing._id
+    setSaveError(null)
+    setSaving(true)
+    
+    try {
+      const method = editing._id ? 'PATCH' : 'POST'
+      const payload: Record<string, unknown> = {
+        ...editing,
+        gallery: (editing.gallery || []).filter(Boolean),
+        features: (editing.features || []).filter(Boolean),
+        colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
+        variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),
+        shippingOverrides: ensureOverrides(editing.shippingOverrides).map(override => ({
+          ...override,
+          ratePerKg: override.ratePerKg ?? undefined,
+          ratePerM3: override.ratePerM3 ?? undefined,
+          flatFee: override.flatFee ?? undefined
+        }))
+      }
+      if (editing._id) payload.id = editing._id
 
-    const res = await fetch('/api/products', {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    if (!res.ok) return alert('Erreur lors de la sauvegarde')
-    setEditing(null)
-    setAutoPrice(false)
-    await refresh()
+      const res = await fetch('/api/products', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        const errorMsg = data?.error || 'Erreur lors de la sauvegarde'
+        setSaveError(errorMsg)
+        return
+      }
+      
+      // Sauvegarde réussie - supprimer le brouillon
+      clearDraft()
+      setEditing(null)
+      setAutoPrice(false)
+      setLastSaved(null)
+      await refresh()
+    } catch (error: any) {
+      // Sauvegarder en brouillon en cas d'erreur
+      if (editing && !editing._id) {
+        saveDraft(editing)
+        setLastSaved(new Date())
+      }
+      setSaveError(error?.message || 'Erreur réseau lors de la sauvegarde')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const onDelete = async (id?: string) => {
@@ -449,14 +641,20 @@ export default function AdminProductManager() {
   const uploadMediaFile = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('type', 'products') // Type spécifique pour les produits
+    
     const res = await fetch('/api/upload', {
       method: 'POST',
-      body: formData
+      body: formData,
+      credentials: 'include' // Important pour l'authentification
     })
+    
     if (!res.ok) {
-      const message = await res.text().catch(() => '')
-      throw new Error(message || 'Téléversement impossible')
+      const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }))
+      console.error('Erreur upload:', res.status, errorData)
+      throw new Error(errorData.error || `Erreur ${res.status}`)
     }
+    
     const data = await res.json()
     const url = data?.url
     if (typeof url !== 'string') {
@@ -537,13 +735,25 @@ export default function AdminProductManager() {
               value={editing.category || ''}
               onChange={e => setEditing({ ...editing, category: e.target.value })}
             />
-            <textarea
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              rows={4}
-              placeholder="Description détaillée / argumentaire commercial"
-              value={editing.description || ''}
-              onChange={e => setEditing({ ...editing, description: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Description détaillée
+              </label>
+              <Suspense fallback={
+                <div className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm h-[160px] flex items-center justify-center bg-gray-50">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                </div>
+              }>
+                <RichTextEditor
+                  value={editing.description || ''}
+                  onChange={(html) => setEditing({ ...editing, description: html })}
+                  placeholder="Décrivez le produit : caractéristiques, avantages, utilisations..."
+                />
+              </Suspense>
+              <p className="mt-1 text-xs text-gray-400">
+                Utilisez la barre d&apos;outils pour mettre en forme : gras, italique, listes, titres...
+              </p>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
             <label className="inline-flex items-center gap-2">
@@ -621,11 +831,11 @@ export default function AdminProductManager() {
                 })}
               >
                 <option value="">--</option>
-                <option value="aliexpress">AliExpress</option>
-                <option value="1688">1688</option>
-                <option value="alibaba">Alibaba</option>
-                <option value="taobao">Taobao</option>
-                <option value="factory">Usine partenaire</option>
+                <option value="aliexpress">Plateforme A</option>
+                <option value="1688">Plateforme B</option>
+                <option value="alibaba">Plateforme C</option>
+                <option value="taobao">Plateforme D</option>
+                <option value="factory">Fournisseur direct</option>
               </select>
             </label>
             <label className="space-y-1">
@@ -735,7 +945,8 @@ export default function AdminProductManager() {
             <Truck className="h-4 w-4" />
             Poids & dimensions
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-3">
+          <p className="text-xs text-gray-500 mt-1">Le poids brut est utilisé pour calculer les frais de transport</p>
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-4">
             <label className="space-y-1">
               <span>Poids net (kg)</span>
               <input
@@ -743,17 +954,34 @@ export default function AdminProductManager() {
                 type="number"
                 min="0"
                 step="0.01"
-                value={editing.weightKg ?? ''}
-                onChange={e => setEditing({ ...editing, weightKg: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="Sans emballage"
+                value={editing.netWeightKg ?? ''}
+                onChange={e => setEditing({ ...editing, netWeightKg: e.target.value ? Number(e.target.value) : undefined })}
               />
             </label>
             <label className="space-y-1">
-              <span>Poids avec emballage (kg)</span>
+              <span>Poids brut (kg) *</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Avec emballage"
+                value={editing.grossWeightKg ?? editing.weightKg ?? ''}
+                onChange={e => {
+                  const val = e.target.value ? Number(e.target.value) : undefined
+                  setEditing({ ...editing, grossWeightKg: val, weightKg: val })
+                }}
+              />
+            </label>
+            <label className="space-y-1">
+              <span>Poids emballage (kg)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 type="number"
                 min="0"
                 step="0.01"
+                placeholder="Auto-calculé"
                 value={editing.packagingWeightKg ?? ''}
                 onChange={e => setEditing({ ...editing, packagingWeightKg: e.target.value ? Number(e.target.value) : undefined })}
               />
@@ -765,6 +993,7 @@ export default function AdminProductManager() {
                 type="number"
                 min="0"
                 step="0.001"
+                placeholder="Auto si dimensions"
                 value={editing.volumeM3 ?? ''}
                 onChange={e => setEditing({ ...editing, volumeM3: e.target.value ? Number(e.target.value) : undefined })}
               />
@@ -1010,21 +1239,68 @@ export default function AdminProductManager() {
               </span>
             )}
           </div>
-          <label className="mt-4 inline-flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={!!editing.requiresQuote} onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })} />
-            Sur devis uniquement (désactive l'achat direct)
-          </label>
+          {/* Indicateur de validation du prix */}
+          {!editing.requiresQuote && !editing.price && !editing.baseCost && !editing.price1688 && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
+              <svg className="h-5 w-5 flex-shrink-0 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <div className="font-medium">Prix requis</div>
+                <div className="text-xs">Renseignez un prix (prix public, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
+              </div>
+            </div>
+          )}
+          
+          {/* Indicateur de prix valide */}
+          {!editing.requiresQuote && (editing.price || editing.baseCost || editing.price1688) && (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-center gap-2">
+              <svg className="h-5 w-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>
+                <strong>Prix affiché:</strong> {
+                  editing.price 
+                    ? formatCurrency(editing.price, editing.currency)
+                    : editing.baseCost && editing.marginRate
+                      ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
+                      : editing.price1688 && editing.exchangeRate
+                        ? `Calculé depuis prix source: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
+                        : 'Sera calculé automatiquement'
+                }
+              </span>
+            </div>
+          )}
+          
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={!!editing.requiresQuote} 
+                onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })} 
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              />
+              <div>
+                <span className="font-medium text-gray-900">Sur devis uniquement</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  À utiliser uniquement pour les produits spéciaux nécessitant une étude personnalisée (installations complexes, projets sur mesure).
+                  La plupart des produits doivent avoir un prix affiché.
+                </p>
+              </div>
+            </label>
+          </div>
         </div>
 
-        {/* Section 1688 */}
+        {/* Section Prix Source */}
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
             <DollarSign className="h-4 w-4" />
-            Informations 1688 (Import Chine)
+            Prix Source (Import)
           </div>
+          <p className="text-xs text-gray-600 mt-1">Informations confidentielles - non visibles par le client</p>
           <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
             <label className="space-y-1">
-              <span>Prix 1688 (¥ Yuan)</span>
+              <span>Prix source (¥ Yuan)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 type="number"
@@ -1040,7 +1316,7 @@ export default function AdminProductManager() {
                   }
                 }}
               />
-              <p className="text-xs text-gray-500">Prix d'achat sur 1688 en Yuan</p>
+              <p className="text-xs text-gray-500">Prix d'achat fournisseur en Yuan</p>
             </label>
             <label className="space-y-1">
               <span>Taux de change (1 ¥ = X FCFA)</span>
@@ -1051,7 +1327,7 @@ export default function AdminProductManager() {
                 onChange={e => {
                   const value = e.target.value ? Number(e.target.value) : 100
                   setEditing({ ...editing, exchangeRate: value })
-                  // Recalculer baseCost si price1688 existe
+                  // Recalculer baseCost si prix source existe
                   if (editing.price1688 && value) {
                     const calculatedBaseCost = editing.price1688 * value
                     setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
@@ -1079,15 +1355,69 @@ export default function AdminProductManager() {
                 type="number"
                 step="0.1"
                 min="0"
-                value={editing.insuranceRate ?? 0}
-                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 0 })}
+                value={editing.insuranceRate ?? 2.5}
+                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 2.5 })}
               />
-              <p className="text-xs text-gray-500">Pourcentage sur coût total</p>
+              <p className="text-xs text-gray-500">Par défaut: 2.5% (obligatoire)</p>
             </label>
           </div>
-          {editing.price1688 && editing.exchangeRate && (
-            <div className="mt-4 rounded-lg bg-white p-3 text-xs text-gray-600">
-              <strong>Coût produit calculé:</strong> {formatCurrency((editing.price1688 || 0) * (editing.exchangeRate || 100), 'FCFA')}
+          {/* Récapitulatif prix automatique */}
+          {(editing.price1688 || editing.baseCost) && (
+            <div className="mt-4 rounded-lg bg-white border border-blue-100 p-4">
+              <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-blue-600" />
+                Récapitulatif prix automatique
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-gray-500 block">Coût produit</span>
+                  <span className="font-bold text-gray-800">
+                    {formatCurrency(
+                      editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100)),
+                      'FCFA'
+                    )}
+                  </span>
+                  {editing.price1688 && (
+                    <span className="text-gray-400 block text-[10px]">
+                      ({editing.price1688} ¥ × {editing.exchangeRate || 100})
+                    </span>
+                  )}
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-gray-500 block">Frais service ({editing.serviceFeeRate || 10}%)</span>
+                  <span className="font-bold text-orange-600">
+                    +{formatCurrency(
+                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.serviceFeeRate || 10) / 100)),
+                      'FCFA'
+                    )}
+                  </span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-gray-500 block">Assurance ({editing.insuranceRate || 2.5}%)</span>
+                  <span className="font-bold text-purple-600">
+                    +{formatCurrency(
+                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.insuranceRate || 2.5) / 100)),
+                      'FCFA'
+                    )}
+                  </span>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
+                  <span className="text-emerald-600 block font-medium">Sous-total client</span>
+                  <span className="font-bold text-emerald-700 text-sm">
+                    {formatCurrency(
+                      Math.round(
+                        (editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * 
+                        (1 + ((editing.serviceFeeRate || 10) / 100) + ((editing.insuranceRate || 2.5) / 100))
+                      ),
+                      'FCFA'
+                    )}
+                  </span>
+                  <span className="text-emerald-500 block text-[10px]">+ transport selon mode choisi</span>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-gray-500 italic">
+                * Le prix final client inclut ce sous-total + les frais de transport selon le mode de livraison choisi.
+              </p>
             </div>
           )}
         </div>
@@ -1206,6 +1536,317 @@ export default function AdminProductManager() {
     <ImportTab onImported={handleImportedProduct} formatCurrency={formatCurrency} />
   )
 
+  // Génère un ID unique pour les variantes
+  const generateVariantId = () => `var_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
+  // Ajoute un groupe de variantes
+  const addVariantGroup = () => {
+    if (!editing) return
+    const newGroup: ProductVariantGroup = {
+      name: 'Nouveau groupe',
+      variants: [{
+        id: generateVariantId(),
+        name: 'Variante 1',
+        stock: 0,
+        isDefault: true
+      }]
+    }
+    setEditing({
+      ...editing,
+      variantGroups: [...(editing.variantGroups || []), newGroup]
+    })
+  }
+
+  // Supprime un groupe de variantes
+  const removeVariantGroup = (groupIndex: number) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups.splice(groupIndex, 1)
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Met à jour le nom d'un groupe
+  const updateVariantGroupName = (groupIndex: number, name: string) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex] = { ...groups[groupIndex], name }
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Ajoute une variante à un groupe
+  const addVariant = (groupIndex: number) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex].variants.push({
+      id: generateVariantId(),
+      name: `Variante ${groups[groupIndex].variants.length + 1}`,
+      stock: 0
+    })
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Supprime une variante
+  const removeVariant = (groupIndex: number, variantIndex: number) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex].variants.splice(variantIndex, 1)
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  // Met à jour une variante
+  const updateVariant = (groupIndex: number, variantIndex: number, updates: Partial<ProductVariant>) => {
+    if (!editing) return
+    const groups = [...(editing.variantGroups || [])]
+    groups[groupIndex].variants[variantIndex] = {
+      ...groups[groupIndex].variants[variantIndex],
+      ...updates
+    }
+    setEditing({ ...editing, variantGroups: groups })
+  }
+
+  const renderVariantsTab = () => {
+    if (!editing) return null
+    const exchangeRate = editing.exchangeRate || 100
+    
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+              <Settings className="h-4 w-4" />
+              Variantes du produit (style 1688)
+            </div>
+            <button
+              type="button"
+              onClick={addVariantGroup}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
+            >
+              <Plus className="h-4 w-4" /> Ajouter un groupe
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-500 mb-4">
+            Créez des variantes avec leurs prix et images spécifiques (ex: Couleur, Taille, Norme...). 
+            Le prix en Yuan sera automatiquement converti en FCFA.
+          </p>
+
+          {(!editing.variantGroups || editing.variantGroups.length === 0) ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <Settings className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">Aucune variante configurée</p>
+              <p className="text-xs text-gray-400 mt-1">Cliquez sur "Ajouter un groupe" pour créer des variantes</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {editing.variantGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <input
+                      type="text"
+                      className="text-lg font-semibold text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none px-1"
+                      value={group.name}
+                      onChange={e => updateVariantGroupName(groupIndex, e.target.value)}
+                      placeholder="Nom du groupe (ex: Couleur)"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => addVariant(groupIndex)}
+                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        + Variante
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeVariantGroup(groupIndex)}
+                        className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                      >
+                        Supprimer groupe
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {group.variants.map((variant, variantIndex) => (
+                      <div key={variant.id} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                        {/* Image variante */}
+                        <div className="w-16 h-16 flex-shrink-0">
+                          {variant.image ? (
+                            <img src={variant.image} alt={variant.name} className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                              <ImageIcon className="h-6 w-6" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Infos variante */}
+                        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2">
+                          <div>
+                            <label className="text-xs text-gray-500">Nom *</label>
+                            <input
+                              type="text"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.name}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { name: e.target.value })}
+                              placeholder="Ex: Blanc US"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix (¥)</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.price1688 ?? ''}
+                              onChange={e => {
+                                const price1688 = e.target.value ? Number(e.target.value) : undefined
+                                const priceFCFA = price1688 ? Math.round(price1688 * exchangeRate) : undefined
+                                updateVariant(groupIndex, variantIndex, { price1688, priceFCFA })
+                              }}
+                              placeholder="57"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix FCFA</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
+                              value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
+                              readOnly
+                              placeholder="Auto"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Stock</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.stock}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { stock: Number(e.target.value) || 0 })}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Image variante</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                value={variant.image || ''}
+                                onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
+                                placeholder="URL ou uploadée"
+                              />
+                              <label className="flex items-center gap-1 text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 cursor-pointer font-medium transition-colors">
+                                <Upload className="h-3 w-3" />
+                                <span>Uploader</span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      try {
+                                        const formData = new FormData()
+                                        formData.append('file', file)
+                                        formData.append('type', 'variants')
+                                        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                                        if (res.ok) {
+                                          const data = await res.json()
+                                          updateVariant(groupIndex, variantIndex, { image: data.url || data.staticUrl })
+                                          alert('✓ Image uploadée avec succès!')
+                                        } else {
+                                          const err = await res.json()
+                                          alert(`❌ Erreur: ${err.error}`)
+                                        }
+                                      } catch (err) {
+                                        console.error('Upload erreur:', err)
+                                        alert('Erreur lors de l\'upload')
+                                      }
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {variant.image && (
+                                <img src={variant.image} alt="preview" className="w-8 h-8 rounded border border-gray-200 object-cover" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex flex-col gap-1">
+                          <label className="flex items-center gap-1 text-xs">
+                            <input
+                              type="radio"
+                              name={`default-${groupIndex}`}
+                              checked={variant.isDefault}
+                              onChange={() => {
+                                // Désélectionner toutes les autres variantes du groupe
+                                const groups = [...(editing.variantGroups || [])]
+                                groups[groupIndex].variants = groups[groupIndex].variants.map((v, i) => ({
+                                  ...v,
+                                  isDefault: i === variantIndex
+                                }))
+                                setEditing({ ...editing, variantGroups: groups })
+                              }}
+                            />
+                            Défaut
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(groupIndex, variantIndex)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Résumé des variantes */}
+        {editing.variantGroups && editing.variantGroups.length > 0 && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="text-sm font-semibold text-blue-800 mb-2">Résumé des variantes</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-blue-600">Groupes :</span>{' '}
+                <strong>{editing.variantGroups.length}</strong>
+              </div>
+              <div>
+                <span className="text-blue-600">Total variantes :</span>{' '}
+                <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.length, 0)}</strong>
+              </div>
+              <div>
+                <span className="text-blue-600">Stock total :</span>{' '}
+                <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.reduce((s, v) => s + v.stock, 0), 0)}</strong>
+              </div>
+              <div>
+                <span className="text-blue-600">Prix min/max :</span>{' '}
+                <strong>
+                  {(() => {
+                    const prices = editing.variantGroups.flatMap(g => g.variants.map(v => v.price1688).filter(p => p !== undefined)) as number[]
+                    if (prices.length === 0) return '-'
+                    const min = Math.min(...prices)
+                    const max = Math.max(...prices)
+                    return min === max ? `¥${min}` : `¥${min} - ¥${max}`
+                  })()}
+                </strong>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
@@ -1214,6 +1855,8 @@ export default function AdminProductManager() {
         return renderDetailsTab()
       case 'media':
         return renderMediaTab()
+      case 'variants':
+        return renderVariantsTab()
       case 'pricing':
         return renderPricingTab()
       case 'import':
@@ -1235,13 +1878,68 @@ export default function AdminProductManager() {
         </button>
       </div>
 
+      {/* Alerte brouillon disponible */}
+      {hasDraft && !editing && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+              <Package className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-amber-800">Brouillon disponible</h3>
+              <p className="text-sm text-amber-600">Un produit non sauvegardé a été récupéré. Souhaitez-vous le restaurer ?</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={dismissDraft}
+              className="px-4 py-2 text-sm text-amber-700 hover:bg-amber-100 rounded-lg"
+            >
+              Ignorer
+            </button>
+            <button
+              onClick={restoreDraft}
+              className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+            >
+              Restaurer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Statistiques rapides */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-gray-900">{items.length}</div>
+          <div className="text-xs text-gray-500">Produits total</div>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-emerald-600">
+            {items.filter(p => p.price || p.baseCost || p.price1688).length}
+          </div>
+          <div className="text-xs text-gray-500">Avec prix</div>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-orange-600">
+            {items.filter(p => p.requiresQuote).length}
+          </div>
+          <div className="text-xs text-gray-500">Sur devis</div>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <div className="text-2xl font-bold text-red-600">
+            {items.filter(p => !p.requiresQuote && !p.price && !p.baseCost && !p.price1688).length}
+          </div>
+          <div className="text-xs text-gray-500">Prix manquants</div>
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher par nom" className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
         <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Catégorie" className="w-48 border rounded-lg px-3 py-2 text-sm" />
-        <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm">Filtrer</button>
+        <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition">Filtrer</button>
       </div>
 
       <div className="overflow-x-auto bg-white rounded-xl border">
@@ -1264,17 +1962,49 @@ export default function AdminProductManager() {
               items.map(product => (
                 <tr key={product._id} className="border-t">
                   <td className="p-3">
-                    <div className="font-semibold text-gray-900">{product.name}</div>
-                    {product.tagline && <div className="text-xs text-gray-500 mt-0.5">{product.tagline}</div>}
+                    <div className="flex items-start gap-2">
+                      {product.image && (
+                        <div className="w-10 h-10 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                          <img src={product.image} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 line-clamp-1">{product.name}</div>
+                        {product.tagline && <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{product.tagline}</div>}
+                        <div className="flex items-center gap-1 mt-1">
+                          {product.isPublished !== false ? (
+                            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Publié</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Brouillon</span>
+                          )}
+                          {product.isFeatured && (
+                            <span className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">⭐ Mis en avant</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td className="p-3 text-gray-600">
                     <div className="text-sm">{product.category || '-'}</div>
                     <div className="text-xs text-gray-400 mt-1">{product.requiresQuote ? 'Sur devis' : 'Tarif direct'}</div>
                   </td>
                   <td className="p-3 text-gray-900">
-                    <div className="text-sm font-semibold text-emerald-600">{computedDisplayPrice(product)}</div>
+                    {product.requiresQuote ? (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-orange-100 text-orange-700 text-xs font-medium">
+                        Sur devis
+                      </div>
+                    ) : !product.price && !product.baseCost && !product.price1688 ? (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-medium">
+                        ⚠️ Prix manquant
+                      </div>
+                    ) : (
+                      <div className="text-sm font-semibold text-emerald-600">{computedDisplayPrice(product)}</div>
+                    )}
                     {typeof product.baseCost === 'number' && (
                       <div className="text-xs text-gray-500">Coût: {formatCurrency(product.baseCost, product.currency)}</div>
+                    )}
+                    {typeof product.price1688 === 'number' && (
+                      <div className="text-xs text-blue-600">Source: ¥{product.price1688}</div>
                     )}
                     {typeof product.marginRate === 'number' && (
                       <div className="text-xs text-gray-400">Marge: {product.marginRate}%</div>
@@ -1337,7 +2067,18 @@ export default function AdminProductManager() {
                     </span>
                   )}
                 </h3>
-                <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                  {/* Indicateur de sauvegarde automatique */}
+                  {!editing._id && lastSaved && (
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Brouillon sauvegardé ({lastSaved.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
@@ -1374,20 +2115,36 @@ export default function AdminProductManager() {
               </nav>
               <div className="flex-1 space-y-6">
                 {renderTabContent()}
+                {/* Message d'erreur de sauvegarde */}
+                {saveError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                    <svg className="h-5 w-5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">Erreur de sauvegarde</div>
+                      <div>{saveError}</div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                    onClick={() => setEditing(null)}
+                    onClick={() => { setEditing(null); setSaveError(null) }}
+                    disabled={saving}
                   >
                     Annuler
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     onClick={onSave}
+                    disabled={saving}
                   >
-                    Enregistrer
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {saving ? 'Enregistrement...' : 'Enregistrer'}
                   </button>
                 </div>
               </div>

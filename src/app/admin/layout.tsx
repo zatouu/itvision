@@ -1,9 +1,8 @@
 "use client"
 
 import { ReactNode, useEffect } from 'react'
-import AdminSidebar from '@/components/admin/AdminSidebar'
-import AdminHeader from '@/components/admin/AdminHeader'
 import ToastProvider from '@/components/ToastProvider'
+import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -14,17 +13,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gray-50 flex">
         <AdminSidebar />
-        <div className="pl-64">
-          <AdminHeader />
-          <main className="pt-20 px-6 pb-10 bg-gray-50">
-            {children}
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </ToastProvider>
   )
 }
-
-

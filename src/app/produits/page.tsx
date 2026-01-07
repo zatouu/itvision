@@ -41,11 +41,7 @@ interface ApiProduct {
   availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   isFeatured?: boolean
-  pricing1688?: {
-    price1688: number
-    price1688Currency: string
-    exchangeRate: number
-  } | null
+  isImported?: boolean // Indicateur si produit importé (sans exposer les détails)
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -235,8 +231,10 @@ export default function ProduitsPage() {
                 : null
 
               const salePrice = typeof item.pricing?.salePrice === 'number' ? item.pricing.salePrice : undefined
+              const baseCost = typeof item.pricing?.baseCost === 'number' ? item.pricing.baseCost : undefined
+              // Listing must show only the source price (baseCost). If not available, fall back to salePrice.
               const priceAmount = !item.requiresQuote
-                ? (bestShipping ? bestShipping.total : salePrice)
+                ? (baseCost ?? salePrice)
                 : undefined
 
               const featuresFromApi = Array.isArray(item.features) ? item.features.filter(Boolean) : []
@@ -468,7 +466,7 @@ export default function ProduitsPage() {
       id: 'controle-acces',
       title: 'Contrôle d\'Accès Multi-Marques',
       icon: Shield,
-      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct 1688',
+      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct (Chine)',
       products: [
         {
           name: 'Hikvision DS-K1T341CMF',
@@ -1355,7 +1353,7 @@ export default function ProduitsPage() {
                                 createdAt={product.createdAt}
                                 onCompareToggle={handleCompareToggle}
                                 isComparing={comparingProducts.has(product.id || product._id || '')}
-                                pricing1688={product.pricing1688}
+                                isImported={product.isImported}
                               />
                             ))}
                           </div>

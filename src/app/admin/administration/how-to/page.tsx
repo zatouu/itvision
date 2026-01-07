@@ -1,7 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import AdminSidebar from '@/components/admin/AdminSidebar'
 import {
   BookOpen,
   FileText,
@@ -11,13 +9,10 @@ import {
   BarChart3,
   Briefcase,
   Wrench,
-  AlertCircle,
-  Settings
+  AlertCircle
 } from 'lucide-react'
 
 export default function AdminHowToPage() {
-  const router = useRouter()
-
   const sections = [
     {
       id: 'dashboard',
@@ -141,18 +136,15 @@ export default function AdminHowToPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-emerald-100 rounded-lg">
                 <BookOpen className="h-6 w-6 text-emerald-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Guide d'utilisation Admin</h1>
-                <p className="text-gray-600 mt-1">Documentation complète pour utiliser le panel d'administration</p>
+                <h1 className="text-3xl font-bold text-gray-900">Guide d&apos;utilisation Admin</h1>
+                <p className="text-gray-600 mt-1">Documentation complète pour utiliser le panel d&apos;administration</p>
               </div>
             </div>
           </div>
@@ -195,8 +187,6 @@ export default function AdminHowToPage() {
               <li>• Configurez les notifications pour être alerté des événements importants</li>
             </ul>
           </div>
-        </div>
-      </main>
     </div>
   )
 }

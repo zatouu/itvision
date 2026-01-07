@@ -1,7 +1,8 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   LayoutDashboard,
   BarChart3,
@@ -16,9 +17,12 @@ import {
   AlertCircle,
   Settings,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  Menu,
+  ShoppingCart
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface MenuItem {
   id: string
@@ -67,6 +71,12 @@ const menuItems: MenuItem[] = [
     href: '/admin/clients'
   },
   {
+    id: 'commandes',
+    label: 'Commandes',
+    icon: ShoppingCart,
+    href: '/admin/commandes'
+  },
+  {
     id: 'produits',
     label: 'Produits',
     icon: Package,
@@ -106,8 +116,23 @@ const menuItems: MenuItem[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Charger l'état de collapse depuis localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-sidebar-collapsed')
+    if (saved !== null) {
+      setIsCollapsed(saved === 'true')
+    }
+  }, [])
+
+  // Sauvegarder l'état de collapse
+  const toggleCollapse = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    localStorage.setItem('admin-sidebar-collapsed', String(newState))
+  }
 
   const toggleMenu = (menuId: string) => {
     setOpenMenus(prev =>
@@ -142,25 +167,28 @@ export default function AdminSidebar() {
       return (
         <div key={item.id}>
           <button
-            onClick={() => toggleMenu(item.id)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+            onClick={() => !isCollapsed && toggleMenu(item.id)}
+            title={isCollapsed ? item.label : undefined}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
                 ? 'bg-emerald-50 text-emerald-700'
                 : 'text-gray-700 hover:bg-gray-50'
-            }`}
+            } ${isCollapsed ? 'justify-center' : ''}`}
           >
-            <div className="flex items-center gap-3">
-              <item.icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
+            <div className={`flex items-center ${isCollapsed ? '' : 'gap-3'}`}>
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              {!isCollapsed && <span className="font-medium text-sm">{item.label}</span>}
             </div>
-            {isOpen ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
+            {!isCollapsed && (
+              isOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )
             )}
           </button>
-          {isOpen && (
-            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
+          {isOpen && !isCollapsed && (
+            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
               {item.children!.map(child => renderMenuItem(child, level + 1))}
             </div>
           )}
@@ -172,28 +200,67 @@ export default function AdminSidebar() {
       <Link
         key={item.id}
         href={item.href || '#'}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        title={isCollapsed ? item.label : undefined}
+        className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
             ? 'bg-emerald-50 text-emerald-700 font-medium'
             : 'text-gray-700 hover:bg-gray-50'
         }`}
-        style={{ paddingLeft: `${16 + level * 16}px` }}
+        style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
       >
-        <item.icon className="h-5 w-5" />
-        <span>{item.label}</span>
+        <item.icon className="h-5 w-5 flex-shrink-0" />
+        {!isCollapsed && <span className="text-sm">{item.label}</span>}
       </Link>
     )
   }
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">Admin Panel</h2>
-        <p className="text-sm text-gray-500 mt-1">IT Vision Plus</p>
+    <aside 
+      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 flex flex-col h-screen sticky top-0`}
+    >
+      {/* Header avec logo */}
+      <div className={`p-4 border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-gray-900">Admin Panel</h2>
+                <p className="text-xs text-gray-500">IT Vision</p>
+              </div>
+            </div>
+            <button
+              onClick={toggleCollapse}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              title="Réduire le menu"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={toggleCollapse}
+            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            title="Agrandir le menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
       </div>
-      <nav className="p-4 space-y-1">
+
+      {/* Navigation */}
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {menuItems.map(item => renderMenuItem(item))}
       </nav>
+
+      {/* Footer avec version */}
+      {!isCollapsed && (
+        <div className="p-3 border-t border-gray-200 text-xs text-gray-400 text-center">
+          v1.0.0
+        </div>
+      )}
     </aside>
   )
 }

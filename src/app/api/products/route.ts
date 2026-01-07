@@ -130,20 +130,26 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     normalized.sourcing = normalizedSourcing
   }
 
+  // Toujours traiter les shippingOverrides (même tableau vide pour réinitialiser)
   if (Array.isArray(shippingOverrides)) {
     const overrides: NonNullable<IProduct['shippingOverrides']> = []
     for (const raw of shippingOverrides) {
       if (!raw || typeof raw !== 'object' || typeof raw.methodId !== 'string') continue
-      overrides.push({
-        methodId: raw.methodId,
-        ratePerKg: parseNumber(raw.ratePerKg),
-        ratePerM3: parseNumber(raw.ratePerM3),
-        flatFee: parseNumber(raw.flatFee)
-      })
+      // Ne conserver que les overrides avec au moins une valeur définie
+      const hasValue = parseNumber(raw.ratePerKg) !== undefined || 
+                       parseNumber(raw.ratePerM3) !== undefined || 
+                       parseNumber(raw.flatFee) !== undefined
+      if (hasValue) {
+        overrides.push({
+          methodId: raw.methodId,
+          ratePerKg: parseNumber(raw.ratePerKg),
+          ratePerM3: parseNumber(raw.ratePerM3),
+          flatFee: parseNumber(raw.flatFee)
+        })
+      }
     }
-    if (overrides.length > 0) {
-      normalized.shippingOverrides = overrides
-    }
+    // Toujours définir les overrides (tableau vide = réinitialisation aux valeurs par défaut)
+    normalized.shippingOverrides = overrides
   }
 
   // Champs 1688
@@ -199,12 +205,29 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const body = await request.json()
     const payload = buildProductPayload(body)
-    if (!payload.name) return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 })
+    if (!payload.name) return NextResponse.json({ success: false, error: 'Le nom du produit est requis' }, { status: 400 })
+
+    // Validation des prix - par défaut, un prix doit être défini sauf si explicitement sur devis
+    if (!payload.requiresQuote && !payload.price && !payload.baseCost && !payload.price1688) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+      }, { status: 400 })
+    }
 
     const created = await Product.create(payload)
     return NextResponse.json({ success: true, item: created }, { status: 201 })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: 'Failed to create' }, { status: 500 })
+  } catch (e: any) {
+    console.error('Erreur création produit:', e)
+    // Extraction du message d'erreur Mongoose/MongoDB
+    let errorMessage = 'Erreur lors de la création du produit'
+    if (e.name === 'ValidationError') {
+      const messages = Object.values(e.errors || {}).map((err: any) => err.message)
+      errorMessage = messages.join(', ') || 'Erreur de validation'
+    } else if (e.message) {
+      errorMessage = e.message
+    }
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
 
@@ -216,13 +239,41 @@ export async function PATCH(request: NextRequest) {
     await connectMongoose()
     const body = await request.json()
     const { id, ...rest } = body || {}
-    if (!id) return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 })
+    if (!id) return NextResponse.json({ success: false, error: 'ID du produit requis' }, { status: 400 })
     const payload = buildProductPayload(rest)
+    
+    // Récupérer le produit existant pour vérifier
+    const existing = await Product.findById(id).lean()
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Produit non trouvé' }, { status: 404 })
+    }
+    
+    // Validation des prix - un prix doit être défini sauf si explicitement sur devis
+    const finalRequiresQuote = payload.requiresQuote ?? (existing as any).requiresQuote
+    const finalPrice = payload.price ?? (existing as any).price
+    const finalBaseCost = payload.baseCost ?? (existing as any).baseCost
+    const finalPrice1688 = payload.price1688 ?? (existing as any).price1688
+    
+    if (!finalRequiresQuote && !finalPrice && !finalBaseCost && !finalPrice1688) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+      }, { status: 400 })
+    }
+    
     await Product.updateOne({ _id: id }, { $set: payload })
     const updated = await Product.findById(id).lean()
     return NextResponse.json({ success: true, item: updated })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: 'Failed to update' }, { status: 500 })
+  } catch (e: any) {
+    console.error('Erreur mise à jour produit:', e)
+    let errorMessage = 'Erreur lors de la mise à jour du produit'
+    if (e.name === 'ValidationError') {
+      const messages = Object.values(e.errors || {}).map((err: any) => err.message)
+      errorMessage = messages.join(', ') || 'Erreur de validation'
+    } else if (e.message) {
+      errorMessage = e.message
+    }
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
 

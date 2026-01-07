@@ -21,14 +21,11 @@ import type {
   ServiceFeeRate,
   Currency
 } from './types/product.types'
+import { DEFAULT_EXCHANGE_RATE, DEFAULT_INSURANCE_RATE, SERVICE_FEE_RATES } from './pricing/constants'
 
 // ============================================================================
-// CONSTANTES
+// CONSTANTES (centralisées dans src/lib/pricing/constants.ts)
 // ============================================================================
-
-export const DEFAULT_EXCHANGE_RATE = 100 // 1 ¥ = 100 FCFA
-export const DEFAULT_MANDATORY_INSURANCE_RATE = 2.5 // 2.5% obligatoire
-export const SERVICE_FEE_RATES = [5, 10, 15] as const
 
 // Marges dynamiques selon volume
 type MarginTier = {
@@ -211,12 +208,14 @@ export function simulatePricing1688(
   // 3. Frais de service (sur le coût produit)
   const serviceFee = productCostFCFA * (serviceFeeRate / 100)
 
-  // 4. Frais d'assurance (sur le coût total produit + transport réel)
-  // Assurance obligatoire par défaut si non spécifiée
-  const finalInsuranceRate = insuranceRate !== undefined 
-    ? insuranceRate 
-    : DEFAULT_MANDATORY_INSURANCE_RATE
-  const insuranceBase = productCostFCFA + shippingCostReal
+  // 4. Frais d'assurance
+  // Assurance par défaut si non spécifiée (appliquée sur le prix fournisseur)
+  const finalInsuranceRate = insuranceRate !== undefined
+    ? insuranceRate
+    : DEFAULT_INSURANCE_RATE
+  // Calculer l'assurance uniquement sur le coût produit (prix fournisseur),
+  // le transport restant facturé séparément au client.
+  const insuranceBase = productCostFCFA
   const insuranceFee = insuranceBase * (finalInsuranceRate / 100)
 
   // 5. Coût total réel

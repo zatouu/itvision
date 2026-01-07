@@ -1,5 +1,5 @@
 import { computeProductPricing } from './logistics'
-import { simulatePricingFromProduct } from './pricing1688.refactored'
+// Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
 const normalizeGallery = (product: any): string[] => {
   if (Array.isArray(product.gallery) && product.gallery.length > 0) {
@@ -9,6 +9,27 @@ const normalizeGallery = (product: any): string[] => {
     return [product.image]
   }
   return ['/file.svg']
+}
+
+// Normalise les variantes avec prix (style 1688)
+const normalizeVariantGroups = (product: any) => {
+  if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
+    return []
+  }
+  
+  return product.variantGroups.map((group: any) => ({
+    name: group.name || 'Option',
+    variants: Array.isArray(group.variants) ? group.variants.map((v: any) => ({
+      id: v.id || `var_${Math.random().toString(36).slice(2)}`,
+      name: v.name || 'Variante',
+      sku: v.sku || undefined,
+      image: v.image || undefined,
+      // Le prix source (price1688) n'est pas exposé au client, seulement priceFCFA
+      priceFCFA: v.priceFCFA ?? undefined,
+      stock: v.stock ?? 0,
+      isDefault: v.isDefault ?? false
+    })) : []
+  })).filter((g: any) => g.variants.length > 0)
 }
 
 export const formatProductDetail = (product: any) => {
@@ -25,6 +46,8 @@ export const formatProductDetail = (product: any) => {
     features: Array.isArray(product.features) ? product.features : [],
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],
+    // Variantes avec prix et images (style 1688)
+    variantGroups: normalizeVariantGroups(product),
     requiresQuote: product.requiresQuote ?? false,
     currency: pricing.currency,
     pricing,
@@ -36,7 +59,7 @@ export const formatProductDetail = (product: any) => {
       leadTimeDays: product.leadTimeDays ?? null
     },
     logistics: {
-      weightKg: product.weightKg ?? null,
+      weightKg: product.weightKg ?? product.grossWeightKg ?? null,
       packagingWeightKg: product.packagingWeightKg ?? null,
       volumeM3: product.volumeM3 ?? null,
       dimensions: product.lengthCm && product.widthCm && product.heightCm
@@ -47,55 +70,15 @@ export const formatProductDetail = (product: any) => {
           }
         : null
     },
-    sourcing: product.sourcing ? {
-      platform: product.sourcing.platform ?? null,
-      supplierName: product.sourcing.supplierName ?? null,
-      supplierContact: product.sourcing.supplierContact ?? null,
-      productUrl: product.sourcing.productUrl ?? null,
-      notes: product.sourcing.notes ?? null
-    } : null,
-    // Informations 1688 avec breakdown
-    pricing1688: product.price1688 ? (() => {
-      const pricing1688Data = {
-        price1688: product.price1688,
-        price1688Currency: product.price1688Currency ?? 'CNY',
-        exchangeRate: product.exchangeRate ?? 100,
-        serviceFeeRate: product.serviceFeeRate ?? null,
-        insuranceRate: product.insuranceRate ?? null
-      }
-      
-      // Calculer le breakdown si transport disponible
-      let breakdown = undefined
-      if (pricing.shippingOptions.length > 0) {
-        const defaultShipping = pricing.shippingOptions[0]
-        try {
-          const simulation = simulatePricingFromProduct(
-            {
-              price1688: product.price1688,
-              baseCost: product.baseCost,
-              exchangeRate: product.exchangeRate,
-              serviceFeeRate: product.serviceFeeRate as any,
-              insuranceRate: product.insuranceRate,
-              weightKg: product.weightKg,
-              volumeM3: product.volumeM3,
-              shippingOverrides: product.shippingOverrides as any
-            },
-            {
-              shippingMethod: defaultShipping.id as any,
-              orderQuantity: 1
-            }
-          )
-          breakdown = simulation
-        } catch (error) {
-          console.error('Erreur calcul breakdown pricing1688:', error)
-        }
-      }
-      
-      return {
-        ...pricing1688Data,
-        breakdown
-      }
-    })() : null,
+    // Poids détaillés
+    weights: {
+      netWeightKg: product.netWeightKg ?? null,
+      grossWeightKg: product.grossWeightKg ?? product.weightKg ?? null,
+      packagingWeightKg: product.packagingWeightKg ?? null
+    },
+    // Note: Les informations de sourcing et prix source ne sont pas exposées au client
+    // Seul indicateur: si le produit est importé
+    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }
@@ -115,7 +98,8 @@ export const formatSimilarProducts = (products: any[]) => {
       category: item.category ?? 'Catalogue import Chine',
       image: normalizeGallery(item)[0] ?? '/file.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
-      priceAmount: !item.requiresQuote ? (bestShipping?.total ?? pricing.salePrice) : null,
+      // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice
+      priceAmount: !item.requiresQuote ? (pricing.baseCost ?? pricing.salePrice) : null,
       currency: pricing.currency,
       requiresQuote: item.requiresQuote ?? false,
       availabilityStatus: item.stockStatus ?? 'preorder',
