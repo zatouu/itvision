@@ -24,7 +24,6 @@ export interface ShippingOptionPricing {
 
 // Taux par défaut pour les frais additionnels (centralisés)
 import { DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE, DEFAULT_EXCHANGE_RATE } from './pricing/constants'
-import { readPricingDefaults } from './pricing/settings'
 
 export interface PricingFees {
   serviceFeeRate: number // Pourcentage
@@ -125,14 +124,15 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
   const baseCost = typeof product.baseCost === 'number' ? product.baseCost : null
   const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 25
 
-  // Charger éventuels réglages globaux définis par l'admin
-  const globalDefaults = (() => {
-    try {
-      return readPricingDefaults()
-    } catch (err) {
-      return { defaultExchangeRate: DEFAULT_EXCHANGE_RATE, defaultServiceFeeRate: DEFAULT_SERVICE_FEE_RATE, defaultInsuranceRate: DEFAULT_INSURANCE_RATE }
-    }
-  })()
+  // Utiliser les valeurs par défaut centralisées.
+  // NOTE: les réglages admin (fichiers ou DB) doivent être injectés côté serveur
+  // dans la réponse API; ici on évite tout import serveur-only pour que ce module
+  // reste sûr côté client.
+  const globalDefaults = {
+    defaultExchangeRate: DEFAULT_EXCHANGE_RATE,
+    defaultServiceFeeRate: DEFAULT_SERVICE_FEE_RATE,
+    defaultInsuranceRate: DEFAULT_INSURANCE_RATE
+  }
 
   // Calculer le coût fournisseur en FCFA : priorité `baseCost`, sinon convertir
   // `price1688` via le taux admin si disponible, sinon la valeur par défaut.
