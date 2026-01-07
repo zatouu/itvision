@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import { connectDB } from '@/lib/db'
 
+interface RouteContext {
+  params: Promise<{ orderId: string }>
+}
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: RouteContext
 ) {
+  const { orderId } = await context.params
   try {
     await connectDB()
-
-    const orderId = params.orderId
 
     // Chercher la commande
     const order = await Order.findOne({ orderId }).lean() as any
@@ -51,12 +54,12 @@ export async function GET(
 }
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: RouteContext
 ) {
+  const { orderId } = await context.params
   try {
     await connectDB()
 
-    const orderId = params.orderId
     const { address } = await req.json()
 
     if (!address || typeof address !== 'object') {
