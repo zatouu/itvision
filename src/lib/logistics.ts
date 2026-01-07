@@ -22,9 +22,9 @@ export interface ShippingOptionPricing {
   currency: string
 }
 
-// Taux par défaut pour les frais additionnels
-export const DEFAULT_SERVICE_FEE_RATE = 10 // 10% de frais de service
-export const DEFAULT_INSURANCE_RATE = 2.5 // 2.5% d'assurance
+// Taux par défaut pour les frais additionnels (centralisés)
+import { DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE, DEFAULT_EXCHANGE_RATE } from './pricing/constants'
+import { readPricingDefaults } from './pricing/settings'
 
 export interface PricingFees {
   serviceFeeRate: number // Pourcentage
@@ -125,8 +125,26 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
   const baseCost = typeof product.baseCost === 'number' ? product.baseCost : null
   const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 25
 
-  const salePrice = baseCost !== null
-    ? roundCurrency(baseCost * (1 + marginRate / 100))
+  // Charger éventuels réglages globaux définis par l'admin
+  const globalDefaults = (() => {
+    try {
+      return readPricingDefaults()
+    } catch (err) {
+      return { defaultExchangeRate: DEFAULT_EXCHANGE_RATE, defaultServiceFeeRate: DEFAULT_SERVICE_FEE_RATE, defaultInsuranceRate: DEFAULT_INSURANCE_RATE }
+    }
+  })()
+
+  // Calculer le coût fournisseur en FCFA : priorité `baseCost`, sinon convertir
+  // `price1688` via le taux admin si disponible, sinon la valeur par défaut.
+  let productCostFCFA: number | null = null
+  if (baseCost !== null) {
+    productCostFCFA = baseCost
+  } else if (typeof product.price1688 === 'number' && product.price1688 > 0) {
+    productCostFCFA = roundCurrency(product.price1688 * (product.exchangeRate || globalDefaults.defaultExchangeRate || DEFAULT_EXCHANGE_RATE))
+  }
+
+  const salePrice = productCostFCFA !== null
+    ? roundCurrency(productCostFCFA * (1 + marginRate / 100))
     : (typeof product.price === 'number' ? roundCurrency(product.price) : null)
 
   const weightKg = typeof product.weightKg === 'number' ? product.weightKg : undefined
@@ -141,20 +159,21 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
   let fees: PricingFees | undefined
   let totalWithFees: number | null = null
   
-  if (isImported && salePrice !== null && salePrice > 0) {
-    const serviceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : DEFAULT_SERVICE_FEE_RATE
-    const insuranceRate = typeof product.insuranceRate === 'number' ? product.insuranceRate : DEFAULT_INSURANCE_RATE
-    
-    const serviceFeeAmount = roundCurrency(salePrice * (serviceFeeRate / 100)) ?? 0
-    const insuranceAmount = roundCurrency(salePrice * (insuranceRate / 100)) ?? 0
-    
+  if (isImported && salePrice !== null && salePrice > 0 && productCostFCFA !== null) {
+    const serviceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : (globalDefaults.defaultServiceFeeRate ?? DEFAULT_SERVICE_FEE_RATE)
+    const insuranceRate = typeof product.insuranceRate === 'number' ? product.insuranceRate : (globalDefaults.defaultInsuranceRate ?? DEFAULT_INSURANCE_RATE)
+
+    // Frais calculés sur le prix fournisseur (isoler supplier price)
+    const serviceFeeAmount = roundCurrency(productCostFCFA * (serviceFeeRate / 100)) ?? 0
+    const insuranceAmount = roundCurrency(productCostFCFA * (insuranceRate / 100)) ?? 0
+
     fees = {
       serviceFeeRate,
       serviceFeeAmount,
       insuranceRate,
       insuranceAmount
     }
-    
+
     totalWithFees = roundCurrency(salePrice + serviceFeeAmount + insuranceAmount)
   }
 

@@ -464,7 +464,7 @@ export default function ProduitsPage() {
       id: 'controle-acces',
       title: 'Contrôle d\'Accès Multi-Marques',
       icon: Shield,
-      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct 1688',
+      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct (Chine)',
       products: [
         {
           name: 'Hikvision DS-K1T341CMF',

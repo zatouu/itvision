@@ -786,7 +786,7 @@ Merci de me recontacter.`
                 <div className="text-sm text-gray-700 space-y-2">
                   {product.pricing.baseCost !== null && (
                     <div className="flex justify-between">
-                      <span>Prix fournisseur (1688)</span>
+                      <span>Prix source (Chine)</span>
                       <span className="font-medium">{formatCurrency(product.pricing.baseCost, product.pricing.currency)}</span>
                     </div>
                   )}
@@ -809,6 +809,16 @@ Merci de me recontacter.`
                   <div className="mt-2 text-xs text-gray-500">⚠ Transport non inclus — sélectionnez le mode sur la page pour voir l'impact. Le coût exact est calculé au récapitulatif selon le poids total de votre commande.</div>
                 </div>
               </div>
+
+              {/* Badge livraison possible */}
+              {product.pricing.shippingOptions && product.pricing.shippingOptions.length > 0 && (
+                <div className="mt-3 text-sm text-gray-600">
+                  <span className="font-medium">Livraison possible :</span>{' '}
+                  {Array.from(new Set(product.pricing.shippingOptions.map(o => o.durationDays))).map((d, idx) => (
+                    <span key={d} className="inline-block ml-1">{d}j{idx < product.pricing.shippingOptions.length - 1 ? ' /' : ''}</span>
+                  ))}
+                </div>
+              )}
 
               {/* Options de transport (taux affichés, pas de total) */}
               <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
