@@ -30,6 +30,7 @@ import {
   Info,
   Megaphone
 } from 'lucide-react'
+import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
 // Note: Les informations de prix source ne sont pas exposées au client
@@ -269,13 +270,9 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     ? product.pricing.shippingOptions.find((option) => option.id === selectedShippingId) || null
     : null
 
-  // Prix unitaire: prend en compte le prix de la variante sélectionnée si disponible
+  // Prix unitaire (exclut le transport) : le prix affiché sur la page produit doit être le prix produit (sourcing + frais).
   const basePrice = effectivePrice ?? product.pricing.salePrice
-  const unitPrice = !product.requiresQuote
-    ? (shippingEnabled && activeShipping 
-        ? (activeShipping.total + (selectedVariantDetails.totalVariantPrice ?? 0) - (product.pricing.salePrice ?? 0))
-        : basePrice)
-    : null
+  const unitPrice = !product.requiresQuote ? basePrice : null
 
   const totalPrice = useMemo(() => {
     if (!unitPrice) return null
@@ -313,7 +310,8 @@ Merci de me recontacter.`
 
       if (existsIndex >= 0) {
         items[existsIndex].qty += Math.max(1, quantity)
-        items[existsIndex].price = unitPrice
+        // Stocker le prix produit (hors transport). Le transport et les frais sont attachés en méta.
+        items[existsIndex].price = basePrice
         items[existsIndex].currency = currency
         if (activeShipping) {
           items[existsIndex].shipping = {
@@ -329,7 +327,8 @@ Merci de me recontacter.`
           id,
           name: product.name,
           qty: Math.max(1, quantity),
-          price: unitPrice,
+          // Prix principal = prix produit (sourcing + marge) — transport non inclus
+          price: basePrice,
           currency,
           requiresQuote: !!product.requiresQuote,
           shipping: activeShipping ? {
@@ -340,6 +339,14 @@ Merci de me recontacter.`
             currency: activeShipping.currency
           } : undefined
         })
+        // Ajouter méta frais/assurance pour que le panier/checkout puisse calculer le total final
+        const lastIndex = items.length - 1
+        if (product.pricing.fees) {
+          items[lastIndex].serviceFeeRate = product.pricing.fees.serviceFeeRate
+          items[lastIndex].serviceFeeAmount = product.pricing.fees.serviceFeeAmount
+          items[lastIndex].insuranceRate = product.pricing.fees.insuranceRate
+          items[lastIndex].insuranceAmount = product.pricing.fees.insuranceAmount
+        }
       }
 
       window.localStorage.setItem('cart:items', JSON.stringify(items))
@@ -770,6 +777,60 @@ Merci de me recontacter.`
               {product.tagline && (
                 <p className="text-sm text-gray-600 mt-1">{product.tagline}</p>
               )}
+            </div>
+
+            {/* Structure de prix — explicite et simple */}
+            <div className="mt-4">
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Structure de prix</h3>
+                <div className="text-sm text-gray-700 space-y-2">
+                  {product.pricing.baseCost !== null && (
+                    <div className="flex justify-between">
+                      <span>Prix fournisseur (1688)</span>
+                      <span className="font-medium">{formatCurrency(product.pricing.baseCost, product.pricing.currency)}</span>
+                    </div>
+                  )}
+                  {product.pricing.fees && (
+                    <>
+                      <div className="flex justify-between">
+                        <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
+                        <span className="font-medium">+{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
+                        <span className="font-medium">+{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}</span>
+                      </div>
+                      <div className="border-t border-gray-100 pt-2 flex justify-between text-gray-800 font-semibold">
+                        <span>Sous-total produit</span>
+                        <span>{formatCurrency(product.pricing.totalWithFees ?? (product.pricing.salePrice ?? 0), product.pricing.currency)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="mt-2 text-xs text-gray-500">⚠ Transport non inclus — sélectionnez le mode sur la page pour voir l'impact. Le coût exact est calculé au récapitulatif selon le poids total de votre commande.</div>
+                </div>
+              </div>
+
+              {/* Options de transport (taux affichés, pas de total) */}
+              <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">Options de transport (exemples de tarifs)</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  {Object.values(BASE_SHIPPING_RATES).map((rate) => (
+                    <div key={rate.id} className="flex justify-between">
+                      <div>
+                        <div className="font-medium">{rate.label}</div>
+                        <div className="text-xs text-gray-500">{rate.description}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">
+                          {rate.billing === 'per_kg' ? `${rate.rate.toLocaleString('fr-FR')} ${product.pricing.currency}/kg` : `${rate.rate.toLocaleString('fr-FR')} ${product.pricing.currency}/m³`}
+                        </div>
+                        {rate.minimumCharge && <div className="text-xs text-gray-500">min {rate.minimumCharge.toLocaleString('fr-FR')} {product.pricing.currency}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-gray-500">Le coût exact est calculé au récapitulatif selon le poids/volume total de votre commande.</div>
+              </div>
             </div>
 
             {/* Prix + Transport compact */}

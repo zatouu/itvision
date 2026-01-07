@@ -144,11 +144,13 @@ export default function ProductCard({
   
   // Calcul du prix : si transport activé, utiliser le total du transport, sinon le prix de base
   const basePrice = priceAmount || 0
-  const computedPriceAmount = !requiresQuote
-    ? (shippingEnabled && activeShipping ? activeShipping.total : priceAmount)
-    : undefined
+  // Nouveau comportement : afficher le prix sourcing (basePrice) comme prix principal sur la carte.
+  // Ne pas inclure automatiquement le transport dans le prix affiché — cela provoque de la confusion.
+  const computedPriceAmount = !requiresQuote ? basePrice : undefined
+  const serviceFeeRange = { min: 10, max: 20 } // en pourcentage
+  const insurancePercent = 2.5
   const computedPriceLabel = computedPriceAmount && !requiresQuote
-    ? `${computedPriceAmount.toLocaleString('fr-FR')} ${effectiveCurrency}`
+    ? `À partir de ${computedPriceAmount.toLocaleString('fr-FR')} ${effectiveCurrency}`
     : price || 'Sur devis'
 
   const whatsappUrl = () => {
@@ -175,7 +177,8 @@ export default function ProductCard({
       const existsIndex = items.findIndex((i: any) => i.id === id)
       if (existsIndex >= 0) {
         items[existsIndex].qty += 1
-        items[existsIndex].price = computedPriceAmount
+        // Garder le prix principal égal au prix sourcing. Les frais/transport sont stockés séparément.
+        items[existsIndex].price = basePrice
         items[existsIndex].currency = effectiveCurrency
         if (activeShipping) {
           items[existsIndex].shipping = {
@@ -192,7 +195,8 @@ export default function ProductCard({
           id,
           name: itemName,
           qty: 1,
-          price: computedPriceAmount,
+          // Prix principal = prix sourcing (basePrice). Les frais et le transport sont ajoutés au checkout.
+          price: basePrice,
           currency: effectiveCurrency,
           requiresQuote: !!requiresQuote,
           shipping: activeShipping ? {
@@ -203,6 +207,10 @@ export default function ProductCard({
             currency: activeShipping.currency
           } : undefined
         })
+        // Ajouter méta frais/assurance pour que le panier/checkout puisse calculer le total final
+        const lastIndex = items.length - 1
+        items[lastIndex].serviceFeeRange = serviceFeeRange
+        items[lastIndex].insurancePercent = insurancePercent
       }
       localStorage.setItem('cart:items', JSON.stringify(items))
       trackEvent('add_to_cart', { productId: id })
@@ -315,9 +323,9 @@ export default function ProductCard({
                 <Clock className="h-3 w-3" />
                 <span>{computedDeliveryDays} jours</span>
               </div>
-              {basePrice > 0 && activeShipping.total !== basePrice && (
+              {basePrice > 0 && (
                 <div className="text-[10px] text-gray-400 mt-0.5">
-                  Base: {basePrice.toLocaleString('fr-FR')} {currency} + Transport: {activeShipping.cost.toLocaleString('fr-FR')} {activeShipping.currency}
+                  Prix sourcing: {basePrice.toLocaleString('fr-FR')} {currency} · +{serviceFeeRange.min}%–{serviceFeeRange.max}% frais service · +{insurancePercent}% assurance · transport selon choix
                 </div>
               )}
             </div>
@@ -330,80 +338,17 @@ export default function ProductCard({
           )}
         </div>
 
-        {/* Options de livraison avec switch (pour produits sur commande) */}
-        {shippingEnabled && !showQuote && shippingOptions.length > 0 && (
-          <div className="mb-3 space-y-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="text-xs font-semibold text-gray-700 mb-2">Choisir la durée :</div>
-            <div className="flex flex-wrap gap-2">
-              {shippingOptions.map(option => {
-                const Icon = shippingIcon(option.id)
-                const active = option.id === selectedShippingId
-                return (
-                  <button
-                    key={option.id}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedShippingId(option.id)
-                    }}
-                    className={`flex-1 min-w-[60px] flex flex-col items-center gap-1 px-3 py-2 rounded-lg border-2 transition-all ${
-                      active 
-                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-md scale-105' 
-                        : 'border-gray-300 text-gray-700 hover:border-emerald-400 bg-white hover:bg-emerald-50'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${active ? 'text-white' : 'text-gray-500'}`} />
-                    <span className={`text-xs font-bold ${active ? 'text-white' : 'text-gray-700'}`}>
-                      {option.durationDays}j
-                    </span>
-                    {active && (
-                      <span className="text-[10px] font-semibold text-emerald-100">
-                        {option.total.toLocaleString('fr-FR')} {option.currency}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            {activeShipping && (
-              <div className="text-[10px] text-gray-600 mt-2 pt-2 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <span>Transport {activeShipping.label}:</span>
-                  <span className="font-semibold">{activeShipping.cost.toLocaleString('fr-FR')} {activeShipping.currency}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Shipping details removed from listing card to keep card minimal and encourage clicking 'Voir détails' */}
 
-        {/* Action */}
+        {/* Action: Voir détails */}
         <div className="mt-auto pt-3 border-t border-gray-100">
-          {!showQuote && (
-            <button
-              onClick={addToCart}
-              disabled={adding}
-              className="w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              <span>{adding ? '...' : primaryCtaLabel}</span>
-            </button>
-          )}
-          {showQuote && (
-            <a
-              href={whatsappUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                e.stopPropagation()
-                trackEvent('quote_request', { productId: name })
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
-              </svg>
-              <span>Demander un devis</span>
-            </a>
-          )}
+          <a
+            href={detailHref || '#'}
+            onClick={(e) => { e.stopPropagation() }}
+            className="w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <span>Voir détails</span>
+          </a>
         </div>
       </div>
     </div>
