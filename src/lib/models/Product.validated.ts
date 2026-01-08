@@ -74,6 +74,17 @@ export interface IProduct extends Document {
   insuranceRate?: number
   shippingOverrides: ShippingOverride[]
   
+  // Configuration achat groupé
+  groupBuyEnabled: boolean
+  groupBuyMinQty: number
+  groupBuyTargetQty: number
+  priceTiers: Array<{
+    minQty: number
+    maxQty?: number
+    price: number
+    discount?: number
+  }>
+  
   // Timestamps
   createdAt: Date
   updatedAt: Date
@@ -411,6 +422,31 @@ const ProductSchema = new Schema<IProduct>({
           message: 'Le forfait doit être positif ou nul'
         }
       }
+    }, { _id: false })],
+    default: []
+  },
+  
+  // Configuration achat groupé
+  groupBuyEnabled: {
+    type: Boolean,
+    default: false
+  },
+  groupBuyMinQty: {
+    type: Number,
+    default: 10,
+    min: [1, 'La quantité minimum doit être au moins 1']
+  },
+  groupBuyTargetQty: {
+    type: Number,
+    default: 50,
+    min: [1, 'La quantité cible doit être au moins 1']
+  },
+  priceTiers: {
+    type: [new Schema({
+      minQty: { type: Number, required: true, min: 1 },
+      maxQty: { type: Number },
+      price: { type: Number, required: true, min: 0 },
+      discount: { type: Number, min: 0, max: 100 }
     }, { _id: false })],
     default: []
   }

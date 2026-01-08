@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -19,7 +19,16 @@ import {
   Loader2,
   Package,
   Home,
-  TrendingDown
+  TrendingDown,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Clock,
+  Star,
+  ShoppingCart,
+  Heart,
+  Eye,
+  Zap
 } from 'lucide-react'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
@@ -30,6 +39,8 @@ export default function PanierPage() {
   const router = useRouter()
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
+  const [suggestedProducts, setSuggestedProducts] = useState<any[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(true)
   const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -37,6 +48,7 @@ export default function PanierPage() {
   const [sending, setSending] = useState(false)
   const [step, setStep] = useState<1 | 2 | 3>(1) // 1: Panier, 2: Adresse, 3: Confirmation
   const [addressValid, setAddressValid] = useState(false)
+  const [suggestionScroll, setSuggestionScroll] = useState(0)
 
   useEffect(() => {
     try {
@@ -47,6 +59,58 @@ export default function PanierPage() {
       console.error(e)
     }
   }, [])
+
+  // Charger les produits suggérés
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        setLoadingSuggestions(true)
+        // Récupérer des produits populaires/récents
+        const res = await fetch('/api/catalog/products?limit=12&sort=popular')
+        const data = await res.json()
+        if (data.success && data.items) {
+          // Exclure les produits déjà dans le panier
+          const cartIds = items.map(i => i.id?.split('-')[0] || i.id)
+          const filtered = data.items.filter((p: any) => !cartIds.includes(p._id))
+          setSuggestedProducts(filtered.slice(0, 10))
+        }
+      } catch (e) {
+        console.error('Erreur chargement suggestions:', e)
+      } finally {
+        setLoadingSuggestions(false)
+      }
+    }
+    fetchSuggestions()
+  }, [items])
+
+  // Ajouter un produit suggéré au panier
+  const addSuggestedToCart = useCallback((product: any) => {
+    const newItem = {
+      id: product._id,
+      name: product.name,
+      image: product.image,
+      price: product.price || 0,
+      qty: 1,
+      weightKg: product.weightKg,
+      volumeM3: product.volumeM3
+    }
+    const updated = [...items, newItem]
+    setItems(updated)
+    localStorage.setItem('cart:items', JSON.stringify(updated))
+    window.dispatchEvent(new CustomEvent('cart:updated'))
+  }, [items])
+
+  // Scroll du carrousel de suggestions
+  const scrollSuggestions = (direction: 'left' | 'right') => {
+    const container = document.getElementById('suggestions-carousel')
+    if (!container) return
+    const scrollAmount = 300
+    const newScroll = direction === 'left' 
+      ? Math.max(0, suggestionScroll - scrollAmount)
+      : suggestionScroll + scrollAmount
+    container.scrollTo({ left: newScroll, behavior: 'smooth' })
+    setSuggestionScroll(newScroll)
+  }
 
   const SHIPPING_RATES = {
     express: { label: 'Express 3j', ratePerKg: 12000, billing: 'per_kg' },
@@ -699,6 +763,222 @@ export default function PanierPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Section Produits Suggérés - Visible uniquement à l'étape 1 */}
+      {step === 1 && suggestedProducts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gradient-to-br from-purple-50 via-white to-amber-50 py-12 px-4 md:px-8 border-t"
+        >
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-amber-500 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Complétez votre commande</h2>
+                  <p className="text-sm text-gray-600">Produits populaires qui pourraient vous intéresser</p>
+                </div>
+              </div>
+              <div className="hidden md:flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => scrollSuggestions('left')}
+                  className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md transition"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => scrollSuggestions('right')}
+                  className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md transition"
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Carrousel */}
+            <div 
+              id="suggestions-carousel"
+              className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {suggestedProducts.map((product, idx) => (
+                <motion.div
+                  key={product._id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="flex-shrink-0 w-[220px] bg-white rounded-xl border border-gray-200 overflow-hidden shadow-md hover:shadow-xl transition-all group snap-start"
+                >
+                  {/* Image */}
+                  <div className="relative h-40 bg-gray-100 overflow-hidden">
+                    {product.image ? (
+                      <img 
+                        src={product.image} 
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <Package className="w-12 h-12" />
+                      </div>
+                    )}
+                    {/* Badges */}
+                    <div className="absolute top-2 left-2 flex flex-col gap-1">
+                      {product.isFeatured && (
+                        <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                          <Star className="w-3 h-3" /> Top
+                        </span>
+                      )}
+                      {product.stockStatus === 'in_stock' && (
+                        <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                          <Zap className="w-3 h-3" /> Stock
+                        </span>
+                      )}
+                    </div>
+                    {/* Quick actions */}
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => router.push(`/produits/${product._id}`)}
+                        className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow"
+                      >
+                        <Eye className="w-4 h-4 text-gray-600" />
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div className="p-3">
+                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1 min-h-[40px]">
+                      {product.name}
+                    </h3>
+                    {product.category && (
+                      <p className="text-xs text-gray-500 mb-2">{product.category}</p>
+                    )}
+                    
+                    {/* Prix */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-lg font-bold text-emerald-600">
+                        {formatCurrency(product.price)}
+                      </span>
+                      {product.weightKg && (
+                        <span className="text-xs text-gray-400">{product.weightKg}kg</span>
+                      )}
+                    </div>
+
+                    {/* CTA */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => addSuggestedToCart(product)}
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 rounded-lg text-sm font-semibold transition"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      Ajouter
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Indicateur de quantité */}
+            {breakdown.totalQuantity < 5 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-amber-800">
+                    Plus que {5 - breakdown.totalQuantity} produit(s) pour atteindre le minimum !
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    Ajoutez des produits ci-dessus pour compléter votre commande
+                  </p>
+                </div>
+                <div className="text-3xl font-bold text-amber-600">
+                  {breakdown.totalQuantity}/5
+                </div>
+              </motion.div>
+            )}
+
+            {/* Promotion quantité */}
+            {breakdown.totalQuantity >= 5 && breakdown.totalQuantity < 20 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <TrendingDown className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-emerald-800">
+                    🎉 Ajoutez {20 - breakdown.totalQuantity} produit(s) pour débloquer -5% supplémentaire !
+                  </p>
+                  <p className="text-sm text-emerald-700">
+                    Les tarifs dégressifs s&apos;appliquent automatiquement selon la quantité totale
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Section produits vus récemment */}
+      {step === 1 && recentViewed.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-gray-50 py-10 px-4 md:px-8 border-t"
+        >
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center gap-3 mb-6">
+              <Clock className="w-5 h-5 text-gray-500" />
+              <h2 className="text-lg font-bold text-gray-800">Vus récemment</h2>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {recentViewed.slice(0, 6).map((product, idx) => (
+                <motion.div
+                  key={product.id || idx}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  onClick={() => router.push(`/produits/${product.id}`)}
+                  className="flex-shrink-0 w-[160px] bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:shadow-md transition"
+                >
+                  <div className="h-24 bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                    {product.image ? (
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <Package className="w-8 h-8" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 line-clamp-2">{product.name}</p>
+                  <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(product.price)}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Footer */}
       <motion.div

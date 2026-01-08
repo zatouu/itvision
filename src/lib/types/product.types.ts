@@ -102,13 +102,13 @@ export interface ShippingOverride {
 // ============================================================================
 
 export interface ProductVariant {
-  id: string // Identifiant unique de la variante
+  id?: string // Identifiant unique de la variante (optionnel)
   name: string // Nom de la variante (ex: "Blanc US Standard", "Norme européenne blanche")
   sku?: string // SKU optionnel
   image?: string // Image spécifique à la variante
   price1688?: number // Prix en Yuan pour cette variante
   priceFCFA?: number // Prix en FCFA calculé
-  stock: number // Stock disponible pour cette variante
+  stock?: number // Stock disponible pour cette variante (optionnel)
   isDefault?: boolean // Si c'est la variante par défaut
 }
 

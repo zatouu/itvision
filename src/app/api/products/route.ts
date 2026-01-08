@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { type IProduct } from '@/lib/models/Product.validated'
+import type { ProductVariantGroup } from '@/lib/types/product.types'
 import jwt from 'jsonwebtoken'
 
 function requireManagerRole(request: NextRequest) {
@@ -64,6 +65,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     packagingWeightKg,
     colorOptions,
     variantOptions,
+    variantGroups,
     availabilityNote,
     isPublished,
     isFeatured,
@@ -74,7 +76,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     price1688Currency,
     exchangeRate,
     serviceFeeRate,
-    insuranceRate
+    insuranceRate,
+    // Champs achat groupé
+    groupBuyEnabled,
+    groupBuyMinQty,
+    groupBuyTargetQty,
+    priceTiers
   } = payload || {}
 
   const normalized: Partial<IProduct> = {
@@ -165,6 +172,59 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 
       ? (price1688Currency as 'FCFA' | 'EUR' | 'USD' | 'CNY')
       : undefined
+  }
+
+  // Variantes avec images et prix (style 1688)
+  if (Array.isArray(variantGroups)) {
+    const normalizedGroups: ProductVariantGroup[] = []
+    for (const group of variantGroups) {
+      if (!group || typeof group !== 'object' || typeof group.name !== 'string') continue
+      if (!Array.isArray(group.variants)) continue
+      const normalizedVariants: ProductVariantGroup['variants'] = []
+      for (const v of group.variants) {
+        if (!v || typeof v !== 'object' || typeof v.name !== 'string') continue
+        normalizedVariants.push({
+          id: typeof v.id === 'string' ? v.id : undefined,
+          name: v.name,
+          sku: typeof v.sku === 'string' ? v.sku : undefined,
+          image: typeof v.image === 'string' ? v.image : undefined,
+          price1688: parseNumber(v.price1688),
+          stock: parseNumber(v.stock)
+        })
+      }
+      if (normalizedVariants.length > 0) {
+        normalizedGroups.push({
+          name: group.name,
+          variants: normalizedVariants
+        })
+      }
+    }
+    normalized.variantGroups = normalizedGroups
+  }
+
+  // Champs achat groupé
+  if (typeof groupBuyEnabled === 'boolean') {
+    normalized.groupBuyEnabled = groupBuyEnabled
+  }
+  normalized.groupBuyMinQty = parseNumber(groupBuyMinQty)
+  normalized.groupBuyTargetQty = parseNumber(groupBuyTargetQty)
+  
+  // Paliers de prix dégressifs
+  if (Array.isArray(priceTiers)) {
+    const normalizedTiers: NonNullable<IProduct['priceTiers']> = []
+    for (const tier of priceTiers) {
+      if (!tier || typeof tier !== 'object') continue
+      const minQty = parseNumber(tier.minQty)
+      const price = parseNumber(tier.price)
+      if (minQty === undefined || price === undefined) continue
+      normalizedTiers.push({
+        minQty,
+        maxQty: parseNumber(tier.maxQty),
+        price,
+        discount: parseNumber(tier.discount)
+      })
+    }
+    normalized.priceTiers = normalizedTiers
   }
 
   return normalized

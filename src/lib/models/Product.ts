@@ -1,5 +1,21 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+// Interface pour une variante de produit (avec image et prix 1688)
+export interface IProductVariant {
+  id?: string          // ID unique de la variante
+  name: string         // Nom de la variante (ex: "Rouge", "32GB")
+  sku?: string         // SKU de la variante
+  image?: string       // Image spécifique de la variante
+  price1688?: number   // Prix 1688 spécifique
+  stock?: number       // Stock spécifique
+}
+
+// Interface pour un groupe de variantes
+export interface IProductVariantGroup {
+  name: string              // Nom du groupe (ex: "Couleur", "Taille")
+  variants: IProductVariant[]
+}
+
 // Interface pour les paliers de prix dégressifs (achat groupé)
 export interface IPriceTier {
   minQty: number      // Quantité minimum pour ce palier
@@ -33,6 +49,8 @@ export interface IProduct extends Document {
   packagingWeightKg?: number
   colorOptions?: string[]
   variantOptions?: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: IProductVariantGroup[]
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
@@ -89,6 +107,23 @@ const ProductSchema = new Schema<IProduct>({
   packagingWeightKg: { type: Number },
   colorOptions: { type: [String], default: [] },
   variantOptions: { type: [String], default: [] },
+  // Variantes avec prix et images (style 1688)
+  variantGroups: {
+    type: [new Schema({
+      name: { type: String, required: true },
+      variants: {
+        type: [new Schema({
+          id: { type: String },
+          name: { type: String, required: true },
+          sku: { type: String },
+          image: { type: String },
+          price1688: { type: Number },
+          stock: { type: Number }
+        }, { _id: false })]
+      }
+    }, { _id: false })],
+    default: []
+  },
   availabilityNote: { type: String },
   isPublished: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
