@@ -309,6 +309,11 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const basePrice = effectivePrice ?? product.pricing.salePrice
   const unitPrice = !product.requiresQuote ? basePrice : null
 
+  // Calcul du nombre total d'unités sélectionnées via les variantes
+  const totalVariantQuantity = useMemo(() => {
+    return Object.values(variantQuantities || {}).reduce((sum, q) => sum + q, 0)
+  }, [variantQuantities])
+
   const variantSubtotal = useMemo(() => {
     const entries = Object.entries(variantQuantities || {}).filter(([, q]) => q > 0)
     if (entries.length === 0) return 0
@@ -323,12 +328,17 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     return sum
   }, [variantQuantities, product.variantGroups, basePrice])
 
-  const displayedSubtotal = variantSubtotal > 0 ? variantSubtotal : (unitPrice ? unitPrice * Math.max(1, quantity) : 0)
+  // Si des variantes sont sélectionnées, utiliser leur sous-total, sinon utiliser quantity
+  const hasVariantSelection = totalVariantQuantity > 0
+  const displayedSubtotal = hasVariantSelection ? variantSubtotal : (unitPrice ? unitPrice * Math.max(1, quantity) : 0)
+  const displayedQuantity = hasVariantSelection ? totalVariantQuantity : quantity
 
   const totalPrice = useMemo(() => {
     if (!unitPrice) return null
+    // Si variantes sélectionnées, utiliser le sous-total des variantes
+    if (hasVariantSelection) return variantSubtotal
     return unitPrice * Math.max(1, quantity)
-  }, [unitPrice, quantity])
+  }, [unitPrice, quantity, hasVariantSelection, variantSubtotal])
 
   const unitPriceLabel = unitPrice ? formatCurrency(unitPrice, product.pricing.currency) : null
   const totalPriceLabel = totalPrice ? formatCurrency(totalPrice, product.pricing.currency) : null
@@ -1082,8 +1092,13 @@ Merci de me recontacter.`
                   <div className="text-3xl sm:text-4xl font-extrabold text-emerald-600">
                     {totalPriceLabel || unitPriceLabel || 'Sur devis'}
                   </div>
-                  {!showQuote && quantity > 1 && (
-                    <div className="text-xs text-gray-500">{quantity} × {unitPriceLabel}</div>
+                  {!showQuote && displayedQuantity > 1 && (
+                    <div className="text-xs text-gray-500">
+                      {hasVariantSelection 
+                        ? `${displayedQuantity} article${displayedQuantity > 1 ? 's' : ''} sélectionné${displayedQuantity > 1 ? 's' : ''}`
+                        : `${quantity} × ${unitPriceLabel}`
+                      }
+                    </div>
                   )}
                   {deliveryDays && (
                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
@@ -1250,33 +1265,42 @@ Merci de me recontacter.`
               )}
 
               {/* Quantité + Actions sur la même ligne */}
-              <div className="flex items-center gap-3 pt-2">
-                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(quantity - 1)}
-                    className="px-2 py-1 hover:bg-gray-100 text-gray-600"
-                  >
-                    −
-                  </button>
-                  <input
-                    id="quantity"
-                    type="number"
-                    min={1}
-                    value={quantity}
-                    onChange={(e) => handleQuantityChange(Number(e.target.value))}
-                    className="w-12 text-center border-x border-gray-200 py-1 text-sm focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(quantity + 1)}
-                    className="px-2 py-1 hover:bg-gray-100 text-gray-600"
-                  >
-                    +
-                  </button>
+              {/* Masquer le sélecteur de quantité global si des variantes sont sélectionnées */}
+              {!hasVariantSelection && (
+                <div className="flex items-center gap-3 pt-2">
+                  <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      className="px-2 py-1 hover:bg-gray-100 text-gray-600"
+                    >
+                      −
+                    </button>
+                    <input
+                      id="quantity"
+                      type="number"
+                      min={1}
+                      value={quantity}
+                      onChange={(e) => handleQuantityChange(Number(e.target.value))}
+                      className="w-12 text-center border-x border-gray-200 py-1 text-sm focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                      className="px-2 py-1 hover:bg-gray-100 text-gray-600"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-500">unité(s)</span>
                 </div>
-                <span className="text-xs text-gray-500">unité(s)</span>
-              </div>
+              )}
+              {hasVariantSelection && (
+                <div className="flex items-center gap-2 pt-2 text-sm text-emerald-600">
+                  <span className="font-medium">{displayedQuantity} article{displayedQuantity > 1 ? 's' : ''}</span>
+                  <span className="text-gray-400">sélectionné{displayedQuantity > 1 ? 's' : ''} ci-dessus</span>
+                </div>
+              )}
             </div>
 
             {/* Actions compactes */}

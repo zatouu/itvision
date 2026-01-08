@@ -1,7 +1,47 @@
 # IT Vision Plus — Application Next.js
 
 ## Aperçu
-Application web Next.js (React + TypeScript) avec API routes, MongoDB (mongoose) et Prisma (optionnel). Docker/Compose et Nginx inclus pour un déploiement simple.
+Application web Next.js (React + TypeScript) avec:
+- **API routes** + MongoDB (mongoose) + Prisma (optionnel)
+- **Architecture event-driven** avec Apache Kafka
+- **3 moteurs métier** : Suggestions, Rentabilité, Fidélité
+- **Import en masse** de produits (CSV + images ZIP)
+- **Docker/Compose** et Nginx pour déploiement simple
+
+## 🎯 Nouveautés - Architecture événementielle
+
+### Infrastructure Kafka créée ✅
+- **70+ topics** Kafka organisés par domaine
+- **16 producers typés** (Catalog, Order, Payment, etc.)
+- **3 moteurs métier** prêts à l'emploi
+- **API routes** pour suggestions et fidélité
+
+### Guides disponibles
+- 📖 [Architecture des moteurs](./docs/architecture/ENGINES_ARCHITECTURE.md)
+- 🚀 [Guide d'intégration Kafka](./docs/KAFKA_INTEGRATION_GUIDE.md)
+- 📦 [Import en masse de produits](./docs/BULK_IMPORT_GUIDE.md)
+
+### Démarrage rapide Kafka
+```bash
+# Variables d'environnement
+echo "KAFKA_BROKERS=localhost:9092" >> .env
+echo "KAFKA_CLIENT_ID=itvision-app" >> .env
+
+# Lancer Kafka + consumers
+npm run kafka:start
+npm run kafka:consumers
+
+# Interface Kafka UI: http://localhost:8080
+npm run kafka:ui
+```
+
+### Import en masse de produits
+👉 **http://localhost:3000/admin/products/bulk-import**
+- Import CSV avec images ZIP
+- Template téléchargeable
+- Rapport d'erreurs détaillé
+
+---
 
 ## Prérequis
 - Node.js 18+ et npm, ou Docker + Docker Compose
