@@ -9,12 +9,14 @@ export interface PricingDefaults {
   defaultExchangeRate: number
   defaultServiceFeeRate: number
   defaultInsuranceRate: number
+  defaultMarginRate: number // Marge commerciale par défaut en %
 }
 
 const DEFAULTS: PricingDefaults = {
   defaultExchangeRate: 100,
   defaultServiceFeeRate: 10,
-  defaultInsuranceRate: 2.5
+  defaultInsuranceRate: 2.5,
+  defaultMarginRate: 25 // 25% de marge par défaut
 }
 
 function ensureFile() {

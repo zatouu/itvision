@@ -174,8 +174,10 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
       insuranceAmount
     }
 
-    // totalWithFees: montant visible au client hors transport — coût fournisseur + frais (sans marge)
-    totalWithFees = roundCurrency(productCostFCFA + serviceFeeAmount + insuranceAmount)
+    // totalWithFees: montant visible au client hors transport
+    // = prix de vente (coût + marge) + frais de service + assurance
+    // Cela garantit que le prix affiché inclut bien la marge commerciale
+    totalWithFees = roundCurrency(salePrice + serviceFeeAmount + insuranceAmount)
   }
 
   const shippingOptions: ShippingOptionPricing[] = isInStock
@@ -220,6 +222,7 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
       }
     })
     .filter((option): option is ShippingOptionPricing => option !== null)
+    .sort((a, b) => a.durationDays - b.durationDays) // Trier par durée : Express 3j, Aérien 15j, Maritime 60j
 
   const availabilityLabel = isInStock
     ? 'Disponible immédiatement à Dakar'

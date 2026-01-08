@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     if (typeof body.defaultExchangeRate === 'number' && body.defaultExchangeRate > 0) allowed.defaultExchangeRate = Math.round(body.defaultExchangeRate)
     if (typeof body.defaultServiceFeeRate === 'number' && body.defaultServiceFeeRate >= 0 && body.defaultServiceFeeRate <= 100) allowed.defaultServiceFeeRate = Number(body.defaultServiceFeeRate)
     if (typeof body.defaultInsuranceRate === 'number' && body.defaultInsuranceRate >= 0 && body.defaultInsuranceRate <= 100) allowed.defaultInsuranceRate = Number(body.defaultInsuranceRate)
+    if (typeof body.defaultMarginRate === 'number' && body.defaultMarginRate >= 0 && body.defaultMarginRate <= 200) allowed.defaultMarginRate = Number(body.defaultMarginRate)
 
     if (Object.keys(allowed).length === 0) {
       return NextResponse.json({ success: false, error: 'Aucun champ valide fourni' }, { status: 400 })

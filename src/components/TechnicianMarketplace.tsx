@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   Briefcase, 
   MapPin, 
@@ -16,8 +16,11 @@ import {
   AlertCircle,
   Loader2,
   Eye,
-  Send
+  Send,
+  Bell,
+  RefreshCw
 } from 'lucide-react'
+import { io, Socket } from 'socket.io-client'
 
 interface MarketplaceActivity {
   id: string
@@ -72,6 +75,42 @@ export default function TechnicianMarketplace({ technicianId }: TechnicianMarket
   })
   const [submittingBid, setSubmittingBid] = useState(false)
   const [filter, setFilter] = useState<'all' | 'product_install' | 'ad_hoc' | 'contract_visit'>('all')
+  const [newMissionAlert, setNewMissionAlert] = useState<string | null>(null)
+  const [socket, setSocket] = useState<Socket | null>(null)
+
+  // Connexion Socket.IO pour notifications temps réel
+  useEffect(() => {
+    const socketInstance = io({
+      path: '/api/socketio',
+      transports: ['websocket', 'polling']
+    })
+
+    socketInstance.on('connect', () => {
+      console.log('🔌 Marketplace connecté au serveur socket')
+    })
+
+    socketInstance.on('new-installation-mission', (data: any) => {
+      console.log('🔔 Nouvelle mission installation reçue:', data)
+      setNewMissionAlert(`Nouvelle mission: ${data.productName || 'Installation'}`)
+      // Recharger automatiquement les activités
+      loadActivitiesRef.current()
+      // Masquer l'alerte après 5 secondes
+      setTimeout(() => setNewMissionAlert(null), 5000)
+    })
+
+    setSocket(socketInstance)
+
+    return () => {
+      socketInstance.disconnect()
+    }
+  }, [])
+
+  // Référence stable pour loadActivities
+  const loadActivitiesRef = useRef<() => void>(() => {})
+
+  useEffect(() => {
+    loadActivitiesRef.current = loadActivities
+  })
 
   useEffect(() => {
     loadActivities()
@@ -212,6 +251,24 @@ export default function TechnicianMarketplace({ technicianId }: TechnicianMarket
 
   return (
     <div className="space-y-6">
+      {/* Alerte nouvelle mission */}
+      {newMissionAlert && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 flex items-center gap-3 animate-pulse">
+          <Bell className="h-6 w-6 text-emerald-600" />
+          <div className="flex-1">
+            <span className="font-bold text-emerald-800">🎉 {newMissionAlert}</span>
+            <p className="text-sm text-emerald-600">Cliquez sur "Actualiser" pour voir les détails</p>
+          </div>
+          <button
+            onClick={() => { loadActivities(); setNewMissionAlert(null) }}
+            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Voir
+          </button>
+        </div>
+      )}
+
       {/* En-tête avec filtres */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-4">
@@ -221,8 +278,9 @@ export default function TechnicianMarketplace({ technicianId }: TechnicianMarket
           </h2>
           <button
             onClick={loadActivities}
-            className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+            className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 font-medium"
           >
+            <RefreshCw className="h-4 w-4" />
             Actualiser
           </button>
         </div>

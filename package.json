@@ -29,7 +29,11 @@
     "create:admin:interactive": "tsx scripts/create-admin-user.ts",
     "reinit:mongodb": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < docker/mongodb/init.js",
     "reinit:mongodb:safe": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < scripts/reinit-mongodb-safe.js",
-    "import:aliexpress": "tsx scripts/import-aliexpress.ts"
+    "import:aliexpress": "tsx scripts/import-aliexpress.ts",
+    "kafka:start": "docker compose -f docker/kafka/docker-compose.kafka.yml up -d",
+    "kafka:stop": "docker compose -f docker/kafka/docker-compose.kafka.yml down",
+    "kafka:consumers": "tsx scripts/start-consumers.ts",
+    "kafka:ui": "echo 'Kafka UI disponible sur http://localhost:8080'"
   },
   "dependencies": {
     "@next/font": "^14.2.15",
@@ -54,6 +58,7 @@
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
+    "kafkajs": "^2.2.4",
     "lucide-react": "^0.536.0",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.0",

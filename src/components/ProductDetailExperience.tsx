@@ -8,6 +8,7 @@ import clsx from 'clsx'
 import {
   ArrowLeft,
   ArrowRight,
+  AlertCircle,
   CheckCircle,
   Clock,
   ExternalLink,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Star,
   Truck,
+  Wrench,
   X,
   ZoomIn,
   Heart,
@@ -917,32 +919,55 @@ Merci de me recontacter.`
               )}
             </div>
 
-            {/* Structure de prix — explicite et simple */}
-            <div className="mt-4">
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Structure de prix</h3>
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* BLOC PRIX INDIVIDUEL - Achat standard sans groupe             */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            <div className="mt-6 relative">
+              {/* Badge "Prix Individuel" */}
+              <div className="absolute -top-3 left-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                💳 PRIX INDIVIDUEL
+              </div>
+              
+              <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 pt-5">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4 text-emerald-600" />
+                  Structure de prix - Achat standard
+                </h3>
                 <div className="text-sm text-gray-700 space-y-2">
+                  {/* Prix source (attractif - celui vu sur l'accueil) */}
                   {product.pricing.baseCost !== null && (
-                    <div className="flex justify-between">
-                      <span>Prix source (Chine)</span>
-                      <span className="font-medium">{formatCurrency(product.pricing.baseCost, product.pricing.currency)}</span>
+                    <div className="flex justify-between items-center bg-blue-50 -mx-4 px-4 py-2 border-b border-blue-100">
+                      <span className="text-blue-700 font-medium">💰 Prix source</span>
+                      <div className="text-right">
+                        <span className="font-bold text-blue-600 text-lg">{formatCurrency(product.pricing.baseCost, product.pricing.currency)}</span>
+                        <div className="text-[10px] text-blue-500">Prix affiché sur le catalogue</div>
+                      </div>
                     </div>
                   )}
+                  
+                  {/* Détail des frais additionnels */}
                   {product.pricing.fees && (
                     <>
-                      <div className="flex justify-between">
+                      {/* Marge (si salePrice différent de baseCost) */}
+                      {product.pricing.baseCost !== null && product.pricing.salePrice !== null && product.pricing.salePrice > product.pricing.baseCost && (
+                        <div className="flex justify-between text-gray-600">
+                          <span>Marge commerciale ({product.pricing.marginRate || 25}%)</span>
+                          <span className="font-medium">+{formatCurrency(product.pricing.salePrice - product.pricing.baseCost, product.pricing.currency)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-gray-600">
                         <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
                         <span className="font-medium">+{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between text-gray-600">
                         <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
                         <span className="font-medium">+{formatCurrency(product.pricing.fees.insuranceAmount, product.pricing.currency)}</span>
                       </div>
-                      <div className="border-t border-gray-100 pt-2 flex justify-between text-gray-800 font-semibold">
-                        <span>Sous-total produit</span>
-                        <span>{formatCurrency(
-                          Math.round(
-                            (product.pricing.baseCost ?? (product.pricing.salePrice ?? 0)) +
+                      <div className="border-t-2 border-emerald-300 pt-3 mt-3 flex justify-between text-gray-800 font-bold">
+                        <span>Prix unitaire TTC</span>
+                        <span className="text-emerald-600 text-xl">{formatCurrency(
+                          product.pricing.totalWithFees ?? Math.round(
+                            (product.pricing.salePrice ?? 0) +
                             (product.pricing.fees.serviceFeeAmount ?? 0) +
                             (product.pricing.fees.insuranceAmount ?? 0)
                           ),
@@ -951,7 +976,16 @@ Merci de me recontacter.`
                       </div>
                     </>
                   )}
-                  <div className="mt-2 text-xs text-gray-500">⚠ Transport non inclus — sélectionnez le mode sur la page pour voir l'impact. Le coût exact est calculé au récapitulatif selon le poids total de votre commande.</div>
+                  {/* Si pas de fees, afficher simplement le salePrice */}
+                  {!product.pricing.fees && product.pricing.salePrice && (
+                    <div className="border-t border-emerald-200 pt-2 flex justify-between text-gray-800 font-bold">
+                      <span>Prix unitaire</span>
+                      <span className="text-emerald-600 text-lg">{formatCurrency(product.pricing.salePrice, product.pricing.currency)}</span>
+                    </div>
+                  )}
+                  <div className="mt-3 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                    ⚠️ Transport non inclus — sélectionnez le mode ci-dessus. Le coût exact sera calculé selon le poids total.
+                  </div>
                 </div>
               </div>
 
@@ -959,8 +993,10 @@ Merci de me recontacter.`
               {product.pricing.shippingOptions && product.pricing.shippingOptions.length > 0 && (
                 <div className="mt-3 text-sm text-gray-600">
                   <span className="font-medium">Livraison possible :</span>{' '}
-                  {Array.from(new Set(product.pricing.shippingOptions.map(o => o.durationDays))).map((d, idx) => (
-                    <span key={d} className="inline-block ml-1">{d}j{idx < product.pricing.shippingOptions.length - 1 ? ' /' : ''}</span>
+                  {product.pricing.shippingOptions.map((o, idx) => (
+                    <span key={o.id} className="inline-block ml-1">
+                      {o.label} ({o.durationDays}j){idx < product.pricing.shippingOptions.length - 1 ? ' /' : ''}
+                    </span>
                   ))}
                 </div>
               )}
@@ -1309,61 +1345,313 @@ Merci de me recontacter.`
               </button>
             </div>
 
-            {/* Achat Groupé - Si activé pour ce produit */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* BLOC ACHAT GROUPÉ - Séparé visuellement du prix individuel    */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
             {product.groupBuyEnabled && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl"
+                className="mt-6 relative"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5 text-purple-600" />
-                  <span className="font-bold text-purple-800">Achat Groupé Disponible !</span>
+                {/* Badge "Achat Groupé" */}
+                <div className="absolute -top-3 left-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                  🎯 ACHAT GROUPÉ
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Rejoignez d&apos;autres acheteurs pour obtenir un meilleur prix. 
-                  Plus on est nombreux, moins on paie !
-                </p>
-                {product.priceTiers && product.priceTiers.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {product.priceTiers.slice(0, 3).map((tier, i) => (
-                      <span key={i} className="text-xs px-2 py-1 bg-white rounded-full border border-purple-200">
-                        <TrendingDown className="w-3 h-3 inline mr-1 text-emerald-500" />
-                        {tier.minQty}+ = {formatCurrency(tier.price, product.pricing.currency)}
-                      </span>
-                    ))}
+                
+                <div className="p-5 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 border-2 border-purple-300 rounded-2xl shadow-lg">
+                  {/* Header avec économie */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-bold text-purple-800 text-lg flex items-center gap-2">
+                        <Users className="w-5 h-5" />
+                        Rejoignez le groupe !
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Achetez ensemble, économisez plus
+                      </p>
+                    </div>
+                    {product.priceTiers && product.priceTiers.length > 0 && product.pricing.salePrice && (
+                      <div className="text-right">
+                        <span className="text-xs text-gray-500">Jusqu&apos;à</span>
+                        <div className="text-lg font-bold text-emerald-600">
+                          -{Math.round(((product.pricing.salePrice - product.priceTiers[product.priceTiers.length - 1].price) / product.pricing.salePrice) * 100)}%
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                <Link
-                  href={`/achats-groupes?productId=${product.id}`}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2.5 text-sm font-bold hover:from-purple-700 hover:to-blue-700 transition-all"
-                >
-                  <Users className="w-4 h-4" />
-                  Voir les achats groupés
-                </Link>
+
+                  {/* Barre de progression avec participants */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span className="font-medium">Progression du groupe</span>
+                      <span className="font-bold text-purple-700">
+                        {product.groupBuyMinQty || 10} participants minimum
+                      </span>
+                    </div>
+                    <div className="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: '35%' }}
+                        transition={{ duration: 1, ease: 'easeOut' }}
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow">
+                        7/{product.groupBuyMinQty || 10} acheteurs
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                      <span>🟢 3 places restantes</span>
+                      <span>Objectif: {product.groupBuyTargetQty || 50} unités</span>
+                    </div>
+                  </div>
+
+                  {/* Timer countdown */}
+                  <div className="flex items-center gap-2 p-2 bg-white/70 rounded-lg border border-amber-200 mb-4">
+                    <Clock className="w-5 h-5 text-amber-600 animate-pulse" />
+                    <div className="flex-1">
+                      <span className="text-xs text-gray-600">Expire dans</span>
+                      <div className="flex items-center gap-1 font-mono font-bold text-amber-700">
+                        <span className="bg-amber-100 px-1.5 py-0.5 rounded">03</span>
+                        <span>:</span>
+                        <span className="bg-amber-100 px-1.5 py-0.5 rounded">14</span>
+                        <span>:</span>
+                        <span className="bg-amber-100 px-1.5 py-0.5 rounded">27</span>
+                        <span className="text-xs text-gray-500 ml-1">jours</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 text-right">
+                      <div>⏰ Clôture automatique</div>
+                      <div>le {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}</div>
+                    </div>
+                  </div>
+
+                  {/* Paliers de prix */}
+                  {product.priceTiers && product.priceTiers.length > 0 && (
+                    <div className="mb-4">
+                      <div className="text-xs font-semibold text-gray-600 mb-2">📊 Paliers de prix</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {product.priceTiers.slice(0, 3).map((tier, i) => {
+                          const isBest = i === product.priceTiers!.length - 1
+                          return (
+                            <div 
+                              key={i} 
+                              className={clsx(
+                                'relative p-2 rounded-lg border text-center transition-all',
+                                isBest 
+                                  ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-200' 
+                                  : 'bg-white border-gray-200'
+                              )}
+                            >
+                              {isBest && (
+                                <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                                  MEILLEUR
+                                </span>
+                              )}
+                              <div className="text-lg font-bold text-gray-800">
+                                {tier.minQty}+
+                              </div>
+                              <div className={clsx('text-sm font-semibold', isBest ? 'text-emerald-600' : 'text-purple-600')}>
+                                {formatCurrency(tier.price, product.pricing.currency)}
+                              </div>
+                              <div className="text-[10px] text-gray-400">par unité</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CTAs */}
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/achats-groupes?productId=${product.id}&action=join`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 text-sm font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                    >
+                      <Users className="w-4 h-4" />
+                      Rejoindre le groupe
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleShare('copy')}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl border-2 border-purple-300 text-purple-600 px-3 py-3 text-sm font-medium hover:bg-purple-50 transition-all"
+                      title="Partager pour inviter"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <p className="text-center text-[10px] text-gray-500 mt-3">
+                    💡 Partagez le lien pour atteindre l&apos;objectif plus vite et débloquer le meilleur prix !
+                  </p>
+                </div>
               </motion.div>
             )}
 
-            {/* Installation compacte (repliée par défaut) */}
-            <details className="border border-gray-200 rounded-lg text-xs">
-              <summary className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 font-medium text-gray-600">
-                <Megaphone className="h-3 w-3 text-purple-500" />
-                Demander une installation (techniciens certifiés)
-              </summary>
-              <div className="p-3 space-y-2 bg-white">
-                <div className="grid grid-cols-2 gap-2">
-                  <input value={installationForm.contactName} onChange={(e) => updateInstallationForm('contactName', e.target.value)} className="border rounded px-2 py-1" placeholder="Nom" />
-                  <input value={installationForm.contactPhone} onChange={(e) => updateInstallationForm('contactPhone', e.target.value)} className="border rounded px-2 py-1" placeholder="Tél" />
-                  <input value={installationForm.address} onChange={(e) => updateInstallationForm('address', e.target.value)} className="border rounded px-2 py-1" placeholder="Adresse" />
-                  <input type="date" value={installationForm.preferredDate} onChange={(e) => updateInstallationForm('preferredDate', e.target.value)} className="border rounded px-2 py-1" />
-                </div>
-                {installationError && <p className="text-red-600">{installationError}</p>}
-                {installationStatus === 'success' && <p className="text-emerald-600">✓ Demande publiée</p>}
-                <button onClick={handleInstallationRequest} disabled={installationStatus === 'loading'} className="w-full bg-purple-500 text-white rounded py-1.5 font-medium hover:bg-purple-600 disabled:opacity-60">
-                  {installationStatus === 'loading' ? 'Publication...' : 'Publier mission'}
-                </button>
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* BLOC INSTALLATION - Service optionnel technicien             */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mt-6 relative"
+            >
+              {/* Badge optionnel */}
+              <div className="absolute -top-3 left-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                🔧 INSTALLATION OPTIONNELLE
               </div>
-            </details>
+              
+              <div className="border-2 border-orange-200 rounded-2xl overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+                {/* Header toggle */}
+                <button
+                  type="button"
+                  onClick={() => setWantsInstallation(!wantsInstallation)}
+                  className="w-full flex items-center justify-between p-4 hover:bg-orange-100/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={clsx(
+                      'w-10 h-10 rounded-xl flex items-center justify-center transition-colors',
+                      wantsInstallation ? 'bg-orange-500 text-white' : 'bg-white border-2 border-orange-300 text-orange-500'
+                    )}>
+                      <Wrench className="w-5 h-5" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-bold text-gray-800">Besoin d&apos;une installation ?</h3>
+                      <p className="text-xs text-gray-500">Techniciens certifiés • Garantie intervention</p>
+                    </div>
+                  </div>
+                  <div className={clsx(
+                    'w-12 h-6 rounded-full transition-colors relative',
+                    wantsInstallation ? 'bg-orange-500' : 'bg-gray-300'
+                  )}>
+                    <div className={clsx(
+                      'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform',
+                      wantsInstallation ? 'translate-x-6' : 'translate-x-0.5'
+                    )} />
+                  </div>
+                </button>
+
+                {/* Contenu formulaire */}
+                <AnimatePresence>
+                  {wantsInstallation && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 space-y-4 border-t border-orange-200">
+                        {/* Avantages */}
+                        <div className="grid grid-cols-3 gap-2 pt-4">
+                          <div className="text-center p-2 bg-white rounded-lg border border-orange-100">
+                            <span className="text-lg">👨‍🔧</span>
+                            <p className="text-[10px] text-gray-600 mt-1">Techniciens<br/>vérifiés</p>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded-lg border border-orange-100">
+                            <span className="text-lg">🛡️</span>
+                            <p className="text-[10px] text-gray-600 mt-1">Garantie<br/>intervention</p>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded-lg border border-orange-100">
+                            <span className="text-lg">⚡</span>
+                            <p className="text-[10px] text-gray-600 mt-1">Réponse<br/>sous 24h</p>
+                          </div>
+                        </div>
+
+                        {/* Formulaire amélioré */}
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs font-medium text-gray-600 mb-1 block">Votre nom *</label>
+                              <input 
+                                value={installationForm.contactName} 
+                                onChange={(e) => updateInstallationForm('contactName', e.target.value)} 
+                                className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
+                                placeholder="Ex: Jean Dupont" 
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-600 mb-1 block">Téléphone *</label>
+                              <input 
+                                value={installationForm.contactPhone} 
+                                onChange={(e) => updateInstallationForm('contactPhone', e.target.value)} 
+                                className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
+                                placeholder="Ex: 77 123 45 67" 
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-600 mb-1 block">Adresse d&apos;installation *</label>
+                            <input 
+                              value={installationForm.address} 
+                              onChange={(e) => updateInstallationForm('address', e.target.value)} 
+                              className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
+                              placeholder="Ex: Quartier, Rue, Ville" 
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-600 mb-1 block">Date souhaitée</label>
+                            <input 
+                              type="date" 
+                              value={installationForm.preferredDate} 
+                              onChange={(e) => updateInstallationForm('preferredDate', e.target.value)} 
+                              min={new Date().toISOString().split('T')[0]}
+                              className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-600 mb-1 block">Instructions supplémentaires</label>
+                            <textarea 
+                              className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none" 
+                              rows={2}
+                              placeholder="Ex: Accès par escalier, disponible le matin uniquement..."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Messages de statut */}
+                        {installationError && (
+                          <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                            <AlertCircle className="w-4 h-4" />
+                            {installationError}
+                          </div>
+                        )}
+                        {installationStatus === 'success' && (
+                          <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-600 text-sm">
+                            <CheckCircle className="w-4 h-4" />
+                            ✓ Demande publiée ! Un technicien vous contactera sous 24h.
+                          </div>
+                        )}
+
+                        {/* Bouton d'action */}
+                        <button 
+                          onClick={handleInstallationRequest} 
+                          disabled={installationStatus === 'loading'} 
+                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-bold hover:from-orange-600 hover:to-amber-600 disabled:opacity-60 transition-all shadow-lg hover:shadow-xl"
+                        >
+                          {installationStatus === 'loading' ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Publication en cours...
+                            </>
+                          ) : (
+                            <>
+                              <Megaphone className="w-4 h-4" />
+                              Publier ma demande aux techniciens
+                            </>
+                          )}
+                        </button>
+
+                        <p className="text-center text-[10px] text-gray-500">
+                          📢 Votre demande sera visible par tous les techniciens certifiés de votre zone
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
 
             {/* Actions secondaires compactes */}
             <div className="flex items-center gap-2 text-xs pt-2">
