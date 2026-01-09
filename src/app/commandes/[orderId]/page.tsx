@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Download
 } from 'lucide-react'
+import { OrderTrackingTimeline, OrderPriceSummary, OrderStatusBadges } from '@/components/order'
 
 interface OrderDetails {
   orderId: string
@@ -28,8 +29,8 @@ interface OrderDetails {
   subtotal: number
   shipping: any
   total: number
-  status: string
-  paymentStatus: string
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  paymentStatus: 'pending' | 'completed' | 'failed'
   address: any
   createdAt: string
   currency: string
@@ -49,7 +50,6 @@ export default function OrderConfirmationPage() {
     country: '',
     notes: ''
   })
-  const [currentStep, setCurrentStep] = useState(0)
 
   useEffect(() => {
     if (!orderId) return
@@ -68,12 +68,6 @@ export default function OrderConfirmationPage() {
             country: '',
             notes: ''
           })
-          // Animation des étapes
-          setCurrentStep(0)
-          const interval = setInterval(() => {
-            setCurrentStep(p => (p < 4 ? p + 1 : p))
-          }, 600)
-          return () => clearInterval(interval)
         } else {
           setError(data.error || 'Commande non trouvée')
         }
@@ -111,14 +105,6 @@ export default function OrderConfirmationPage() {
       console.error(e)
     }
   }
-
-  const stepItems = [
-    { icon: CheckCircle, label: 'Commande confirmée', color: 'emerald' },
-    { icon: MapPin, label: 'Adresse validée', color: 'blue' },
-    { icon: Package, label: 'Préparation', color: 'purple' },
-    { icon: Truck, label: 'Expédition', color: 'orange' },
-    { icon: CheckCircle, label: 'Livraison', color: 'emerald' }
-  ]
 
   if (loading) {
     return (
@@ -189,63 +175,18 @@ export default function OrderConfirmationPage() {
       </motion.div>
 
       <div className="max-w-5xl mx-auto p-4 md:p-8">
-        {/* Timeline des étapes */}
+        {/* Timeline des étapes - DYNAMIQUE basée sur le statut réel */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Suivi de votre commande</h2>
-          <div className="flex justify-between items-center relative mb-8">
-            {/* Ligne de connexion */}
-            <div className="absolute top-10 left-0 right-0 h-1 bg-gray-200 -z-10">
-              <motion.div
-                initial={{ width: '0%' }}
-                animate={{ width: `${(Math.min(currentStep, 4) / 4) * 100}%` }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-emerald-500 to-blue-500"
-              />
-            </div>
-
-            {/* Étapes */}
-            {stepItems.map((step, idx) => {
-              const Icon = step.icon
-              const isCompleted = idx <= currentStep
-              const colorClass = step.color === 'emerald' ? 'emerald' : step.color === 'blue' ? 'blue' : step.color === 'purple' ? 'purple' : 'orange'
-
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="flex flex-col items-center flex-1"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.15 }}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center font-bold mb-3 border-4 transition-all shadow-lg relative ${
-                      isCompleted
-                        ? `bg-${colorClass}-500 border-${colorClass}-600 text-white`
-                        : 'bg-white border-gray-300 text-gray-400'
-                    }`}
-                  >
-                    <Icon className="w-10 h-10" />
-                    {isCompleted && idx < currentStep && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white"
-                      >
-                        <Check className="w-4 h-4 text-white" />
-                      </motion.div>
-                    )}
-                  </motion.div>
-                  <p className="text-xs md:text-sm font-medium text-center text-gray-700 px-1">{step.label}</p>
-                </motion.div>
-              )
-            })}
-          </div>
+          <OrderTrackingTimeline 
+            status={order.status} 
+            paymentStatus={order.paymentStatus}
+            shippingMethod={order.shipping?.method}
+          />
         </motion.div>
 
         {/* Grille principale - Infos client et adresse */}
@@ -298,7 +239,7 @@ export default function OrderConfirmationPage() {
             </div>
           </motion.div>
 
-          {/* Bloc statuts */}
+          {/* Bloc statuts - Nouveau composant avec statuts explicites */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -306,31 +247,10 @@ export default function OrderConfirmationPage() {
             className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg"
           >
             <h3 className="text-lg font-bold text-gray-900 mb-4">Statuts</h3>
-            <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200">
-                <p className="text-xs text-gray-600 mb-1 font-medium">Commande</p>
-                <p className="text-sm font-bold text-gray-900">
-                  {order.status === 'pending' ? '⏳ En attente' :
-                   order.status === 'processing' ? '⚙️ Traitement' :
-                   order.status === 'shipped' ? '🚚 Expédié' :
-                   order.status === 'delivered' ? '✅ Livré' :
-                   order.status}
-                </p>
-              </div>
-
-              <div className={`p-4 rounded-lg border ${
-                order.paymentStatus === 'completed' 
-                  ? 'bg-gradient-to-br from-emerald-50 to-green-50 border-green-200'
-                  : 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200'
-              }`}>
-                <p className="text-xs text-gray-600 mb-1 font-medium">Paiement</p>
-                <p className="text-sm font-bold text-gray-900">
-                  {order.paymentStatus === 'completed' ? '✅ Payé' :
-                   order.paymentStatus === 'pending' ? '⏳ En attente' :
-                   '❌ Échec'}
-                </p>
-              </div>
-            </div>
+            <OrderStatusBadges 
+              orderStatus={order.status} 
+              paymentStatus={order.paymentStatus} 
+            />
           </motion.div>
         </div>
 
@@ -492,50 +412,14 @@ export default function OrderConfirmationPage() {
           </div>
         </motion.div>
 
-        {/* Récapitulatif financier */}
+        {/* Récapitulatif prix rassurant - SANS recalcul */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 p-6 shadow-lg mb-8"
+          className="mb-8"
         >
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <DollarSign className="w-6 h-6 text-amber-600" />
-            Récapitulatif financier
-          </h2>
-
-          <div className="space-y-4">
-            <div className="flex justify-between text-gray-700">
-              <span>Produits (avec frais inclus)</span>
-              <span className="font-semibold">{formatCurrency(order.subtotal, order.currency)}</span>
-            </div>
-
-            <div className="flex justify-between text-gray-700 pb-4 border-b-2">
-              <span className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-orange-600" />
-                Transport ({order.shipping.method})
-              </span>
-              <span className="font-semibold">{formatCurrency(order.shipping.totalCost, order.currency)}</span>
-            </div>
-
-            {order.shipping.totalWeight > 0 && (
-              <p className="text-sm text-gray-600">Poids total: {order.shipping.totalWeight.toFixed(2)} kg</p>
-            )}
-            {order.shipping.totalVolume > 0 && (
-              <p className="text-sm text-gray-600">Volume total: {order.shipping.totalVolume.toFixed(4)} m³</p>
-            )}
-
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              className="flex justify-between items-center pt-4 text-2xl font-bold bg-white rounded-xl p-4 border-2 border-amber-200"
-            >
-              <span className="text-gray-900">Total</span>
-              <span className="text-transparent bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text">
-                {formatCurrency(order.total, order.currency)}
-              </span>
-            </motion.div>
-          </div>
+          <OrderPriceSummary total={order.total} currency={order.currency} />
         </motion.div>
 
         {/* Actions */}
