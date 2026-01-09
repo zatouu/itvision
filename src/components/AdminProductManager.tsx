@@ -454,7 +454,7 @@ export default function AdminProductManager() {
     { id: 'media', label: 'Médias', description: 'Visuels et galerie', icon: ImageIcon },
     { id: 'variants', label: 'Variantes', description: 'Couleurs, options avec prix', icon: Settings },
     { id: 'pricing', label: 'Tarifs & livraison', description: 'Prix public, marges, transport', icon: Package },
-    { id: 'groupbuy', label: 'Achat Groupé', description: 'Prix dégressifs par quantité', icon: Users },
+    { id: 'groupbuy', label: 'Prix & Quantités', description: 'Paliers de prix et achat groupé', icon: TrendingDown },
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
 
@@ -1902,17 +1902,120 @@ export default function AdminProductManager() {
     
     return (
       <div className="space-y-6">
-        {/* Activation achat groupé */}
+        {/* Paliers de prix - TOUJOURS DISPONIBLES */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+              <TrendingDown className="h-4 w-4" />
+              Paliers de Prix Dégressifs
+            </div>
+            <button
+              type="button"
+              onClick={addPriceTier}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
+            >
+              <Plus className="h-4 w-4" /> Ajouter un palier
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-500 mb-4">
+            Définissez des prix dégressifs selon la quantité commandée. Ces remises s&apos;appliquent à <strong>tous les clients</strong>, même sans achat groupé.
+          </p>
+          
+          {/* Prix de référence */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-xs text-gray-500">Prix de base (unité)</p>
+            <p className="text-xl font-bold text-gray-900">{formatCurrency(editing.price, editing.currency)}</p>
+          </div>
+          
+          {(!editing.priceTiers || editing.priceTiers.length === 0) ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <TrendingDown className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">Aucun palier de prix configuré</p>
+              <p className="text-xs text-gray-400 mt-1">Ajoutez des paliers pour offrir des prix dégressifs sur quantité</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {editing.priceTiers.map((tier, index) => (
+                <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1 grid grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500">À partir de (qté)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={tier.minQty}
+                        onChange={e => updatePriceTier(index, { minQty: parseInt(e.target.value) || 1 })}
+                        className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Jusqu&apos;à (qté)</label>
+                      <input
+                        type="number"
+                        min={tier.minQty}
+                        value={tier.maxQty || ''}
+                        placeholder="∞"
+                        onChange={e => updatePriceTier(index, { maxQty: e.target.value ? parseInt(e.target.value) : undefined })}
+                        className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Prix unitaire (FCFA)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={tier.price}
+                        onChange={e => updatePriceTier(index, { price: parseInt(e.target.value) || 0 })}
+                        className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Réduction</label>
+                      <div className="mt-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-sm font-semibold text-center">
+                        -{tier.discount || 0}%
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePriceTier(index)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Aperçu */}
+          {editing.priceTiers && editing.priceTiers.length > 0 && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200">
+              <p className="text-sm font-semibold text-emerald-800 mb-2">📊 Aperçu des remises quantité</p>
+              <div className="flex flex-wrap gap-2">
+                {editing.priceTiers.map((tier, i) => (
+                  <span key={i} className="px-3 py-1 bg-white rounded-full text-sm border border-emerald-200">
+                    <strong>{tier.minQty}+</strong> = {formatCurrency(tier.price)} 
+                    {tier.discount ? <span className="text-emerald-600 ml-1">(-{tier.discount}%)</span> : null}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Configuration Achat Groupé - Fonctionnalité collaborative optionnelle */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-purple-700 mb-4">
             <Users className="h-4 w-4" />
-            Configuration Achat Groupé
+            Achat Groupé (Optionnel)
           </div>
           
           <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 mb-4">
             <div>
               <p className="font-semibold text-gray-900">Activer l&apos;achat groupé</p>
-              <p className="text-sm text-gray-600">Permet aux clients de créer/rejoindre des achats groupés pour ce produit</p>
+              <p className="text-sm text-gray-600">Permet aux clients de se regrouper pour commander ensemble et bénéficier des paliers</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1952,111 +2055,6 @@ export default function AdminProductManager() {
             </div>
           )}
         </div>
-
-        {/* Paliers de prix */}
-        {editing.groupBuyEnabled && (
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
-                <TrendingDown className="h-4 w-4" />
-                Paliers de Prix Dégressifs
-              </div>
-              <button
-                type="button"
-                onClick={addPriceTier}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
-              >
-                <Plus className="h-4 w-4" /> Ajouter un palier
-              </button>
-            </div>
-            
-            <p className="text-xs text-gray-500 mb-4">
-              Définissez des prix dégressifs selon la quantité commandée. Plus la quantité est grande, plus le prix unitaire baisse.
-            </p>
-            
-            {/* Prix de référence */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500">Prix de base (unité)</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(editing.price, editing.currency)}</p>
-            </div>
-            
-            {(!editing.priceTiers || editing.priceTiers.length === 0) ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <TrendingDown className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">Aucun palier de prix configuré</p>
-                <p className="text-xs text-gray-400 mt-1">Ajoutez des paliers pour offrir des prix dégressifs</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {editing.priceTiers.map((tier, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex-1 grid grid-cols-4 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-500">À partir de (qté)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={tier.minQty}
-                          onChange={e => updatePriceTier(index, { minQty: parseInt(e.target.value) || 1 })}
-                          className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Jusqu&apos;à (qté)</label>
-                        <input
-                          type="number"
-                          min={tier.minQty}
-                          value={tier.maxQty || ''}
-                          placeholder="∞"
-                          onChange={e => updatePriceTier(index, { maxQty: e.target.value ? parseInt(e.target.value) : undefined })}
-                          className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Prix unitaire (FCFA)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={tier.price}
-                          onChange={e => updatePriceTier(index, { price: parseInt(e.target.value) || 0 })}
-                          className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Réduction</label>
-                        <div className="mt-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-sm font-semibold text-center">
-                          -{tier.discount || 0}%
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removePriceTier(index)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Aperçu */}
-            {editing.priceTiers && editing.priceTiers.length > 0 && (
-              <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                <p className="text-sm font-semibold text-purple-800 mb-2">Aperçu pour les clients</p>
-                <div className="flex flex-wrap gap-2">
-                  {editing.priceTiers.map((tier, i) => (
-                    <span key={i} className="px-3 py-1 bg-white rounded-full text-sm border border-purple-200">
-                      <strong>{tier.minQty}+</strong> = {formatCurrency(tier.price)} 
-                      {tier.discount ? <span className="text-emerald-600 ml-1">(-{tier.discount}%)</span> : null}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     )
   }

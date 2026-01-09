@@ -35,6 +35,7 @@ export interface ProductCardProps {
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
   isImported?: boolean // Produit importé (sans exposer les détails source)
+  groupBuyEnabled?: boolean // Achat groupé activé
 }
 
 const PATH_SEPARATOR = '/'
@@ -64,7 +65,8 @@ export default function ProductCard({
   createdAt,
   onCompareToggle,
   isComparing = false,
-  isImported = false
+  isImported = false,
+  groupBuyEnabled = false
 }: ProductCardProps) {
   const isRecentlyNew = createdAt 
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
@@ -252,6 +254,11 @@ export default function ProductCard({
         
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
+          {groupBuyEnabled && (
+            <span className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
+              🎯 ACHAT GROUPÉ
+            </span>
+          )}
           {showNewBadge && (
             <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">NOUVEAU</span>
           )}
@@ -267,7 +274,7 @@ export default function ProductCard({
           {isInStock && (
             <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">EN STOCK DAKAR</span>
           )}
-          {!isInStock && !showNewBadge && !isImported && !isPopular && (
+          {!isInStock && !showNewBadge && !isImported && !isPopular && !groupBuyEnabled && (
             <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">SUR COMMANDE</span>
           )}
         </div>

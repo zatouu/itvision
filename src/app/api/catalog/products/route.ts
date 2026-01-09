@@ -57,6 +57,11 @@ export async function GET(request: NextRequest) {
         // Note: Les informations de sourcing et prix source ne sont pas exposées au public
         // Seul indicateur: si le produit est importé (pour affichage badge "Import")
         isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+        // Configuration achat groupé
+        groupBuyEnabled: product.groupBuyEnabled ?? false,
+        groupBuyMinQty: product.groupBuyMinQty ?? 10,
+        groupBuyTargetQty: product.groupBuyTargetQty ?? 50,
+        priceTiers: Array.isArray(product.priceTiers) ? product.priceTiers : [],
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         isFeatured: product.isFeatured ?? false

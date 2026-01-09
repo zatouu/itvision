@@ -79,6 +79,19 @@ export const formatProductDetail = (product: any) => {
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé
     isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+    // Configuration achat groupé
+    groupBuyEnabled: product.groupBuyEnabled ?? false,
+    groupBuyMinQty: product.groupBuyMinQty ?? 10,
+    groupBuyTargetQty: product.groupBuyTargetQty ?? 50,
+    // Paliers de prix pour achat groupé
+    priceTiers: Array.isArray(product.priceTiers) && product.priceTiers.length > 0
+      ? product.priceTiers.map((tier: any) => ({
+          minQty: tier.minQty,
+          maxQty: tier.maxQty ?? undefined,
+          price: tier.price,
+          discount: tier.discount ?? undefined
+        }))
+      : [],
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }

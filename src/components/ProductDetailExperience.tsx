@@ -1370,6 +1370,84 @@ Merci de me recontacter.`
             </div>
 
             {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* BLOC PALIERS DE PRIX - Remises sur quantité (pour TOUS)       */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {product.priceTiers && product.priceTiers.length > 0 && !product.groupBuyEnabled && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 relative"
+              >
+                {/* Badge */}
+                <div className="absolute -top-3 left-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                  📊 REMISES QUANTITÉ
+                </div>
+                
+                <div className="p-5 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-2 border-emerald-300 rounded-2xl shadow-lg">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-bold text-emerald-800 text-lg flex items-center gap-2">
+                        <TrendingDown className="w-5 h-5" />
+                        Prix dégressifs
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Commandez plus, payez moins par unité
+                      </p>
+                    </div>
+                    {product.pricing.salePrice && (
+                      <div className="text-right">
+                        <span className="text-xs text-gray-500">Jusqu&apos;à</span>
+                        <div className="text-lg font-bold text-emerald-600">
+                          -{Math.round(((product.pricing.salePrice - product.priceTiers[product.priceTiers.length - 1].price) / product.pricing.salePrice) * 100)}%
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Grille des paliers */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {product.priceTiers.slice(0, 3).map((tier, i) => {
+                      const isBest = i === Math.min(product.priceTiers!.length - 1, 2)
+                      return (
+                        <div 
+                          key={i} 
+                          className={clsx(
+                            'relative p-3 rounded-xl border text-center transition-all',
+                            isBest 
+                              ? 'bg-emerald-100 border-emerald-400 ring-2 ring-emerald-200' 
+                              : 'bg-white border-gray-200'
+                          )}
+                        >
+                          {isBest && (
+                            <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                              MEILLEUR
+                            </span>
+                          )}
+                          <div className="text-lg font-bold text-gray-800">
+                            {tier.minQty}+ unités
+                          </div>
+                          <div className={clsx('text-base font-semibold', isBest ? 'text-emerald-600' : 'text-gray-700')}>
+                            {formatCurrency(tier.price, product.pricing.currency)}
+                          </div>
+                          <div className="text-[10px] text-gray-400">par unité</div>
+                          {tier.discount && tier.discount > 0 && (
+                            <div className="mt-1 text-xs text-emerald-600 font-medium">
+                              -{tier.discount}%
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <p className="text-center text-[11px] text-gray-500 mt-3">
+                    💡 Ces prix s&apos;appliquent automatiquement selon la quantité commandée
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════════ */}
             {/* BLOC ACHAT GROUPÉ - Séparé visuellement du prix individuel    */}
             {/* ═══════════════════════════════════════════════════════════════ */}
             {product.groupBuyEnabled && (
