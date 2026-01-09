@@ -8,8 +8,8 @@ RUN apk add --no-cache libc6-compat
 FROM base AS deps
 WORKDIR /app
 
-# Copie des fichiers de dépendances
-COPY package.json package-lock.json* ./
+# Copie des fichiers de dépendances (inclut .npmrc pour legacy peer deps)
+COPY package*.json .npmrc* ./
 
 # Installation des dépendances (inclure dev pour le build)
 RUN npm ci && npm cache clean --force
