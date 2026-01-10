@@ -38,6 +38,7 @@ import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
 import ProductSidebar from './ProductSidebar'
+import ProductGroupBuyCard from './ProductGroupBuyCard'
 import GroupBuyProposalModal from './GroupBuyProposalModal'
 // Note: Les informations de prix source ne sont pas exposées au client
 
@@ -931,189 +932,6 @@ Merci de me recontacter.`
                 <p className="text-sm text-gray-600 mt-1">{product.tagline}</p>
               )}
             </div>
-
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {/* BLOC ACHAT GROUPÉ - PRIORITÉ #1 - Séparé visuellement        */}
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {product.groupBuyEnabled && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3 }}
-                className="mt-6 relative"
-              >
-                {/* Badge animé "Achat Groupé" avec pulsation */}
-                <div className="absolute -top-3 left-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg z-10 animate-pulse">
-                  🎯 ACHAT GROUPÉ - ÉCONOMISEZ ENSEMBLE !
-                </div>
-                
-                <div className="p-6 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 border-3 border-purple-400 rounded-2xl shadow-xl">
-                  {/* Header avec économie */}
-                  <div className="flex items-start justify-between mb-5">
-                    <div>
-                      <h3 className="font-bold text-purple-900 text-xl flex items-center gap-2">
-                        <Users className="w-6 h-6" />
-                        Rejoignez le groupe actuel !
-                      </h3>
-                      <p className="text-sm text-gray-700 mt-1.5 font-medium">
-                        Achetez ensemble, économisez plus
-                      </p>
-                    </div>
-                    {product.priceTiers && product.priceTiers.length > 0 && product.pricing.salePrice && (
-                      <div className="text-right bg-white rounded-lg px-4 py-2 shadow-md">
-                        <span className="text-xs text-gray-600 block">Économisez jusqu&apos;à</span>
-                        <div className="text-2xl font-bold text-emerald-600">
-                          -{Math.round(((product.pricing.salePrice - product.priceTiers[product.priceTiers.length - 1].price) / product.pricing.salePrice) * 100)}%
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Barre de progression avec participants */}
-                  <div className="mb-5">
-                    <div className="flex justify-between text-sm text-gray-700 mb-2 font-medium">
-                      <span>📊 Progression du groupe</span>
-                      <span className="font-bold text-purple-700">
-                        {product.groupBuyMinQty || 10} participants minimum
-                      </span>
-                    </div>
-                    <div className="relative h-5 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: '70%' }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 rounded-full shadow-lg"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow-lg">
-                        7/{product.groupBuyMinQty || 10} acheteurs • 70% de l&apos;objectif !
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-600 mt-2 font-medium">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        3 places restantes
-                      </span>
-                      <span>Objectif: {product.groupBuyTargetQty || 50} unités</span>
-                    </div>
-                  </div>
-
-                  {/* Timer countdown - Plus proéminent */}
-                  <div className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-amber-300 mb-5 shadow-md">
-                    <Clock className="w-7 h-7 text-amber-600 animate-pulse flex-shrink-0" />
-                    <div className="flex-1">
-                      <span className="text-sm text-gray-700 font-semibold block mb-1">⏰ Offre expire dans</span>
-                      <div className="flex items-center gap-1.5 font-mono font-bold text-amber-700">
-                        <span className="bg-amber-100 px-2.5 py-1 rounded text-lg">03</span>
-                        <span className="text-lg">:</span>
-                        <span className="bg-amber-100 px-2.5 py-1 rounded text-lg">14</span>
-                        <span className="text-lg">:</span>
-                        <span className="bg-amber-100 px-2.5 py-1 rounded text-lg">27</span>
-                        <span className="text-sm text-gray-600 ml-2">jours</span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-600 text-right">
-                      <div className="font-medium">Clôture automatique</div>
-                      <div className="text-amber-700 font-semibold">{new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}</div>
-                    </div>
-                  </div>
-
-                  {/* Paliers de prix */}
-                  {product.priceTiers && product.priceTiers.length > 0 && (
-                    <div className="mb-5">
-                      <div className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <TrendingDown className="w-4 h-4" />
-                        Prix dégressifs par palier
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        {product.priceTiers.slice(0, 3).map((tier, i) => {
-                          const isBest = i === product.priceTiers!.length - 1
-                          return (
-                            <div 
-                              key={i} 
-                              className={clsx(
-                                'relative p-3 rounded-xl border-2 text-center transition-all shadow-md',
-                                isBest 
-                                  ? 'bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300 transform scale-105' 
-                                  : 'bg-white border-purple-200'
-                              )}
-                            >
-                              {isBest && (
-                                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
-                                  🏆 MEILLEUR PRIX
-                                </span>
-                              )}
-                              <div className="text-xl font-bold text-gray-900 mt-1">
-                                {tier.minQty}+
-                              </div>
-                              <div className={clsx('text-base font-semibold mt-1', isBest ? 'text-emerald-700' : 'text-purple-700')}>
-                                {formatCurrency(tier.price, product.pricing.currency)}
-                              </div>
-                              <div className="text-[10px] text-gray-500 mt-0.5">par unité</div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* CTAs - Plus gros et visibles */}
-                  <div className="flex gap-3">
-                    <Link
-                      href={`/achats-groupes?productId=${product.id}&action=join`}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4 text-base font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] transform"
-                    >
-                      <Users className="w-5 h-5" />
-                      Rejoindre le groupe
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleShare('copy')}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border-3 border-purple-400 text-purple-700 bg-white px-4 py-4 text-sm font-bold hover:bg-purple-50 transition-all shadow-lg hover:shadow-xl"
-                      title="Partager pour inviter"
-                    >
-                      <Share2 className="w-5 h-5" />
-                      Partager
-                    </button>
-                  </div>
-                  
-                  <p className="text-center text-xs text-gray-600 mt-4 bg-white/60 rounded-lg py-2 px-3">
-                    💡 <span className="font-semibold">Astuce:</span> Partagez le lien avec vos contacts pour atteindre l&apos;objectif plus vite et débloquer le meilleur prix !
-                  </p>
-                </div>
-
-                {/* Bouton "Proposer" si pas de groupe actif */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="mt-4"
-                >
-                  <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-xl shadow-md">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Megaphone className="w-6 h-6 text-indigo-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-gray-900 text-base">Pas de groupe en cours ?</h4>
-                        <p className="text-sm text-gray-700 mt-0.5">
-                          Lancez votre propre achat groupé et invitez d&apos;autres acheteurs
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowProposalModal(true)}
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors shadow-lg hover:shadow-xl"
-                      >
-                        <Users className="w-4 h-4" />
-                        Proposer
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-
-            {/* ═══════════════════════════════════════════════════════════════ */}
             {/* BLOC PRIX INDIVIDUEL - Achat standard (Position #2)          */}
             {/* ═══════════════════════════════════════════════════════════════ */}
             <div className="mt-6 relative">
@@ -1810,7 +1628,18 @@ Merci de me recontacter.`
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* SIDEBAR DROITE - Achats groupés & Bonnes affaires (3 colonnes) */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          <ProductSidebar currentProductId={product.id} />
+          <div className="lg:col-span-3 space-y-4">
+            {/* Carte achat groupé compact */}
+            {product.groupBuyEnabled && (
+              <ProductGroupBuyCard 
+                productId={product.id}
+                onPropose={() => setShowProposalModal(true)}
+              />
+            )}
+            
+            {/* Sidebar avec autres groupes actifs */}
+            <ProductSidebar currentProductId={product.id} />
+          </div>
         </div>
 
         {/* Onglets d'information */}

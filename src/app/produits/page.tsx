@@ -6,6 +6,7 @@ import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import CompactGroupBuysSidebar from '@/components/CompactGroupBuysSidebar'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -955,8 +956,8 @@ export default function ProduitsPage() {
           </div>
 
           <div className="flex gap-6">
-            {/* Sidebar Filters Moderne */}
-            <aside className="w-72 hidden lg:block">
+            {/* Sidebar Filters Moderne - GAUCHE */}
+            <aside className="w-64 hidden lg:block flex-shrink-0">
               <div className="sticky top-24 space-y-4">
                 <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
                   <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
@@ -1484,6 +1485,13 @@ export default function ProduitsPage() {
                   )}
                 </div>
             </div>
+
+            {/* Sidebar Droite - Achats Groupés */}
+            <aside className="w-64 hidden lg:block flex-shrink-0">
+              <div className="sticky top-24">
+                <CompactGroupBuysSidebar />
+              </div>
+            </aside>
           </div>
       </section>
 
