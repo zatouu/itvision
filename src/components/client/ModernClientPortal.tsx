@@ -127,7 +127,7 @@ interface Profile {
   preferences?: any
 }
 
-type TabType = 'dashboard' | 'projects' | 'quotes' | 'interventions' | 'maintenance' | 'documents' | 'support' | 'profile'
+type TabType = 'dashboard' | 'projects' | 'quotes' | 'interventions' | 'maintenance' | 'group-buys' | 'documents' | 'support' | 'profile'
 
 export default function ModernClientPortal() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
@@ -139,6 +139,8 @@ export default function ModernClientPortal() {
   const [maintenanceVisits, setMaintenanceVisits] = useState<any[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [groupBuys, setGroupBuys] = useState<any[]>([])
+  const [groupBuysLoading, setGroupBuysLoading] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -148,6 +150,7 @@ export default function ModernClientPortal() {
   const [quoteFilter, setQuoteFilter] = useState('all')
   const [documentFilter, setDocumentFilter] = useState('all')
   const [ticketFilter, setTicketFilter] = useState('all')
+  const [groupBuyFilter, setGroupBuyFilter] = useState('all')
 
   // États pour les formulaires
   const [newTicket, setNewTicket] = useState({
@@ -235,6 +238,9 @@ export default function ModernClientPortal() {
       case 'maintenance':
         fetchMaintenanceContracts()
         fetchMaintenanceVisits()
+        break
+      case 'group-buys':
+        fetchGroupBuys()
         break
       case 'documents':
         fetchDocuments()
@@ -524,6 +530,26 @@ export default function ModernClientPortal() {
     }
   }
 
+  const fetchGroupBuys = async () => {
+    setGroupBuysLoading(true)
+    try {
+      const token = localStorage.getItem('auth-token')
+      const res = await fetch('/api/client/group-buys', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await res.json()
+      if (data.success) {
+        setGroupBuys(data.groupBuys || [])
+      }
+    } catch (err) {
+      console.error('Erreur achats groupés:', err)
+    } finally {
+      setGroupBuysLoading(false)
+    }
+  }
+
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -780,6 +806,7 @@ export default function ModernClientPortal() {
     { id: 'quotes' as TabType, label: 'Devis', icon: Receipt },
     { id: 'interventions' as TabType, label: 'Interventions', icon: Wrench },
     { id: 'maintenance' as TabType, label: 'Maintenance', icon: Shield },
+    { id: 'group-buys' as TabType, label: 'Achats Groupés', icon: Users },
     { id: 'documents' as TabType, label: 'Documents', icon: FileText },
     { id: 'support' as TabType, label: 'Support', icon: MessageCircle },
     { id: 'profile' as TabType, label: 'Profil', icon: User }
@@ -1679,6 +1706,173 @@ export default function ModernClientPortal() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Achats Groupés Tab */}
+                {activeTab === 'group-buys' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Achats Groupés</h1>
+                        <p className="text-gray-600">Suivez vos participations et propositions</p>
+                      </div>
+                      <select 
+                        value={groupBuyFilter}
+                        onChange={(e) => setGroupBuyFilter(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="all">Tous</option>
+                        <option value="pending">En attente</option>
+                        <option value="active">Actifs</option>
+                        <option value="completed">Terminés</option>
+                      </select>
+                    </div>
+
+                    {groupBuysLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                      </div>
+                    ) : groupBuys.length === 0 ? (
+                      <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+                        <Users className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">Aucun achat groupé</h3>
+                        <p className="text-gray-500 mb-6">
+                          Vous n&apos;avez pas encore participé à un achat groupé.
+                        </p>
+                        <a 
+                          href="/achats-groupes" 
+                          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all"
+                        >
+                          <Users className="w-5 h-5" />
+                          Découvrir les achats groupés
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {groupBuys
+                          .filter(gb => {
+                            if (groupBuyFilter === 'all') return true
+                            if (groupBuyFilter === 'pending') return gb.status === 'pending_approval'
+                            if (groupBuyFilter === 'active') return ['open', 'filled', 'ordering'].includes(gb.status)
+                            if (groupBuyFilter === 'completed') return ['ordered', 'shipped', 'delivered'].includes(gb.status)
+                            return true
+                          })
+                          .map((gb) => (
+                          <div key={gb.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="font-semibold text-gray-900">{gb.productName}</h3>
+                                  {gb.isProposer && (
+                                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                                      Ma proposition
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="w-4 h-4" />
+                                    {gb.currentQuantity}/{gb.targetQuantity} unités
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Package className="w-4 h-4" />
+                                    Ma quantité: {gb.myQuantity}
+                                  </span>
+                                  {gb.deadline && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-4 h-4" />
+                                      Expire: {formatDate(gb.deadline)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                gb.status === 'pending_approval' ? 'bg-amber-100 text-amber-700' :
+                                gb.status === 'open' ? 'bg-green-100 text-green-700' :
+                                gb.status === 'filled' ? 'bg-blue-100 text-blue-700' :
+                                gb.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                gb.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {gb.status === 'pending_approval' ? 'En attente' :
+                                 gb.status === 'open' ? 'Ouvert' :
+                                 gb.status === 'filled' ? 'Objectif atteint' :
+                                 gb.status === 'ordering' ? 'Commande en cours' :
+                                 gb.status === 'ordered' ? 'Commandé' :
+                                 gb.status === 'shipped' ? 'Expédié' :
+                                 gb.status === 'delivered' ? 'Livré' :
+                                 gb.status === 'rejected' ? 'Refusé' :
+                                 gb.status}
+                              </span>
+                            </div>
+
+                            {/* Barre de progression */}
+                            <div className="mb-4">
+                              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>Progression</span>
+                                <span>{gb.progress}%</span>
+                              </div>
+                              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all ${
+                                    gb.progress >= 100 ? 'bg-emerald-500' :
+                                    gb.progress >= 70 ? 'bg-blue-500' :
+                                    'bg-purple-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, gb.progress)}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Économies potentielles */}
+                            {gb.savings && (
+                              <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg mb-4">
+                                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                                <div>
+                                  <span className="text-sm font-medium text-emerald-700">
+                                    Économie: {formatCurrency(gb.savings.savings)} ({gb.savings.savingsPercent}%)
+                                  </span>
+                                  <span className="text-xs text-emerald-600 ml-2">
+                                    ({formatCurrency(gb.savings.tierPrice)}/unité au lieu de {formatCurrency(gb.unitPrice)})
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Message de proposition (si applicable) */}
+                            {gb.proposal?.message && (
+                              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg mb-4">
+                                <p className="text-sm text-gray-600 italic">&quot;{gb.proposal.message}&quot;</p>
+                              </div>
+                            )}
+
+                            {/* Message de rejet (si applicable) */}
+                            {gb.status === 'rejected' && gb.proposal?.rejectionReason && (
+                              <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+                                <p className="text-sm text-red-700">
+                                  <strong>Raison du refus:</strong> {gb.proposal.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                              <span className="text-sm text-gray-500">
+                                Prix unitaire: <strong>{formatCurrency(gb.unitPrice)}</strong>
+                              </span>
+                              <a 
+                                href={`/achats-groupes/${gb.id}`}
+                                className="inline-flex items-center gap-1 text-sm font-medium text-purple-600 hover:text-purple-700"
+                              >
+                                Voir les détails
+                                <ChevronRight className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -17,7 +17,10 @@ export interface IGroupOrderParticipant {
 
 export interface IGroupOrder extends Document {
   groupId: string              // Format: GRP-TIMESTAMP-RANDOM
-  status: 'draft' | 'open' | 'filled' | 'ordering' | 'ordered' | 'shipped' | 'delivered' | 'cancelled'
+  status: 'pending_approval' | 'draft' | 'open' | 'filled' | 'ordering' | 'ordered' | 'shipped' | 'delivered' | 'cancelled' | 'rejected'
+  
+  // Origine de la demande
+  origin: 'admin' | 'client'   // Qui a créé cette demande
   
   // Produit concerné
   product: {
@@ -55,12 +58,22 @@ export interface IGroupOrder extends Document {
   shippingMethod?: 'maritime_60j' | 'air_15j' | 'express_3j'
   shippingCostPerUnit?: number
   
-  // Créateur et admin
+  // Créateur (client qui propose ou admin qui crée)
   createdBy: {
     userId?: mongoose.Types.ObjectId
     name: string
     phone: string
     email?: string
+  }
+  
+  // Proposition client (si origin === 'client')
+  proposal?: {
+    message: string            // Message du client expliquant sa demande
+    desiredQty: number         // Quantité souhaitée par le client
+    submittedAt: Date
+    reviewedAt?: Date
+    reviewedBy?: mongoose.Types.ObjectId
+    rejectionReason?: string
   }
   
   // Commande finale liée
@@ -97,9 +110,15 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
   groupId: { type: String, required: true, unique: true, index: true },
   status: { 
     type: String, 
-    enum: ['draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled'],
+    enum: ['pending_approval', 'draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled', 'rejected'],
     default: 'draft',
     index: true
+  },
+  
+  origin: {
+    type: String,
+    enum: ['admin', 'client'],
+    default: 'admin'
   },
   
   product: {
@@ -146,6 +165,15 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
     email: { type: String }
   },
   
+  proposal: {
+    message: { type: String },
+    desiredQty: { type: Number },
+    submittedAt: { type: Date },
+    reviewedAt: { type: Date },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId },
+    rejectionReason: { type: String }
+  },
+  
   linkedOrderId: { type: String, sparse: true },
   
   description: { type: String },
@@ -157,6 +185,7 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
 GroupOrderSchema.index({ status: 1, deadline: 1 })
 GroupOrderSchema.index({ 'product.productId': 1, status: 1 })
 GroupOrderSchema.index({ 'participants.phone': 1 })
+GroupOrderSchema.index({ origin: 1, status: 1 }) // Pour filtrer les propositions clients
 
 // Méthode pour calculer le prix unitaire basé sur la quantité
 GroupOrderSchema.methods.calculateUnitPrice = function(qty: number): number {

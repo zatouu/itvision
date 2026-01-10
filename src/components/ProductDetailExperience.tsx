@@ -37,6 +37,8 @@ import {
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
+import ProductSidebar from './ProductSidebar'
+import GroupBuyProposalModal from './GroupBuyProposalModal'
 // Note: Les informations de prix source ne sont pas exposées au client
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
@@ -232,6 +234,7 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [installationStatus, setInstallationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [installationError, setInstallationError] = useState<string | null>(null)
   const [installationSuccessId, setInstallationSuccessId] = useState<string | null>(null)
+  const [showProposalModal, setShowProposalModal] = useState(false)
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
@@ -845,9 +848,9 @@ Merci de me recontacter.`
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
-          {/* Galerie d'images */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 mb-12">
+          {/* Galerie d'images - 5 colonnes */}
+          <div className="lg:col-span-5 space-y-4">
             <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
               <button
                 type="button"
@@ -908,8 +911,8 @@ Merci de me recontacter.`
             )}
           </div>
 
-          {/* Informations produit - Compact */}
-          <div className="space-y-4">
+          {/* Informations produit - 4 colonnes */}
+          <div className="lg:col-span-4 space-y-4">
             {/* Titre */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -1591,6 +1594,40 @@ Merci de me recontacter.`
             )}
 
             {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* BLOC PROPOSER ACHAT GROUPÉ - Pour produits éligibles          */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {product.groupBuyEnabled && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="mt-4"
+              >
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Megaphone className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800 text-sm">Pas de groupe en cours ?</h4>
+                      <p className="text-xs text-gray-600">
+                        Lancez votre propre achat groupé et invitez d&apos;autres acheteurs
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowProposalModal(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow"
+                    >
+                      <Users className="w-4 h-4" />
+                      Proposer
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════════ */}
             {/* BLOC INSTALLATION - Service optionnel technicien             */}
             {/* ═══════════════════════════════════════════════════════════════ */}
             <motion.div
@@ -1765,6 +1802,11 @@ Merci de me recontacter.`
               </button>
             </div>
           </div>
+
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* SIDEBAR DROITE - Achats groupés & Bonnes affaires (3 colonnes) */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          <ProductSidebar currentProductId={product.id} />
         </div>
 
         {/* Onglets d'information */}
@@ -2176,6 +2218,22 @@ Merci de me recontacter.`
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal de proposition d'achat groupé */}
+      <GroupBuyProposalModal
+        isOpen={showProposalModal}
+        onClose={() => setShowProposalModal(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          basePrice: product.pricing.salePrice || 0,
+          currency: product.pricing.currency || 'FCFA',
+          image: product.image || '/images/placeholder.png',
+          groupBuyMinQty: product.groupBuyMinQty || 10,
+          groupBuyTargetQty: product.groupBuyTargetQty || 50,
+          priceTiers: product.priceTiers
+        }}
+      />
     </div>
   )
 }
