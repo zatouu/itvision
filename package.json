@@ -58,6 +58,7 @@
     "express-slow-down": "^3.0.0",
     "framer-motion": "^12.23.12",
     "helmet": "^8.1.0",
+    "isomorphic-dompurify": "^2.35.0",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
