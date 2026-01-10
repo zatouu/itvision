@@ -7,6 +7,7 @@ import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import CompactGroupBuysSidebar from '@/components/CompactGroupBuysSidebar'
+import CatalogHeroSection from '@/components/CatalogHeroSection'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -881,45 +882,8 @@ export default function ProduitsPage() {
         </div>
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
-      {/* Hero Section Moderne */}
-      <section className="relative bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/40 page-content pt-24 pb-16 mt-16 overflow-hidden">
-        {/* Effets de fond décoratifs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-200/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-200/20 rounded-full blur-3xl"></div>
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
-              <Sparkles className="h-4 w-4" />
-              Catalogue Professionnel
-            </div>
-            <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
-              Nos <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 bg-clip-text text-transparent animate-gradient">Produits</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-10 font-medium">
-              Hikvision, Dahua, Uniview et bien d'autres marques. Import direct Chine pour qualité/prix imbattable.
-            </p>
-            
-            {/* Badges de confiance modernes */}
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-emerald-100 hover:shadow-xl transition-all">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-gray-800">Garantie constructeur</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-emerald-100 hover:shadow-xl transition-all">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-gray-800">Installation incluse</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-emerald-100 hover:shadow-xl transition-all">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-gray-800">Prix imbattables</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Section Moderne avec Achats Groupés */}
+      <CatalogHeroSection onSearch={setSearch} />
 
       {/* Affichage d'erreur */}
       {error && (

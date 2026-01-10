@@ -134,7 +134,105 @@ app.prepare().then(() => {
       console.log(`   🎫 ${email} a quitté le ticket: ${ticketId}`)
     })
 
-    // Événement: En train d'écrire (typing indicator)
+    // ========== SYSTÈME DE CHAT RÉUTILISABLE ==========
+    
+    // Rejoindre une conversation de chat
+    socket.on('chat:join', (conversationId) => {
+      socket.join(`chat-${conversationId}`)
+      console.log(`   💬 ${email} a rejoint la conversation: ${conversationId}`)
+    })
+
+    // Quitter une conversation
+    socket.on('chat:leave', (conversationId) => {
+      socket.leave(`chat-${conversationId}`)
+      console.log(`   💬 ${email} a quitté la conversation: ${conversationId}`)
+    })
+
+    // Indicateur de saisie dans le chat
+    socket.on('chat:typing', ({ conversationId, userName }) => {
+      socket.to(`chat-${conversationId}`).emit('chat:userTyping', {
+        conversationId,
+        userId,
+        userName: userName || email,
+        timestamp: new Date()
+      })
+    })
+
+    // Arrêt de saisie
+    socket.on('chat:stopTyping', (conversationId) => {
+      socket.to(`chat-${conversationId}`).emit('chat:userStoppedTyping', {
+        conversationId,
+        userId
+      })
+    })
+
+    // Envoyer un message de chat (temps réel uniquement, la persistance est gérée par l'API)
+    socket.on('chat:sendMessage', (message) => {
+      const messageData = {
+        ...message,
+        _id: `temp-${Date.now()}-${Math.random()}`, // ID temporaire
+        createdAt: new Date()
+      }
+      
+      // Broadcast à tous les participants sauf l'émetteur
+      socket.to(`chat-${message.conversationId}`).emit('chat:message', messageData)
+      
+      console.log(`   💬 Message chat envoyé dans: ${message.conversationId}`)
+    })
+
+    // Marquer comme lu
+    socket.on('chat:markRead', ({ conversationId, messageIds }) => {
+      socket.to(`chat-${conversationId}`).emit('chat:messageRead', {
+        messageIds,
+        userId,
+        readAt: new Date()
+      })
+    })
+
+    // Réaction sur un message
+    socket.on('chat:react', ({ messageId, emoji }) => {
+      // Émettre à tous les participants
+      io.emit('chat:reaction', {
+        messageId,
+        emoji,
+        userId,
+        userName: email
+      })
+    })
+
+    // Éditer un message
+    socket.on('chat:editMessage', ({ messageId, newContent }) => {
+      io.emit('chat:messageEdited', {
+        messageId,
+        newContent,
+        isEdited: true,
+        editedBy: userId
+      })
+      console.log(`   ✏️ Message ${messageId} édité`)
+    })
+
+    // Supprimer un message
+    socket.on('chat:deleteMessage', (messageId) => {
+      io.emit('chat:messageDeleted', messageId)
+      console.log(`   🗑️ Message ${messageId} supprimé`)
+    })
+
+    // Répondre dans un thread
+    socket.on('chat:replyThread', ({ parentMessageId, message }) => {
+      const replyData = {
+        ...message,
+        threadId: parentMessageId,
+        _id: `temp-${Date.now()}-${Math.random()}`,
+        createdAt: new Date()
+      }
+      
+      socket.to(`chat-${message.conversationId}`).emit('chat:threadReply', replyData)
+      console.log(`   💬 Réponse dans thread ${parentMessageId}`)
+    })
+
+    // ========== FIN SYSTÈME DE CHAT ==========
+
+    // Événement: En train d'écrire (typing indicator) - LEGACY pour tickets
     socket.on('typing-start', ({ ticketId, userName }) => {
       socket.to(`ticket-${ticketId}`).emit('user-typing', {
         ticketId,

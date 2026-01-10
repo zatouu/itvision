@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import Image from 'next/image'
+import { useSession } from 'next-auth/react'
+import dynamicImport from 'next/dynamic'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import { chatService } from '@/lib/chat'
+
+// Import ChatBox dynamiquement pour éviter les erreurs SSR
+const ChatBox = dynamicImport(() => import('@/components/ChatBox'), { ssr: false })
+
 import {
   Users,
   Package,
@@ -11,17 +19,25 @@ import {
   TrendingDown,
   ArrowRight,
   Search,
-  Filter,
-  Calendar,
   Target,
   Zap,
   ShoppingCart,
   CheckCircle,
-  AlertCircle,
-  Loader2
+  Share2,
+  MessageCircle,
+  Heart,
+  Award,
+  Sparkles,
+  TrendingUp,
+  Gift,
+  Bell
 } from 'lucide-react'
 
+// Désactiver le prerendering pour cette page (nécessite session)
+export const dynamic = 'force-dynamic'
+
 interface GroupOrder {
+  _id: string
   groupId: string
   status: string
   product: {
@@ -35,320 +51,532 @@ interface GroupOrder {
   targetQty: number
   currentQty: number
   currentUnitPrice: number
-  priceTiers: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
-  participants: Array<{ name: string; qty: number }>
+  priceTiers: Array<{ minQty: number; price: number }>
+  participantsCount?: number
   deadline: string
-  shippingMethod?: string
-  description?: string
+  proposal?: {
+    proposedBy?: string
+    message?: string
+  }
 }
 
-const formatCurrency = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
-const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', { 
-  day: 'numeric', month: 'long', year: 'numeric' 
-})
-
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800', icon: Users },
-  filled: { label: 'Objectif atteint', color: 'bg-blue-100 text-blue-800', icon: Target },
-  ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800', icon: ShoppingCart },
-  ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800', icon: Package },
-  shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800', icon: Package },
-  delivered: { label: 'Livré', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800', icon: AlertCircle }
+interface RecentActivity {
+  type: 'joined' | 'proposed' | 'filled' | 'ordered'
+  userName: string
+  groupName: string
+  time: string
+  qty?: number
 }
 
-export default function GroupOrdersPage() {
+export default function GroupBuysCollaborativePage() {
   const [groups, setGroups] = useState<GroupOrder[]>([])
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [stats, setStats] = useState({
+    totalGroups: 0,
+    totalParticipants: 0,
+    totalSavings: 0,
+    successRate: 0
+  })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [stats, setStats] = useState({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
+  const [filter, setFilter] = useState<'all' | 'open' | 'urgent' | 'new'>('all')
+  const [showChat, setShowChat] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  const sessionData = useSession()
+  const session = sessionData?.data
+  const status = sessionData?.status
 
   useEffect(() => {
-    fetchGroups()
+    setIsMounted(true)
   }, [])
 
-  const fetchGroups = async () => {
-    try {
-      const res = await fetch('/api/group-orders')
-      const data = await res.json()
-      if (data.success) {
-        setGroups(data.groups)
-        setStats(data.stats)
+  useEffect(() => {
+    fetchData()
+    
+    // Connecter le service chat si utilisateur connecté
+    if (session?.user && status === 'authenticated') {
+      const token = localStorage.getItem('token')
+      if (token) {
+        chatService.connect(token).catch(err => console.error('Chat connexion:', err))
       }
-    } catch (error) {
-      console.error('Erreur:', error)
+    }
+    
+    // Simuler activité temps réel
+    const interval = setInterval(() => {
+      addRecentActivity()
+    }, 10000)
+    
+    return () => clearInterval(interval)
+  }, [session, status])
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/group-orders/active')
+      if (res.ok) {
+        const data = await res.json()
+        setGroups(data)
+        
+        // Calcul stats
+        const totalPart = data.reduce((sum: number, g: any) => sum + (g.currentQty || 0), 0)
+        const totalSav = data.reduce((sum: number, g: any) => {
+          const saving = g.product.basePrice - g.currentUnitPrice
+          return sum + (saving * g.currentQty)
+        }, 0)
+        
+        setStats({
+          totalGroups: data.length,
+          totalParticipants: totalPart,
+          totalSavings: totalSav,
+          successRate: 87
+        })
+      }
+    } catch (err) {
+      console.error('Erreur:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const filteredGroups = groups.filter(g => 
-    g.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.groupId.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const getProgressPercent = (g: GroupOrder) => Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
-  const getDaysLeft = (deadline: string) => {
-    const diff = new Date(deadline).getTime() - Date.now()
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  const addRecentActivity = () => {
+    const activities: RecentActivity[] = [
+      { type: 'joined', userName: 'Amadou D.', groupName: 'Caméra Hikvision 4MP', time: 'Il y a 2 min', qty: 5 },
+      { type: 'proposed', userName: 'Fatima S.', groupName: 'Kit Domotique Zigbee', time: 'Il y a 8 min' },
+      { type: 'filled', userName: '12 participants', groupName: 'Terminal Biométrique', time: 'Il y a 15 min' }
+    ]
+    setRecentActivity(prev => [activities[Math.floor(Math.random() * activities.length)], ...prev.slice(0, 9)])
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white py-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Users className="w-12 h-12" />
-              <h1 className="text-4xl md:text-5xl font-bold">Achats Groupés</h1>
-            </div>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8">
-              Rejoignez d&apos;autres acheteurs pour obtenir les meilleurs prix sur vos produits préférés. 
-              Plus on est nombreux, moins on paie !
-            </p>
-            
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
-              <div className="bg-white/20 backdrop-blur rounded-xl p-4">
-                <p className="text-3xl font-bold">{stats.totalOpen}</p>
-                <p className="text-sm text-white/80">Achats ouverts</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur rounded-xl p-4">
-                <p className="text-3xl font-bold">{stats.totalFilled}</p>
-                <p className="text-sm text-white/80">Objectifs atteints</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur rounded-xl p-4">
-                <p className="text-3xl font-bold">{stats.totalParticipants}</p>
-                <p className="text-sm text-white/80">Participants</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+  const formatPrice = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency === 'FCFA' ? 'XOF' : currency,
+      minimumFractionDigits: 0
+    }).format(amount)
+  }
 
-      {/* Comment ça marche */}
-      <section className="py-12 px-4 bg-white border-b">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8 text-gray-900">Comment ça marche ?</h2>
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { icon: Search, title: '1. Trouvez', desc: 'Choisissez un achat groupé qui vous intéresse' },
-              { icon: Users, title: '2. Rejoignez', desc: 'Indiquez la quantité souhaitée et inscrivez-vous' },
-              { icon: TrendingDown, title: '3. Économisez', desc: 'Plus de participants = prix unitaire réduit' },
-              { icon: Package, title: '4. Recevez', desc: 'Une fois l\'objectif atteint, on commande ensemble' }
-            ].map((step, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-white border"
-              >
-                <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white">
-                  <step.icon className="w-7 h-7" />
+  const calcProgress = (current: number, target: number) => Math.min((current / target) * 100, 100)
+  const calcSavings = (base: number, current: number) => Math.round(((base - current) / base) * 100)
+  
+  const calcTimeLeft = (deadline: string) => {
+    const diff = new Date(deadline).getTime() - new Date().getTime()
+    if (diff <= 0) return 'Expiré'
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    return days > 0 ? `${days}j ${hours}h` : `${hours}h`
+  }
+
+  const filteredGroups = groups.filter(g => {
+    const matchesSearch = g.product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const progress = calcProgress(g.currentQty, g.targetQty)
+    
+    if (filter === 'urgent') return matchesSearch && progress >= 70
+    if (filter === 'new') return matchesSearch && progress < 30
+    if (filter === 'open') return matchesSearch && g.status === 'open'
+    return matchesSearch
+  })
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50/50 via-white to-blue-50/50">
+      <Header />
+      
+      {/* Hero collaboratif */}
+      <section className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white py-16 px-4 mt-16 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full blur-3xl animate-pulse"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Users className="w-12 h-12" />
+                <h1 className="text-5xl font-extrabold">Achats Groupés</h1>
+              </div>
+              <p className="text-xl text-white/90 mb-6 leading-relaxed">
+                Rejoignez la communauté ! Économisez ensemble sur vos produits préférés. 
+                Plus on est nombreux, moins on paie. C&apos;est simple, social et efficace.
+              </p>
+              
+              {/* CTA principaux */}
+              <div className="flex flex-wrap gap-4">
+                <Link
+                  href="/produits"
+                  className="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
+                >
+                  <Gift className="w-5 h-5" />
+                  Proposer un groupe
+                </Link>
+                <button className="inline-flex items-center gap-2 bg-white/20 backdrop-blur text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition-all border border-white/30">
+                  <Bell className="w-5 h-5" />
+                  Recevoir les alertes
+                </button>
+              </div>
+            </motion.div>
+
+            {/* Stats en temps réel */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="grid grid-cols-2 gap-4"
+            >
+              <div className="bg-white/20 backdrop-blur rounded-2xl p-6 border border-white/30">
+                <div className="text-5xl font-black mb-2">{stats.totalGroups}</div>
+                <div className="text-sm text-white/80 flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Groupes actifs
                 </div>
-                <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-600">{step.desc}</p>
-              </motion.div>
-            ))}
+              </div>
+              
+              <div className="bg-white/20 backdrop-blur rounded-2xl p-6 border border-white/30">
+                <div className="text-5xl font-black mb-2">{stats.totalParticipants}</div>
+                <div className="text-sm text-white/80 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Participants
+                </div>
+              </div>
+              
+              <div className="bg-white/20 backdrop-blur rounded-2xl p-6 border border-white/30 col-span-2">
+                <div className="text-5xl font-black mb-2">{formatPrice(stats.totalSavings, 'FCFA')}</div>
+                <div className="text-sm text-white/80 flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4" />
+                  Économies totales de la communauté
+                </div>
+              </div>
+              
+              <div className="bg-emerald-500/30 backdrop-blur rounded-2xl p-6 border border-emerald-400/50 col-span-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-3xl font-black mb-1">{stats.successRate}%</div>
+                    <div className="text-sm text-white/90">Taux de réussite</div>
+                  </div>
+                  <Award className="w-12 h-12 text-emerald-300" />
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Liste des achats groupés */}
-      <section className="py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Recherche */}
-          <div className="mb-8">
-            <div className="relative max-w-md">
-              <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+      {/* Barre de recherche et filtres */}
+      <section className="sticky top-16 z-30 bg-white/95 backdrop-blur-lg border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            {/* Recherche */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher un produit ou ID..."
+                placeholder="Rechercher un produit, marque, catégorie..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all"
               />
             </div>
-          </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-              <span className="ml-3 text-gray-600">Chargement des achats groupés...</span>
+            {/* Filtres rapides */}
+            <div className="flex gap-2">
+              {(['all', 'open', 'urgent', 'new'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    filter === f
+                      ? 'bg-purple-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {f === 'all' && 'Tous'}
+                  {f === 'open' && '🟢 Ouverts'}
+                  {f === 'urgent' && '🔥 Urgents'}
+                  {f === 'new' && '✨ Nouveaux'}
+                </button>
+              ))}
             </div>
-          ) : filteredGroups.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-20 bg-gray-50 rounded-2xl"
-            >
-              <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-              <h3 className="text-xl font-bold text-gray-700 mb-2">Aucun achat groupé disponible</h3>
-              <p className="text-gray-500 mb-6">Revenez bientôt ou créez le premier !</p>
-              <Link
-                href="/produits"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Voir les produits
-              </Link>
-            </motion.div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredGroups.map((group, idx) => {
-                const progress = getProgressPercent(group)
-                const daysLeft = getDaysLeft(group.deadline)
-                const status = statusConfig[group.status] || statusConfig.open
-                const savings = group.product.basePrice - group.currentUnitPrice
-                const savingsPercent = Math.round((savings / group.product.basePrice) * 100)
-                
-                return (
-                  <motion.div
-                    key={group.groupId}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition group"
-                  >
-                    {/* Image */}
-                    <div className="relative h-48 bg-gray-100">
-                      {group.product.image ? (
-                        <Image
-                          src={group.product.image}
-                          alt={group.product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="w-16 h-16 text-gray-300" />
-                        </div>
-                      )}
-                      
-                      {/* Status badge */}
-                      <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${status.color}`}>
-                        {status.label}
-                      </span>
-                      
-                      {/* Économie badge */}
-                      {savingsPercent > 0 && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold">
-                          -{savingsPercent}%
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-5">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
-                        {group.product.name}
-                      </h3>
-                      
-                      {/* Prix */}
-                      <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-2xl font-bold text-emerald-600">
-                          {formatCurrency(group.currentUnitPrice)}
-                        </span>
-                        {savings > 0 && (
-                          <span className="text-sm text-gray-400 line-through">
-                            {formatCurrency(group.product.basePrice)}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500">/unité</span>
-                      </div>
-                      
-                      {/* Progress */}
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">
-                            <Users className="w-4 h-4 inline mr-1" />
-                            {group.participants.length} participant{group.participants.length > 1 ? 's' : ''}
-                          </span>
-                          <span className="font-semibold text-gray-900">
-                            {group.currentQty} / {group.targetQty}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 0.5, delay: idx * 0.05 }}
-                            className={`h-full rounded-full ${
-                              progress >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-400 to-blue-500'
-                            }`}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Deadline */}
-                      <div className="flex items-center justify-between text-sm mb-4">
-                        <span className="flex items-center gap-1 text-gray-600">
-                          <Clock className="w-4 h-4" />
-                          {daysLeft > 0 ? `${daysLeft} jours restants` : 'Terminé'}
-                        </span>
-                        <span className="text-gray-500">
-                          <Calendar className="w-4 h-4 inline mr-1" />
-                          {formatDate(group.deadline)}
-                        </span>
-                      </div>
-                      
-                      {/* Paliers de prix */}
-                      {group.priceTiers.length > 0 && (
-                        <div className="mb-4 p-3 bg-emerald-50 rounded-lg">
-                          <p className="text-xs font-semibold text-emerald-800 mb-2 flex items-center gap-1">
-                            <TrendingDown className="w-4 h-4" />
-                            Prix dégressifs
-                          </p>
-                          <div className="space-y-1">
-                            {group.priceTiers.slice(0, 3).map((tier, i) => (
-                              <div key={i} className="flex justify-between text-xs">
-                                <span className="text-gray-600">
-                                  {tier.minQty}+ unités
-                                </span>
-                                <span className="font-semibold text-emerald-700">
-                                  {formatCurrency(tier.price)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* CTA */}
-                      <Link
-                        href={`/achats-groupes/${group.groupId}`}
-                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition ${
-                          group.status === 'open'
-                            ? 'bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {group.status === 'open' ? (
-                          <>
-                            <Zap className="w-5 h-5" />
-                            Rejoindre
-                          </>
-                        ) : (
-                          <>
-                            <ArrowRight className="w-5 h-5" />
-                            Voir les détails
-                          </>
-                        )}
-                      </Link>
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </div>
-          )}
+          </div>
         </div>
       </section>
+
+      {/* Contenu principal */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Colonne principale - Groupes actifs */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {filteredGroups.length} {filter === 'all' ? 'groupes actifs' : 'résultats'}
+              </h2>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+              </div>
+            ) : filteredGroups.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun groupe trouvé</h3>
+                <p className="text-gray-600 mb-6">Soyez le premier à proposer un achat groupé !</p>
+                <Link
+                  href="/produits"
+                  className="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700 transition-all"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Proposer un groupe
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {filteredGroups.map((group, index) => {
+                  const progress = calcProgress(group.currentQty, group.targetQty)
+                  const savings = calcSavings(group.product.basePrice, group.currentUnitPrice)
+                  const timeLeft = calcTimeLeft(group.deadline)
+                  const isUrgent = progress >= 70
+
+                  return (
+                    <motion.div
+                      key={group._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Link href={`/achats-groupes/${group.groupId}`}>
+                        <div className="group bg-white rounded-2xl p-6 border-2 border-gray-100 hover:border-purple-300 hover:shadow-xl transition-all cursor-pointer">
+                          <div className="flex gap-6">
+                            {/* Image produit */}
+                            <div className="relative w-32 h-32 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden">
+                              {group.product.image ? (
+                                <img 
+                                  src={group.product.image} 
+                                  alt={group.product.name}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Package className="w-12 h-12 text-gray-300" />
+                                </div>
+                              )}
+                              
+                              {savings > 0 && (
+                                <div className="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                  -{savings}%
+                                </div>
+                              )}
+                              
+                              {isUrgent && (
+                                <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                                  🔥 Urgent
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Infos */}
+                            <div className="flex-1">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                                {group.product.name}
+                              </h3>
+                              
+                              {/* Prix */}
+                              <div className="flex items-baseline gap-3 mb-4">
+                                <div className="text-3xl font-black text-purple-600">
+                                  {formatPrice(group.currentUnitPrice, group.product.currency)}
+                                </div>
+                                {savings > 0 && (
+                                  <div>
+                                    <div className="text-sm text-gray-500 line-through">
+                                      {formatPrice(group.product.basePrice, group.product.currency)}
+                                    </div>
+                                    <div className="text-sm text-emerald-600 font-semibold">
+                                      Économie: {formatPrice(group.product.basePrice - group.currentUnitPrice, group.product.currency)}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Progression */}
+                              <div className="mb-4">
+                                <div className="flex justify-between text-sm text-gray-700 mb-2 font-medium">
+                                  <span className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-purple-600" />
+                                    {group.currentQty}/{group.targetQty} unités • {group.participantsCount || 0} participants
+                                  </span>
+                                  <span className="font-bold text-purple-700">{Math.round(progress)}%</span>
+                                </div>
+                                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full transition-all ${
+                                      isUrgent 
+                                        ? 'bg-gradient-to-r from-orange-500 to-red-500' 
+                                        : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                                    }`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Footer */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="w-4 h-4 text-orange-600" />
+                                    <span className="font-medium text-orange-600">{timeLeft}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Target className="w-4 h-4 text-purple-600" />
+                                    <span>Min: {group.minQty}</span>
+                                  </div>
+                                </div>
+
+                                {/* Actions sociales */}
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      // TODO: partage
+                                    }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                  >
+                                    <Share2 className="w-4 h-4 text-gray-600" />
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      // TODO: favoris
+                                    }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                  >
+                                    <Heart className="w-4 h-4 text-gray-600" />
+                                  </button>
+                                  <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold text-sm group-hover:bg-purple-700 transition-colors flex items-center gap-2">
+                                    Rejoindre
+                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar - Activité récente */}
+          <div className="space-y-6">
+            {/* Activité en temps réel */}
+            <div className="bg-white rounded-2xl p-6 border shadow-lg sticky top-32">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                <h3 className="font-bold text-gray-900">Activité en temps réel</h3>
+              </div>
+              
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                <AnimatePresence>
+                  {recentActivity.map((activity, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className={`p-2 rounded-full ${
+                        activity.type === 'joined' ? 'bg-emerald-100' :
+                        activity.type === 'proposed' ? 'bg-purple-100' :
+                        activity.type === 'filled' ? 'bg-blue-100' : 'bg-orange-100'
+                      }`}>
+                        {activity.type === 'joined' && <Users className="w-4 h-4 text-emerald-600" />}
+                        {activity.type === 'proposed' && <Sparkles className="w-4 h-4 text-purple-600" />}
+                        {activity.type === 'filled' && <CheckCircle className="w-4 h-4 text-blue-600" />}
+                        {activity.type === 'ordered' && <ShoppingCart className="w-4 h-4 text-orange-600" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900">{activity.userName}</p>
+                        <p className="text-xs text-gray-600">
+                          {activity.type === 'joined' && `a rejoint "${activity.groupName}" (${activity.qty} unités)`}
+                          {activity.type === 'proposed' && `a proposé "${activity.groupName}"`}
+                          {activity.type === 'filled' && `ont rempli l'objectif de "${activity.groupName}"`}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* CTA Proposer */}
+            <div className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+              <Sparkles className="w-10 h-10 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Proposez votre groupe !</h3>
+              <p className="text-sm text-white/90 mb-4">
+                Vous ne trouvez pas ce que vous cherchez ? Lancez votre propre achat groupé !
+              </p>
+              <Link
+                href="/produits"
+                className="block w-full bg-white text-purple-600 text-center py-3 rounded-xl font-bold hover:bg-gray-100 transition-all"
+              >
+                Créer un groupe
+              </Link>
+            </div>
+
+            {/* Chat communautaire */}
+            {isMounted && session?.user && status === 'authenticated' && (
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <MessageCircle className="w-6 h-6 text-white" />
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Chat Communautaire</h3>
+                      <p className="text-xs text-white/80">Discutez avec les autres membres</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowChat(!showChat)}
+                    className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-medium transition-all"
+                  >
+                    {showChat ? 'Masquer' : 'Afficher'}
+                  </button>
+                </div>
+
+                {showChat && (
+                  <div className="p-4">
+                    <ChatBox
+                      conversationId="group-buys-general"
+                      conversationType="group-buy"
+                      currentUser={{
+                        userId: session.user.id || session.user.email || '',
+                        name: session.user.name || 'Utilisateur',
+                        avatar: (session.user as any).image || undefined,
+                        role: (session.user as any).role || 'CLIENT'
+                      }}
+                      height="h-96"
+                      placeholder="Posez vos questions sur les achats groupés..."
+                      allowReactions={true}
+                      metadata={{
+                        context: 'group-buys-lobby',
+                        totalGroups: stats.totalGroups,
+                        totalParticipants: stats.totalParticipants
+                      }}
+                      onNewMessage={(msg) => {
+                        console.log('Nouveau message:', msg)
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
     </div>
   )
 }
