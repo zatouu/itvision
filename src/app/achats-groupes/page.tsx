@@ -212,7 +212,7 @@ export default function GroupBuysCollaborativePage() {
       <Header />
       
       {/* Hero collaboratif */}
-      <section className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white py-16 px-4 mt-16 overflow-hidden">
+      <section className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white py-16 px-4 pt-28 mt-16 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full blur-3xl animate-pulse"></div>

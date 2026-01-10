@@ -324,21 +324,23 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
               </div>
             ) : (
               /* Cartes CTA engageantes quand pas d'achat groupé actif */
-              <div className="grid grid-cols-2 gap-4 h-80">
-                {/* Carte 1 - Proposer un achat groupé */}
-                <Link href="/achats-groupes">
+              <div className="flex flex-col gap-3 h-80">
+                {/* Carte principale - Proposer un achat groupé */}
+                <Link href="/achats-groupes" className="flex-1">
                   <motion.div 
-                    whileHover={{ scale: 1.03, y: -5 }}
+                    whileHover={{ scale: 1.02, y: -3 }}
                     className="h-full bg-gradient-to-br from-purple-500 via-purple-600 to-indigo-700 rounded-2xl p-5 text-white cursor-pointer shadow-xl relative overflow-hidden group"
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
-                    <div className="relative z-10">
-                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                        <Users className="w-6 h-6" />
+                    <div className="relative z-10 h-full flex flex-col justify-between">
+                      <div>
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-3">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-1">Lancez un Achat Groupé</h3>
+                        <p className="text-sm text-white/80">Économisez jusqu'à 40% en achetant ensemble</p>
                       </div>
-                      <h3 className="text-xl font-bold mb-2">Achats Groupés</h3>
-                      <p className="text-sm text-white/80 mb-4">Économisez jusqu'à 40% en achetant ensemble</p>
-                      <div className="flex items-center gap-2 text-sm font-semibold">
+                      <div className="flex items-center gap-2 text-sm font-semibold bg-white/20 rounded-lg px-4 py-2 w-fit">
                         <span>Proposer un produit</span>
                         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -346,50 +348,44 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
                   </motion.div>
                 </Link>
 
-                {/* Carte 2 - Comment ça marche */}
-                <div className="space-y-4">
+                {/* 3 petites cartes alignées horizontalement */}
+                <div className="grid grid-cols-3 gap-3">
                   <motion.div 
-                    whileHover={{ scale: 1.03 }}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-4 text-white shadow-lg cursor-pointer"
+                    whileHover={{ scale: 1.05 }}
+                    className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-3 text-white shadow-lg cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                        <TrendingDown className="w-5 h-5" />
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center mb-2">
+                        <TrendingDown className="w-4 h-4" />
                       </div>
-                      <div>
-                        <div className="font-bold">Prix dégressifs</div>
-                        <div className="text-xs text-white/80">Plus on est nombreux, moins c'est cher</div>
-                      </div>
+                      <div className="font-bold text-sm">Prix dégressifs</div>
+                      <div className="text-[10px] text-white/80 leading-tight">Plus nombreux = moins cher</div>
                     </div>
                   </motion.div>
 
                   <motion.div 
-                    whileHover={{ scale: 1.03 }}
-                    className="bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl p-4 text-white shadow-lg cursor-pointer"
+                    whileHover={{ scale: 1.05 }}
+                    className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl p-3 text-white shadow-lg cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                        <Target className="w-5 h-5" />
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center mb-2">
+                        <Target className="w-4 h-4" />
                       </div>
-                      <div>
-                        <div className="font-bold">Objectif commun</div>
-                        <div className="text-xs text-white/80">Atteignez le quota ensemble</div>
-                      </div>
+                      <div className="font-bold text-sm">Objectif commun</div>
+                      <div className="text-[10px] text-white/80 leading-tight">Quota atteint ensemble</div>
                     </div>
                   </motion.div>
 
                   <motion.div 
-                    whileHover={{ scale: 1.03 }}
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-4 text-white shadow-lg cursor-pointer"
+                    whileHover={{ scale: 1.05 }}
+                    className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl p-3 text-white shadow-lg cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                        <Zap className="w-5 h-5" />
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center mb-2">
+                        <Zap className="w-4 h-4" />
                       </div>
-                      <div>
-                        <div className="font-bold">Import direct</div>
-                        <div className="text-xs text-white/80">Livraison groupée optimisée</div>
-                      </div>
+                      <div className="font-bold text-sm">Import direct</div>
+                      <div className="text-[10px] text-white/80 leading-tight">Livraison optimisée</div>
                     </div>
                   </motion.div>
                 </div>
