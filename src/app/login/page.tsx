@@ -81,6 +81,11 @@ export default function UnifiedLoginPage() {
           setMfaRequired({ required: true, userId: data.userId })
           return
         }
+
+        // Stocker le token pour Socket.io (chat temps réel)
+        if (data.token) {
+          try { localStorage.setItem('token', data.token) } catch {}
+        }
         
         // Redirection selon rôle, avec PRODUCT_MANAGER vers admin/produits
         if (data.user?.role) {

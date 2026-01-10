@@ -85,17 +85,16 @@ export default function GroupBuyProposalModal({
   const checkAuth = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      if (token) {
-        // Vérifier que le token est valide
-        const res = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (res.ok) {
+      // Utiliser credentials: 'include' pour envoyer le cookie auth-token
+      const res = await fetch('/api/auth/me', {
+        credentials: 'include'
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.user) {
           setIsAuthenticated(true)
           setCurrentStep('proposal')
         } else {
-          localStorage.removeItem('token')
           setCurrentStep('login')
         }
       } else {
@@ -117,6 +116,7 @@ export default function GroupBuyProposalModal({
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       })
 
@@ -126,7 +126,10 @@ export default function GroupBuyProposalModal({
         throw new Error(data.error || 'Erreur de connexion')
       }
 
-      localStorage.setItem('token', data.token)
+      // Stocker le token pour Socket.io
+      if (data.token) {
+        localStorage.setItem('token', data.token)
+      }
       setIsAuthenticated(true)
       setCurrentStep('proposal')
     } catch (err: any) {
@@ -175,13 +178,17 @@ export default function GroupBuyProposalModal({
       const loginRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email: registerEmail, password: registerPassword })
       })
 
       const loginData = await loginRes.json()
 
-      if (loginRes.ok && loginData.token) {
-        localStorage.setItem('token', loginData.token)
+      if (loginRes.ok) {
+        // Stocker le token pour Socket.io
+        if (loginData.token) {
+          localStorage.setItem('token', loginData.token)
+        }
         setIsAuthenticated(true)
         setCurrentStep('proposal')
       } else {
@@ -202,13 +209,13 @@ export default function GroupBuyProposalModal({
     setLoading(true)
 
     try {
-      const token = localStorage.getItem('token')
+      // Utiliser credentials: 'include' pour envoyer le cookie auth-token
       const res = await fetch('/api/group-orders/propose', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           productId: product.id,
           desiredQty,

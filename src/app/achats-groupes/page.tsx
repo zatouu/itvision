@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
 import dynamicImport from 'next/dynamic'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -33,8 +32,17 @@ import {
   Bell
 } from 'lucide-react'
 
-// Désactiver le prerendering pour cette page (nécessite session)
+// Désactiver le prerendering pour cette page
 export const dynamic = 'force-dynamic'
+
+// Interface utilisateur local
+interface LocalUser {
+  id: string
+  name: string
+  email: string
+  role: string
+  avatar?: string
+}
 
 interface GroupOrder {
   _id: string
@@ -82,19 +90,39 @@ export default function GroupBuysCollaborativePage() {
   const [filter, setFilter] = useState<'all' | 'open' | 'urgent' | 'new'>('all')
   const [showChat, setShowChat] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const sessionData = useSession()
-  const session = sessionData?.data
-  const status = sessionData?.status
+  const [currentUser, setCurrentUser] = useState<LocalUser | null>(null)
 
+  // Vérifier l'auth via l'API me
   useEffect(() => {
     setIsMounted(true)
+    
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.user) {
+            setCurrentUser({
+              id: data.user.id,
+              name: data.user.name || data.user.username,
+              email: data.user.email,
+              role: data.user.role || 'CLIENT'
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Auth check error:', err)
+      }
+    }
+    
+    checkAuth()
   }, [])
 
   useEffect(() => {
     fetchData()
     
     // Connecter le service chat si utilisateur connecté
-    if (session?.user && status === 'authenticated') {
+    if (currentUser) {
       const token = localStorage.getItem('token')
       if (token) {
         chatService.connect(token).catch(err => console.error('Chat connexion:', err))
@@ -107,20 +135,24 @@ export default function GroupBuysCollaborativePage() {
     }, 10000)
     
     return () => clearInterval(interval)
-  }, [session, status])
+  }, [currentUser])
 
   const fetchData = async () => {
     try {
       const res = await fetch('/api/group-orders/active')
       if (res.ok) {
-        const data = await res.json()
+        const responseData = await res.json()
+        // L'API retourne { success: true, groups: [...] }
+        const data = responseData.groups || responseData || []
         setGroups(data)
         
         // Calcul stats
         const totalPart = data.reduce((sum: number, g: any) => sum + (g.currentQty || 0), 0)
         const totalSav = data.reduce((sum: number, g: any) => {
-          const saving = g.product.basePrice - g.currentUnitPrice
-          return sum + (saving * g.currentQty)
+          const basePrice = g.product?.basePrice || g.basePrice || 0
+          const currentPrice = g.currentUnitPrice || g.currentPrice || basePrice
+          const saving = basePrice - currentPrice
+          return sum + (saving * (g.currentQty || 0))
         }, 0)
         
         setStats({
@@ -527,7 +559,7 @@ export default function GroupBuysCollaborativePage() {
             </div>
 
             {/* Chat communautaire */}
-            {isMounted && session?.user && status === 'authenticated' && (
+            {isMounted && currentUser && (
               <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -551,10 +583,10 @@ export default function GroupBuysCollaborativePage() {
                       conversationId="group-buys-general"
                       conversationType="group-buy"
                       currentUser={{
-                        userId: session.user.id || session.user.email || '',
-                        name: session.user.name || 'Utilisateur',
-                        avatar: (session.user as any).image || undefined,
-                        role: (session.user as any).role || 'CLIENT'
+                        userId: currentUser.id,
+                        name: currentUser.name,
+                        avatar: currentUser.avatar,
+                        role: currentUser.role
                       }}
                       height="h-96"
                       placeholder="Posez vos questions sur les achats groupés..."

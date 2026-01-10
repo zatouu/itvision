@@ -39,7 +39,9 @@ export default function ActiveGroupBuysSection() {
         const res = await fetch('/api/group-orders/active')
         if (res.ok) {
           const data = await res.json()
-          setGroupBuys(data.slice(0, 3)) // Limit à 3 pour homepage
+          // L'API retourne { success: true, groups: [...] }
+          const groups = data.groups || data || []
+          setGroupBuys(groups.slice(0, 3)) // Limit à 3 pour homepage
         }
       } catch (err) {
         console.error('Erreur chargement achats groupés:', err)

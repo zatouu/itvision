@@ -40,16 +40,21 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
 
-    // Vérifier l'authentification
+    // Vérifier l'authentification - Support cookie ET header Bearer
     const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    const cookieToken = request.cookies.get('auth-token')?.value
+    
+    const token = authHeader?.startsWith('Bearer ') 
+      ? authHeader.slice(7) 
+      : cookieToken
+
+    if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authentification requise pour proposer un achat groupé' },
         { status: 401 }
       )
     }
 
-    const token = authHeader.slice(7)
     let payload
     try {
       const verified = await jwtVerify(token, JWT_SECRET)

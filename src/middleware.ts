@@ -42,6 +42,7 @@ const PUBLIC_ROUTES = [
   '/intervention',
   '/mobile-app',
   '/gestion-projets',
+  '/achats-groupes',
 ]
 
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; role?: string }> {

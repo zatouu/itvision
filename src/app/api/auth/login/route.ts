@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: userData,
+      token, // Inclure le token pour Socket.io (stockage localStorage côté client)
       redirectUrl: getRedirectUrl(user.role)
     })
 
