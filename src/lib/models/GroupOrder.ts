@@ -122,7 +122,7 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
   },
   
   product: {
-    productId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
     image: { type: String },
     basePrice: { type: Number, required: true },

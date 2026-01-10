@@ -8,6 +8,7 @@ import ClientPortal from './ClientPortal'
 import Header from './Header'
 import Footer from './Footer'
 import HeroCarousel from './HeroCarousel'
+import ActiveGroupBuysSection from './ActiveGroupBuysSection'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -162,6 +163,9 @@ export default function DigitalHomepage() {
             </div>
           </div>
         </section>
+
+        {/* Section Achats Groupés Actifs */}
+        <ActiveGroupBuysSection />
 
         {/* Section Réalisations avec Mini-Cartes Modernes */}
         <section className="py-20 bg-gradient-to-br from-gray-50 via-white to-emerald-50">

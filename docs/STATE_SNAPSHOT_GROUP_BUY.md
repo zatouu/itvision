@@ -5,6 +5,7 @@
 > Sessions: 
 > - Session 1: Implémentation proposition achat groupé par client
 > - Session 2: Refactoring UI/UX page produit (composants modulaires)
+> - Session 3: Intégration achats groupés sur page d'accueil + corrections
 
 ---
 
@@ -74,6 +75,36 @@ Dashboard → Onglet Propositions → Review → Approve/Reject → Notification
 - Badge "MEILLEUR" sur palier optimal
 
 **Dépendance ajoutée:** `isomorphic-dompurify` (sanitisation XSS)
+
+### ✅ Implémentées Session 3 (Intégration Homepage + Corrections)
+
+| Feature | Fichier | Status |
+|---------|---------|--------|
+| Section achats groupés homepage | `ActiveGroupBuysSection.tsx` | ✅ |
+| Intégration homepage | `DigitalHomepage.tsx` | ✅ |
+| Bloc achat groupé prioritaire | `ProductDetailExperience.tsx` | ✅ |
+| Corrections warnings Mongoose | `Order.ts`, `Installation.ts`, `GroupOrder.ts` | ✅ |
+| Correction warning SMTP build | `email-service.ts` | ✅ |
+
+**Nouvelles fonctionnalités homepage:**
+- Affichage top 3 achats groupés actifs
+- Cartes animées avec progression temps réel
+- Badges économie + urgence dynamiques
+- CTA global vers `/achats-groupes`
+- Chargement avec skeleton screens
+
+**Améliorations page produit:**
+- Bloc achat groupé déplacé en position #1 (après titre)
+- Design agrandi (p-6, animate-pulse badge)
+- Timer countdown en premier (urgence visuelle)
+- Barre de progression augmentée (70% vs 35%)
+- CTAs plus imposants (text-base, px-6 py-4)
+- Bouton "Proposer" intégré dans le même bloc
+
+**Build propre:**
+- ✅ Aucun warning Mongoose (index dupliqués corrigés)
+- ✅ Aucun warning SMTP (conditionnel dev only)
+- ✅ Compilation réussie (151 pages SSG)
 
 ---
 
@@ -219,17 +250,24 @@ src/
 │   │   ├── ProductPriceBlock.tsx     # Bloc prix structuré + paliers
 │   │   ├── ProductInfoTabs.tsx       # Onglets description/features/etc
 │   │   └── ProductRichDescription.tsx # Rendu HTML sécurisé
+│   ├── ActiveGroupBuysSection.tsx    # CREATED (Session 3) - Homepage section
 │   ├── GroupBuyProposalModal.tsx     # CREATED (Session 1) (~700 lines)
 │   ├── ProductSidebar.tsx            # MODIFIED (Session 1 - real API)
-│   ├── ProductDetailExperience.tsx   # MODIFIED (Session 1 - button + modal)
+│   ├── DigitalHomepage.tsx           # MODIFIED (Session 3 - new section)
+│   ├── ProductDetailExperience.tsx   # MODIFIED (Session 1+3 - button + modal + reorganization)
 │   ├── AdminProductManager.tsx       # MODIFIED (Session 1 - priceTiers first)
 │   └── client/
 │       └── ModernClientPortal.tsx    # MODIFIED (Session 1 - new tab)
-└── lib/models/
-    └── GroupOrder.ts                 # PRE-EXISTING (verified)
+└── lib/
+    ├── models/
+    │   ├── GroupOrder.ts             # PRE-EXISTING (verified) + FIXED index (Session 3)
+    │   ├── Order.ts                  # FIXED duplicate index (Session 3)
+    │   └── Installation.ts           # FIXED duplicate indexes (Session 3)
+    └── email-service.ts              # FIXED SMTP warning (Session 3)
 
 docs/
-└── ARCHITECTURE_COMPOSANTS_PRODUIT.md # CREATED (Session 2) - Documentation
+├── ARCHITECTURE_COMPOSANTS_PRODUIT.md  # CREATED (Session 2)
+└── STATE_SNAPSHOT_GROUP_BUY.md         # UPDATED (Sessions 1+2+3)
 ```
 
 ---
@@ -249,6 +287,17 @@ docs/
 3. [ ] Prix: Palier actif change selon quantité
 4. [ ] Prix: Badge "MEILLEUR" sur dernier palier
 5. [ ] Onglets: Avis se chargent au clic sur l'onglet
+
+### Manuels (Session 3 - Homepage + Corrections)
+1. [x] Build compile sans warnings Mongoose
+2. [x] Build compile sans warnings SMTP
+3. [ ] Homepage: Section achats groupés s'affiche si groupes actifs
+4. [ ] Homepage: Cartes affichent progression et deadline correctement
+5. [ ] Homepage: CTA redirige vers `/achats-groupes`
+6. [ ] Page produit: Bloc achat groupé en position #1 après titre
+7. [ ] Page produit: Timer countdown visible en premier
+8. [ ] Page produit: Badge pulse fonctionne
+9. [ ] Sidebar produit: Affiche autres groupes actifs (exclut produit courant)
 
 ### Automatisés (à implémenter)
 - `POST /api/group-orders/propose` sans auth → 401
@@ -279,6 +328,13 @@ docs/
 5. **Créer ProductInstallationRequest** : Extraire formulaire installation
 6. **Tests unitaires** : Ajouter tests pour composants product
 7. **Storybook** : Documenter visuellement les composants (optionnel)
+
+### Session 3 - Intégration Homepage (✅ COMPLÉTÉ)
+1. ✅ **Section homepage** : Afficher top 3 achats groupés actifs
+2. ✅ **Corrections build** : Éliminer warnings Mongoose + SMTP
+3. ✅ **Réorganisation page produit** : Bloc achat groupé en position #1
+4. ✅ **Design amélioré** : Badge pulse, timer first, CTAs agrandis
+5. ✅ **Documentation** : Mise à jour STATE_SNAPSHOT
 
 ### Architecture future
 - **Modèle Review** : Créer schéma MongoDB pour avis clients

@@ -89,7 +89,7 @@ const OrderShippingSchema = new Schema<IOrderShipping>({
 }, { _id: false })
 
 const OrderSchema = new Schema<IOrder>({
-  orderId: { type: String, required: true, unique: true, index: true },
+  orderId: { type: String, required: true, unique: true },
   clientName: { type: String, required: true },
   clientEmail: { type: String, sparse: true },
   clientPhone: { type: String, required: true },
@@ -138,7 +138,7 @@ const OrderSchema = new Schema<IOrder>({
 OrderSchema.index({ createdAt: -1 })
 OrderSchema.index({ status: 1, createdAt: -1 })
 OrderSchema.index({ clientId: 1, createdAt: -1 })
-OrderSchema.index({ orderId: 1 })
+// orderId déjà indexé via unique:true
 
 // Mettre à jour updatedAt avant chaque save
 OrderSchema.pre('save', function (next) {

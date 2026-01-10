@@ -40,7 +40,10 @@ class EmailService {
 
       // Vérifier si les variables d'environnement sont configurées
       if (!config.auth.user || !config.auth.pass) {
-        console.warn('[EMAIL] Variables d\'environnement SMTP non configurées')
+        // Warning silencieux pendant le build pour éviter pollution logs
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[EMAIL] Variables d\'environnement SMTP non configurées')
+        }
         this.isConfigured = false
         return
       }

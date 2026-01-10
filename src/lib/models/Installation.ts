@@ -65,8 +65,7 @@ const InstallationSchema = new Schema<IInstallation>({
   productId: {
     type: Schema.Types.ObjectId,
     ref: 'Product',
-    required: true,
-    index: true
+    required: true
   },
   productName: {
     type: String,
@@ -186,8 +185,7 @@ const InstallationSchema = new Schema<IInstallation>({
   
   // Dates
   scheduledDate: {
-    type: Date,
-    index: true
+    type: Date
   },
   completedDate: {
     type: Date
