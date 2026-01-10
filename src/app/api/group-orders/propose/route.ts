@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Vérifier qu'il n'y a pas déjà une proposition en attente pour ce produit par cet utilisateur
     const existingProposal = await GroupOrder.findOne({
-      productId: productId,
+      'product.productId': productId,
       'participants.userId': user._id,
       status: 'pending_approval'
     })
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Vérifier qu'il n'y a pas déjà un achat groupé ouvert pour ce produit
     const existingOpenGroup = await GroupOrder.findOne({
-      productId: productId,
+      'product.productId': productId,
       status: 'open',
       deadline: { $gte: new Date() }
     })
@@ -155,16 +155,20 @@ export async function POST(request: NextRequest) {
       status: 'pending_approval',
       origin: 'client',
       
-      productId: product._id,
-      productName: product.name,
-      productImage: product.image || product.gallery?.[0],
+      // Produit (selon le schéma)
+      product: {
+        productId: product._id,
+        name: product.name,
+        image: product.image || product.gallery?.[0],
+        basePrice: basePrice,
+        currency: product.currency || 'FCFA'
+      },
       
-      unitPrice: basePrice,
-      currency: product.currency || 'FCFA',
-      
-      minQuantity: product.groupBuyMinQty || 10,
-      targetQuantity: product.groupBuyTargetQty || 50,
-      currentQuantity: desiredQty,
+      // Quantités (selon le schéma)
+      minQty: product.groupBuyMinQty || 10,
+      targetQty: product.groupBuyTargetQty || 50,
+      currentQty: desiredQty,
+      currentUnitPrice: basePrice,
       
       priceTiers: product.priceTiers || [],
       
@@ -173,16 +177,24 @@ export async function POST(request: NextRequest) {
         userId: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone || '',
-        quantity: desiredQty,
+        phone: user.phone || 'non-fourni',
+        qty: desiredQty,
         unitPrice: basePrice,
         totalAmount: basePrice * desiredQty,
         paidAmount: 0,
-        status: 'pending',
+        paymentStatus: 'pending',
         joinedAt: new Date()
       }],
       
       deadline,
+      
+      // Créateur
+      createdBy: {
+        userId: user._id,
+        name: user.name,
+        phone: user.phone || 'non-fourni',
+        email: user.email
+      },
       
       proposal: {
         message: message || `Je souhaite lancer un achat groupé pour ${product.name}`,
@@ -240,14 +252,14 @@ export async function GET(request: NextRequest) {
 
     // Vérifier s'il y a un achat groupé ouvert
     const openGroup = await GroupOrder.findOne({
-      productId: productId,
+      'product.productId': productId,
       status: 'open',
       deadline: { $gte: new Date() }
     }).lean()
 
     // Vérifier s'il y a des propositions en attente
     const pendingProposals = await GroupOrder.countDocuments({
-      productId: productId,
+      'product.productId': productId,
       status: 'pending_approval'
     })
 
@@ -256,8 +268,8 @@ export async function GET(request: NextRequest) {
       hasOpenGroup: !!openGroup,
       openGroup: openGroup ? {
         groupId: (openGroup as { groupId?: string }).groupId,
-        currentQty: (openGroup as { currentQuantity?: number }).currentQuantity,
-        targetQty: (openGroup as { targetQuantity?: number }).targetQuantity,
+        currentQty: (openGroup as { currentQty?: number }).currentQty,
+        targetQty: (openGroup as { targetQty?: number }).targetQty,
         participantsCount: ((openGroup as { participants?: unknown[] }).participants || []).length,
         deadline: (openGroup as { deadline?: Date }).deadline
       } : null,

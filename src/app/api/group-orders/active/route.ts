@@ -113,9 +113,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching active group orders:', error)
-    return NextResponse.json(
-      { success: false, error: 'Erreur lors de la récupération des achats groupés' },
-      { status: 500 }
-    )
+    // Retourner un array vide au lieu d'une erreur 500 pour éviter de casser l'UI
+    return NextResponse.json({
+      success: false,
+      groups: [],
+      total: 0,
+      error: 'Erreur lors de la récupération des achats groupés'
+    })
   }
 }

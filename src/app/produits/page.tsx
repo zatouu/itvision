@@ -8,7 +8,6 @@ import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import CompactGroupBuysSidebar from '@/components/CompactGroupBuysSidebar'
 import CatalogHeroSection from '@/components/CatalogHeroSection'
-import ActiveGroupBuysSection from '@/components/ActiveGroupBuysSection'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -885,9 +884,6 @@ export default function ProduitsPage() {
       
       {/* Hero Section Moderne avec Achats Groupés */}
       <CatalogHeroSection onSearch={setSearch} />
-
-      {/* Section Achats Groupés Actifs */}
-      <ActiveGroupBuysSection />
 
       {/* Affichage d'erreur */}
       {error && (

@@ -44,21 +44,26 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
       try {
         const res = await fetch('/api/group-orders/active')
         if (res.ok) {
-          const data = await res.json()
-          setFeaturedGroups(data.slice(0, 3))
+          const responseData = await res.json()
+          // L'API retourne { success: true, groups: [...] } ou directement un array
+          const data = responseData.groups || responseData || []
+          setFeaturedGroups(Array.isArray(data) ? data.slice(0, 3) : [])
           
           // Calcul des stats
-          const totalParticipants = data.reduce((sum: number, g: any) => sum + (g.currentQty || 0), 0)
-          const avgSavings = data.length > 0 
-            ? data.reduce((sum: number, g: any) => {
-                const saving = ((g.product.basePrice - g.currentUnitPrice) / g.product.basePrice) * 100
+          const groupsArray = Array.isArray(data) ? data : []
+          const totalParticipants = groupsArray.reduce((sum: number, g: any) => sum + (g.currentQty || 0), 0)
+          const avgSavings = groupsArray.length > 0 
+            ? groupsArray.reduce((sum: number, g: any) => {
+                const basePrice = g.product?.basePrice || g.basePrice || 0
+                const currentPrice = g.currentUnitPrice || g.currentPrice || basePrice
+                const saving = basePrice > 0 ? ((basePrice - currentPrice) / basePrice) * 100 : 0
                 return sum + saving
-              }, 0) / data.length
+              }, 0) / groupsArray.length
             : 0
 
           setStats({
             totalProducts: 150, // TODO: API pour compter produits
-            activeGroupBuys: data.length,
+            activeGroupBuys: groupsArray.length,
             totalParticipants,
             averageSavings: Math.round(avgSavings)
           })
@@ -318,10 +323,75 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
                 </div>
               </div>
             ) : (
-              <div className="h-80 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                <div className="text-center">
-                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Aucun achat groupé actif</p>
+              /* Cartes CTA engageantes quand pas d'achat groupé actif */
+              <div className="grid grid-cols-2 gap-4 h-80">
+                {/* Carte 1 - Proposer un achat groupé */}
+                <Link href="/achats-groupes">
+                  <motion.div 
+                    whileHover={{ scale: 1.03, y: -5 }}
+                    className="h-full bg-gradient-to-br from-purple-500 via-purple-600 to-indigo-700 rounded-2xl p-5 text-white cursor-pointer shadow-xl relative overflow-hidden group"
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
+                    <div className="relative z-10">
+                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold mb-2">Achats Groupés</h3>
+                      <p className="text-sm text-white/80 mb-4">Économisez jusqu'à 40% en achetant ensemble</p>
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <span>Proposer un produit</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </motion.div>
+                </Link>
+
+                {/* Carte 2 - Comment ça marche */}
+                <div className="space-y-4">
+                  <motion.div 
+                    whileHover={{ scale: 1.03 }}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-4 text-white shadow-lg cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                        <TrendingDown className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Prix dégressifs</div>
+                        <div className="text-xs text-white/80">Plus on est nombreux, moins c'est cher</div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div 
+                    whileHover={{ scale: 1.03 }}
+                    className="bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl p-4 text-white shadow-lg cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                        <Target className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Objectif commun</div>
+                        <div className="text-xs text-white/80">Atteignez le quota ensemble</div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div 
+                    whileHover={{ scale: 1.03 }}
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-4 text-white shadow-lg cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Import direct</div>
+                        <div className="text-xs text-white/80">Livraison groupée optimisée</div>
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             )}
