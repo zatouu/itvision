@@ -1,20 +1,18 @@
  'use client'
 
 import { useEffect, useState } from 'react'
-import { Settings, Percent, DollarSign, TrendingUp, Save, Loader2 } from 'lucide-react'
+import { Settings, Percent, DollarSign, Save, Loader2 } from 'lucide-react'
 
 interface PricingDefaults {
   defaultExchangeRate: number
   defaultServiceFeeRate: number
   defaultInsuranceRate: number
-  defaultMarginRate: number
 }
 
 const DEFAULT_VALUES: PricingDefaults = {
   defaultExchangeRate: 100,
   defaultServiceFeeRate: 10,
-  defaultInsuranceRate: 2.5,
-  defaultMarginRate: 25
+  defaultInsuranceRate: 2.5
 }
 
 export default function AdminPricingDefaults() {
@@ -60,11 +58,9 @@ export default function AdminPricingDefaults() {
   // Simulation de prix pour prévisualisation
   const examplePrice1688 = 50 // 50 ¥
   const baseCostFCFA = examplePrice1688 * defaults.defaultExchangeRate
-  const marginAmount = baseCostFCFA * (defaults.defaultMarginRate / 100)
-  const salePriceBase = baseCostFCFA + marginAmount
   const serviceFee = baseCostFCFA * (defaults.defaultServiceFeeRate / 100)
   const insurance = baseCostFCFA * (defaults.defaultInsuranceRate / 100)
-  const totalPrice = salePriceBase + serviceFee + insurance
+  const totalPrice = baseCostFCFA + serviceFee + insurance
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
@@ -78,7 +74,7 @@ export default function AdminPricingDefaults() {
         Vous pouvez les surcharger individuellement sur chaque produit.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Taux de change */}
         <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
           <label className="block">
@@ -93,27 +89,6 @@ export default function AdminPricingDefaults() {
               value={defaults.defaultExchangeRate}
               onChange={e => setDefaults({ ...defaults, defaultExchangeRate: Number(e.target.value) })} 
             />
-          </label>
-        </div>
-
-        {/* Marge commerciale */}
-        <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-          <label className="block">
-            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800 mb-2">
-              <TrendingUp className="h-4 w-4" />
-              Marge commerciale
-            </div>
-            <div className="text-xs text-emerald-600 mb-2">Appliquée sur le coût source</div>
-            <div className="flex items-center gap-2">
-              <input 
-                type="number" 
-                step="1"
-                className="w-full rounded-lg border-emerald-300 px-3 py-2 text-lg font-bold text-center focus:ring-2 focus:ring-emerald-500" 
-                value={defaults.defaultMarginRate}
-                onChange={e => setDefaults({ ...defaults, defaultMarginRate: Number(e.target.value) })} 
-              />
-              <span className="text-emerald-700 font-bold">%</span>
-            </div>
           </label>
         </div>
 
@@ -163,15 +138,11 @@ export default function AdminPricingDefaults() {
       {/* Prévisualisation */}
       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
         <div className="text-sm font-semibold text-gray-700 mb-3">📊 Exemple de calcul (produit à {examplePrice1688} ¥)</div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
           <div className="text-center p-2 bg-white rounded border">
             <div className="text-gray-500 text-xs">Prix source</div>
             <div className="font-bold text-blue-600">{baseCostFCFA.toLocaleString('fr-FR')} FCFA</div>
-            <div className="text-[10px] text-gray-400">Affiché sur l'accueil</div>
-          </div>
-          <div className="text-center p-2 bg-white rounded border">
-            <div className="text-gray-500 text-xs">+ Marge ({defaults.defaultMarginRate}%)</div>
-            <div className="font-bold text-emerald-600">+{marginAmount.toLocaleString('fr-FR')} FCFA</div>
+            <div className="text-[10px] text-gray-400">Affiché catalogue</div>
           </div>
           <div className="text-center p-2 bg-white rounded border">
             <div className="text-gray-500 text-xs">+ Service ({defaults.defaultServiceFeeRate}%)</div>
@@ -184,7 +155,7 @@ export default function AdminPricingDefaults() {
           <div className="text-center p-2 bg-emerald-100 rounded border border-emerald-300">
             <div className="text-gray-500 text-xs">Prix final client</div>
             <div className="font-bold text-emerald-700 text-lg">{Math.round(totalPrice).toLocaleString('fr-FR')} FCFA</div>
-            <div className="text-[10px] text-gray-500">Affiché sur la page produit</div>
+            <div className="text-[10px] text-gray-500">Page produit</div>
           </div>
         </div>
       </div>

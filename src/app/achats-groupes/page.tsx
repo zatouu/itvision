@@ -499,43 +499,48 @@ export default function GroupBuysCollaborativePage() {
             )}
           </div>
 
-          {/* Sidebar - Activité récente */}
+          {/* Sidebar - Activité récente & Chat */}
           <div className="space-y-6">
-            {/* Activité en temps réel */}
-            <div className="bg-white rounded-2xl p-6 border shadow-lg sticky top-32">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                <h3 className="font-bold text-gray-900">Activité en temps réel</h3>
+            {/* Activité en temps réel - Design compact avec slider */}
+            <div className="bg-white rounded-2xl border shadow-lg sticky top-32 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-50 to-blue-50 border-b">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <h3 className="font-bold text-gray-900 text-sm">Activité en direct</h3>
+                <span className="ml-auto text-xs text-gray-500">{recentActivity.length} événements</span>
               </div>
               
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                <AnimatePresence>
-                  {recentActivity.map((activity, i) => (
+              {/* Carousel horizontal d'activités - max 2 visibles */}
+              <div className="relative h-[88px] overflow-hidden">
+                <AnimatePresence mode="popLayout">
+                  {recentActivity.slice(0, 2).map((activity, i) => (
                     <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: 20 }}
+                      key={`${activity.userName}-${activity.time}-${i}`}
+                      initial={{ opacity: 0, x: 100 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+                      exit={{ opacity: 0, x: -100 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      className="px-3 py-2"
                     >
-                      <div className={`p-2 rounded-full ${
-                        activity.type === 'joined' ? 'bg-emerald-100' :
-                        activity.type === 'proposed' ? 'bg-purple-100' :
-                        activity.type === 'filled' ? 'bg-blue-100' : 'bg-orange-100'
-                      }`}>
-                        {activity.type === 'joined' && <Users className="w-4 h-4 text-emerald-600" />}
-                        {activity.type === 'proposed' && <Sparkles className="w-4 h-4 text-purple-600" />}
-                        {activity.type === 'filled' && <CheckCircle className="w-4 h-4 text-blue-600" />}
-                        {activity.type === 'ordered' && <ShoppingCart className="w-4 h-4 text-orange-600" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900">{activity.userName}</p>
-                        <p className="text-xs text-gray-600">
-                          {activity.type === 'joined' && `a rejoint "${activity.groupName}" (${activity.qty} unités)`}
-                          {activity.type === 'proposed' && `a proposé "${activity.groupName}"`}
-                          {activity.type === 'filled' && `ont rempli l'objectif de "${activity.groupName}"`}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+                      <div className="flex items-center gap-2 p-2 bg-gray-50/80 rounded-lg">
+                        <div className={`p-1.5 rounded-full flex-shrink-0 ${
+                          activity.type === 'joined' ? 'bg-emerald-100' :
+                          activity.type === 'proposed' ? 'bg-purple-100' :
+                          activity.type === 'filled' ? 'bg-blue-100' : 'bg-orange-100'
+                        }`}>
+                          {activity.type === 'joined' && <Users className="w-3 h-3 text-emerald-600" />}
+                          {activity.type === 'proposed' && <Sparkles className="w-3 h-3 text-purple-600" />}
+                          {activity.type === 'filled' && <CheckCircle className="w-3 h-3 text-blue-600" />}
+                          {activity.type === 'ordered' && <ShoppingCart className="w-3 h-3 text-orange-600" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 truncate">{activity.userName}</p>
+                          <p className="text-[10px] text-gray-500 truncate">
+                            {activity.type === 'joined' && `a rejoint "${activity.groupName}"`}
+                            {activity.type === 'proposed' && `propose "${activity.groupName}"`}
+                            {activity.type === 'filled' && `objectif atteint !`}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">{activity.time.replace('Il y a ', '')}</span>
                       </div>
                     </motion.div>
                   ))}
@@ -543,65 +548,83 @@ export default function GroupBuysCollaborativePage() {
               </div>
             </div>
 
-            {/* CTA Proposer */}
-            <div className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
-              <Sparkles className="w-10 h-10 mb-4" />
-              <h3 className="text-xl font-bold mb-2">Proposez votre groupe !</h3>
-              <p className="text-sm text-white/90 mb-4">
-                Vous ne trouvez pas ce que vous cherchez ? Lancez votre propre achat groupé !
-              </p>
+            {/* CTA Proposer - Plus compact */}
+            <div className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-8 h-8 flex-shrink-0" />
+                <div>
+                  <h3 className="text-lg font-bold mb-1">Proposez votre groupe !</h3>
+                  <p className="text-xs text-white/80 mb-3">
+                    Lancez votre propre achat groupé
+                  </p>
+                </div>
+              </div>
               <Link
                 href="/produits"
-                className="block w-full bg-white text-purple-600 text-center py-3 rounded-xl font-bold hover:bg-gray-100 transition-all"
+                className="block w-full bg-white text-purple-600 text-center py-2.5 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all"
               >
                 Créer un groupe
               </Link>
             </div>
 
-            {/* Chat communautaire */}
+            {/* Chat communautaire - Style WhatsApp/Telegram moderne */}
             {isMounted && currentUser && (
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden border">
+                <button
+                  onClick={() => setShowChat(!showChat)}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 flex items-center justify-between hover:from-emerald-600 hover:to-teal-600 transition-all"
+                >
                   <div className="flex items-center gap-3">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Chat Communautaire</h3>
-                      <p className="text-xs text-white/80">Discutez avec les autres membres</p>
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-sm font-bold text-white">Discussion</h3>
+                      <p className="text-[10px] text-white/70">Communauté achats groupés</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowChat(!showChat)}
-                    className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-medium transition-all"
+                  <motion.div
+                    animate={{ rotate: showChat ? 180 : 0 }}
+                    className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
                   >
-                    {showChat ? 'Masquer' : 'Afficher'}
-                  </button>
-                </div>
+                    <ArrowRight className={`w-4 h-4 text-white ${showChat ? 'rotate-90' : '-rotate-90'}`} />
+                  </motion.div>
+                </button>
 
-                {showChat && (
-                  <div className="p-4">
-                    <ChatBox
-                      conversationId="group-buys-general"
-                      conversationType="group-buy"
-                      currentUser={{
-                        userId: currentUser.id,
-                        name: currentUser.name,
-                        avatar: currentUser.avatar,
-                        role: currentUser.role
-                      }}
-                      height="h-96"
-                      placeholder="Posez vos questions sur les achats groupés..."
-                      allowReactions={true}
-                      metadata={{
-                        context: 'group-buys-lobby',
-                        totalGroups: stats.totalGroups,
-                        totalParticipants: stats.totalParticipants
-                      }}
-                      onNewMessage={(msg) => {
-                        console.log('Nouveau message:', msg)
-                      }}
-                    />
-                  </div>
-                )}
+                <AnimatePresence>
+                  {showChat && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChatBox
+                        conversationId="group-buys-general"
+                        conversationType="group-buy"
+                        currentUser={{
+                          userId: currentUser.id,
+                          name: currentUser.name,
+                          avatar: currentUser.avatar,
+                          role: currentUser.role
+                        }}
+                        height="h-80"
+                        placeholder="Message..."
+                        allowReactions={true}
+                        showParticipants={false}
+                        metadata={{
+                          context: 'group-buys-lobby',
+                          totalGroups: stats.totalGroups,
+                          totalParticipants: stats.totalParticipants
+                        }}
+                        onNewMessage={(msg) => {
+                          console.log('Nouveau message:', msg)
+                        }}
+                        className="border-0 shadow-none rounded-none"
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </div>

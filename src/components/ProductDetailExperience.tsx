@@ -960,13 +960,6 @@ Merci de me recontacter.`
                   {/* Détail des frais additionnels */}
                   {product.pricing.fees && (
                     <>
-                      {/* Marge (si salePrice différent de baseCost) */}
-                      {product.pricing.baseCost !== null && product.pricing.salePrice !== null && product.pricing.salePrice > product.pricing.baseCost && (
-                        <div className="flex justify-between text-gray-600">
-                          <span>Marge commerciale ({product.pricing.marginRate || 25}%)</span>
-                          <span className="font-medium">+{formatCurrency(product.pricing.salePrice - product.pricing.baseCost, product.pricing.currency)}</span>
-                        </div>
-                      )}
                       <div className="flex justify-between text-gray-600">
                         <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
                         <span className="font-medium">+{formatCurrency(product.pricing.fees.serviceFeeAmount, product.pricing.currency)}</span>
@@ -1456,157 +1449,51 @@ Merci de me recontacter.`
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="mt-6 relative"
+              className="mt-4"
             >
-              {/* Badge optionnel */}
-              <div className="absolute -top-3 left-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
-                🔧 INSTALLATION OPTIONNELLE
-              </div>
-              
-              <div className="border-2 border-orange-200 rounded-2xl overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-                {/* Header toggle */}
+              {/* Installation simplifiée - juste un toggle */}
+              <div className="border-2 border-orange-200 rounded-xl overflow-hidden bg-gradient-to-r from-orange-50 to-amber-50">
                 <button
                   type="button"
                   onClick={() => setWantsInstallation(!wantsInstallation)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-orange-100/50 transition-colors"
+                  className="w-full flex items-center justify-between p-3 hover:bg-orange-100/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div className={clsx(
-                      'w-10 h-10 rounded-xl flex items-center justify-center transition-colors',
+                      'w-9 h-9 rounded-lg flex items-center justify-center transition-colors',
                       wantsInstallation ? 'bg-orange-500 text-white' : 'bg-white border-2 border-orange-300 text-orange-500'
                     )}>
-                      <Wrench className="w-5 h-5" />
+                      <Wrench className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <h3 className="font-bold text-gray-800">Besoin d&apos;une installation ?</h3>
-                      <p className="text-xs text-gray-500">Techniciens certifiés • Garantie intervention</p>
+                      <h3 className="font-bold text-gray-800 text-sm">Installation professionnelle</h3>
+                      <p className="text-[10px] text-gray-500">Techniciens certifiés • Détails au récapitulatif</p>
                     </div>
                   </div>
                   <div className={clsx(
-                    'w-12 h-6 rounded-full transition-colors relative',
+                    'w-11 h-6 rounded-full transition-colors relative flex-shrink-0',
                     wantsInstallation ? 'bg-orange-500' : 'bg-gray-300'
                   )}>
                     <div className={clsx(
                       'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform',
-                      wantsInstallation ? 'translate-x-6' : 'translate-x-0.5'
+                      wantsInstallation ? 'translate-x-5' : 'translate-x-0.5'
                     )} />
                   </div>
                 </button>
-
-                {/* Contenu formulaire */}
+                
+                {/* Avantages mini - affiché quand activé */}
                 <AnimatePresence>
                   {wantsInstallation && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.15 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-4 pb-4 space-y-4 border-t border-orange-200">
-                        {/* Avantages */}
-                        <div className="grid grid-cols-3 gap-2 pt-4">
-                          <div className="text-center p-2 bg-white rounded-lg border border-orange-100">
-                            <span className="text-lg">👨‍🔧</span>
-                            <p className="text-[10px] text-gray-600 mt-1">Techniciens<br/>vérifiés</p>
-                          </div>
-                          <div className="text-center p-2 bg-white rounded-lg border border-orange-100">
-                            <span className="text-lg">🛡️</span>
-                            <p className="text-[10px] text-gray-600 mt-1">Garantie<br/>intervention</p>
-                          </div>
-                          <div className="text-center p-2 bg-white rounded-lg border border-orange-100">
-                            <span className="text-lg">⚡</span>
-                            <p className="text-[10px] text-gray-600 mt-1">Réponse<br/>sous 24h</p>
-                          </div>
-                        </div>
-
-                        {/* Formulaire amélioré */}
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-xs font-medium text-gray-600 mb-1 block">Votre nom *</label>
-                              <input 
-                                value={installationForm.contactName} 
-                                onChange={(e) => updateInstallationForm('contactName', e.target.value)} 
-                                className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
-                                placeholder="Ex: Jean Dupont" 
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-600 mb-1 block">Téléphone *</label>
-                              <input 
-                                value={installationForm.contactPhone} 
-                                onChange={(e) => updateInstallationForm('contactPhone', e.target.value)} 
-                                className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
-                                placeholder="Ex: 77 123 45 67" 
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-600 mb-1 block">Adresse d&apos;installation *</label>
-                            <input 
-                              value={installationForm.address} 
-                              onChange={(e) => updateInstallationForm('address', e.target.value)} 
-                              className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
-                              placeholder="Ex: Quartier, Rue, Ville" 
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-600 mb-1 block">Date souhaitée</label>
-                            <input 
-                              type="date" 
-                              value={installationForm.preferredDate} 
-                              onChange={(e) => updateInstallationForm('preferredDate', e.target.value)} 
-                              min={new Date().toISOString().split('T')[0]}
-                              className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all" 
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-600 mb-1 block">Instructions supplémentaires</label>
-                            <textarea 
-                              className="w-full border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none" 
-                              rows={2}
-                              placeholder="Ex: Accès par escalier, disponible le matin uniquement..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Messages de statut */}
-                        {installationError && (
-                          <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                            <AlertCircle className="w-4 h-4" />
-                            {installationError}
-                          </div>
-                        )}
-                        {installationStatus === 'success' && (
-                          <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-600 text-sm">
-                            <CheckCircle className="w-4 h-4" />
-                            ✓ Demande publiée ! Un technicien vous contactera sous 24h.
-                          </div>
-                        )}
-
-                        {/* Bouton d'action */}
-                        <button 
-                          onClick={handleInstallationRequest} 
-                          disabled={installationStatus === 'loading'} 
-                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-bold hover:from-orange-600 hover:to-amber-600 disabled:opacity-60 transition-all shadow-lg hover:shadow-xl"
-                        >
-                          {installationStatus === 'loading' ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Publication en cours...
-                            </>
-                          ) : (
-                            <>
-                              <Megaphone className="w-4 h-4" />
-                              Publier ma demande aux techniciens
-                            </>
-                          )}
-                        </button>
-
-                        <p className="text-center text-[10px] text-gray-500">
-                          📢 Votre demande sera visible par tous les techniciens certifiés de votre zone
-                        </p>
+                      <div className="px-3 pb-3 flex items-center gap-2 text-[10px] text-orange-700 border-t border-orange-200 pt-2">
+                        <CheckCircle className="w-3 h-3 text-orange-500 flex-shrink-0" />
+                        <span>Coordonnées et adresse demandées à l'étape suivante</span>
                       </div>
                     </motion.div>
                   )}
