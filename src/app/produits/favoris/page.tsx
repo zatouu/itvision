@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { Heart, Package, ArrowLeft, Trash2 } from 'lucide-react'
 
 interface WishlistProduct {
-  _id: string
+  id: string
+  _id?: string // Deprecated - utiliser id
   name: string
   category: string
   description: string
@@ -22,8 +23,9 @@ interface WishlistProduct {
   features: string[]
   rating: number
   shippingOptions: any[]
-  availabilityStatus?: string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
+  isImported?: boolean
 }
 
 export default function WishlistPage() {
@@ -49,7 +51,7 @@ export default function WishlistPage() {
         try {
           setLoading(true)
           const responses = await Promise.all(
-            favorites.map(id => fetch(`/api/catalog/products/${id}`))
+            favorites.map((id: string) => fetch(`/api/catalog/products/${id}`))
           )
 
           const data = await Promise.all(
@@ -64,7 +66,8 @@ export default function WishlistPage() {
               const bestShipping = pricing.shippingOptions?.[0]
               
               return {
-                _id: product.id,
+                id: product.id,
+                _id: product.id, // Compatibilité
                 name: product.name,
                 category: product.category || 'Catalogue import Chine',
                 description: product.description || '',
@@ -76,7 +79,9 @@ export default function WishlistPage() {
                 features: product.features || [],
                 rating: 4.7,
                 shippingOptions: pricing.shippingOptions || [],
-                availabilityStatus: product.availability?.status,
+                availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
+                  ? product.availability.status
+                  : undefined,
                 createdAt: product.createdAt
               }
             })
@@ -209,7 +214,7 @@ export default function WishlistPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {products.map((product) => (
               <ProductCard
-                key={product._id}
+                key={product.id || product._id}
                 name={product.name}
                 model={product.tagline}
                 price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
@@ -222,9 +227,10 @@ export default function WishlistPage() {
                 images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
                 shippingOptions={product.shippingOptions}
                 availabilityStatus={product.availabilityStatus}
-                detailHref={`/produits/${product._id}`}
+                detailHref={`/produits/${product.id || product._id}`}
                 isPopular={product.rating >= 4.8}
                 createdAt={product.createdAt}
+                isImported={product.isImported}
               />
             ))}
           </div>

@@ -4,11 +4,15 @@ import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 
+// Rôles ayant accès à l'administration
+const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
+
 function requireAdmin(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  if (decoded.role !== 'ADMIN') throw new Error('Accès non autorisé')
+  const userRole = String(decoded.role || '').toUpperCase()
+  if (!ADMIN_ROLES.includes(userRole)) throw new Error('Accès non autorisé')
   return decoded
 }
 

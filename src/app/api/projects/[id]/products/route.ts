@@ -11,6 +11,34 @@ async function requireAdmin(request: NextRequest) {
   return decoded
 }
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await connectMongoose()
+    await requireAdmin(request)
+    const { id } = await params
+    if (!id) {
+      return NextResponse.json({ error: 'Projet manquant' }, { status: 400 })
+    }
+
+    const project = await Project.findById(id).select('products name').lean() as any
+    if (!project) {
+      return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      project: {
+        id: project._id?.toString(),
+        name: project.name
+      },
+      products: Array.isArray(project.products) ? project.products : []
+    })
+  } catch (error) {
+    console.error('Erreur récupération produits projet:', error)
+    return NextResponse.json({ error: 'Erreur récupération produits' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
@@ -42,9 +70,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!id || !productId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
 
     const proj = await Project.findById(id)
-    if (!proj) return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
-    // @ts-expect-error champ virtual issu du schéma mongoose non typé
-    proj.products = (proj.products || []).map((p: any) => (p.productId === productId ? { ...p.toObject?.() || p, ...updates } : p))
+    if (!proj) {
+      return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
+    }
+    
+    (proj as any).products = ((proj as any).products || []).map((p: any) => (p.productId === productId ? { ...p.toObject?.() || p, ...updates } : p))
     await proj.save()
     return NextResponse.json({ success: true, project: proj })
   } catch (e) {

@@ -23,6 +23,7 @@ import {
   Wifi,
   Zap
 } from 'lucide-react'
+import AdminPricingDefaults from './AdminPricingDefaults'
 import { 
   ServiceType, 
   ProductType, 
@@ -271,6 +272,7 @@ export default function PriceManagementSystem() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 bg-white">
+      <AdminPricingDefaults />
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">

@@ -1,92 +1,273 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
 import {
-  Home,
-  FolderKanban,
-  Package,
-  Tags,
-  Calculator,
+  LayoutDashboard,
+  BarChart3,
+  BookOpen,
+  FileText,
   Users,
-  Calendar,
+  Building2,
+  Package,
+  Wrench,
+  Calculator,
+  Briefcase,
+  AlertCircle,
   Settings,
-  MessageCircle,
-  Building2
+  ChevronRight,
+  ChevronDown,
+  ChevronLeft,
+  Menu,
+  ShoppingCart,
+  UsersRound
 } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
-type NavItem = {
+interface MenuItem {
+  id: string
   label: string
-  href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: any
+  href?: string
+  children?: MenuItem[]
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/admin', icon: Home },
-  { label: 'Clients', href: '/admin/clients', icon: Building2 },
-  { label: 'Projets', href: '/admin/planning', icon: FolderKanban },
-  { label: 'Services & Produits', href: '/admin/catalog', icon: Package },
-  { label: 'Devis & Tarification', href: '/admin/quotes', icon: Calculator },
-  { label: 'Tickets Support', href: '/admin/tickets', icon: MessageCircle },
-  { label: 'Équipe & Techniciens', href: '/admin/users', icon: Users },
-  { label: 'Planning', href: '/admin/planning', icon: Calendar },
-  { label: 'Administration', href: '/admin/migration', icon: Settings }
+const menuItems: MenuItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    href: '/admin'
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    href: '/admin/analytics'
+  },
+  {
+    id: 'administration',
+    label: 'Administration',
+    icon: Settings,
+    children: [
+      {
+        id: 'how-to',
+        label: 'Guide d\'utilisation',
+        icon: BookOpen,
+        href: '/admin/administration/how-to'
+      }
+    ]
+  },
+  {
+    id: 'devis',
+    label: 'Devis',
+    icon: FileText,
+    href: '/admin/devis'
+  },
+  {
+    id: 'clients',
+    label: 'Clients',
+    icon: Building2,
+    href: '/admin/clients'
+  },
+  {
+    id: 'commandes',
+    label: 'Commandes',
+    icon: ShoppingCart,
+    href: '/admin/commandes'
+  },
+  {
+    id: 'achats-groupes',
+    label: 'Achats Groupés',
+    icon: UsersRound,
+    href: '/admin/achats-groupes'
+  },
+  {
+    id: 'produits',
+    label: 'Produits',
+    icon: Package,
+    href: '/admin/produits'
+  },
+  {
+    id: 'technicians',
+    label: 'Techniciens',
+    icon: Users,
+    href: '/admin/technicians'
+  },
+  {
+    id: 'maintenance',
+    label: 'Maintenance',
+    icon: Wrench,
+    href: '/admin/maintenance'
+  },
+  {
+    id: 'marketplace',
+    label: 'Marketplace',
+    icon: Briefcase,
+    href: '/admin/marketplace'
+  },
+  {
+    id: 'comptabilite',
+    label: 'Comptabilité',
+    icon: Calculator,
+    href: '/admin/comptabilite'
+  },
+  {
+    id: 'tickets',
+    label: 'Support',
+    icon: AlertCircle,
+    href: '/admin/tickets'
+  }
 ]
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Charger l'état de collapse depuis localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-sidebar-collapsed')
+    if (saved !== null) {
+      setIsCollapsed(saved === 'true')
+    }
+  }, [])
+
+  // Sauvegarder l'état de collapse
+  const toggleCollapse = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    localStorage.setItem('admin-sidebar-collapsed', String(newState))
+  }
+
+  const toggleMenu = (menuId: string) => {
+    setOpenMenus(prev =>
+      prev.includes(menuId)
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    )
+  }
+
+  const isActive = (href?: string) => {
+    if (!href) return false
+    if (href === '/admin') {
+      return pathname === '/admin'
+    }
+    return pathname.startsWith(href)
+  }
+
+  const hasActiveChild = (item: MenuItem): boolean => {
+    if (item.href && isActive(item.href)) return true
+    if (item.children) {
+      return item.children.some(child => hasActiveChild(child))
+    }
+    return false
+  }
+
+  const renderMenuItem = (item: MenuItem, level: number = 0) => {
+    const hasChildren = item.children && item.children.length > 0
+    const isOpen = openMenus.includes(item.id)
+    const active = isActive(item.href) || hasActiveChild(item)
+
+    if (hasChildren) {
+      return (
+        <div key={item.id}>
+          <button
+            onClick={() => !isCollapsed && toggleMenu(item.id)}
+            title={isCollapsed ? item.label : undefined}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
+              active
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'text-gray-700 hover:bg-gray-50'
+            } ${isCollapsed ? 'justify-center' : ''}`}
+          >
+            <div className={`flex items-center ${isCollapsed ? '' : 'gap-3'}`}>
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              {!isCollapsed && <span className="font-medium text-sm">{item.label}</span>}
+            </div>
+            {!isCollapsed && (
+              isOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )
+            )}
+          </button>
+          {isOpen && !isCollapsed && (
+            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
+              {item.children!.map(child => renderMenuItem(child, level + 1))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        key={item.id}
+        href={item.href || '#'}
+        title={isCollapsed ? item.label : undefined}
+        className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
+          active
+            ? 'bg-emerald-50 text-emerald-700 font-medium'
+            : 'text-gray-700 hover:bg-gray-50'
+        }`}
+        style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
+      >
+        <item.icon className="h-5 w-5 flex-shrink-0" />
+        {!isCollapsed && <span className="text-sm">{item.label}</span>}
+      </Link>
+    )
+  }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 z-50">
-      <div className="h-16 flex items-center px-5 border-b border-gray-100">
-        <div className="text-sm font-semibold text-gray-900">
-          IT Vision Admin
-        </div>
+    <aside 
+      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 flex flex-col h-screen sticky top-0`}
+    >
+      {/* Header avec logo */}
+      <div className={`p-4 border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-gray-900">Admin Panel</h2>
+                <p className="text-xs text-gray-500">IT Vision</p>
+              </div>
+            </div>
+            <button
+              onClick={toggleCollapse}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              title="Réduire le menu"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={toggleCollapse}
+            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            title="Agrandir le menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
       </div>
-      <nav className="py-4">
-        <ul className="px-2 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-            return (
-              <li key={`${item.href}-${item.label}`}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    active
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${active ? 'text-emerald-600' : 'text-gray-400'}`} />
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-        <div className="mt-4 px-4">
-          <div className="text-xs uppercase text-gray-400 font-semibold mb-2">
-            Domaines
-          </div>
-          <ul className="space-y-1">
-            <li>
-              <Link href="/admin/catalog" className="flex items-center gap-2 text-xs px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
-                <Package className="h-3.5 w-3.5 text-gray-400" />
-                Catalogue & Produits
-              </Link>
-            </li>
-            <li>
-              <Link href="/admin/prices" className="flex items-center gap-2 text-xs px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100">
-                <Tags className="h-3.5 w-3.5 text-gray-400" />
-                Prix & Variantes
-              </Link>
-            </li>
-          </ul>
-        </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        {menuItems.map(item => renderMenuItem(item))}
       </nav>
+
+      {/* Footer avec version */}
+      {!isCollapsed && (
+        <div className="p-3 border-t border-gray-200 text-xs text-gray-400 text-center">
+          v1.0.0
+        </div>
+      )}
     </aside>
   )
 }
-
-

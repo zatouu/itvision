@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import User from '@/lib/models/User'
 import { connectMongoose } from '@/lib/mongoose'
+
+// Vérifier si l'utilisateur est admin (pour pouvoir attribuer des rôles)
+function verifyAdmin(request: NextRequest): { isAdmin: boolean; userId?: string } {
+  const token = request.cookies.get('auth-token')?.value || 
+                request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  if (!token) return { isAdmin: false }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const role = String(decoded.role || '').toUpperCase()
+    return { isAdmin: role === 'ADMIN', userId: decoded.userId }
+  } catch {
+    return { isAdmin: false }
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +32,23 @@ export async function POST(request: NextRequest) {
         { error: 'Champs requis manquants' },
         { status: 400 }
       )
+    }
+
+    // SÉCURITÉ: Seuls les admins peuvent créer des utilisateurs avec un rôle autre que CLIENT
+    const { isAdmin } = verifyAdmin(request)
+    const allowedRoles = ['CLIENT', 'TECHNICIAN', 'ADMIN', 'PRODUCT_MANAGER']
+    let finalRole = 'CLIENT' // Par défaut, toujours CLIENT
+    
+    if (role && role !== 'CLIENT') {
+      if (!isAdmin) {
+        // Si non-admin tente de créer un compte avec un rôle privilégié, refuser
+        return NextResponse.json(
+          { error: 'Seuls les administrateurs peuvent attribuer des rôles privilégiés' },
+          { status: 403 }
+        )
+      }
+      // Admin peut attribuer n'importe quel rôle valide
+      finalRole = allowedRoles.includes(String(role).toUpperCase()) ? String(role).toUpperCase() : 'CLIENT'
     }
 
     // Vérifier si l'utilisateur existe déjà
@@ -42,7 +76,7 @@ export async function POST(request: NextRequest) {
       passwordHash: hashedPassword,
       name,
       phone,
-      role: (role || 'CLIENT')
+      role: finalRole
     })
 
     const user = {

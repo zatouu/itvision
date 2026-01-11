@@ -29,11 +29,13 @@ import {
   WifiOff,
   Building2,
   Phone,
-  Mail
+  Mail,
+  Briefcase
 } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
 import AuthPortal from './AuthPortal'
 import EnhancedMaintenanceForm from './EnhancedMaintenanceForm'
+import TechnicianMarketplace from './TechnicianMarketplace'
 
 interface TechnicianSession {
   id: string
@@ -68,7 +70,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   const router = useRouter()
   const [session, setSession] = useState<TechnicianSession | null>(initialSession)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'reports' | 'create-report' | 'profile' | 'clients'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'reports' | 'create-report' | 'profile' | 'clients' | 'marketplace'>('dashboard')
   const [isOnline, setIsOnline] = useState(true)
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null)
   const [reports, setReports] = useState<any[]>([])
@@ -370,6 +372,14 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
               <Building2 className="h-6 w-6" />
               <span>Annuaire clients</span>
             </button>
+            
+            <button
+              onClick={() => setCurrentView('marketplace')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
+            >
+              <Briefcase className="h-6 w-6" />
+              <span>Marketplace</span>
+            </button>
 
             <button className="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3">
               <Navigation className="h-6 w-6" />
@@ -618,6 +628,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           <div className="flex space-x-8">
               {[
                 { id: 'dashboard', label: 'Tableau de bord', icon: Activity },
+                { id: 'marketplace', label: 'Marketplace', icon: Briefcase },
                 { id: 'reports', label: 'Rapports', icon: FileText },
                 { id: 'clients', label: 'Clients', icon: Building2 },
                 { id: 'create-report', label: 'Nouveau rapport', icon: Plus }
@@ -645,6 +656,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       {/* Contenu principal */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {currentView === 'dashboard' && renderDashboard()}
+          {currentView === 'marketplace' && <TechnicianMarketplace technicianId={session?.id} />}
           {currentView === 'reports' && renderReports()}
           {currentView === 'clients' && renderClientDirectory()}
           {currentView === 'create-report' && renderCreateReport()}

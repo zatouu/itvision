@@ -1,5 +1,29 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+// Interface pour une variante de produit (avec image et prix 1688)
+export interface IProductVariant {
+  id?: string          // ID unique de la variante
+  name: string         // Nom de la variante (ex: "Rouge", "32GB")
+  sku?: string         // SKU de la variante
+  image?: string       // Image spécifique de la variante
+  price1688?: number   // Prix 1688 spécifique
+  stock?: number       // Stock spécifique
+}
+
+// Interface pour un groupe de variantes
+export interface IProductVariantGroup {
+  name: string              // Nom du groupe (ex: "Couleur", "Taille")
+  variants: IProductVariant[]
+}
+
+// Interface pour les paliers de prix dégressifs (achat groupé)
+export interface IPriceTier {
+  minQty: number      // Quantité minimum pour ce palier
+  maxQty?: number     // Quantité maximum (optionnel, null = illimité)
+  price: number       // Prix unitaire pour ce palier
+  discount?: number   // Réduction en % par rapport au prix de base
+}
+
 export interface IProduct extends Document {
   name: string
   category?: string
@@ -14,7 +38,7 @@ export interface IProduct extends Document {
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
-  stockStatus?: 'in_stock' | 'preorder'
+  stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   stockQuantity?: number
   leadTimeDays?: number
   weightKg?: number
@@ -25,9 +49,16 @@ export interface IProduct extends Document {
   packagingWeightKg?: number
   colorOptions?: string[]
   variantOptions?: string[]
+  // Variantes avec prix et images (style 1688)
+  variantGroups?: IProductVariantGroup[]
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
+  // Configuration achat groupé
+  groupBuyEnabled?: boolean           // Active l'achat groupé pour ce produit
+  groupBuyMinQty?: number             // Quantité min totale pour lancer la commande
+  groupBuyTargetQty?: number          // Quantité cible idéale
+  priceTiers?: IPriceTier[]           // Paliers de prix dégressifs
   sourcing?: {
     platform?: string
     supplierName?: string
@@ -35,6 +66,12 @@ export interface IProduct extends Document {
     productUrl?: string
     notes?: string
   }
+  // Informations 1688
+  price1688?: number // Prix en Yuan (¥)
+  price1688Currency?: string // Devise 1688 (par défaut 'CNY')
+  exchangeRate?: number // Taux de change (par défaut 1 ¥ = 100 FCFA)
+  serviceFeeRate?: number // Frais de service (5%, 10%, 15%)
+  insuranceRate?: number // Frais d'assurance (en %)
   shippingOverrides?: Array<{
     methodId: string
     ratePerKg?: number
@@ -53,13 +90,13 @@ const ProductSchema = new Schema<IProduct>({
   price: { type: Number },
   baseCost: { type: Number },
   marginRate: { type: Number, default: 25 },
-  currency: { type: String, default: 'Fcfa' },
+  currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
   image: { type: String },
   gallery: { type: [String], default: [] },
   features: { type: [String], default: [] },
   requiresQuote: { type: Boolean, default: false },
   deliveryDays: { type: Number, default: 0 },
-  stockStatus: { type: String, enum: ['in_stock', 'preorder'], default: 'preorder' },
+  stockStatus: { type: String, enum: ['in_stock', 'preorder', 'out_of_stock'], default: 'preorder' },
   stockQuantity: { type: Number, default: 0 },
   leadTimeDays: { type: Number, default: 15 },
   weightKg: { type: Number },
@@ -70,9 +107,39 @@ const ProductSchema = new Schema<IProduct>({
   packagingWeightKg: { type: Number },
   colorOptions: { type: [String], default: [] },
   variantOptions: { type: [String], default: [] },
+  // Variantes avec prix et images (style 1688)
+  variantGroups: {
+    type: [new Schema({
+      name: { type: String, required: true },
+      variants: {
+        type: [new Schema({
+          id: { type: String },
+          name: { type: String, required: true },
+          sku: { type: String },
+          image: { type: String },
+          price1688: { type: Number },
+          stock: { type: Number }
+        }, { _id: false })]
+      }
+    }, { _id: false })],
+    default: []
+  },
   availabilityNote: { type: String },
   isPublished: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
+  // Configuration achat groupé
+  groupBuyEnabled: { type: Boolean, default: false },
+  groupBuyMinQty: { type: Number, default: 10 },
+  groupBuyTargetQty: { type: Number, default: 50 },
+  priceTiers: {
+    type: [new Schema({
+      minQty: { type: Number, required: true },
+      maxQty: { type: Number },
+      price: { type: Number, required: true },
+      discount: { type: Number }
+    }, { _id: false })],
+    default: []
+  },
   sourcing: {
     platform: { type: String },
     supplierName: { type: String },
@@ -80,6 +147,12 @@ const ProductSchema = new Schema<IProduct>({
     productUrl: { type: String },
     notes: { type: String }
   },
+  // Informations 1688
+  price1688: { type: Number },
+  price1688Currency: { type: String, default: 'CNY' },
+  exchangeRate: { type: Number, default: 100 }, // 1 ¥ = 100 FCFA
+  serviceFeeRate: { type: Number }, // 5, 10, ou 15
+  insuranceRate: { type: Number }, // Pourcentage d'assurance
   shippingOverrides: {
     type: [new Schema({
       methodId: { type: String, required: true },

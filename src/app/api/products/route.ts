@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { type IProduct } from '@/lib/models/Product'
+import Product, { type IProduct } from '@/lib/models/Product.validated'
+import type { ProductVariantGroup } from '@/lib/types/product.types'
 import jwt from 'jsonwebtoken'
 
 function requireManagerRole(request: NextRequest) {
@@ -64,11 +65,23 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     packagingWeightKg,
     colorOptions,
     variantOptions,
+    variantGroups,
     availabilityNote,
     isPublished,
     isFeatured,
     sourcing,
-    shippingOverrides
+    shippingOverrides,
+    // Champs 1688
+    price1688,
+    price1688Currency,
+    exchangeRate,
+    serviceFeeRate,
+    insuranceRate,
+    // Champs achat groupé
+    groupBuyEnabled,
+    groupBuyMinQty,
+    groupBuyTargetQty,
+    priceTiers
   } = payload || {}
 
   const normalized: Partial<IProduct> = {
@@ -76,10 +89,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     category,
     description,
     tagline,
-    currency,
+    currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
+      ? currency 
+      : 'FCFA',
     availabilityNote,
     requiresQuote: typeof requiresQuote === 'boolean' ? requiresQuote : undefined,
-    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : undefined,
+    stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : stockStatus === 'out_of_stock' ? 'out_of_stock' : undefined,
     isPublished: typeof isPublished === 'boolean' ? isPublished : undefined,
     isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
   }
@@ -122,20 +137,94 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     normalized.sourcing = normalizedSourcing
   }
 
+  // Toujours traiter les shippingOverrides (même tableau vide pour réinitialiser)
   if (Array.isArray(shippingOverrides)) {
     const overrides: NonNullable<IProduct['shippingOverrides']> = []
     for (const raw of shippingOverrides) {
       if (!raw || typeof raw !== 'object' || typeof raw.methodId !== 'string') continue
-      overrides.push({
-        methodId: raw.methodId,
-        ratePerKg: parseNumber(raw.ratePerKg),
-        ratePerM3: parseNumber(raw.ratePerM3),
-        flatFee: parseNumber(raw.flatFee)
+      // Ne conserver que les overrides avec au moins une valeur définie
+      const hasValue = parseNumber(raw.ratePerKg) !== undefined || 
+                       parseNumber(raw.ratePerM3) !== undefined || 
+                       parseNumber(raw.flatFee) !== undefined
+      if (hasValue) {
+        overrides.push({
+          methodId: raw.methodId,
+          ratePerKg: parseNumber(raw.ratePerKg),
+          ratePerM3: parseNumber(raw.ratePerM3),
+          flatFee: parseNumber(raw.flatFee)
+        })
+      }
+    }
+    // Toujours définir les overrides (tableau vide = réinitialisation aux valeurs par défaut)
+    normalized.shippingOverrides = overrides
+  }
+
+  // Champs 1688
+  normalized.price1688 = parseNumber(price1688)
+  normalized.exchangeRate = parseNumber(exchangeRate)
+  const parsedServiceFeeRate = parseNumber(serviceFeeRate)
+  normalized.serviceFeeRate = (parsedServiceFeeRate === 5 || parsedServiceFeeRate === 10 || parsedServiceFeeRate === 15) 
+    ? parsedServiceFeeRate 
+    : undefined
+  normalized.insuranceRate = parseNumber(insuranceRate)
+  if (typeof price1688Currency === 'string') {
+    const validCurrencies = ['FCFA', 'EUR', 'USD', 'CNY'] as const
+    normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 
+      ? (price1688Currency as 'FCFA' | 'EUR' | 'USD' | 'CNY')
+      : undefined
+  }
+
+  // Variantes avec images et prix (style 1688)
+  if (Array.isArray(variantGroups)) {
+    const normalizedGroups: ProductVariantGroup[] = []
+    for (const group of variantGroups) {
+      if (!group || typeof group !== 'object' || typeof group.name !== 'string') continue
+      if (!Array.isArray(group.variants)) continue
+      const normalizedVariants: ProductVariantGroup['variants'] = []
+      for (const v of group.variants) {
+        if (!v || typeof v !== 'object' || typeof v.name !== 'string') continue
+        normalizedVariants.push({
+          id: typeof v.id === 'string' ? v.id : undefined,
+          name: v.name,
+          sku: typeof v.sku === 'string' ? v.sku : undefined,
+          image: typeof v.image === 'string' ? v.image : undefined,
+          price1688: parseNumber(v.price1688),
+          stock: parseNumber(v.stock)
+        })
+      }
+      if (normalizedVariants.length > 0) {
+        normalizedGroups.push({
+          name: group.name,
+          variants: normalizedVariants
+        })
+      }
+    }
+    normalized.variantGroups = normalizedGroups
+  }
+
+  // Champs achat groupé
+  if (typeof groupBuyEnabled === 'boolean') {
+    normalized.groupBuyEnabled = groupBuyEnabled
+  }
+  normalized.groupBuyMinQty = parseNumber(groupBuyMinQty)
+  normalized.groupBuyTargetQty = parseNumber(groupBuyTargetQty)
+  
+  // Paliers de prix dégressifs
+  if (Array.isArray(priceTiers)) {
+    const normalizedTiers: NonNullable<IProduct['priceTiers']> = []
+    for (const tier of priceTiers) {
+      if (!tier || typeof tier !== 'object') continue
+      const minQty = parseNumber(tier.minQty)
+      const price = parseNumber(tier.price)
+      if (minQty === undefined || price === undefined) continue
+      normalizedTiers.push({
+        minQty,
+        maxQty: parseNumber(tier.maxQty),
+        price,
+        discount: parseNumber(tier.discount)
       })
     }
-    if (overrides.length > 0) {
-      normalized.shippingOverrides = overrides
-    }
+    normalized.priceTiers = normalizedTiers
   }
 
   return normalized
@@ -176,12 +265,29 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const body = await request.json()
     const payload = buildProductPayload(body)
-    if (!payload.name) return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 })
+    if (!payload.name) return NextResponse.json({ success: false, error: 'Le nom du produit est requis' }, { status: 400 })
+
+    // Validation des prix - par défaut, un prix doit être défini sauf si explicitement sur devis
+    if (!payload.requiresQuote && !payload.price && !payload.baseCost && !payload.price1688) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+      }, { status: 400 })
+    }
 
     const created = await Product.create(payload)
     return NextResponse.json({ success: true, item: created }, { status: 201 })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: 'Failed to create' }, { status: 500 })
+  } catch (e: any) {
+    console.error('Erreur création produit:', e)
+    // Extraction du message d'erreur Mongoose/MongoDB
+    let errorMessage = 'Erreur lors de la création du produit'
+    if (e.name === 'ValidationError') {
+      const messages = Object.values(e.errors || {}).map((err: any) => err.message)
+      errorMessage = messages.join(', ') || 'Erreur de validation'
+    } else if (e.message) {
+      errorMessage = e.message
+    }
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
 
@@ -193,13 +299,41 @@ export async function PATCH(request: NextRequest) {
     await connectMongoose()
     const body = await request.json()
     const { id, ...rest } = body || {}
-    if (!id) return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 })
+    if (!id) return NextResponse.json({ success: false, error: 'ID du produit requis' }, { status: 400 })
     const payload = buildProductPayload(rest)
+    
+    // Récupérer le produit existant pour vérifier
+    const existing = await Product.findById(id).lean()
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Produit non trouvé' }, { status: 404 })
+    }
+    
+    // Validation des prix - un prix doit être défini sauf si explicitement sur devis
+    const finalRequiresQuote = payload.requiresQuote ?? (existing as any).requiresQuote
+    const finalPrice = payload.price ?? (existing as any).price
+    const finalBaseCost = payload.baseCost ?? (existing as any).baseCost
+    const finalPrice1688 = payload.price1688 ?? (existing as any).price1688
+    
+    if (!finalRequiresQuote && !finalPrice && !finalBaseCost && !finalPrice1688) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+      }, { status: 400 })
+    }
+    
     await Product.updateOne({ _id: id }, { $set: payload })
     const updated = await Product.findById(id).lean()
     return NextResponse.json({ success: true, item: updated })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: 'Failed to update' }, { status: 500 })
+  } catch (e: any) {
+    console.error('Erreur mise à jour produit:', e)
+    let errorMessage = 'Erreur lors de la mise à jour du produit'
+    if (e.name === 'ValidationError') {
+      const messages = Object.values(e.errors || {}).map((err: any) => err.message)
+      errorMessage = messages.join(', ') || 'Erreur de validation'
+    } else if (e.message) {
+      errorMessage = e.message
+    }
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
 

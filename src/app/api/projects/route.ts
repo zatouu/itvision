@@ -14,7 +14,10 @@ async function verifyToken(request: NextRequest) {
   }
 
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return decoded
+  return {
+    ...decoded,
+    role: String(decoded.role || '').toUpperCase()
+  }
 }
 
 // GET - Récupérer les projets
@@ -255,6 +258,64 @@ export async function PUT(request: NextRequest) {
     console.error('Erreur mise à jour projet:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la mise à jour' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Supprimer un projet
+export async function DELETE(request: NextRequest) {
+  try {
+    await connectMongoose()
+    const { userId, role } = await verifyToken(request)
+
+    if (role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Accès non autorisé' },
+        { status: 403 }
+      )
+    }
+
+    let projectId: string | null = null
+    try {
+      const body = await request.json()
+      projectId = body?.id || body?._id || null
+    } catch {
+      // Aucun corps JSON, on tentera d'utiliser les query params
+    }
+
+    if (!projectId) {
+      const { searchParams } = new URL(request.url)
+      projectId = searchParams.get('id')
+    }
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'ID du projet requis' },
+        { status: 400 }
+      )
+    }
+
+    const existingProject = await Project.findById(projectId)
+    if (!existingProject) {
+      return NextResponse.json(
+        { error: 'Projet non trouvé' },
+        { status: 404 }
+      )
+    }
+
+    await Project.deleteOne({ _id: projectId })
+
+    logDataAccess('projects', 'delete', request, userId, { projectId: String(projectId) })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Projet supprimé avec succès'
+    })
+  } catch (error) {
+    console.error('Erreur suppression projet:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la suppression du projet' },
       { status: 500 }
     )
   }

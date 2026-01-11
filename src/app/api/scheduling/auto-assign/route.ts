@@ -1,5 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
+
+// Vérification d'authentification admin
+async function verifyAdmin(request: NextRequest): Promise<{ authorized: boolean; userId?: string }> {
+  const token = request.cookies.get('auth-token')?.value || 
+                request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  if (!token) return { authorized: false }
+  
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    const { payload } = await jwtVerify(token, secret)
+    const role = String(payload.role || '').toUpperCase()
+    return { 
+      authorized: role === 'ADMIN',
+      userId: payload.userId as string
+    }
+  } catch {
+    return { authorized: false }
+  }
+}
 
 interface Technician {
   id: string
@@ -28,6 +49,15 @@ interface Intervention {
 // POST - Affectation automatique d'une intervention
 export async function POST(request: NextRequest) {
   try {
+    // SÉCURITÉ: Vérifier l'authentification admin
+    const auth = await verifyAdmin(request)
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { error: 'Accès réservé aux administrateurs' },
+        { status: 403 }
+      )
+    }
+
     await connectMongoose()
     
     const { interventionId } = await request.json()

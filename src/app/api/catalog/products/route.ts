@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product, { IProduct } from '@/lib/models/Product.validated'
 import { computeProductPricing } from '@/lib/logistics'
+import { simulatePricingFromProduct } from '@/lib/pricing1688.refactored'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const total = await Product.countDocuments({ isPublished: { $ne: false } })
 
-    const payload = products.map((product) => {
+    const payload = products.map((product: any) => {
       const pricing = computeProductPricing(product)
       return {
         id: String(product._id),
@@ -53,11 +54,9 @@ export async function GET(request: NextRequest) {
             : null
         },
         pricing,
-        sourcing: product.sourcing && {
-          platform: product.sourcing.platform ?? null,
-          supplierName: product.sourcing.supplierName ?? null,
-          productUrl: product.sourcing.productUrl ?? null
-        },
+        // Note: Les informations de sourcing et prix source ne sont pas exposées au public
+        // Seul indicateur: si le produit est importé (pour affichage badge "Import")
+        isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         isFeatured: product.isFeatured ?? false

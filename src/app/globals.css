@@ -72,37 +72,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* Mode sombre désactivé - site toujours en mode clair */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
-/* Assure une bonne lisibilité sur fonds clairs même en mode sombre */
-@media (prefers-color-scheme: dark) {
-  .bg-white,
-  .from-white,
-  .via-white,
-  .to-white,
-  .bg-gray-50,
-  .from-gray-50,
-  .via-gray-50,
-  .to-gray-50 {
-    color: #111827 !important; /* text-gray-900 */
-  }
-
-  .bg-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .from-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .via-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .to-white :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .bg-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .from-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .via-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em),
-  .to-gray-50 :where(h1,h2,h3,h4,h5,h6,p,span,div,a,li,strong,em) {
-    color: #111827 !important; /* text-gray-900 */
-  }
-}
+/* Règles de lisibilité désactivées - mode clair uniquement */
 
 body {
   background: var(--background);
@@ -365,30 +343,7 @@ select.error:focus {
   border: 1px solid #d1d5db !important;
 }
 
-/* Mode sombre - si activé */
-@media (prefers-color-scheme: dark) {
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="number"],
-  input[type="tel"],
-  input[type="url"],
-  input[type="search"],
-  input[type="date"],
-  input[type="time"],
-  input[type="datetime-local"],
-  textarea,
-  select {
-    color: #f9fafb !important; /* Texte blanc en mode sombre */
-    background-color: #374151 !important; /* Fond gris foncé */
-    border-color: #4b5563 !important;
-  }
-  
-  input::placeholder,
-  textarea::placeholder {
-    color: #9ca3af !important;
-  }
-}
+/* Mode sombre désactivé pour les inputs */
 
 /* Correction spécifique pour les inputs avec bg-white */
 .bg-white input,
