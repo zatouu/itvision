@@ -76,3 +76,10 @@ export type {
   ReviewMedia,
   NewReviewData
 } from './ProductReviewsWithMedia'
+
+// Panel de prix sticky (pour layout Alibaba)
+export { default as ProductPricingPanel } from './ProductPricingPanel'
+export type { ProductPricingPanelProps } from './ProductPricingPanel'
+
+// Layout Alibaba (colonne gauche scrollable, droite sticky)
+export { default as ProductLayoutAlibaba } from './ProductLayoutAlibaba'

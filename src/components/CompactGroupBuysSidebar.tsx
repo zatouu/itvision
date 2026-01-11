@@ -81,7 +81,7 @@ export default function CompactGroupBuysSidebar({ excludeProductId }: { excludeP
   return (
     <div className="space-y-4">
       {/* Titre section */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-3 text-white">
+      <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-xl p-3 text-white">
         <h3 className="font-bold text-sm flex items-center gap-2">
           <Users className="w-4 h-4" />
           Achats Groupés Actifs
@@ -100,7 +100,7 @@ export default function CompactGroupBuysSidebar({ excludeProductId }: { excludeP
 
             return (
               <Link key={group._id} href={`/achats-groupes/${group.groupId}`}>
-                <div className="bg-white rounded-lg border hover:border-purple-300 hover:shadow-md transition-all p-3 group cursor-pointer">
+                <div className="bg-white rounded-lg border hover:border-teal-300 hover:shadow-md transition-all p-3 group cursor-pointer">
                   {/* Image + badges */}
                   <div className="relative mb-2">
                     {group.product.image ? (
@@ -130,13 +130,13 @@ export default function CompactGroupBuysSidebar({ excludeProductId }: { excludeP
                   </div>
 
                   {/* Titre */}
-                  <h4 className="font-semibold text-gray-900 text-xs mb-1.5 line-clamp-2 group-hover:text-purple-600 transition-colors min-h-[2rem]">
+                  <h4 className="font-semibold text-gray-900 text-xs mb-1.5 line-clamp-2 group-hover:text-teal-600 transition-colors min-h-[2rem]">
                     {group.product.name}
                   </h4>
 
                   {/* Prix */}
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-bold text-purple-600">
+                    <div className="text-sm font-bold text-teal-600">
                       {formatPrice(group.currentUnitPrice, group.product.currency)}
                     </div>
                     {savings > 0 && (
@@ -157,7 +157,7 @@ export default function CompactGroupBuysSidebar({ excludeProductId }: { excludeP
                         className={`h-full rounded-full transition-all ${
                           isUrgent 
                             ? 'bg-gradient-to-r from-orange-500 to-red-500' 
-                            : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                            : 'bg-gradient-to-r from-teal-500 to-cyan-500'
                         }`}
                         style={{ width: `${progress}%` }}
                       />
@@ -170,7 +170,7 @@ export default function CompactGroupBuysSidebar({ excludeProductId }: { excludeP
                       <Clock className="w-3 h-3 text-orange-600" />
                       <span className="font-medium text-orange-600">{timeLeft}</span>
                     </div>
-                    <span className="text-purple-600 font-medium group-hover:underline">
+                    <span className="text-teal-600 font-medium group-hover:underline">
                       Rejoindre →
                     </span>
                   </div>
@@ -182,7 +182,7 @@ export default function CompactGroupBuysSidebar({ excludeProductId }: { excludeP
           {/* CTA voir tous */}
           <Link 
             href="/achats-groupes"
-            className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-center py-2.5 rounded-lg font-semibold text-sm transition-all shadow-md hover:shadow-lg"
+            className="block w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white text-center py-2.5 rounded-lg font-semibold text-sm transition-all shadow-md hover:shadow-lg"
           >
             Voir tous les groupes
           </Link>

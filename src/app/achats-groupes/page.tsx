@@ -208,11 +208,11 @@ export default function GroupBuysCollaborativePage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50/50 via-white to-blue-50/50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50/50 via-white to-cyan-50/50">
       <Header />
       
       {/* Hero collaboratif */}
-      <section className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white py-16 px-4 pt-28 mt-16 overflow-hidden">
+      <section className="relative bg-gradient-to-r from-teal-600 via-cyan-600 to-sky-600 text-white py-16 px-4 pt-28 mt-16 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full blur-3xl animate-pulse"></div>
@@ -237,7 +237,7 @@ export default function GroupBuysCollaborativePage() {
               <div className="flex flex-wrap gap-4">
                 <Link
                   href="/produits"
-                  className="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
+                  className="inline-flex items-center gap-2 bg-white text-teal-600 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
                 >
                   <Gift className="w-5 h-5" />
                   Proposer un groupe
@@ -305,7 +305,7 @@ export default function GroupBuysCollaborativePage() {
                 placeholder="Rechercher un produit, marque, catégorie..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-200 transition-all"
               />
             </div>
 
@@ -317,7 +317,7 @@ export default function GroupBuysCollaborativePage() {
                   onClick={() => setFilter(f)}
                   className={`px-4 py-2 rounded-lg font-medium transition-all ${
                     filter === f
-                      ? 'bg-purple-600 text-white shadow-lg'
+                      ? 'bg-teal-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -345,7 +345,7 @@ export default function GroupBuysCollaborativePage() {
 
             {loading ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
               </div>
             ) : filteredGroups.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center border">
@@ -354,7 +354,7 @@ export default function GroupBuysCollaborativePage() {
                 <p className="text-gray-600 mb-6">Soyez le premier à proposer un achat groupé !</p>
                 <Link
                   href="/produits"
-                  className="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700 transition-all"
+                  className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-teal-700 transition-all"
                 >
                   <Sparkles className="w-5 h-5" />
                   Proposer un groupe
@@ -376,7 +376,7 @@ export default function GroupBuysCollaborativePage() {
                       transition={{ delay: index * 0.05 }}
                     >
                       <Link href={`/achats-groupes/${group.groupId}`}>
-                        <div className="group bg-white rounded-2xl p-6 border-2 border-gray-100 hover:border-purple-300 hover:shadow-xl transition-all cursor-pointer">
+                        <div className="group bg-white rounded-2xl p-6 border-2 border-gray-100 hover:border-teal-300 hover:shadow-xl transition-all cursor-pointer">
                           <div className="flex gap-6">
                             {/* Image produit */}
                             <div className="relative w-32 h-32 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden">
@@ -407,13 +407,13 @@ export default function GroupBuysCollaborativePage() {
 
                             {/* Infos */}
                             <div className="flex-1">
-                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-teal-600 transition-colors">
                                 {group.product.name}
                               </h3>
                               
                               {/* Prix */}
                               <div className="flex items-baseline gap-3 mb-4">
-                                <div className="text-3xl font-black text-purple-600">
+                                <div className="text-3xl font-black text-teal-600">
                                   {formatPrice(group.currentUnitPrice, group.product.currency)}
                                 </div>
                                 {savings > 0 && (
@@ -432,17 +432,17 @@ export default function GroupBuysCollaborativePage() {
                               <div className="mb-4">
                                 <div className="flex justify-between text-sm text-gray-700 mb-2 font-medium">
                                   <span className="flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-purple-600" />
+                                    <Users className="w-4 h-4 text-teal-600" />
                                     {group.currentQty}/{group.targetQty} unités • {group.participantsCount || 0} participants
                                   </span>
-                                  <span className="font-bold text-purple-700">{Math.round(progress)}%</span>
+                                  <span className="font-bold text-teal-700">{Math.round(progress)}%</span>
                                 </div>
                                 <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                                   <div 
                                     className={`h-full rounded-full transition-all ${
                                       isUrgent 
                                         ? 'bg-gradient-to-r from-orange-500 to-red-500' 
-                                        : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                                        : 'bg-gradient-to-r from-teal-500 to-cyan-500'
                                     }`}
                                     style={{ width: `${progress}%` }}
                                   />
@@ -457,7 +457,7 @@ export default function GroupBuysCollaborativePage() {
                                     <span className="font-medium text-orange-600">{timeLeft}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    <Target className="w-4 h-4 text-purple-600" />
+                                    <Target className="w-4 h-4 text-teal-600" />
                                     <span>Min: {group.minQty}</span>
                                   </div>
                                 </div>
@@ -482,7 +482,7 @@ export default function GroupBuysCollaborativePage() {
                                   >
                                     <Heart className="w-4 h-4 text-gray-600" />
                                   </button>
-                                  <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold text-sm group-hover:bg-purple-700 transition-colors flex items-center gap-2">
+                                  <div className="bg-teal-600 text-white px-4 py-2 rounded-lg font-semibold text-sm group-hover:bg-teal-700 transition-colors flex items-center gap-2">
                                     Rejoindre
                                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                   </div>
@@ -549,7 +549,7 @@ export default function GroupBuysCollaborativePage() {
             </div>
 
             {/* CTA Proposer - Plus compact */}
-            <div className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-5 text-white shadow-lg">
               <div className="flex items-start gap-3">
                 <Sparkles className="w-8 h-8 flex-shrink-0" />
                 <div>
@@ -561,7 +561,7 @@ export default function GroupBuysCollaborativePage() {
               </div>
               <Link
                 href="/produits"
-                className="block w-full bg-white text-purple-600 text-center py-2.5 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all"
+                className="block w-full bg-white text-teal-600 text-center py-2.5 rounded-xl font-bold text-sm hover:bg-gray-100 transition-all"
               >
                 Créer un groupe
               </Link>

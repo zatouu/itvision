@@ -110,24 +110,24 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
   }
 
   return (
-    <section className="relative bg-gradient-to-br from-white via-purple-50/20 to-blue-50/30 page-content pt-20 pb-12 mt-16 overflow-hidden">
+    <section className="relative bg-gradient-to-br from-white via-teal-50/20 to-cyan-50/30 page-content pt-20 pb-12 mt-16 overflow-hidden">
       {/* Effets décoratifs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-200/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-200/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-200/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-200/20 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-8 items-center">
           {/* Colonne gauche - Titre + Stats + Recherche */}
           <div>
-            <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-4">
+            <div className="inline-flex items-center gap-2 bg-teal-100 text-teal-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-4">
               <Sparkles className="h-4 w-4" />
               Catalogue Professionnel
             </div>
             
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 leading-tight">
-              Nos <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-emerald-600 bg-clip-text text-transparent">Produits</span>
+              Nos <span className="bg-gradient-to-r from-teal-600 via-cyan-600 to-emerald-600 bg-clip-text text-transparent">Produits</span>
             </h1>
             
             <p className="text-lg text-gray-600 mb-6">
@@ -146,9 +146,9 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
               
               <motion.div 
                 whileHover={{ scale: 1.05 }}
-                className="bg-white rounded-lg p-3 shadow-md border border-purple-100 text-center"
+                className="bg-white rounded-lg p-3 shadow-md border border-teal-100 text-center"
               >
-                <div className="text-2xl font-bold text-purple-600">{stats.activeGroupBuys}</div>
+                <div className="text-2xl font-bold text-teal-600">{stats.activeGroupBuys}</div>
                 <div className="text-xs text-gray-600">Groupes actifs</div>
               </motion.div>
               
@@ -176,11 +176,11 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
                 placeholder="Rechercher un produit, marque, référence..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-5 py-4 pr-12 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all shadow-sm text-gray-900 placeholder-gray-400"
+                className="w-full px-5 py-4 pr-12 rounded-xl border-2 border-gray-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-200 transition-all shadow-sm text-gray-900 placeholder-gray-400"
               />
               <button 
                 type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-2.5 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-2.5 rounded-lg hover:from-teal-700 hover:to-cyan-700 transition-all"
               >
                 <Search className="w-5 h-5" />
               </button>
@@ -188,8 +188,8 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
 
             {/* Filtres rapides */}
             <div className="flex flex-wrap gap-2">
-              <button className="px-4 py-2 bg-white border border-purple-200 rounded-lg text-sm font-medium text-gray-700 hover:border-purple-400 hover:bg-purple-50 transition-all flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-600" />
+              <button className="px-4 py-2 bg-white border border-teal-200 rounded-lg text-sm font-medium text-gray-700 hover:border-teal-400 hover:bg-teal-50 transition-all flex items-center gap-2">
+                <Users className="w-4 h-4 text-teal-600" />
                 Achats groupés
               </button>
               <button className="px-4 py-2 bg-white border border-emerald-200 rounded-lg text-sm font-medium text-gray-700 hover:border-emerald-400 hover:bg-emerald-50 transition-all flex items-center gap-2">
@@ -226,7 +226,7 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
                         className="absolute inset-0"
                       >
                         <Link href={`/achats-groupes/${group.groupId}`}>
-                          <div className="h-full bg-gradient-to-br from-purple-500 via-blue-500 to-indigo-600 rounded-2xl shadow-2xl p-6 text-white cursor-pointer hover:scale-[1.02] transition-transform">
+                          <div className="h-full bg-gradient-to-br from-teal-500 via-cyan-500 to-sky-600 rounded-2xl shadow-2xl p-6 text-white cursor-pointer hover:scale-[1.02] transition-transform">
                             {/* Header */}
                             <div className="flex items-start justify-between mb-4">
                               <div>
@@ -315,7 +315,7 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
                       onClick={() => setCurrentSlide(index)}
                       className={`h-2 rounded-full transition-all ${
                         index === currentSlide 
-                          ? 'w-8 bg-purple-600' 
+                          ? 'w-8 bg-teal-600' 
                           : 'w-2 bg-gray-300 hover:bg-gray-400'
                       }`}
                     />
@@ -329,7 +329,7 @@ export default function CatalogHeroSection({ onSearch }: { onSearch?: (term: str
                 <Link href="/achats-groupes" className="flex-1">
                   <motion.div 
                     whileHover={{ scale: 1.02, y: -3 }}
-                    className="h-full bg-gradient-to-br from-purple-500 via-purple-600 to-indigo-700 rounded-2xl p-5 text-white cursor-pointer shadow-xl relative overflow-hidden group"
+                    className="h-full bg-gradient-to-br from-teal-500 via-teal-600 to-sky-700 rounded-2xl p-5 text-white cursor-pointer shadow-xl relative overflow-hidden group"
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
                     <div className="relative z-10 h-full flex flex-col justify-between">

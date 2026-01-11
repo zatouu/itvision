@@ -157,10 +157,10 @@ function Notice({ type, message }: NoticeProps) {
     },
     tip: {
       icon: Lightbulb,
-      bg: 'bg-purple-50',
-      border: 'border-purple-200',
-      text: 'text-purple-700',
-      iconColor: 'text-purple-500'
+      bg: 'bg-teal-50',
+      border: 'border-teal-200',
+      text: 'text-teal-700',
+      iconColor: 'text-teal-500'
     }
   }
   

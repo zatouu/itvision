@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import ProductDetailExperience from '@/components/ProductDetailExperience'
+import { ProductLayoutAlibaba } from '@/components/product'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
@@ -65,8 +65,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      <main className="pt-[120px] bg-gradient-to-b from-gray-50 to-white">
-        <ProductDetailExperience product={detail} similar={similar} />
+      <main className="pt-[120px]">
+        <ProductLayoutAlibaba product={detail} similar={similar} />
       </main>
       <Footer />
     </div>

@@ -55,16 +55,16 @@ export default function ActiveGroupBuysSection() {
 
   if (loading) {
     return (
-      <section className="py-16 bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <section className="py-16 bg-gradient-to-br from-teal-50 via-white to-cyan-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <div className="inline-block mb-4">
-              <span className="bg-gradient-to-r from-purple-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
+              <span className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
                 🎯 Économies Collectives
               </span>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Achats Groupés <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">en Cours</span>
+              Achats Groupés <span className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">en Cours</span>
             </h2>
           </div>
           
@@ -119,17 +119,17 @@ export default function ActiveGroupBuysSection() {
   }
 
   return (
-    <section className="py-16 bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <section className="py-16 bg-gradient-to-br from-teal-50 via-white to-cyan-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-block mb-4">
-            <span className="bg-gradient-to-r from-purple-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+            <span className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
               🎯 Économies Collectives
             </span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Achats Groupés <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">en Cours</span>
+            Achats Groupés <span className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">en Cours</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Rejoignez des groupes d'achat pour bénéficier de prix dégressifs. Plus on est nombreux, plus on économise !
@@ -152,7 +152,7 @@ export default function ActiveGroupBuysSection() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Link href={`/achats-groupes/${group.groupId}`}>
-                  <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-purple-300 cursor-pointer h-full">
+                  <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-teal-300 cursor-pointer h-full">
                     {/* Badge économie - top right */}
                     {savings > 0 && (
                       <div className="absolute top-4 right-4 z-10">
@@ -194,14 +194,14 @@ export default function ActiveGroupBuysSection() {
                     {/* Contenu */}
                     <div className="p-5">
                       {/* Titre produit */}
-                      <h3 className="font-bold text-gray-900 text-lg mb-3 line-clamp-2 group-hover:text-purple-600 transition-colors min-h-[3.5rem]">
+                      <h3 className="font-bold text-gray-900 text-lg mb-3 line-clamp-2 group-hover:text-teal-600 transition-colors min-h-[3.5rem]">
                         {group.product.name}
                       </h3>
 
                       {/* Prix avec économie */}
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <div className="text-2xl font-bold text-purple-600">
+                          <div className="text-2xl font-bold text-teal-600">
                             {formatCurrency(group.currentUnitPrice, group.product.currency)}
                           </div>
                           {savings > 0 && (
@@ -222,7 +222,7 @@ export default function ActiveGroupBuysSection() {
                             <Users className="w-3 h-3" />
                             {group.currentQty}/{group.targetQty} unités
                           </span>
-                          <span className="font-bold text-purple-700">
+                          <span className="font-bold text-teal-700">
                             {Math.round(progress)}%
                           </span>
                         </div>
@@ -234,7 +234,7 @@ export default function ActiveGroupBuysSection() {
                             className={`absolute top-0 left-0 h-full rounded-full ${
                               isFilling
                                 ? 'bg-gradient-to-r from-orange-500 to-red-500'
-                                : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                                : 'bg-gradient-to-r from-teal-500 to-cyan-500'
                             }`}
                           />
                         </div>
@@ -243,7 +243,7 @@ export default function ActiveGroupBuysSection() {
                       {/* Participants et deadline */}
                       <div className="flex items-center justify-between text-xs text-gray-600 mb-4">
                         <div className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-purple-600" />
+                          <Users className="w-3.5 h-3.5 text-teal-600" />
                           <span>{group.participantsCount || 0} participant{(group.participantsCount || 0) > 1 ? 's' : ''}</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -255,7 +255,7 @@ export default function ActiveGroupBuysSection() {
                       {/* CTA */}
                       <button
                         type="button"
-                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 shadow-md hover:shadow-xl group-hover:scale-[1.02]"
+                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 shadow-md hover:shadow-xl group-hover:scale-[1.02]"
                       >
                         <Target className="w-4 h-4" />
                         Rejoindre le groupe
@@ -273,7 +273,7 @@ export default function ActiveGroupBuysSection() {
         <div className="text-center">
           <Link
             href="/achats-groupes"
-            className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-bold text-base transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
+            className="inline-flex items-center gap-3 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-8 py-4 rounded-xl font-bold text-base transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
           >
             <Users className="w-5 h-5" />
             <span>Voir tous les achats groupés</span>

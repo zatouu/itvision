@@ -286,7 +286,7 @@ export default function GroupBuyProposalModal({
           className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="relative bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6">
+          <div className="relative bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-6">
             <button
               onClick={onClose}
               className="absolute top-4 right-4 p-1 hover:bg-white/20 rounded-full transition-colors"
@@ -326,7 +326,7 @@ export default function GroupBuyProposalModal({
             {/* Check Auth */}
             {currentStep === 'check' && (
               <div className="flex flex-col items-center py-8">
-                <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+                <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
                 <p className="mt-4 text-gray-600">Vérification de votre session...</p>
               </div>
             )}
@@ -354,7 +354,7 @@ export default function GroupBuyProposalModal({
                       type="email"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                       placeholder="votre@email.com"
                       required
                     />
@@ -369,7 +369,7 @@ export default function GroupBuyProposalModal({
                       type={showLoginPassword ? 'text' : 'password'}
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                       placeholder="••••••••"
                       required
                     />
@@ -386,7 +386,7 @@ export default function GroupBuyProposalModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-xl hover:from-teal-700 hover:to-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Se connecter'}
                 </button>
@@ -397,7 +397,7 @@ export default function GroupBuyProposalModal({
                     <button
                       type="button"
                       onClick={() => { setCurrentStep('register'); setError(null) }}
-                      className="text-purple-600 font-semibold hover:underline"
+                      className="text-teal-600 font-semibold hover:underline"
                     >
                       Créer un compte
                     </button>
@@ -430,12 +430,12 @@ export default function GroupBuyProposalModal({
                         type="text"
                         value={registerName}
                         onChange={(e) => setRegisterName(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Prénom Nom"
-                        required
-                      />
-                    </div>
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="Prénom Nom"
+                      required
+                    />
                   </div>
+                </div>
 
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Téléphone</label>
@@ -445,7 +445,7 @@ export default function GroupBuyProposalModal({
                         type="tel"
                         value={registerPhone}
                         onChange={(e) => setRegisterPhone(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         placeholder="77 123 45 67"
                         required
                       />
@@ -498,7 +498,7 @@ export default function GroupBuyProposalModal({
                       type="password"
                       value={registerPasswordConfirm}
                       onChange={(e) => setRegisterPasswordConfirm(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                       placeholder="••••••••"
                       required
                     />
@@ -514,15 +514,15 @@ export default function GroupBuyProposalModal({
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={(e) => setAcceptTerms(e.target.checked)}
-                    className="mt-0.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                   />
                   <span className="text-xs text-gray-600">
                     J'accepte les{' '}
-                    <a href="/conditions" className="text-purple-600 hover:underline" target="_blank">
+                    <a href="/conditions" className="text-teal-600 hover:underline" target="_blank">
                       conditions d'utilisation
                     </a>{' '}
                     et la{' '}
-                    <a href="/confidentialite" className="text-purple-600 hover:underline" target="_blank">
+                    <a href="/confidentialite" className="text-teal-600 hover:underline" target="_blank">
                       politique de confidentialité
                     </a>
                   </span>
@@ -531,7 +531,7 @@ export default function GroupBuyProposalModal({
                 <button
                   type="submit"
                   disabled={loading || !acceptTerms}
-                  className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-xl hover:from-teal-700 hover:to-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Créer mon compte'}
                 </button>
@@ -540,7 +540,7 @@ export default function GroupBuyProposalModal({
                   <button
                     type="button"
                     onClick={() => { setCurrentStep('login'); setError(null) }}
-                    className="text-sm text-gray-600 hover:text-purple-600 flex items-center justify-center gap-1"
+                    className="text-sm text-gray-600 hover:text-teal-600 flex items-center justify-center gap-1"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Retour à la connexion
@@ -590,7 +590,7 @@ export default function GroupBuyProposalModal({
                       min="1"
                       value={desiredQty}
                       onChange={(e) => setDesiredQty(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="flex-1 text-center py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      className="flex-1 text-center py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     />
                     <button
                       type="button"
@@ -632,7 +632,7 @@ export default function GroupBuyProposalModal({
                     value={proposalMessage}
                     onChange={(e) => setProposalMessage(e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
                     placeholder="Expliquez pourquoi vous lancez cet achat groupé, vos délais souhaités..."
                   />
                 </div>
@@ -654,7 +654,7 @@ export default function GroupBuyProposalModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-xl hover:from-teal-700 hover:to-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -682,7 +682,7 @@ export default function GroupBuyProposalModal({
                 {proposalResult && (
                   <div className="p-4 bg-gray-50 rounded-xl mb-4">
                     <p className="text-sm text-gray-600">Référence de la proposition:</p>
-                    <p className="font-mono font-bold text-purple-600">{proposalResult.groupId}</p>
+                    <p className="font-mono font-bold text-teal-600">{proposalResult.groupId}</p>
                   </div>
                 )}
 
@@ -700,7 +700,7 @@ export default function GroupBuyProposalModal({
                     </button>
                     <a
                       href="/mon-compte/achats-groupes"
-                      className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 flex items-center justify-center gap-2"
                     >
                       Mes propositions
                       <ArrowRight className="w-4 h-4" />

@@ -139,7 +139,7 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
     switch (status) {
       case 'almost_full': return 'text-orange-600'
       case 'ending_soon': return 'text-red-600'
-      default: return 'text-purple-600'
+      default: return 'text-teal-600'
     }
   }
 
@@ -155,7 +155,7 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
     switch (status) {
       case 'almost_full': return 'from-orange-500 to-red-500'
       case 'ending_soon': return 'from-red-500 to-pink-500'
-      default: return 'from-purple-500 to-blue-500'
+      default: return 'from-teal-500 to-cyan-500'
     }
   }
 
@@ -182,10 +182,10 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 via-white to-blue-50 p-4 shadow-sm"
+          className="rounded-2xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 via-white to-cyan-50 p-4 shadow-sm"
         >
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center">
               <Users className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -208,7 +208,7 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
               >
                 <Link 
                   href={`/achats-groupes/${gb.id}`}
-                  className="block p-3 bg-white rounded-xl border border-purple-100 hover:border-purple-300 hover:shadow-md transition-all group"
+                  className="block p-3 bg-white rounded-xl border border-teal-100 hover:border-teal-300 hover:shadow-md transition-all group"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-bold flex items-center gap-1 ${getStatusColor(gb.status)}`}>
@@ -223,7 +223,7 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
                       Expire dans {formatTimeLeft(gb)}
                     </span>
                   </div>
-                  <p className="text-xs font-medium text-gray-800 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                  <p className="text-xs font-medium text-gray-800 line-clamp-2 group-hover:text-teal-600 transition-colors">
                     {gb.productName}
                   </p>
                   <div className="mt-2 flex items-center justify-between">
@@ -266,7 +266,7 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
 
           <Link 
             href="/achats-groupes"
-            className="mt-3 w-full inline-flex items-center justify-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700 py-2 hover:bg-purple-50 rounded-lg transition-colors"
+            className="mt-3 w-full inline-flex items-center justify-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700 py-2 hover:bg-teal-50 rounded-lg transition-colors"
           >
             Voir tous les achats groupés
             <ArrowRight className="w-3 h-3" />
@@ -383,8 +383,8 @@ export default function ProductSidebar({ currentProductId }: ProductSidebarProps
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-              <Wrench className="w-4 h-4 text-purple-600" />
+            <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+              <Wrench className="w-4 h-4 text-teal-600" />
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-800">Installation pro</p>

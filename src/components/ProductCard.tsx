@@ -255,7 +255,7 @@ export default function ProductCard({
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
           {groupBuyEnabled && (
-            <span className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
+            <span className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
               🎯 ACHAT GROUPÉ
             </span>
           )}
@@ -263,7 +263,7 @@ export default function ProductCard({
             <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">NOUVEAU</span>
           )}
           {isPopular && !showNewBadge && (
-            <span className="bg-purple-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
+            <span className="bg-teal-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
               <Star className="h-2.5 w-2.5 fill-white" />
               TOP VENTE
             </span>

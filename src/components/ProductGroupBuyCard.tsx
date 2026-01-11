@@ -88,12 +88,12 @@ export default function ProductGroupBuyCard({
     const isUrgent = progress >= 70
 
     return (
-      <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 rounded-xl border-2 border-purple-300 p-4 shadow-lg">
+      <div className="bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-50 rounded-xl border-2 border-teal-300 p-4 shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-purple-600" />
-            <h3 className="font-bold text-purple-900 text-sm">Achat Groupé Actif</h3>
+            <Users className="w-5 h-5 text-teal-600" />
+            <h3 className="font-bold text-teal-900 text-sm">Achat Groupé Actif</h3>
           </div>
           {savings > 0 && (
             <div className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
@@ -108,7 +108,7 @@ export default function ProductGroupBuyCard({
           <div className="flex items-baseline justify-between">
             <div>
               <div className="text-sm text-gray-600">Prix actuel</div>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-2xl font-bold text-teal-600">
                 {formatPrice(groupBuy.currentUnitPrice, groupBuy.product.currency)}
               </div>
             </div>
@@ -132,7 +132,7 @@ export default function ProductGroupBuyCard({
               <Users className="w-3 h-3" />
               {groupBuy.currentQty}/{groupBuy.targetQty} unités
             </span>
-            <span className="font-bold text-purple-700">
+            <span className="font-bold text-teal-700">
               {Math.round(progress)}%
             </span>
           </div>
@@ -141,7 +141,7 @@ export default function ProductGroupBuyCard({
               className={`h-full rounded-full transition-all ${
                 isUrgent 
                   ? 'bg-gradient-to-r from-orange-500 to-red-500' 
-                  : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                  : 'bg-gradient-to-r from-teal-500 to-cyan-500'
               }`}
               style={{ width: `${progress}%` }}
             />
@@ -188,7 +188,7 @@ export default function ProductGroupBuyCard({
         {/* CTA */}
         <Link
           href={`/achats-groupes/${groupBuy.groupId}`}
-          className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-center py-3 rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg"
+          className="block w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white text-center py-3 rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg"
         >
           <div className="flex items-center justify-center gap-2">
             <Target className="w-4 h-4" />
@@ -205,13 +205,13 @@ export default function ProductGroupBuyCard({
 
   // Si pas de groupe, proposition de créer
   return (
-    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-300 p-4 shadow-lg">
+    <div className="bg-gradient-to-br from-sky-50 to-teal-50 rounded-xl border-2 border-sky-300 p-4 shadow-lg">
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-          <Megaphone className="w-5 h-5 text-indigo-600" />
+        <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <Megaphone className="w-5 h-5 text-sky-600" />
         </div>
         <div>
-          <h4 className="font-bold text-indigo-900 text-sm">Pas de groupe actif</h4>
+          <h4 className="font-bold text-sky-900 text-sm">Pas de groupe actif</h4>
           <p className="text-xs text-gray-700 mt-1">
             Lancez un achat groupé et invitez d'autres acheteurs pour économiser ensemble
           </p>
@@ -221,7 +221,7 @@ export default function ProductGroupBuyCard({
       <button
         type="button"
         onClick={onPropose}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold text-sm transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-lg font-bold text-sm transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
       >
         <Users className="w-4 h-4" />
         Proposer un groupe
