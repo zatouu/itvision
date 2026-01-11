@@ -40,6 +40,16 @@ import { trackEvent } from '@/utils/analytics'
 import ProductSidebar from './ProductSidebar'
 import ProductGroupBuyCard from './ProductGroupBuyCard'
 import GroupBuyProposalModal from './GroupBuyProposalModal'
+// Composants immersifs (style 1688/AliExpress)
+import { 
+  ProductGalleryImmersive, 
+  ProductTabsImmersive,
+  type MediaItem,
+  type MediaReview,
+  type NewReviewData,
+  type SpecGroup,
+  type UsageScenario
+} from './product'
 // Note: Les informations de prix source ne sont pas exposées au client
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
@@ -236,6 +246,152 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
   const [installationError, setInstallationError] = useState<string | null>(null)
   const [installationSuccessId, setInstallationSuccessId] = useState<string | null>(null)
   const [showProposalModal, setShowProposalModal] = useState(false)
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ÉTATS POUR COMPOSANTS IMMERSIFS (style 1688/AliExpress)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const [useImmersiveView, setUseImmersiveView] = useState(true) // Toggle pour basculer entre versions
+  const [mediaReviews, setMediaReviews] = useState<MediaReview[]>([])
+  const [imageSearching, setImageSearching] = useState(false)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONVERSION DES DONNÉES POUR COMPOSANTS IMMERSIFS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Convertir gallery en MediaItem[] (avec support vidéo)
+  const galleryMedia = useMemo<MediaItem[]>(() => {
+    return gallery.map((url, idx) => {
+      // Détecter si c'est une vidéo par l'extension
+      const isVideo = /\.(mp4|webm|mov|avi)$/i.test(url)
+      return {
+        type: isVideo ? 'video' : 'image',
+        url,
+        thumbnail: isVideo ? undefined : url,
+        label: idx === 0 ? 'Photo principale' : `Photo ${idx + 1}`
+      }
+    })
+  }, [gallery])
+  
+  // Construire les spécifications (SpecGroup[])
+  const specGroups = useMemo<SpecGroup[]>(() => {
+    const groups: SpecGroup[] = []
+    
+    // Groupe dimensions/poids
+    const physicalSpecs: { label: string; value: string }[] = []
+    if (product.logistics.weightKg) {
+      physicalSpecs.push({ label: 'Poids net', value: `${product.logistics.weightKg} kg` })
+    }
+    if (product.logistics.packagingWeightKg) {
+      physicalSpecs.push({ label: 'Poids avec emballage', value: `${product.logistics.packagingWeightKg} kg` })
+    }
+    if (product.logistics.volumeM3) {
+      physicalSpecs.push({ label: 'Volume', value: `${product.logistics.volumeM3} m³` })
+    }
+    if (product.logistics.dimensions) {
+      physicalSpecs.push({ 
+        label: 'Dimensions', 
+        value: `${product.logistics.dimensions.lengthCm} × ${product.logistics.dimensions.widthCm} × ${product.logistics.dimensions.heightCm} cm` 
+      })
+    }
+    if (physicalSpecs.length > 0) {
+      groups.push({ name: 'Dimensions & Poids', specs: physicalSpecs })
+    }
+    
+    // Groupe options
+    if (product.colorOptions.length > 0 || product.variantOptions.length > 0) {
+      const optionSpecs: { label: string; value: string }[] = []
+      if (product.colorOptions.filter(Boolean).length > 0) {
+        optionSpecs.push({ label: 'Couleurs disponibles', value: product.colorOptions.filter(Boolean).join(', ') })
+      }
+      if (product.variantOptions.filter(Boolean).length > 0) {
+        optionSpecs.push({ label: 'Variantes', value: product.variantOptions.filter(Boolean).join(', ') })
+      }
+      if (optionSpecs.length > 0) {
+        groups.push({ name: 'Options', specs: optionSpecs })
+      }
+    }
+    
+    return groups
+  }, [product.logistics, product.colorOptions, product.variantOptions])
+  
+  // Construire les scénarios d'utilisation (exemples)
+  const usageScenarios = useMemo<UsageScenario[]>(() => {
+    // On peut enrichir cela avec des données produit si disponibles
+    return [
+      {
+        id: 'home',
+        title: 'Usage domestique',
+        description: 'Parfait pour les particuliers souhaitant améliorer leur équipement à domicile.',
+        icon: 'home',
+        image: product.image || '/file.svg',
+        features: ['Installation facile', 'Design adapté aux intérieurs', 'Utilisation intuitive']
+      },
+      {
+        id: 'business',
+        title: 'Usage professionnel',
+        description: 'Solution idéale pour les entreprises et commerces.',
+        icon: 'business',
+        image: product.image || '/file.svg',
+        features: ['Performance fiable', 'Support technique dédié', 'Garantie étendue']
+      }
+    ]
+  }, [product.image])
+  
+  // Convertir reviews pour le composant immersif
+  const immersiveReviews = useMemo<MediaReview[]>(() => {
+    if (mediaReviews.length > 0) return mediaReviews
+    // Convertir les reviews existantes si disponibles
+    return reviews.map(r => ({
+      id: r.id || String(Math.random()),
+      userId: r.userId || 'anonymous',
+      userName: r.userName || 'Client IT Vision',
+      rating: r.rating || 5,
+      comment: r.comment || r.text || '',
+      helpful: r.helpful || 0,
+      createdAt: r.createdAt || new Date().toISOString(),
+      verified: true
+    }))
+  }, [reviews, mediaReviews])
+  
+  // Handler pour recherche par image
+  const handleImageSearch = async (file: File) => {
+    setImageSearching(true)
+    try {
+      trackEvent('image_search_initiated', { productId: product.id, fileName: file.name })
+      // TODO: Appeler l'API de recherche par image
+      // const results = await fetch('/api/products/search-by-image', { method: 'POST', body: formData })
+      alert(`Recherche par image: ${file.name}\nCette fonctionnalité sera bientôt disponible !`)
+    } catch (error) {
+      console.error('Image search error:', error)
+    } finally {
+      setImageSearching(false)
+    }
+  }
+  
+  // Handler pour soumettre un avis avec médias
+  const handleSubmitReview = async (data: NewReviewData) => {
+    trackEvent('review_submitted', { productId: product.id, rating: data.rating, hasMedia: !!data.media?.length })
+    // TODO: Appeler l'API pour soumettre l'avis
+    const newReview: MediaReview = {
+      id: `review-${Date.now()}`,
+      userId: 'current-user',
+      userName: 'Vous',
+      rating: data.rating,
+      title: data.title,
+      comment: data.comment,
+      helpful: 0,
+      createdAt: new Date().toISOString(),
+      verified: false
+    }
+    setMediaReviews(prev => [newReview, ...prev])
+    // TODO: Upload des médias si présents
+  }
+  
+  // Handler pour marquer utile
+  const handleMarkHelpful = async (reviewId: string, helpful: boolean) => {
+    trackEvent('review_helpful', { reviewId, helpful })
+    // TODO: Appeler l'API
+  }
 
   const shippingEnabled = product.pricing.shippingOptions.length > 0 && product.availability.status !== 'in_stock'
 
@@ -862,63 +1018,85 @@ Merci de me recontacter.`
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 mb-12">
           {/* Galerie d'images - 5 colonnes */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
-              <button
-                type="button"
-                onClick={() => setShowImageModal(true)}
-                className="absolute inset-0 cursor-zoom-in"
-                aria-label="Agrandir l'image"
-              >
-                <Image
-                  src={gallery[activeImageIndex] || '/file.svg'}
-                  alt={product.name}
-                  fill
-                  className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
-                  priority
-                />
-                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg">
-                  <ZoomIn className="h-4 w-4" />
-                  <span>Cliquer pour agrandir</span>
-                </div>
-              </button>
-              {/* Badge disponibilité */}
-              <div className={clsx(
-                'absolute top-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm',
-                product.availability.status === 'in_stock'
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-amber-500 text-white'
-              )}>
-                <Clock className="h-3.5 w-3.5" />
-                {product.availability.label}
-              </div>
-            </div>
-            {/* Miniatures */}
-            {gallery.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {gallery.map((src, index) => (
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* GALERIE IMMERSIVE (style 1688/AliExpress)                       */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {useImmersiveView ? (
+              <ProductGalleryImmersive
+                media={galleryMedia}
+                productName={product.name}
+                availabilityBadge={{
+                  status: product.availability.status,
+                  label: product.availability.label
+                }}
+                selectedIndex={activeImageIndex}
+                onIndexChange={setActiveImageIndex}
+                onImageSearch={handleImageSearch}
+                showImageSearch={true}
+                className="mx-auto"
+              />
+            ) : (
+              /* Galerie classique (fallback) */
+              <>
+                <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
                   <button
-                    key={`${src}-${index}`}
                     type="button"
-                    onClick={() => setActiveImageIndex(index)}
-                    className={clsx(
-                      'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
-                      activeImageIndex === index
-                        ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
-                        : 'border-gray-200 hover:border-emerald-300'
-                    )}
-                    aria-label={`Image ${index + 1}`}
+                    onClick={() => setShowImageModal(true)}
+                    className="absolute inset-0 cursor-zoom-in"
+                    aria-label="Agrandir l'image"
                   >
                     <Image
-                      src={src}
-                      alt={`${product.name} ${index + 1}`}
+                      src={gallery[activeImageIndex] || '/file.svg'}
+                      alt={product.name}
                       fill
-                      className="object-cover rounded-lg"
-                      sizes="80px"
+                      className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
+                      priority
                     />
+                    <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg">
+                      <ZoomIn className="h-4 w-4" />
+                      <span>Cliquer pour agrandir</span>
+                    </div>
                   </button>
-                ))}
-              </div>
+                  {/* Badge disponibilité */}
+                  <div className={clsx(
+                    'absolute top-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm',
+                    product.availability.status === 'in_stock'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-amber-500 text-white'
+                  )}>
+                    <Clock className="h-3.5 w-3.5" />
+                    {product.availability.label}
+                  </div>
+                </div>
+                {/* Miniatures */}
+                {gallery.length > 1 && (
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {gallery.map((src, index) => (
+                      <button
+                        key={`${src}-${index}`}
+                        type="button"
+                        onClick={() => setActiveImageIndex(index)}
+                        className={clsx(
+                          'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
+                          activeImageIndex === index
+                            ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
+                            : 'border-gray-200 hover:border-emerald-300'
+                        )}
+                        aria-label={`Image ${index + 1}`}
+                      >
+                        <Image
+                          src={src}
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          className="object-cover rounded-lg"
+                          sizes="80px"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1541,205 +1719,235 @@ Merci de me recontacter.`
 
         {/* Onglets d'information */}
         <div className="mt-12">
-          <div className="flex flex-wrap gap-2 border-b border-gray-200 mb-6">
-            {(['description', 'features', 'logistics', 'support', 'reviews'] as InfoTab[]).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className={clsx(
-                  'px-6 py-3 text-sm font-semibold border-b-2 transition-colors',
-                  activeTab === tab
-                    ? 'border-emerald-500 text-emerald-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                )}
-              >
-                {tab === 'description' && 'Description'}
-                {tab === 'features' && 'Caractéristiques'}
-                {tab === 'logistics' && 'Logistique'}
-                {tab === 'support' && 'Garantie & SAV'}
-                {tab === 'reviews' && 'Avis clients'}
-              </button>
-            ))}
-          </div>
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* ONGLETS IMMERSIFS (style 1688/AliExpress)                       */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {useImmersiveView ? (
+            <ProductTabsImmersive
+              productId={product.id}
+              description={product.description}
+              features={product.features.filter(Boolean).length > 0 
+                ? product.features.filter(Boolean) 
+                : ['Qualité professionnelle import Chine', 'Installation & support IT Vision Dakar', 'Tarification optimisée selon le mode de transport']
+              }
+              specGroups={specGroups}
+              scenarios={usageScenarios}
+              richImages={gallery.slice(0, 5)}
+              reviews={immersiveReviews}
+              averageRating={averageRating}
+              totalReviews={immersiveReviews.length}
+              onLoadMoreReviews={async () => { /* TODO: pagination */ }}
+              onSubmitReview={handleSubmitReview}
+              onMarkHelpful={handleMarkHelpful}
+              canReview={true}
+              hasReviewed={false}
+              stickyTabs={true}
+              defaultTab="description"
+            />
+          ) : (
+            /* Onglets classiques (fallback) */
+            <>
+              <div className="flex flex-wrap gap-2 border-b border-gray-200 mb-6">
+                {(['description', 'features', 'logistics', 'support', 'reviews'] as InfoTab[]).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className={clsx(
+                      'px-6 py-3 text-sm font-semibold border-b-2 transition-colors',
+                      activeTab === tab
+                        ? 'border-emerald-500 text-emerald-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                    )}
+                  >
+                    {tab === 'description' && 'Description'}
+                    {tab === 'features' && 'Caractéristiques'}
+                    {tab === 'logistics' && 'Logistique'}
+                    {tab === 'support' && 'Garantie & SAV'}
+                    {tab === 'reviews' && 'Avis clients'}
+                  </button>
+                ))}
+              </div>
 
-          <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 sm:p-8">
-            <AnimatePresence mode="wait">
-              {activeTab === 'description' && (
-                <motion.div
-                  key="description"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="prose prose-emerald max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-800"
-                >
-                  {product.description ? (
-                    <div dangerouslySetInnerHTML={{ __html: product.description }} />
-                  ) : (
-                    <p className="text-gray-500 italic">
-                      Description détaillée disponible sur demande auprès de nos équipes sourcing.
-                    </p>
+              <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 sm:p-8">
+                <AnimatePresence mode="wait">
+                  {activeTab === 'description' && (
+                    <motion.div
+                      key="description"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="prose prose-emerald max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-800"
+                    >
+                      {product.description ? (
+                        <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                      ) : (
+                        <p className="text-gray-500 italic">
+                          Description détaillée disponible sur demande auprès de nos équipes sourcing.
+                        </p>
+                      )}
+                    </motion.div>
                   )}
-                </motion.div>
-              )}
 
-              {activeTab === 'features' && (
-                <motion.div
-                  key="features"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  <ul className="space-y-3">
-                    {(product.features.filter(Boolean).length > 0
-                      ? product.features.filter(Boolean)
-                      : ['Qualité professionnelle import Chine', 'Installation & support IT Vision Dakar', 'Tarification optimisée selon le mode de transport']
-                    ).map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )}
-
-              {activeTab === 'logistics' && (
-                <motion.div
-                  key="logistics"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-6"
-                >
-                  {logisticsEntries.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Spécifications techniques</h3>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {logisticsEntries.map((entry, index) => (
-                          <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{entry.label}</div>
-                            <div className="text-base font-semibold text-gray-900">{entry.value || '—'}</div>
-                          </div>
+                  {activeTab === 'features' && (
+                    <motion.div
+                      key="features"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      <ul className="space-y-3">
+                        {(product.features.filter(Boolean).length > 0
+                          ? product.features.filter(Boolean)
+                          : ['Qualité professionnelle import Chine', 'Installation & support IT Vision Dakar', 'Tarification optimisée selon le mode de transport']
+                        ).map((feature, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-gray-700">{feature}</span>
+                          </li>
                         ))}
-                      </div>
-                    </div>
+                      </ul>
+                    </motion.div>
                   )}
-                  {logisticsEntries.length === 0 && (
-                    <p className="text-gray-600 text-center py-8">Informations logistiques détaillées disponibles sur demande.</p>
-                  )}
-                </motion.div>
-              )}
 
-              {activeTab === 'support' && (
-                <motion.div
-                  key="support"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  <ul className="space-y-3">
-                    {[
-                      'Garantie constructeur 12 mois (extensions possibles)',
-                      'Assistance IT Vision 7j/7 sur Dakar & Sénégal',
-                      'Maintenance préventive et curative disponible',
-                      'Support import dédié & livraison sécurisée'
-                    ].map((item, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )}
-
-              {activeTab === 'reviews' && (
-                <motion.div
-                  key="reviews"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  {reviewsLoading ? (
-                    <div className="text-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto" />
-                    </div>
-                  ) : reviews.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-gray-600">Aucun avis pour le moment.</p>
-                      <p className="text-sm text-gray-500 mt-2">Soyez le premier à laisser un avis !</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
-                        <div className="text-center">
-                          <div className="text-5xl font-bold text-emerald-600">{averageRating.toFixed(1)}</div>
-                          <div className="flex items-center justify-center gap-1 mt-2">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={clsx(
-                                  'h-5 w-5',
-                                  star <= Math.round(averageRating)
-                                    ? 'text-yellow-400 fill-yellow-400'
-                                    : 'text-gray-300'
-                                )}
-                              />
+                  {activeTab === 'logistics' && (
+                    <motion.div
+                      key="logistics"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-6"
+                    >
+                      {logisticsEntries.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4">Spécifications techniques</h3>
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {logisticsEntries.map((entry, index) => (
+                              <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{entry.label}</div>
+                                <div className="text-base font-semibold text-gray-900">{entry.value || '—'}</div>
+                              </div>
                             ))}
                           </div>
-                          <div className="text-sm text-gray-500 mt-2">{reviews.length} avis</div>
                         </div>
-                      </div>
-                      <div className="space-y-4">
-                        {reviews.map((review) => (
-                          <div key={review.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
-                                  {review.userName.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-gray-900">{review.userName}</span>
-                                    {review.verified && (
-                                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
-                                        Vérifié
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                      <Star
-                                        key={star}
-                                        className={clsx(
-                                          'h-3 w-3',
-                                          star <= review.rating
-                                            ? 'text-yellow-400 fill-yellow-400'
-                                            : 'text-gray-300'
-                                        )}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                              <span className="text-xs text-gray-500">
-                                {new Date(review.createdAt).toLocaleDateString('fr-FR')}
-                              </span>
-                            </div>
-                            {review.title && (
-                              <h4 className="text-base font-semibold text-gray-900 mb-2">{review.title}</h4>
-                            )}
-                            <p className="text-gray-700 leading-relaxed">{review.comment}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                      )}
+                      {logisticsEntries.length === 0 && (
+                        <p className="text-gray-600 text-center py-8">Informations logistiques détaillées disponibles sur demande.</p>
+                      )}
+                    </motion.div>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+
+                  {activeTab === 'support' && (
+                    <motion.div
+                      key="support"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      <ul className="space-y-3">
+                        {[
+                          'Garantie constructeur 12 mois (extensions possibles)',
+                          'Assistance IT Vision 7j/7 sur Dakar & Sénégal',
+                          'Maintenance préventive et curative disponible',
+                          'Support import dédié & livraison sécurisée'
+                        ].map((item, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-gray-700">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'reviews' && (
+                    <motion.div
+                      key="reviews"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      {reviewsLoading ? (
+                        <div className="text-center py-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto" />
+                        </div>
+                      ) : reviews.length === 0 ? (
+                        <div className="text-center py-12">
+                          <p className="text-gray-600">Aucun avis pour le moment.</p>
+                          <p className="text-sm text-gray-500 mt-2">Soyez le premier à laisser un avis !</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
+                            <div className="text-center">
+                              <div className="text-5xl font-bold text-emerald-600">{averageRating.toFixed(1)}</div>
+                              <div className="flex items-center justify-center gap-1 mt-2">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={clsx(
+                                      'h-5 w-5',
+                                      star <= Math.round(averageRating)
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-gray-300'
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                              <div className="text-sm text-gray-500 mt-2">{reviews.length} avis</div>
+                            </div>
+                          </div>
+                          <div className="space-y-4">
+                            {reviews.map((review) => (
+                              <div key={review.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
+                                      {review.userName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-gray-900">{review.userName}</span>
+                                        {review.verified && (
+                                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                                            Vérifié
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1 mt-1">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                          <Star
+                                            key={star}
+                                            className={clsx(
+                                              'h-3 w-3',
+                                              star <= review.rating
+                                                ? 'text-yellow-400 fill-yellow-400'
+                                                : 'text-gray-300'
+                                            )}
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(review.createdAt).toLocaleDateString('fr-FR')}
+                                  </span>
+                                </div>
+                                {review.title && (
+                                  <h4 className="text-base font-semibold text-gray-900 mb-2">{review.title}</h4>
+                                )}
+                                <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Produits similaires */}
