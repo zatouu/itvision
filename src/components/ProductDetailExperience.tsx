@@ -402,6 +402,8 @@ Merci de me recontacter.`
             // ajouter poids/volume si disponible (product level, pas variant level)
             exists.unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
             exists.unitVolumeM3 = product.logistics.volumeM3 ?? undefined
+            // mettre à jour demande d'installation (priorise le "oui")
+            exists.wantsInstallation = exists.wantsInstallation || wantsInstallation
           } else {
             const newItem: any = {
               id: vId,
@@ -410,7 +412,8 @@ Merci de me recontacter.`
               price: priceWithFeesVariant,
               currency,
               requiresQuote: !!product.requiresQuote,
-              variantId
+              variantId,
+              image: variant.image || product.image || (product.gallery?.[0]) || null
             }
             if (activeShipping) newItem.shipping = {
               id: activeShipping.id,
@@ -428,6 +431,8 @@ Merci de me recontacter.`
             // ajouter poids/volume unitaire (product level, pas variant level)
             newItem.unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
             newItem.unitVolumeM3 = product.logistics.volumeM3 ?? undefined
+            // ajouter demande d'installation
+            newItem.wantsInstallation = wantsInstallation
             items.push(newItem)
           }
         }
@@ -443,6 +448,8 @@ Merci de me recontacter.`
           // Stocker le prix avec frais déjà inclus (sourcing + service + assurance, hors transport)
           items[existsIndex].price = priceWithFees
           items[existsIndex].currency = currency
+          // mettre à jour demande d'installation (priorise le "oui")
+          items[existsIndex].wantsInstallation = items[existsIndex].wantsInstallation || wantsInstallation
           if (activeShipping) {
             items[existsIndex].shipping = {
               id: activeShipping.id,
@@ -461,6 +468,7 @@ Merci de me recontacter.`
             price: priceWithFees,
             currency,
             requiresQuote: !!product.requiresQuote,
+            image: product.image || (product.gallery?.[0]) || null,
             shipping: activeShipping ? {
               id: activeShipping.id,
               label: activeShipping.label,
@@ -480,6 +488,8 @@ Merci de me recontacter.`
           // ajouter poids/volume unitaire
           items[lastIndex].unitWeightKg = product.weights?.netWeightKg ?? product.logistics.weightKg ?? undefined
           items[lastIndex].unitVolumeM3 = product.logistics.volumeM3 ?? undefined
+          // ajouter demande d'installation
+          items[lastIndex].wantsInstallation = wantsInstallation
         }
       }
 

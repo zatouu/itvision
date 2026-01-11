@@ -31,9 +31,19 @@ export async function GET(
           orderId: order.orderId,
           clientName: order.clientName,
           clientPhone: order.clientPhone,
+          clientEmail: order.clientEmail,
           items: order.items,
           subtotal: order.subtotal,
-          shipping: order.shipping,
+          shipping: {
+            method: order.shipping?.method,
+            cost: order.shipping?.totalCost || 0,
+            estimatedDays: order.shipping?.method === 'express_3j' ? 3 : 
+                           order.shipping?.method === 'air_15j' ? 15 : 
+                           order.shipping?.method === 'maritime_60j' ? 60 : undefined
+          },
+          serviceFees: order.serviceFees,
+          insurance: order.insurance,
+          installation: order.installation,
           total: order.total,
           status: order.status,
           paymentStatus: order.paymentStatus,

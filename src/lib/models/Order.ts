@@ -8,6 +8,8 @@ export interface IOrderItem {
   price: number // Prix avec frais inclus
   currency: string
   requiresQuote?: boolean
+  wantsInstallation?: boolean
+  image?: string
   shipping?: {
     id: string
     label: string
@@ -15,6 +17,10 @@ export interface IOrderItem {
     cost: number
     currency: string
   }
+}
+
+export interface IInstallation {
+  requested: boolean
 }
 
 export interface IOrderShipping {
@@ -35,6 +41,9 @@ export interface IOrder extends Document {
   items: IOrderItem[]
   subtotal: number // Produits avec frais inclus
   shipping: IOrderShipping
+  installation?: IInstallation
+  serviceFees?: number
+  insurance?: number
   total: number // Subtotal + transport
   
   address: {
@@ -71,6 +80,8 @@ const OrderItemSchema = new Schema<IOrderItem>({
   price: { type: Number, required: true },
   currency: { type: String, default: 'FCFA' },
   requiresQuote: { type: Boolean, default: false },
+  wantsInstallation: { type: Boolean, default: false },
+  image: { type: String },
   shipping: {
     id: { type: String },
     label: { type: String },
@@ -98,6 +109,11 @@ const OrderSchema = new Schema<IOrder>({
   items: [OrderItemSchema],
   subtotal: { type: Number, required: true },
   shipping: { type: OrderShippingSchema, required: true },
+  installation: {
+    requested: { type: Boolean, default: false }
+  },
+  serviceFees: { type: Number },
+  insurance: { type: Number },
   total: { type: Number, required: true },
   
   address: {

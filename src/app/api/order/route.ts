@@ -126,8 +126,15 @@ export async function POST(req: NextRequest) {
         price: item.price,
         currency: item.currency || 'FCFA',
         requiresQuote: item.requiresQuote,
-        shipping: item.shipping
+        shipping: item.shipping,
+        wantsInstallation: item.wantsInstallation || false,
+        image: item.image
       })),
+      
+      // Installation globale si au moins un item demande l'installation
+      installation: {
+        requested: cart.some((item: any) => item.wantsInstallation)
+      },
       
       subtotal,
       shipping: {
