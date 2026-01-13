@@ -243,11 +243,21 @@ export default function ProductDetailSidebar({
       x: rect.left + rect.width / 2, 
       y: rect.top + rect.height / 2 
     })
+    // Ne pas ouvrir le zoom au hover, seulement au clic
+  }, [])
+
+  const handleImageClick = useCallback((e: React.MouseEvent, imageUrl: string) => {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    setImageZoomPosition({ 
+      x: rect.left + rect.width / 2, 
+      y: rect.top + rect.height / 2 
+    })
     setHoveredVariantImage(imageUrl)
   }, [])
 
   const handleImageLeave = useCallback(() => {
-    setHoveredVariantImage(null)
+    // Ne rien faire au leave - le zoom se ferme uniquement au clic
     setImageZoomPosition(null)
   }, [])
 
@@ -615,7 +625,7 @@ Merci de me recontacter.`
                           <button
                             type="button"
                             onClick={(e) => {
-                              handleImageHover(e, variant.image!)
+                              handleImageClick(e, variant.image!)
                             }}
                             onMouseEnter={(e) => handleImageHover(e, variant.image!)}
                             onMouseLeave={handleImageLeave}

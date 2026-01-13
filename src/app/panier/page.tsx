@@ -129,13 +129,17 @@ export default function PanierPage() {
       totalVolume += v * qty
     }
 
+    // Minimum 1kg pour le poids, 0.01m³ pour le volume
+    const effectiveWeight = Math.max(totalWeight, 1)
+    const effectiveVolume = Math.max(totalVolume, 0.01)
+
     if (shippingMethod === 'sea') {
       const rate = SHIPPING_RATES.sea.ratePerM3
-      return Math.round((totalVolume || 0) * rate)
+      return Math.round(effectiveVolume * rate)
     }
 
     const ratePerKg = shippingMethod === 'express' ? SHIPPING_RATES.express.ratePerKg : SHIPPING_RATES.air.ratePerKg
-    return Math.round((totalWeight || 0) * ratePerKg)
+    return Math.round(effectiveWeight * ratePerKg)
   }, [items, shippingMethod])
 
   const weightSummary = useMemo(() => {
