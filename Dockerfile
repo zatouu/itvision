@@ -8,6 +8,9 @@ RUN apk add --no-cache libc6-compat
 FROM base AS deps
 WORKDIR /app
 
+# Argument pour invalider le cache (passé par le workflow)
+ARG CACHEBUST=1
+
 # Copie des fichiers de dépendances
 COPY package.json package-lock.json* ./
 
