@@ -122,7 +122,7 @@ const resolveOverrideRate = (
 export const computeProductPricing = (product: Partial<IProduct>): ProductPricingSummary => {
   const currency = product.currency || DEFAULT_CURRENCY
   const baseCost = typeof product.baseCost === 'number' ? product.baseCost : null
-  const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 25
+  const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 0  // Défaut 0%
 
   // Utiliser les valeurs par défaut centralisées.
   // NOTE: les réglages admin (fichiers ou DB) doivent être injectés côté serveur

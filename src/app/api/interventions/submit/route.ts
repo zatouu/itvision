@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
             name: rec.produit,
             quantity: rec.quantite || 1,
             unitPrice: productData?.price || productData?.priceAmount || 0,
-            marginRate: productData?.marginRate || 30,
+            marginRate: productData?.marginRate ?? 0,  // Utiliser la marge définie (défaut 0%)
             totalPrice: (productData?.price || productData?.priceAmount || 0) * (rec.quantite || 1),
             commentaire: rec.commentaire
           }

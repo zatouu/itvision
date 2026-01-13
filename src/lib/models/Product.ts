@@ -30,8 +30,8 @@ export interface IProduct extends Document {
   description?: string
   tagline?: string
   price?: number
-  baseCost?: number
-  marginRate?: number
+  baseCost?: number                    // Coût fournisseur en FCFA
+  marginRate?: number                  // Marge commerciale (0% par défaut, ajustable manuellement)
   currency?: string
   image?: string
   gallery?: string[]
@@ -78,6 +78,9 @@ export interface IProduct extends Document {
     ratePerM3?: number
     flatFee?: number
   }>
+  // TensorFlow.js Image Search
+  imageEmbedding?: number[]      // Vecteur de features MobileNet (1280 dimensions)
+  embeddingUpdatedAt?: Date      // Date de dernière mise à jour de l'embedding
   createdAt: Date
   updatedAt: Date
 }
@@ -89,7 +92,7 @@ const ProductSchema = new Schema<IProduct>({
   tagline: { type: String },
   price: { type: Number },
   baseCost: { type: Number },
-  marginRate: { type: Number, default: 25 },
+  marginRate: { type: Number, default: 0 },  // Marge commerciale par défaut à 0%
   currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
   image: { type: String },
   gallery: { type: [String], default: [] },
@@ -161,7 +164,14 @@ const ProductSchema = new Schema<IProduct>({
       flatFee: { type: Number }
     }, { _id: false })],
     default: []
-  }
+  },
+  // TensorFlow.js Image Search
+  imageEmbedding: {
+    type: [Number],
+    default: undefined,
+    index: false, // Les embeddings ne sont pas indexés par défaut (trop grands)
+  },
+  embeddingUpdatedAt: { type: Date }
 }, { timestamps: true })
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
