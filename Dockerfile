@@ -15,7 +15,7 @@ ARG CACHEBUST=1
 COPY package.json package-lock.json* ./
 
 # Installation des dépendances (inclure dev pour le build)
-RUN npm ci && npm cache clean --force
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # Étape 2: Build de l'application
 FROM base AS builder
