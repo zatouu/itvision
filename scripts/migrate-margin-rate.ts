@@ -15,7 +15,7 @@
  *   --keep-custom : Ne modifie que les produits avec marge = 25% (recommandé)
  */
 
-import { connectDB } from '../src/lib/db/mongodb'
+import { connectDB } from '../src/lib/db'
 import Product from '../src/lib/models/Product'
 
 interface MigrationStats {
@@ -75,7 +75,7 @@ async function migrateMarginRates(options: {
     console.log(`   - Produits sans marge définie: ${stats.productsWithoutMargin}`)
     
     stats.productsWithCustomMargin = await Product.countDocuments({
-      marginRate: { $exists: true, $ne: null, $ne: 25 }
+      marginRate: { $exists: true, $nin: [null, 25] }
     })
     console.log(`   - Produits avec marge personnalisée: ${stats.productsWithCustomMargin}`)
     console.log()

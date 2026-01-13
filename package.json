@@ -30,14 +30,12 @@
     "reinit:mongodb": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < docker/mongodb/init.js",
     "reinit:mongodb:safe": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < scripts/reinit-mongodb-safe.js",
     "import:aliexpress": "tsx scripts/import-aliexpress.ts",
-    "generate:embeddings": "tsx scripts/generate-embeddings.ts",
     "migrate:margin": "tsx scripts/migrate-margin-rate.ts --keep-custom",
     "migrate:margin:dry": "tsx scripts/migrate-margin-rate.ts --dry-run"
   },
   "dependencies": {
     "@next/font": "^14.2.15",
     "@prisma/client": "^6.15.0",
-    "@tensorflow/tfjs": "^4.22.0",
     "@tiptap/extension-placeholder": "^3.14.0",
     "@tiptap/extension-underline": "^3.14.0",
     "@tiptap/pm": "^3.14.0",
@@ -74,7 +72,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@tensorflow/tfjs-node": "^4.22.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

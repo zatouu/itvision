@@ -24,6 +24,8 @@ import {
   Minus,
   Plus,
   Scale,
+  ZoomIn,
+  CheckCircle,
   X,
 } from 'lucide-react'
 import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './ProductDetailExperience'
