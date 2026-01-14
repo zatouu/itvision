@@ -43,6 +43,11 @@ interface ApiProduct {
   createdAt?: string
   isFeatured?: boolean
   isImported?: boolean // Indicateur si produit importé (sans exposer les détails)
+  // Achat groupé
+  groupBuyEnabled?: boolean
+  groupBuyBestPrice?: number
+  groupBuyDiscount?: number
+  priceTiers?: Array<{ minQty: number; price: number; discount?: number }>
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -1439,6 +1444,9 @@ export default function ProduitsPage() {
                                 onCompareToggle={handleCompareToggle}
                                 isComparing={comparingProducts.has(product.id || product._id || '')}
                                 isImported={product.isImported}
+                                groupBuyEnabled={product.groupBuyEnabled}
+                                groupBuyBestPrice={product.groupBuyBestPrice}
+                                groupBuyDiscount={product.groupBuyDiscount}
                               />
                             ))}
                           </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Star, ShoppingCart, Plane, Ship, Clock, Heart } from 'lucide-react'
+import { Star, ShoppingCart, Plane, Ship, Clock, Heart, Users } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -35,6 +35,10 @@ export interface ProductCardProps {
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
   isImported?: boolean // Produit importé (sans exposer les détails source)
+  // Achat groupé
+  groupBuyEnabled?: boolean
+  groupBuyBestPrice?: number // Meilleur prix possible en achat groupé
+  groupBuyDiscount?: number // Pourcentage d'économie max
 }
 
 const PATH_SEPARATOR = '/'
@@ -64,7 +68,10 @@ export default function ProductCard({
   createdAt,
   onCompareToggle,
   isComparing = false,
-  isImported = false
+  isImported = false,
+  groupBuyEnabled = false,
+  groupBuyBestPrice,
+  groupBuyDiscount
 }: ProductCardProps) {
   const isRecentlyNew = createdAt 
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
@@ -261,13 +268,19 @@ export default function ProductCard({
               TOP VENTE
             </span>
           )}
+          {groupBuyEnabled && (
+            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
+              <Users className="h-2.5 w-2.5" />
+              ACHAT GROUPÉ {groupBuyDiscount ? `-${groupBuyDiscount}%` : ''}
+            </span>
+          )}
           {isImported && !isInStock && (
             <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">IMPORT</span>
           )}
           {isInStock && (
             <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">EN STOCK DAKAR</span>
           )}
-          {!isInStock && !showNewBadge && !isImported && !isPopular && (
+          {!isInStock && !showNewBadge && !isImported && !isPopular && !groupBuyEnabled && (
             <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">SUR COMMANDE</span>
           )}
         </div>

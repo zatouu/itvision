@@ -1918,7 +1918,29 @@ export default function AdminProductManager() {
               <input
                 type="checkbox"
                 checked={!!editing.groupBuyEnabled}
-                onChange={e => setEditing({ ...editing, groupBuyEnabled: e.target.checked })}
+                onChange={e => {
+                  const enabled = e.target.checked
+                  if (enabled && (!editing.priceTiers || editing.priceTiers.length === 0)) {
+                    // Générer automatiquement les paliers de prix
+                    const basePrice = editing.price || editing.baseCost || 50000
+                    const autoTiers = [
+                      { minQty: 5, maxQty: 9, price: Math.round(basePrice * 0.95), discount: 5 },
+                      { minQty: 10, maxQty: 24, price: Math.round(basePrice * 0.90), discount: 10 },
+                      { minQty: 25, maxQty: 49, price: Math.round(basePrice * 0.85), discount: 15 },
+                      { minQty: 50, maxQty: 99, price: Math.round(basePrice * 0.80), discount: 20 },
+                      { minQty: 100, price: Math.round(basePrice * 0.75), discount: 25 },
+                    ]
+                    setEditing({ 
+                      ...editing, 
+                      groupBuyEnabled: true,
+                      groupBuyMinQty: editing.groupBuyMinQty || 10,
+                      groupBuyTargetQty: editing.groupBuyTargetQty || 50,
+                      priceTiers: autoTiers
+                    })
+                  } else {
+                    setEditing({ ...editing, groupBuyEnabled: enabled })
+                  }
+                }}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
