@@ -34,6 +34,7 @@
     "migrate:margin:dry": "tsx scripts/migrate-margin-rate.ts --dry-run"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@next/font": "^14.2.15",
     "@prisma/client": "^6.15.0",
     "@tiptap/extension-placeholder": "^3.14.0",
@@ -75,6 +76,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "prisma": "^6.17.0",
