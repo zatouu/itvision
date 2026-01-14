@@ -43,6 +43,11 @@ interface ApiProduct {
   createdAt?: string
   isFeatured?: boolean
   isImported?: boolean // Indicateur si produit importé (sans exposer les détails)
+  // Données physiques utilisées pour le calcul du transport (si disponibles)
+  weightKg?: number
+  grossWeightKg?: number
+  netWeightKg?: number
+  volumeM3?: number
   // Achat groupé
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number
