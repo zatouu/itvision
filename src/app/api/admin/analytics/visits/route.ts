@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
       topPages,
       visitsByDay,
       visitsByDevice,
-      visitsByBrowser
+      visitsByBrowser,
+      visitsByOS,
+      topReferrers,
+      recentVisits
     ] = await Promise.all([
       // Total visites
       PageVisit.countDocuments({ visitedAt: { $gte: startDate } }),
@@ -100,7 +103,29 @@ export async function GET(request: NextRequest) {
         { $group: { _id: '$browser', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 5 }
-      ])
+      ]),
+
+      // Visites par OS
+      PageVisit.aggregate([
+        { $match: { visitedAt: { $gte: startDate }, os: { $exists: true } } },
+        { $group: { _id: '$os', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+      ]),
+
+      // Principales origines (referrers)
+      PageVisit.aggregate([
+        { $match: { visitedAt: { $gte: startDate }, referrer: { $exists: true, $ne: '' } } },
+        { $group: { _id: '$referrer', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ]),
+
+      // Dernières visites détaillées (pour IP, rôle, device, etc.)
+      PageVisit.find({ visitedAt: { $gte: startDate } })
+        .sort({ visitedAt: -1 })
+        .limit(50)
+        .select('path pageName pageType ipAddress userRole isAuthenticated deviceType browser os referrer visitedAt')
     ])
 
     // Statistiques de la période précédente (pour comparaison)
@@ -143,6 +168,28 @@ export async function GET(request: NextRequest) {
         visitsByBrowser: visitsByBrowser.map((item: any) => ({
           browser: item._id,
           count: item.count
+        })),
+        visitsByOS: visitsByOS.map((item: any) => ({
+          os: item._id,
+          count: item.count
+        })),
+        topReferrers: topReferrers.map((item: any) => ({
+          referrer: item._id,
+          count: item.count
+        })),
+        recentVisits: recentVisits.map((visit: any) => ({
+          id: String(visit._id),
+          path: visit.path,
+          pageName: visit.pageName,
+          pageType: visit.pageType,
+          ipAddress: visit.ipAddress || 'inconnue',
+          userRole: visit.userRole || 'Anonyme',
+          isAuthenticated: !!visit.isAuthenticated,
+          deviceType: visit.deviceType,
+          browser: visit.browser,
+          os: visit.os,
+          referrer: visit.referrer,
+          visitedAt: visit.visitedAt
         }))
       }
     })
