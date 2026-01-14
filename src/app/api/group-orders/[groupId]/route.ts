@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
+import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
 import { 
   notifyGroupJoinConfirmation, 
   notifyNewParticipant, 
@@ -57,10 +58,17 @@ export async function POST(
     
     const body = await req.json()
     const { name, phone, email, qty } = body
-    
+
     if (!name || !phone || !qty || qty < 1) {
       return NextResponse.json(
         { success: false, error: 'Données manquantes: name, phone, qty requis' },
+        { status: 400 }
+      )
+    }
+
+    if (!validateSenegalPhone(phone)) {
+      return NextResponse.json(
+        { success: false, error: 'Numéro de téléphone sénégalais invalide' },
         { status: 400 }
       )
     }
@@ -88,16 +96,20 @@ export async function POST(
         { status: 400 }
       )
     }
-    
-    // Vérifier si déjà participant (par téléphone)
-    const existingParticipant = group.participants.find((p: any) => p.phone === phone)
+
+    const normalizedPhone = formatSenegalPhone(phone)
+
+    // Vérifier si déjà participant (par téléphone, normalisé)
+    const existingParticipant = group.participants.find(
+      (p: any) => formatSenegalPhone(p.phone) === normalizedPhone
+    )
     if (existingParticipant) {
       return NextResponse.json(
         { success: false, error: 'Vous participez déjà à cet achat groupé' },
         { status: 400 }
       )
     }
-    
+
     // Vérifier max participants
     if (group.maxParticipants && group.participants.length >= group.maxParticipants) {
       return NextResponse.json(
@@ -107,6 +119,7 @@ export async function POST(
     }
     
     // Calculer nouveau prix avec la quantité ajoutée
+    const previousUnitPrice = group.currentUnitPrice
     const newTotalQty = group.currentQty + qty
     let newUnitPrice = group.product.basePrice
     
@@ -120,10 +133,10 @@ export async function POST(
       }
     }
     
-    // Ajouter le participant
+    // Ajouter le participant (téléphone déjà normalisé)
     group.participants.push({
       name,
-      phone,
+      phone: normalizedPhone,
       email,
       qty,
       unitPrice: newUnitPrice,
@@ -137,7 +150,7 @@ export async function POST(
     group.currentUnitPrice = newUnitPrice
     
     // Mettre à jour les prix de tous les participants si le prix a changé
-    if (newUnitPrice !== group.currentUnitPrice) {
+    if (newUnitPrice !== previousUnitPrice) {
       group.participants.forEach((p: any) => {
         p.unitPrice = newUnitPrice
         p.totalAmount = p.qty * newUnitPrice
@@ -163,14 +176,14 @@ export async function POST(
         deadline: group.deadline
       }
       
-      const newParticipantData = { name, phone, email, qty, unitPrice: newUnitPrice, totalAmount: qty * newUnitPrice }
+      const newParticipantData = { name, phone: normalizedPhone, email, qty, unitPrice: newUnitPrice, totalAmount: qty * newUnitPrice }
       
       // 1. Confirmation au nouveau participant
       await notifyGroupJoinConfirmation(newParticipantData, groupData)
       
       // 2. Notifier les autres participants
       const otherParticipants = group.participants
-        .filter((p: any) => p.phone !== phone)
+        .filter((p: any) => p.phone !== normalizedPhone)
         .map((p: any) => ({ name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount }))
       
       if (otherParticipants.length > 0) {
@@ -235,7 +248,10 @@ export async function PATCH(
     if (body.participantPhone && body.paymentUpdate) {
       const group = await GroupOrder.findOne({ groupId })
       if (group) {
-        const participant = group.participants.find((p: any) => p.phone === body.participantPhone)
+        const formattedPhone = formatSenegalPhone(body.participantPhone)
+        const participant = group.participants.find(
+          (p: any) => formatSenegalPhone(p.phone) === formattedPhone
+        )
         if (participant) {
           if (body.paymentUpdate.paidAmount !== undefined) {
             participant.paidAmount = body.paymentUpdate.paidAmount

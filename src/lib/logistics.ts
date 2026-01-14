@@ -69,7 +69,7 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Livraison express porte-à-porte',
     durationDays: 3,
     billing: 'per_kg',
-    rate: 12000, // 12 000 CFA/kg
+    rate: 8000, // 8 000 CFA/kg
     minimumCharge: 20000
   },
   air_15: {
@@ -78,7 +78,7 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Fret aérien économique',
     durationDays: 15,
     billing: 'per_kg',
-    rate: 8000, // 8 000 CFA/kg
+    rate: 12000, // 12 000 CFA/kg
     minimumCharge: 15000
   },
   sea_freight: {
@@ -87,8 +87,8 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Groupage maritime économique',
     durationDays: 60,
     billing: 'per_cubic_meter',
-    rate: 140000, // 140 000 CFA/m³
-    minimumCharge: 140000
+    rate: 170000, // 170 000 CFA/m³
+    minimumCharge: 170000
   }
 }
 

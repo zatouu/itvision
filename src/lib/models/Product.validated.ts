@@ -131,6 +131,32 @@ const calculateVolume = function(this: IProduct) {
   }
 }
 
+// Validation renforcée pour les produits d'import (Chine)
+// Objectif: garantir que les produits import disposent
+// d'un poids et d'un volume cohérents pour le calcul transport
+const validateImportLogistics = function(this: IProduct) {
+  const platform = this.sourcing?.platform
+
+  // Même logique que le reste du code: produit considéré comme importé
+  // s'il a un prix 1688 ou une plateforme 1688/alibaba/taobao
+  const isImported = !!(this.price1688 || (platform && ['1688', 'alibaba', 'taobao'].includes(platform)))
+
+  if (!isImported) return true
+
+  const hasWeight = !!(this.weightKg || this.grossWeightKg || this.netWeightKg)
+  const hasVolume = !!(this.volumeM3 || (this.lengthCm && this.widthCm && this.heightCm))
+
+  if (!hasWeight) {
+    throw new Error('Les produits d\'import doivent avoir un poids (kg) renseigné pour le calcul du transport')
+  }
+
+  if (!hasVolume) {
+    throw new Error('Les produits d\'import doivent avoir un volume (m³) ou des dimensions (L, l, H) renseignés pour le calcul du transport')
+  }
+
+  return true
+}
+
 const ProductSchema = new Schema<IProduct>({
   // Identité
   name: {
@@ -478,6 +504,7 @@ const calculatePackagingWeight = function(this: IProduct) {
 ProductSchema.pre('save', function(next) {
   try {
     validateDimensions.call(this)
+    validateImportLogistics.call(this)
     calculateVolume.call(this)
     calculatePackagingWeight.call(this)
     next()

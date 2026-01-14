@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import { validateSenegalPhone, formatSenegalPhone } from '../payment-service'
 
 // Participant à un achat groupé
 export interface IGroupOrderParticipant {
@@ -169,10 +170,25 @@ GroupOrderSchema.methods.calculateUnitPrice = function(qty: number): number {
   return this.product.basePrice
 }
 
-// Hook pour mettre à jour currentUnitPrice avant save
+// Hooks pour normaliser les téléphones et mettre à jour currentUnitPrice avant save
 GroupOrderSchema.pre('save', function(next) {
+  // Normaliser les téléphones des participants (format Sénégal) si valides
+  if (Array.isArray(this.participants)) {
+    this.participants.forEach((p: any) => {
+      if (p.phone && validateSenegalPhone(p.phone)) {
+        p.phone = formatSenegalPhone(p.phone)
+      }
+    })
+  }
+
+  // Normaliser le téléphone du créateur si valide
+  if (this.createdBy && this.createdBy.phone && validateSenegalPhone(this.createdBy.phone)) {
+    this.createdBy.phone = formatSenegalPhone(this.createdBy.phone)
+  }
+
+  // Mettre à jour currentUnitPrice en fonction de currentQty et des paliers
   if (this.priceTiers && this.priceTiers.length > 0) {
-    const sortedTiers = [...this.priceTiers].sort((a, b) => b.minQty - a.minQty)
+    const sortedTiers = [...this.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
     for (const tier of sortedTiers) {
       if (this.currentQty >= tier.minQty && (!tier.maxQty || this.currentQty <= tier.maxQty)) {
         this.currentUnitPrice = tier.price
@@ -180,6 +196,7 @@ GroupOrderSchema.pre('save', function(next) {
       }
     }
   }
+
   next()
 })
 
