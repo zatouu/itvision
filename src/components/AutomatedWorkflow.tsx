@@ -67,6 +67,42 @@ export default function AutomatedWorkflow() {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
   const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Charger les workflows depuis l'API
+  const loadWorkflows = async () => {
+    try {
+      const res = await fetch('/api/workflows', { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.workflows)) {
+          // Mapper les données MongoDB vers le format du composant
+          const apiWorkflows = data.workflows.map((w: any) => ({
+            id: w._id || w.id,
+            templateId: w.serviceType,
+            projectId: w.projectId,
+            clientName: w.clientName || 'Client',
+            startedAt: w.startDate || w.createdAt,
+            status: w.status,
+            currentStep: w.currentStep,
+            progress: w.progress || 0,
+            estimatedCompletion: w.estimatedEndDate,
+            completedAt: w.actualEndDate,
+            steps: w.steps || []
+          }))
+          setWorkflows(apiWorkflows)
+        }
+      }
+    } catch (err) {
+      console.error('Erreur chargement workflows:', err)
+    }
+  }
+
+  // Charger les données au montage
+  useEffect(() => {
+    loadWorkflows().finally(() => setLoading(false))
+  }, [])
 
   // Templates par défaut pour IT Vision
   useEffect(() => {
@@ -293,32 +329,7 @@ export default function AutomatedWorkflow() {
         approvals: []
       }
     ])
-
-    // Simulation de workflows actifs
-    setWorkflows([
-      {
-        id: 'WF-001',
-        templateId: 'maintenance-report',
-        projectId: 'PRJ-001',
-        clientName: 'IT Solutions SARL',
-        startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        status: 'in_progress',
-        currentStep: 'supervisor-review',
-        progress: 45,
-        estimatedCompletion: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-      },
-      {
-        id: 'WF-002',
-        templateId: 'maintenance-report',
-        projectId: 'PRJ-002',
-        clientName: 'Commerce Plus',
-        startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-        status: 'completed',
-        currentStep: 'archiving',
-        progress: 100,
-        completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-      }
-    ])
+    // Les workflows sont maintenant chargés depuis l'API via loadWorkflows()
   }, [])
 
   const getStatusColor = (status: string) => {
@@ -344,24 +355,84 @@ export default function AutomatedWorkflow() {
     }
   }
 
-  const triggerWorkflow = (templateId: string, context: any = {}) => {
+  const triggerWorkflow = async (templateId: string, context: any = {}) => {
     const template = templates.find(t => t.id === templateId)
     if (!template) return
 
-    const newWorkflow = {
-      id: `WF-${Date.now()}`,
-      templateId,
-      projectId: context.projectId || 'PRJ-XXX',
-      clientName: context.clientName || 'Client Test',
-      startedAt: new Date().toISOString(),
-      status: 'in_progress',
-      currentStep: template.steps[0].id,
-      progress: 0,
-      estimatedCompletion: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-      context
-    }
+    // Préparer les étapes pour MongoDB
+    const steps = template.steps.map(step => ({
+      id: step.id,
+      name: step.title,
+      type: step.type === 'approval' ? 'approval' : step.type === 'manual' ? 'notification' : 'validation',
+      status: 'pending',
+      dependencies: step.dependencies || [],
+      deliverables: step.automationRules || []
+    }))
 
-    setWorkflows(prev => [newWorkflow, ...prev])
+    try {
+      // Sauvegarder en base de données via l'API
+      const res = await fetch('/api/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          projectId: context.projectId || `PRJ-${Date.now()}`,
+          serviceType: templateId,
+          steps,
+          clientName: context.clientName || 'Client'
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.workflow) {
+          const newWorkflow = {
+            id: data.workflow._id,
+            templateId,
+            projectId: data.workflow.projectId,
+            clientName: context.clientName || 'Client Test',
+            startedAt: new Date().toISOString(),
+            status: 'in_progress',
+            currentStep: template.steps[0].id,
+            progress: 0,
+            estimatedCompletion: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+            context
+          }
+          setWorkflows(prev => [newWorkflow, ...prev])
+        }
+      } else {
+        // Fallback: workflow local si l'API échoue
+        const newWorkflow = {
+          id: `WF-${Date.now()}`,
+          templateId,
+          projectId: context.projectId || 'PRJ-XXX',
+          clientName: context.clientName || 'Client Test',
+          startedAt: new Date().toISOString(),
+          status: 'in_progress',
+          currentStep: template.steps[0].id,
+          progress: 0,
+          estimatedCompletion: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+          context
+        }
+        setWorkflows(prev => [newWorkflow, ...prev])
+      }
+    } catch (err) {
+      console.error('Erreur création workflow:', err)
+      // Fallback local
+      const newWorkflow = {
+        id: `WF-${Date.now()}`,
+        templateId,
+        projectId: context.projectId || 'PRJ-XXX',
+        clientName: context.clientName || 'Client Test',
+        startedAt: new Date().toISOString(),
+        status: 'in_progress',
+        currentStep: template.steps[0].id,
+        progress: 0,
+        estimatedCompletion: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+        context
+      }
+      setWorkflows(prev => [newWorkflow, ...prev])
+    }
   }
 
   const formatDuration = (minutes: number) => {

@@ -8,11 +8,14 @@ RUN apk add --no-cache libc6-compat
 FROM base AS deps
 WORKDIR /app
 
+# Argument pour invalider le cache (passé par le workflow)
+ARG CACHEBUST=1
+
 # Copie des fichiers de dépendances
 COPY package.json package-lock.json* ./
 
 # Installation des dépendances (inclure dev pour le build)
-RUN npm ci && npm cache clean --force
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # Étape 2: Build de l'application
 FROM base AS builder

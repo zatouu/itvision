@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product from '@/lib/models/Product.validated'
 
 interface AliExpressItemProperty {
   attr_name?: string
@@ -58,7 +58,7 @@ const API_HOST = 'aliexpress-datahub.p.rapidapi.com'
 const API_ENDPOINT = `https://${API_HOST}/item_search`
 
 const FX_RATE = Number(process.env.ALIEXPRESS_USD_TO_XOF || 620)
-const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 30)
+const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 0)  // Marge par défaut à 0%
 
 function requireManagerRole(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
@@ -108,9 +108,51 @@ const extractFeatures = (item: AliExpressItem): string[] => {
 }
 
 const fetchAliExpress = async (keyword: string, limit: number) => {
-  const apiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
-  if (!apiKey) {
-    throw new Error('ALIEXPRESS_RAPIDAPI_KEY est requis pour l\'import AliExpress')
+  // Détecter la source d'import (Apify ou RapidAPI)
+  const importSource = (process.env.IMPORT_SOURCE || 'rapidapi').toLowerCase()
+  const apifyKey = process.env.APIFY_API_KEY
+  const rapidApiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
+
+  // Essayer Apify si configuré, sinon RapidAPI
+  if (importSource === 'apify' && apifyKey) {
+    try {
+      const { importFromApify } = await import('@/lib/import-sources')
+      const result = await importFromApify(keyword, limit, {
+        source: 'apify',
+        apiKey: apifyKey,
+        options: {}
+      })
+      // Convertir les résultats au format attendu
+      return result.items.map(item => ({
+        product_id: item.productId,
+        product_title: item.name,
+        product_detail_url: item.productUrl,
+        image_url: item.image,
+        sale_price: item.baseCost ? String(item.baseCost / 620) : undefined, // Convertir FCFA -> USD pour compatibilité
+        original_price: item.baseCost ? String(item.baseCost / 620) : undefined,
+        shop_name: item.shopName,
+        orders: item.orders,
+        total_rated: item.totalRated,
+        item_weight: item.weightKg,
+        first_level_category_name: item.category,
+        second_level_category_name: item.tagline,
+        product_properties: item.features.map(f => ({
+          attr_name: f.split(':')[0] || 'Feature',
+          attr_value: f.split(':').slice(1).join(':') || f
+        }))
+      }))
+    } catch (error: any) {
+      console.error('Apify import error, falling back to RapidAPI:', error.message)
+      // Fallback sur RapidAPI si Apify échoue
+      if (!rapidApiKey) {
+        throw new Error(`Apify a échoué et aucune clé RapidAPI disponible: ${error.message}`)
+      }
+    }
+  }
+
+  // Utiliser RapidAPI (par défaut ou fallback)
+  if (!rapidApiKey) {
+    throw new Error('ALIEXPRESS_RAPIDAPI_KEY ou APIFY_API_KEY est requis pour l\'import AliExpress')
   }
 
   const pageSize = Math.min(Math.max(limit, 1), 20)
@@ -124,7 +166,7 @@ const fetchAliExpress = async (keyword: string, limit: number) => {
   const response = await fetch(`${API_ENDPOINT}?${query.toString()}`, {
     method: 'GET',
     headers: {
-      'X-RapidAPI-Key': apiKey,
+      'X-RapidAPI-Key': rapidApiKey,
       'X-RapidAPI-Host': API_HOST
     }
   })

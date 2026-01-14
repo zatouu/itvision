@@ -68,16 +68,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const scheduledDate = body.scheduledDate ? new Date(body.scheduledDate) : new Date()
+    const startTime = body.scheduledTime || '09:00'
+    const durationHours = Number(body.estimatedDuration) || 2
+    const computeEndTime = (start: string, duration: number) => {
+      const [h, m] = start.split(':').map((part: string) => parseInt(part, 10))
+      if (Number.isNaN(h) || Number.isNaN(m)) return '10:00'
+      const date = new Date()
+      date.setHours(h)
+      date.setMinutes(m)
+      date.setSeconds(0)
+      date.setMilliseconds(0)
+      date.setHours(date.getHours() + Math.max(duration, 1))
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    }
+
     const created = await Intervention.create({
       title: body.title,
       description: body.description || '',
       client: body.client,
       service: body.service,
       priority: body.priority || 'medium',
-      estimatedDuration: body.estimatedDuration || 2,
+      estimatedDuration: durationHours,
       requiredSkills: body.requiredSkills || [],
       status: 'pending',
-      projectId: body.projectId || undefined
+      projectId: body.projectId || undefined,
+      typeIntervention: body.typeIntervention || 'maintenance',
+      date: scheduledDate,
+      heureDebut: startTime,
+      heureFin: computeEndTime(startTime, durationHours),
+      clientId: body.clientId || undefined,
+      technicienId: body.technicienId || undefined
     })
 
     return NextResponse.json({ success: true, intervention: created }, { status: 201 })

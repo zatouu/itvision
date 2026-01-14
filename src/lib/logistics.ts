@@ -1,4 +1,4 @@
-import type { IProduct } from './models/Product'
+import type { IProduct } from './models/Product.validated'
 
 export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight'
 
@@ -22,6 +22,16 @@ export interface ShippingOptionPricing {
   currency: string
 }
 
+// Taux par défaut pour les frais additionnels (centralisés)
+import { DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE, DEFAULT_EXCHANGE_RATE } from './pricing/constants'
+
+export interface PricingFees {
+  serviceFeeRate: number // Pourcentage
+  serviceFeeAmount: number // Montant en FCFA
+  insuranceRate: number // Pourcentage
+  insuranceAmount: number // Montant en FCFA
+}
+
 export interface ProductPricingSummary {
   baseCost: number | null
   marginRate: number
@@ -30,35 +40,55 @@ export interface ProductPricingSummary {
   shippingOptions: ShippingOptionPricing[]
   availabilityLabel: string
   availabilitySubLabel?: string
+  // Frais additionnels (pour import)
+  fees?: PricingFees
+  totalWithFees?: number | null // Prix total incluant frais de service et assurance
 }
 
-export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
-  air_15: {
-    id: 'air_15',
-    label: 'Fret aérien 15 jours',
-    description: 'Acheminement économique depuis la Chine sous 10-15 jours ouvrés',
-    durationDays: 15,
-    billing: 'per_kg',
-    rate: 7500,
-    minimumCharge: 18000
+// Taux de transport réels (coûts internes - pour calcul marge)
+export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minimumCharge?: number }> = {
+  air_express: {
+    rate: 11000, // 11 000 CFA/kg (coût réel interne)
+    minimumCharge: 20000
   },
+  air_15: {
+    rate: 7000, // 7 000 CFA/kg (coût réel interne)
+    minimumCharge: 15000
+  },
+  sea_freight: {
+    rate: 130000, // 130 000 CFA/m³ (coût réel interne)
+    minimumCharge: 130000
+  }
+}
+
+// Taux de transport déclarés aux clients (prix facturé par défaut)
+export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
   air_express: {
     id: 'air_express',
-    label: 'Express aérien 3 jours',
-    description: 'Livraison express porte-à-porte en 72h en moyenne',
+    label: 'Express 3j',
+    description: 'Livraison express porte-à-porte',
     durationDays: 3,
     billing: 'per_kg',
-    rate: 10500,
-    minimumCharge: 25000
+    rate: 12000, // 12 000 CFA/kg
+    minimumCharge: 20000
+  },
+  air_15: {
+    id: 'air_15',
+    label: 'Aérien 15j',
+    description: 'Fret aérien économique',
+    durationDays: 15,
+    billing: 'per_kg',
+    rate: 8000, // 8 000 CFA/kg
+    minimumCharge: 15000
   },
   sea_freight: {
     id: 'sea_freight',
-    label: 'Fret maritime 60 jours',
-    description: 'Groupage maritime économique via container consolidé',
+    label: 'Maritime 60j',
+    description: 'Groupage maritime économique',
     durationDays: 60,
     billing: 'per_cubic_meter',
-    rate: 145000,
-    minimumCharge: 145000
+    rate: 140000, // 140 000 CFA/m³
+    minimumCharge: 140000
   }
 }
 
@@ -92,21 +122,66 @@ const resolveOverrideRate = (
 export const computeProductPricing = (product: Partial<IProduct>): ProductPricingSummary => {
   const currency = product.currency || DEFAULT_CURRENCY
   const baseCost = typeof product.baseCost === 'number' ? product.baseCost : null
-  const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 25
+  const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 0  // Défaut 0%
 
-  const salePrice = baseCost !== null
-    ? roundCurrency(baseCost * (1 + marginRate / 100))
+  // Utiliser les valeurs par défaut centralisées.
+  // NOTE: les réglages admin (fichiers ou DB) doivent être injectés côté serveur
+  // dans la réponse API; ici on évite tout import serveur-only pour que ce module
+  // reste sûr côté client.
+  const globalDefaults = {
+    defaultExchangeRate: DEFAULT_EXCHANGE_RATE,
+    defaultServiceFeeRate: DEFAULT_SERVICE_FEE_RATE,
+    defaultInsuranceRate: DEFAULT_INSURANCE_RATE
+  }
+
+  // Calculer le coût fournisseur en FCFA : priorité `baseCost`, sinon convertir
+  // `price1688` via le taux admin si disponible, sinon la valeur par défaut.
+  let productCostFCFA: number | null = null
+  if (baseCost !== null) {
+    productCostFCFA = baseCost
+  } else if (typeof product.price1688 === 'number' && product.price1688 > 0) {
+    productCostFCFA = roundCurrency(product.price1688 * (product.exchangeRate || globalDefaults.defaultExchangeRate || DEFAULT_EXCHANGE_RATE))
+  }
+
+  const salePrice = productCostFCFA !== null
+    ? roundCurrency(productCostFCFA * (1 + marginRate / 100))
     : (typeof product.price === 'number' ? roundCurrency(product.price) : null)
 
   const weightKg = typeof product.weightKg === 'number' ? product.weightKg : undefined
   const volumeM3 = computeVolume(product)
   const overrides = product.shippingOverrides
   const isInStock = product.stockStatus === 'in_stock'
+  
+  // Déterminer si le produit est importé
+  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform)))
+
+  // Calcul des frais additionnels (uniquement pour les produits importés avec un prix)
+  let fees: PricingFees | undefined
+  let totalWithFees: number | null = null
+  
+  if (isImported && salePrice !== null && salePrice > 0 && productCostFCFA !== null) {
+    const serviceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : (globalDefaults.defaultServiceFeeRate ?? DEFAULT_SERVICE_FEE_RATE)
+    const insuranceRate = typeof product.insuranceRate === 'number' ? product.insuranceRate : (globalDefaults.defaultInsuranceRate ?? DEFAULT_INSURANCE_RATE)
+
+    // Frais calculés sur le prix fournisseur (isoler supplier price)
+    const serviceFeeAmount = roundCurrency(productCostFCFA * (serviceFeeRate / 100)) ?? 0
+    const insuranceAmount = roundCurrency(productCostFCFA * (insuranceRate / 100)) ?? 0
+
+    fees = {
+      serviceFeeRate,
+      serviceFeeAmount,
+      insuranceRate,
+      insuranceAmount
+    }
+
+    // totalWithFees: montant visible au client hors transport — coût fournisseur + frais (sans marge)
+    totalWithFees = roundCurrency(productCostFCFA + serviceFeeAmount + insuranceAmount)
+  }
 
   const shippingOptions: ShippingOptionPricing[] = isInStock
     ? []
     : Object.values(BASE_SHIPPING_RATES)
-    .map((method) => {
+    .map((method): ShippingOptionPricing | null => {
       let billedAmount: number | null = null
 
       if (method.billing === 'per_kg') {
@@ -130,7 +205,9 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
       const cost = roundCurrency(Math.max(billedAmount, minCharge) + flatFee)
       if (cost === null) return null
 
-      const total = salePrice !== null ? roundCurrency(salePrice + cost) : null
+      // Total = prix produit + frais + transport
+      const basePrice = totalWithFees ?? salePrice
+      const total = basePrice !== null ? roundCurrency(basePrice + cost) : null
 
       return {
         id: method.id,
@@ -155,7 +232,9 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
     currency,
     shippingOptions,
     availabilityLabel,
-    availabilitySubLabel: product.availabilityNote || undefined
+    availabilitySubLabel: product.availabilityNote || undefined,
+    fees,
+    totalWithFees
   }
 }
 

@@ -68,7 +68,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 
 function normalizeIssues(raw: unknown): IMaintenanceReportIssue[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((item, index) => {
+  const mapped: (IMaintenanceReportIssue | null)[] = raw.map((item, index) => {
     if (!isRecord(item)) return null
 
     const componentValue = item.component
@@ -105,12 +105,13 @@ function normalizeIssues(raw: unknown): IMaintenanceReportIssue[] {
       estimatedCost: toNumber(item.estimatedCost),
       estimatedDurationHours: toNumber(item.estimatedDurationHours)
     }
-  }).filter((entry): entry is IMaintenanceReportIssue => Boolean(entry))
+  })
+  return mapped.filter((entry): entry is IMaintenanceReportIssue => entry !== null)
 }
 
 function normalizeMaterials(raw: unknown): IMaintenanceReportMaterial[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((item) => {
+  const mapped: (IMaintenanceReportMaterial | null)[] = raw.map((item) => {
     if (!isRecord(item)) return null
     const name = toNonEmptyString(typeof item.name === 'string' ? item.name : '')
     if (!name) return null
@@ -130,12 +131,13 @@ function normalizeMaterials(raw: unknown): IMaintenanceReportMaterial[] {
       totalCost: toNumber(item.totalCost) ?? (unitCost !== undefined ? unitCost * quantity : undefined),
       totalPrice: toNumber(item.totalPrice) ?? (unitPrice !== undefined ? unitPrice * quantity : undefined)
     }
-  }).filter((entry): entry is IMaintenanceReportMaterial => Boolean(entry))
+  })
+  return mapped.filter((entry): entry is IMaintenanceReportMaterial => entry !== null)
 }
 
 function normalizeRecommendations(raw: unknown): IMaintenanceReportRecommendation[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((item) => {
+  const mapped = raw.map((item) => {
     if (!isRecord(item)) return null
     const title = toNonEmptyString(typeof item.title === 'string' ? item.title : '')
     if (!title) return null
@@ -178,12 +180,13 @@ function normalizeRecommendations(raw: unknown): IMaintenanceReportRecommendatio
       status,
       clientDecision
     }
-  }).filter((entry): entry is IMaintenanceReportRecommendation => Boolean(entry))
+  })
+  return mapped.filter((entry: any) => entry !== null && entry !== undefined) as IMaintenanceReportRecommendation[]
 }
 
 function normalizeNextActions(raw: unknown): IMaintenanceReportNextAction[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((item) => {
+  const mapped = raw.map((item): any => {
     if (!isRecord(item)) return null
     const title = toNonEmptyString(typeof item.title === 'string' ? item.title : '')
     if (!title) return null
@@ -200,7 +203,8 @@ function normalizeNextActions(raw: unknown): IMaintenanceReportNextAction[] {
       notes: toNonEmptyString(typeof item.notes === 'string' ? item.notes : ''),
       status
     }
-  }).filter((entry): entry is IMaintenanceReportNextAction => Boolean(entry))
+  })
+  return mapped.filter((entry: any) => entry !== null) as IMaintenanceReportNextAction[]
 }
 
 function normalizeBilling(
@@ -227,11 +231,11 @@ function normalizeBilling(
   return {
     needsQuote,
     quoteStatus,
-    quoteId: (record.quoteId ?? current?.quoteId) as mongoose.Types.ObjectId | string | undefined,
-    invoiceId: (record.invoiceId ?? current?.invoiceId) as mongoose.Types.ObjectId | string | undefined,
+    quoteId: (record.quoteId ?? current?.quoteId) as any,
+    invoiceId: (record.invoiceId ?? current?.invoiceId) as any,
     invoiceStatus,
     lastUpdatedAt: new Date()
-  }
+  } as any
 }
 
 function normalizeClientAcknowledgement(raw: unknown) {

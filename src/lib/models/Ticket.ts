@@ -28,14 +28,14 @@ export interface ITicketHistory {
 }
 
 export interface ITicket extends Document {
-  projectId: mongoose.Types.ObjectId
+  projectId?: mongoose.Types.ObjectId
   clientId: mongoose.Types.ObjectId
   assignedTo: mongoose.Types.ObjectId[]
   watchers: mongoose.Types.ObjectId[]
   title: string
-  category: 'incident' | 'request' | 'change'
+  category: 'incident' | 'request' | 'change' | 'general' | 'technical' | 'billing' | 'urgent'
   priority: 'low' | 'medium' | 'high' | 'urgent'
-  status: 'open' | 'in_progress' | 'waiting_client' | 'resolved' | 'closed'
+  status: 'open' | 'in_progress' | 'waiting_client' | 'resolved' | 'closed' | 'waiting'
   channel: 'client_portal' | 'admin' | 'automation'
   tags: string[]
   source?: string
@@ -83,14 +83,14 @@ const TicketHistorySchema = new Schema<ITicketHistory>({
 })
 
 const TicketSchema = new Schema<ITicket>({
-  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: false, index: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   assignedTo: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
   watchers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   title: { type: String, required: true },
-  category: { type: String, enum: ['incident', 'request', 'change'], default: 'incident', index: true },
+  category: { type: String, enum: ['incident', 'request', 'change', 'general', 'technical', 'billing', 'urgent'], default: 'request', index: true },
   priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', index: true },
-  status: { type: String, enum: ['open', 'in_progress', 'waiting_client', 'resolved', 'closed'], default: 'open', index: true },
+  status: { type: String, enum: ['open', 'in_progress', 'waiting_client', 'resolved', 'closed', 'waiting'], default: 'open', index: true },
   channel: { type: String, enum: ['client_portal', 'admin', 'automation'], default: 'client_portal' },
   tags: { type: [String], default: [] },
   source: { type: String },
@@ -109,6 +109,7 @@ const TicketSchema = new Schema<ITicket>({
 }, { timestamps: true })
 
 TicketSchema.pre('validate', function(next) {
+  // Initialiser SLA si nécessaire
   if (!this.sla) {
     this.sla = {} as any
   }
@@ -123,6 +124,30 @@ TicketSchema.pre('validate', function(next) {
     deadline.setHours(deadline.getHours() + this.sla.targetHours)
     this.sla.deadlineAt = deadline
   }
+  
+  // Réparer automatiquement les messages existants sans authorId/authorRole
+  if (this.messages && Array.isArray(this.messages)) {
+    this.messages = this.messages.map((msg: any) => {
+      if (!msg.authorId && this.clientId) {
+        msg.authorId = this.clientId
+      }
+      if (!msg.authorRole) {
+        msg.authorRole = 'CLIENT'
+      }
+      if (!msg.createdAt) {
+        msg.createdAt = new Date()
+      }
+      return msg
+    })
+  }
+  
+  // Initialiser les tableaux vides si nécessaires
+  if (!this.messages) this.messages = []
+  if (!this.history) this.history = []
+  if (!this.assignedTo) this.assignedTo = []
+  if (!this.watchers) this.watchers = []
+  if (!this.tags) this.tags = []
+  
   next()
 })
 

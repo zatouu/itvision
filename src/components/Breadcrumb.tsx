@@ -28,32 +28,53 @@ const Breadcrumb = ({
   // Génération automatique du breadcrumb basé sur l'URL si pas d'items fournis
   const generateBreadcrumb = (): BreadcrumbItem[] => {
     const pathSegments = pathname.split('/').filter(Boolean)
+    const isAdminPage = pathSegments[0] === 'admin' || pathname.startsWith('/admin')
+    
+    // Pour les pages admin, "Accueil" renvoie vers /admin
     const breadcrumbItems: BreadcrumbItem[] = [
-      { label: 'Accueil', href: '/', icon: Home }
+      { label: isAdminPage ? 'Dashboard' : 'Accueil', href: isAdminPage ? '/admin' : '/', icon: Home }
     ]
 
     let currentPath = ''
+    
+    // Mapping des segments vers des labels lisibles
+    const segmentLabels: Record<string, string> = {
+      'admin': 'Administration',
+      'admin-reports': 'Rapports Admin',
+      'admin-prix': 'Gestion Prix',
+      'admin-produits': 'Gestion Produits',
+      'admin-factures': 'Gestion Factures',
+      'tech-interface': 'Interface Technicien',
+      'client-portal': 'Portail Client',
+      'validation-rapports': 'Validation Rapports',
+      'gestion-projets': 'Gestion Projets',
+      'users': 'Utilisateurs',
+      'prices': 'Prix',
+      'quotes': 'Devis',
+      'catalog': 'Catalogue',
+      'migration': 'Migration',
+      'services': 'Services',
+      'products': 'Produits',
+      'produits': 'Produits',
+      'clients': 'Clients',
+      'technicians': 'Techniciens',
+      'maintenance': 'Maintenance',
+      'analytics': 'Analytics',
+      'comptabilite': 'Comptabilité',
+      'marketplace': 'Marketplace',
+      'tickets': 'Support',
+      'administration': 'Administration',
+      'how-to': 'Guide',
+      'devis': 'Devis',
+      'planning': 'Planning'
+    }
+    
     pathSegments.forEach((segment, index) => {
       currentPath += `/${segment}`
       
-      // Mapping des segments vers des labels lisibles
-      const segmentLabels: Record<string, string> = {
-        'admin': 'Administration',
-        'admin-reports': 'Rapports Admin',
-        'admin-prix': 'Gestion Prix',
-        'admin-produits': 'Gestion Produits',
-        'admin-factures': 'Gestion Factures',
-        'tech-interface': 'Interface Technicien',
-        'client-portal': 'Portail Client',
-        'validation-rapports': 'Validation Rapports',
-        'gestion-projets': 'Gestion Projets',
-        'users': 'Utilisateurs',
-        'prices': 'Prix',
-        'quotes': 'Devis',
-        'catalog': 'Catalogue',
-        'migration': 'Migration',
-        'services': 'Services',
-        'products': 'Produits'
+      // Pour les pages admin, on saute le premier segment "admin" car on a déjà "Dashboard"
+      if (isAdminPage && index === 0 && segment === 'admin') {
+        return
       }
       
       const label = segmentLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
@@ -74,11 +95,14 @@ const Breadcrumb = ({
     if (backHref) return backHref
     
     const pathSegments = pathname.split('/').filter(Boolean)
-    if (pathSegments.length <= 1) return '/'
+    const isAdminPage = pathSegments[0] === 'admin'
+    
+    // Pour les pages admin, retour vers /admin par défaut
+    if (pathSegments.length <= 1) return isAdminPage ? '/admin' : '/'
     
     // Retour au niveau parent
     const parentPath = '/' + pathSegments.slice(0, -1).join('/')
-    return parentPath === '/' ? '/' : parentPath
+    return parentPath
   }
 
   return (

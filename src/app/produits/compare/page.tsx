@@ -21,7 +21,7 @@ interface CompareProduct {
   features: string[]
   rating: number
   deliveryDays?: number
-  availabilityStatus?: string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   category?: string
   description?: string
   tagline?: string
@@ -75,7 +75,9 @@ function CompareContent() {
               features: product.features || [],
               rating: 4.7,
               deliveryDays: bestShipping?.durationDays ?? product.availability?.leadTimeDays,
-              availabilityStatus: product.availability?.status,
+              availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
+                ? product.availability.status
+                : undefined,
               category: product.category,
               description: product.description,
               tagline: product.tagline

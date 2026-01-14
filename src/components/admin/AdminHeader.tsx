@@ -1,12 +1,29 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Bell, LogOut, Search, Sun, Moon } from 'lucide-react'
 
 export default function AdminHeader() {
+  const router = useRouter()
   const [dark, setDark] = useState(false)
   const [kOpen, setKOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include' 
+      })
+    } catch {
+      // Ignorer les erreurs réseau
+    }
+    router.replace('/login')
+  }
 
   useEffect(() => {
     // Forcer le mode clair sur l'admin
@@ -63,12 +80,14 @@ export default function AdminHeader() {
           <button className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100 text-gray-600" aria-label="Notifications">
             <Bell className="h-4 w-4" />
           </button>
-          <form action="/api/auth/logout" method="post">
-            <button className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 text-sm">
-              <LogOut className="h-4 w-4" />
-              <span>Déconnexion</span>
-            </button>
-          </form>
+          <button 
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 text-sm disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{loggingOut ? 'Déconnexion...' : 'Déconnexion'}</span>
+          </button>
         </div>
       </div>
 

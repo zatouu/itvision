@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Bell, 
   X, 
@@ -13,8 +14,9 @@ import {
   AlertTriangle, 
   XCircle,
   Clock,
-  Settings,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  BellOff
 } from 'lucide-react'
 
 interface Notification {
@@ -39,6 +41,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // Charger les notifications
   const fetchNotifications = async () => {
@@ -54,7 +57,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       } else {
         setError(data.error || 'Erreur lors du chargement')
       }
-    } catch (error) {
+    } catch {
       setError('Erreur de connexion')
     } finally {
       setLoading(false)
@@ -114,7 +117,6 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       const data = await response.json()
       if (data.success) {
         setNotifications(prev => prev.filter(n => n.id !== notificationId))
-        // Recalculer le nombre de non lues
         const newUnreadCount = notifications.filter(n => n.id !== notificationId && !n.read).length
         setUnreadCount(newUnreadCount)
       }
@@ -123,32 +125,40 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     }
   }
 
+  // Fermer au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
   // Charger les notifications au montage et périodiquement
   useEffect(() => {
     fetchNotifications()
-    
-    // Actualiser toutes les 30 secondes
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
   }, [])
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success': return <CheckCircle className="h-5 w-5 text-green-600" />
-      case 'warning': return <AlertTriangle className="h-5 w-5 text-yellow-600" />
-      case 'error': return <XCircle className="h-5 w-5 text-red-600" />
-      default: return <Info className="h-5 w-5 text-blue-600" />
+    const config = {
+      success: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-100' },
+      warning: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-100' },
+      error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-100' },
+      info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-100' }
     }
-  }
-
-  const getNotificationBgColor = (type: string, read: boolean) => {
-    const opacity = read ? '50' : '100'
-    switch (type) {
-      case 'success': return `bg-green-${opacity}`
-      case 'warning': return `bg-yellow-${opacity}`
-      case 'error': return `bg-red-${opacity}`
-      default: return `bg-blue-${opacity}`
-    }
+    const c = config[type as keyof typeof config] || config.info
+    const Icon = c.icon
+    return (
+      <div className={`p-2 rounded-xl ${c.bg}`}>
+        <Icon className={`h-4 w-4 ${c.color}`} />
+      </div>
+    )
   }
 
   const formatTimeAgo = (dateString: string) => {
@@ -169,185 +179,211 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   }
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className}`} ref={panelRef}>
       {/* Bouton de notification */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        className="relative p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
         title="Notifications"
       >
-        <Bell className="h-6 w-6" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+        <Bell className="h-5 w-5" />
+        <AnimatePresence>
+          {unreadCount > 0 && (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-lg"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </button>
 
       {/* Panel de notifications */}
-      {isOpen && (
-        <>
-          {/* Overlay */}
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
-          />
-          
-          {/* Panel */}
-          <div className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
+          >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Bell className="h-5 w-5 text-gray-600" />
-                <h3 className="font-semibold text-gray-900">Notifications</h3>
-                {unreadCount > 0 && (
-                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                    {unreadCount} nouvelles
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={fetchNotifications}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
-                  title="Actualiser"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                </button>
+            <div className="px-5 py-4 bg-gradient-to-r from-emerald-500 to-teal-600">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Bell className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <p className="text-xs text-white/80">{unreadCount} non lue{unreadCount > 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+                </div>
                 
-                {unreadCount > 0 && (
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={markAllAsRead}
-                    className="p-1 text-gray-400 hover:text-gray-600 rounded"
-                    title="Tout marquer comme lu"
+                    onClick={fetchNotifications}
+                    className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    title="Actualiser"
                   >
-                    <CheckCheck className="h-4 w-4" />
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   </button>
-                )}
-                
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                  
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                      title="Tout marquer comme lu"
+                    >
+                      <CheckCheck className="h-4 w-4" />
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Contenu */}
-            <div className="max-h-80 overflow-y-auto">
+            <div className="max-h-[400px] overflow-y-auto">
               {loading && notifications.length === 0 ? (
-                <div className="p-4 text-center">
-                  <RefreshCw className="h-6 w-6 animate-spin mx-auto text-blue-600 mb-2" />
+                <div className="p-8 text-center">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-emerald-600 mb-3" />
                   <p className="text-sm text-gray-600">Chargement...</p>
                 </div>
               ) : error ? (
-                <div className="p-4 text-center">
-                  <XCircle className="h-6 w-6 mx-auto text-red-600 mb-2" />
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="p-8 text-center">
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
+                    <XCircle className="h-6 w-6 text-red-600" />
+                  </div>
+                  <p className="text-sm text-red-600 mb-3">{error}</p>
                   <button
                     onClick={fetchNotifications}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                    className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                   >
                     Réessayer
                   </button>
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="p-8 text-center">
-                  <Bell className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600">Aucune notification</p>
+                  <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                    <BellOff className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="font-medium text-gray-900 mb-1">Aucune notification</p>
+                  <p className="text-sm text-gray-500">Vous êtes à jour !</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-4 hover:bg-gray-50 transition-colors ${
-                        !notification.read ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="flex-shrink-0 mt-0.5">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className={`text-sm font-medium ${
-                                !notification.read ? 'text-gray-900' : 'text-gray-700'
-                              }`}>
-                                {notification.title}
-                              </p>
-                              <p className={`text-sm mt-1 ${
-                                !notification.read ? 'text-gray-700' : 'text-gray-500'
-                              }`}>
-                                {notification.message}
-                              </p>
+                  <AnimatePresence>
+                    {notifications.map((notification, index) => (
+                      <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`p-4 hover:bg-gray-50 transition-colors ${
+                          !notification.read ? 'bg-emerald-50/50' : ''
+                        }`}
+                      >
+                        <div className="flex gap-3">
+                          <div className="flex-shrink-0">
+                            {getNotificationIcon(notification.type)}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <p className={`text-sm font-medium ${
+                                  !notification.read ? 'text-gray-900' : 'text-gray-700'
+                                }`}>
+                                  {notification.title}
+                                </p>
+                                <p className={`text-sm mt-0.5 line-clamp-2 ${
+                                  !notification.read ? 'text-gray-700' : 'text-gray-500'
+                                }`}>
+                                  {notification.message}
+                                </p>
+                              </div>
                               
-                              <div className="flex items-center justify-between mt-2">
-                                <span className="text-xs text-gray-500 flex items-center">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {formatTimeAgo(notification.createdAt)}
-                                </span>
-                                
-                                <div className="flex items-center space-x-2">
-                                  {!notification.read && (
-                                    <button
-                                      onClick={() => markAsRead([notification.id])}
-                                      className="text-xs text-blue-600 hover:text-blue-800"
-                                      title="Marquer comme lu"
-                                    >
-                                      <Check className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                  
-                                  {notification.actionUrl && (
-                                    <a
-                                      href={notification.actionUrl}
-                                      onClick={() => setIsOpen(false)}
-                                      className="text-xs text-blue-600 hover:text-blue-800"
-                                      title="Voir détails"
-                                    >
-                                      <ExternalLink className="h-3 w-3" />
-                                    </a>
-                                  )}
-                                  
+                              {!notification.read && (
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 mt-1.5" />
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatTimeAgo(notification.createdAt)}
+                              </span>
+                              
+                              <div className="flex items-center gap-1">
+                                {!notification.read && (
                                   <button
-                                    onClick={() => deleteNotification(notification.id)}
-                                    className="text-xs text-red-600 hover:text-red-800"
-                                    title="Supprimer"
+                                    onClick={() => markAsRead([notification.id])}
+                                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    title="Marquer comme lu"
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Check className="h-3.5 w-3.5" />
                                   </button>
-                                </div>
+                                )}
+                                
+                                {notification.actionUrl && (
+                                  <a
+                                    href={notification.actionUrl}
+                                    onClick={() => setIsOpen(false)}
+                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Voir détails"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                )}
+                                
+                                <button
+                                  onClick={() => deleteNotification(notification.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
             </div>
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+              <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
                 <a
                   href="/client-portal"
                   onClick={() => setIsOpen(false)}
-                  className="w-full block text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  className="flex items-center justify-center gap-2 w-full text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                 >
+                  <Sparkles className="h-4 w-4" />
                   Voir toutes les notifications
                 </a>
               </div>
             )}
-          </div>
-        </>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

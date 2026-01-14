@@ -7,7 +7,7 @@ db = db.getSiblingDB('itvision_db');
 // Création de l'utilisateur applicatif
 db.createUser({
   user: 'itvision_app',
-  pwd: process.env.MONGO_APP_PASSWORD || 'AppPassword123!',
+  pwd: process.env.MONGO_APP_PASSWORD || 'AppPassword123',
   roles: [
     {
       role: 'readWrite',

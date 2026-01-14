@@ -118,14 +118,40 @@ npm run import:aliexpress -- --keyword "hikvision" --limit 5 --dry-run # importe
 ```
 
 ### Import catalogue AliExpress
+
+#### Interface Web (Recommandé)
+
+**Option 1 : Apify (Recommandé)**
+1. Créez un compte sur [Apify](https://apify.com) (plan gratuit avec 5$ de crédit/mois).
+2. Récupérez votre clé API dans les paramètres.
+3. Ajoutez dans `.env` :
+   ```env
+   APIFY_API_KEY=votre-cle-apify
+   IMPORT_SOURCE=apify
+   ```
+4. Accédez à `/admin/import-produits` depuis l'interface admin.
+5. Utilisez la recherche par mot-clé pour trouver des produits sur AliExpress.
+
+**Option 2 : RapidAPI**
 1. Créez un compte RapidAPI et souscrivez à une API AliExpress (ex. *aliexpress-datahub*).
-2. Ajoutez la clé dans vos variables d'environnement (`ALIEXPRESS_RAPIDAPI_KEY`).
-3. Lancez un import de test (dry-run) :
+2. Ajoutez dans `.env` :
+   ```env
+   ALIEXPRESS_RAPIDAPI_KEY=votre-cle-rapidapi
+   IMPORT_SOURCE=rapidapi
+   ```
+3. Accédez à `/admin/import-produits` depuis l'interface admin.
+
+**Utilisation :**
+- Utilisez la recherche par mot-clé pour trouver des produits.
+- Cliquez sur "Importer" pour chaque produit souhaité, ou "Tout importer" pour importer tous les résultats.
+- Les produits sont automatiquement créés avec les informations AliExpress (prix, images, caractéristiques).
+
+#### Ligne de commande
+1. Lancez un import de test (dry-run) :
    ```bash
    ALIEXPRESS_RAPIDAPI_KEY=xxx npm run import:aliexpress -- --keyword "caméra hikvision" --limit 10 --dry-run
    ```
-4. Retirez `--dry-run` pour créer ou mettre à jour les produits (ils seront stockés comme `preorder` avec sourcing Chine et calcul transport automatique).
-5. Finalisez dans `/admin/produits` (poids, dimensions, marge ou overrides transport) avant publication.
+2. Retirez `--dry-run` pour créer ou mettre à jour les produits.
 
 📘 Documentation complète : voir [`ALIEXPRESS_IMPORT.md`](./ALIEXPRESS_IMPORT.md).
 

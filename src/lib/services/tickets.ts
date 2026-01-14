@@ -67,6 +67,10 @@ export const TicketService = {
   },
 
   appendMessage(ticket: ITicket, message: ITicketMessage, snapshotStatus?: string) {
+    // Initialiser les tableaux s'ils n'existent pas
+    if (!ticket.messages) ticket.messages = []
+    if (!ticket.history) ticket.history = []
+    
     ticket.messages.push({ ...message, createdAt: message.createdAt || new Date(), statusSnapshot: snapshotStatus })
     ticket.lastResponseAt = new Date()
     ticket.history.push({
@@ -79,6 +83,9 @@ export const TicketService = {
   },
 
   appendHistory(ticket: ITicket, payload: { authorId: mongoose.Types.ObjectId; authorRole: TicketRole; action: ITicket['history'][number]['action']; details?: Record<string, unknown> }) {
+    // Initialiser history s'il n'existe pas
+    if (!ticket.history) ticket.history = []
+    
     ticket.history.push({
       authorId: payload.authorId,
       authorRole: payload.authorRole,

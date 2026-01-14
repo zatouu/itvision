@@ -79,12 +79,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ mfa_required: true, userId: String(user._id) })
     }
 
-    // Génération du token JWT
+    // Génération du token JWT (rôle normalisé en majuscules)
+    const normalizedRole = String(user.role || '').toUpperCase()
     const token = jwt.sign(
       { 
         userId: String(user._id),
         email: user.email,
-        role: user.role,
+        role: normalizedRole,
         username: user.username
       },
       process.env.JWT_SECRET || 'your-secret-key',

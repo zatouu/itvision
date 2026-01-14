@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
       query.assignedTo = assignedTo
     }
     if (search) {
-      query.title = { $regex: new RegExp(search, 'i') }
+      // SÉCURITÉ: Échapper les caractères spéciaux pour éviter ReDoS
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      query.title = { $regex: new RegExp(escapedSearch, 'i') }
     }
 
     const tickets = await Ticket.find(query).sort({ [sortBy]: sortDir }).skip(skip).limit(limit).lean()
@@ -96,6 +98,22 @@ export async function POST(request: NextRequest) {
         authorRole: role,
         message,
         createdAt: new Date()
+      })
+    }
+
+    // S'assurer que tous les messages ont les champs requis
+    if (ticket.messages && Array.isArray(ticket.messages)) {
+      ticket.messages = ticket.messages.map((msg: any) => {
+        if (!msg.authorId) {
+          msg.authorId = new mongoose.Types.ObjectId(clientId)
+        }
+        if (!msg.authorRole) {
+          msg.authorRole = role
+        }
+        if (!msg.createdAt) {
+          msg.createdAt = new Date()
+        }
+        return msg
       })
     }
 
@@ -192,6 +210,22 @@ export async function PATCH(request: NextRequest) {
         message: addMessage,
         createdAt: new Date()
       }, status)
+    }
+
+    // Réparer les messages existants qui n'ont pas authorId/authorRole
+    if (ticket.messages && Array.isArray(ticket.messages)) {
+      ticket.messages = ticket.messages.map((msg: any) => {
+        if (!msg.authorId) {
+          msg.authorId = ticket.clientId || authorId
+        }
+        if (!msg.authorRole) {
+          msg.authorRole = 'CLIENT'
+        }
+        if (!msg.createdAt) {
+          msg.createdAt = new Date()
+        }
+        return msg
+      })
     }
 
     await ticket.save()

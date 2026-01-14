@@ -1,0 +1,511 @@
+'use client'
+
+import { useState } from 'react'
+import { Download, Search, Link as LinkIcon, Loader2, CheckCircle, X, ExternalLink, AlertCircle } from 'lucide-react'
+import ProtectedPage from '@/components/ProtectedPage'
+
+interface ImportItem {
+  productId?: string
+  name: string
+  productUrl: string
+  image?: string
+  gallery: string[]
+  baseCost?: number
+  price?: number
+  currency: string
+  weightKg?: number
+  features: string[]
+  category: string
+  tagline: string
+  availabilityNote: string
+  shopName?: string
+  orders?: number
+  totalRated?: number
+}
+
+export default function ImportProduitsPage() {
+  return (
+    <ProtectedPage requiredRole={['ADMIN', 'PRODUCT_MANAGER']}>
+      <ImportProduitsContent />
+    </ProtectedPage>
+  )
+}
+
+function ImportProduitsContent() {
+  const [activeTab, setActiveTab] = useState<'search' | 'url' | 'bulk'>('search')
+  const [keyword, setKeyword] = useState('')
+  const [limit, setLimit] = useState(6)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [results, setResults] = useState<ImportItem[]>([])
+  const [importingIds, setImportingIds] = useState<Set<string>>(new Set())
+  const [importedIds, setImportedIds] = useState<Set<string>>(new Set())
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [urlInput, setUrlInput] = useState('')
+  const [bulkUrls, setBulkUrls] = useState('')
+
+  const formatCurrency = (amount: number, currency: string) => {
+    return `${amount.toLocaleString('fr-FR')} ${currency}`
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!keyword.trim()) {
+      setError('Veuillez entrer un mot-clé')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setResults([])
+    setFeedback(null)
+
+    try {
+      const response = await fetch(`/api/products/import?keyword=${encodeURIComponent(keyword)}&limit=${limit}`, {
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de la recherche')
+      }
+
+      setResults(data.items || [])
+      if (data.items && data.items.length === 0) {
+        setFeedback('Aucun résultat trouvé. Essayez un autre mot-clé.')
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de la recherche AliExpress')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleImport = async (item: ImportItem) => {
+    const itemId = item.productId || item.productUrl
+    if (importingIds.has(itemId)) return
+
+    setImportingIds(prev => new Set(prev).add(itemId))
+    setError(null)
+    setFeedback(null)
+
+    try {
+      const response = await fetch('/api/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ item })
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de l\'import')
+      }
+
+      setImportedIds(prev => new Set(prev).add(itemId))
+      setFeedback(data.action === 'updated' ? 'Produit mis à jour avec succès' : 'Produit importé avec succès')
+      setTimeout(() => setFeedback(null), 3000)
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de l\'import')
+    } finally {
+      setImportingIds(prev => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
+      })
+    }
+  }
+
+  const handleImportByUrl = async () => {
+    if (!urlInput.trim()) {
+      setError('Veuillez entrer une URL AliExpress')
+      return
+    }
+
+    // Pour l'instant, on affiche un message car l'API ne supporte pas encore l'import par URL directe
+    setError('L\'import par URL directe sera bientôt disponible. Utilisez la recherche pour l\'instant.')
+  }
+
+  const handleBulkImport = async () => {
+    if (!bulkUrls.trim()) {
+      setError('Veuillez entrer au moins une URL')
+      return
+    }
+
+    const urls = bulkUrls
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && (line.includes('aliexpress.com') || line.includes('alibaba.com')))
+
+    if (urls.length === 0) {
+      setError('Aucune URL valide trouvée. Les URLs doivent être des liens AliExpress ou Alibaba.')
+      return
+    }
+
+    setError('L\'import en masse sera bientôt disponible.')
+  }
+
+  const handleImportAll = async () => {
+    if (results.length === 0) return
+
+    setLoading(true)
+    setError(null)
+    setFeedback(null)
+
+    let successCount = 0
+    let errorCount = 0
+
+    for (const item of results) {
+      const itemId = item.productId || item.productUrl
+      if (importedIds.has(itemId)) continue
+
+      try {
+        const response = await fetch('/api/products/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ item })
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          successCount++
+          setImportedIds(prev => new Set(prev).add(itemId))
+        } else {
+          errorCount++
+        }
+      } catch {
+        errorCount++
+      }
+    }
+
+    setFeedback(`${successCount} produit(s) importé(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`)
+    setTimeout(() => setFeedback(null), 5000)
+    setLoading(false)
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Import de produits</h1>
+          <p className="text-gray-600 mb-3">
+            Importez facilement des produits depuis AliExpress ou Alibaba pour enrichir votre catalogue
+          </p>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 mb-4">
+            <p className="text-sm text-blue-800">
+              <strong>💡 Astuce :</strong> Configurez <code className="bg-blue-100 px-1 rounded">APIFY_API_KEY</code> et <code className="bg-blue-100 px-1 rounded">IMPORT_SOURCE=apify</code> dans votre <code className="bg-blue-100 px-1 rounded">.env</code> pour utiliser Apify (recommandé). Sinon, RapidAPI sera utilisé par défaut.
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'search'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                Recherche par mot-clé
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('url')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'url'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <LinkIcon className="h-4 w-4" />
+                Import par URL
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('bulk')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'bulk'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Import en masse
+              </div>
+            </button>
+          </nav>
+        </div>
+
+        {/* Messages */}
+        {error && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {feedback && (
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+            <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium text-emerald-800">{feedback}</p>
+          </div>
+        )}
+
+        {/* Tab Content */}
+        {activeTab === 'search' && (
+          <div className="space-y-6">
+            {/* Search Form */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Rechercher sur AliExpress</h2>
+              <form onSubmit={handleSearch} className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mot-clé de recherche
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    placeholder="Ex: hikvision camera, alarm system, access control..."
+                    value={keyword}
+                    onChange={e => setKeyword(e.target.value)}
+                  />
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre de résultats
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    value={limit}
+                    onChange={e => setLimit(Math.min(12, Math.max(1, Number(e.target.value) || 1)))}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  Rechercher
+                </button>
+              </form>
+            </div>
+
+            {/* Results */}
+            {loading && results.length === 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-4" />
+                <p className="text-gray-600">Recherche en cours...</p>
+              </div>
+            )}
+
+            {results.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {results.length} résultat{results.length > 1 ? 's' : ''} trouvé{results.length > 1 ? 's' : ''}
+                  </h3>
+                  {results.length > 1 && (
+                    <button
+                      onClick={handleImportAll}
+                      disabled={loading}
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <Download className="h-4 w-4" />
+                      Tout importer
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {results.map(item => {
+                    const itemId = item.productId || item.productUrl
+                    const isImporting = importingIds.has(itemId)
+                    const isImported = importedIds.has(itemId)
+
+                    return (
+                      <div
+                        key={itemId}
+                        className={`bg-white rounded-xl border-2 p-4 shadow-sm transition ${
+                          isImported ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex gap-3 mb-3">
+                          <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="flex h-full items-center justify-center text-[10px] text-gray-400">
+                                Pas d'image
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">{item.name}</h4>
+                            <p className="text-xs text-gray-500 mb-2">{item.shopName || 'Fournisseur AliExpress'}</p>
+                            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                              {typeof item.baseCost === 'number' && (
+                                <span>Coût: {formatCurrency(item.baseCost, item.currency)}</span>
+                              )}
+                              {typeof item.price === 'number' && (
+                                <span className="font-semibold text-emerald-600">
+                                  Prix: {formatCurrency(item.price, item.currency)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {item.features.length > 0 && (
+                          <ul className="mb-3 space-y-1 text-xs text-gray-500">
+                            {item.features.slice(0, 3).map((feature, idx) => (
+                              <li key={idx} className="flex items-start gap-1">
+                                <span className="text-emerald-600">•</span>
+                                <span className="line-clamp-1">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleImport(item)}
+                            disabled={isImporting || isImported}
+                            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                              isImported
+                                ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
+                                : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50'
+                            }`}
+                          >
+                            {isImporting ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Import...
+                              </>
+                            ) : isImported ? (
+                              <>
+                                <CheckCircle className="h-3 w-3" />
+                                Importé
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-3 w-3" />
+                                Importer
+                              </>
+                            )}
+                          </button>
+                          <a
+                            href={item.productUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Voir
+                          </a>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!loading && results.length === 0 && keyword && (
+              <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
+                <p className="text-gray-600">Aucun résultat trouvé. Essayez un autre mot-clé.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'url' && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Importer par URL AliExpress</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL du produit AliExpress
+                </label>
+                <input
+                  type="url"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  placeholder="https://www.aliexpress.com/item/..."
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={handleImportByUrl}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                <Download className="h-4 w-4" />
+                Importer ce produit
+              </button>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note :</strong> Cette fonctionnalité sera bientôt disponible. Pour l'instant, utilisez la recherche par mot-clé.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'bulk' && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Import en masse</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URLs des produits (une par ligne)
+                </label>
+                <textarea
+                  rows={10}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-mono focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  placeholder="https://www.aliexpress.com/item/1234567890.html&#10;https://www.aliexpress.com/item/0987654321.html&#10;..."
+                  value={bulkUrls}
+                  onChange={e => setBulkUrls(e.target.value)}
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Collez une URL par ligne. Les URLs doivent être des liens AliExpress ou Alibaba.
+                </p>
+              </div>
+              <button
+                onClick={handleBulkImport}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                <Download className="h-4 w-4" />
+                Importer tous les produits
+              </button>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note :</strong> Cette fonctionnalité sera bientôt disponible. Pour l'instant, utilisez la recherche par mot-clé.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+

@@ -19,7 +19,7 @@ async function verify(request: NextRequest) {
 export async function GET(request: NextRequest, context: any) {
   try {
     await connectMongoose()
-    const { params } = context
+    const params = await context.params
     const { userId, role } = await verify(request)
     const ticket = await getTicketById(params.id)
     if (!ticket) {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, context: any) {
 export async function POST(request: NextRequest, context: any) {
   try {
     await connectMongoose()
-    const { params } = context
+    const params = await context.params
     const { userId, role } = await verify(request)
     const body = await request.json()
     const { message, attachments, internal } = body || {}
@@ -82,6 +82,22 @@ export async function POST(request: NextRequest, context: any) {
         attachments: attachmentsArray,
         internal: !!internal,
         createdAt: new Date()
+      })
+    }
+
+    // Réparer les messages existants qui n'ont pas authorId/authorRole
+    if (ticket.messages && Array.isArray(ticket.messages)) {
+      ticket.messages = ticket.messages.map((msg: any) => {
+        if (!msg.authorId) {
+          msg.authorId = ticket.clientId || authorId
+        }
+        if (!msg.authorRole) {
+          msg.authorRole = 'CLIENT'
+        }
+        if (!msg.createdAt) {
+          msg.createdAt = new Date()
+        }
+        return msg
       })
     }
 

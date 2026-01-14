@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
+import Product, { IProduct } from '@/lib/models/Product.validated'
 import { computeProductPricing } from '@/lib/logistics'
+import { simulatePricingFromProduct } from '@/lib/pricing1688.refactored'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,8 +21,22 @@ export async function GET(request: NextRequest) {
 
     const total = await Product.countDocuments({ isPublished: { $ne: false } })
 
-    const payload = products.map((product) => {
+    const payload = products.map((product: any) => {
       const pricing = computeProductPricing(product)
+      
+      // Calcul du meilleur prix et discount pour l'achat groupé
+      let groupBuyBestPrice: number | undefined
+      let groupBuyDiscount: number | undefined
+      
+      if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+        const basePrice = pricing.salePrice || pricing.baseCost || product.price || 0
+        const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => t.price || Infinity))
+        if (bestTierPrice && bestTierPrice < Infinity && basePrice > 0) {
+          groupBuyBestPrice = bestTierPrice
+          groupBuyDiscount = Math.round(((basePrice - bestTierPrice) / basePrice) * 100)
+        }
+      }
+      
       return {
         id: String(product._id),
         name: product.name,
@@ -53,11 +68,16 @@ export async function GET(request: NextRequest) {
             : null
         },
         pricing,
-        sourcing: product.sourcing && {
-          platform: product.sourcing.platform ?? null,
-          supplierName: product.sourcing.supplierName ?? null,
-          productUrl: product.sourcing.productUrl ?? null
-        },
+        // Note: Les informations de sourcing et prix source ne sont pas exposées au public
+        // Seul indicateur: si le produit est importé (pour affichage badge "Import")
+        isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+        // Configuration achat groupé
+        groupBuyEnabled: product.groupBuyEnabled ?? false,
+        groupBuyBestPrice,
+        groupBuyDiscount,
+        priceTiers: product.priceTiers ?? [],
+        groupBuyMinQty: product.groupBuyMinQty,
+        groupBuyTargetQty: product.groupBuyTargetQty,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         isFeatured: product.isFeatured ?? false

@@ -1,12 +1,13 @@
 "use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { useEffect, useState } from 'react'
+import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -22,7 +23,8 @@ interface ShippingOptionSummary {
 }
 
 interface ApiProduct {
-  _id: string
+  id: string
+  _id?: string // Deprecated, utiliser id
   name: string
   category: string
   description: string
@@ -37,9 +39,15 @@ interface ApiProduct {
   rating: number
   shippingOptions: ShippingOptionSummary[]
   availabilityLabel?: string
-  availabilityStatus?: 'in_stock' | 'preorder' | string
+  availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   isFeatured?: boolean
+  isImported?: boolean // Indicateur si produit importé (sans exposer les détails)
+  // Achat groupé
+  groupBuyEnabled?: boolean
+  groupBuyBestPrice?: number
+  groupBuyDiscount?: number
+  priceTiers?: Array<{ minQty: number; price: number; discount?: number }>
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -48,7 +56,8 @@ interface ApiProduct {
 const getFallbackProducts = (): ApiProduct[] => {
   return [
     {
-      _id: 'fallback-1',
+      id: 'fallback-1',
+      _id: 'fallback-1', // Compatibilité
       name: 'Caméra IP Hikvision 4MP',
       category: 'Vidéosurveillance',
       description: 'Caméra de surveillance haute définition avec vision nocturne et IA détection humain/véhicule',
@@ -70,7 +79,8 @@ const getFallbackProducts = (): ApiProduct[] => {
       availabilityStatus: 'preorder'
     },
     {
-      _id: 'fallback-2',
+      id: 'fallback-2',
+      _id: 'fallback-2', // Compatibilité
       name: 'Terminal Contrôle d\'accès Facial',
       category: 'Contrôle d\'Accès',
       description: 'Terminal biométrique reconnaissance faciale & RFID pour entreprise',
@@ -91,7 +101,8 @@ const getFallbackProducts = (): ApiProduct[] => {
       availabilityStatus: 'preorder'
     },
     {
-      _id: 'fallback-3',
+      id: 'fallback-3',
+      _id: 'fallback-3', // Compatibilité
       name: 'Kit alarme sans fil AX PRO',
       category: 'Alarme',
       description: 'Pack alarme résidentielle Hikvision AX PRO avec application mobile',
@@ -111,7 +122,8 @@ const getFallbackProducts = (): ApiProduct[] => {
       availabilityStatus: 'in_stock'
     },
     {
-      _id: 'fallback-4',
+      id: 'fallback-4',
+      _id: 'fallback-4', // Compatibilité
       name: 'Switch PoE 16 ports Hikvision',
       category: 'Réseau',
       description: 'Switch PoE+ 16 ports pour infrastructure vidéosurveillance',
@@ -157,6 +169,9 @@ export default function ProduitsPage() {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [savedFilters, setSavedFilters] = useState<Array<{ name: string; filters: any }>>([])
+  // Recherche par image
+  const [showImageSearch, setShowImageSearch] = useState(false)
+  const [imageSearchResults, setImageSearchResults] = useState<string[]>([]) // IDs des produits trouvés
 
   useEffect(() => {
     const sync = () => {
@@ -225,8 +240,10 @@ export default function ProduitsPage() {
                 : null
 
               const salePrice = typeof item.pricing?.salePrice === 'number' ? item.pricing.salePrice : undefined
+              const baseCost = typeof item.pricing?.baseCost === 'number' ? item.pricing.baseCost : undefined
+              // Listing must show only the source price (baseCost). If not available, fall back to salePrice.
               const priceAmount = !item.requiresQuote
-                ? (bestShipping ? bestShipping.total : salePrice)
+                ? (baseCost ?? salePrice)
                 : undefined
 
               const featuresFromApi = Array.isArray(item.features) ? item.features.filter(Boolean) : []
@@ -236,7 +253,8 @@ export default function ProduitsPage() {
               const features = [...featuresFromApi, ...shippingHighlights, ...availabilityHighlight]
 
               return {
-                _id: item.id,
+                id: item.id,
+                _id: item.id, // Deprecated - utiliser id
                 name: item.name,
                 category: item.category || 'Catalogue import Chine',
                 description: item.description || item.tagline || 'Équipement import direct Chine avec installation Dakar',
@@ -251,7 +269,9 @@ export default function ProduitsPage() {
                 rating: item.isFeatured ? 4.9 : 4.7,
                 shippingOptions: shipping,
                 availabilityLabel: item.availability?.label || undefined,
-                availabilityStatus: item.availability?.status || 'preorder',
+                availabilityStatus: (item.availability?.status === 'in_stock' || item.availability?.status === 'preorder' || item.availability?.status === 'out_of_stock')
+                  ? item.availability.status
+                  : 'preorder',
                 createdAt: item.createdAt || undefined,
                 isFeatured: item.isFeatured || false
               }
@@ -328,6 +348,51 @@ export default function ProduitsPage() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  // Calcul des produits filtrés et triés
+  const filteredProducts = useMemo(() => {
+    let filtered = products.filter(product => {
+      // Si recherche par image active, filtrer uniquement les produits trouvés
+      if (imageSearchResults.length > 0) {
+        if (!imageSearchResults.includes(product.id)) {
+          return false
+        }
+      }
+      
+      const text = `${product.name} ${product.description}`.toLowerCase()
+      const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
+      const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
+      const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
+      const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
+      const matchesPrice = !priceRange || !product.priceAmount || 
+        (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
+      const matchesDelivery = !deliveryRange || !product.deliveryDays ||
+        (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
+      return matchesSearch && matchesTarif && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
+    })
+
+    // Tri des produits
+    if (sortBy !== 'default') {
+      filtered = [...filtered].sort((a, b) => {
+        switch (sortBy) {
+          case 'price-asc':
+            return (a.priceAmount || 0) - (b.priceAmount || 0)
+          case 'price-desc':
+            return (b.priceAmount || 0) - (a.priceAmount || 0)
+          case 'name-asc':
+            return a.name.localeCompare(b.name, 'fr')
+          case 'name-desc':
+            return b.name.localeCompare(a.name, 'fr')
+          case 'rating-desc':
+            return (b.rating || 0) - (a.rating || 0)
+          default:
+            return 0
+        }
+      })
+    }
+
+    return filtered
+  }, [products, debouncedSearch, onlyPrice, onlyQuote, selected, availabilityFilter, priceRange, deliveryRange, sortBy, imageSearchResults])
 
   // Gestion de la comparaison
   const handleCompareToggle = (productId: string, isSelected: boolean) => {
@@ -417,7 +482,7 @@ export default function ProduitsPage() {
       id: 'controle-acces',
       title: 'Contrôle d\'Accès Multi-Marques',
       icon: Shield,
-      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct 1688',
+      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct (Chine)',
       products: [
         {
           name: 'Hikvision DS-K1T341CMF',
@@ -827,51 +892,100 @@ export default function ProduitsPage() {
         </div>
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-white via-gray-50 to-gray-100 page-content pt-28 pb-20 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Produits</span>
+      {/* Hero Section avec Cartes de Fonctionnalités */}
+      <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 page-content pt-24 pb-12 mt-16 overflow-hidden">
+        {/* Effets de fond subtils */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 right-20 w-72 h-72 bg-emerald-100/40 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-10 left-10 w-72 h-72 bg-blue-100/30 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header minimaliste */}
+          <div className="text-center mb-10">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+              Catalogue <span className="text-emerald-600">Pro</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Hikvision, Dahua, Uniview et bien d'autres marques. Import direct Chine pour qualité/prix imbattable.
+            <p className="text-lg text-gray-500 max-w-xl mx-auto">
+              Équipements de sécurité • Import direct • Prix compétitifs
             </p>
-            
-            {/* Info Banner */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mx-auto max-w-4xl text-left mb-8">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center w-8 h-8 bg-blue-500 rounded-full">
-                    <span className="text-white text-sm font-bold">∞</span>
-                  </div>
-                </div>
-                <div className="ml-3">
-                  <p className="text-blue-700 font-semibold mb-2">🌟 Offre Produits Illimitée</p>
-                  <p className="text-blue-600 text-sm">
-                    {/* <strong>Import direct :</strong> Approvisionnement depuis l'étranger pour des prix imbattables.<br/>
-                    <strong>Marques disponibles :</strong> Hikvision, Dahua, Uniview, et des centaines d'autres selon vos besoins.<br/>
-                    <strong>Catalogue :</strong> Les produits ci-dessous sont des exemples. Nous pouvons sourcer tout équipement sur demande. */}
-                  </p>
-                </div>
+          </div>
+          
+          {/* Cartes de fonctionnalités épurées */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {/* Carte 1 - Import Direct */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-emerald-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Package className="h-6 w-6 text-emerald-600" />
               </div>
+              <h3 className="font-semibold text-gray-900 mb-1">Import Direct</h3>
+              <p className="text-sm text-gray-500">Chine → Dakar sans intermédiaire</p>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-4">
-              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
-                <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
-                <span className="text-sm font-medium">Garantie constructeur</span>
+            {/* Carte 2 - Marques Premium */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Star className="h-6 w-6 text-blue-600" />
               </div>
-              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
-                <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
-                <span className="text-sm font-medium">Installation incluse</span>
+              <h3 className="font-semibold text-gray-900 mb-1">Marques Leaders</h3>
+              <p className="text-sm text-gray-500">Hikvision, Dahua, Uniview</p>
+            </div>
+            
+            {/* Carte 3 - Livraison Express */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-orange-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Clock className="h-6 w-6 text-orange-600" />
               </div>
-              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
-                <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
-                <span className="text-sm font-medium">Prix imbattables</span>
+              <h3 className="font-semibold text-gray-900 mb-1">Express 3 Jours</h3>
+              <p className="text-sm text-gray-500">Ou maritime économique 60j</p>
+            </div>
+            
+            {/* Carte 4 - Garantie */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Shield className="h-6 w-6 text-purple-600" />
               </div>
+              <h3 className="font-semibold text-gray-900 mb-1">Garantie & SAV</h3>
+              <p className="text-sm text-gray-500">Installation Dakar incluse</p>
             </div>
           </div>
+          
+          {/* Bannière Achat Groupé - Attractive */}
+          <Link href="/achats-groupes" className="block mt-8">
+            <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-2xl p-6 md:p-8 text-white shadow-xl hover:shadow-2xl transition-all group">
+              {/* Effet de brillance animé */}
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              
+              <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <Users className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl md:text-3xl font-bold mb-1">Achats Groupés</h3>
+                    <p className="text-white/80 text-sm md:text-base">Rejoignez d'autres acheteurs et économisez jusqu'à <span className="font-bold text-yellow-300">-30%</span></p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur rounded-xl px-4 py-2">
+                    <div className="flex -space-x-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-400 flex items-center justify-center text-xs font-bold">JD</div>
+                      <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-xs font-bold">AM</div>
+                      <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center text-xs font-bold">SK</div>
+                    </div>
+                    <span className="text-sm">+12 participants</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 bg-white text-indigo-700 font-bold px-6 py-3 rounded-xl group-hover:bg-yellow-300 transition-colors">
+                    <Sparkles className="w-5 h-5" />
+                    Découvrir
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
       </section>
 
@@ -896,7 +1010,7 @@ export default function ProduitsPage() {
       )}
 
       {/* Products Sections with sidebar filters */}
-      <section className="py-16 bg-white">
+      <section className="py-12 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Mobile filter bar */}
           <div className="lg:hidden mb-4 flex items-center justify-between">
@@ -906,26 +1020,51 @@ export default function ProduitsPage() {
               placeholder="Rechercher un produit..."
               className="flex-1 border rounded-lg px-3 py-2 text-sm mr-2"
             />
-            <button onClick={()=>setShowFilters(true)} className="px-3 py-2 border rounded-lg text-sm">Filtres</button>
+            <ImageSearchButton onClick={() => setShowImageSearch(true)} />
+            <button onClick={()=>setShowFilters(true)} className="px-3 py-2 border rounded-lg text-sm ml-2">Filtres</button>
           </div>
 
           <div className="flex gap-6">
-            {/* Sidebar Filters */}
-            <aside className="w-64 hidden lg:block">
+            {/* Sidebar Filters Moderne */}
+            <aside className="w-72 hidden lg:block">
               <div className="sticky top-24 space-y-4">
-                <div className="bg-white border rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">Recherche</h3>
+                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
+                    <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Recherche
+                  </h3>
                   <input
                     value={search}
                     onChange={(e)=>setSearch(e.target.value)}
                     placeholder="Rechercher un produit..."
-                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all mb-3"
                   />
+                  {/* Bouton recherche par image */}
+                  <ImageSearchButton onClick={() => setShowImageSearch(true)} />
+                  {/* Badge résultats recherche image */}
+                  {imageSearchResults.length > 0 && (
+                    <div className="mt-3 flex items-center justify-between p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <span className="text-xs text-emerald-700 font-medium">
+                        {imageSearchResults.length} produit{imageSearchResults.length > 1 ? 's' : ''} similaire{imageSearchResults.length > 1 ? 's' : ''}
+                      </span>
+                      <button
+                        onClick={() => setImageSearchResults([])}
+                        className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
+                      >
+                        Effacer
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Filtres avancés */}
-                <div className="bg-white border rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Filtres avancés</h3>
+                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
+                    <ArrowUpDown className="h-5 w-5 text-emerald-600" />
+                    Filtres avancés
+                  </h3>
                   
                   {/* Prix */}
                   <div className="mb-4">
@@ -993,50 +1132,60 @@ export default function ProduitsPage() {
                     )}
                   </div>
                 </div>
-                <div className="bg-white border rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">Catégories</h3>
-                  <div className="space-y-1 text-sm">
+                <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
+                    <Package className="h-4 w-4 text-emerald-600" />
+                    Catégories
+                  </h3>
+                  <div className="space-y-1 text-xs max-h-48 overflow-y-auto scrollbar-hide">
                     {Array.from(new Set(products.map(p => p.category || 'Catalogue import Chine'))).map((category) => (
-                      <label key={category} className="flex items-center gap-2">
+                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-emerald-50 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={selected.includes(category)}
                           onChange={(e)=>{
                             setSelected((prev)=> e.target.checked ? [...prev, category] : prev.filter(id=>id!==category))
                           }}
+                          className="w-3.5 h-3.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                         />
-                        <span>{category}</span>
+                        <span className="text-gray-700">{category}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-                <div className="bg-white border rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">Tarif</h3>
-                  <div className="space-y-1 text-sm">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} />
-                      <span>Avec prix</span>
+                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
+                    <Star className="h-5 w-5 text-emerald-600" />
+                    Tarif
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+                      <span className="font-medium text-gray-700">Avec prix</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} />
-                      <span>Sur devis</span>
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+                      <span className="font-medium text-gray-700">Sur devis</span>
                     </label>
                   </div>
                 </div>
-                <div className="bg-white border rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">Disponibilité</h3>
-                  <div className="space-y-1 text-sm">
-                    <label className="flex items-center gap-2">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} />
-                      <span>Tous</span>
+                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-emerald-600" />
+                    Disponibilité
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
+                      <span className="font-medium text-gray-700">Tous</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} />
-                      <span>En stock</span>
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
+                      <span className="font-medium text-gray-700">En stock</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} />
-                      <span>Sur commande</span>
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
+                      <span className="font-medium text-gray-700">Sur commande</span>
                     </label>
                   </div>
                 </div>
@@ -1212,117 +1361,71 @@ export default function ProduitsPage() {
                   </button>
                 </div>
               ) : (
-                  <div className="space-y-16">
-                    {/* Grouper les produits par catégorie */}
-                    {Object.entries(
-                      products.reduce((acc, product) => {
-                        const categoryKey = product.category || 'Catalogue import Chine'
-                        if (!acc[categoryKey]) acc[categoryKey] = []
-                        acc[categoryKey].push(product)
-                        return acc
-                      }, {} as Record<string, ApiProduct[]>)
-                    ).map(([categoryName, categoryProducts]) => {
-                      let filtered = categoryProducts.filter(product => {
-                        const text = `${product.name} ${product.description}`.toLowerCase()
-                        const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
-                        const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
-                        const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
-                        const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
-                        
-                        // Filtres avancés
-                        const matchesPrice = !priceRange || !product.priceAmount || 
-                          (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
-                        const matchesDelivery = !deliveryRange || !product.deliveryDays ||
-                          (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
-                        
-                        return matchesSearch && matchesTarif && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
-                      })
-
-                      // Tri des produits
-                      if (sortBy !== 'default') {
-                        filtered = [...filtered].sort((a, b) => {
-                          switch (sortBy) {
-                            case 'price-asc':
-                              return (a.priceAmount || 0) - (b.priceAmount || 0)
-                            case 'price-desc':
-                              return (b.priceAmount || 0) - (a.priceAmount || 0)
-                            case 'name-asc':
-                              return a.name.localeCompare(b.name, 'fr')
-                            case 'name-desc':
-                              return b.name.localeCompare(a.name, 'fr')
-                            case 'rating-desc':
-                              return (b.rating || 0) - (a.rating || 0)
-                            default:
-                              return 0
-                          }
-                        })
-                      }
-
-                      if (filtered.length === 0) return null
-
-                      return (
-                        <div key={categoryName} className="mb-16 last:mb-0">
-                        {/* Category Header avec contrôles */}
-                        <div className="mb-8">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                            <div className="text-center sm:text-left">
-                              <div className="flex items-center justify-center sm:justify-start gap-3 mb-3">
-                                <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-xl shadow-lg">
-                                  <Package className="h-6 w-6 text-white" />
-                                </div>
-                                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{categoryName}</h2>
-                              </div>
-                              <p className="text-sm text-gray-600">
-                                {filtered.length} produit{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
-                              </p>
-                            </div>
-                            
-                            {/* Contrôles tri et vue */}
-                            <div className="flex items-center gap-3">
-                              {/* Mode vue */}
-                              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
-                                <button
-                                  onClick={() => setViewMode('grid')}
-                                  className={`p-1.5 rounded transition ${viewMode === 'grid' ? 'bg-emerald-100 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                  aria-label="Vue grille"
-                                >
-                                  <Grid className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => setViewMode('list')}
-                                  className={`p-1.5 rounded transition ${viewMode === 'list' ? 'bg-emerald-100 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                  aria-label="Vue liste"
-                                >
-                                  <List className="h-4 w-4" />
-                                </button>
-                              </div>
-                              
-                              {/* Tri */}
-                              <div className="relative">
-                                <select
-                                  value={sortBy}
-                                  onChange={(e) => setSortBy(e.target.value as any)}
-                                  className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                >
-                                  <option value="default">Trier par</option>
-                                  <option value="price-asc">Prix croissant</option>
-                                  <option value="price-desc">Prix décroissant</option>
-                                  <option value="name-asc">Nom A-Z</option>
-                                  <option value="name-desc">Nom Z-A</option>
-                                  <option value="rating-desc">Meilleures notes</option>
-                                </select>
-                                <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                              </div>
-                            </div>
-                          </div>
+                  <div className="space-y-6">
+                    {/* Contrôles tri et vue en haut */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <Package className="h-5 w-5 text-emerald-600" />
+                        <div>
+                          <h2 className="text-lg font-bold text-gray-900">
+                            {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
+                          </h2>
                         </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        {/* Mode vue */}
+                        <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+                          <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            aria-label="Vue grille"
+                          >
+                            <Grid className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            aria-label="Vue liste"
+                          >
+                            <List className="h-4 w-4" />
+                          </button>
+                        </div>
+                        
+                        {/* Tri */}
+                        <div className="relative">
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                          >
+                            <option value="default">Trier par</option>
+                            <option value="price-asc">Prix croissant</option>
+                            <option value="price-desc">Prix décroissant</option>
+                            <option value="name-asc">Nom A-Z</option>
+                            <option value="name-desc">Nom Z-A</option>
+                            <option value="rating-desc">Meilleures notes</option>
+                          </select>
+                          <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
 
+                    {/* Affichage des produits filtrés */}
+                    {filteredProducts.length === 0 ? (
+                      <div className="text-center py-16">
+                        <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
+                        <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
+                      </div>
+                    ) : (
+                      <>
                         {/* Products Grid ou List */}
                         {viewMode === 'grid' ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                            {filtered.map((product) => (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                            {filteredProducts.map((product) => (
                               <ProductCard
-                                key={product._id}
+                                key={product.id || product._id}
                                 name={product.name}
                                 model={product.tagline}
                                 price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
@@ -1335,20 +1438,24 @@ export default function ProduitsPage() {
                                 images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
                                 shippingOptions={product.shippingOptions}
                                 availabilityStatus={product.availabilityStatus}
-                                detailHref={`/produits/${product._id}`}
+                                detailHref={`/produits/${product.id || product._id}`}
                                 isPopular={product.rating >= 4.8}
                                 createdAt={product.createdAt}
                                 onCompareToggle={handleCompareToggle}
-                                isComparing={comparingProducts.has(product._id)}
+                                isComparing={comparingProducts.has(product.id || product._id || '')}
+                                isImported={product.isImported}
+                                groupBuyEnabled={product.groupBuyEnabled}
+                                groupBuyBestPrice={product.groupBuyBestPrice}
+                                groupBuyDiscount={product.groupBuyDiscount}
                               />
                             ))}
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {filtered.map((product) => (
+                            {filteredProducts.map((product) => (
                               <Link
-                                key={product._id}
-                                href={`/produits/${product._id}`}
+                                key={product.id || product._id}
+                                href={`/produits/${product.id || product._id}`}
                                 className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-emerald-300 transition-all"
                               >
                                 <div className="flex flex-col sm:flex-row gap-4">
@@ -1376,7 +1483,7 @@ export default function ProduitsPage() {
                                         <div className="text-2xl font-bold text-emerald-600">
                                           {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
                                         </div>
-                                        {product.deliveryDays > 0 && (
+                                        {(product.deliveryDays || 0) > 0 && (
                                           <div className="text-xs text-gray-500 flex items-center gap-1 justify-end mt-1">
                                             <Clock className="h-3 w-3" />
                                             {product.deliveryDays}j
@@ -1410,17 +1517,11 @@ export default function ProduitsPage() {
                             ))}
                           </div>
                         )}
-                      </div>
-                    )
-                  })}
+                      </>
+                    )}
+                  </div>
+              )}
 
-                  {products.length === 0 && !loading && (
-                    <div className="text-center py-16">
-                      <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
-                      <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
-                    </div>
-                  )}
 
                   {/* Pagination */}
                   {totalPages > 1 && (
@@ -1470,10 +1571,8 @@ export default function ProduitsPage() {
                     </div>
                   )}
                 </div>
-              )}
             </div>
           </div>
-                  </div>
       </section>
 
       {/* Mobile Filters Drawer */}
@@ -1556,7 +1655,7 @@ export default function ProduitsPage() {
               className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
               </svg>
               Conseil WhatsApp
             </a>
@@ -1607,6 +1706,19 @@ export default function ProduitsPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de recherche par image */}
+      <ImageSearchModal
+        isOpen={showImageSearch}
+        onClose={() => setShowImageSearch(false)}
+        onResultsFound={(results) => {
+          // Stocker les IDs des produits trouvés pour le filtrage
+          const productIds = results.map(r => r.id)
+          setImageSearchResults(productIds)
+          // Fermer le modal
+          setShowImageSearch(false)
+        }}
+      />
 
       <Footer />
     </main>
