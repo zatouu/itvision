@@ -81,6 +81,7 @@ export default function ProductDetailSidebar({
   // Image zoomée (pour preview au survol et clic)
   const [hoveredVariantImage, setHoveredVariantImage] = useState<string | null>(null)
   const [imageZoomPosition, setImageZoomPosition] = useState<{ x: number; y: number } | null>(null)
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null)
 
   // ─── Computed Values ───────────────────────────────────────────────────────
 
@@ -236,30 +237,43 @@ export default function ProductDetailSidebar({
     }
   }, [onVariantChange, onImageChange])
 
-  // Gérer le survol d'image avec position de souris
+  // Gérer le survol d'image - zoom après délai
   const handleImageHover = useCallback((e: React.MouseEvent, imageUrl: string) => {
     const rect = e.currentTarget.getBoundingClientRect()
     setImageZoomPosition({ 
       x: rect.left + rect.width / 2, 
       y: rect.top + rect.height / 2 
     })
-    // Ne pas ouvrir le zoom au hover, seulement au clic
+    // Ouvrir le zoom après 500ms de survol
+    const timeout = setTimeout(() => {
+      setHoveredVariantImage(imageUrl)
+    }, 500)
+    setHoverTimeout(timeout)
   }, [])
 
   const handleImageClick = useCallback((e: React.MouseEvent, imageUrl: string) => {
     e.stopPropagation()
+    // Annuler le timeout du survol si présent
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout)
+      setHoverTimeout(null)
+    }
     const rect = e.currentTarget.getBoundingClientRect()
     setImageZoomPosition({ 
       x: rect.left + rect.width / 2, 
       y: rect.top + rect.height / 2 
     })
     setHoveredVariantImage(imageUrl)
-  }, [])
+  }, [hoverTimeout])
 
   const handleImageLeave = useCallback(() => {
-    // Ne rien faire au leave - le zoom se ferme uniquement au clic
+    // Annuler le timeout si on quitte avant le délai
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout)
+      setHoverTimeout(null)
+    }
     setImageZoomPosition(null)
-  }, [])
+  }, [hoverTimeout])
 
   const addToCart = useCallback((redirect = false) => {
     try {
@@ -597,7 +611,7 @@ Merci de me recontacter.`
               </div>
               
               {/* Liste des variantes (style 1688 amélioré) */}
-              <div className="grid gap-3 max-h-96 overflow-y-auto pr-1">
+              <div className="grid gap-3">
                 {group.variants.map((variant) => {
                   const isOutOfStock = variant.stock === 0
                   const qty = variantQuantities[variant.id] || 0
@@ -609,8 +623,9 @@ Merci de me recontacter.`
                   return (
                     <div
                       key={variant.id}
+                      onClick={() => handleVariantSelect(group.name, variant)}
                       className={clsx(
-                        'relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md',
+                        'relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md cursor-pointer',
                         hasQuantity
                           ? 'border-emerald-500 bg-emerald-50 shadow-sm'
                           : isSelected
@@ -621,10 +636,11 @@ Merci de me recontacter.`
                     >
                       {/* Image variante plus grande avec effets */}
                       {variant.image ? (
-                        <div className="relative group">
+                        <div className="relative group" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={(e) => {
+                              e.stopPropagation()
                               handleImageClick(e, variant.image!)
                             }}
                             onMouseEnter={(e) => handleImageHover(e, variant.image!)}
@@ -671,19 +687,16 @@ Merci de me recontacter.`
                           )}>
                             {variant.name}
                           </h4>
-                          {/* Bouton de sélection rapide */}
-                          <button
-                            type="button"
-                            onClick={() => handleVariantSelect(group.name, variant)}
-                            className={clsx(
-                              'text-xs px-2 py-1 rounded-md font-medium transition-colors',
-                              isSelected
-                                ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300'
-                            )}
-                          >
-                            {isSelected ? 'Sélectionné' : 'Sélectionner'}
-                          </button>
+                          {/* Indicateur de stock */}
+                          <div className={clsx(
+                            'text-xs font-medium px-2 py-0.5 rounded-full',
+                            variant.stock > 10 ? 'bg-green-100 text-green-700' : variant.stock > 0 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
+                          )}>
+                            {variant.stock > 0 
+                              ? `${variant.stock.toLocaleString('fr-FR')} dispo.` 
+                              : 'Rupture'
+                            }
+                          </div>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -706,18 +719,6 @@ Merci de me recontacter.`
                               </span>
                             )}
                           </div>
-                          
-                          <div className="text-right">
-                            <div className={clsx(
-                              'text-xs font-medium',
-                              variant.stock > 10 ? 'text-green-600' : variant.stock > 0 ? 'text-orange-600' : 'text-red-600'
-                            )}>
-                              {variant.stock > 0 
-                                ? `${variant.stock.toLocaleString('fr-FR')} dispo.` 
-                                : 'Rupture'
-                              }
-                            </div>
-                          </div>
                         </div>
                       </div>
 
@@ -725,7 +726,7 @@ Merci de me recontacter.`
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           type="button"
-                          onClick={() => handleVariantQuantityChange(variant.id, -1)}
+                          onClick={(e) => { e.stopPropagation(); handleVariantQuantityChange(variant.id, -1) }}
                           disabled={qty === 0 || isOutOfStock}
                           className={clsx(
                             'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
@@ -741,6 +742,7 @@ Merci de me recontacter.`
                           type="number"
                           min={0}
                           value={qty}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => setVariantQuantityDirect(variant.id, parseInt(e.target.value) || 0)}
                           disabled={isOutOfStock}
                           className={clsx(
@@ -753,7 +755,7 @@ Merci de me recontacter.`
                         
                         <button
                           type="button"
-                          onClick={() => handleVariantQuantityChange(variant.id, 1)}
+                          onClick={(e) => { e.stopPropagation(); handleVariantQuantityChange(variant.id, 1) }}
                           disabled={isOutOfStock}
                           className={clsx(
                             'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',

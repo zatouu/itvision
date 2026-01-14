@@ -887,41 +887,61 @@ export default function ProduitsPage() {
         </div>
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
-      {/* Hero Section Moderne */}
-      <section className="relative bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/40 page-content pt-24 pb-16 mt-16 overflow-hidden">
-        {/* Effets de fond décoratifs */}
+      {/* Hero Section avec Cartes de Fonctionnalités */}
+      <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 page-content pt-24 pb-12 mt-16 overflow-hidden">
+        {/* Effets de fond subtils */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-200/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-200/20 rounded-full blur-3xl"></div>
+          <div className="absolute top-20 right-20 w-72 h-72 bg-emerald-100/40 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-10 left-10 w-72 h-72 bg-blue-100/30 rounded-full blur-3xl"></div>
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
-              <Sparkles className="h-4 w-4" />
-              Catalogue Professionnel
-            </div>
-            <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
-              Nos <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 bg-clip-text text-transparent animate-gradient">Produits</span>
+          {/* Header minimaliste */}
+          <div className="text-center mb-10">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+              Catalogue <span className="text-emerald-600">Pro</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-10 font-medium">
-              Hikvision, Dahua, Uniview et bien d'autres marques. Import direct Chine pour qualité/prix imbattable.
+            <p className="text-lg text-gray-500 max-w-xl mx-auto">
+              Équipements de sécurité • Import direct • Prix compétitifs
             </p>
+          </div>
+          
+          {/* Cartes de fonctionnalités épurées */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {/* Carte 1 - Import Direct */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-emerald-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Package className="h-6 w-6 text-emerald-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-1">Import Direct</h3>
+              <p className="text-sm text-gray-500">Chine → Dakar sans intermédiaire</p>
+            </div>
             
-            {/* Badges de confiance modernes */}
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-emerald-100 hover:shadow-xl transition-all">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-gray-800">Garantie constructeur</span>
+            {/* Carte 2 - Marques Premium */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Star className="h-6 w-6 text-blue-600" />
               </div>
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-emerald-100 hover:shadow-xl transition-all">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-gray-800">Installation incluse</span>
+              <h3 className="font-semibold text-gray-900 mb-1">Marques Leaders</h3>
+              <p className="text-sm text-gray-500">Hikvision, Dahua, Uniview</p>
+            </div>
+            
+            {/* Carte 3 - Livraison Express */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-orange-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Clock className="h-6 w-6 text-orange-600" />
               </div>
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-emerald-100 hover:shadow-xl transition-all">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold text-gray-800">Prix imbattables</span>
+              <h3 className="font-semibold text-gray-900 mb-1">Express 3 Jours</h3>
+              <p className="text-sm text-gray-500">Ou maritime économique 60j</p>
+            </div>
+            
+            {/* Carte 4 - Garantie */}
+            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Shield className="h-6 w-6 text-purple-600" />
               </div>
+              <h3 className="font-semibold text-gray-900 mb-1">Garantie & SAV</h3>
+              <p className="text-sm text-gray-500">Installation Dakar incluse</p>
             </div>
           </div>
         </div>
