@@ -35,6 +35,9 @@ export interface ProductCardProps {
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
   isImported?: boolean // Produit importé (sans exposer les détails source)
+  // Données physiques pour le calcul transport
+  unitWeightKg?: number
+  unitVolumeM3?: number
   // Achat groupé
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number // Meilleur prix possible en achat groupé
@@ -69,6 +72,8 @@ export default function ProductCard({
   onCompareToggle,
   isComparing = false,
   isImported = false,
+  unitWeightKg,
+  unitVolumeM3,
   groupBuyEnabled = false,
   groupBuyBestPrice,
   groupBuyDiscount
@@ -187,6 +192,12 @@ export default function ProductCard({
         // Garder le prix principal égal au prix sourcing. Les frais/transport sont stockés séparément.
         items[existsIndex].price = basePrice
         items[existsIndex].currency = effectiveCurrency
+        if (typeof unitWeightKg === 'number') {
+          items[existsIndex].unitWeightKg = unitWeightKg
+        }
+        if (typeof unitVolumeM3 === 'number') {
+          items[existsIndex].unitVolumeM3 = unitVolumeM3
+        }
         if (activeShipping) {
           items[existsIndex].shipping = {
             id: activeShipping.id,
@@ -206,6 +217,8 @@ export default function ProductCard({
           price: basePrice,
           currency: effectiveCurrency,
           requiresQuote: !!requiresQuote,
+          unitWeightKg: typeof unitWeightKg === 'number' ? unitWeightKg : undefined,
+          unitVolumeM3: typeof unitVolumeM3 === 'number' ? unitVolumeM3 : undefined,
           shipping: activeShipping ? {
             id: activeShipping.id,
             label: activeShipping.label,

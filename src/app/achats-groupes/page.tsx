@@ -57,6 +57,12 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800', icon: AlertCircle }
 }
 
+const shippingLabels: Record<string, string> = {
+  maritime_60j: 'Maritime ~60 j • à partir de 170 000 F/m³',
+  air_15j: 'Fret aérien ~15 j • à partir de 12 000 F/kg',
+  express_3j: 'Express ~3 j • à partir de 8 000 F/kg'
+}
+
 export default function GroupOrdersPage() {
   const [groups, setGroups] = useState<GroupOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -105,11 +111,16 @@ export default function GroupOrdersPage() {
           >
             <div className="flex items-center justify-center gap-3 mb-4">
               <Users className="w-12 h-12" />
-              <h1 className="text-4xl md:text-5xl font-bold">Achats Groupés</h1>
+              <h1 className="text-4xl md:text-5xl font-bold">Achats groupés import Chine</h1>
             </div>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8">
-              Rejoignez d&apos;autres acheteurs pour obtenir les meilleurs prix sur vos produits préférés. 
-              Plus on est nombreux, moins on paie !
+            <p className="text-xl text-white/90 max-w-3xl mx-auto mb-6">
+              Lancez-vous facilement dans le business sans bloquer un gros capital :
+              nous regroupons les commandes et gérons l&apos;import depuis la Chine pour vous.
+            </p>
+            <p className="text-sm md:text-base text-white/80 max-w-3xl mx-auto mb-8">
+              Vous rejoignez un groupe, vous réservez votre quantité et nous mutualisons la commande.
+              Nous faisons l&apos;interface entre vous et le marché chinois : vous déposez l&apos;argent (ou une partie),
+              nous achetons à la source, faisons venir la marchandise au Sénégal puis la livrons aux clients.
             </p>
             
             {/* Stats */}
@@ -127,6 +138,18 @@ export default function GroupOrdersPage() {
                 <p className="text-sm text-white/80">Participants</p>
               </div>
             </div>
+
+            <div className="mt-6 flex flex-wrap justify-center gap-3 text-xs md:text-sm text-white/85">
+              <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
+                Accès à un vaste catalogue en import depuis la Chine
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
+                Idéal pour tester des produits sans gros stock
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
+                Paiements mobiles & garanties déjà intégrées
+              </span>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -134,13 +157,17 @@ export default function GroupOrdersPage() {
       {/* Comment ça marche */}
       <section className="py-12 px-4 bg-white border-b">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8 text-gray-900">Comment ça marche ?</h2>
+          <h2 className="text-2xl font-bold text-center mb-4 text-gray-900">Comment ça marche ?</h2>
+          <p className="text-sm text-gray-600 text-center max-w-3xl mx-auto mb-8">
+            Notre rôle : faire le lien entre vos besoins et les usines/fournisseurs en Chine.
+            Vous vous concentrez sur votre vente, nous gérons l&apos;achat groupé, l&apos;import et la logistique.
+          </p>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { icon: Search, title: '1. Trouvez', desc: 'Choisissez un achat groupé qui vous intéresse' },
-              { icon: Users, title: '2. Rejoignez', desc: 'Indiquez la quantité souhaitée et inscrivez-vous' },
-              { icon: TrendingDown, title: '3. Économisez', desc: 'Plus de participants = prix unitaire réduit' },
-              { icon: Package, title: '4. Recevez', desc: 'Une fois l\'objectif atteint, on commande ensemble' }
+              { icon: Search, title: '1. Choisissez une offre', desc: 'Sélectionnez un achat groupé qui correspond à ce que vous voulez vendre ou utiliser' },
+              { icon: Users, title: '2. Réservez votre quantité', desc: 'Indiquez la quantité souhaitée et déposez l&apos;argent (ou une partie) pour bloquer votre place' },
+              { icon: TrendingDown, title: '3. Achat à la source', desc: 'Nous regroupons toutes les participations et procédons à l&apos;achat en Chine au meilleur tarif' },
+              { icon: Package, title: '4. Transport & livraison', desc: 'Transport express, aérien ou maritime jusqu&apos;au Sénégal, puis livraison aux clients' }
             ].map((step, i) => (
               <motion.div
                 key={i}
@@ -249,6 +276,15 @@ export default function GroupOrdersPage() {
                       <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
                         {group.product.name}
                       </h3>
+
+                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-gray-400 mb-2">
+                        <span>Import Chine • sourcing optimisé</span>
+                        {group.shippingMethod && (
+                          <span className="text-gray-500 normal-case">
+                            {shippingLabels[group.shippingMethod] || 'Livraison groupée optimisée'}
+                          </span>
+                        )}
+                      </div>
                       
                       {/* Prix */}
                       <div className="flex items-baseline gap-2 mb-4">
@@ -303,7 +339,7 @@ export default function GroupOrdersPage() {
                         <div className="mb-4 p-3 bg-emerald-50 rounded-lg">
                           <p className="text-xs font-semibold text-emerald-800 mb-2 flex items-center gap-1">
                             <TrendingDown className="w-4 h-4" />
-                            Prix dégressifs
+                            Prix dégressifs pensés pour la revente
                           </p>
                           <div className="space-y-1">
                             {group.priceTiers.slice(0, 3).map((tier, i) => (

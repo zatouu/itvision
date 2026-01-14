@@ -231,6 +231,8 @@ export default function WishlistPage() {
                 isPopular={product.rating >= 4.8}
                 createdAt={product.createdAt}
                 isImported={product.isImported}
+                unitWeightKg={product.weightKg ?? product.grossWeightKg ?? product.netWeightKg}
+                unitVolumeM3={product.volumeM3}
               />
             ))}
           </div>

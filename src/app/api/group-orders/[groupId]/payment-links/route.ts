@@ -39,8 +39,8 @@ export async function POST(
       )
     }
 
-    // Trouver l'achat groupé
-    const group = await GroupOrder.findById(groupId).populate('productId')
+    // Trouver l'achat groupé via son identifiant fonctionnel (groupId)
+    const group = await GroupOrder.findOne({ groupId })
     if (!group) {
       return NextResponse.json(
         { error: 'Achat groupé non trouvé' },
@@ -70,8 +70,8 @@ export async function POST(
     }
 
     // Calculer le montant
-    const quantity = participant.quantity || 1
-    const unitPrice = group.currentUnitPrice || group.targetUnitPrice
+    const quantity = (participant as any).qty || 1
+    const unitPrice = (group as any).currentUnitPrice || (group as any).product?.basePrice
     const amount = quantity * unitPrice
 
     // Générer la référence de paiement
@@ -89,7 +89,7 @@ export async function POST(
       amount,
       currency: 'FCFA',
       reference,
-      description: `${quantity}x ${group.productId?.name || 'Produit'} - Achat Groupé`,
+      description: `${quantity}x ${(group as any).product?.name || 'Produit'} - Achat Groupé`,
       customerName: participant.name || 'Client',
       customerPhone: formattedPhone,
       customerEmail: participant.email || email
@@ -104,8 +104,8 @@ export async function POST(
       const { subject, html } = generatePaymentInstructionsEmail(
         { ...paymentRequest, customerEmail: recipientEmail },
         {
-          groupId,
-          productName: group.productId?.name || 'Produit',
+          groupId: (group as any).groupId,
+          productName: (group as any).product?.name || 'Produit',
           deadline: group.deadline
         }
       )
@@ -144,11 +144,11 @@ export async function POST(
         instructions: link.instructions
       })),
       group: {
-        id: groupId,
-        productName: group.productId?.name,
+        id: (group as any).groupId,
+        productName: (group as any).product?.name,
         status: group.status,
         deadline: group.deadline,
-        progress: Math.round((group.currentQuantity / group.minQuantity) * 100)
+        progress: Math.round(((group as any).currentQty / (group as any).minQty) * 100)
       }
     })
 
@@ -187,8 +187,8 @@ export async function PATCH(
       )
     }
 
-    // Trouver l'achat groupé
-    const group = await GroupOrder.findById(groupId)
+    // Trouver l'achat groupé via son identifiant fonctionnel (groupId)
+    const group = await GroupOrder.findOne({ groupId })
     if (!group) {
       return NextResponse.json(
         { error: 'Achat groupé non trouvé' },

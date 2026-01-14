@@ -113,9 +113,9 @@ export default function PanierPage() {
   }
 
   const SHIPPING_RATES = {
-    express: { label: 'Express 3j', ratePerKg: 12000, billing: 'per_kg' },
-    air: { label: 'Fret aérien 10–15j', ratePerKg: 8000, billing: 'per_kg' },
-    sea: { label: 'Maritime 60j', ratePerM3: 140000, billing: 'per_m3' }
+    express: { label: 'Express 3j', ratePerKg: 8000, billing: 'per_kg' },
+    air: { label: 'Fret aérien 10–15j', ratePerKg: 12000, billing: 'per_kg' },
+    sea: { label: 'Maritime 60j', ratePerM3: 170000, billing: 'per_m3' }
   }
 
   const transportGlobal = useMemo(() => {

@@ -1444,6 +1444,8 @@ export default function ProduitsPage() {
                                 onCompareToggle={handleCompareToggle}
                                 isComparing={comparingProducts.has(product.id || product._id || '')}
                                 isImported={product.isImported}
+                                unitWeightKg={product.weightKg ?? product.grossWeightKg ?? product.netWeightKg}
+                                unitVolumeM3={product.volumeM3}
                                 groupBuyEnabled={product.groupBuyEnabled}
                                 groupBuyBestPrice={product.groupBuyBestPrice}
                                 groupBuyDiscount={product.groupBuyDiscount}
