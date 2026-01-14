@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import {
   Users,
   Package,
@@ -18,7 +19,8 @@ import {
   ShoppingCart,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react'
 
 interface GroupOrder {
@@ -64,18 +66,91 @@ const shippingLabels: Record<string, string> = {
 }
 
 export default function GroupOrdersPage() {
+  const router = useRouter()
+  const [productIdParam, setProductIdParam] = useState<string | null>(null)
+  const [createParam, setCreateParam] = useState<'0' | '1'>('0')
+  const [qtyParam, setQtyParam] = useState<string | null>(null)
+
   const [groups, setGroups] = useState<GroupOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [stats, setStats] = useState({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
 
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [productPreview, setProductPreview] = useState<{ id: string; name: string; image?: string | null } | null>(null)
+  const [createForm, setCreateForm] = useState({
+    qty: 1,
+    deadline: (() => {
+      const d = new Date()
+      d.setDate(d.getDate() + 14)
+      return d.toISOString().slice(0, 10)
+    })(),
+    shippingMethod: 'maritime_60j',
+    description: '',
+    name: '',
+    phone: '',
+    email: ''
+  })
+
+  useEffect(() => {
+    // Lire les query params côté client (évite useSearchParams + suspense)
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const pid = params.get('productId')
+      const create = params.get('create') === '1' ? '1' : '0'
+      const qty = params.get('qty')
+
+      setProductIdParam(pid)
+      setCreateParam(create)
+      setQtyParam(qty)
+
+      if (qty) {
+        const parsed = Math.max(1, parseInt(qty) || 1)
+        setCreateForm((p) => ({ ...p, qty: parsed }))
+      }
+      if (create === '1') {
+        setShowCreateModal(true)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
   useEffect(() => {
     fetchGroups()
-  }, [])
+  }, [productIdParam])
+
+  // Note: le modal auto est géré dans l'effet de lecture des params
+
+  useEffect(() => {
+    const loadProductPreview = async () => {
+      if (!productIdParam) {
+        setProductPreview(null)
+        return
+      }
+      try {
+        const res = await fetch(`/api/catalog/products/${productIdParam}`)
+        const data = await res.json()
+        if (data?.success && data?.product) {
+          setProductPreview({ id: data.product.id, name: data.product.name, image: data.product.image })
+        } else {
+          setProductPreview({ id: productIdParam, name: 'Produit', image: null })
+        }
+      } catch {
+        setProductPreview({ id: productIdParam, name: 'Produit', image: null })
+      }
+    }
+    loadProductPreview()
+  }, [productIdParam])
 
   const fetchGroups = async () => {
     try {
-      const res = await fetch('/api/group-orders')
+      const url = productIdParam
+        ? `/api/group-orders?productId=${encodeURIComponent(productIdParam)}`
+        : '/api/group-orders'
+      const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
         setGroups(data.groups)
@@ -190,6 +265,36 @@ export default function GroupOrdersPage() {
       {/* Liste des achats groupés */}
       <section className="py-12 px-4">
         <div className="max-w-6xl mx-auto">
+          {productIdParam && (
+            <div className="mb-6 bg-white border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                  <Filter className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900">Filtré pour un produit</div>
+                  <div className="text-xs text-gray-600">{productPreview?.name || 'Produit'} • {productIdParam}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Créer un achat groupé
+                </button>
+                <Link
+                  href="/achats-groupes"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
+                >
+                  Effacer le filtre
+                  <X className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Recherche */}
           <div className="mb-8">
             <div className="relative max-w-md">
@@ -385,6 +490,206 @@ export default function GroupOrdersPage() {
           )}
         </div>
       </section>
+
+      {/* Modal création achat groupé */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowCreateModal(false)
+              setCreateError(null)
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-bold">Créer un achat groupé</h2>
+                    <p className="text-white/85 text-sm">Lancez un groupe et invitez d'autres personnes à vous rejoindre.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false)
+                      setCreateError(null)
+                    }}
+                    className="p-2 hover:bg-white/15 rounded-xl transition"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <form
+                className="p-6 space-y-4"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setCreateError(null)
+                  if (!productIdParam) {
+                    setCreateError('Veuillez ouvrir la création depuis une fiche produit (productId manquant).')
+                    return
+                  }
+                  if (!createForm.name || !createForm.phone || createForm.qty < 1) {
+                    setCreateError('Nom, téléphone et quantité sont requis.')
+                    return
+                  }
+                  setCreating(true)
+                  try {
+                    const res = await fetch('/api/group-orders', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        productId: productIdParam,
+                        qty: createForm.qty,
+                        deadline: createForm.deadline,
+                        shippingMethod: createForm.shippingMethod,
+                        description: createForm.description,
+                        creator: {
+                          name: createForm.name,
+                          phone: createForm.phone,
+                          email: createForm.email || undefined
+                        }
+                      })
+                    })
+                    const data = await res.json()
+                    if (data?.success && data?.group?.groupId) {
+                      setShowCreateModal(false)
+                      router.push(`/achats-groupes/${data.group.groupId}`)
+                      return
+                    }
+                    setCreateError(data?.error || "Impossible de créer l'achat groupé")
+                  } catch {
+                    setCreateError("Erreur réseau lors de la création")
+                  } finally {
+                    setCreating(false)
+                  }
+                }}
+              >
+                {/* Produit */}
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border">
+                  {productPreview?.image ? (
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-white border">
+                      <Image src={productPreview.image} alt={productPreview.name} fill className="object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-white border flex items-center justify-center">
+                      <Package className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-gray-900 line-clamp-1">{productPreview?.name || 'Produit'}</div>
+                    <div className="text-xs text-gray-500 line-clamp-1">ID: {productIdParam || '—'}</div>
+                  </div>
+                </div>
+
+                {createError && (
+                  <div className="flex items-start gap-2 text-sm bg-red-50 border border-red-200 text-red-700 rounded-xl p-3">
+                    <AlertCircle className="w-5 h-5 mt-0.5" />
+                    <div>{createError}</div>
+                  </div>
+                )}
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Quantité initiale</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={createForm.qty}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, qty: Math.max(1, parseInt(e.target.value) || 1) }))}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date limite</label>
+                    <input
+                      type="date"
+                      value={createForm.deadline}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, deadline: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Mode de transport</label>
+                  <select
+                    value={createForm.shippingMethod}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, shippingMethod: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    {Object.entries(shippingLabels).map(([k, label]) => (
+                      <option key={k} value={k}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Votre nom</label>
+                    <input
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Nom et prénom"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Téléphone</label>
+                    <input
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="+221 77 000 00 00"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Email (optionnel)</label>
+                  <input
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="vous@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description (optionnel)</label>
+                  <textarea
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    rows={3}
+                    placeholder="Ex: Couleur souhaitée, détails de livraison..."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                  Créer le groupe
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

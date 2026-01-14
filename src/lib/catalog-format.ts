@@ -35,6 +35,18 @@ const normalizeVariantGroups = (product: any) => {
 export const formatProductDetail = (product: any) => {
   const pricing = computeProductPricing(product)
 
+  // Achat groupé: calcul du meilleur prix et discount (si activé)
+  let groupBuyBestPrice: number | null = null
+  let groupBuyDiscount: number | null = null
+  if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+    const basePrice = pricing.salePrice ?? pricing.baseCost ?? product.price ?? 0
+    const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => (typeof t?.price === 'number' ? t.price : Infinity)))
+    if (Number.isFinite(bestTierPrice) && bestTierPrice < Infinity && basePrice > 0) {
+      groupBuyBestPrice = bestTierPrice
+      groupBuyDiscount = Math.round(((basePrice - bestTierPrice) / basePrice) * 100)
+    }
+  }
+
   return {
     id: String(product._id),
     name: product.name,
@@ -79,6 +91,13 @@ export const formatProductDetail = (product: any) => {
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé
     isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+    // Achat groupé (front)
+    groupBuyEnabled: product.groupBuyEnabled ?? false,
+    groupBuyBestPrice,
+    groupBuyDiscount,
+    priceTiers: product.priceTiers ?? [],
+    groupBuyMinQty: product.groupBuyMinQty ?? null,
+    groupBuyTargetQty: product.groupBuyTargetQty ?? null,
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }
