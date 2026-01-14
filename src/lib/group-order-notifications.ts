@@ -452,10 +452,102 @@ export async function notifyDeadlineReminder(
   }
 }
 
+/**
+ * Notification: Demande de paiement après objectif atteint
+ */
+export async function notifyPaymentRequest(
+  participant: ParticipantData,
+  group: GroupOrderData,
+  paymentInfo: {
+    reference: string
+    wavePhone: string
+    orangePhone: string
+  }
+): Promise<boolean> {
+  if (!participant.email) {
+    console.log(`[NOTIF] Pas d'email pour ${participant.name}, notification de paiement ignorée`)
+    return false
+  }
+
+  const content = `
+    <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+      <h1>💰 Demande de paiement</h1>
+      <p>L'objectif est atteint - Finalisez votre commande !</p>
+    </div>
+    
+    <div class="content">
+      <p>Bonjour <strong>${participant.name}</strong>,</p>
+      
+      <p>Excellente nouvelle ! L'objectif de l'achat groupé pour <strong>${group.product.name}</strong> a été atteint. 🎉</p>
+      
+      <div class="success-box">
+        <strong>✅ L'achat groupé est validé !</strong><br>
+        Nous allons procéder à la commande. Merci de régler votre participation.
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 16px; padding: 25px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0; color: #64748b; font-size: 14px;">Montant à régler</p>
+        <p style="margin: 10px 0; font-size: 36px; font-weight: bold; color: #059669;">
+          ${formatCurrency(participant.totalAmount, group.product.currency)}
+        </p>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+          ${participant.qty} × ${formatCurrency(participant.unitPrice, group.product.currency)}
+        </p>
+      </div>
+      
+      <div class="warning-box">
+        <strong>⚠️ Référence obligatoire:</strong> <code style="background: white; padding: 4px 8px; border-radius: 4px;">${paymentInfo.reference}</code><br>
+        <small>Indiquez cette référence dans votre paiement.</small>
+      </div>
+
+      <h3>Méthodes de paiement</h3>
+      
+      <div style="background: #ecfeff; border-left: 4px solid #06b6d4; padding: 15px; margin: 10px 0; border-radius: 0 8px 8px 0;">
+        <strong>📱 Wave (Recommandé)</strong><br>
+        Numéro: <strong>${paymentInfo.wavePhone}</strong><br>
+        Montant: ${formatCurrency(participant.totalAmount, group.product.currency)}<br>
+        Note: ${paymentInfo.reference}
+      </div>
+      
+      <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 10px 0; border-radius: 0 8px 8px 0;">
+        <strong>📱 Orange Money</strong><br>
+        Numéro: <strong>${paymentInfo.orangePhone}</strong><br>
+        Composez #144# ou utilisez l'app Orange Money<br>
+        Motif: ${paymentInfo.reference}
+      </div>
+      
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${siteUrl}/achats-groupes/${group.groupId}/paiement" class="button" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+          Voir les instructions de paiement
+        </a>
+      </div>
+      
+      <p style="color: #64748b; font-size: 14px;">
+        Après réception de votre paiement, nous passerons la commande groupée. 
+        Vous recevrez un email de confirmation avec le suivi de livraison.
+      </p>
+    </div>
+  `
+
+  try {
+    await emailService.sendEmail({
+      to: participant.email,
+      subject: `💰 Paiement requis - Achat Groupé ${group.product.name}`,
+      html: wrapEmailTemplate(content, 'Demande de paiement')
+    })
+    console.log(`[NOTIF] Demande de paiement envoyée à ${participant.email}`)
+    return true
+  } catch (error) {
+    console.error(`[NOTIF] Erreur envoi demande de paiement:`, error)
+    return false
+  }
+}
+
 export default {
   notifyGroupJoinConfirmation,
   notifyNewParticipant,
   notifyObjectiveReached,
   notifyStatusUpdate,
-  notifyDeadlineReminder
+  notifyDeadlineReminder,
+  notifyPaymentRequest
 }
