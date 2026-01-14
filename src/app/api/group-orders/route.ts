@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
+import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
 
 // Générer un ID unique pour le groupe
 function generateGroupId(): string {
@@ -156,6 +157,30 @@ export async function POST(req: NextRequest) {
     })
     
     await groupOrder.save()
+    
+    // Envoyer notification de confirmation au créateur
+    try {
+      await notifyGroupJoinConfirmation(
+        { 
+          name: creator.name, 
+          email: creator.email, 
+          phone: creator.phone, 
+          qty, 
+          unitPrice: currentUnitPrice, 
+          totalAmount: qty * currentUnitPrice 
+        },
+        {
+          groupId: groupOrder.groupId,
+          product: groupOrder.product,
+          currentQty: groupOrder.currentQty,
+          targetQty: groupOrder.targetQty,
+          currentUnitPrice: groupOrder.currentUnitPrice,
+          deadline: groupOrder.deadline
+        }
+      )
+    } catch (notifError) {
+      console.error('Erreur notification:', notifError)
+    }
     
     return NextResponse.json({
       success: true,

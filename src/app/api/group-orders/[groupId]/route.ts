@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
+import { 
+  notifyGroupJoinConfirmation, 
+  notifyNewParticipant, 
+  notifyObjectiveReached,
+  notifyStatusUpdate 
+} from '@/lib/group-order-notifications'
 
 interface RouteContext {
   params: Promise<{ groupId: string }>
@@ -139,11 +145,48 @@ export async function POST(
     }
     
     // Vérifier si quantité min atteinte
-    if (group.currentQty >= group.minQty && group.status === 'open') {
+    const objectiveJustReached = group.currentQty >= group.minQty && group.status === 'open'
+    if (objectiveJustReached) {
       group.status = 'filled'
     }
     
     await group.save()
+    
+    // Envoyer les notifications
+    try {
+      const groupData = {
+        groupId: group.groupId,
+        product: group.product,
+        currentQty: group.currentQty,
+        targetQty: group.targetQty,
+        currentUnitPrice: group.currentUnitPrice,
+        deadline: group.deadline
+      }
+      
+      const newParticipantData = { name, phone, email, qty, unitPrice: newUnitPrice, totalAmount: qty * newUnitPrice }
+      
+      // 1. Confirmation au nouveau participant
+      await notifyGroupJoinConfirmation(newParticipantData, groupData)
+      
+      // 2. Notifier les autres participants
+      const otherParticipants = group.participants
+        .filter((p: any) => p.phone !== phone)
+        .map((p: any) => ({ name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount }))
+      
+      if (otherParticipants.length > 0) {
+        await notifyNewParticipant(otherParticipants, newParticipantData, groupData)
+      }
+      
+      // 3. Si objectif atteint, notifier tout le monde
+      if (objectiveJustReached) {
+        const allParticipants = group.participants.map((p: any) => ({
+          name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount
+        }))
+        await notifyObjectiveReached(allParticipants, groupData)
+      }
+    } catch (notifError) {
+      console.error('Erreur notifications:', notifError)
+    }
     
     return NextResponse.json({
       success: true,
@@ -212,17 +255,41 @@ export async function PATCH(
     
     updateData.updatedAt = new Date()
     
+    // Récupérer le groupe avant mise à jour pour comparer le statut
+    const previousGroup = await GroupOrder.findOne({ groupId }).lean() as any
+    const previousStatus = previousGroup?.status
+    
     const group = await GroupOrder.findOneAndUpdate(
       { groupId },
       updateData,
       { new: true }
-    ).lean()
+    ).lean() as any
     
     if (!group) {
       return NextResponse.json(
         { success: false, error: 'Achat groupé non trouvé' },
         { status: 404 }
       )
+    }
+    
+    // Envoyer notification si le statut a changé
+    if (body.status && body.status !== previousStatus) {
+      try {
+        const participants = group.participants.map((p: any) => ({
+          name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount
+        }))
+        const groupData = {
+          groupId: group.groupId,
+          product: group.product,
+          currentQty: group.currentQty,
+          targetQty: group.targetQty,
+          currentUnitPrice: group.currentUnitPrice,
+          deadline: group.deadline
+        }
+        await notifyStatusUpdate(participants, groupData, body.status, body.statusMessage)
+      } catch (notifError) {
+        console.error('Erreur notification statut:', notifError)
+      }
     }
     
     return NextResponse.json({
