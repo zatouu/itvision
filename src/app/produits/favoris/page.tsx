@@ -26,6 +26,11 @@ interface WishlistProduct {
   availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   createdAt?: string
   isImported?: boolean
+  // Données physiques pour le transport (si disponibles)
+  weightKg?: number
+  grossWeightKg?: number
+  netWeightKg?: number
+  volumeM3?: number
 }
 
 export default function WishlistPage() {
@@ -82,7 +87,12 @@ export default function WishlistPage() {
                 availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
                   ? product.availability.status
                   : undefined,
-                createdAt: product.createdAt
+                createdAt: product.createdAt,
+                // Données physiques remontées si présentes côté catalogue
+                weightKg: product.weightKg,
+                grossWeightKg: product.grossWeightKg,
+                netWeightKg: product.netWeightKg,
+                volumeM3: product.volumeM3
               }
             })
 
