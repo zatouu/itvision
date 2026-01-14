@@ -27,6 +27,10 @@ import {
   ZoomIn,
   CheckCircle,
   X,
+  Clock,
+  Target,
+  Zap,
+  ArrowRight,
 } from 'lucide-react'
 import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './ProductDetailExperience'
 import type { ShippingOptionPricing } from '@/lib/logistics'
@@ -78,6 +82,8 @@ export default function ProductDetailSidebar({
   const [showTransportModal, setShowTransportModal] = useState(false)
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null)
   const [wantsInstallation, setWantsInstallation] = useState(false)
+  const [showGroupBuyModal, setShowGroupBuyModal] = useState(false)
+  const [groupBuyQty, setGroupBuyQty] = useState(1)
   // Image zoomée (pour preview au survol et clic)
   const [hoveredVariantImage, setHoveredVariantImage] = useState<string | null>(null)
   const [imageZoomPosition, setImageZoomPosition] = useState<{ x: number; y: number } | null>(null)
@@ -1127,32 +1133,209 @@ Merci de me recontacter.`
           7. ACHAT GROUPÉ (si activé)
           ═══════════════════════════════════════════════════════════════════════ */}
       {product.groupBuyEnabled && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-purple-600" />
-            <span className="font-bold text-purple-800">Achat Groupé Disponible !</span>
-          </div>
-          <p className="text-sm text-gray-600 mb-3">
-            Rejoignez d'autres acheteurs pour obtenir un meilleur prix.
-          </p>
-          {product.priceTiers && product.priceTiers.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {product.priceTiers.slice(0, 3).map((tier, i) => (
-                <span key={i} className="text-xs px-2 py-1 bg-white rounded-full border border-purple-200">
-                  <TrendingDown className="w-3 h-3 inline mr-1 text-emerald-500" />
-                  {tier.minQty}+ = {formatCurrency(tier.price, product.pricing.currency)}
-                </span>
-              ))}
-            </div>
-          )}
-          <Link
-            href={`/achats-groupes?productId=${product.id}`}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2.5 text-sm font-bold hover:from-purple-700 hover:to-blue-700 transition-all"
+        <>
+          {/* Carte d'appel à l'action */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded-2xl p-5 text-white shadow-xl"
           >
-            <Users className="w-4 h-4" />
-            Voir les achats groupés
-          </Link>
-        </div>
+            {/* Effet de brillance */}
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -skew-x-12" />
+            
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Achat Groupé</h3>
+                  <p className="text-white/80 text-sm">Jusqu'à -30% en groupe</p>
+                </div>
+              </div>
+              
+              {product.priceTiers && product.priceTiers.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {product.priceTiers.slice(0, 3).map((tier, i) => (
+                    <div key={i} className="bg-white/10 backdrop-blur rounded-lg p-2 text-center">
+                      <div className="text-xs text-white/70">{tier.minQty}+ u</div>
+                      <div className="font-bold text-sm">{formatCurrency(tier.price, 'FCFA')}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <button
+                onClick={() => setShowGroupBuyModal(true)}
+                className="w-full flex items-center justify-center gap-2 bg-white text-indigo-700 font-bold py-3 rounded-xl hover:bg-white/90 transition-all shadow-lg"
+              >
+                <Zap className="w-5 h-5" />
+                Rejoindre le groupe
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Modal Achat Groupé */}
+          <AnimatePresence>
+            {showGroupBuyModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                onClick={() => setShowGroupBuyModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                >
+                  {/* Header avec gradient */}
+                  <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 p-6 text-white sticky top-0">
+                    <button
+                      onClick={() => setShowGroupBuyModal(false)}
+                      className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+                        <Users className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold">Achat Groupé</h2>
+                        <p className="text-white/80">Plus on est nombreux, moins on paie !</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contenu */}
+                  <div className="p-6 space-y-6">
+                    {/* Produit */}
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      {product.image && (
+                        <div className="w-16 h-16 relative rounded-lg overflow-hidden bg-white flex-shrink-0">
+                          <Image src={product.image} alt={product.name} fill className="object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
+                        <p className="text-sm text-gray-500">Prix de base: {formatCurrency(baseUnitPrice, 'FCFA')}</p>
+                      </div>
+                    </div>
+
+                    {/* Paliers de prix */}
+                    {product.priceTiers && product.priceTiers.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <TrendingDown className="w-5 h-5 text-emerald-600" />
+                          Prix dégressifs
+                        </h4>
+                        <div className="space-y-2">
+                          {product.priceTiers.map((tier, i) => {
+                            const savings = baseUnitPrice - tier.price
+                            const savingsPercent = Math.round((savings / baseUnitPrice) * 100)
+                            return (
+                              <div 
+                                key={i} 
+                                className={clsx(
+                                  'flex items-center justify-between p-3 rounded-xl border-2 transition-all',
+                                  groupBuyQty >= tier.minQty 
+                                    ? 'border-emerald-500 bg-emerald-50' 
+                                    : 'border-gray-200 bg-white'
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={clsx(
+                                    'w-8 h-8 rounded-full flex items-center justify-center',
+                                    groupBuyQty >= tier.minQty ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'
+                                  )}>
+                                    {groupBuyQty >= tier.minQty ? <Check className="w-4 h-4" /> : <Target className="w-4 h-4" />}
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900">{tier.minQty}+ unités</div>
+                                    <div className="text-xs text-gray-500">
+                                      {savingsPercent > 0 && <span className="text-emerald-600 font-medium">-{savingsPercent}% </span>}
+                                      par rapport au prix de base
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-bold text-lg text-emerald-600">{formatCurrency(tier.price, 'FCFA')}</div>
+                                  {savings > 0 && (
+                                    <div className="text-xs text-gray-400">-{formatCurrency(savings, 'FCFA')}/u</div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sélecteur de quantité */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Quantité souhaitée</h4>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setGroupBuyQty(Math.max(1, groupBuyQty - 1))}
+                          className="w-12 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition"
+                        >
+                          <Minus className="w-5 h-5" />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={groupBuyQty}
+                          onChange={(e) => setGroupBuyQty(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-24 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => setGroupBuyQty(groupBuyQty + 1)}
+                          className="w-12 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition"
+                        >
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Résumé */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Prix estimé ({groupBuyQty} unités)</span>
+                        <span className="text-2xl font-bold text-indigo-700">
+                          {formatCurrency(
+                            (product.priceTiers?.slice().reverse().find(t => groupBuyQty >= t.minQty)?.price || baseUnitPrice) * groupBuyQty,
+                            'FCFA'
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-6 pt-0 space-y-3">
+                    <Link
+                      href={`/achats-groupes?productId=${product.id}&qty=${groupBuyQty}`}
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
+                    >
+                      <Users className="w-5 h-5" />
+                      Rejoindre ou créer un groupe
+                    </Link>
+                    <button
+                      onClick={() => setShowGroupBuyModal(false)}
+                      className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition"
+                    >
+                      Continuer seul
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════

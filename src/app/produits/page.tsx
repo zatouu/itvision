@@ -1,7 +1,7 @@
 "use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
@@ -944,6 +944,43 @@ export default function ProduitsPage() {
               <p className="text-sm text-gray-500">Installation Dakar incluse</p>
             </div>
           </div>
+          
+          {/* Bannière Achat Groupé - Attractive */}
+          <Link href="/achats-groupes" className="block mt-8">
+            <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-2xl p-6 md:p-8 text-white shadow-xl hover:shadow-2xl transition-all group">
+              {/* Effet de brillance animé */}
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              
+              <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <Users className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl md:text-3xl font-bold mb-1">Achats Groupés</h3>
+                    <p className="text-white/80 text-sm md:text-base">Rejoignez d'autres acheteurs et économisez jusqu'à <span className="font-bold text-yellow-300">-30%</span></p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur rounded-xl px-4 py-2">
+                    <div className="flex -space-x-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-400 flex items-center justify-center text-xs font-bold">JD</div>
+                      <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-xs font-bold">AM</div>
+                      <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center text-xs font-bold">SK</div>
+                    </div>
+                    <span className="text-sm">+12 participants</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 bg-white text-indigo-700 font-bold px-6 py-3 rounded-xl group-hover:bg-yellow-300 transition-colors">
+                    <Sparkles className="w-5 h-5" />
+                    Découvrir
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
       </section>
 
