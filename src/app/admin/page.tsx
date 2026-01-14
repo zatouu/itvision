@@ -476,58 +476,6 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Carte mise en avant - Achats groupés */}
-        <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6">
-          <Link
-            href="/achats-groupes"
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 text-white p-6 lg:p-8 shadow-2xl hover:shadow-[0_20px_45px_rgba(16,185,129,0.45)] transition-all duration-300 hover:-translate-y-0.5"
-          >
-            <div className="absolute inset-0 opacity-20 pointer-events-none">
-              <div className="absolute -left-10 -top-10 w-40 h-40 bg-emerald-300/60 rounded-full blur-3xl" />
-              <div className="absolute -right-10 bottom-0 w-48 h-48 bg-blue-400/60 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div className="space-y-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-                  <Zap className="h-3.5 w-3.5" />
-                  Nouveau levier de croissance
-                </span>
-                <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                  Boostez vos ventes avec les achats groupés
-                </h2>
-                <p className="text-sm md:text-base text-white/85 max-w-xl">
-                  Créez des offres par volume, suivez les participations et encaissez plus facilement grâce aux paiements mobiles et aux garanties déjà en place.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-4 pt-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Users2 className="h-4 w-4 text-emerald-100" />
-                    <span className="text-white/90">Vue admin détaillée des groupes</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Network className="h-4 w-4 text-emerald-100" />
-                    <span className="text-white/90">Paiements Wave / Orange Money</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-start md:items-end gap-4">
-                <div className="rounded-2xl bg-black/10 backdrop-blur px-4 py-3 border border-white/15 flex flex-col items-start md:items-end gap-1">
-                  <span className="text-xs font-medium text-white/80">Accès vitrine publique</span>
-                  <span className="text-sm font-semibold flex items-center gap-2">
-                    Voir les achats groupés côté client
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
-                <span className="text-[11px] uppercase tracking-wide text-white/60">
-                  Cliquez pour ouvrir la page achats groupés
-                </span>
-              </div>
-            </div>
-          </Link>
-        </section>
-
         {/* KPIs avec graphiques */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <KPICard

@@ -31,6 +31,7 @@ import {
   Target,
   Zap,
   ArrowRight,
+  Loader2,
 } from 'lucide-react'
 import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './ProductDetailExperience'
 import type { ShippingOptionPricing } from '@/lib/logistics'
@@ -47,6 +48,16 @@ interface ProductDetailSidebarProps {
   onVariantChange: (groupName: string, variantId: string) => void
   onImageChange?: (imageUrl: string) => void
   onOpenNegotiation: () => void
+}
+
+type GroupOrderSummary = {
+  groupId: string
+  status: string
+  minQty: number
+  targetQty: number
+  currentQty: number
+  currentUnitPrice: number
+  deadline: string
 }
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
@@ -84,6 +95,8 @@ export default function ProductDetailSidebar({
   const [wantsInstallation, setWantsInstallation] = useState(false)
   const [showGroupBuyModal, setShowGroupBuyModal] = useState(false)
   const [groupBuyQty, setGroupBuyQty] = useState(1)
+  const [groupOrders, setGroupOrders] = useState<GroupOrderSummary[]>([])
+  const [groupOrdersLoading, setGroupOrdersLoading] = useState(false)
   // Image zoomée (pour preview au survol et clic)
   const [hoveredVariantImage, setHoveredVariantImage] = useState<string | null>(null)
   const [imageZoomPosition, setImageZoomPosition] = useState<{ x: number; y: number } | null>(null)
@@ -105,6 +118,59 @@ export default function ProductDetailSidebar({
   const baseUnitPrice = useMemo(() => {
     return product.pricing.totalWithFees ?? product.pricing.salePrice ?? 0
   }, [product.pricing.totalWithFees, product.pricing.salePrice])
+
+  const groupBuyHeadline = useMemo(() => {
+    const d = product.groupBuyDiscount
+    if (typeof d === 'number' && Number.isFinite(d) && d > 0) return `Jusqu'à -${d}% en groupe`
+    return "Prix dégressifs en groupe"
+  }, [product.groupBuyDiscount])
+
+  const bestGroupBuyUnitPrice = useMemo(() => {
+    if (typeof product.groupBuyBestPrice === 'number' && Number.isFinite(product.groupBuyBestPrice)) return product.groupBuyBestPrice
+    if (product.priceTiers && product.priceTiers.length > 0) {
+      const best = Math.min(...product.priceTiers.map(t => (typeof t?.price === 'number' ? t.price : Number.POSITIVE_INFINITY)))
+      return Number.isFinite(best) ? best : null
+    }
+    return null
+  }, [product.groupBuyBestPrice, product.priceTiers])
+
+  const daysLeft = useCallback((deadline: string) => {
+    const diff = new Date(deadline).getTime() - Date.now()
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  }, [])
+
+  useEffect(() => {
+    const load = async () => {
+      if (!product.groupBuyEnabled) return
+      if (!product.id) return
+      setGroupOrdersLoading(true)
+      try {
+        const res = await fetch(`/api/group-orders?productId=${encodeURIComponent(product.id)}&limit=3`)
+        const data = await res.json()
+        if (data?.success && Array.isArray(data.groups)) {
+          setGroupOrders(
+            data.groups.map((g: any) => ({
+              groupId: g.groupId,
+              status: g.status,
+              minQty: g.minQty,
+              targetQty: g.targetQty,
+              currentQty: g.currentQty,
+              currentUnitPrice: g.currentUnitPrice,
+              deadline: g.deadline
+            }))
+          )
+        } else {
+          setGroupOrders([])
+        }
+      } catch (e) {
+        setGroupOrders([])
+      } finally {
+        setGroupOrdersLoading(false)
+      }
+    }
+
+    load()
+  }, [product.groupBuyEnabled, product.id])
 
   // Calcul du total par variantes (quantités × prix)
   const variantCalculations = useMemo(() => {
@@ -1150,9 +1216,16 @@ Merci de me recontacter.`
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">Achat Groupé</h3>
-                  <p className="text-white/80 text-sm">Jusqu'à -30% en groupe</p>
+                  <p className="text-white/80 text-sm">{groupBuyHeadline}</p>
                 </div>
               </div>
+
+              {bestGroupBuyUnitPrice !== null && (
+                <div className="mb-4">
+                  <div className="text-xs text-white/75">Meilleur prix estimé</div>
+                  <div className="text-lg font-extrabold">{formatCurrency(bestGroupBuyUnitPrice, 'FCFA')}</div>
+                </div>
+              )}
               
               {product.priceTiers && product.priceTiers.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-4">
@@ -1174,6 +1247,70 @@ Merci de me recontacter.`
               </button>
             </div>
           </motion.div>
+
+          {/* Aperçu des groupes en cours */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-600" />
+                <h4 className="font-bold text-gray-900">Groupes en cours</h4>
+              </div>
+              <Link
+                href={`/achats-groupes?productId=${encodeURIComponent(product.id)}`}
+                className="text-xs font-semibold text-indigo-700 hover:underline"
+              >
+                Voir tout
+              </Link>
+            </div>
+            {groupOrdersLoading ? (
+              <div className="text-sm text-gray-500 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Chargement...
+              </div>
+            ) : groupOrders.length === 0 ? (
+              <div className="text-sm text-gray-600">
+                Aucun groupe actif pour ce produit. Vous pouvez en créer un.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {groupOrders.map((g) => {
+                  const progress = g.targetQty > 0 ? Math.min(100, Math.round((g.currentQty / g.targetQty) * 100)) : 0
+                  const d = daysLeft(g.deadline)
+                  return (
+                    <div key={g.groupId} className="border border-gray-200 rounded-xl p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs text-gray-500">{g.groupId}</div>
+                          <div className="font-bold text-gray-900">{formatCurrency(g.currentUnitPrice, 'FCFA')} / unité</div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {g.currentQty}/{g.targetQty} unités • {d}j restants
+                          </div>
+                        </div>
+                        <Link
+                          href={`/achats-groupes/${g.groupId}`}
+                          className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        >
+                          Rejoindre
+                        </Link>
+                      </div>
+                      <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="mt-3">
+              <Link
+                href={`/achats-groupes?productId=${encodeURIComponent(product.id)}&create=1&qty=${groupBuyQty}`}
+                className="inline-flex items-center gap-2 text-xs font-bold text-indigo-700 hover:text-indigo-800"
+              >
+                <Plus className="w-4 h-4" />
+                Créer un achat groupé
+              </Link>
+            </div>
+          </div>
 
           {/* Modal Achat Groupé */}
           <AnimatePresence>
@@ -1318,11 +1455,18 @@ Merci de me recontacter.`
                   {/* Footer */}
                   <div className="p-6 pt-0 space-y-3">
                     <Link
-                      href={`/achats-groupes?productId=${product.id}&qty=${groupBuyQty}`}
+                      href={`/achats-groupes?productId=${encodeURIComponent(product.id)}&qty=${groupBuyQty}`}
                       className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
                     >
                       <Users className="w-5 h-5" />
-                      Rejoindre ou créer un groupe
+                      Voir les achats groupés
+                    </Link>
+                    <Link
+                      href={`/achats-groupes?productId=${encodeURIComponent(product.id)}&create=1&qty=${groupBuyQty}`}
+                      className="w-full flex items-center justify-center gap-2 bg-white border-2 border-indigo-200 text-indigo-700 font-bold py-4 rounded-xl hover:bg-indigo-50 transition-all"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Créer un achat groupé
                     </Link>
                     <button
                       onClick={() => setShowGroupBuyModal(false)}

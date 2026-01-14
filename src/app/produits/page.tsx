@@ -52,6 +52,8 @@ interface ApiProduct {
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number
   groupBuyDiscount?: number
+  groupBuyMinQty?: number
+  groupBuyTargetQty?: number
   priceTiers?: Array<{ minQty: number; price: number; discount?: number }>
 }
 
@@ -157,11 +159,13 @@ export default function ProduitsPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [onlyPrice, setOnlyPrice] = useState(false)
   const [onlyQuote, setOnlyQuote] = useState(false)
+  const [onlyGroupBuy, setOnlyGroupBuy] = useState(false)
+  const [segment, setSegment] = useState<'all' | 'import' | 'in_stock' | 'group_buy'>('all')
   const [showFilters, setShowFilters] = useState(false)
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' | 'rating-desc'>('default')
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' | 'rating-desc' | 'groupbuy-discount-desc'>('default')
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'in_stock' | 'preorder'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -177,6 +181,20 @@ export default function ProduitsPage() {
   // Recherche par image
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchResults, setImageSearchResults] = useState<string[]>([]) // IDs des produits trouvés
+
+  // UX: si on choisit "Meilleure économie", on bascule sur le segment achats groupés.
+  // Si on quitte ce segment, on remet le tri par défaut.
+  useEffect(() => {
+    if (sortBy === 'groupbuy-discount-desc' && segment !== 'group_buy') {
+      setSegment('group_buy')
+    }
+  }, [sortBy])
+
+  useEffect(() => {
+    if (segment !== 'group_buy' && sortBy === 'groupbuy-discount-desc') {
+      setSortBy('default')
+    }
+  }, [segment])
 
   useEffect(() => {
     const sync = () => {
@@ -278,7 +296,18 @@ export default function ProduitsPage() {
                   ? item.availability.status
                   : 'preorder',
                 createdAt: item.createdAt || undefined,
-                isFeatured: item.isFeatured || false
+                isFeatured: item.isFeatured || false,
+                isImported: !!item.isImported,
+                // Données physiques (utilisées par le panier pour calcul transport)
+                weightKg: typeof item.logistics?.weightKg === 'number' ? item.logistics.weightKg : undefined,
+                volumeM3: typeof item.logistics?.volumeM3 === 'number' ? item.logistics.volumeM3 : undefined,
+                // Achat groupé
+                groupBuyEnabled: !!item.groupBuyEnabled,
+                groupBuyBestPrice: typeof item.groupBuyBestPrice === 'number' ? item.groupBuyBestPrice : undefined,
+                groupBuyDiscount: typeof item.groupBuyDiscount === 'number' ? item.groupBuyDiscount : undefined,
+                groupBuyMinQty: typeof item.groupBuyMinQty === 'number' ? item.groupBuyMinQty : undefined,
+                groupBuyTargetQty: typeof item.groupBuyTargetQty === 'number' ? item.groupBuyTargetQty : undefined,
+                priceTiers: Array.isArray(item.priceTiers) ? item.priceTiers : undefined
               }
             })
             setProducts(formatted)
@@ -320,6 +349,8 @@ export default function ProduitsPage() {
         if (state.viewMode) setViewMode(state.viewMode)
         if (state.onlyPrice !== undefined) setOnlyPrice(state.onlyPrice)
         if (state.onlyQuote !== undefined) setOnlyQuote(state.onlyQuote)
+        if (state.onlyGroupBuy !== undefined) setOnlyGroupBuy(state.onlyGroupBuy)
+        if (state.segment) setSegment(state.segment)
       }
     } catch (error) {
       console.error('Error loading saved filters:', error)
@@ -334,6 +365,8 @@ export default function ProduitsPage() {
         selected,
         onlyPrice,
         onlyQuote,
+        onlyGroupBuy,
+        segment,
         sortBy,
         availabilityFilter,
         priceRange,
@@ -344,7 +377,7 @@ export default function ProduitsPage() {
     } catch (error) {
       console.error('Error saving filters:', error)
     }
-  }, [search, selected, onlyPrice, onlyQuote, sortBy, availabilityFilter, priceRange, deliveryRange, viewMode])
+  }, [search, selected, onlyPrice, onlyQuote, onlyGroupBuy, segment, sortBy, availabilityFilter, priceRange, deliveryRange, viewMode])
 
   // Debounce de la recherche
   useEffect(() => {
@@ -367,13 +400,21 @@ export default function ProduitsPage() {
       const text = `${product.name} ${product.description}`.toLowerCase()
       const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
       const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
+      const matchesGroupBuy = !onlyGroupBuy || !!product.groupBuyEnabled
+      const matchesSegment = segment === 'all'
+        ? true
+        : segment === 'import'
+          ? !!product.isImported
+          : segment === 'in_stock'
+            ? product.availabilityStatus === 'in_stock'
+            : !!product.groupBuyEnabled
       const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
       const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
       const matchesPrice = !priceRange || !product.priceAmount || 
         (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
       const matchesDelivery = !deliveryRange || !product.deliveryDays ||
         (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
-      return matchesSearch && matchesTarif && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
+      return matchesSearch && matchesTarif && matchesGroupBuy && matchesSegment && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
     })
 
     // Tri des produits
@@ -390,6 +431,25 @@ export default function ProduitsPage() {
             return b.name.localeCompare(a.name, 'fr')
           case 'rating-desc':
             return (b.rating || 0) - (a.rating || 0)
+          case 'groupbuy-discount-desc': {
+            const aHasGroup = !!a.groupBuyEnabled
+            const bHasGroup = !!b.groupBuyEnabled
+            if (aHasGroup !== bHasGroup) return aHasGroup ? -1 : 1
+
+            const aDiscount = typeof a.groupBuyDiscount === 'number' ? a.groupBuyDiscount : 0
+            const bDiscount = typeof b.groupBuyDiscount === 'number' ? b.groupBuyDiscount : 0
+            if (bDiscount !== aDiscount) return bDiscount - aDiscount
+
+            const aBest = typeof a.groupBuyBestPrice === 'number'
+              ? a.groupBuyBestPrice
+              : (typeof a.priceAmount === 'number' ? a.priceAmount : Number.POSITIVE_INFINITY)
+            const bBest = typeof b.groupBuyBestPrice === 'number'
+              ? b.groupBuyBestPrice
+              : (typeof b.priceAmount === 'number' ? b.priceAmount : Number.POSITIVE_INFINITY)
+            if (aBest !== bBest) return aBest - bBest
+
+            return a.name.localeCompare(b.name, 'fr')
+          }
           default:
             return 0
         }
@@ -397,7 +457,7 @@ export default function ProduitsPage() {
     }
 
     return filtered
-  }, [products, debouncedSearch, onlyPrice, onlyQuote, selected, availabilityFilter, priceRange, deliveryRange, sortBy, imageSearchResults])
+  }, [products, debouncedSearch, onlyPrice, onlyQuote, onlyGroupBuy, segment, selected, availabilityFilter, priceRange, deliveryRange, sortBy, imageSearchResults])
 
   // Gestion de la comparaison
   const handleCompareToggle = (productId: string, isSelected: boolean) => {
@@ -1172,6 +1232,10 @@ export default function ProduitsPage() {
                       <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
                       <span className="font-medium text-gray-700">Sur devis</span>
                     </label>
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+                      <span className="font-medium text-gray-700">Achat groupé uniquement</span>
+                    </label>
                   </div>
                 </div>
                 <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
@@ -1195,9 +1259,11 @@ export default function ProduitsPage() {
                   </div>
                 </div>
                 {/* Filtres sauvegardés */}
-                {savedFilters.length > 0 && (
-                  <div className="bg-white border rounded-xl p-4">
-                    <h3 className="font-semibold text-gray-900 mb-2">Filtres sauvegardés</h3>
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">Filtres sauvegardés</h3>
+                  {savedFilters.length === 0 ? (
+                    <p className="text-xs text-gray-500">Aucun filtre sauvegardé pour le moment.</p>
+                  ) : (
                     <div className="space-y-2">
                       {savedFilters.map((saved, index) => (
                         <div key={index} className="flex items-center justify-between gap-2">
@@ -1207,6 +1273,8 @@ export default function ProduitsPage() {
                               if (saved.filters.selected && Array.isArray(saved.filters.selected)) setSelected(saved.filters.selected)
                               if (saved.filters.onlyPrice !== undefined) setOnlyPrice(saved.filters.onlyPrice)
                               if (saved.filters.onlyQuote !== undefined) setOnlyQuote(saved.filters.onlyQuote)
+                              if (saved.filters.onlyGroupBuy !== undefined) setOnlyGroupBuy(saved.filters.onlyGroupBuy)
+                              if (saved.filters.segment) setSegment(saved.filters.segment)
                               if (saved.filters.sortBy) setSortBy(saved.filters.sortBy)
                               if (saved.filters.availabilityFilter) setAvailabilityFilter(saved.filters.availabilityFilter)
                               if (saved.filters.priceRange) setPriceRange(saved.filters.priceRange)
@@ -1230,40 +1298,51 @@ export default function ProduitsPage() {
                         </div>
                       ))}
                     </div>
-                    <button
-                      onClick={() => {
-                        const name = prompt('Nom du filtre:')
-                        if (name) {
-                          const newSaved = {
-                            name,
-                            filters: {
-                              search,
-                              selected,
-                              onlyPrice,
-                              onlyQuote,
-                              sortBy,
-                              availabilityFilter,
-                              priceRange,
-                              deliveryRange,
-                              viewMode
-                            }
+                  )}
+                  <button
+                    onClick={() => {
+                      const name = prompt('Nom du filtre:')
+                      if (name) {
+                        const newSaved = {
+                          name,
+                          filters: {
+                            search,
+                            selected,
+                            onlyPrice,
+                            onlyQuote,
+                            onlyGroupBuy,
+                            segment,
+                            sortBy,
+                            availabilityFilter,
+                            priceRange,
+                            deliveryRange,
+                            viewMode
                           }
-                          const updated = [...savedFilters, newSaved]
-                          setSavedFilters(updated)
-                          localStorage.setItem('savedFilters', JSON.stringify(updated))
                         }
-                      }}
-                      className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50"
-                    >
-                      Sauvegarder les filtres actuels
-                    </button>
-                  </div>
-                )}
+                        const updated = [...savedFilters, newSaved]
+                        setSavedFilters(updated)
+                        localStorage.setItem('savedFilters', JSON.stringify(updated))
+                      }
+                    }}
+                    className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50"
+                  >
+                    Sauvegarder les filtres actuels
+                  </button>
+                </div>
                 {/* Filtres actifs */}
-                {(selected.length > 0 || onlyPrice || onlyQuote || availabilityFilter !== 'all' || sortBy !== 'default' || priceRange || deliveryRange) && (
+                {(segment !== 'all' || selected.length > 0 || onlyPrice || onlyQuote || onlyGroupBuy || availabilityFilter !== 'all' || sortBy !== 'default' || priceRange || deliveryRange) && (
                   <div className="bg-white border rounded-xl p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">Filtres actifs</h3>
                     <div className="flex flex-wrap gap-2">
+                      {segment !== 'all' && (
+                        <button
+                          onClick={() => setSegment('all')}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          {segment === 'import' ? 'Import' : segment === 'in_stock' ? 'Stock Dakar' : 'Achats groupés'}
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                       {selected.map((cat) => (
                         <button
                           key={cat}
@@ -1289,6 +1368,15 @@ export default function ProduitsPage() {
                           className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
                         >
                           Sur devis
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                      {onlyGroupBuy && (
+                        <button
+                          onClick={() => setOnlyGroupBuy(false)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                        >
+                          Achat groupé
                           <X className="h-3 w-3" />
                         </button>
                       )}
@@ -1333,6 +1421,8 @@ export default function ProduitsPage() {
                           setSelected([])
                           setOnlyPrice(false)
                           setOnlyQuote(false)
+                          setOnlyGroupBuy(false)
+                          setSegment('all')
                           setAvailabilityFilter('all')
                           setSortBy('default')
                           setPriceRange(null)
@@ -1367,6 +1457,33 @@ export default function ProduitsPage() {
                 </div>
               ) : (
                   <div className="space-y-6">
+                    {/* Segments (discovery rapide) */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => setSegment('all')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'all' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                      >
+                        Tous
+                      </button>
+                      <button
+                        onClick={() => setSegment('import')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'import' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                      >
+                        Import
+                      </button>
+                      <button
+                        onClick={() => setSegment('in_stock')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'in_stock' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                      >
+                        Stock Dakar
+                      </button>
+                      <button
+                        onClick={() => setSegment('group_buy')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'group_buy' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                      >
+                        Achats groupés
+                      </button>
+                    </div>
                     {/* Contrôles tri et vue en haut */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
                       <div className="flex items-center gap-3">
@@ -1405,6 +1522,7 @@ export default function ProduitsPage() {
                             className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                           >
                             <option value="default">Trier par</option>
+                            <option value="groupbuy-discount-desc">Meilleure économie (achats groupés)</option>
                             <option value="price-asc">Prix croissant</option>
                             <option value="price-desc">Prix décroissant</option>
                             <option value="name-asc">Nom A-Z</option>
@@ -1619,6 +1737,39 @@ export default function ProduitsPage() {
                   <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} />
                   <span>Sur devis</span>
                 </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} />
+                  <span>Achat groupé uniquement</span>
+                </label>
+              </div>
+            </div>
+            <div className="bg-white border rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 mb-2">Segment</h4>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSegment('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'all' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                >
+                  Tous
+                </button>
+                <button
+                  onClick={() => setSegment('import')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'import' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                >
+                  Import
+                </button>
+                <button
+                  onClick={() => setSegment('in_stock')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'in_stock' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                >
+                  Stock Dakar
+                </button>
+                <button
+                  onClick={() => setSegment('group_buy')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'group_buy' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                >
+                  Achats groupés
+                </button>
               </div>
             </div>
             <div className="bg-white border rounded-xl p-3">

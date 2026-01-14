@@ -122,6 +122,8 @@ export interface ProductDetailData {
   isImported?: boolean // Indicateur si produit importé (sans exposer les détails source)
   // Configuration achat groupé
   groupBuyEnabled?: boolean
+  groupBuyBestPrice?: number | null
+  groupBuyDiscount?: number | null
   groupBuyMinQty?: number
   groupBuyTargetQty?: number
   priceTiers?: Array<{

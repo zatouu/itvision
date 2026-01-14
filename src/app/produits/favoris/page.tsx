@@ -88,11 +88,12 @@ export default function WishlistPage() {
                   ? product.availability.status
                   : undefined,
                 createdAt: product.createdAt,
-                // Données physiques remontées si présentes côté catalogue
-                weightKg: product.weightKg,
-                grossWeightKg: product.grossWeightKg,
-                netWeightKg: product.netWeightKg,
-                volumeM3: product.volumeM3
+                isImported: !!product.isImported,
+                // Données physiques: l'API detail renvoie logistics/weights
+                weightKg: typeof product.logistics?.weightKg === 'number' ? product.logistics.weightKg : undefined,
+                grossWeightKg: typeof product.weights?.grossWeightKg === 'number' ? product.weights.grossWeightKg : undefined,
+                netWeightKg: typeof product.weights?.netWeightKg === 'number' ? product.weights.netWeightKg : undefined,
+                volumeM3: typeof product.logistics?.volumeM3 === 'number' ? product.logistics.volumeM3 : undefined
               }
             })
 
