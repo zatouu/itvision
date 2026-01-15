@@ -55,6 +55,19 @@ interface ApiProduct {
   groupBuyMinQty?: number
   groupBuyTargetQty?: number
   priceTiers?: Array<{ minQty: number; price: number; discount?: number }>
+
+  groupStats?: {
+    activeGroupCount: number
+    bestActiveGroup?: {
+      groupId: string
+      status?: string
+      currentQty?: number
+      targetQty?: number
+      currentPrice?: number
+      participantCount?: number
+      deadline?: string
+    } | null
+  }
 }
 
 // metadata export is not allowed in a client component; title handled elsewhere
@@ -182,6 +195,27 @@ export default function ProduitsPage() {
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchResults, setImageSearchResults] = useState<string[]>([]) // IDs des produits trouvés
 
+  // Reset pagination when filters change (search/segment/filters/sort)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    debouncedSearch,
+    selected.join('|'),
+    onlyPrice,
+    onlyQuote,
+    onlyGroupBuy,
+    segment,
+    sortBy,
+    availabilityFilter,
+    priceRange?.min,
+    priceRange?.max,
+    deliveryRange?.min,
+    deliveryRange?.max
+  ])
+
   // UX: si on choisit "Meilleure économie", on bascule sur le segment achats groupés.
   // Si on quitte ce segment, on remet le tri par défaut.
   useEffect(() => {
@@ -218,14 +252,58 @@ export default function ProduitsPage() {
     }
   }, [])
 
-    // Charger les produits depuis l'API
-    useEffect(() => {
-      const fetchProducts = async () => {
+  // Charger les produits depuis l'API (filtres/tri côté serveur)
+  useEffect(() => {
+    const fetchProducts = async () => {
         try {
           setLoading(true)
           setError(null)
 
-          const response = await fetch(`/api/catalog/products?page=${currentPage}&limit=24`, {
+          const params = new URLSearchParams()
+          params.set('page', String(currentPage))
+          params.set('limit', '24')
+
+          if (debouncedSearch.trim()) {
+            params.set('q', debouncedSearch.trim())
+          }
+
+          if (selected.length > 0) {
+            params.set('category', selected.join(','))
+          }
+
+          if (segment && segment !== 'all') {
+            params.set('segment', segment)
+          }
+
+          if (availabilityFilter && availabilityFilter !== 'all') {
+            params.set('availability', availabilityFilter)
+          }
+
+          if (onlyGroupBuy) params.set('onlyGroupBuy', '1')
+          if (onlyPrice) params.set('onlyPrice', '1')
+          if (onlyQuote) params.set('onlyQuote', '1')
+
+          if (sortBy && sortBy !== 'default') {
+            params.set('sortBy', sortBy)
+          }
+
+          // Enrichir les produits avec les groupes actifs uniquement quand utile
+          const needsGroupStats = segment === 'group_buy' || onlyGroupBuy || sortBy === 'groupbuy-discount-desc'
+          if (needsGroupStats) {
+            params.set('includeGroupStats', '1')
+          }
+
+          if (priceRange) {
+            if (typeof priceRange.min === 'number') params.set('minPrice', String(priceRange.min))
+            if (typeof priceRange.max === 'number') params.set('maxPrice', String(priceRange.max))
+          }
+
+          if (deliveryRange) {
+            if (typeof deliveryRange.min === 'number') params.set('minDeliveryDays', String(deliveryRange.min))
+            if (typeof deliveryRange.max === 'number') params.set('maxDeliveryDays', String(deliveryRange.max))
+          }
+
+          const response = await fetch(`/api/catalog/products?${params.toString()}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -241,7 +319,6 @@ export default function ProduitsPage() {
           if (data.success && Array.isArray(data.products)) {
             // Gestion de la pagination
             if (data.pagination) {
-              setCurrentPage(data.pagination.page || 1)
               setTotalPages(data.pagination.totalPages || 1)
               setHasMore(data.pagination.hasMore || false)
             }
@@ -307,7 +384,13 @@ export default function ProduitsPage() {
                 groupBuyDiscount: typeof item.groupBuyDiscount === 'number' ? item.groupBuyDiscount : undefined,
                 groupBuyMinQty: typeof item.groupBuyMinQty === 'number' ? item.groupBuyMinQty : undefined,
                 groupBuyTargetQty: typeof item.groupBuyTargetQty === 'number' ? item.groupBuyTargetQty : undefined,
-                priceTiers: Array.isArray(item.priceTiers) ? item.priceTiers : undefined
+                priceTiers: Array.isArray(item.priceTiers) ? item.priceTiers : undefined,
+                groupStats: item.groupStats
+                  ? {
+                      activeGroupCount: typeof item.groupStats.activeGroupCount === 'number' ? item.groupStats.activeGroupCount : 0,
+                      bestActiveGroup: item.groupStats.bestActiveGroup ?? null
+                    }
+                  : undefined
               }
             })
             setProducts(formatted)
@@ -325,7 +408,19 @@ export default function ProduitsPage() {
       }
 
       fetchProducts()
-    }, [currentPage])
+    }, [
+      currentPage,
+      debouncedSearch,
+      selected,
+      onlyPrice,
+      onlyQuote,
+      onlyGroupBuy,
+      segment,
+      sortBy,
+      availabilityFilter,
+      priceRange,
+      deliveryRange
+    ])
 
   // Charger les filtres sauvegardés et l'historique
   useEffect(() => {
@@ -387,77 +482,12 @@ export default function ProduitsPage() {
     return () => clearTimeout(timer)
   }, [search])
 
-  // Calcul des produits filtrés et triés
+  // Les filtres principaux sont maintenant appliqués côté serveur.
+  // On garde uniquement un filtre local pour la recherche par image.
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter(product => {
-      // Si recherche par image active, filtrer uniquement les produits trouvés
-      if (imageSearchResults.length > 0) {
-        if (!imageSearchResults.includes(product.id)) {
-          return false
-        }
-      }
-      
-      const text = `${product.name} ${product.description}`.toLowerCase()
-      const matchesSearch = debouncedSearch.trim().length === 0 || text.includes(debouncedSearch.toLowerCase())
-      const matchesTarif = onlyPrice ? !!product.priceAmount : onlyQuote ? product.requiresQuote : true
-      const matchesGroupBuy = !onlyGroupBuy || !!product.groupBuyEnabled
-      const matchesSegment = segment === 'all'
-        ? true
-        : segment === 'import'
-          ? !!product.isImported
-          : segment === 'in_stock'
-            ? product.availabilityStatus === 'in_stock'
-            : !!product.groupBuyEnabled
-      const matchesCategory = selected.length === 0 || selected.includes(product.category || 'Catalogue import Chine')
-      const matchesAvailability = availabilityFilter === 'all' || product.availabilityStatus === availabilityFilter
-      const matchesPrice = !priceRange || !product.priceAmount || 
-        (product.priceAmount >= (priceRange.min || 0) && product.priceAmount <= (priceRange.max || 999999999))
-      const matchesDelivery = !deliveryRange || !product.deliveryDays ||
-        (product.deliveryDays >= (deliveryRange.min || 0) && product.deliveryDays <= (deliveryRange.max || 999))
-      return matchesSearch && matchesTarif && matchesGroupBuy && matchesSegment && matchesCategory && matchesAvailability && matchesPrice && matchesDelivery
-    })
-
-    // Tri des produits
-    if (sortBy !== 'default') {
-      filtered = [...filtered].sort((a, b) => {
-        switch (sortBy) {
-          case 'price-asc':
-            return (a.priceAmount || 0) - (b.priceAmount || 0)
-          case 'price-desc':
-            return (b.priceAmount || 0) - (a.priceAmount || 0)
-          case 'name-asc':
-            return a.name.localeCompare(b.name, 'fr')
-          case 'name-desc':
-            return b.name.localeCompare(a.name, 'fr')
-          case 'rating-desc':
-            return (b.rating || 0) - (a.rating || 0)
-          case 'groupbuy-discount-desc': {
-            const aHasGroup = !!a.groupBuyEnabled
-            const bHasGroup = !!b.groupBuyEnabled
-            if (aHasGroup !== bHasGroup) return aHasGroup ? -1 : 1
-
-            const aDiscount = typeof a.groupBuyDiscount === 'number' ? a.groupBuyDiscount : 0
-            const bDiscount = typeof b.groupBuyDiscount === 'number' ? b.groupBuyDiscount : 0
-            if (bDiscount !== aDiscount) return bDiscount - aDiscount
-
-            const aBest = typeof a.groupBuyBestPrice === 'number'
-              ? a.groupBuyBestPrice
-              : (typeof a.priceAmount === 'number' ? a.priceAmount : Number.POSITIVE_INFINITY)
-            const bBest = typeof b.groupBuyBestPrice === 'number'
-              ? b.groupBuyBestPrice
-              : (typeof b.priceAmount === 'number' ? b.priceAmount : Number.POSITIVE_INFINITY)
-            if (aBest !== bBest) return aBest - bBest
-
-            return a.name.localeCompare(b.name, 'fr')
-          }
-          default:
-            return 0
-        }
-      })
-    }
-
-    return filtered
-  }, [products, debouncedSearch, onlyPrice, onlyQuote, onlyGroupBuy, segment, selected, availabilityFilter, priceRange, deliveryRange, sortBy, imageSearchResults])
+    if (imageSearchResults.length === 0) return products
+    return products.filter((product) => imageSearchResults.includes(product.id))
+  }, [products, imageSearchResults])
 
   // Gestion de la comparaison
   const handleCompareToggle = (productId: string, isSelected: boolean) => {
@@ -1572,6 +1602,7 @@ export default function ProduitsPage() {
                                 groupBuyEnabled={product.groupBuyEnabled}
                                 groupBuyBestPrice={product.groupBuyBestPrice}
                                 groupBuyDiscount={product.groupBuyDiscount}
+                                groupStats={product.groupStats}
                               />
                             ))}
                           </div>
