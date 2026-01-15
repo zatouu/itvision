@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Star, ShoppingCart, Plane, Ship, Clock, Heart } from 'lucide-react'
+import { Star, Plane, Ship, Clock, Heart, Users } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -42,6 +42,19 @@ export interface ProductCardProps {
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number // Meilleur prix possible en achat groupé
   groupBuyDiscount?: number // Pourcentage d'économie max
+
+  groupStats?: {
+    activeGroupCount: number
+    bestActiveGroup?: {
+      groupId: string
+      status?: string
+      currentQty?: number
+      targetQty?: number
+      currentPrice?: number
+      participantCount?: number
+      deadline?: string
+    } | null
+  }
 }
 
 const PATH_SEPARATOR = '/'
@@ -76,7 +89,8 @@ export default function ProductCard({
   unitVolumeM3,
   groupBuyEnabled = false,
   groupBuyBestPrice,
-  groupBuyDiscount
+  groupBuyDiscount,
+  groupStats
 }: ProductCardProps) {
   const isRecentlyNew = createdAt 
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
@@ -248,6 +262,24 @@ export default function ProductCard({
   const isInStock = availabilityStatus === 'in_stock'
   const primaryCtaLabel = isInStock ? 'Acheter' : 'Commander'
 
+  const bestActiveGroup = groupStats?.bestActiveGroup ?? null
+  const activeGroupCount = typeof groupStats?.activeGroupCount === 'number' ? groupStats?.activeGroupCount : 0
+  const groupProgressPercent = (() => {
+    if (!bestActiveGroup) return null
+    const currentQty = typeof bestActiveGroup.currentQty === 'number' ? bestActiveGroup.currentQty : 0
+    const targetQty = typeof bestActiveGroup.targetQty === 'number' ? bestActiveGroup.targetQty : 0
+    if (targetQty <= 0) return null
+    const pct = Math.max(0, Math.min(100, Math.round((currentQty / targetQty) * 100)))
+    return pct
+  })()
+
+  const joinHref = bestActiveGroup?.groupId ? `/achats-groupes/${bestActiveGroup.groupId}` : null
+  const canJoin = !!(joinHref && bestActiveGroup?.status === 'open')
+  const isFilledGroup = !!(joinHref && bestActiveGroup?.status === 'filled')
+  const currentGroupPriceLabel = typeof bestActiveGroup?.currentPrice === 'number'
+    ? `${bestActiveGroup.currentPrice.toLocaleString('fr-FR')} ${effectiveCurrency}`
+    : null
+
   const handleCardClick = () => {
     if (detailHref && typeof window !== 'undefined') {
       window.location.href = detailHref
@@ -301,6 +333,11 @@ export default function ProductCard({
                 Groupe{groupBuyDiscount ? ` -${Math.round(groupBuyDiscount)}%` : ''}
               </span>
             )}
+            {groupBuyEnabled && activeGroupCount > 0 && (
+              <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none tabular-nums">
+                {groupProgressPercent !== null ? `${groupProgressPercent}%` : `${activeGroupCount} grp`}
+              </span>
+            )}
             {isImported && !isInStock && (
               <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Import</span>
             )}
@@ -340,6 +377,29 @@ export default function ProductCard({
           <div className="text-xl font-bold text-emerald-600">
             {computedPriceLabel}
           </div>
+          {groupBuyEnabled && (bestActiveGroup || typeof groupBuyBestPrice === 'number') && (
+            <div className="mt-1 space-y-1">
+              {bestActiveGroup && currentGroupPriceLabel && (
+                <div className="text-[11px] leading-tight text-gray-600 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <Users className="h-3 w-3 text-purple-600 flex-shrink-0" />
+                    <span className="font-semibold text-purple-700 truncate">Actuel</span>
+                  </div>
+                  <span className="font-bold text-purple-700 tabular-nums whitespace-nowrap">{currentGroupPriceLabel}</span>
+                </div>
+              )}
+              {typeof groupBuyBestPrice === 'number' && groupBuyBestPrice > 0 && (
+                <div className="text-[11px] leading-tight text-gray-600 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-indigo-700 truncate">Possible</span>
+                  </div>
+                  <span className="font-semibold text-indigo-700 tabular-nums whitespace-nowrap">
+                    {groupBuyBestPrice.toLocaleString('fr-FR')} {effectiveCurrency}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
           {!showQuote && shippingEnabled && activeShipping && (
             <div className="text-xs text-gray-500 mt-1">
               <div className="flex items-center gap-1">
@@ -365,13 +425,29 @@ export default function ProductCard({
 
         {/* Action: Voir détails */}
         <div className="mt-auto pt-3 border-t border-gray-100">
-          <a
-            href={detailHref || '#'}
-            onClick={(e) => { e.stopPropagation() }}
-            className="w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-          >
-            <span>Voir détails</span>
-          </a>
+          <div className="flex flex-col gap-2">
+            {joinHref && (canJoin || isFilledGroup) && (
+              <a
+                href={joinHref}
+                onClick={(e) => { e.stopPropagation() }}
+                className="w-full inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <span>{canJoin ? 'Rejoindre le groupe' : 'Voir le groupe'}</span>
+              </a>
+            )}
+
+            <a
+              href={detailHref || '#'}
+              onClick={(e) => { e.stopPropagation() }}
+              className={
+                joinHref && (canJoin || isFilledGroup)
+                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+                  : 'w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+              }
+            >
+              <span>Voir détails</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>

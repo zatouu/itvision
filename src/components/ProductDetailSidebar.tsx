@@ -684,7 +684,7 @@ Merci de me recontacter.`
           
           {product.variantGroups.map((group) => (
             <div key={group.name} className="mb-4 last:mb-0">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 break-words">
                 {group.name}
               </div>
               
@@ -703,7 +703,7 @@ Merci de me recontacter.`
                       key={variant.id}
                       onClick={() => handleVariantSelect(group.name, variant)}
                       className={clsx(
-                        'relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md cursor-pointer',
+                        'relative flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md cursor-pointer overflow-hidden',
                         hasQuantity
                           ? 'border-emerald-500 bg-emerald-50 shadow-sm'
                           : isSelected
@@ -723,7 +723,7 @@ Merci de me recontacter.`
                             }}
                             onMouseEnter={(e) => handleImageHover(e, variant.image!)}
                             onMouseLeave={handleImageLeave}
-                            className="relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 cursor-zoom-in group border-2 border-transparent group-hover:border-blue-300 transition-all duration-200"
+                            className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 cursor-zoom-in group border-2 border-transparent group-hover:border-blue-300 transition-all duration-200"
                           >
                             <Image
                               src={variant.image}
@@ -751,23 +751,23 @@ Merci de me recontacter.`
                           )}
                         </div>
                       ) : (
-                        <div className="w-20 h-20 flex-shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-2 border-gray-200">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-2 border-gray-200">
                           <Package className="h-8 w-8 text-gray-400" />
                         </div>
                       )}
 
                       {/* Infos variante améliorées */}
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0 space-y-2 w-full">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
                           <h4 className={clsx(
-                            'text-sm font-semibold truncate',
+                            'text-sm font-semibold flex-1 min-w-0 truncate',
                             hasQuantity ? 'text-emerald-700' : isSelected ? 'text-blue-700' : 'text-gray-800'
                           )}>
                             {variant.name}
                           </h4>
                           {/* Indicateur de stock */}
                           <div className={clsx(
-                            'text-xs font-medium px-2 py-0.5 rounded-full',
+                            'text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap',
                             variant.stock > 10 ? 'bg-green-100 text-green-700' : variant.stock > 0 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
                           )}>
                             {variant.stock > 0 
@@ -777,10 +777,10 @@ Merci de me recontacter.`
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
                             <span className={clsx(
-                              'text-base font-bold',
+                              'text-base font-bold whitespace-nowrap',
                               hasQuantity ? 'text-emerald-600' : 'text-orange-600'
                             )}>
                               {priceDisplay}
@@ -788,7 +788,7 @@ Merci de me recontacter.`
                             {/* Différence de prix si différente du prix de base */}
                             {price !== baseUnitPrice && (
                               <span className={clsx(
-                                'text-xs px-2 py-0.5 rounded-full font-medium',
+                                'text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap',
                                 price > baseUnitPrice 
                                   ? 'bg-red-100 text-red-700'
                                   : 'bg-green-100 text-green-700'
@@ -801,7 +801,7 @@ Merci de me recontacter.`
                       </div>
 
                       {/* Contrôle quantité */}
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 flex-shrink-0 self-end sm:self-auto">
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleVariantQuantityChange(variant.id, -1) }}
