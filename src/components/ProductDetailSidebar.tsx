@@ -139,6 +139,12 @@ export default function ProductDetailSidebar({
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
   }, [])
 
+  const primaryGroup = useMemo(() => {
+    if (!groupOrders || groupOrders.length === 0) return null
+    // API /api/group-orders is already sorted (deadline asc, currentQty desc)
+    return groupOrders[0]
+  }, [groupOrders])
+
   useEffect(() => {
     const load = async () => {
       if (!product.groupBuyEnabled) return
@@ -1226,6 +1232,30 @@ Merci de me recontacter.`
                   <div className="text-lg font-extrabold">{formatCurrency(bestGroupBuyUnitPrice, 'FCFA')}</div>
                 </div>
               )}
+
+              {primaryGroup && (
+                <div className="mb-4 bg-white/10 backdrop-blur rounded-xl p-3 border border-white/15">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs text-white/75">Groupe actif</div>
+                      <div className="text-sm font-bold">{primaryGroup.currentQty}/{primaryGroup.targetQty} unités</div>
+                      <div className="text-xs text-white/75 mt-0.5">{daysLeft(primaryGroup.deadline)}j restants</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-white/75">Prix actuel</div>
+                      <div className="text-sm font-extrabold">{formatCurrency(primaryGroup.currentUnitPrice, 'FCFA')}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 h-2 bg-white/15 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-400"
+                      style={{
+                        width: `${primaryGroup.targetQty > 0 ? Math.min(100, Math.round((primaryGroup.currentQty / primaryGroup.targetQty) * 100)) : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               
               {product.priceTiers && product.priceTiers.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-4">
@@ -1237,14 +1267,24 @@ Merci de me recontacter.`
                   ))}
                 </div>
               )}
-              
-              <button
-                onClick={() => setShowGroupBuyModal(true)}
-                className="w-full flex items-center justify-center gap-2 bg-white text-indigo-700 font-bold py-3 rounded-xl hover:bg-white/90 transition-all shadow-lg"
-              >
-                <Zap className="w-5 h-5" />
-                Rejoindre le groupe
-              </button>
+
+              {primaryGroup ? (
+                <Link
+                  href={`/achats-groupes/${primaryGroup.groupId}`}
+                  className="w-full flex items-center justify-center gap-2 bg-white text-indigo-700 font-bold py-3 rounded-xl hover:bg-white/90 transition-all shadow-lg"
+                >
+                  <Zap className="w-5 h-5" />
+                  Rejoindre ce groupe
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setShowGroupBuyModal(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-white text-indigo-700 font-bold py-3 rounded-xl hover:bg-white/90 transition-all shadow-lg"
+                >
+                  <Zap className="w-5 h-5" />
+                  Démarrer / rejoindre
+                </button>
+              )}
             </div>
           </motion.div>
 
