@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Star, ShoppingCart, Plane, Ship, Clock, Heart, Users } from 'lucide-react'
+import { Star, ShoppingCart, Plane, Ship, Clock, Heart } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 
 interface ShippingOption {
@@ -270,34 +270,6 @@ export default function ProductCard({
           loading="lazy"
         />
         
-        {/* Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
-          {showNewBadge && (
-            <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">NOUVEAU</span>
-          )}
-          {isPopular && !showNewBadge && (
-            <span className="bg-purple-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
-              <Star className="h-2.5 w-2.5 fill-white" />
-              TOP VENTE
-            </span>
-          )}
-          {groupBuyEnabled && (
-            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1">
-              <Users className="h-2.5 w-2.5" />
-              ACHAT GROUPÉ {groupBuyDiscount ? `-${groupBuyDiscount}%` : ''}
-            </span>
-          )}
-          {isImported && !isInStock && (
-            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">IMPORT</span>
-          )}
-          {isInStock && (
-            <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">EN STOCK DAKAR</span>
-          )}
-          {!isInStock && !showNewBadge && !isImported && !isPopular && !groupBuyEnabled && (
-            <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">SUR COMMANDE</span>
-          )}
-        </div>
-        
         {/* Favoris */}
         <button
           onClick={toggleFavorite}
@@ -306,16 +278,41 @@ export default function ProductCard({
         >
           <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
         </button>
-        
-        {/* Rating */}
-        <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 shadow-sm">
-          <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-          <span>{rating.toFixed(1)}</span>
-        </div>
       </div>
 
       {/* Contenu */}
       <div className="p-4 flex flex-col flex-1">
+        {/* Rating + Badges (compact, sans cacher l'image) */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-1 text-xs font-semibold text-gray-700">
+            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+            <span>{rating.toFixed(1)}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            {showNewBadge && (
+              <span className="bg-red-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Nouv.</span>
+            )}
+            {isPopular && !showNewBadge && (
+              <span className="bg-purple-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Top</span>
+            )}
+            {groupBuyEnabled && (
+              <span className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">
+                Groupe{groupBuyDiscount ? ` -${Math.round(groupBuyDiscount)}%` : ''}
+              </span>
+            )}
+            {isImported && !isInStock && (
+              <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Import</span>
+            )}
+            {isInStock && (
+              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Stock DK</span>
+            )}
+            {!isInStock && !showNewBadge && !isImported && !isPopular && !groupBuyEnabled && (
+              <span className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Sur cmd</span>
+            )}
+          </div>
+        </div>
+
         {/* Titre */}
         <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
           {name}
