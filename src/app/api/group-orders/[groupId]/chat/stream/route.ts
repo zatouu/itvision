@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { requireAdminApi } from '@/lib/api-auth'
+import { readPaymentSettings } from '@/lib/payments/settings'
 import { GroupOrderChatMessage } from '@/lib/models/GroupOrderChatMessage'
 import {
   getGroupChatParticipantByToken,
@@ -41,6 +42,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     // Admin can connect without token (cookies)
     const adminAuth = await requireAdminApi(request)
     const isAdmin = adminAuth.ok
+
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.chatEnabled && !isAdmin) {
+      return new Response('Forbidden', { status: 403 })
+    }
 
     const token = getGroupChatTokenFromRequest(request)
     if (!isAdmin) {

@@ -53,6 +53,10 @@ interface GroupOrder {
     totalAmount: number
     paidAmount: number
     paymentStatus: string
+    paymentReference?: string
+    transactionId?: string
+    adminNote?: string
+    paymentUpdatedAt?: string
     joinedAt: string
   }>
   deadline: string
@@ -94,6 +98,18 @@ export default function AdminGroupOrdersPage() {
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [paymentLinksModal, setPaymentLinksModal] = useState<
+    | null
+    | {
+        groupId: string
+        participantName: string
+        participantPhone: string
+        amount: number
+        reference: string
+        links: Array<{ provider: string; url: string; phoneNumber?: string; instructions?: string }>
+      }
+  >(null)
+  const [paymentLinksLoading, setPaymentLinksLoading] = useState<string | null>(null)
 
   useEffect(() => {
     fetchGroups()
@@ -109,7 +125,7 @@ export default function AdminGroupOrdersPage() {
 
   const fetchGroups = async () => {
     try {
-      const res = await fetch('/api/group-orders?status=all&includeExpired=true')
+      const res = await fetch('/api/admin/group-orders?status=all&includeExpired=true')
       const data = await res.json()
       if (data.success) {
         setGroups(data.groups)
@@ -163,26 +179,69 @@ export default function AdminGroupOrdersPage() {
     }
   }
 
-  const updatePaymentStatus = async (groupId: string, participantPhone: string, newStatus: string, paidAmount?: number) => {
+  const updatePaymentStatus = async (
+    groupId: string,
+    participantPhone: string,
+    newStatus: 'pending' | 'partial' | 'paid' | 'refunded',
+    paidAmount?: number,
+    transactionId?: string,
+    adminNote?: string
+  ) => {
     try {
-      const res = await fetch(`/api/group-orders/${groupId}`, {
+      const res = await fetch(`/api/group-orders/${groupId}/payment-links`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          participantPhone,
-          paymentUpdate: { paymentStatus: newStatus, paidAmount }
+          phone: participantPhone,
+          paymentStatus: newStatus,
+          paidAmount,
+          transactionId,
+          adminNote
         })
       })
-      if (res.ok) {
+
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.success) {
         showNotification('success', 'Paiement mis à jour')
         fetchGroups()
-        if (selectedGroup?.groupId === groupId) {
-          const updated = await res.json()
-          setSelectedGroup(updated.group)
-        }
+      } else {
+        showNotification('error', data?.error || 'Erreur lors de la mise à jour')
       }
-    } catch (error) {
+    } catch {
       showNotification('error', 'Erreur lors de la mise à jour')
+    }
+  }
+
+  const generatePaymentLinksForParticipant = async (groupId: string, phone: string, email?: string, name?: string) => {
+    setPaymentLinksLoading(`${groupId}:${phone}`)
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}/payment-links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          email: email || undefined,
+          sendEmail: Boolean(email)
+        })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        showNotification('error', data?.error || 'Erreur génération lien')
+        return
+      }
+
+      setPaymentLinksModal({
+        groupId,
+        participantName: name || data?.participant?.name || 'Participant',
+        participantPhone: data?.participant?.phone || phone,
+        amount: Number(data?.payment?.amount) || 0,
+        reference: String(data?.payment?.reference || ''),
+        links: Array.isArray(data?.paymentLinks) ? data.paymentLinks : []
+      })
+    } catch {
+      showNotification('error', 'Erreur génération lien')
+    } finally {
+      setPaymentLinksLoading(null)
     }
   }
 
@@ -612,14 +671,53 @@ export default function AdminGroupOrdersPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {p.paymentStatus !== 'paid' && (
+                              <div className="flex items-center justify-center gap-2 flex-wrap">
                                 <button
-                                  onClick={() => updatePaymentStatus(selectedGroup.groupId, p.phone, 'paid', p.totalAmount)}
-                                  className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold hover:bg-emerald-200"
+                                  onClick={() => generatePaymentLinksForParticipant(selectedGroup.groupId, p.phone, p.email, p.name)}
+                                  disabled={paymentLinksLoading === `${selectedGroup.groupId}:${p.phone}`}
+                                  className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold hover:bg-blue-200 disabled:opacity-60"
                                 >
-                                  Marquer payé
+                                  {paymentLinksLoading === `${selectedGroup.groupId}:${p.phone}` ? '…' : 'Lien paiement'}
                                 </button>
-                              )}
+
+                                {p.paymentStatus !== 'paid' && (
+                                  <button
+                                    onClick={() => updatePaymentStatus(selectedGroup.groupId, p.phone, 'paid', p.totalAmount)}
+                                    className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold hover:bg-emerald-200"
+                                  >
+                                    Marquer payé
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    const raw = prompt('Montant payé (FCFA) :', String(p.paidAmount || 0))
+                                    if (raw === null) return
+                                    const amount = Number(raw)
+                                    if (!Number.isFinite(amount) || amount < 0) {
+                                      showNotification('error', 'Montant invalide')
+                                      return
+                                    }
+                                    const tx = prompt('Transaction ID (optionnel) :', p.transactionId || '')
+                                    const note = prompt('Note admin (optionnel) :', p.adminNote || '')
+                                    updatePaymentStatus(selectedGroup.groupId, p.phone, 'partial', amount, tx || undefined, note || undefined)
+                                  }}
+                                  className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-semibold hover:bg-orange-200"
+                                >
+                                  Partiel
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (!confirm('Marquer ce paiement comme remboursé ?')) return
+                                    const note = prompt('Note admin (optionnel) :', p.adminNote || '')
+                                    updatePaymentStatus(selectedGroup.groupId, p.phone, 'refunded', 0, undefined, note || undefined)
+                                  }}
+                                  className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold hover:bg-red-200"
+                                >
+                                  Remboursé
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -658,6 +756,80 @@ export default function AdminGroupOrdersPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Liens de paiement */}
+      <AnimatePresence>
+        {paymentLinksModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPaymentLinksModal(null)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b flex items-start justify-between">
+                <div>
+                  <div className="text-sm text-gray-500">Liens de paiement</div>
+                  <div className="text-lg font-bold text-gray-900">{paymentLinksModal.participantName}</div>
+                  <div className="text-xs text-gray-600">{paymentLinksModal.participantPhone}</div>
+                </div>
+                <button onClick={() => setPaymentLinksModal(null)} className="text-gray-500 hover:text-gray-900 text-2xl">×</button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="text-sm">
+                  <span className="text-gray-600">Référence:</span>{' '}
+                  <span className="font-mono font-semibold">{paymentLinksModal.reference || '-'}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-600">Montant:</span>{' '}
+                  <span className="font-semibold text-emerald-700">{formatCurrency(paymentLinksModal.amount)}</span>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {paymentLinksModal.links.length === 0 ? (
+                    <div className="text-sm text-gray-600">Aucun lien retourné.</div>
+                  ) : (
+                    paymentLinksModal.links.map((l, idx) => (
+                      <div key={idx} className="border rounded-xl p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">{l.provider}</div>
+                            {l.phoneNumber && <div className="text-xs text-gray-600">Num: {l.phoneNumber}</div>}
+                          </div>
+                          <button
+                            className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(l.url)
+                                showNotification('success', 'Lien copié')
+                              } catch {
+                                showNotification('error', 'Copie impossible')
+                              }
+                            }}
+                          >
+                            Copier
+                          </button>
+                        </div>
+                        <div className="mt-2 text-xs break-all text-blue-700">
+                          <a className="underline" href={l.url} target="_blank" rel="noreferrer">{l.url}</a>
+                        </div>
+                        {l.instructions && <div className="mt-2 text-xs text-gray-600">{l.instructions}</div>}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>

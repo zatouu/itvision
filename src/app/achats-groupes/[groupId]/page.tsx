@@ -33,8 +33,6 @@ import GroupOrderChat, { saveGroupChatAccess } from '@/components/group-orders/G
 interface Participant {
   _id?: string
   name: string
-  phone: string
-  email?: string
   qty: number
   unitPrice: number
   totalAmount: number

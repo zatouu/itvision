@@ -3,6 +3,7 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
+import { readPaymentSettings } from '@/lib/payments/settings'
 
 // Générer un ID unique pour le groupe
 function generateGroupId(): string {
@@ -40,6 +41,10 @@ export async function GET(req: NextRequest) {
     }
     
     const groups = await GroupOrder.find(query)
+      // Public response: do not leak participant PII / payment details / chat tokens
+      .select(
+        '-participants.phone -participants.email -participants.paidAmount -participants.paymentReference -participants.transactionId -participants.adminNote -participants.paymentUpdatedAt -participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt'
+      )
       .sort({ deadline: 1, currentQty: -1 })
       .limit(limit)
       .lean()
@@ -69,6 +74,14 @@ export async function GET(req: NextRequest) {
 // POST - Créer un nouvel achat groupé
 export async function POST(req: NextRequest) {
   try {
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Les achats groupés sont temporairement désactivés' },
+        { status: 503 }
+      )
+    }
+
     await connectDB()
     
     const body = await req.json()

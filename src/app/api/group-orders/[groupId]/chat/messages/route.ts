@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrderChatMessage } from '@/lib/models/GroupOrderChatMessage'
 import { requireAdminApi } from '@/lib/api-auth'
+import { readPaymentSettings } from '@/lib/payments/settings'
 import {
   getGroupChatParticipantByToken,
   getGroupChatTokenFromRequest
@@ -27,6 +28,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     // Admin can read without token
     const adminAuth = await requireAdminApi(request)
     const isAdmin = adminAuth.ok
+
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.chatEnabled && !isAdmin) {
+      return NextResponse.json({ error: 'Fonctionnalité désactivée' }, { status: 403 })
+    }
 
     const token = getGroupChatTokenFromRequest(request)
     if (!isAdmin) {
@@ -80,6 +86,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const adminAuth = await requireAdminApi(request)
     const isAdmin = adminAuth.ok
+
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.chatEnabled && !isAdmin) {
+      return NextResponse.json({ error: 'Fonctionnalité désactivée' }, { status: 403 })
+    }
 
     if (isAdmin && adminAuth.user) {
       const created = await GroupOrderChatMessage.create({
