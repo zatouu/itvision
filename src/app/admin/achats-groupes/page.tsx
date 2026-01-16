@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
 import {
   Users,
   Package,
@@ -12,6 +13,7 @@ import {
   Target,
   Zap,
   ShoppingCart,
+  Plus,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -95,6 +97,8 @@ export default function AdminGroupOrdersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedGroup, setSelectedGroup] = useState<GroupOrder | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -137,6 +141,31 @@ export default function AdminGroupOrdersPage() {
     }
   }
 
+  const closeDetailModal = () => {
+    setShowDetailModal(false)
+    setSelectedGroup(null)
+    setDetailLoading(false)
+    setDetailError(null)
+  }
+
+  const refreshSelectedGroup = async (groupId: string) => {
+    setDetailLoading(true)
+    setDetailError(null)
+    try {
+      const res = await fetch(`/api/admin/group-orders/${groupId}`)
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.success && data?.group) {
+        setSelectedGroup(data.group)
+      } else {
+        setDetailError(data?.error || 'Erreur lors du chargement')
+      }
+    } catch {
+      setDetailError('Erreur lors du chargement')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
   const updateGroupStatus = async (groupId: string, newStatus: string) => {
     setActionLoading(groupId)
     try {
@@ -148,6 +177,9 @@ export default function AdminGroupOrdersPage() {
       if (res.ok) {
         showNotification('success', `Statut mis à jour: ${statusConfig[newStatus]?.label || newStatus}`)
         fetchGroups()
+        if (showDetailModal && selectedGroup?.groupId === groupId) {
+          refreshSelectedGroup(groupId)
+        }
       } else {
         throw new Error('Erreur')
       }
@@ -169,6 +201,9 @@ export default function AdminGroupOrdersPage() {
       if (data.success) {
         showNotification('success', 'Achat groupé supprimé')
         fetchGroups()
+        if (showDetailModal && selectedGroup?.groupId === groupId) {
+          closeDetailModal()
+        }
       } else {
         showNotification('error', data.error || 'Erreur lors de la suppression')
       }
@@ -204,6 +239,9 @@ export default function AdminGroupOrdersPage() {
       if (res.ok && data?.success) {
         showNotification('success', 'Paiement mis à jour')
         fetchGroups()
+        if (showDetailModal && selectedGroup?.groupId === groupId) {
+          refreshSelectedGroup(groupId)
+        }
       } else {
         showNotification('error', data?.error || 'Erreur lors de la mise à jour')
       }
@@ -238,6 +276,10 @@ export default function AdminGroupOrdersPage() {
         reference: String(data?.payment?.reference || ''),
         links: Array.isArray(data?.paymentLinks) ? data.paymentLinks : []
       })
+
+      if (showDetailModal && selectedGroup?.groupId === groupId) {
+        refreshSelectedGroup(groupId)
+      }
     } catch {
       showNotification('error', 'Erreur génération lien')
     } finally {
@@ -337,9 +379,18 @@ export default function AdminGroupOrdersPage() {
         className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-8 shadow-lg"
       >
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 mb-6">
-            <Users className="w-8 h-8" />
-            <h1 className="text-4xl font-bold">Gestion des Achats Groupés</h1>
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Users className="w-8 h-8" />
+              <h1 className="text-4xl font-bold">Gestion des Achats Groupés</h1>
+            </div>
+            <Link
+              href="/admin/achats-groupes/nouveau"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold hover:bg-white/20"
+            >
+              <Plus className="h-4 w-4" />
+              Créer
+            </Link>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -498,9 +549,10 @@ export default function AdminGroupOrdersPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 setSelectedGroup(group)
                                 setShowDetailModal(true)
+                                await refreshSelectedGroup(group.groupId)
                               }}
                               className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
                               title="Voir détails"
@@ -606,7 +658,7 @@ export default function AdminGroupOrdersPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowDetailModal(false)}
+            onClick={closeDetailModal}
           >
             <motion.div
               className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
@@ -621,7 +673,7 @@ export default function AdminGroupOrdersPage() {
                     <h2 className="text-2xl font-bold">{selectedGroup.groupId}</h2>
                     <p className="text-white/80">{selectedGroup.product.name}</p>
                   </div>
-                  <button onClick={() => setShowDetailModal(false)} className="text-white/80 hover:text-white text-2xl">×</button>
+                  <button onClick={closeDetailModal} className="text-white/80 hover:text-white text-2xl">×</button>
                 </div>
                 <div className="flex gap-3 mt-4">
                   <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusConfig[selectedGroup.status]?.color}`}>
@@ -630,10 +682,21 @@ export default function AdminGroupOrdersPage() {
                   <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold">
                     {selectedGroup.currentQty}/{selectedGroup.targetQty} unités
                   </span>
+                  {detailLoading && (
+                    <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Mise à jour…
+                    </span>
+                  )}
                 </div>
               </div>
 
               <div className="p-6 space-y-6">
+                {detailError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {detailError}
+                  </div>
+                )}
                 {/* Participants */}
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">

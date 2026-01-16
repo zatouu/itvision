@@ -442,6 +442,13 @@ export default function AdminProductManager() {
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; count: number }>>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category'>(
+    'none'
+  )
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkLoading, setBulkLoading] = useState(false)
   const [autoPrice, setAutoPrice] = useState(false)
   const [activeTab, setActiveTab] = useState<ProductTab>('info')
   const [uploadingMain, setUploadingMain] = useState(false)
@@ -470,12 +477,36 @@ export default function AdminProductManager() {
         variantOptions: item.variantOptions || [],
         shippingOverrides: ensureOverrides(item.shippingOverrides)
       })))
+      setSelectedIds(new Set())
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => { refresh() }, [])
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/products/categories', { credentials: 'include' })
+        const data = await res.json().catch(() => ({}))
+        if (!mounted) return
+        if (res.ok && data?.success && Array.isArray(data.items)) {
+          setCategoryOptions(
+            data.items
+              .map((it: any) => ({ category: String(it.category || ''), count: Number(it.count) || 0 }))
+              .filter((it: any) => it.category)
+          )
+        }
+      } catch {
+        // ignore: suggestions only
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   // État pour le brouillon
   const [hasDraft, setHasDraft] = useState(false)
@@ -620,6 +651,81 @@ export default function AdminProductManager() {
     await refresh()
   }
 
+  const selectedCount = selectedIds.size
+
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  const selectAllOnPage = (checked: boolean) => {
+    setSelectedIds(() => {
+      if (!checked) return new Set()
+      const next = new Set<string>()
+      for (const p of items) {
+        if (p?._id) next.add(String(p._id))
+      }
+      return next
+    })
+  }
+
+  const applyBulkAction = async () => {
+    if (selectedCount === 0) return
+    if (bulkAction === 'none') return
+
+    const ids = Array.from(selectedIds)
+    const set: any = {}
+
+    if (bulkAction === 'publish') set.isPublished = true
+    if (bulkAction === 'unpublish') set.isPublished = false
+    if (bulkAction === 'feature') set.isFeatured = true
+    if (bulkAction === 'unfeature') set.isFeatured = false
+    if (bulkAction === 'set-category') set.category = bulkCategory
+
+    if (bulkAction === 'set-category' && !String(bulkCategory || '').trim()) {
+      alert('Veuillez saisir une catégorie (ou laissez vide pour supprimer).')
+      return
+    }
+
+    const label =
+      bulkAction === 'publish'
+        ? 'Publier'
+        : bulkAction === 'unpublish'
+        ? 'Dépublier'
+        : bulkAction === 'feature'
+        ? 'Mettre en avant'
+        : bulkAction === 'unfeature'
+        ? 'Retirer mise en avant'
+        : 'Changer catégorie'
+
+    if (!confirm(`${label} sur ${selectedCount} produit(s) ?`)) return
+
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/products/bulk', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, set })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Erreur bulk update')
+      }
+      await refresh()
+      setBulkAction('none')
+      setBulkCategory('')
+    } catch (e: any) {
+      alert(e?.message || 'Erreur bulk update')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
   const computedDisplayPrice = (product: Product) => {
     if (typeof product.price === 'number') return formatCurrency(product.price, product.currency)
     if (typeof product.baseCost === 'number') {
@@ -749,6 +855,7 @@ export default function AdminProductManager() {
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
               placeholder="Catégorie (ex: Vidéosurveillance)"
               value={editing.category || ''}
+              list="admin-product-categories"
               onChange={e => setEditing({ ...editing, category: e.target.value })}
             />
             <div>
@@ -909,6 +1016,11 @@ export default function AdminProductManager() {
     if (!editing) return null
     return (
       <div className="space-y-6">
+        <datalist id="admin-product-categories">
+          {categoryOptions.map((it) => (
+            <option key={it.category} value={it.category} />
+          ))}
+        </datalist>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
             <Layers className="h-4 w-4" />
@@ -2176,14 +2288,64 @@ export default function AdminProductManager() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher par nom" className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
-        <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Catégorie" className="w-48 border rounded-lg px-3 py-2 text-sm" />
+        <input
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          placeholder="Catégorie"
+          list="admin-product-categories"
+          className="w-48 border rounded-lg px-3 py-2 text-sm"
+        />
         <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition">Filtrer</button>
+
+        <div className="h-9 w-px bg-gray-200" />
+
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-600">
+            {selectedCount > 0 ? `${selectedCount} sélectionné(s)` : 'Sélection'}
+          </div>
+          <select
+            value={bulkAction}
+            onChange={(e) => setBulkAction(e.target.value as any)}
+            className="h-9 rounded-lg border px-2 text-sm"
+          >
+            <option value="none">Actions…</option>
+            <option value="publish">Publier</option>
+            <option value="unpublish">Dépublier</option>
+            <option value="feature">Mettre en avant</option>
+            <option value="unfeature">Retirer mise en avant</option>
+            <option value="set-category">Changer catégorie</option>
+          </select>
+          {bulkAction === 'set-category' && (
+            <input
+              value={bulkCategory}
+              onChange={(e) => setBulkCategory(e.target.value)}
+              placeholder="Nouvelle catégorie"
+              list="admin-product-categories"
+              className="h-9 w-52 rounded-lg border px-3 text-sm"
+            />
+          )}
+          <button
+            onClick={applyBulkAction}
+            disabled={bulkLoading || selectedCount === 0 || bulkAction === 'none'}
+            className="h-9 rounded-lg bg-gray-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {bulkLoading ? '…' : 'Appliquer'}
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto bg-white rounded-xl border">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
+              <th className="text-left p-3 w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Tout sélectionner"
+                  checked={items.length > 0 && selectedCount === items.filter((p) => !!p?._id).length}
+                  onChange={(e) => selectAllOnPage(e.target.checked)}
+                />
+              </th>
               <th className="text-left p-3">Produit</th>
               <th className="text-left p-3">Catégorie</th>
               <th className="text-left p-3">Tarif</th>
@@ -2193,12 +2355,22 @@ export default function AdminProductManager() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="p-6 text-center text-gray-500"><Loader2 className="h-4 w-4 inline animate-spin" /> Chargement...</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-gray-500"><Loader2 className="h-4 w-4 inline animate-spin" /> Chargement...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={5} className="p-6 text-center text-gray-500">Aucun produit</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-gray-500">Aucun produit</td></tr>
             ) : (
               items.map(product => (
                 <tr key={product._id} className="border-t">
+                  <td className="p-3 align-top">
+                    {product._id && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Sélectionner ${product.name}`}
+                        checked={selectedIds.has(String(product._id))}
+                        onChange={(e) => toggleSelected(String(product._id), e.target.checked)}
+                      />
+                    )}
+                  </td>
                   <td className="p-3">
                     <div className="flex items-start gap-2">
                       {product.image && (

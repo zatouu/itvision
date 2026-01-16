@@ -6,6 +6,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { EscrowTransaction, IEscrowTransaction } from '@/lib/models/EscrowTransaction'
 
+function maskPhone(phone: string) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (digits.length < 5) return phone
+  const head = digits.slice(0, 3)
+  const tail = digits.slice(-2)
+  return `${head}****${tail}`
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ reference: string }> }
@@ -35,13 +43,20 @@ export async function GET(
       client: {
         name: transaction.client.name,
         // Masquer partiellement le téléphone
-        phone: transaction.client.phone.replace(/(\d{3})\d{4}(\d{2})/, '$1****$2')
+        phone: maskPhone(transaction.client.phone)
       },
       timeline: transaction.timeline.map((event) => ({
         status: event.status,
         timestamp: event.timestamp,
         note: event.note
       })),
+      dispute: transaction.dispute
+        ? {
+            openedAt: transaction.dispute.openedAt,
+            reason: transaction.dispute.reason,
+            resolvedAt: transaction.dispute.resolvedAt
+          }
+        : undefined,
       guarantees: transaction.guarantees,
       delivery: transaction.delivery ? {
         method: transaction.delivery.method,

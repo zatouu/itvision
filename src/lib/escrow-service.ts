@@ -9,6 +9,58 @@ import dbConnect from './mongodb'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
+const mainFlow: EscrowStatus[] = [
+  'pending_payment',
+  'payment_received',
+  'funds_secured',
+  'order_placed',
+  'order_confirmed',
+  'in_transit',
+  'delivered',
+  'verification',
+  'completed'
+]
+
+function computeVerificationEndsAt(transaction: any): Date | null {
+  if (transaction?.verificationEndsAt instanceof Date) return transaction.verificationEndsAt
+  if (transaction?.deliveredAt instanceof Date) {
+    return new Date(transaction.deliveredAt.getTime() + 48 * 60 * 60 * 1000)
+  }
+  return null
+}
+
+function assertValidTransition(transaction: any, previousStatus: EscrowStatus, nextStatus: EscrowStatus) {
+  if (previousStatus === nextStatus) return
+
+  // Terminal states: do not allow moving away (unless you explicitly implement a force override).
+  if (['refunded', 'cancelled'].includes(previousStatus)) {
+    throw new Error(`Transition interdite: ${previousStatus} → ${nextStatus}`)
+  }
+
+  // Prevent cancelling a completed transaction.
+  if (previousStatus === 'completed' && nextStatus === 'cancelled') {
+    throw new Error(`Transition interdite: ${previousStatus} → ${nextStatus}`)
+  }
+
+  // Main flow: forward-only (skips allowed).
+  const prevIndex = mainFlow.indexOf(previousStatus)
+  const nextIndex = mainFlow.indexOf(nextStatus)
+  if (prevIndex !== -1 && nextIndex !== -1 && nextIndex < prevIndex) {
+    throw new Error(`Transition interdite: ${previousStatus} → ${nextStatus}`)
+  }
+
+  // Dispute: only after delivery and within 48h verification window.
+  if (nextStatus === 'disputed') {
+    if (!transaction.deliveredAt) {
+      throw new Error('Impossible d\'ouvrir un litige avant la livraison')
+    }
+    const verificationEndsAt = computeVerificationEndsAt(transaction)
+    if (verificationEndsAt && Date.now() > verificationEndsAt.getTime()) {
+      throw new Error('La période de réclamation (48h) est dépassée')
+    }
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Création et gestion des transactions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,32 +79,49 @@ interface CreateEscrowParams {
 export async function createEscrowTransaction(params: CreateEscrowParams) {
   await dbConnect()
   
-  // Générer référence unique
-  const reference = `GAR-${new Date().toISOString().slice(2, 7).replace('-', '')}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-  
-  const transaction = new EscrowTransaction({
-    reference,
-    userId: params.userId,
-    client: params.client,
-    amount: params.amount,
-    currency: 'FCFA',
-    groupOrderId: params.groupOrderId,
-    orderId: params.orderId,
-    status: 'pending_payment',
-    timeline: [{
+  const generateReference = () => {
+    const fn = (EscrowTransaction as any)?.generateReference
+    if (typeof fn === 'function') return String(fn.call(EscrowTransaction))
+    const date = new Date()
+    const year = date.getFullYear().toString().slice(-2)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase()
+    return `GAR-${year}${month}-${random}`
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const reference = generateReference()
+
+    const transaction = new EscrowTransaction({
+      reference,
+      userId: params.userId,
+      client: params.client,
+      amount: params.amount,
+      currency: 'FCFA',
+      groupOrderId: params.groupOrderId,
+      orderId: params.orderId,
       status: 'pending_payment',
-      timestamp: new Date(),
-      note: 'Transaction créée',
-      notifiedClient: false
-    }]
-  })
-  
-  // Ajouter les garanties par défaut
-  transaction.setDefaultGuarantees()
-  
-  await transaction.save()
-  
-  return transaction
+      timeline: [{
+        status: 'pending_payment',
+        timestamp: new Date(),
+        note: 'Transaction créée',
+        notifiedClient: false
+      }]
+    })
+
+    transaction.setDefaultGuarantees()
+
+    try {
+      await transaction.save()
+      return transaction
+    } catch (error: any) {
+      // Duplicate key (reference) → retry
+      if (error?.code === 11000) continue
+      throw error
+    }
+  }
+
+  throw new Error('Impossible de générer une référence unique')
 }
 
 /**
@@ -80,6 +149,8 @@ export async function updateEscrowStatus(
   }
   
   const previousStatus = transaction.status
+
+  assertValidTransition(transaction, previousStatus, newStatus)
   
   // Ajouter l'événement au timeline
   transaction.addEvent(newStatus, options.note, options.adminId)
@@ -285,18 +356,19 @@ export async function openDispute(
   if (!transaction) {
     throw new Error(`Transaction ${reference} non trouvée`)
   }
+
+  if (transaction.dispute?.openedAt) {
+    throw new Error('Un litige existe déjà pour cette transaction')
+  }
   
-  // Vérifier que le litige est possible (après livraison, dans les 7 jours)
+  // Vérifier que le litige est possible (après livraison, dans les 48h)
   if (!transaction.deliveredAt) {
     throw new Error('Impossible d\'ouvrir un litige avant la livraison')
   }
-  
-  const daysSinceDelivery = Math.floor(
-    (Date.now() - transaction.deliveredAt.getTime()) / (1000 * 60 * 60 * 24)
-  )
-  
-  if (daysSinceDelivery > 7) {
-    throw new Error('La période de réclamation de 7 jours est dépassée')
+
+  const verificationEndsAt = computeVerificationEndsAt(transaction)
+  if (verificationEndsAt && Date.now() > verificationEndsAt.getTime()) {
+    throw new Error('La période de réclamation (48h) est dépassée')
   }
   
   transaction.dispute = {
