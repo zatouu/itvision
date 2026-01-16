@@ -2585,6 +2585,26 @@ type ImportPreview = {
   totalRated?: number
 }
 
+type Import1688Preview = {
+  offerId?: string
+  name: string
+  productUrl: string
+  image?: string
+  gallery: string[]
+  price1688?: number
+  price1688Currency?: string
+  exchangeRate?: number
+  currency: string
+  category: string
+  tagline: string
+  availabilityNote: string
+  features: string[]
+  weightKg?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+}
+
 type ImportTabProps = {
   onImported: (product: Product) => Promise<void> | void
   formatCurrency: (amount?: number, currency?: string) => string
@@ -2598,6 +2618,11 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [importingId, setImportingId] = useState<string | null>(null)
+
+  const [url1688, setUrl1688] = useState('')
+  const [preview1688, setPreview1688] = useState<Import1688Preview | null>(null)
+  const [loading1688, setLoading1688] = useState(false)
+  const [importing1688, setImporting1688] = useState(false)
 
   const handleSearch = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -2656,39 +2681,312 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
 
   const hasResults = results.length > 0
 
+  const handlePreview1688 = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!url1688.trim()) {
+      setError('Collez un lien 1688 pour prévisualiser le produit.')
+      return
+    }
+    setLoading1688(true)
+    setError(null)
+    setFeedback(null)
+    setPreview1688(null)
+    try {
+      const params = new URLSearchParams({ url: url1688.trim() })
+      const res = await fetch(`/api/products/import?${params.toString()}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Prévisualisation impossible')
+      }
+      setPreview1688(data.item as Import1688Preview)
+    } catch (err: any) {
+      setError(err?.message || 'Impossible de charger la page 1688.')
+    } finally {
+      setLoading1688(false)
+    }
+  }
+
+  const handleImport1688 = async () => {
+    if (!preview1688) return
+    setImporting1688(true)
+    setError(null)
+    setFeedback(null)
+    try {
+      const normalizedPreview: Import1688Preview = {
+        ...preview1688,
+        price1688:
+          typeof preview1688.price1688 === 'number'
+            ? preview1688.price1688
+            : preview1688.price1688
+            ? Number(preview1688.price1688)
+            : undefined,
+        exchangeRate:
+          typeof preview1688.exchangeRate === 'number'
+            ? preview1688.exchangeRate
+            : preview1688.exchangeRate
+            ? Number(preview1688.exchangeRate)
+            : undefined,
+        weightKg:
+          typeof preview1688.weightKg === 'number'
+            ? preview1688.weightKg
+            : preview1688.weightKg
+            ? Number(preview1688.weightKg)
+            : undefined,
+        lengthCm:
+          typeof preview1688.lengthCm === 'number'
+            ? preview1688.lengthCm
+            : preview1688.lengthCm
+            ? Number(preview1688.lengthCm)
+            : undefined,
+        widthCm:
+          typeof preview1688.widthCm === 'number'
+            ? preview1688.widthCm
+            : preview1688.widthCm
+            ? Number(preview1688.widthCm)
+            : undefined,
+        heightCm:
+          typeof preview1688.heightCm === 'number'
+            ? preview1688.heightCm
+            : preview1688.heightCm
+            ? Number(preview1688.heightCm)
+            : undefined
+      }
+
+      const res = await fetch('/api/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: normalizedPreview })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Import impossible')
+      }
+      const product = data?.product
+      if (product) {
+        setFeedback(data?.action === 'updated' ? 'Produit mis à jour depuis 1688.' : 'Produit importé depuis 1688.')
+        await onImported(product)
+      } else {
+        setFeedback('Import terminé. Vérifiez la liste des produits.')
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Impossible d’importer ce produit 1688 pour le moment.')
+    } finally {
+      setImporting1688(false)
+    }
+  }
+
   return (
     <div className="space-y-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div>
-        <h4 className="text-lg font-semibold text-gray-900">Importer depuis AliExpress</h4>
-        <p className="text-sm text-gray-500">
-          Recherchez un mot-clé (ex: « hikvision », « caméra PTZ ») pour alimenter le catalogue automatiquement.
-        </p>
+        <h4 className="text-lg font-semibold text-gray-900">Import express (AliExpress / 1688)</h4>
+        <p className="text-sm text-gray-500">Alimentez le catalogue automatiquement depuis une source externe.</p>
       </div>
 
-      <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          placeholder="Mot-clé AliExpress"
-          value={keyword}
-          onChange={e => setKeyword(e.target.value)}
-        />
-        <input
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm sm:w-28"
-          type="number"
-          min={1}
-          max={12}
-          value={limit}
-          onChange={e => setLimit(Math.min(12, Math.max(1, Number(e.target.value) || 1)))}
-        />
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          Chercher
-        </button>
-      </form>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="text-sm font-semibold text-gray-900">AliExpress (mot-clé)</div>
+          <p className="mt-1 text-xs text-gray-500">Recherchez un mot-clé (ex: « hikvision », « caméra PTZ »).</p>
+
+          <form onSubmit={handleSearch} className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input
+              className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              placeholder="Mot-clé AliExpress"
+              value={keyword}
+              onChange={e => setKeyword(e.target.value)}
+            />
+            <input
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm sm:w-28"
+              type="number"
+              min={1}
+              max={12}
+              value={limit}
+              onChange={e => setLimit(Math.min(12, Math.max(1, Number(e.target.value) || 1)))}
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Chercher
+            </button>
+          </form>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="text-sm font-semibold text-gray-900">1688 (lien direct)</div>
+          <p className="mt-1 text-xs text-gray-500">Collez un lien produit 1688 pour générer une fiche.</p>
+
+          <form onSubmit={handlePreview1688} className="mt-3 flex gap-2">
+            <input
+              className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              placeholder="https://detail.1688.com/offer/..."
+              value={url1688}
+              onChange={(e) => setUrl1688(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+              disabled={loading1688}
+            >
+              {loading1688 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Prévisualiser
+            </button>
+          </form>
+
+          {preview1688 && (
+            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <div className="flex gap-3">
+                <div className="h-16 w-16 overflow-hidden rounded-lg border border-gray-100 bg-white">
+                  {preview1688.image ? (
+                    <img src={preview1688.image} alt={preview1688.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-[11px] text-gray-400">Image</div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-gray-900 line-clamp-2">{preview1688.name}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                    {typeof preview1688.price1688 === 'number' && <span>Prix 1688: ¥{preview1688.price1688}</span>}
+                    {preview1688.offerId && <span>offerId: {preview1688.offerId}</span>}
+                  </div>
+                  <div className="mt-1 text-[11px] text-gray-500">
+                    Note: poids/dimensions par défaut → à vérifier.
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3 text-xs text-gray-700 md:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-[11px] text-gray-500">Catégorie</span>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                    value={preview1688.category || ''}
+                    list="admin-product-categories"
+                    onChange={(e) => setPreview1688(prev => (prev ? { ...prev, category: e.target.value } : prev))}
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[11px] text-gray-500">Taux de change (1 ¥ → FCFA)</span>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                    type="number"
+                    min={1}
+                    step="1"
+                    value={preview1688.exchangeRate ?? 100}
+                    onChange={(e) =>
+                      setPreview1688(prev => (prev
+                        ? { ...prev, exchangeRate: e.target.value ? Number(e.target.value) : undefined }
+                        : prev))
+                    }
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[11px] text-gray-500">Poids brut (kg)</span>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={preview1688.weightKg ?? 1}
+                    onChange={(e) =>
+                      setPreview1688(prev => (prev
+                        ? { ...prev, weightKg: e.target.value ? Number(e.target.value) : undefined }
+                        : prev))
+                    }
+                  />
+                </label>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-gray-500">L (cm)</span>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={preview1688.lengthCm ?? 10}
+                      onChange={(e) =>
+                        setPreview1688(prev => (prev
+                          ? { ...prev, lengthCm: e.target.value ? Number(e.target.value) : undefined }
+                          : prev))
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-gray-500">l (cm)</span>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={preview1688.widthCm ?? 10}
+                      onChange={(e) =>
+                        setPreview1688(prev => (prev
+                          ? { ...prev, widthCm: e.target.value ? Number(e.target.value) : undefined }
+                          : prev))
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-gray-500">H (cm)</span>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={preview1688.heightCm ?? 10}
+                      onChange={(e) =>
+                        setPreview1688(prev => (prev
+                          ? { ...prev, heightCm: e.target.value ? Number(e.target.value) : undefined }
+                          : prev))
+                      }
+                    />
+                  </label>
+                </div>
+
+                <label className="space-y-1 md:col-span-2">
+                  <span className="text-[11px] text-gray-500">Accroche</span>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                    value={preview1688.tagline || ''}
+                    onChange={(e) => setPreview1688(prev => (prev ? { ...prev, tagline: e.target.value } : prev))}
+                  />
+                </label>
+
+                <label className="space-y-1 md:col-span-2">
+                  <span className="text-[11px] text-gray-500">Note disponibilité</span>
+                  <textarea
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
+                    rows={2}
+                    value={preview1688.availabilityNote || ''}
+                    onChange={(e) => setPreview1688(prev => (prev ? { ...prev, availabilityNote: e.target.value } : prev))}
+                  />
+                </label>
+              </div>
+
+              {(typeof preview1688.price1688 === 'number') && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700">
+                  Estimation coût source: ¥{preview1688.price1688} × {preview1688.exchangeRate ?? 100} ≈{' '}
+                  <span className="font-semibold">{Math.round(preview1688.price1688 * (preview1688.exchangeRate ?? 100)).toLocaleString('fr-FR')} FCFA</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleImport1688}
+                disabled={importing1688}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-emerald-300"
+              >
+                {importing1688 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {importing1688 ? 'Import…' : 'Importer depuis 1688'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
