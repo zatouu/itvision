@@ -396,9 +396,18 @@ async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Previe
   const offerId = extractOfferId(url)
   const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; ITVisionBot/1.0; +https://example.local)',
-      'Accept': 'text/html,application/xhtml+xml',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+      // User-Agent d’un vrai navigateur récent (Windows/Chrome)
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1'
     },
     cache: 'no-store'
   })
@@ -409,11 +418,16 @@ async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Previe
   }
 
   const html = await res.text()
+  // Détection blocage/captcha : page très courte ou contient "robot check"
+  if (!html || html.length < 1000 || /robot|verify|captcha|window.location/i.test(html)) {
+    throw new Error('Le site 1688 a bloqué l’accès automatisé (captcha ou protection anti-bot). Essayez de réessayer plus tard ou manuellement.')
+  }
+
   const jsonLd = extractJsonLdProduct(html)
-  const title =
-    (typeof jsonLd.name === 'string' && jsonLd.name.trim()) ||
-    extractTitle(html) ||
-    `Produit 1688${offerId ? ` (${offerId})` : ''}`
+  let title = (typeof jsonLd.name === 'string' && jsonLd.name.trim()) || extractTitle(html)
+  if (!title || /1688|robot|verify|captcha/i.test(title)) {
+    throw new Error('Impossible d’extraire le titre du produit. Le scraping est probablement bloqué par 1688 (captcha ou page protégée).')
+  }
 
   const images = [...new Set([...(jsonLd.images || []), ...extractImages(html)])]
   const price1688 = jsonLd.price ?? extractPrice1688(html)
