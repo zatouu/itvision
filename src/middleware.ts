@@ -23,6 +23,7 @@ const PUBLIC_ROUTES = [
   '/register',
   '/forgot-password',
   '/reset-password',
+  '/retrouver-ma-commande',
   '/api/auth',
   '/api/health',
   '/',
@@ -68,6 +69,11 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 function getRequiredRole(pathname: string): string | null {
+  // Messagerie: accessible à tout utilisateur authentifié
+  if (pathname === '/messages' || pathname.startsWith('/messages/')) {
+    return 'AUTH'
+  }
+
   // Routes admin (y compris celles en dehors de /admin/)
   const adminRoutes = [
     '/admin',
@@ -132,6 +138,13 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
+    }
+
+    // Messagerie: tout utilisateur authentifié
+    if (requiredRole === 'AUTH') {
+      const response = NextResponse.next()
+      applySecurityHeaders(response, pathname)
+      return response
     }
     
     // Rôles ayant accès admin

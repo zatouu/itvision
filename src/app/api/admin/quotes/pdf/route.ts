@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateITVisionQuotePdf } from '@/lib/pdf'
+import { requireAdminApi } from '@/lib/api-auth'
 
 // POST: Générer un PDF de devis
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     const quoteData = await request.json()
     
     // Générer le PDF

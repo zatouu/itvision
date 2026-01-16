@@ -3,6 +3,7 @@ import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
 import type { Pricing1688Input } from '@/lib/types/product.types'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { IProduct } from '@/lib/models/Product.validated'
+import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 
 /**
  * POST /api/pricing/simulate
@@ -96,7 +97,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculer le pricing
-    const result = simulatePricing1688(simulationInput)
+    const clientRates = getConfiguredShippingRates()
+    const result = simulatePricing1688(simulationInput, undefined, clientRates)
 
     return NextResponse.json({
       success: true,

@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
-import jwt from 'jsonwebtoken'
-
-function getAdminToken(request: NextRequest): any {
-  const token = request.cookies.get('admin-auth-token')?.value 
-              || request.cookies.get('auth-token')?.value 
-              || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Token manquant')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  if (decoded.role !== 'admin' && decoded.role !== 'supervisor') {
-    throw new Error('Accès non autorisé')
-  }
-  return decoded
-}
+import { requireAdminApi } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB()
-    getAdminToken(request)
+    const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'])
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
 
     const [pending, validated, rejected, published, avgValidationTimeAgg] = await Promise.all([
       MaintenanceReport.countDocuments({ status: 'pending_validation' }),

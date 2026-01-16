@@ -2,12 +2,18 @@
  * API Admin pour la gestion des transactions escrow
  * GET /api/admin/escrow - Liste toutes les transactions avec stats
  */
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { EscrowTransaction } from '@/lib/models/EscrowTransaction'
+import { requireAdminApi } from '@/lib/api-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     await dbConnect()
 
     // Récupérer toutes les transactions

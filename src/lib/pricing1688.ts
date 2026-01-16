@@ -1,5 +1,5 @@
 import type { IProduct } from './models/Product.validated'
-import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingMethodId } from './logistics'
+import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingMethodId, type ShippingRate } from './logistics'
 
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_INSURANCE_RATE } from './pricing/constants'
 
@@ -117,9 +117,10 @@ function calculateRealShippingCost(
 function calculateClientShippingCost(
   method: ShippingMethodId,
   weightKg?: number,
-  volumeM3?: number
+  volumeM3?: number,
+  clientRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
 ): number {
-  const clientRate = BASE_SHIPPING_RATES[method]
+  const clientRate = clientRates[method]
   if (!clientRate) return 0
 
   let billedAmount = 0
@@ -141,7 +142,10 @@ function calculateClientShippingCost(
 /**
  * Simule le pricing complet d'un produit 1688
  */
-export function simulatePricing1688(input: PricingSimulationInput): PricingSimulationResult {
+export function simulatePricing1688(
+  input: PricingSimulationInput,
+  clientRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
+): PricingSimulationResult {
   const {
     price1688,
     baseCost,
@@ -160,7 +164,7 @@ export function simulatePricing1688(input: PricingSimulationInput): PricingSimul
 
   // 2. Coûts de transport
   const shippingCostReal = calculateRealShippingCost(shippingMethod, weightKg, volumeM3)
-  const shippingCostClient = calculateClientShippingCost(shippingMethod, weightKg, volumeM3)
+  const shippingCostClient = calculateClientShippingCost(shippingMethod, weightKg, volumeM3, clientRates)
 
   // 3. Frais de service (sur le coût produit)
   const serviceFee = productCostFCFA * (serviceFeeRate / 100)

@@ -1,4 +1,4 @@
-import { computeProductPricing } from './logistics'
+import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
 const normalizeGallery = (product: any): string[] => {
@@ -32,8 +32,11 @@ const normalizeVariantGroups = (product: any) => {
   })).filter((g: any) => g.variants.length > 0)
 }
 
-export const formatProductDetail = (product: any) => {
-  const pricing = computeProductPricing(product)
+export const formatProductDetail = (
+  product: any,
+  shippingRates?: Record<ShippingMethodId, ShippingRate>
+) => {
+  const pricing = computeProductPricing(product, shippingRates)
 
   // Achat groupé: calcul du meilleur prix et discount (si activé)
   let groupBuyBestPrice: number | null = null
@@ -103,9 +106,12 @@ export const formatProductDetail = (product: any) => {
   }
 }
 
-export const formatSimilarProducts = (products: any[]) => {
+export const formatSimilarProducts = (
+  products: any[],
+  shippingRates?: Record<ShippingMethodId, ShippingRate>
+) => {
   return products.map((item) => {
-    const pricing = computeProductPricing(item)
+    const pricing = computeProductPricing(item, shippingRates)
     const bestShipping = pricing.shippingOptions.length > 0
       ? pricing.shippingOptions.reduce((prev, current) => (prev.total <= current.total ? prev : current))
       : null

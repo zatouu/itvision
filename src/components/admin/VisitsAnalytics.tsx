@@ -28,6 +28,8 @@ interface VisitsStats {
   visitsByBrowser: Array<{ browser: string; count: number }>
   visitsByOS: Array<{ os: string; count: number }>
   topReferrers: Array<{ referrer: string; count: number }>
+  topIPs?: Array<{ ip: string; count: number }>
+  topAnonymousIPs?: Array<{ ip: string; count: number }>
   recentVisits: RecentVisit[]
 }
 
@@ -37,12 +39,18 @@ interface RecentVisit {
   pageName: string
   pageType: string
   ipAddress?: string
+  userId?: string
   userRole?: string
   isAuthenticated: boolean
+  sessionId?: string
+  userAgent?: string
   deviceType?: string
   browser?: string
   os?: string
   referrer?: string
+  duration?: number
+  scrollDepth?: number
+  interactions?: number
   visitedAt: string
 }
 
@@ -64,6 +72,7 @@ export default function VisitsAnalytics() {
   const [refreshing, setRefreshing] = useState(false)
   const [pageTypeFilter, setPageTypeFilter] = useState<PageTypeFilter>('all')
   const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const [activitySearch, setActivitySearch] = useState('')
 
   const loadStats = async () => {
     setRefreshing(true)
@@ -164,6 +173,26 @@ export default function VisitsAnalytics() {
   const filteredRecentVisits = stats.recentVisits.filter((visit) =>
     pageTypeFilter === 'all' ? true : visit.pageType === pageTypeFilter
   )
+
+  const activityNeedle = activitySearch.trim().toLowerCase()
+  const searchedRecentVisits = activityNeedle
+    ? filteredRecentVisits.filter((visit) => {
+        const haystack = [
+          visit.ipAddress,
+          visit.pageName,
+          visit.path,
+          visit.referrer,
+          visit.userAgent,
+          visit.userRole,
+          visit.userId,
+          visit.sessionId
+        ]
+          .filter(Boolean)
+          .join(' | ')
+          .toLowerCase()
+        return haystack.includes(activityNeedle)
+      })
+    : filteredRecentVisits
 
   const filteredTopPages = stats.topPages.filter((page) => {
     if (pageTypeFilter === 'all') return true
@@ -427,30 +456,67 @@ export default function VisitsAnalytics() {
             </div>
           </div>
 
-          {/* Visites par type de page (rappel) */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Répartition par espace</h3>
-            <div className="space-y-3">
-              {stats.visitsByPageType.map((item) => {
-                const total = stats.visitsByPageType.reduce((sum, i) => sum + i.count, 0)
-                const percentage = total > 0 ? (item.count / total) * 100 : 0
-                return (
-                  <div key={item.type}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${getPageTypeColor(item.type)}`}>
-                        {item.type}
+          <div className="space-y-6">
+            {/* Top IPs */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Top IPs</h3>
+              <p className="text-xs text-gray-500 mb-4">Sources les plus actives (volume)</p>
+              <div className="space-y-3">
+                {(stats.topIPs || []).length === 0 ? (
+                  <p className="text-sm text-gray-500">Aucune IP disponible</p>
+                ) : (
+                  (stats.topIPs || []).slice(0, 10).map((item) => (
+                    <div key={item.ip} className="flex items-center justify-between">
+                      <span className="text-sm font-mono text-gray-800 truncate max-w-[220px]" title={item.ip}>
+                        {item.ip}
                       </span>
                       <span className="text-sm font-semibold text-gray-700">{item.count}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-emerald-500 h-2 rounded-full transition-all"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
+                  ))
+                )}
+              </div>
+              {(stats.topAnonymousIPs || []).length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2">Top IPs anonymes</p>
+                  <div className="space-y-2">
+                    {(stats.topAnonymousIPs || []).slice(0, 5).map((item) => (
+                      <div key={item.ip} className="flex items-center justify-between">
+                        <span className="text-xs font-mono text-gray-700 truncate max-w-[220px]" title={item.ip}>
+                          {item.ip}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-600">{item.count}</span>
+                      </div>
+                    ))}
                   </div>
-                )
-              })}
+                </div>
+              )}
+            </div>
+
+            {/* Visites par type de page (rappel) */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Répartition par espace</h3>
+              <div className="space-y-3">
+                {stats.visitsByPageType.map((item) => {
+                  const total = stats.visitsByPageType.reduce((sum, i) => sum + i.count, 0)
+                  const percentage = total > 0 ? (item.count / total) * 100 : 0
+                  return (
+                    <div key={item.type}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${getPageTypeColor(item.type)}`}>
+                          {item.type}
+                        </span>
+                        <span className="text-sm font-semibold text-gray-700">{item.count}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-emerald-500 h-2 rounded-full transition-all"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -539,13 +605,13 @@ export default function VisitsAnalytics() {
         </div>
       )}
 
-      {activeTab === 'activity' && filteredRecentVisits.length > 0 && (
+      {activeTab === 'activity' && searchedRecentVisits.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Dernières visites (détails)</h3>
               <p className="text-xs text-gray-500 mt-1">
-                IP source, rôle, device, navigateur, OS et referrer
+                IP source, rôle, device, navigateur, OS, referrer et user-agent
                 {pageTypeFilter !== 'all' && (
                   <>
                     <span className="mx-1 text-gray-300">•</span>
@@ -555,6 +621,17 @@ export default function VisitsAnalytics() {
               </p>
             </div>
             <Calendar className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <input
+              value={activitySearch}
+              onChange={(e) => setActivitySearch(e.target.value)}
+              placeholder="Rechercher (IP, page, referrer, UA, userId…)"
+              className="w-full md:max-w-md border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            <div className="text-xs text-gray-500">
+              {searchedRecentVisits.length.toLocaleString('fr-FR')} / {filteredRecentVisits.length.toLocaleString('fr-FR')} affichées
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs md:text-sm">
@@ -570,15 +647,28 @@ export default function VisitsAnalytics() {
                   <th className="py-2 pr-4">Nav.</th>
                   <th className="py-2 pr-4">OS</th>
                   <th className="py-2 pr-4">Referrer</th>
+                  <th className="py-2 pr-4 hidden lg:table-cell">UA</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRecentVisits.slice(0, 20).map((visit) => (
+                {searchedRecentVisits.slice(0, 20).map((visit) => (
                   <tr key={visit.id} className="border-b last:border-0">
                     <td className="py-2 pr-4 whitespace-nowrap text-gray-700">
                       {new Date(visit.visitedAt).toLocaleString('fr-FR')}
                     </td>
-                    <td className="py-2 pr-4 font-mono text-gray-800">
+                    <td
+                      className="py-2 pr-4 font-mono text-gray-800 cursor-pointer hover:text-emerald-700"
+                      title="Cliquer pour copier l'IP"
+                      onClick={async () => {
+                        try {
+                          const value = visit.ipAddress || ''
+                          if (!value) return
+                          await navigator.clipboard.writeText(value)
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
                       {visit.ipAddress || 'inconnue'}
                     </td>
                     <td className="py-2 pr-4">
@@ -597,6 +687,9 @@ export default function VisitsAnalytics() {
                     <td className="py-2 pr-4 text-gray-700">{visit.os || '-'}</td>
                     <td className="py-2 pr-4 text-gray-700 truncate max-w-[180px]" title={visit.referrer || undefined}>
                       {visit.referrer || '-'}
+                    </td>
+                    <td className="py-2 pr-4 text-gray-700 truncate max-w-[260px] hidden lg:table-cell" title={visit.userAgent || undefined}>
+                      {visit.userAgent || '-'}
                     </td>
                   </tr>
                 ))}

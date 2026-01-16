@@ -3,17 +3,23 @@
  * GET /api/admin/escrow/[reference] - Détails d'une transaction
  * PATCH /api/admin/escrow/[reference] - Mettre à jour le statut
  */
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { EscrowTransaction, EscrowStatus } from '@/lib/models/EscrowTransaction'
 import { updateEscrowStatus, resolveDispute } from '@/lib/escrow-service'
+import { requireAdminApi } from '@/lib/api-auth'
 
 // GET - Récupérer une transaction par référence
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ reference: string }> }
 ) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     await dbConnect()
     const { reference } = await params
 
@@ -39,10 +45,15 @@ export async function GET(
 
 // PATCH - Mettre à jour le statut d'une transaction
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ reference: string }> }
 ) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     await dbConnect()
     const { reference } = await params
     const body = await request.json()
@@ -56,7 +67,7 @@ export async function PATCH(
           decision: resolveType as 'refund_full' | 'refund_partial' | 'replacement' | 'rejected',
           note: adminNote || 'Résolu par admin',
           refundAmount: refundAmount,
-          adminId: 'admin' // TODO: récupérer l'ID admin depuis la session
+          adminId: auth.user.id
         })
 
         return NextResponse.json(result)
@@ -82,7 +93,7 @@ export async function PATCH(
         status as EscrowStatus,
         {
           note,
-          adminId: 'admin', // TODO: récupérer depuis session
+          adminId: auth.user.id,
           notifyClient: true,
           deliveryInfo: trackingNumber ? { trackingNumber } : undefined
         }

@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
-import { BASE_SHIPPING_RATES } from '@/lib/logistics'
+import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { connectDB } from '@/lib/db'
 import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
+import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import crypto from 'crypto'
+import { emailService } from '@/lib/email-service'
+
+function hashTrackingToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
 
 export async function POST(req: NextRequest) {
   let mongoConnected = false
   
   try {
     // Parser les données
-    const { cart, name, phone, address, shippingMethod } = await req.json()
+    const { cart, name, phone, email, address, shippingMethod } = await req.json()
     
     // Validation: panier
     if (!Array.isArray(cart) || cart.length === 0) {
@@ -47,6 +54,10 @@ export async function POST(req: NextRequest) {
     // Générer un numéro de commande unique
     const orderId = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
 
+    // Générer un token secret pour le suivi invité (non devinable)
+    const trackingToken = crypto.randomBytes(32).toString('base64url')
+    const trackingAccessTokenHash = hashTrackingToken(trackingToken)
+
     // Calculer les totaux
     let subtotal = 0 // Produits avec frais inclus
     let totalWeight = 0
@@ -76,14 +87,15 @@ export async function POST(req: NextRequest) {
     // Le client envoie des identifiants courts (ex: 'express_3j', 'air_15j', 'maritime_60j')
     const method = shippingMethod || 'air_15j'
 
-    const methodMap: Record<string, keyof typeof BASE_SHIPPING_RATES> = {
+    const methodMap: Record<string, ShippingMethodId> = {
       express_3j: 'air_express',
       air_15j: 'air_15',
       maritime_60j: 'sea_freight'
     }
 
     const internalMethod = methodMap[method as string] || 'air_15'
-    const rate = BASE_SHIPPING_RATES[internalMethod]
+    const shippingRates = getConfiguredShippingRates()
+    const rate: ShippingRate | undefined = shippingRates[internalMethod]
 
     if (!rate) {
       return NextResponse.json(
@@ -116,7 +128,11 @@ export async function POST(req: NextRequest) {
     const orderDoc = new Order({
       orderId,
       clientName: name,
+      clientEmail: email,
       clientPhone: phone,
+
+      trackingAccessTokenHash,
+      trackingAccessTokenCreatedAt: new Date(),
       
       items: cart.map((item: any) => ({
         id: item.id,
@@ -154,6 +170,31 @@ export async function POST(req: NextRequest) {
     })
 
     await orderDoc.save()
+
+    // Envoyer le lien de suivi par email si fourni (best effort)
+    if (email && typeof email === 'string' && email.includes('@')) {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
+      const trackingUrl = `${baseUrl}/commandes/${encodeURIComponent(orderId)}?token=${encodeURIComponent(trackingToken)}`
+      const subject = `Votre commande ${orderId} - lien de suivi`
+      const html = `
+        <div style="font-family:Arial,sans-serif;line-height:1.5">
+          <h2 style="margin:0 0 8px">Commande confirmée</h2>
+          <p style="margin:0 0 12px">Merci ${String(name || '').trim() || ''}. Voici votre lien de suivi (gardez-le précieusement) :</p>
+          <p style="margin:0 0 16px"><a href="${trackingUrl}">${trackingUrl}</a></p>
+          <p style="margin:0;color:#555">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+        </div>
+      `.trim()
+
+      emailService
+        .sendEmail({
+          to: email,
+          subject,
+          html
+        })
+        .catch(err => {
+          console.error('Erreur envoi email lien de suivi:', err)
+        })
+    }
 
     // Enregistrer chaque produit dans la comptabilité (asynchrone, n'attend pas)
     const accountingEntries = []
@@ -220,7 +261,7 @@ export async function POST(req: NextRequest) {
         total,
         transport: transportCost,
         subtotal,
-        confirmationUrl: `/commandes/${orderId}`
+        confirmationUrl: `/commandes/${orderId}?token=${encodeURIComponent(trackingToken)}`
       },
       { status: 201 }
     )

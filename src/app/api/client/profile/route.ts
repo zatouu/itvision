@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     // Chercher dans User puis dans Client
-    let profile = await User.findById(userId).select('-password').lean()
+    let profile: any = await User.findById(userId).select('-password').lean()
     
     if (!profile) {
       profile = await Client.findById(userId).lean()
@@ -83,7 +83,7 @@ export async function PUT(request: NextRequest) {
     const { name, phone, company, address, currentPassword, newPassword, preferences } = body
 
     // Chercher le profil
-    let profile = await User.findById(userId)
+    let profile: any = await User.findById(userId)
     let isClient = false
     
     if (!profile) {

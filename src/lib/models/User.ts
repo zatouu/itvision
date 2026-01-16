@@ -40,4 +40,4 @@ const UserSchema = new Schema<IUser>({
 
 // Index uniques déjà définis via unique:true dans les champs ci-dessus
 
-export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema)
+export default (mongoose.models.User as mongoose.Model<IUser>) || mongoose.model<IUser>('User', UserSchema)

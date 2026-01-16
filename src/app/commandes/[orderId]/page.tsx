@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -17,12 +17,14 @@ import {
   Check,
   X,
   ChevronRight,
-  Download
+  Download,
+  Copy
 } from 'lucide-react'
 
 interface OrderDetails {
   orderId: string
   clientName: string
+  clientEmail?: string
   clientPhone: string
   items: any[]
   subtotal: number
@@ -37,11 +39,16 @@ interface OrderDetails {
 
 export default function OrderConfirmationPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const orderId = params?.orderId as string
+  const token = searchParams?.get('token') || searchParams?.get('t')
   const [order, setOrder] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingAddress, setEditingAddress] = useState(false)
+  const [resendEmail, setResendEmail] = useState('')
+  const [resendPhone, setResendPhone] = useState('')
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [addressForm, setAddressForm] = useState({
     street: '',
     city: '',
@@ -50,13 +57,17 @@ export default function OrderConfirmationPage() {
     notes: ''
   })
   const [currentStep, setCurrentStep] = useState(0)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   useEffect(() => {
     if (!orderId) return
 
     const fetchOrder = async () => {
       try {
-        const res = await fetch(`/api/order/${orderId}`)
+        const url = token
+          ? `/api/order/${orderId}?token=${encodeURIComponent(token)}`
+          : `/api/order/${orderId}`
+        const res = await fetch(url)
         const data = await res.json()
 
         if (res.ok && data.success) {
@@ -86,10 +97,32 @@ export default function OrderConfirmationPage() {
     }
 
     fetchOrder()
-  }, [orderId])
+  }, [orderId, token])
 
   const formatCurrency = (amount: number, currency = 'FCFA') =>
     `${amount.toLocaleString('fr-FR')} ${currency}`
+
+  const getCsrfToken = async (): Promise<string | null> => {
+    try {
+      const csrfRes = await fetch('/api/csrf', { method: 'GET' })
+      const csrfData = await csrfRes.json().catch(() => ({}))
+      return csrfData?.csrfToken || csrfRes.headers.get('X-CSRF-Token')
+    } catch {
+      return null
+    }
+  }
+
+  const copyTrackingLink = async () => {
+    try {
+      if (typeof window === 'undefined') return
+      const url = window.location.href
+      await navigator.clipboard.writeText(url)
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const handleAddressChange = (field: string, value: string) => {
     setAddressForm(prev => ({ ...prev, [field]: value }))
@@ -98,9 +131,16 @@ export default function OrderConfirmationPage() {
   const saveAddress = async () => {
     // API pour sauvegarder l'adresse
     try {
-      const res = await fetch(`/api/order/${orderId}`, {
+      const csrfToken = await getCsrfToken()
+      const url = token
+        ? `/api/order/${orderId}?token=${encodeURIComponent(token)}`
+        : `/api/order/${orderId}`
+      const res = await fetch(url, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
+        },
         body: JSON.stringify({ address: addressForm })
       })
       if (res.ok) {
@@ -147,6 +187,60 @@ export default function OrderConfirmationPage() {
             <X className="h-16 w-16 text-red-600 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-red-900 mb-2">Erreur</h1>
             <p className="text-red-700 mb-6">{error || 'Commande non trouvée'}</p>
+
+            <div className="text-left bg-white/60 border border-red-200 rounded-xl p-4 mb-6">
+              <h2 className="text-sm font-bold text-gray-900 mb-2">Renvoyer le lien de suivi</h2>
+              <p className="text-xs text-gray-600 mb-3">Entrez l'email utilisé lors de la commande. Si vos informations sont correctes, vous recevrez un nouveau lien (l'ancien sera invalidé).</p>
+              <div className="space-y-2">
+                <input
+                  value={resendEmail}
+                  onChange={e => setResendEmail(e.target.value)}
+                  type="email"
+                  placeholder="Email"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <input
+                  value={resendPhone}
+                  onChange={e => setResendPhone(e.target.value)}
+                  type="tel"
+                  placeholder="Téléphone (optionnel, recommandé)"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  disabled={resendStatus === 'sending'}
+                  onClick={async () => {
+                    try {
+                      setResendStatus('sending')
+                      const csrfToken = await getCsrfToken()
+                      await fetch(`/api/order/${orderId}/resend-link`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
+                        },
+                        body: JSON.stringify({ email: resendEmail, phone: resendPhone || undefined })
+                      })
+                      setResendStatus('sent')
+                      setTimeout(() => setResendStatus('idle'), 5000)
+                    } catch (e) {
+                      setResendStatus('sent')
+                      setTimeout(() => setResendStatus('idle'), 5000)
+                    }
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-60"
+                >
+                  {resendStatus === 'sending' ? 'Envoi…' : resendStatus === 'sent' ? 'Demande envoyée' : 'Renvoyer le lien'}
+                </button>
+
+                <div className="pt-1 text-xs text-gray-700">
+                  Vous ne connaissez plus votre numéro de commande ?{' '}
+                  <Link href="/retrouver-ma-commande" className="font-semibold underline">
+                    Retrouver ma commande
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             <Link href="/" className="inline-block bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition">
               Retour à l'accueil
             </Link>
@@ -185,6 +279,19 @@ export default function OrderConfirmationPage() {
           >
             {order.orderId}
           </motion.div>
+
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={copyTrackingLink}
+              className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/20 border border-white/25 rounded-xl px-5 py-3 font-semibold transition"
+            >
+              <Copy className="h-4 w-4" />
+              {copiedLink ? 'Lien copié' : 'Copier le lien de suivi'}
+            </button>
+            <div className="text-sm text-emerald-100/90">
+              Gardez ce lien pour retrouver votre commande.
+            </div>
+          </div>
         </motion.div>
       </motion.div>
 

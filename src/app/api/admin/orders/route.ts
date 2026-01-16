@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import { connectDB } from '@/lib/db'
+import { requireAdminApi } from '@/lib/api-auth'
 
 /**
  * GET /api/admin/orders
@@ -8,8 +9,10 @@ import { connectDB } from '@/lib/db'
  */
 export async function GET(req: NextRequest) {
   try {
-    // TODO: Ajouter la vérification du rôle admin (JWT token)
-    // Pour l'instant, on accepte toutes les requêtes GET
+    const auth = await requireAdminApi(req)
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+    }
 
     await connectDB()
 

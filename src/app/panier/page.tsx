@@ -12,6 +12,7 @@ import {
   MapPin,
   Phone,
   User,
+  Mail,
   Truck,
   DollarSign,
   AlertCircle,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
+import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
@@ -44,11 +46,24 @@ export default function PanierPage() {
   const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [address, setAddress] = useState<any>({}) // Objet structuré
   const [sending, setSending] = useState(false)
   const [step, setStep] = useState<1 | 2 | 3>(1) // 1: Panier, 2: Adresse, 3: Confirmation
   const [addressValid, setAddressValid] = useState(false)
   const [suggestionScroll, setSuggestionScroll] = useState(0)
+  const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+
+  useEffect(() => {
+    fetch('/api/shipping-rates')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d?.rates) setShippingRates(d.rates)
+      })
+      .catch(() => {
+        // fallback: BASE_SHIPPING_RATES
+      })
+  }, [])
 
   useEffect(() => {
     try {
@@ -112,10 +127,10 @@ export default function PanierPage() {
     setSuggestionScroll(newScroll)
   }
 
-  const SHIPPING_RATES = {
-    express: { label: 'Express 3j', ratePerKg: 8000, billing: 'per_kg' },
-    air: { label: 'Fret aérien 10–15j', ratePerKg: 12000, billing: 'per_kg' },
-    sea: { label: 'Maritime 60j', ratePerM3: 170000, billing: 'per_m3' }
+  const SHIPPING_CHOICES = {
+    express: { label: shippingRates.air_express?.label || 'Express 3j', methodId: 'air_express' as const },
+    air: { label: shippingRates.air_15?.label || 'Fret aérien 10–15j', methodId: 'air_15' as const },
+    sea: { label: shippingRates.sea_freight?.label || 'Maritime 60j', methodId: 'sea_freight' as const }
   }
 
   const transportGlobal = useMemo(() => {
@@ -129,20 +144,24 @@ export default function PanierPage() {
       totalVolume += v * qty
     }
 
-    if (shippingMethod === 'sea') {
-      const rate = SHIPPING_RATES.sea.ratePerM3
-      const cost = totalVolume * rate
-      // Minimum = prix de 0.01m³
-      const minCost = 0.01 * rate
-      return Math.round(Math.max(cost, minCost))
+    const selectedMethodId = SHIPPING_CHOICES[shippingMethod]?.methodId || 'air_15'
+    const rate = shippingRates[selectedMethodId]
+    if (!rate) return 0
+
+    // Minimums physiques (cohérents avec /api/order)
+    const effectiveWeight = Math.max(totalWeight || 0, 1)
+    const effectiveVolume = Math.max(totalVolume || 0, 0.001)
+
+    let billed = 0
+    if (rate.billing === 'per_cubic_meter') {
+      billed = effectiveVolume * rate.rate
+    } else {
+      billed = effectiveWeight * rate.rate
     }
 
-    const ratePerKg = shippingMethod === 'express' ? SHIPPING_RATES.express.ratePerKg : SHIPPING_RATES.air.ratePerKg
-    const cost = totalWeight * ratePerKg
-    // Minimum = prix de 1kg
-    const minCost = 1 * ratePerKg
-    return Math.round(Math.max(cost, minCost))
-  }, [items, shippingMethod])
+    const withMinCharge = typeof rate.minimumCharge === 'number' ? Math.max(billed, rate.minimumCharge) : billed
+    return Math.round(withMinCharge)
+  }, [items, shippingMethod, shippingRates])
 
   const weightSummary = useMemo(() => {
     let totalWeight = 0
@@ -156,6 +175,13 @@ export default function PanierPage() {
     }
     return { totalWeight, totalVolume }
   }, [items])
+
+  const transportLabel = useMemo(() => {
+    const selectedMethodId = SHIPPING_CHOICES[shippingMethod]?.methodId || 'air_15'
+    const rate = shippingRates[selectedMethodId]
+    if (!rate) return 'Transport'
+    return rate.billing === 'per_cubic_meter' ? 'Transport (min 0.001m³)' : 'Transport (min 1kg)'
+  }, [shippingMethod, shippingRates])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -232,14 +258,28 @@ export default function PanierPage() {
         air: 'air_15j',
         sea: 'maritime_60j'
       }
+
+      // CSRF token (required in production for unauthenticated POST requests)
+      let csrfToken: string | null = null
+      try {
+        const csrfRes = await fetch('/api/csrf', { method: 'GET' })
+        const csrfData = await csrfRes.json().catch(() => ({}))
+        csrfToken = csrfData?.csrfToken || csrfRes.headers.get('X-CSRF-Token')
+      } catch {
+        csrfToken = null
+      }
       
       const res = await fetch('/api/order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
+        },
         body: JSON.stringify({ 
           cart: items, 
           name, 
           phone, 
+          email: email || undefined,
           address, 
           shippingMethod: shippingMap[shippingMethod] 
         })
@@ -248,7 +288,7 @@ export default function PanierPage() {
       if (res.ok && data.success) {
         localStorage.removeItem('cart:items')
         setItems([])
-        router.push(`/commandes/${data.orderId}`)
+        router.push(data.confirmationUrl || `/commandes/${data.orderId}`)
       } else {
         alert('Erreur: ' + (data.error || 'erreur inconnue'))
       }
@@ -431,7 +471,7 @@ export default function PanierPage() {
                 <div className="mb-6 pb-6 border-b">
                   <p className="text-sm font-medium text-gray-700 mb-3">Mode de transport</p>
                   <div className="space-y-2">
-                    {Object.entries(SHIPPING_RATES).map(([key, rate]) => (
+                    {Object.entries(SHIPPING_CHOICES).map(([key, rate]) => (
                       <motion.label
                         key={key}
                         className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition"
@@ -501,7 +541,7 @@ export default function PanierPage() {
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-orange-600" />
-                      Transport (min 1kg)
+                      {transportLabel}
                     </span>
                     <span className="font-semibold">{formatCurrency(transportGlobal)}</span>
                   </div>
@@ -578,6 +618,21 @@ export default function PanierPage() {
                     />
                   </motion.div>
 
+                  {/* Email (optionnel) */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.17 }}>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      Email (optionnel)
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="vous@exemple.com"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                    />
+                  </motion.div>
+
                   {/* Composant AddressPickerSenegal */}
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                     <AddressPickerSenegal
@@ -637,6 +692,9 @@ export default function PanierPage() {
                     <div className="space-y-2 text-sm">
                       <p><span className="text-gray-600">Nom:</span> <span className="font-semibold text-gray-900">{name}</span></p>
                       <p><span className="text-gray-600">Téléphone:</span> <span className="font-semibold text-gray-900">{phone}</span></p>
+                      {email && (
+                        <p><span className="text-gray-600">Email:</span> <span className="font-semibold text-gray-900">{email}</span></p>
+                      )}
                     </div>
                   </motion.div>
 

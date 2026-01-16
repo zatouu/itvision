@@ -27,12 +27,13 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
     if (request) {
       // Depuis le middleware (NextRequest) - accès direct aux cookies
       token = request.cookies.get('auth-token')?.value || 
+              request.cookies.get('admin-auth-token')?.value ||
               request.headers.get('authorization')?.replace('Bearer ', '')
     } else {
       // Depuis un Server Component (cookies()) - nécessite await
       try {
         const cookieStore = await cookies()
-        token = cookieStore.get('auth-token')?.value
+        token = cookieStore.get('auth-token')?.value || cookieStore.get('admin-auth-token')?.value
       } catch (error) {
         // Si on est dans le middleware, cookies() ne fonctionne pas
         return { isAuthenticated: false, error: 'Contexte invalide' }

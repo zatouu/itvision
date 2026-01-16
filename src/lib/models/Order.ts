@@ -31,6 +31,10 @@ export interface IOrder extends Document {
   clientEmail?: string
   clientPhone: string
   clientId?: mongoose.Types.ObjectId
+
+  // Accès invité (suivi / modification adresse) via token secret
+  trackingAccessTokenHash?: string
+  trackingAccessTokenCreatedAt?: Date
   
   items: IOrderItem[]
   subtotal: number // Produits avec frais inclus
@@ -94,6 +98,9 @@ const OrderSchema = new Schema<IOrder>({
   clientEmail: { type: String, sparse: true },
   clientPhone: { type: String, required: true },
   clientId: { type: mongoose.Schema.Types.ObjectId, sparse: true, index: true },
+
+  trackingAccessTokenHash: { type: String, sparse: true, index: true },
+  trackingAccessTokenCreatedAt: { type: Date, sparse: true },
   
   items: [OrderItemSchema],
   subtotal: { type: Number, required: true },
@@ -138,7 +145,6 @@ const OrderSchema = new Schema<IOrder>({
 OrderSchema.index({ createdAt: -1 })
 OrderSchema.index({ status: 1, createdAt: -1 })
 OrderSchema.index({ clientId: 1, createdAt: -1 })
-OrderSchema.index({ orderId: 1 })
 
 // Mettre à jour updatedAt avant chaque save
 OrderSchema.pre('save', function (next) {

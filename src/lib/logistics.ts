@@ -69,7 +69,7 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Livraison express porte-à-porte',
     durationDays: 3,
     billing: 'per_kg',
-    rate: 8000, // 8 000 CFA/kg
+    rate: 12000, // 12 000 CFA/kg
     minimumCharge: 20000
   },
   air_15: {
@@ -78,7 +78,7 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     description: 'Fret aérien économique',
     durationDays: 15,
     billing: 'per_kg',
-    rate: 12000, // 12 000 CFA/kg
+    rate: 8000, // 8 000 CFA/kg
     minimumCharge: 15000
   },
   sea_freight: {
@@ -119,7 +119,10 @@ const resolveOverrideRate = (
   return override[key === 'ratePerKg' ? 'ratePerKg' : key === 'ratePerM3' ? 'ratePerM3' : 'flatFee']
 }
 
-export const computeProductPricing = (product: Partial<IProduct>): ProductPricingSummary => {
+export const computeProductPricing = (
+  product: Partial<IProduct>,
+  shippingRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
+): ProductPricingSummary => {
   const currency = product.currency || DEFAULT_CURRENCY
   const baseCost = typeof product.baseCost === 'number' ? product.baseCost : null
   const marginRate = typeof product.marginRate === 'number' ? product.marginRate : 0  // Défaut 0%
@@ -180,7 +183,7 @@ export const computeProductPricing = (product: Partial<IProduct>): ProductPricin
 
   const shippingOptions: ShippingOptionPricing[] = isInStock
     ? []
-    : Object.values(BASE_SHIPPING_RATES)
+    : Object.values(shippingRates)
     .map((method): ShippingOptionPricing | null => {
       let billedAmount: number | null = null
 

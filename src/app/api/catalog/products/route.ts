@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import mongoose from 'mongoose'
 
 const DEFAULT_EXCHANGE_RATE = 100
@@ -262,80 +263,82 @@ export async function GET(request: NextRequest) {
      const data = agg?.[0]?.data ?? []
      const total = agg?.[0]?.totalCount?.[0]?.count ?? 0
 
-    const payload = data.map((product: any) => {
-      const pricing = computeProductPricing(product)
-      
-      // Calcul du meilleur prix et discount pour l'achat groupé
-      let groupBuyBestPrice: number | undefined
-      let groupBuyDiscount: number | undefined
-      
-      if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
-        // Aligner le discount sur le prix affiché au catalogue (baseCost si dispo, sinon prix calculé)
-        const basePrice = product.baseCost ?? pricing.salePrice ?? product.price ?? 0
-        const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => t.price || Infinity))
-        if (bestTierPrice && bestTierPrice < Infinity && basePrice > 0) {
-          groupBuyBestPrice = bestTierPrice
-          groupBuyDiscount = Math.round(((basePrice - bestTierPrice) / basePrice) * 100)
-        }
-      }
+     const shippingRates = getConfiguredShippingRates()
 
-      const volumeM3 = computeVolumeM3(product)
-      const weightKg =
-        typeof product.weightKg === 'number' ? product.weightKg :
-        (typeof product.grossWeightKg === 'number' ? product.grossWeightKg :
-        (typeof product.netWeightKg === 'number' ? product.netWeightKg : null))
-      
-      return {
-        id: String(product._id),
-        _id: String(product._id),
-        name: product.name,
-        tagline: product.tagline ?? null,
-        description: product.description ?? null,
-        category: product.category ?? null,
-        image: product.image ?? '/file.svg',
-        gallery: Array.isArray(product.gallery) && product.gallery.length > 0
-          ? product.gallery
-          : [product.image ?? '/file.svg'],
-        features: Array.isArray(product.features) ? product.features : [],
-        requiresQuote: product.requiresQuote ?? false,
-        availability: {
-          status: product.stockStatus ?? 'preorder',
-          label: pricing.availabilityLabel,
-          note: pricing.availabilitySubLabel ?? null,
-          stockQuantity: product.stockQuantity ?? 0,
-          leadTimeDays: product.leadTimeDays ?? null
-        },
-        logistics: {
-          weightKg,
-          volumeM3,
-          dimensions: product.lengthCm && product.widthCm && product.heightCm
-            ? {
-                lengthCm: product.lengthCm,
-                widthCm: product.widthCm,
-                heightCm: product.heightCm
-              }
-            : null
-        },
-        pricing,
-        // Backwards compat for older consumers
-        price: pricing.salePrice ?? product.price ?? product.baseCost ?? null,
-        weightKg,
-        volumeM3,
-        // Note: Les informations de sourcing et prix source ne sont pas exposées au public
-        // Seul indicateur: si le produit est importé (pour affichage badge "Import")
-        isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
-        // Configuration achat groupé
-        groupBuyEnabled: product.groupBuyEnabled ?? false,
-        groupBuyBestPrice,
-        groupBuyDiscount,
-        priceTiers: product.priceTiers ?? [],
-        groupBuyMinQty: product.groupBuyMinQty,
-        groupBuyTargetQty: product.groupBuyTargetQty,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-        isFeatured: product.isFeatured ?? false
-      }
-    })
+     const payload = data.map((product: any) => {
+       const pricing = computeProductPricing(product, shippingRates)
+
+       // Calcul du meilleur prix et discount pour l'achat groupé
+       let groupBuyBestPrice: number | undefined
+       let groupBuyDiscount: number | undefined
+
+       if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+         // Aligner le discount sur le prix affiché au catalogue (baseCost si dispo, sinon prix calculé)
+         const basePrice = product.baseCost ?? pricing.salePrice ?? product.price ?? 0
+         const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => t.price || Infinity))
+         if (bestTierPrice && bestTierPrice < Infinity && basePrice > 0) {
+           groupBuyBestPrice = bestTierPrice
+           groupBuyDiscount = Math.round(((basePrice - bestTierPrice) / basePrice) * 100)
+         }
+       }
+
+       const volumeM3 = computeVolumeM3(product)
+       const weightKg =
+         typeof product.weightKg === 'number' ? product.weightKg :
+         (typeof product.grossWeightKg === 'number' ? product.grossWeightKg :
+         (typeof product.netWeightKg === 'number' ? product.netWeightKg : null))
+
+       return {
+         id: String(product._id),
+         _id: String(product._id),
+         name: product.name,
+         tagline: product.tagline ?? null,
+         description: product.description ?? null,
+         category: product.category ?? null,
+         image: product.image ?? '/file.svg',
+         gallery: Array.isArray(product.gallery) && product.gallery.length > 0
+           ? product.gallery
+           : [product.image ?? '/file.svg'],
+         features: Array.isArray(product.features) ? product.features : [],
+         requiresQuote: product.requiresQuote ?? false,
+         availability: {
+           status: product.stockStatus ?? 'preorder',
+           label: pricing.availabilityLabel,
+           note: pricing.availabilitySubLabel ?? null,
+           stockQuantity: product.stockQuantity ?? 0,
+           leadTimeDays: product.leadTimeDays ?? null
+         },
+         logistics: {
+           weightKg,
+           volumeM3,
+           dimensions: product.lengthCm && product.widthCm && product.heightCm
+             ? {
+                 lengthCm: product.lengthCm,
+                 widthCm: product.widthCm,
+                 heightCm: product.heightCm
+               }
+             : null
+         },
+         pricing,
+         // Backwards compat for older consumers
+         price: pricing.salePrice ?? product.price ?? product.baseCost ?? null,
+         weightKg,
+         volumeM3,
+         // Note: Les informations de sourcing et prix source ne sont pas exposées au public
+         // Seul indicateur: si le produit est importé (pour affichage badge "Import")
+         isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+         // Configuration achat groupé
+         groupBuyEnabled: product.groupBuyEnabled ?? false,
+         groupBuyBestPrice,
+         groupBuyDiscount,
+         priceTiers: product.priceTiers ?? [],
+         groupBuyMinQty: product.groupBuyMinQty,
+         groupBuyTargetQty: product.groupBuyTargetQty,
+         createdAt: product.createdAt,
+         updatedAt: product.updatedAt,
+         isFeatured: product.isFeatured ?? false
+       }
+     })
 
     if (includeGroupStats && payload.length > 0) {
       const now = new Date()
