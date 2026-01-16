@@ -16,6 +16,7 @@ import {
   Briefcase,
   AlertCircle,
   Settings,
+  CreditCard,
   ChevronRight,
   ChevronDown,
   ChevronLeft,
@@ -56,6 +57,12 @@ const menuItems: MenuItem[] = [
         label: 'Guide d\'utilisation',
         icon: BookOpen,
         href: '/admin/administration/how-to'
+      },
+      {
+        id: 'paiements',
+        label: 'Paiements',
+        icon: CreditCard,
+        href: '/admin/paiements'
       }
     ]
   },

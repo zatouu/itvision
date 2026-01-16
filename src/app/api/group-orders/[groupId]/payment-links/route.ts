@@ -13,6 +13,7 @@ import {
 } from '@/lib/payment-service'
 import { emailService } from '@/lib/email-service'
 import { requireAdminApi } from '@/lib/api-auth'
+import { readPaymentSettings } from '@/lib/payments/settings'
 
 // Générer une référence de paiement unique
 function generatePaymentReference(groupId: string, participantPhone: string): string {
@@ -27,6 +28,19 @@ export async function POST(
   { params }: { params: Promise<{ groupId: string }> }
 ) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.paymentLinksEnabled) {
+      return NextResponse.json(
+        { error: 'Fonctionnalité désactivée' },
+        { status: 403 }
+      )
+    }
+
     await dbConnect()
     const { groupId } = await params
     const body = await request.json()
@@ -173,6 +187,14 @@ export async function PATCH(
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.paymentManagementEnabled) {
+      return NextResponse.json(
+        { error: 'Fonctionnalité désactivée' },
+        { status: 403 }
+      )
+    }
+
     await dbConnect()
     const { groupId } = await params
     const body = await request.json()
@@ -264,3 +286,4 @@ export async function PATCH(
     )
   }
 }
+

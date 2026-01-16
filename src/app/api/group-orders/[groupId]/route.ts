@@ -10,6 +10,7 @@ import {
   notifyStatusUpdate 
 } from '@/lib/group-order-notifications'
 import crypto from 'crypto'
+import { readPaymentSettings } from '@/lib/payments/settings'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -29,7 +30,12 @@ export async function GET(
   try {
     await connectDB()
     
-    const group = await GroupOrder.findOne({ groupId }).lean()
+    const group = await GroupOrder.findOne({ groupId })
+      // Public response: do not leak participant PII / payment details / chat tokens
+      .select(
+        '-participants.phone -participants.email -participants.paidAmount -participants.paymentReference -participants.transactionId -participants.adminNote -participants.paymentUpdatedAt -participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt'
+      )
+      .lean()
     
     if (!group) {
       return NextResponse.json(
@@ -60,6 +66,14 @@ export async function POST(
   const { groupId } = await context.params
   
   try {
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Les achats groupés sont temporairement désactivés' },
+        { status: 503 }
+      )
+    }
+
     await connectDB()
     
     const body = await req.json()
@@ -216,10 +230,38 @@ export async function POST(
       console.error('Erreur notifications:', notifError)
     }
     
+    // Public response: avoid leaking participant contact/payment data
+    const safeGroup: any = {
+      groupId: group.groupId,
+      status: group.status,
+      product: (group as any).product,
+      minQty: (group as any).minQty,
+      targetQty: (group as any).targetQty,
+      currentQty: (group as any).currentQty,
+      currentUnitPrice: (group as any).currentUnitPrice,
+      priceTiers: (group as any).priceTiers || [],
+      deadline: (group as any).deadline,
+      shippingMethod: (group as any).shippingMethod,
+      shippingCostPerUnit: (group as any).shippingCostPerUnit,
+      description: (group as any).description,
+      createdBy: (group as any).createdBy,
+      createdAt: (group as any).createdAt,
+      participants: Array.isArray((group as any).participants)
+        ? (group as any).participants.map((p: any) => ({
+            name: p.name,
+            qty: p.qty,
+            unitPrice: p.unitPrice,
+            totalAmount: p.totalAmount,
+            paymentStatus: p.paymentStatus,
+            joinedAt: p.joinedAt
+          }))
+        : []
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Vous avez rejoint l\'achat groupé avec succès',
-      group,
+      group: safeGroup,
       yourParticipation: {
         qty,
         unitPrice: newUnitPrice,
