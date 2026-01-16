@@ -236,13 +236,8 @@ function ImageUpload({
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="relative aspect-square rounded-xl overflow-hidden group"
               >
-                <Image
-                  src={url}
-                  alt={`Photo ${index + 1}`}
-                  fill
-                  className="object-cover"
-                />
-                
+                <Image src={url} alt={`Photo ${index + 1}`} fill className="object-cover" />
+
                 {/* Overlay au hover */}
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <motion.button
@@ -255,7 +250,7 @@ function ImageUpload({
                     <XMarkIcon className="w-5 h-5" />
                   </motion.button>
                 </div>
-                
+
                 {/* Badge numéro */}
                 <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
                   <span className="text-white text-xs font-bold">{index + 1}</span>
@@ -295,6 +290,7 @@ export default function DisputePage() {
   const [selectedReason, setSelectedReason] = useState<string>('')
   const [description, setDescription] = useState('')
   const [images, setImages] = useState<File[]>([])
+  const [phoneLast4, setPhoneLast4] = useState('')
 
   useEffect(() => {
     fetchTransaction()
@@ -356,7 +352,8 @@ export default function DisputePage() {
         body: JSON.stringify({
           reason: selectedReason,
           description,
-          photos: photoUrls
+          photos: photoUrls,
+          phoneLast4
         })
       })
 
@@ -612,6 +609,26 @@ export default function DisputePage() {
               images={images}
               onImagesChange={setImages}
               maxImages={5}
+            />
+          </GlassCard>
+
+          {/* Vérification */}
+          <GlassCard className="p-6 mb-6">
+            <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <ShieldExclamationIcon className="w-5 h-5 text-amber-400" />
+              Vérification
+            </h2>
+            <p className="text-white/50 text-sm mb-4">
+              Pour protéger votre commande, saisissez les 4 derniers chiffres du téléphone utilisé lors de l'achat.
+            </p>
+            <input
+              value={phoneLast4}
+              onChange={(e) => setPhoneLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric"
+              pattern="\d{4}"
+              placeholder="Ex: 1234"
+              className="w-full max-w-xs px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+              required
             />
           </GlassCard>
 

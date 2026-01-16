@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product, { type IProduct } from '@/lib/models/Product.validated'
 import type { ProductVariantGroup } from '@/lib/types/product.types'
 import jwt from 'jsonwebtoken'
+import { randomUUID } from 'crypto'
 
 function requireManagerRole(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
@@ -57,7 +58,9 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     stockStatus,
     stockQuantity,
     leadTimeDays,
+    netWeightKg,
     weightKg,
+    grossWeightKg,
     lengthCm,
     widthCm,
     heightCm,
@@ -105,7 +108,9 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   normalized.deliveryDays = parseNumber(deliveryDays)
   normalized.stockQuantity = parseNumber(stockQuantity)
   normalized.leadTimeDays = parseNumber(leadTimeDays)
+  normalized.netWeightKg = parseNumber(netWeightKg)
   normalized.weightKg = parseNumber(weightKg)
+  normalized.grossWeightKg = parseNumber(grossWeightKg)
   normalized.lengthCm = parseNumber(lengthCm)
   normalized.widthCm = parseNumber(widthCm)
   normalized.heightCm = parseNumber(heightCm)
@@ -183,13 +188,16 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
       const normalizedVariants: ProductVariantGroup['variants'] = []
       for (const v of group.variants) {
         if (!v || typeof v !== 'object' || typeof v.name !== 'string') continue
+        const rawId = typeof v.id === 'string' ? v.id.trim() : ''
         normalizedVariants.push({
-          id: typeof v.id === 'string' ? v.id : undefined,
+          id: rawId || randomUUID(),
           name: v.name,
           sku: typeof v.sku === 'string' ? v.sku : undefined,
           image: typeof v.image === 'string' ? v.image : undefined,
           price1688: parseNumber(v.price1688),
-          stock: parseNumber(v.stock)
+          priceFCFA: parseNumber(v.priceFCFA),
+          stock: parseNumber(v.stock),
+          isDefault: typeof v.isDefault === 'boolean' ? v.isDefault : undefined
         })
       }
       if (normalizedVariants.length > 0) {
@@ -242,7 +250,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
     const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0)
 
-      const query: any = {}
+    const query: any = {}
     if (q) query.name = new RegExp(q, 'i')
     if (category) query.category = category
 
