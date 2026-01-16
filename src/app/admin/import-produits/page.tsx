@@ -118,14 +118,61 @@ function ImportProduitsContent() {
     }
   }
 
+  const [preview, setPreview] = useState<ImportItem | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
   const handleImportByUrl = async () => {
+    setPreview(null)
+    setPreviewError(null)
     if (!urlInput.trim()) {
-      setError('Veuillez entrer une URL AliExpress')
+      setPreviewError('Veuillez entrer une URL AliExpress')
       return
     }
+    setPreviewLoading(true)
+    try {
+      const response = await fetch(`/api/products/import?url=${encodeURIComponent(urlInput.trim())}`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success && data.item) {
+        setPreview(data.item)
+      } else {
+        setPreviewError(data.error || 'Impossible de prévisualiser le produit')
+      }
+    } catch (err: any) {
+      setPreviewError(err?.message || 'Erreur lors de la prévisualisation')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
-    // Pour l'instant, on affiche un message car l'API ne supporte pas encore l'import par URL directe
-    setError('L\'import par URL directe sera bientôt disponible. Utilisez la recherche pour l\'instant.')
+  const handleImportAliExpressPreview = async () => {
+    if (!preview) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ item: preview })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setFeedback('Produit importé avec succès !')
+        setImportedIds(prev => new Set(prev).add(preview.productUrl))
+        setPreview(null)
+        setUrlInput('')
+      } else {
+        setError(data.error || 'Erreur lors de l\'import')
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de l\'import')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleBulkImport = async () => {
@@ -452,20 +499,57 @@ function ImportProduitsContent() {
                   placeholder="https://www.aliexpress.com/item/..."
                   value={urlInput}
                   onChange={e => setUrlInput(e.target.value)}
+                  disabled={previewLoading}
                 />
               </div>
               <button
                 onClick={handleImportByUrl}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                disabled={previewLoading || !urlInput.trim()}
               >
-                <Download className="h-4 w-4" />
-                Importer ce produit
+                {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Prévisualiser
               </button>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Note :</strong> Cette fonctionnalité sera bientôt disponible. Pour l'instant, utilisez la recherche par mot-clé.
-                </p>
-              </div>
+              {previewError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 mt-2">
+                  <p className="text-sm text-red-800">{previewError}</p>
+                </div>
+              )}
+              {preview && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4 mt-4">
+                  <div className="flex gap-4 items-center">
+                    {preview.image && (
+                      <img src={preview.image} alt={preview.name} className="w-24 h-24 object-cover rounded" />
+                    )}
+                    <div>
+                      <h3 className="text-lg font-bold mb-1">{preview.name}</h3>
+                      <p className="text-sm text-gray-700 mb-1">{preview.tagline}</p>
+                      {typeof preview.price === 'number' && (
+                        <p className="text-md font-semibold text-emerald-700 mb-1">Prix estimé : {formatCurrency(preview.price, preview.currency)}</p>
+                      )}
+                      <p className="text-xs text-gray-500">{preview.availabilityNote}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleImportAliExpressPreview}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                    disabled={loading}
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Importer ce produit
+                  </button>
+                </div>
+              )}
+              {feedback && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4 mt-2">
+                  <p className="text-sm text-green-800">{feedback}</p>
+                </div>
+              )}
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 mt-2">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
             </div>
           </div>
         )}

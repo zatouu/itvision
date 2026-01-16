@@ -1,3 +1,109 @@
+function isAliExpressUrl(rawUrl: string): boolean {
+  const url = safeUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return host.endsWith('aliexpress.com')
+}
+
+async function buildPreviewFromAliExpressUrl(rawUrl: string): Promise<NormalizedAliExpressItem> {
+  const url = safeUrl(rawUrl)
+  if (!url) throw new Error('URL invalide')
+  if (!url.hostname.toLowerCase().endsWith('aliexpress.com')) {
+    throw new Error('URL non supportée (attendu: aliexpress.com)')
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; ITVisionBot/1.0; +https://example.local)',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+    },
+    cache: 'no-store'
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Impossible de charger la page AliExpress (${res.status}). ${body ? body.slice(0, 120) : ''}`)
+  }
+  const html = await res.text()
+
+  // Extraction titre
+  let title = extractTitle(html)
+  if (!title) {
+    const m = html.match(/window.runParams = ([^;]+);/)
+    if (m?.[1]) {
+      try {
+        const params = JSON.parse(m[1])
+        title = params?.data?.titleModule?.subject || null
+      } catch {}
+    }
+  }
+  if (!title) title = 'Produit AliExpress'
+
+  // Extraction images
+  let images: string[] = []
+  // 1. Essayer JSON-LD
+  const jsonLd = extractJsonLdProduct(html)
+  if (jsonLd.images?.length) images = jsonLd.images
+  // 2. Regex sur les images
+  if (!images.length) {
+    const re = /(https?:\/\/ae\d+\.alicdn\.com\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp))/gi
+    let m: RegExpExecArray | null
+    while ((m = re.exec(html))) {
+      if (m[1]) images.push(m[1])
+      if (images.length >= 10) break
+    }
+  }
+  // 3. Fallback: og:image
+  if (!images.length) {
+    const og = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+    if (og?.[1]) images.push(og[1])
+  }
+  images = [...new Set(images)].slice(0, 10)
+  const image = images[0]
+
+  // Extraction prix (très basique)
+  let price: number | undefined
+  const priceMatch = html.match(/"priceAmount":\s*([0-9.]+)/)
+  if (priceMatch?.[1]) {
+    const v = toFcfa(Number(priceMatch[1]))
+    if (typeof v === 'number' && !isNaN(v)) price = v
+  }
+  if (typeof price !== 'number') {
+    const m = html.match(/"salePrice":\s*\{[^}]*"value":\s*([0-9.]+)/)
+    if (m?.[1]) {
+      const v = toFcfa(Number(m[1]))
+      if (typeof v === 'number' && !isNaN(v)) price = v
+    }
+  }
+
+  // Extraction shop
+  let shopName: string | undefined
+  const shopMatch = html.match(/"storeName":\s*"([^"]+)"/)
+  if (shopMatch?.[1]) shopName = shopMatch[1]
+
+  // Features (vide par défaut)
+  const features: string[] = []
+
+  return {
+    productId: undefined,
+    name: title,
+    productUrl: url.toString(),
+    image,
+    gallery: images,
+    baseCost: price,
+    price,
+    currency: 'FCFA',
+    weightKg: 1,
+    features,
+    category: 'Catalogue import Chine',
+    tagline: 'Import AliExpress',
+    availabilityNote: 'Import AliExpress — à vérifier: poids/dimensions avant calcul transport',
+    shopName,
+    orders: undefined,
+    totalRated: undefined,
+    sourcingNotes: 'Import auto AliExpress (HTML) — parsing sans API.'
+  }
+}
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
@@ -502,13 +608,17 @@ export async function GET(request: NextRequest) {
   const rawUrl = (searchParams.get('url') || '').trim()
   if (rawUrl) {
     try {
-      if (!is1688Url(rawUrl)) {
+      if (is1688Url(rawUrl)) {
+        const preview = await buildPreviewFrom1688Url(rawUrl)
+        return NextResponse.json({ success: true, item: preview })
+      } else if (isAliExpressUrl(rawUrl)) {
+        const preview = await buildPreviewFromAliExpressUrl(rawUrl)
+        return NextResponse.json({ success: true, item: preview })
+      } else {
         return NextResponse.json({ success: false, error: 'URL non supportée' }, { status: 400 })
       }
-      const preview = await buildPreviewFrom1688Url(rawUrl)
-      return NextResponse.json({ success: true, item: preview })
     } catch (error: any) {
-      console.error('1688 preview error:', error)
+      console.error('Preview error:', error)
       return NextResponse.json({ success: false, error: error?.message || 'Import impossible' }, { status: 500 })
     }
   }
