@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { IProduct } from '@/lib/models/Product.validated'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
+import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 
 const toObjectId = (value: string) => {
   if (!mongoose.Types.ObjectId.isValid(value)) return null
@@ -37,10 +38,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .limit(6)
       .lean()
 
+    const shippingRates = getConfiguredShippingRates()
+
     return NextResponse.json({
       success: true,
-      product: formatProductDetail(product),
-      similar: formatSimilarProducts(similarProducts)
+      product: formatProductDetail(product, shippingRates),
+      similar: formatSimilarProducts(similarProducts, shippingRates)
     })
   } catch (error) {
     console.error('catalog product detail error', error)

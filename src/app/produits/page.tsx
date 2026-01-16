@@ -7,7 +7,7 @@ import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -195,8 +195,82 @@ export default function ProduitsPage() {
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchResults, setImageSearchResults] = useState<string[]>([]) // IDs des produits trouvés
 
+  const isRestoringRef = useRef(true)
+  const urlSyncRef = useRef<{ filterKey: string; page: number }>({ filterKey: '', page: 1 })
+  const lastUrlRef = useRef<string>('')
+
+  const applyUrlParamsToState = (urlParams: URLSearchParams) => {
+    const parseBool = (value: string | null) => value === '1' || value === 'true'
+    const parseIntSafe = (value: string | null) => {
+      if (!value) return null
+      const n = parseInt(value, 10)
+      return Number.isFinite(n) ? n : null
+    }
+
+    const q = urlParams.get('q') ?? ''
+    const category = urlParams.get('category')
+    const urlSelected = category
+      ? category
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
+
+    const urlSegment = urlParams.get('segment')
+    const nextSegment = (urlSegment === 'all' || urlSegment === 'import' || urlSegment === 'in_stock' || urlSegment === 'group_buy')
+      ? urlSegment
+      : 'all'
+
+    const urlAvailability = urlParams.get('availability')
+    const nextAvailability = (urlAvailability === 'all' || urlAvailability === 'in_stock' || urlAvailability === 'preorder')
+      ? urlAvailability
+      : 'all'
+
+    const urlSortBy = urlParams.get('sortBy')
+    const nextSortBy = (urlSortBy === 'default' || urlSortBy === 'price-asc' || urlSortBy === 'price-desc' || urlSortBy === 'name-asc' || urlSortBy === 'name-desc' || urlSortBy === 'rating-desc' || urlSortBy === 'groupbuy-discount-desc')
+      ? urlSortBy
+      : 'default'
+
+    const urlView = urlParams.get('view')
+    const nextViewMode = (urlView === 'grid' || urlView === 'list') ? urlView : null
+
+    const minPrice = parseIntSafe(urlParams.get('minPrice'))
+    const maxPrice = parseIntSafe(urlParams.get('maxPrice'))
+    const nextPriceRange = (minPrice !== null || maxPrice !== null)
+      ? { min: minPrice ?? 0, max: maxPrice ?? 999999999 }
+      : null
+
+    const minDeliveryDays = parseIntSafe(urlParams.get('minDeliveryDays'))
+    const maxDeliveryDays = parseIntSafe(urlParams.get('maxDeliveryDays'))
+    const nextDeliveryRange = (minDeliveryDays !== null || maxDeliveryDays !== null)
+      ? { min: minDeliveryDays ?? 0, max: maxDeliveryDays ?? 999 }
+      : null
+
+    const pageParam = parseIntSafe(urlParams.get('page'))
+    const nextPage = pageParam && pageParam > 0 ? pageParam : 1
+
+    isRestoringRef.current = true
+    setSearch(q)
+    setDebouncedSearch(q)
+    setSelected(urlSelected)
+    setSegment(nextSegment)
+    setAvailabilityFilter(nextAvailability)
+    setSortBy(nextSortBy)
+    setOnlyGroupBuy(parseBool(urlParams.get('onlyGroupBuy')))
+    setOnlyPrice(parseBool(urlParams.get('onlyPrice')))
+    setOnlyQuote(parseBool(urlParams.get('onlyQuote')))
+    setPriceRange(nextPriceRange)
+    setDeliveryRange(nextDeliveryRange)
+    if (nextViewMode) setViewMode(nextViewMode)
+    setCurrentPage(nextPage)
+    setTimeout(() => {
+      isRestoringRef.current = false
+    }, 0)
+  }
+
   // Reset pagination when filters change (search/segment/filters/sort)
   useEffect(() => {
+    if (isRestoringRef.current) return
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
@@ -215,6 +289,96 @@ export default function ProduitsPage() {
     deliveryRange?.min,
     deliveryRange?.max
   ])
+
+  // Sync filters to URL (shareable) + support back/forward via popstate
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (isRestoringRef.current) return
+
+    const params = new URLSearchParams()
+
+    if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim())
+    if (selected.length > 0) params.set('category', selected.join(','))
+    if (segment !== 'all') params.set('segment', segment)
+    if (availabilityFilter !== 'all') params.set('availability', availabilityFilter)
+
+    if (onlyGroupBuy) params.set('onlyGroupBuy', '1')
+    if (onlyPrice) params.set('onlyPrice', '1')
+    if (onlyQuote) params.set('onlyQuote', '1')
+
+    if (sortBy !== 'default') params.set('sortBy', sortBy)
+    if (viewMode !== 'grid') params.set('view', viewMode)
+
+    if (priceRange) {
+      if (priceRange.min > 0) params.set('minPrice', String(priceRange.min))
+      if (priceRange.max < 999999999) params.set('maxPrice', String(priceRange.max))
+    }
+
+    if (deliveryRange) {
+      if (deliveryRange.min > 0) params.set('minDeliveryDays', String(deliveryRange.min))
+      if (deliveryRange.max < 999) params.set('maxDeliveryDays', String(deliveryRange.max))
+    }
+
+    if (currentPage > 1) params.set('page', String(currentPage))
+
+    const basePath = window.location.pathname
+    const hash = window.location.hash || ''
+    const query = params.toString()
+    const nextUrl = query ? `${basePath}?${query}${hash}` : `${basePath}${hash}`
+
+    if (lastUrlRef.current === nextUrl) return
+    if (nextUrl === `${basePath}${window.location.search}${hash}`) {
+      lastUrlRef.current = nextUrl
+      return
+    }
+
+    const filterKey = [
+      debouncedSearch.trim(),
+      selected.join(','),
+      segment,
+      availabilityFilter,
+      onlyGroupBuy ? '1' : '0',
+      onlyPrice ? '1' : '0',
+      onlyQuote ? '1' : '0',
+      sortBy,
+      viewMode,
+      priceRange ? `${priceRange.min}-${priceRange.max}` : '',
+      deliveryRange ? `${deliveryRange.min}-${deliveryRange.max}` : ''
+    ].join('|')
+
+    const shouldPush = urlSyncRef.current.filterKey === filterKey && urlSyncRef.current.page !== currentPage
+    if (shouldPush) {
+      window.history.pushState({}, '', nextUrl)
+    } else {
+      window.history.replaceState({}, '', nextUrl)
+    }
+
+    urlSyncRef.current = { filterKey, page: currentPage }
+    lastUrlRef.current = nextUrl
+  }, [
+    debouncedSearch,
+    selected,
+    onlyPrice,
+    onlyQuote,
+    onlyGroupBuy,
+    segment,
+    sortBy,
+    availabilityFilter,
+    priceRange,
+    deliveryRange,
+    viewMode,
+    currentPage
+  ])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onPopState = () => {
+      applyUrlParamsToState(new URLSearchParams(window.location.search))
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // UX: si on choisit "Meilleure économie", on bascule sur le segment achats groupés.
   // Si on quitte ce segment, on remet le tri par défaut.
@@ -432,21 +596,53 @@ export default function ProduitsPage() {
       
       // Restaurer les filtres depuis l'URL ou localStorage
       const urlParams = new URLSearchParams(window.location.search)
-      const savedState = localStorage.getItem('productFilters')
-      if (savedState) {
-        const state = JSON.parse(savedState)
-        if (state.search) setSearch(state.search)
-        if (state.selected && Array.isArray(state.selected)) setSelected(state.selected)
-        if (state.sortBy) setSortBy(state.sortBy)
-        if (state.availabilityFilter) setAvailabilityFilter(state.availabilityFilter)
-        if (state.priceRange) setPriceRange(state.priceRange)
-        if (state.deliveryRange) setDeliveryRange(state.deliveryRange)
-        if (state.viewMode) setViewMode(state.viewMode)
-        if (state.onlyPrice !== undefined) setOnlyPrice(state.onlyPrice)
-        if (state.onlyQuote !== undefined) setOnlyQuote(state.onlyQuote)
-        if (state.onlyGroupBuy !== undefined) setOnlyGroupBuy(state.onlyGroupBuy)
-        if (state.segment) setSegment(state.segment)
+      const hasUrlFilters = Array.from(urlParams.keys()).some((k) => [
+        'q',
+        'category',
+        'segment',
+        'availability',
+        'onlyGroupBuy',
+        'onlyPrice',
+        'onlyQuote',
+        'sortBy',
+        'minPrice',
+        'maxPrice',
+        'minDeliveryDays',
+        'maxDeliveryDays',
+        'page',
+        'view'
+      ].includes(k))
+
+      if (hasUrlFilters) {
+        applyUrlParamsToState(urlParams)
+      } else {
+        isRestoringRef.current = true
+        const savedState = localStorage.getItem('productFilters')
+        if (savedState) {
+          const state = JSON.parse(savedState)
+          if (typeof state.search === 'string') {
+            setSearch(state.search)
+            setDebouncedSearch(state.search)
+          }
+          if (state.selected && Array.isArray(state.selected)) setSelected(state.selected)
+          if (state.sortBy) setSortBy(state.sortBy)
+          if (state.availabilityFilter) setAvailabilityFilter(state.availabilityFilter)
+          if (state.priceRange) setPriceRange(state.priceRange)
+          if (state.deliveryRange) setDeliveryRange(state.deliveryRange)
+          if (state.viewMode) setViewMode(state.viewMode)
+          if (state.onlyPrice !== undefined) setOnlyPrice(state.onlyPrice)
+          if (state.onlyQuote !== undefined) setOnlyQuote(state.onlyQuote)
+          if (state.onlyGroupBuy !== undefined) setOnlyGroupBuy(state.onlyGroupBuy)
+          if (state.segment) setSegment(state.segment)
+        }
+        setTimeout(() => {
+          isRestoringRef.current = false
+        }, 0)
       }
+
+      const basePath = window.location.pathname
+      const hash = window.location.hash || ''
+      lastUrlRef.current = `${basePath}${window.location.search}${hash}`
     } catch (error) {
       console.error('Error loading saved filters:', error)
     }
@@ -1169,6 +1365,7 @@ export default function ProduitsPage() {
                         type="number"
                         placeholder="Min"
                         className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        value={priceRange ? (priceRange.min > 0 ? String(priceRange.min) : '') : ''}
                         onChange={(e) => {
                           const min = e.target.value ? parseInt(e.target.value) : 0
                           setPriceRange(prev => ({ min, max: prev?.max || 999999999 }))
@@ -1178,6 +1375,7 @@ export default function ProduitsPage() {
                         type="number"
                         placeholder="Max"
                         className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        value={priceRange ? (priceRange.max < 999999999 ? String(priceRange.max) : '') : ''}
                         onChange={(e) => {
                           const max = e.target.value ? parseInt(e.target.value) : 999999999
                           setPriceRange(prev => ({ min: prev?.min || 0, max }))
@@ -1202,6 +1400,7 @@ export default function ProduitsPage() {
                         type="number"
                         placeholder="Min"
                         className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        value={deliveryRange ? (deliveryRange.min > 0 ? String(deliveryRange.min) : '') : ''}
                         onChange={(e) => {
                           const min = e.target.value ? parseInt(e.target.value) : 0
                           setDeliveryRange(prev => ({ min, max: prev?.max || 999 }))
@@ -1211,6 +1410,7 @@ export default function ProduitsPage() {
                         type="number"
                         placeholder="Max"
                         className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        value={deliveryRange ? (deliveryRange.max < 999 ? String(deliveryRange.max) : '') : ''}
                         onChange={(e) => {
                           const max = e.target.value ? parseInt(e.target.value) : 999
                           setDeliveryRange(prev => ({ min: prev?.min || 0, max }))

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readPricingDefaults, writePricingDefaults } from '@/lib/pricing/settings'
-import { requireRole } from '@/lib/auth-server'
+import { requireAdminApi } from '@/lib/api-auth'
 
-export async function GET() {
-  // Lecture réservée aux administrateurs (pas d'accès public)
-  const auth = await requireRole(['ADMIN'], undefined as any)
-  if (!auth) {
-    return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 401 })
+export async function GET(request: NextRequest) {
+  const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (!auth.ok) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
   }
 
   try {
@@ -18,10 +17,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  // Vérifier rôle admin
-  const auth = await requireRole(['ADMIN'], request)
-  if (!auth) {
-    return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 401 })
+  const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (!auth.ok) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
   }
 
   try {

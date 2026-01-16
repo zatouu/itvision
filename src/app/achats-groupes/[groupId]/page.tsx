@@ -28,6 +28,7 @@ import {
   Share2,
   Copy
 } from 'lucide-react'
+import GroupOrderChat, { saveGroupChatAccess } from '@/components/group-orders/GroupOrderChat'
 
 interface Participant {
   _id?: string
@@ -143,6 +144,14 @@ export default function GroupOrderDetailPage() {
       
       if (data.success) {
         setNotification({ type: 'success', message: 'Inscription réussie ! Vous serez contacté pour le paiement.' })
+
+        // Activer le chat du groupe sur cet appareil
+        const chatToken = data?.chat?.token
+        const chatParticipantId = data?.chat?.participantId
+        if (typeof chatToken === 'string' && chatToken) {
+          saveGroupChatAccess(groupId, chatToken, typeof chatParticipantId === 'string' ? chatParticipantId : null)
+        }
+
         setShowJoinModal(false)
         setJoinForm({ name: '', phone: '', email: '', qty: 1 })
         fetchGroup()
@@ -440,6 +449,15 @@ export default function GroupOrderDetailPage() {
                   ))}
                 </div>
               )}
+            </motion.div>
+
+            {/* Chat */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              <GroupOrderChat groupId={group.groupId} />
             </motion.div>
           </div>
 

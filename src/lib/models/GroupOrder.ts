@@ -12,6 +12,12 @@ export interface IGroupOrderParticipant {
   totalAmount: number      // Montant total pour ce participant
   paidAmount: number       // Montant déjà payé
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded'
+  paymentReference?: string
+  transactionId?: string
+  adminNote?: string
+  paymentUpdatedAt?: Date
+  chatAccessTokenHash?: string
+  chatAccessTokenCreatedAt?: Date
   joinedAt: Date
   notes?: string
 }
@@ -90,6 +96,12 @@ const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
     enum: ['pending', 'partial', 'paid', 'refunded'], 
     default: 'pending' 
   },
+  paymentReference: { type: String },
+  transactionId: { type: String },
+  adminNote: { type: String },
+  paymentUpdatedAt: { type: Date },
+  chatAccessTokenHash: { type: String, index: true },
+  chatAccessTokenCreatedAt: { type: Date },
   joinedAt: { type: Date, default: () => new Date() },
   notes: { type: String }
 }, { _id: true })
@@ -200,4 +212,6 @@ GroupOrderSchema.pre('save', function(next) {
   next()
 })
 
-export const GroupOrder = mongoose.models.GroupOrder || mongoose.model<IGroupOrder>('GroupOrder', GroupOrderSchema)
+export const GroupOrder =
+  (mongoose.models.GroupOrder as mongoose.Model<IGroupOrder>) ||
+  mongoose.model<IGroupOrder>('GroupOrder', GroupOrderSchema)

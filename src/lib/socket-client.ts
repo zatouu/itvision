@@ -60,6 +60,18 @@ export interface NotificationEvent {
   timestamp: Date
 }
 
+export interface ConversationNewMessageEvent {
+  conversationId: string
+  message: {
+    id: string
+    senderId: string
+    senderRole: string
+    text: string
+    createdAt: string | Date
+  }
+  timestamp: string | Date
+}
+
 /**
  * Initialiser la connexion Socket.io
  */
@@ -282,6 +294,15 @@ export function onUserTyping(callback: (data: TypingEvent) => void): () => void 
  */
 export function onNotification(callback: (data: NotificationEvent) => void): () => void {
   return onSocketEvent<NotificationEvent>('notification', callback)
+}
+
+/**
+ * Écouter les nouveaux messages de conversation
+ */
+export function onConversationNewMessage(
+  callback: (data: ConversationNewMessageEvent) => void
+): () => void {
+  return onSocketEvent<ConversationNewMessageEvent>('conversation-new-message', callback)
 }
 
 

@@ -227,7 +227,6 @@ InterventionSchema.index({ technicienId: 1, date: -1 })
 InterventionSchema.index({ clientId: 1, date: -1 })
 InterventionSchema.index({ status: 1, date: -1 })
 InterventionSchema.index({ 'client.zone': 1 })
-InterventionSchema.index({ scheduledDate: 1 })
 
 // Auto-génération du numéro d'intervention
 InterventionSchema.pre('save', async function(next) {

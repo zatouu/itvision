@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { requireAdminApi } from '@/lib/api-auth'
 
 // GET: Récupérer tous les devis
 export async function GET(request: NextRequest) {
   try {
-    // Autoriser l'accès pour les administrateurs (vérification côté middleware)
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     await connectDB()
     
     // Récupérer tous les devis
@@ -26,6 +31,11 @@ export async function GET(request: NextRequest) {
 // POST: Créer ou mettre à jour un devis
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     const body = await request.json()
     
     await connectDB()
@@ -46,7 +56,7 @@ export async function POST(request: NextRequest) {
       bonCommande: body.bonCommande,
       dateLivraison: body.dateLivraison,
       conditions: body.conditions,
-      createdBy: 'admin' // Sera mis à jour avec l'auth plus tard
+      createdBy: auth.user.id
     }
 
     const quote = new AdminQuote(quoteData)
@@ -68,6 +78,11 @@ export async function POST(request: NextRequest) {
 // DELETE: Supprimer un devis
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     const { searchParams } = new URL(request.url)
     const quoteId = searchParams.get('id')
 

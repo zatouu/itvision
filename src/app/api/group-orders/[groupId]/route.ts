@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
 import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
+import { requireAdminApi } from '@/lib/api-auth'
 import { 
   notifyGroupJoinConfirmation, 
   notifyNewParticipant, 
   notifyObjectiveReached,
   notifyStatusUpdate 
 } from '@/lib/group-order-notifications'
+import crypto from 'crypto'
+
+function hashChatToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
 
 interface RouteContext {
   params: Promise<{ groupId: string }>
@@ -134,6 +140,10 @@ export async function POST(
     }
     
     // Ajouter le participant (téléphone déjà normalisé)
+    const chatToken = crypto.randomBytes(24).toString('hex')
+    const chatTokenHash = hashChatToken(chatToken)
+    const chatTokenCreatedAt = new Date()
+
     group.participants.push({
       name,
       phone: normalizedPhone,
@@ -143,6 +153,8 @@ export async function POST(
       totalAmount: qty * newUnitPrice,
       paidAmount: 0,
       paymentStatus: 'pending',
+      chatAccessTokenHash: chatTokenHash,
+      chatAccessTokenCreatedAt: chatTokenCreatedAt,
       joinedAt: new Date()
     })
     
@@ -164,6 +176,9 @@ export async function POST(
     }
     
     await group.save()
+
+    const createdParticipant: any = group.participants[group.participants.length - 1]
+    const chatParticipantId = createdParticipant?._id ? String(createdParticipant._id) : null
     
     // Envoyer les notifications
     try {
@@ -209,6 +224,10 @@ export async function POST(
         qty,
         unitPrice: newUnitPrice,
         totalAmount: qty * newUnitPrice
+      },
+      chat: {
+        token: chatToken,
+        participantId: chatParticipantId
       }
     })
     
@@ -229,6 +248,11 @@ export async function PATCH(
   const { groupId } = await context.params
   
   try {
+    const auth = await requireAdminApi(req)
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+    }
+
     await connectDB()
     
     const body = await req.json()
@@ -253,8 +277,31 @@ export async function PATCH(
           (p: any) => formatSenegalPhone(p.phone) === formattedPhone
         )
         if (participant) {
+          if (
+            body.paymentUpdate.paymentStatus &&
+            !['pending', 'partial', 'paid', 'refunded'].includes(body.paymentUpdate.paymentStatus)
+          ) {
+            return NextResponse.json(
+              { success: false, error: 'paymentStatus invalide' },
+              { status: 400 }
+            )
+          }
+
           if (body.paymentUpdate.paidAmount !== undefined) {
-            participant.paidAmount = body.paymentUpdate.paidAmount
+            const nextPaidAmount = Number(body.paymentUpdate.paidAmount)
+            if (!Number.isFinite(nextPaidAmount) || nextPaidAmount < 0) {
+              return NextResponse.json(
+                { success: false, error: 'paidAmount invalide' },
+                { status: 400 }
+              )
+            }
+            if (typeof participant.totalAmount === 'number' && nextPaidAmount > participant.totalAmount) {
+              return NextResponse.json(
+                { success: false, error: 'paidAmount ne peut pas dépasser totalAmount' },
+                { status: 400 }
+              )
+            }
+            participant.paidAmount = nextPaidAmount
           }
           if (body.paymentUpdate.paymentStatus) {
             participant.paymentStatus = body.paymentUpdate.paymentStatus
@@ -331,6 +378,11 @@ export async function DELETE(
   const { groupId } = await context.params
   
   try {
+    const auth = await requireAdminApi(req)
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+    }
+
     await connectDB()
     
     const group = await GroupOrder.findOne({ groupId })

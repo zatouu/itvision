@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
       visitsByBrowser,
       visitsByOS,
       topReferrers,
+      topIPs,
+      topAnonymousIPs,
       recentVisits
     ] = await Promise.all([
       // Total visites
@@ -121,11 +123,27 @@ export async function GET(request: NextRequest) {
         { $limit: 10 }
       ]),
 
+      // Top IPs (volume)
+      PageVisit.aggregate([
+        { $match: { visitedAt: { $gte: startDate }, ipAddress: { $exists: true, $nin: ['', 'unknown'] } } },
+        { $group: { _id: '$ipAddress', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ]),
+
+      // Top IPs anonymes (utile pour repérer trafic suspect)
+      PageVisit.aggregate([
+        { $match: { visitedAt: { $gte: startDate }, isAuthenticated: false, ipAddress: { $exists: true, $nin: ['', 'unknown'] } } },
+        { $group: { _id: '$ipAddress', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ]),
+
       // Dernières visites détaillées (pour IP, rôle, device, etc.)
       PageVisit.find({ visitedAt: { $gte: startDate } })
         .sort({ visitedAt: -1 })
         .limit(50)
-        .select('path pageName pageType ipAddress userRole isAuthenticated deviceType browser os referrer visitedAt')
+        .select('path pageName pageType ipAddress userRole userId isAuthenticated sessionId userAgent deviceType browser os referrer duration scrollDepth interactions visitedAt')
     ])
 
     // Statistiques de la période précédente (pour comparaison)
@@ -177,18 +195,32 @@ export async function GET(request: NextRequest) {
           referrer: item._id,
           count: item.count
         })),
+        topIPs: topIPs.map((item: any) => ({
+          ip: item._id,
+          count: item.count
+        })),
+        topAnonymousIPs: topAnonymousIPs.map((item: any) => ({
+          ip: item._id,
+          count: item.count
+        })),
         recentVisits: recentVisits.map((visit: any) => ({
           id: String(visit._id),
           path: visit.path,
           pageName: visit.pageName,
           pageType: visit.pageType,
           ipAddress: visit.ipAddress || 'inconnue',
+          userId: visit.userId ? String(visit.userId) : undefined,
           userRole: visit.userRole || 'Anonyme',
           isAuthenticated: !!visit.isAuthenticated,
+          sessionId: visit.sessionId || undefined,
+          userAgent: visit.userAgent || undefined,
           deviceType: visit.deviceType,
           browser: visit.browser,
           os: visit.os,
           referrer: visit.referrer,
+          duration: typeof visit.duration === 'number' ? visit.duration : undefined,
+          scrollDepth: typeof visit.scrollDepth === 'number' ? visit.scrollDepth : undefined,
+          interactions: typeof visit.interactions === 'number' ? visit.interactions : undefined,
           visitedAt: visit.visitedAt
         }))
       }

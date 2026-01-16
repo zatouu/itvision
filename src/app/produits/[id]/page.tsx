@@ -7,6 +7,7 @@ import ProductDetailExperience from '@/components/ProductDetailExperience'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
+import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 
 const isValidId = (id: string) => mongoose.Types.ObjectId.isValid(id)
 
@@ -59,8 +60,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   }
 
   const similarRaw = await fetchSimilarProducts(product)
-  const detail = formatProductDetail(product)
-  const similar = formatSimilarProducts(similarRaw)
+  const shippingRates = getConfiguredShippingRates()
+  const detail = formatProductDetail(product, shippingRates)
+  const similar = formatSimilarProducts(similarRaw, shippingRates)
 
   return (
     <div className="min-h-screen bg-white">

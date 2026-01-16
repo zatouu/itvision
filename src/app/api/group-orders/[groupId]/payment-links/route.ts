@@ -12,6 +12,7 @@ import {
   formatSenegalPhone 
 } from '@/lib/payment-service'
 import { emailService } from '@/lib/email-service'
+import { requireAdminApi } from '@/lib/api-auth'
 
 // Générer une référence de paiement unique
 function generatePaymentReference(groupId: string, participantPhone: string): string {
@@ -106,7 +107,7 @@ export async function POST(
         {
           groupId: (group as any).groupId,
           productName: (group as any).product?.name || 'Produit',
-          deadline: group.deadline
+          deadline: group.deadline instanceof Date ? group.deadline.toISOString() : String(group.deadline)
         }
       )
       
@@ -167,6 +168,11 @@ export async function PATCH(
   { params }: { params: Promise<{ groupId: string }> }
 ) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     await dbConnect()
     const { groupId } = await params
     const body = await request.json()
@@ -215,7 +221,21 @@ export async function PATCH(
       group.participants[participantIndex].transactionId = transactionId
     }
     if (paidAmount !== undefined) {
-      group.participants[participantIndex].paidAmount = paidAmount
+      const nextPaidAmount = Number(paidAmount)
+      if (!Number.isFinite(nextPaidAmount) || nextPaidAmount < 0) {
+        return NextResponse.json(
+          { error: 'paidAmount invalide' },
+          { status: 400 }
+        )
+      }
+      const totalAmount = Number((group.participants[participantIndex] as any).totalAmount)
+      if (Number.isFinite(totalAmount) && nextPaidAmount > totalAmount) {
+        return NextResponse.json(
+          { error: 'paidAmount ne peut pas dépasser totalAmount' },
+          { status: 400 }
+        )
+      }
+      group.participants[participantIndex].paidAmount = nextPaidAmount
     }
     if (adminNote) {
       group.participants[participantIndex].adminNote = adminNote

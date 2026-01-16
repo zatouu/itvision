@@ -210,8 +210,6 @@ const InstallationSchema = new Schema<IInstallation>({
 InstallationSchema.index({ status: 1, allowMarketplace: 1 })
 InstallationSchema.index({ assignedTechnicianId: 1, status: 1 })
 InstallationSchema.index({ clientId: 1, createdAt: -1 })
-InstallationSchema.index({ productId: 1 })
-InstallationSchema.index({ scheduledDate: 1 })
 
 // Validation avant sauvegarde
 InstallationSchema.pre('save', function(next) {

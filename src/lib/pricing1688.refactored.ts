@@ -14,7 +14,7 @@
  */
 
 import type { ShippingMethodId } from './logistics'
-import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS } from './logistics'
+import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingRate } from './logistics'
 import type {
   Pricing1688Input,
   Pricing1688Breakdown,
@@ -116,7 +116,8 @@ function calculateClientShippingCost(
   method: ShippingMethodId,
   weightKg?: number,
   volumeM3?: number,
-  shippingOverrides?: Array<{ methodId: string; ratePerKg?: number; ratePerM3?: number; flatFee?: number }>
+  shippingOverrides?: Array<{ methodId: string; ratePerKg?: number; ratePerM3?: number; flatFee?: number }>,
+  clientRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
 ): number {
   // Vérifier les overrides
   const override = shippingOverrides?.find(o => o.methodId === method)
@@ -132,7 +133,7 @@ function calculateClientShippingCost(
     }
   }
 
-  const clientRate = BASE_SHIPPING_RATES[method]
+  const clientRate = clientRates[method]
   if (!clientRate) return 0
 
   let billedAmount = 0
@@ -183,7 +184,8 @@ function calculateDynamicMargin(
  */
 export function simulatePricing1688(
   input: Pricing1688Input,
-  shippingOverrides?: Array<{ methodId: string; ratePerKg?: number; ratePerM3?: number; flatFee?: number }>
+  shippingOverrides?: Array<{ methodId: string; ratePerKg?: number; ratePerM3?: number; flatFee?: number }>,
+  clientRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
 ): Pricing1688Breakdown {
   const {
     price1688,
@@ -203,7 +205,7 @@ export function simulatePricing1688(
 
   // 2. Coûts de transport
   const shippingCostReal = calculateRealShippingCost(shippingMethod, weightKg, volumeM3, shippingOverrides)
-  const shippingCostClient = calculateClientShippingCost(shippingMethod, weightKg, volumeM3, shippingOverrides)
+  const shippingCostClient = calculateClientShippingCost(shippingMethod, weightKg, volumeM3, shippingOverrides, clientRates)
 
   // 3. Frais de service (sur le coût produit)
   const serviceFee = productCostFCFA * (serviceFeeRate / 100)

@@ -35,7 +35,7 @@ import {
 } from 'lucide-react'
 import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './ProductDetailExperience'
 import type { ShippingOptionPricing } from '@/lib/logistics'
-import { BASE_SHIPPING_RATES } from '@/lib/logistics'
+import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +83,18 @@ export default function ProductDetailSidebar({
   onImageChange,
   onOpenNegotiation,
 }: ProductDetailSidebarProps) {
+  const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+
+  useEffect(() => {
+    fetch('/api/shipping-rates')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d?.rates) setShippingRates(d.rates)
+      })
+      .catch(() => {
+        // fallback: BASE_SHIPPING_RATES
+      })
+  }, [])
   // ─── State ─────────────────────────────────────────────────────────────────
   const [quantity, setQuantity] = useState(1)
   // Quantités par variante (style 1688 - chaque variante a sa propre quantité)
@@ -217,7 +229,7 @@ export default function ProductDetailSidebar({
   const shippingEstimate = useMemo(() => {
     if (!selectedShippingId) return null
     
-    const rate = BASE_SHIPPING_RATES[selectedShippingId as keyof typeof BASE_SHIPPING_RATES]
+    const rate = shippingRates[selectedShippingId as ShippingMethodId]
     if (!rate) return null
 
     const totalQty = variantCalculations.totalQuantity
@@ -243,7 +255,7 @@ export default function ProductDetailSidebar({
     }
 
     return null
-  }, [selectedShippingId, variantCalculations.totalQuantity, unitWeightKg, unitVolumeM3])
+  }, [selectedShippingId, variantCalculations.totalQuantity, unitWeightKg, unitVolumeM3, shippingRates])
 
   // Total général (produits + transport)
   const grandTotal = useMemo(() => {
@@ -255,9 +267,9 @@ export default function ProductDetailSidebar({
   // Shipping option sélectionnée
   const activeShipping = useMemo(() => {
     if (!selectedShippingId) return null
-    const rate = BASE_SHIPPING_RATES[selectedShippingId as keyof typeof BASE_SHIPPING_RATES]
+    const rate = shippingRates[selectedShippingId as ShippingMethodId]
     return rate ?? null
-  }, [selectedShippingId])
+  }, [selectedShippingId, shippingRates])
 
   // Variante courante (pour affichage)
   const currentVariant = useMemo(() => {
@@ -903,7 +915,7 @@ Merci de me recontacter.`
               >
                 <div className="px-4 pb-4 pt-2 border-t border-gray-100 space-y-2">
                   {/* Options de transport */}
-                  {Object.values(BASE_SHIPPING_RATES).map((rate) => {
+                  {Object.values(shippingRates).map((rate) => {
                     const Icon = getShippingIcon(rate.id)
                     const isSelected = selectedShippingId === rate.id
 
