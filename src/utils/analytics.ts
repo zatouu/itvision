@@ -7,6 +7,5 @@ export const trackEvent = (event: string, data?: Record<string, any>) => {
     window.gtag?.('event', event, data);
   } catch {}
   // Fallback logging for debugging
-  // eslint-disable-next-line no-console
   console.log('Event:', event, data);
 };

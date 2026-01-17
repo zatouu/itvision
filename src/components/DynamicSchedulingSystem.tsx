@@ -286,7 +286,7 @@ const DynamicSchedulingSystem = ({
           }))
           mergedInterventions = [...mergedInterventions, ...maintenanceEvents]
         }
-        let marketplaceGenerated: Intervention[] = []
+        const marketplaceGenerated: Intervention[] = []
         if (activitiesRes.ok) {
           const activitiesJson = await activitiesRes.json()
           const map: Record<string, MarketplaceActivityInfo> = {}

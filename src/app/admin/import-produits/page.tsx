@@ -25,6 +25,14 @@ interface ImportItem {
   totalRated?: number
 }
 
+interface BulkImportResult {
+  url: string
+  ok: boolean
+  action?: 'created' | 'updated' | 'preview'
+  productId?: string
+  error?: string
+}
+
 export default function ImportProduitsPage() {
   return (
     <ProtectedPage requiredRole={['ADMIN', 'PRODUCT_MANAGER']}>
@@ -48,6 +56,9 @@ function ImportProduitsContent() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [urlInput, setUrlInput] = useState('')
   const [bulkUrls, setBulkUrls] = useState('')
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkResults, setBulkResults] = useState<BulkImportResult[] | null>(null)
+  const [bulkDryRun, setBulkDryRun] = useState(false)
 
   const formatCurrency = (amount: number, currency: string) => {
     return `${amount.toLocaleString('fr-FR')} ${currency}`
@@ -192,14 +203,48 @@ function ImportProduitsContent() {
     const urls = bulkUrls
       .split('\n')
       .map(line => line.trim())
-      .filter(line => line.length > 0 && (line.includes('aliexpress.com') || line.includes('alibaba.com')))
+      .filter(line => line.length > 0 && (line.includes('aliexpress.com') || line.includes('1688.com')))
 
     if (urls.length === 0) {
-      setDialogError('Aucune URL valide trouvée. Les URLs doivent être des liens AliExpress ou Alibaba.')
+      setDialogError('Aucune URL valide trouvée. Les URLs doivent être des liens AliExpress ou 1688.')
       return
     }
 
-    setDialogError('L\'import en masse sera bientôt disponible.')
+    setBulkLoading(true)
+    setDialogError(null)
+    setFeedback(null)
+    setBulkResults(null)
+
+    try {
+      const response = await fetch('/api/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ urls, dryRun: bulkDryRun })
+      })
+
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de l\'import en masse')
+      }
+
+      const res: BulkImportResult[] = Array.isArray(data.results) ? data.results : []
+      setBulkResults(res)
+
+      const summary = data.summary
+      if (summary && typeof summary === 'object') {
+        setFeedback(
+          `${summary.created ?? 0} créé(s), ${summary.updated ?? 0} mis à jour, ${summary.failed ?? 0} échec(s) (total: ${summary.total ?? res.length})`
+        )
+      } else {
+        const okCount = res.filter(r => r.ok).length
+        setFeedback(`${okCount} succès / ${res.length} URLs traitées`)
+      }
+    } catch (err: any) {
+      setDialogError(err?.message || 'Erreur lors de l\'import en masse')
+    } finally {
+      setBulkLoading(false)
+    }
   }
 
   const handleImportAll = async () => {
@@ -237,11 +282,6 @@ function ImportProduitsContent() {
         errorCount++
         setDialogError(err?.message || 'Erreur lors de l\'import')
       }
-          <DialogError
-            open={!!dialogError}
-            message={dialogError || ''}
-            onClose={() => setDialogError(null)}
-          />
     }
 
     setFeedback(`${successCount} produit(s) importé(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`)
@@ -251,6 +291,11 @@ function ImportProduitsContent() {
 
   return (
     <div>
+      <DialogError
+        open={!!dialogError}
+        message={dialogError || ''}
+        onClose={() => setDialogError(null)}
+      />
       <div className="mb-6">
         {/* Header */}
         <div className="mb-8">
@@ -574,6 +619,16 @@ function ImportProduitsContent() {
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Import en masse</h2>
             <div className="space-y-4">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200"
+                  checked={bulkDryRun}
+                  onChange={(e) => setBulkDryRun(e.target.checked)}
+                  disabled={bulkLoading}
+                />
+                Prévisualisation uniquement (dry-run) — n’écrit rien en base
+              </label>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   URLs des produits (une par ligne)
@@ -586,21 +641,41 @@ function ImportProduitsContent() {
                   onChange={e => setBulkUrls(e.target.value)}
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Collez une URL par ligne. Les URLs doivent être des liens AliExpress ou Alibaba.
+                  Collez une URL par ligne. Les URLs doivent être des liens AliExpress ou 1688.
                 </p>
               </div>
               <button
                 onClick={handleBulkImport}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                disabled={bulkLoading}
               >
-                <Download className="h-4 w-4" />
-                Importer tous les produits
+                {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {bulkLoading ? 'Import en cours…' : 'Importer tous les produits'}
               </button>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Note :</strong> Cette fonctionnalité sera bientôt disponible. Pour l'instant, utilisez la recherche par mot-clé.
-                </p>
-              </div>
+              {bulkResults && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm font-medium text-gray-900 mb-3">Résultats</p>
+                  <div className="space-y-2">
+                    {bulkResults.map((r) => (
+                      <div key={r.url} className="flex items-start justify-between gap-3 rounded border border-gray-200 bg-white p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500 break-all">{r.url}</p>
+                          {!r.ok && r.error && <p className="text-xs text-red-700 mt-1">{r.error}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {r.ok ? (
+                            <span className="text-xs font-semibold text-emerald-700">
+                              {r.action === 'created' ? 'Créé' : r.action === 'updated' ? 'Mis à jour' : 'OK'}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-red-700">Échec</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

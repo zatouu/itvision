@@ -1,7 +1,7 @@
 import Breadcrumb from '@/components/Breadcrumb'
 import AdminMarketplaceManager from '@/components/AdminMarketplaceManager'
 import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
+import { verifyAuthToken } from '@/lib/jwt'
 
 export default async function AdminMarketplacePage() {
   const cookieStore = await cookies()
@@ -9,7 +9,7 @@ export default async function AdminMarketplacePage() {
   let allowed = false
   try {
     if (token) {
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+      const decoded = await verifyAuthToken(token)
       const role = String(decoded.role || '').toUpperCase()
       allowed = ['ADMIN', 'SUPER_ADMIN'].includes(role)
     }

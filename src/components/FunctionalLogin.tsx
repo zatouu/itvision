@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { User, Wrench, Shield, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
 
 interface LoginFormProps {
@@ -215,12 +216,12 @@ export default function FunctionalLogin({ userType }: LoginFormProps) {
 
           {/* Navigation */}
           <div className="mt-6 text-center">
-            <a
+            <Link
               href="/"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
               ← Retour à l'accueil
-            </a>
+            </Link>
           </div>
         </div>
       </div>

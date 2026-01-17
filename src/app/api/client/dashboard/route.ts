@@ -5,6 +5,7 @@ import Project from '@/lib/models/Project'
 import Quote from '@/lib/models/Quote'
 import Intervention from '@/lib/models/Intervention'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 interface DecodedToken {
   userId: string
@@ -19,7 +20,7 @@ async function verifyToken(request: NextRequest): Promise<DecodedToken> {
     throw new Error('Non authentifié')
   }
 
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+  const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
   
   // Vérifier que les propriétés requises existent

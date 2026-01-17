@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
-
-// Routes protégées par rôle
-const PROTECTED_ROUTES = {
-  admin: [
-    '/admin',
-    '/admin-reports',
-    '/admin-factures',
-    '/admin-prix',
-    '/admin-produits',
-    '/validation-rapports',
-    '/workflows'
-  ],
-  client: ['/client-portal', '/client-portal-v2'],
-  technician: ['/tech-interface'],
-}
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 // Routes publiques (pas de vérification)
 const PUBLIC_ROUTES = [
@@ -53,7 +39,7 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   }
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    const secret = getJwtSecretKey()
     const { payload } = await jwtVerify(token, secret)
     const role = String(payload.role || '').toUpperCase()
     return { authenticated: true, role }
@@ -181,6 +167,16 @@ export async function middleware(request: NextRequest) {
 }
 
 function applySecurityHeaders(response: NextResponse, pathname: string) {
+  const scriptSrc =
+    process.env.NODE_ENV === 'production'
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+
+  const connectSrc =
+    process.env.NODE_ENV === 'production'
+      ? "connect-src 'self' https: wss:"
+      : "connect-src 'self' http: https: ws: wss:"
+
   // Headers de sécurité essentiels
   const securityHeaders: Record<string, string> = {
     'X-XSS-Protection': '1; mode=block',
@@ -190,11 +186,11 @@ function applySecurityHeaders(response: NextResponse, pathname: string) {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
     'Content-Security-Policy': [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self'",
-      "connect-src 'self' wss:",
+      connectSrc,
       "frame-src 'none'",
       "object-src 'none'",
       "base-uri 'self'",

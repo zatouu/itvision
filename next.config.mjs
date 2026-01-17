@@ -68,8 +68,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: '1.0.0',
     NEXT_PUBLIC_APP_NAME: 'Sécurité Électronique',
-    JWT_SECRET: process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-very-long-and-secure-key-123456789',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'your-nextauth-secret-change-in-production-also-very-long-and-secure'
+    // Note: do NOT expose server secrets (JWT_SECRET / NEXTAUTH_SECRET) here.
   },
   
   // Optimisations de sécurité

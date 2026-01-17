@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
+import { jwtVerify } from 'jose'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 export interface AuthResult {
   isAuthenticated: boolean
@@ -44,15 +45,15 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
       return { isAuthenticated: false, error: 'Token manquant' }
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+    const { payload } = await jwtVerify(token, getJwtSecretKey())
     
     return {
       isAuthenticated: true,
       user: {
-        id: decoded.userId || decoded.id,
-        role: String(decoded.role || '').toUpperCase(),
-        email: decoded.email,
-        name: decoded.name
+        id: String(payload.userId || payload.id || payload.sub || ''),
+        role: String(payload.role || '').toUpperCase(),
+        email: typeof payload.email === 'string' ? payload.email : undefined,
+        name: typeof payload.name === 'string' ? payload.name : undefined
       }
     }
   } catch (error) {

@@ -4,13 +4,14 @@ import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import User from '@/lib/models/User'
 import { generateMaintenanceContractDocx, generateMaintenanceContractPdf } from '@/lib/contracts/export'
 import { jwtVerify } from 'jose'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 async function verifyAdmin(request: NextRequest) {
   const token =
     request.cookies.get('auth-token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+  const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
   if ((payload.role as string)?.toUpperCase() !== 'ADMIN') {
     throw new Error('Accès réservé aux administrateurs')

@@ -19,7 +19,14 @@ const handle = app.getRequestHandler()
 // Fonction de vérification du token JWT
 async function verifyToken(token) {
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    const jwtSecret = process.env.JWT_SECRET
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('JWT_SECRET is required in production')
+      }
+      console.warn('[SECURITY] JWT_SECRET is missing; using an insecure development fallback. Set JWT_SECRET in your env.')
+    }
+    const secret = new TextEncoder().encode(jwtSecret || 'dev-insecure-jwt-secret')
     const { payload } = await jwtVerify(token, secret)
     
     if (!payload.userId || !payload.role || !payload.email) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 // Vérification d'authentification admin
 async function verifyAdmin(request: NextRequest): Promise<{ authorized: boolean; userId?: string }> {
@@ -10,7 +11,7 @@ async function verifyAdmin(request: NextRequest): Promise<{ authorized: boolean;
   if (!token) return { authorized: false }
   
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    const secret = getJwtSecretKey()
     const { payload } = await jwtVerify(token, secret)
     const role = String(payload.role || '').toUpperCase()
     return { 

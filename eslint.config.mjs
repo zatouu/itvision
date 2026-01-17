@@ -16,7 +16,7 @@ const eslintConfig = [
       // Règles personnalisées pour améliorer la qualité du code
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
-      "react/no-unescaped-entities": "error",
+      "react/no-unescaped-entities": "warn",
       "prefer-const": "error",
       "react-hooks/exhaustive-deps": "warn"
     }

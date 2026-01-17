@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
@@ -12,6 +11,7 @@ import type {
   IMaintenanceReportNextAction
 } from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
+import { verifyJwtPayload } from '@/lib/jwt'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
@@ -19,10 +19,12 @@ async function verifyTechnicianToken(request: NextRequest) {
                 request.cookies.get('tech-auth-token')?.value ||
                 request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Token manquant')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+  const payload = await verifyJwtPayload(token)
+  const decoded = payload as any
   const role = String(decoded.role || '').toUpperCase()
-  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? decoded.userId : undefined)
-  return { ...decoded, role, technicianId }
+  const userId = String(decoded.userId || decoded.id || decoded.sub || '')
+  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? userId : undefined)
+  return { ...decoded, role, technicianId, userId }
 }
 
 const ISSUE_SEVERITIES = new Set(['low', 'medium', 'high', 'critical'])

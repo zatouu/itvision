@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
-import { connectMongoose } from '@/lib/mongoose'
 import { addNotification } from '@/lib/notifications-memory'
+import { requireAuth } from '@/lib/jwt'
 
 interface Notification {
   id: string
@@ -63,20 +62,14 @@ let notifications: Notification[] = [
   }
 ]
 
-function requireAuth(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return {
-    ...decoded,
-    role: String(decoded.role || '').toUpperCase()
-  }
+async function requireAuthUser(request: NextRequest) {
+  return await requireAuth(request)
 }
 
 // GET - Récupérer les notifications
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAuth(request)
+    const user = await requireAuthUser(request)
     const { searchParams } = new URL(request.url)
     const unreadOnly = searchParams.get('unread') === 'true'
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -115,7 +108,7 @@ export async function GET(request: NextRequest) {
 // POST - Créer une nouvelle notification
 export async function POST(request: NextRequest) {
   try {
-    const user = requireAuth(request)
+    const user = await requireAuthUser(request)
     
     // Seuls les admins peuvent créer des notifications
     if (user.role !== 'ADMIN') {
@@ -163,7 +156,7 @@ export async function POST(request: NextRequest) {
 // PATCH - Marquer des notifications comme lues
 export async function PATCH(request: NextRequest) {
   try {
-    const user = requireAuth(request)
+    const user = await requireAuthUser(request)
     const body = await request.json()
     const { notificationIds, markAllAsRead } = body
 
@@ -200,7 +193,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Supprimer des notifications
 export async function DELETE(request: NextRequest) {
   try {
-    const user = requireAuth(request)
+    const user = await requireAuthUser(request)
     const { searchParams } = new URL(request.url)
     const notificationId = searchParams.get('id')
     const deleteAll = searchParams.get('all') === 'true'

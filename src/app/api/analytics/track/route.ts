@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import PageVisit from '@/lib/models/PageVisit'
 import { jwtVerify } from 'jose'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 // Helper pour détecter le type d'appareil
 function detectDevice(userAgent?: string): 'desktop' | 'mobile' | 'tablet' {
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
       if (token) {
         const { payload } = await jwtVerify(
           token,
-          new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+          getJwtSecretKey()
         )
         userId = payload.userId as string
         userRole = payload.role as string

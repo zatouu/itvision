@@ -4,6 +4,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import { generateMaintenanceVisits } from '@/lib/maintenance/schedule'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 type DecodedToken = {
   userId: string
@@ -28,7 +29,7 @@ async function verifyToken(request: NextRequest): Promise<DecodedToken> {
     throw new Error('Non authentifié')
   }
 
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+  const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
 
   if (!payload.userId || !payload.role || !payload.email) {

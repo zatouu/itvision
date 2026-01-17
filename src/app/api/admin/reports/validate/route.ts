@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 import { logFailedAuth, logDataAccess, logSecurityViolation } from '@/lib/security-logger'
 import { InputValidator } from '@/lib/input-validation'
+import { verifyJwtPayload } from '@/lib/jwt'
 
 async function verifyAdminToken(request: NextRequest) {
   // Supporte à la fois 'auth-token' (standard) et 'admin-auth-token' (legacy)
@@ -19,7 +19,8 @@ async function verifyAdminToken(request: NextRequest) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const payload = await verifyJwtPayload(token)
+    const decoded = payload as any
     const normalizedRole = String(decoded.role || '').toUpperCase()
 
     // Vérification rôle admin (normalisé)

@@ -2,19 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Feedback from '@/lib/models/Feedback'
 import User from '@/lib/models/User'
-import jwt from 'jsonwebtoken'
-
-function requireAuth(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-  return decoded
-}
+import { requireAuth } from '@/lib/jwt'
 
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const user = requireAuth(request)
+    const user = await requireAuth(request)
     const body = await request.json()
     const { projectId, technicianId, rating, comment } = body
 
@@ -47,7 +40,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    requireAuth(request)
+    await requireAuth(request)
 
     const { searchParams } = new URL(request.url)
     const technicianId = searchParams.get('technicianId') || undefined

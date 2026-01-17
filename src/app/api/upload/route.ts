@@ -2,23 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
-import jwt from 'jsonwebtoken'
 import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
+import { requireAuth } from '@/lib/jwt'
 
 // Vérification d'authentification requise pour l'upload
-function verifyAuth(request: NextRequest): { authenticated: boolean; userId?: string; role?: string } {
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) return { authenticated: false }
-  
+async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; userId?: string; role?: string }> {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-    return { 
-      authenticated: true, 
-      userId: decoded.userId,
-      role: String(decoded.role || '').toUpperCase()
-    }
+    const { userId, role } = await requireAuth(request)
+    return { authenticated: true, userId, role }
   } catch {
     return { authenticated: false }
   }
@@ -31,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     // SÉCURITÉ: Vérifier l'authentification
-    const auth = verifyAuth(request)
+    const auth = await verifyAuth(request)
     if (!auth.authenticated) {
       return NextResponse.json(
         { error: 'Authentification requise' },

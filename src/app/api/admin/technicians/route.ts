@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import { safeSearchRegex } from '@/lib/security-utils'
 import Technician from '@/lib/models/Technician'
+import { requireAuth } from '@/lib/jwt'
 
 function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  if (String(decoded.role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
-  return decoded
+  return requireAuth(request).then(({ role }) => {
+    if (String(role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
+  })
 }
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    requireAdmin(request)
+    await requireAdmin(request)
 
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get('q') || '').trim()
@@ -76,7 +74,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    requireAdmin(request)
+    await requireAdmin(request)
 
     const body = await request.json()
     const { 

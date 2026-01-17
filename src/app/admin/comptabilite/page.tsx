@@ -1,7 +1,7 @@
 import Breadcrumb from '@/components/Breadcrumb'
 import AccountingDashboard from '@/components/AccountingDashboard'
 import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
+import { verifyAuthToken } from '@/lib/jwt'
 
 export default async function AdminComptabilitePage() {
   const cookieStore = await cookies()
@@ -9,7 +9,7 @@ export default async function AdminComptabilitePage() {
   let allowed = false
   try {
     if (token) {
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+      const decoded = await verifyAuthToken(token)
       const role = String(decoded.role || '').toUpperCase()
       allowed = ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'].includes(role)
     }
