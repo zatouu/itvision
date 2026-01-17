@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import DialogError from '@/components/DialogError'
 import { Download, Search, Link as LinkIcon, Loader2, CheckCircle, X, ExternalLink, AlertCircle } from 'lucide-react'
 import ProtectedPage from '@/components/ProtectedPage'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 interface ImportItem {
   productId?: string
@@ -26,7 +28,9 @@ interface ImportItem {
 export default function ImportProduitsPage() {
   return (
     <ProtectedPage requiredRole={['ADMIN', 'PRODUCT_MANAGER']}>
-      <ImportProduitsContent />
+      <ErrorBoundary>
+        <ImportProduitsContent />
+      </ErrorBoundary>
     </ProtectedPage>
   )
 }
@@ -37,6 +41,7 @@ function ImportProduitsContent() {
   const [limit, setLimit] = useState(6)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dialogError, setDialogError] = useState<string | null>(null)
   const [results, setResults] = useState<ImportItem[]>([])
   const [importingIds, setImportingIds] = useState<Set<string>>(new Set())
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set())
@@ -51,7 +56,7 @@ function ImportProduitsContent() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!keyword.trim()) {
-      setError('Veuillez entrer un mot-clé')
+      setDialogError('Veuillez entrer un mot-clé')
       return
     }
 
@@ -76,7 +81,7 @@ function ImportProduitsContent() {
         setFeedback('Aucun résultat trouvé. Essayez un autre mot-clé.')
       }
     } catch (err: any) {
-      setError(err?.message || 'Erreur lors de la recherche AliExpress')
+      setDialogError(err?.message || 'Erreur lors de la recherche AliExpress')
     } finally {
       setLoading(false)
     }
@@ -88,6 +93,7 @@ function ImportProduitsContent() {
 
     setImportingIds(prev => new Set(prev).add(itemId))
     setError(null)
+    setDialogError(null)
     setFeedback(null)
 
     try {
@@ -101,14 +107,15 @@ function ImportProduitsContent() {
       const data = await response.json()
 
       if (!data.success) {
-        throw new Error(data.error || 'Erreur lors de l\'import')
+        setDialogError(data.error || 'Erreur lors de l\'import')
+        return
       }
 
       setImportedIds(prev => new Set(prev).add(itemId))
       setFeedback(data.action === 'updated' ? 'Produit mis à jour avec succès' : 'Produit importé avec succès')
       setTimeout(() => setFeedback(null), 3000)
     } catch (err: any) {
-      setError(err?.message || 'Erreur lors de l\'import')
+      setDialogError(err?.message || 'Erreur lors de l\'import')
     } finally {
       setImportingIds(prev => {
         const next = new Set(prev)
@@ -126,7 +133,7 @@ function ImportProduitsContent() {
     setPreview(null)
     setPreviewError(null)
     if (!urlInput.trim()) {
-      setPreviewError('Veuillez entrer une URL AliExpress')
+      setDialogError('Veuillez entrer une URL AliExpress')
       return
     }
     setPreviewLoading(true)
@@ -139,10 +146,10 @@ function ImportProduitsContent() {
       if (data.success && data.item) {
         setPreview(data.item)
       } else {
-        setPreviewError(data.error || 'Impossible de prévisualiser le produit')
+        setDialogError(data.error || 'Impossible de prévisualiser le produit')
       }
     } catch (err: any) {
-      setPreviewError(err?.message || 'Erreur lors de la prévisualisation')
+      setDialogError(err?.message || 'Erreur lors de la prévisualisation')
     } finally {
       setPreviewLoading(false)
     }
@@ -152,6 +159,7 @@ function ImportProduitsContent() {
     if (!preview) return
     setLoading(true)
     setError(null)
+    setDialogError(null)
     try {
       const response = await fetch('/api/products/import', {
         method: 'POST',
@@ -166,10 +174,10 @@ function ImportProduitsContent() {
         setPreview(null)
         setUrlInput('')
       } else {
-        setError(data.error || 'Erreur lors de l\'import')
+        setDialogError(data.error || 'Erreur lors de l\'import')
       }
     } catch (err: any) {
-      setError(err?.message || 'Erreur lors de l\'import')
+      setDialogError(err?.message || 'Erreur lors de l\'import')
     } finally {
       setLoading(false)
     }
@@ -177,7 +185,7 @@ function ImportProduitsContent() {
 
   const handleBulkImport = async () => {
     if (!bulkUrls.trim()) {
-      setError('Veuillez entrer au moins une URL')
+      setDialogError('Veuillez entrer au moins une URL')
       return
     }
 
@@ -187,11 +195,11 @@ function ImportProduitsContent() {
       .filter(line => line.length > 0 && (line.includes('aliexpress.com') || line.includes('alibaba.com')))
 
     if (urls.length === 0) {
-      setError('Aucune URL valide trouvée. Les URLs doivent être des liens AliExpress ou Alibaba.')
+      setDialogError('Aucune URL valide trouvée. Les URLs doivent être des liens AliExpress ou Alibaba.')
       return
     }
 
-    setError('L\'import en masse sera bientôt disponible.')
+    setDialogError('L\'import en masse sera bientôt disponible.')
   }
 
   const handleImportAll = async () => {
@@ -199,6 +207,7 @@ function ImportProduitsContent() {
 
     setLoading(true)
     setError(null)
+    setDialogError(null)
     setFeedback(null)
 
     let successCount = 0
@@ -222,10 +231,17 @@ function ImportProduitsContent() {
           setImportedIds(prev => new Set(prev).add(itemId))
         } else {
           errorCount++
+          setDialogError(data.error || 'Erreur lors de l\'import')
         }
-      } catch {
+      } catch (err: any) {
         errorCount++
+        setDialogError(err?.message || 'Erreur lors de l\'import')
       }
+          <DialogError
+            open={!!dialogError}
+            message={dialogError || ''}
+            onClose={() => setDialogError(null)}
+          />
     }
 
     setFeedback(`${successCount} produit(s) importé(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`)

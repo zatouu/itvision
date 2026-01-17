@@ -1198,7 +1198,9 @@ export default function ProduitsPage() {
               Catalogue <span className="text-emerald-600">Pro</span>
             </h1>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
-              Équipements de sécurité • Import direct • Prix compétitifs
+              Equipement • Import direct • Prix compétitifs
+              description: 'pour tout type de produit',
+              description: 'pour tout type de produit',
             </p>
           </div>
           
