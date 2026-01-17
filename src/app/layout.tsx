@@ -27,8 +27,28 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const themeScript = `(() => {
+    try {
+      const stored = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+      const resolved = theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
+      const root = document.documentElement;
+      if (resolved === 'dark') {
+        root.classList.add('dark');
+        root.style.colorScheme = 'dark';
+      } else {
+        root.classList.remove('dark');
+        root.style.colorScheme = 'light';
+      }
+    } catch (e) {}
+  })();`
+
   return (
     <html lang="fr" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className={inter.className}>
         <PageVisitTracker />
         {children}

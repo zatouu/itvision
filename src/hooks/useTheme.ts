@@ -30,8 +30,10 @@ export function useTheme() {
       const root = document.documentElement
       if (resolved === 'dark') {
         root.classList.add('dark')
+        root.style.colorScheme = 'dark'
       } else {
         root.classList.remove('dark')
+        root.style.colorScheme = 'light'
       }
     }
 
@@ -61,8 +63,10 @@ export function useTheme() {
     const root = document.documentElement
     if (resolved === 'dark') {
       root.classList.add('dark')
+      root.style.colorScheme = 'dark'
     } else {
       root.classList.remove('dark')
+      root.style.colorScheme = 'light'
     }
   }
 
