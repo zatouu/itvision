@@ -121,6 +121,7 @@ jobs:
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
             IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}
             # Lien Mongo pour l'app (utilisateur applicatif)
             MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
             EOF
