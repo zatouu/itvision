@@ -1,6 +1,7 @@
+
+"use client"
 import dynamic from 'next/dynamic'
 const GroupBuyPaymentModal = dynamic(() => import('@/components/GroupBuyPaymentModal'), { ssr: false })
-"use client"
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
