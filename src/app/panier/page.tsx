@@ -291,8 +291,6 @@ export default function PanierPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        localStorage.removeItem('cart:items')
-        setItems([])
         setOrderInfo({
           orderId: data.orderId,
           name,
@@ -309,6 +307,8 @@ export default function PanierPage() {
       const handleClosePayment = () => {
         setShowPayment(false)
         if (orderInfo?.orderId) {
+          localStorage.removeItem('cart:items')
+          setItems([])
           router.push(`/commandes/${orderInfo.orderId}`)
         }
         setOrderInfo(null)
