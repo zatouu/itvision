@@ -9,13 +9,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Installation from '@/lib/models/Installation'
 import { jwtVerify } from 'jose'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 async function verifyToken(request: NextRequest) {
   const token =
     request.cookies.get('auth-token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+  const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
   return {
     userId: payload.userId as string,

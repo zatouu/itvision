@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Service from '@/lib/models/Service'
-import jwt from 'jsonwebtoken'
+import { requireAuth } from '@/lib/jwt'
 
-function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { ok: false, status: 401, error: 'Non authentifié' as const }
+async function requireAdmin(request: NextRequest) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-    const role = String(decoded.role || '').toUpperCase()
+    const { role } = await requireAuth(request)
     const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
-    if (!allowed) return { ok: false, status: 403, error: 'Accès refusé' as const }
-    return { ok: true }
+    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
+    return { ok: true as const }
   } catch {
-    return { ok: false, status: 401, error: 'Token invalide' as const }
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
   }
 }
 
@@ -35,7 +32,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireAdmin(request)
+    const auth = await requireAdmin(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
@@ -52,7 +49,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = requireAdmin(request)
+    const auth = await requireAdmin(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
@@ -68,7 +65,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = requireAdmin(request)
+    const auth = await requireAdmin(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const { searchParams } = new URL(request.url)

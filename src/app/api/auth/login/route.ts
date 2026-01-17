@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import User from '@/lib/models/User'
 import { connectMongoose } from '@/lib/mongoose'
 import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
+import { signAuthTokenWithExpiry, verifyJwtPayload } from '@/lib/jwt'
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,21 +75,19 @@ export async function POST(request: NextRequest) {
       const code = Math.floor(100000 + Math.random() * 900000).toString()
       const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 min
       await User.updateOne({ _id: user._id }, { $set: { twoFactorCode: code, twoFactorExpires: expires } })
-      console.log(`[2FA] Code pour ${user.email}: ${code} (expire ${expires.toISOString()})`)
       return NextResponse.json({ mfa_required: true, userId: String(user._id) })
     }
 
     // Génération du token JWT (rôle normalisé en majuscules)
     const normalizedRole = String(user.role || '').toUpperCase()
-    const token = jwt.sign(
-      { 
+    const token = await signAuthTokenWithExpiry(
+      {
         userId: String(user._id),
         email: user.email,
         role: normalizedRole,
         username: user.username
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: remember ? '30d' : '7d' }
+      remember ? '30d' : '7d'
     )
 
     // Log de connexion réussie
@@ -162,14 +160,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+    const decoded = await verifyJwtPayload(token)
     
     return NextResponse.json({
       user: {
-        id: decoded.userId,
-        email: decoded.email,
-        role: decoded.role,
-        permissions: decoded.permissions
+        id: String(decoded.userId || decoded.id || decoded.sub || ''),
+        email: typeof decoded.email === 'string' ? decoded.email : undefined,
+        role: String(decoded.role || ''),
+        permissions: (decoded as any).permissions
       }
     })
 

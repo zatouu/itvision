@@ -2,20 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { type IProduct } from '@/lib/models/Product.validated'
 import type { ProductVariantGroup } from '@/lib/types/product.types'
-import jwt from 'jsonwebtoken'
 import { randomUUID } from 'crypto'
+import { requireAuth } from '@/lib/jwt'
 
-function requireManagerRole(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { ok: false, status: 401, error: 'Non authentifié' as const }
+async function requireManagerRole(request: NextRequest) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-    const role = String(decoded.role || '').toUpperCase()
+    const { role } = await requireAuth(request)
     const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
-    if (!allowed) return { ok: false, status: 403, error: 'Accès refusé' as const }
-    return { ok: true }
+    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
+    return { ok: true as const }
   } catch {
-    return { ok: false, status: 401, error: 'Token invalide' as const }
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
   }
 }
 
@@ -241,7 +238,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
 // GET /api/products?search=&category=&limit=20&skip=0
 export async function GET(request: NextRequest) {
   try {
-    const auth = requireManagerRole(request)
+    const auth = await requireManagerRole(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const { searchParams } = new URL(request.url)
@@ -268,7 +265,7 @@ export async function GET(request: NextRequest) {
 // POST /api/products (create)
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireManagerRole(request)
+    const auth = await requireManagerRole(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
@@ -302,7 +299,7 @@ export async function POST(request: NextRequest) {
 // PATCH /api/products (update)
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = requireManagerRole(request)
+    const auth = await requireManagerRole(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
@@ -348,7 +345,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/products?id=
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = requireManagerRole(request)
+    const auth = await requireManagerRole(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const { searchParams } = new URL(request.url)

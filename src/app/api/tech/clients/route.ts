@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
 import Client from '@/lib/models/Client'
+import { requireAuth } from '@/lib/jwt'
 
 type DecodedToken = {
   id: string
@@ -10,26 +10,18 @@ type DecodedToken = {
 
 const ALLOWED_ROLES = new Set(['TECHNICIAN', 'ADMIN'])
 
-function requireTechnicianOrAdmin(request: NextRequest): DecodedToken {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) {
-    throw new Error('Non authentifié')
-  }
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as DecodedToken
-  const role = String(decoded.role || '').toUpperCase()
-
+async function requireTechnicianOrAdmin(request: NextRequest): Promise<DecodedToken> {
+  const { userId, role } = await requireAuth(request)
   if (!ALLOWED_ROLES.has(role)) {
     throw new Error('Accès non autorisé')
   }
-
-  return { id: decoded.id, role }
+  return { id: userId, role }
 }
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    requireTechnicianOrAdmin(request)
+    await requireTechnicianOrAdmin(request)
 
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get('q') || '').trim()

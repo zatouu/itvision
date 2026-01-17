@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
-import jwt from 'jsonwebtoken'
+import { requireAuth } from '@/lib/jwt'
 
-function requireAuth(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { ok: false, status: 401, error: 'Non authentifié' as const }
+async function requireInterventionAccess(request: NextRequest) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-    const role = String(decoded.role || '').toUpperCase()
-    const allowed = ['ADMIN','TECHNICIAN','PRODUCT_MANAGER'].includes(role)
-    if (!allowed) return { ok: false, status: 403, error: 'Accès refusé' as const }
-    return { ok: true }
+    const { role } = await requireAuth(request)
+    const allowed = ['ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
+    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
+    return { ok: true as const }
   } catch {
-    return { ok: false, status: 401, error: 'Token invalide' as const }
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
   }
 }
 
@@ -55,7 +52,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const auth = requireAuth(request)
+    const auth = await requireInterventionAccess(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
     
     const body = await request.json()
@@ -116,7 +113,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await connectMongoose()
-    const auth = requireAuth(request)
+    const auth = await requireInterventionAccess(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
     
     const body = await request.json()

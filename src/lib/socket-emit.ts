@@ -7,7 +7,6 @@ import type { Server } from 'socket.io'
 
 // Extend global type to include io
 declare global {
-  // eslint-disable-next-line no-var
   var io: Server | undefined
 }
 

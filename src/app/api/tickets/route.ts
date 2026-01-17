@@ -1,21 +1,17 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse as NextApiResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Ticket from '@/lib/models/Ticket'
 import Notification from '@/lib/models/Notification'
 import { TicketService } from '@/lib/services/tickets'
+import { requireAuth } from '@/lib/jwt'
 
 async function verifyToken(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) {
-    throw new Error('Non authentifié')
-  }
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
+  const decoded = await requireAuth(request)
   return {
-    userId: String(decoded.userId || decoded.id || decoded.sub || ''),
-    role: String(decoded.role || '').toUpperCase() as 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
+    userId: decoded.userId,
+    role: decoded.role as 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
   }
 }
 

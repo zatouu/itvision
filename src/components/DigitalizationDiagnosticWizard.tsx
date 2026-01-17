@@ -228,7 +228,6 @@ export default function DigitalizationDiagnosticWizard() {
     try {
       const { jsPDF } = await import('jspdf')
       await import('jspdf-autotable')
-      // @ts-ignore
       const doc = new jsPDF({ unit: 'pt', format: 'a4' })
       doc.setFillColor(16, 185, 129)
       doc.rect(0, 0, 595, 80, 'F')
@@ -257,7 +256,7 @@ export default function DigitalizationDiagnosticWizard() {
         ['Taille', payload?.scoring?.tShirt || '-'],
         ['Fourchette', payload?.scoring?.priceHint || '-']
       ]
-      // @ts-ignore
+      // @ts-expect-error jspdf-autotable adds autoTable at runtime but types may not include it
       doc.autoTable({ startY: 130, head: [['Champ', 'Valeur']], body: lines, styles: { cellPadding: 6, fontSize: 10 } })
       const pageHeight = doc.internal.pageSize.getHeight()
       doc.setDrawColor(229, 231, 235)

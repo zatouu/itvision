@@ -1,25 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Quote from '@/lib/models/Quote'
-import jwt from 'jsonwebtoken'
+import { requireAuth } from '@/lib/jwt'
 
-function requireAuth(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { ok: false, status: 401, error: 'Non authentifié' as const }
+async function requireQuoteAccess(request: NextRequest) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-    const role = String(decoded.role || '').toUpperCase()
-    const allowed = ['ADMIN','PRODUCT_MANAGER','TECHNICIAN'].includes(role)
-    if (!allowed) return { ok: false, status: 403, error: 'Accès refusé' as const }
-    return { ok: true, role }
+    const { role } = await requireAuth(request)
+    const allowed = ['ADMIN', 'PRODUCT_MANAGER', 'TECHNICIAN'].includes(role)
+    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
+    return { ok: true as const, role }
   } catch {
-    return { ok: false, status: 401, error: 'Token invalide' as const }
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = requireAuth(request)
+    const auth = await requireQuoteAccess(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const { searchParams } = new URL(request.url)
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireAuth(request)
+    const auth = await requireQuoteAccess(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
@@ -78,7 +75,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = requireAuth(request)
+    const auth = await requireQuoteAccess(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
@@ -94,7 +91,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = requireAuth(request)
+    const auth = await requireQuoteAccess(request)
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const { searchParams } = new URL(request.url)

@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import User from '@/lib/models/User'
 import { connectMongoose } from '@/lib/mongoose'
+import { requireAuth } from '@/lib/jwt'
 
 // Vérifier si l'utilisateur est admin (pour pouvoir attribuer des rôles)
-function verifyAdmin(request: NextRequest): { isAdmin: boolean; userId?: string } {
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) return { isAdmin: false }
-  
+async function verifyAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-    const role = String(decoded.role || '').toUpperCase()
-    return { isAdmin: role === 'ADMIN', userId: decoded.userId }
+    const { role, userId } = await requireAuth(request)
+    return { isAdmin: role === 'ADMIN', userId }
   } catch {
     return { isAdmin: false }
   }
@@ -35,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SÉCURITÉ: Seuls les admins peuvent créer des utilisateurs avec un rôle autre que CLIENT
-    const { isAdmin } = verifyAdmin(request)
+    const { isAdmin } = await verifyAdmin(request)
     const allowedRoles = ['CLIENT', 'TECHNICIAN', 'ADMIN', 'PRODUCT_MANAGER']
     let finalRole = 'CLIENT' // Par défaut, toujours CLIENT
     

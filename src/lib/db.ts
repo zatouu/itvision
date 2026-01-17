@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/itvision'
 
-let cached: { conn?: typeof mongoose; promise?: Promise<typeof mongoose> } = {}
+const cached: { conn?: typeof mongoose; promise?: Promise<typeof mongoose> } = {}
 
 export async function connectDB() {
   if (cached.conn) {

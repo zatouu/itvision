@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import Workflow from '@/lib/models/Workflow'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 // Vérification d'authentification
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; role?: string; userId?: string }> {
@@ -11,7 +12,7 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   if (!token) return { authenticated: false }
   
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+    const secret = getJwtSecretKey()
     const { payload } = await jwtVerify(token, secret)
     return { 
       authenticated: true, 

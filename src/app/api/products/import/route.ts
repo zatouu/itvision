@@ -105,10 +105,10 @@ async function buildPreviewFromAliExpressUrl(rawUrl: string): Promise<Normalized
   }
 }
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 import { randomUUID } from 'crypto'
+import { requireAuth } from '@/lib/jwt'
 
 interface AliExpressItemProperty {
   attr_name?: string
@@ -199,17 +199,14 @@ const API_ENDPOINT = `https://${API_HOST}/item_search`
 const FX_RATE = Number(process.env.ALIEXPRESS_USD_TO_XOF || 620)
 const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 0)  // Marge par défaut à 0%
 
-function requireManagerRole(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { ok: false as const, status: 401, error: 'Non authentifié' as const }
+async function requireManagerRole(request: NextRequest) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-    const role = String(decoded.role || '').toUpperCase()
+    const { role } = await requireAuth(request)
     const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {
-    return { ok: false as const, status: 401, error: 'Token invalide' as const }
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
   }
 }
 
@@ -424,7 +421,7 @@ async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Previe
   }
 
   const jsonLd = extractJsonLdProduct(html)
-  let title = (typeof jsonLd.name === 'string' && jsonLd.name.trim()) || extractTitle(html)
+  const title = (typeof jsonLd.name === 'string' && jsonLd.name.trim()) || extractTitle(html)
   if (!title || /1688|robot|verify|captcha/i.test(title)) {
     throw new Error('Impossible d’extraire le titre du produit. Le scraping est probablement bloqué par 1688 (captcha ou page protégée).')
   }
@@ -615,7 +612,7 @@ Avis: ${item.total_rated ?? 'n/a'}`
 }
 
 export async function GET(request: NextRequest) {
-  const auth = requireManagerRole(request)
+  const auth = await requireManagerRole(request)
   if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
 
   const { searchParams } = new URL(request.url)
@@ -657,12 +654,174 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireManagerRole(request)
+  const auth = await requireManagerRole(request)
   if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
 
   try {
     await connectMongoose()
     const body = await request.json()
+
+    // Bulk import: body.urls = string[]
+    const rawUrls = Array.isArray(body?.urls) ? (body.urls as unknown[]) : null
+    const dryRun = Boolean(body?.dryRun)
+    if (rawUrls) {
+      const urls = Array.from(
+        new Set(
+          rawUrls
+            .filter((v): v is string => typeof v === 'string')
+            .map(u => u.trim())
+            .filter(u => u.length > 0)
+        )
+      ).slice(0, 20)
+
+      if (urls.length === 0) {
+        return NextResponse.json({ success: false, error: 'Aucune URL valide fournie' }, { status: 400 })
+      }
+
+      type BulkImportResult = {
+        url: string
+        ok: boolean
+        action?: 'created' | 'updated' | 'preview'
+        productId?: string
+        error?: string
+      }
+
+      const results: BulkImportResult[] = []
+      let createdCount = 0
+      let updatedCount = 0
+      let failedCount = 0
+
+      for (const url of urls) {
+        try {
+          let preview: NormalizedAliExpressItem | Import1688Preview
+          if (is1688Url(url)) {
+            preview = await buildPreviewFrom1688Url(url)
+          } else if (isAliExpressUrl(url)) {
+            preview = await buildPreviewFromAliExpressUrl(url)
+          } else {
+            throw new Error('URL non supportée (sources: aliexpress.com, 1688.com)')
+          }
+
+          if (dryRun) {
+            results.push({ url, ok: true, action: 'preview' })
+            continue
+          }
+
+          if (is1688Url(preview.productUrl)) {
+            const item1688 = preview as Import1688Preview
+            const payload: any = {
+              name: item1688.name,
+              category: item1688.category || 'Catalogue import Chine',
+              tagline: item1688.tagline || 'Import 1688',
+              description: item1688.offerId
+                ? `Import depuis 1688 • offerId ${item1688.offerId}`
+                : 'Import depuis 1688',
+              currency: 'FCFA',
+              image: item1688.image,
+              gallery: Array.isArray(item1688.gallery) ? item1688.gallery : [],
+              features: Array.isArray(item1688.features) ? item1688.features : [],
+              requiresQuote: false,
+              stockStatus: 'preorder' as const,
+              stockQuantity: 0,
+              leadTimeDays: 15,
+              availabilityNote: item1688.availabilityNote,
+              // 1688
+              price1688: typeof item1688.price1688 === 'number' ? item1688.price1688 : undefined,
+              price1688Currency: 'CNY',
+              exchangeRate: typeof item1688.exchangeRate === 'number' && item1688.exchangeRate > 0 ? item1688.exchangeRate : 100,
+              serviceFeeRate: 10,
+              insuranceRate: 2.5,
+              // Logistics placeholders (required for imported items)
+              weightKg: Number(item1688.weightKg) || 1,
+              lengthCm: Number(item1688.lengthCm) || 10,
+              widthCm: Number(item1688.widthCm) || 10,
+              heightCm: Number(item1688.heightCm) || 10,
+              // Variants
+              variantGroups: Array.isArray(item1688.variantGroups) ? item1688.variantGroups : [],
+              // Sourcing
+              sourcing: {
+                platform: '1688',
+                supplierName: undefined,
+                supplierContact: undefined,
+                productUrl: item1688.productUrl,
+                notes: `Import auto 1688${item1688.offerId ? ` (offerId ${item1688.offerId})` : ''}. Vérifier poids/dimensions.`
+              },
+              shippingOverrides: []
+            }
+
+            const existing = await Product.findOne({ 'sourcing.productUrl': item1688.productUrl })
+            if (existing) {
+              await Product.updateOne({ _id: existing._id }, { $set: payload })
+              updatedCount++
+              results.push({ url, ok: true, action: 'updated', productId: String(existing._id) })
+              continue
+            }
+
+            const created = await Product.create(payload)
+            createdCount++
+            results.push({ url, ok: true, action: 'created', productId: String(created._id) })
+            continue
+          }
+
+          const ali = preview as NormalizedAliExpressItem
+          const payload = {
+            name: ali.name,
+            category: ali.category,
+            description: `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+            tagline: ali.tagline,
+            baseCost: ali.baseCost,
+            marginRate: DEFAULT_MARGIN,
+            price: ali.price,
+            currency: ali.currency,
+            image: ali.image,
+            gallery: ali.gallery,
+            features: ali.features,
+            requiresQuote: typeof ali.price === 'number' ? false : true,
+            stockStatus: 'preorder' as const,
+            stockQuantity: 0,
+            leadTimeDays: 15,
+            weightKg: ali.weightKg,
+            availabilityNote: ali.availabilityNote,
+            sourcing: {
+              platform: 'aliexpress',
+              supplierName: ali.shopName,
+              supplierContact: undefined,
+              productUrl: ali.productUrl,
+              notes: ali.sourcingNotes
+            },
+            shippingOverrides: []
+          }
+
+          const existing = await Product.findOne({ 'sourcing.productUrl': ali.productUrl })
+          if (existing) {
+            await Product.updateOne({ _id: existing._id }, { $set: payload })
+            updatedCount++
+            results.push({ url, ok: true, action: 'updated', productId: String(existing._id) })
+            continue
+          }
+
+          const created = await Product.create(payload)
+          createdCount++
+          results.push({ url, ok: true, action: 'created', productId: String(created._id) })
+        } catch (error: any) {
+          failedCount++
+          results.push({ url, ok: false, error: error?.message || 'Import impossible' })
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        results,
+        summary: {
+          total: urls.length,
+          created: createdCount,
+          updated: updatedCount,
+          failed: failedCount,
+          dryRun
+        }
+      })
+    }
+
     const item = body?.item as (NormalizedAliExpressItem | Import1688Preview) | undefined
     if (!item || !item.name || !item.productUrl) {
       return NextResponse.json({ success: false, error: 'Données import invalides' }, { status: 400 })

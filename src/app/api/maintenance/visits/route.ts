@@ -3,13 +3,14 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { jwtVerify } from 'jose'
 import { generateMaintenanceVisits } from '@/lib/maintenance/schedule'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 async function verifyAdmin(request: NextRequest) {
   const token =
     request.cookies.get('auth-token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+  const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
   if ((payload.role as string)?.toUpperCase() !== 'ADMIN') {
     throw new Error('Accès réservé aux administrateurs')

@@ -4,13 +4,14 @@ import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceBid from '@/lib/models/MaintenanceBid'
 import Technician from '@/lib/models/Technician'
 import { jwtVerify } from 'jose'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 async function verifyToken(request: NextRequest) {
   const token =
     request.cookies.get('auth-token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) throw new Error('Non authentifié')
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-key')
+  const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
   return {
     userId: payload.userId as string,

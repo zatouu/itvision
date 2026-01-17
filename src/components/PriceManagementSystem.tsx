@@ -112,7 +112,7 @@ export default function PriceManagementSystem() {
       const current = prev[editKey]
       if (!current) return prev
 
-      let updated = { ...current, [field]: value }
+      const updated = { ...current, [field]: value }
 
       // Recalculer automatiquement selon le champ modifié
       if (field === 'unitPrice' || field === 'costPrice') {

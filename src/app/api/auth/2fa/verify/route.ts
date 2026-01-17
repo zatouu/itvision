@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
+import { signAuthTokenWithExpiry } from '@/lib/jwt'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,15 +25,14 @@ export async function POST(request: NextRequest) {
     // Clear 2FA code and issue token
     await User.updateOne({ _id: userId }, { $unset: { twoFactorCode: 1, twoFactorExpires: 1 } })
 
-    const token = jwt.sign(
+    const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
         email: user.email,
         role: user.role,
         username: user.username
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: remember ? '30d' : '7d' }
+      remember ? '30d' : '7d'
     )
 
     const userData = {

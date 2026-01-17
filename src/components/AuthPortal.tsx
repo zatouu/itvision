@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Building
 } from 'lucide-react'
+import Link from 'next/link'
 
 interface AuthPortalProps {
   userType: 'client' | 'admin' | 'technician'
@@ -214,12 +215,12 @@ export default function AuthPortal({ userType, onLogin }: AuthPortalProps) {
 
         {/* Retour à l'accueil */}
         <div className="text-center mt-6">
-          <a 
-            href="/" 
+          <Link
+            href="/"
             className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors"
           >
             ← Retour à l'accueil
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import Project from '@/lib/models/Project'
 import User from '@/lib/models/User'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
+import { requireAuth } from '@/lib/jwt'
 
 async function verifyToken(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) {
-    throw new Error('Token manquant')
-  }
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return {
-    ...decoded,
-    role: String(decoded.role || '').toUpperCase()
-  }
+  return await requireAuth(request)
 }
 
 // GET - Récupérer les projets
@@ -32,7 +21,7 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0')
     
     // Construction du filtre selon le rôle
-    let where: any = {}
+    const where: any = {}
     
     if (role === 'CLIENT') {
       // Les clients ne voient que leurs projets

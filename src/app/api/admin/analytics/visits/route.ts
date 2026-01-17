@@ -8,21 +8,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import PageVisit from '@/lib/models/PageVisit'
-import jwt from 'jsonwebtoken'
+import { requireAuth } from '@/lib/jwt'
 
-function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || 
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-  if (String(decoded.role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
-  return decoded
+async function requireAdmin(request: NextRequest) {
+  const { role } = await requireAuth(request)
+  if (String(role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
 }
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    requireAdmin(request)
+    await requireAdmin(request)
 
     const { searchParams } = new URL(request.url)
     const days = parseInt(searchParams.get('days') || '30', 10)

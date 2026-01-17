@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -58,12 +59,12 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
               >
                 Réessayer
               </button>
-              <a
+              <Link
                 href="/"
                 className="block w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Retour à l'accueil
-              </a>
+              </Link>
             </div>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="mt-4 text-left">

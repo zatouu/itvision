@@ -2,8 +2,8 @@
 import AdminProductManager from '@/components/AdminProductManager'
 import AdminTabs from '@/components/admin/AdminTabs'
 import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { verifyAuthToken } from '@/lib/jwt'
 
 export default async function AdminProduitsPage() {
   const cookieStore = await cookies()
@@ -11,7 +11,7 @@ export default async function AdminProduitsPage() {
   let allowed = false
   try {
     if (token) {
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+      const decoded = await verifyAuthToken(token)
       const role = String(decoded.role || '').toUpperCase()
       allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
     }

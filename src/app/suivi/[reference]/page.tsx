@@ -24,6 +24,7 @@ import {
   Star
 } from 'lucide-react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -498,13 +499,13 @@ export default function TrackingPage() {
           <p className="text-white/60 mb-6">
             La référence <code className="bg-white/10 px-2 py-1 rounded font-mono">{reference}</code> n&apos;existe pas.
           </p>
-          <a 
-            href="/" 
+          <Link
+            href="/"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl text-white font-medium hover:opacity-90 transition"
           >
             Retour à l&apos;accueil
             <ArrowRight className="w-4 h-4" />
-          </a>
+          </Link>
         </GlassCard>
       </div>
     )

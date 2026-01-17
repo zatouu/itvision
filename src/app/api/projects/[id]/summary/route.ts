@@ -1,30 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Project, { IProject } from '@/lib/models/Project'
 import Ticket from '@/lib/models/Ticket'
 import User, { IUser } from '@/lib/models/User'
+import { requireAuth } from '@/lib/jwt'
 
 type DecodedToken = {
   userId: string
   role: string
 }
 
-function extractToken(request: NextRequest): DecodedToken {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) {
-    throw new Error('Non authentifié')
-  }
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-  const role = String(decoded.role || '').toUpperCase()
-  const userId = String(decoded.userId || decoded.id || decoded.sub || '')
-
+async function extractToken(request: NextRequest): Promise<DecodedToken> {
+  const { userId, role } = await requireAuth(request)
   if (!userId) {
     throw new Error('Token invalide')
   }
-
   return { userId, role }
 }
 
@@ -33,7 +24,7 @@ export async function GET(request: NextRequest, context: any) {
     await connectMongoose()
 
     const params = await context.params
-    const { userId, role } = extractToken(request)
+    const { userId, role } = await extractToken(request)
     const projectId = params.id
 
     if (!mongoose.Types.ObjectId.isValid(projectId)) {

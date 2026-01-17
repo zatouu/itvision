@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Project from '@/lib/models/Project'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
+import { requireAuth } from '@/lib/jwt'
 
 async function verifyToken(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) {
-    throw new Error('Token manquant')
-  }
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-  return decoded
+  return await requireAuth(request)
 }
 
 // GET - Récupérer les rapports de maintenance

@@ -8,26 +8,23 @@ import User from '@/lib/models/User'
 import Project from '@/lib/models/Project'
 import Technician from '@/lib/models/Technician'
 import { addNotification } from '@/lib/notifications-memory'
-import jwt from 'jsonwebtoken'
+import { requireAuth } from '@/lib/jwt'
 
-function requireAuth(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) return { ok: false, status: 401, error: 'Non authentifié' as const, userId: null }
+async function requireInterventionSubmitAccess(request: NextRequest) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any
-    const role = String(decoded.role || '').toUpperCase()
-    const allowed = ['ADMIN','TECHNICIAN','PRODUCT_MANAGER'].includes(role)
-    if (!allowed) return { ok: false, status: 403, error: 'Accès refusé' as const, userId: null }
-    return { ok: true, userId: decoded.id || decoded.userId }
+    const { role, userId } = await requireAuth(request)
+    const allowed = ['ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
+    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const, userId: null }
+    return { ok: true as const, userId }
   } catch {
-    return { ok: false, status: 401, error: 'Token invalide' as const, userId: null }
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const, userId: null }
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const auth = requireAuth(request)
+    const auth = await requireInterventionSubmitAccess(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
     
     const body = await request.json()
