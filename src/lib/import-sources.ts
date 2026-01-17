@@ -37,6 +37,76 @@ export interface ImportItem {
   totalRated?: number
 }
 
+function getApifyToken(config?: ImportConfig): string | undefined {
+  return config?.apiKey || process.env.APIFY_API_KEY || process.env.APIFY_TOKEN
+}
+
+async function waitForApifyRun(runId: string, apiKey: string, maxWaitMs = 120000) {
+  const startTime = Date.now()
+  let attempts = 0
+  const maxAttempts = Math.ceil(maxWaitMs / 2000)
+
+  while (attempts < maxAttempts && (Date.now() - startTime) < maxWaitMs) {
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    attempts++
+
+    const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    })
+
+    if (!statusResponse.ok) {
+      continue
+    }
+
+    const status = await statusResponse.json()
+    const runStatus = status.data?.status
+    if (runStatus === 'SUCCEEDED') return status.data
+    if (runStatus === 'FAILED' || runStatus === 'ABORTED') {
+      throw new Error(`Le run Apify a échoué avec le statut: ${runStatus}`)
+    }
+  }
+
+  throw new Error('Timeout: le run Apify prend trop de temps')
+}
+
+export async function importFromApifyRun(
+  runId: string,
+  limit: number,
+  config: ImportConfig
+): Promise<ProductSearchResult> {
+  const apiKey = getApifyToken(config)
+  if (!apiKey) {
+    throw new Error('APIFY_API_KEY (ou APIFY_TOKEN) est requis. Obtenez votre clé sur https://apify.com')
+  }
+
+  // Récupérer le run (et attendre si nécessaire)
+  const runData = await waitForApifyRun(runId, apiKey)
+  const datasetId = runData?.defaultDatasetId
+  if (!datasetId) {
+    throw new Error('Dataset ID introuvable dans la réponse Apify')
+  }
+
+  const resultsResponse = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items`, {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  })
+
+  if (!resultsResponse.ok) {
+    throw new Error(`Erreur lors de la récupération des résultats: ${resultsResponse.status}`)
+  }
+
+  const results = await resultsResponse.json()
+  const normalizedItems = results
+    .slice(0, limit)
+    .map(normalizeApifyItem)
+    .filter((item: any): item is ImportItem => Boolean(item && item.name && item.productUrl))
+
+  return {
+    items: normalizedItems,
+    total: normalizedItems.length,
+    hasMore: results.length > limit
+  }
+}
+
 /**
  * Import depuis RapidAPI (actuel)
  */
@@ -92,9 +162,9 @@ export async function importFromApify(
   limit: number,
   config: ImportConfig
 ): Promise<ProductSearchResult> {
-  const apiKey = config.apiKey || process.env.APIFY_API_KEY
+  const apiKey = getApifyToken(config)
   if (!apiKey) {
-    throw new Error('APIFY_API_KEY est requis. Obtenez votre clé sur https://apify.com')
+    throw new Error('APIFY_API_KEY (ou APIFY_TOKEN) est requis. Obtenez votre clé sur https://apify.com')
   }
 
   // Actor Apify pour AliExpress
@@ -145,49 +215,9 @@ export async function importFromApify(
     throw new Error('Impossible de créer le run Apify')
   }
 
-  // Attendre que le run soit terminé (polling avec timeout)
-  const maxWaitTime = 120000 // 2 minutes max
-  const startTime = Date.now()
-  let finished = false
-  let attempts = 0
-  const maxAttempts = 60
-
-  while (!finished && attempts < maxAttempts && (Date.now() - startTime) < maxWaitTime) {
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    attempts++
-
-    try {
-      const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` }
-      })
-
-      if (!statusResponse.ok) {
-        throw new Error(`Erreur lors de la vérification du statut: ${statusResponse.status}`)
-      }
-
-      const status = await statusResponse.json()
-      const runStatus = status.data?.status
-
-      if (runStatus === 'SUCCEEDED') {
-        finished = true
-      } else if (runStatus === 'FAILED' || runStatus === 'ABORTED') {
-        throw new Error(`Le run Apify a échoué avec le statut: ${runStatus}`)
-      }
-      // Sinon, continuer à attendre (RUNNING, READY, etc.)
-    } catch (error: any) {
-      if (error.message.includes('échoué')) {
-        throw error
-      }
-      // Continuer à essayer en cas d'erreur réseau temporaire
-    }
-  }
-
-  if (!finished) {
-    throw new Error('Timeout: le run Apify prend trop de temps')
-  }
-
-  // Récupérer les résultats depuis le dataset
-  const datasetId = run.data.defaultDatasetId
+  // Attendre que le run soit terminé puis récupérer le dataset
+  const runData = await waitForApifyRun(runId, apiKey)
+  const datasetId = runData?.defaultDatasetId
   if (!datasetId) {
     throw new Error('Dataset ID introuvable dans la réponse Apify')
   }

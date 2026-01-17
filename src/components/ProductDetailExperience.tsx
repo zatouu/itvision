@@ -1047,12 +1047,12 @@ Merci de me recontacter.`
                         </div>
                       ) : reviews.length === 0 ? (
                         <div className="text-center py-12">
-                          <p className="text-gray-600">Aucun avis pour le moment.</p>
-                          <p className="text-sm text-gray-500 mt-2">Soyez le premier à laisser un avis !</p>
+                          <p className="text-gray-600 dark:text-gray-300">Aucun avis pour le moment.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Soyez le premier à laisser un avis !</p>
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
+                          <div className="flex items-center gap-6 pb-6 border-b border-gray-200 dark:border-gray-800">
                             <div className="text-center">
                               <div className="text-5xl font-bold text-emerald-600">{averageRating.toFixed(1)}</div>
                               <div className="flex items-center justify-center gap-1 mt-2">
@@ -1063,17 +1063,17 @@ Merci de me recontacter.`
                                       'h-5 w-5',
                                       star <= Math.round(averageRating)
                                         ? 'text-yellow-400 fill-yellow-400'
-                                        : 'text-gray-300'
+                                        : 'text-gray-300 dark:text-gray-600'
                                     )}
                                   />
                                 ))}
                               </div>
-                              <div className="text-sm text-gray-500 mt-2">{reviews.length} avis</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">{reviews.length} avis</div>
                             </div>
                           </div>
                           <div className="space-y-4">
                             {reviews.map((review) => (
-                              <div key={review.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                              <div key={review.id} className="bg-gray-50 dark:bg-gray-950/40 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
@@ -1081,9 +1081,9 @@ Merci de me recontacter.`
                                     </div>
                                     <div>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-gray-900">{review.userName}</span>
+                                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{review.userName}</span>
                                         {review.verified && (
-                                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                                          <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 text-xs font-medium rounded-full">
                                             Vérifié
                                           </span>
                                         )}
@@ -1096,21 +1096,21 @@ Merci de me recontacter.`
                                               'h-3 w-3',
                                               star <= review.rating
                                                 ? 'text-yellow-400 fill-yellow-400'
-                                                : 'text-gray-300'
+                                                : 'text-gray-300 dark:text-gray-600'
                                             )}
                                           />
                                         ))}
                                       </div>
                                     </div>
                                   </div>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
                                     {new Date(review.createdAt).toLocaleDateString('fr-FR')}
                                   </span>
                                 </div>
                                 {review.title && (
-                                  <h4 className="text-base font-semibold text-gray-900 mb-2">{review.title}</h4>
+                                  <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-2">{review.title}</h4>
                                 )}
-                                <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                                <p className="text-gray-700 dark:text-gray-200 leading-relaxed">{review.comment}</p>
                               </div>
                             ))}
                           </div>
@@ -1139,9 +1139,9 @@ Merci de me recontacter.`
                     </span>
                   )}
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{product.name}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{product.name}</h1>
                 {product.tagline && (
-                  <p className="text-sm text-gray-600 mt-1">{product.tagline}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{product.tagline}</p>
                 )}
               </div>
 
@@ -1155,11 +1155,11 @@ Merci de me recontacter.`
               />
 
               {/* Actions secondaires compactes */}
-              <div className="flex items-center gap-2 text-xs pt-4 mt-4 border-t border-gray-100">
-                <button onClick={handleExportPDF} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Télécharger PDF">
+              <div className="flex items-center gap-2 text-xs pt-4 mt-4 border-t border-gray-100 dark:border-gray-800">
+                <button onClick={handleExportPDF} className="flex items-center gap-1 px-2 py-1 border border-gray-200 dark:border-gray-800 rounded hover:bg-gray-50 dark:hover:bg-gray-800" title="Télécharger PDF">
                   <FileDown className="h-3 w-3" /> PDF
                 </button>
-                <button onClick={() => handleShare('copy')} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Copier le lien">
+                <button onClick={() => handleShare('copy')} className="flex items-center gap-1 px-2 py-1 border border-gray-200 dark:border-gray-800 rounded hover:bg-gray-50 dark:hover:bg-gray-800" title="Copier le lien">
                   <Share2 className="h-3 w-3" /> Lien
                 </button>
               </div>
@@ -1170,7 +1170,7 @@ Merci de me recontacter.`
         {/* Produits similaires */}
         {similar.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Produits similaires</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Produits similaires</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {similar.map((item) => {
                 const Icon = shippingIcon(item.shippingOptions[0]?.id)
@@ -1181,9 +1181,9 @@ Merci de me recontacter.`
                   <Link
                     key={item.id}
                     href={`/produits/${item.id}`}
-                    className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden hover:border-emerald-300 hover:shadow-lg transition-all group"
+                    className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden hover:border-emerald-300 dark:hover:border-emerald-600/40 hover:shadow-lg transition-all group"
                   >
-                    <div className="relative aspect-square bg-gray-100">
+                    <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
                       <Image
                         src={item.image || '/file.svg'}
                         alt={item.name}
@@ -1193,9 +1193,9 @@ Merci de me recontacter.`
                       />
                     </div>
                     <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">{item.name}</h3>
-                      <div className="text-lg font-bold text-emerald-600 mb-2">{itemPrice || 'Sur devis'}</div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">{item.name}</h3>
+                      <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mb-2">{itemPrice || 'Sur devis'}</div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <Icon className="h-3 w-3" />
                         <span>{item.availabilityLabel || (item.availabilityStatus === 'in_stock' ? 'Stock Dakar' : 'Commande Chine')}</span>
                       </div>
@@ -1222,7 +1222,7 @@ Merci de me recontacter.`
             }}
           >
             <motion.div
-              className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+              className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 p-6 shadow-2xl"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1230,8 +1230,8 @@ Merci de me recontacter.`
             >
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Négocier avec un conseiller</h3>
-                  <p className="text-sm text-gray-600 mt-1">Partagez vos conditions (quantités, délais, transport préféré).</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Négocier avec un conseiller</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Partagez vos conditions (quantités, délais, transport préféré).</p>
                 </div>
                 <button
                   type="button"
@@ -1239,7 +1239,7 @@ Merci de me recontacter.`
                     setShowNegotiation(false)
                     setNegotiationStatus('idle')
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1248,10 +1248,10 @@ Merci de me recontacter.`
                 value={negotiationMessage}
                 onChange={(e) => setNegotiationMessage(e.target.value)}
                 rows={4}
-                className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none resize-none"
+                className="w-full rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-3 focus:border-emerald-500 focus:outline-none resize-none"
               />
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Produit : {product.name}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Produit : {product.name}</span>
                 <button
                   type="button"
                   onClick={handleNegotiationSubmit}

@@ -33,6 +33,10 @@ interface BulkImportResult {
   error?: string
 }
 
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback
+}
+
 export default function ImportProduitsPage() {
   return (
     <ProtectedPage requiredRole={['ADMIN', 'PRODUCT_MANAGER']}>
@@ -47,6 +51,7 @@ function ImportProduitsContent() {
   const [activeTab, setActiveTab] = useState<'search' | 'url' | 'bulk'>('search')
   const [keyword, setKeyword] = useState('')
   const [limit, setLimit] = useState(6)
+  const [apifyRunId, setApifyRunId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
@@ -91,8 +96,41 @@ function ImportProduitsContent() {
       if (data.items && data.items.length === 0) {
         setFeedback('Aucun résultat trouvé. Essayez un autre mot-clé.')
       }
-    } catch (err: any) {
-      setDialogError(err?.message || 'Erreur lors de la recherche AliExpress')
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors de la recherche AliExpress'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLoadFromApifyRun = async () => {
+    if (!apifyRunId.trim()) {
+      setDialogError('Veuillez coller un runId Apify (ou une URL de run)')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setResults([])
+    setFeedback(null)
+
+    try {
+      const response = await fetch(
+        `/api/apify/run?runId=${encodeURIComponent(apifyRunId.trim())}&limit=${limit}`,
+        { credentials: 'include' }
+      )
+
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors du chargement Apify')
+      }
+
+      setResults(data.items || [])
+      if (!data.items || data.items.length === 0) {
+        setFeedback('Run Apify chargé, mais aucun item exploitable trouvé.')
+      }
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors du chargement Apify'))
     } finally {
       setLoading(false)
     }
@@ -125,8 +163,8 @@ function ImportProduitsContent() {
       setImportedIds(prev => new Set(prev).add(itemId))
       setFeedback(data.action === 'updated' ? 'Produit mis à jour avec succès' : 'Produit importé avec succès')
       setTimeout(() => setFeedback(null), 3000)
-    } catch (err: any) {
-      setDialogError(err?.message || 'Erreur lors de l\'import')
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors de l\'import'))
     } finally {
       setImportingIds(prev => {
         const next = new Set(prev)
@@ -159,8 +197,8 @@ function ImportProduitsContent() {
       } else {
         setDialogError(data.error || 'Impossible de prévisualiser le produit')
       }
-    } catch (err: any) {
-      setDialogError(err?.message || 'Erreur lors de la prévisualisation')
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors de la prévisualisation'))
     } finally {
       setPreviewLoading(false)
     }
@@ -187,8 +225,8 @@ function ImportProduitsContent() {
       } else {
         setDialogError(data.error || 'Erreur lors de l\'import')
       }
-    } catch (err: any) {
-      setDialogError(err?.message || 'Erreur lors de l\'import')
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors de l\'import'))
     } finally {
       setLoading(false)
     }
@@ -240,8 +278,8 @@ function ImportProduitsContent() {
         const okCount = res.filter(r => r.ok).length
         setFeedback(`${okCount} succès / ${res.length} URLs traitées`)
       }
-    } catch (err: any) {
-      setDialogError(err?.message || 'Erreur lors de l\'import en masse')
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors de l\'import en masse'))
     } finally {
       setBulkLoading(false)
     }
@@ -278,9 +316,9 @@ function ImportProduitsContent() {
           errorCount++
           setDialogError(data.error || 'Erreur lors de l\'import')
         }
-      } catch (err: any) {
+      } catch (err) {
         errorCount++
-        setDialogError(err?.message || 'Erreur lors de l\'import')
+        setDialogError(getErrorMessage(err, 'Erreur lors de l\'import'))
       }
     }
 
@@ -416,6 +454,35 @@ function ImportProduitsContent() {
                   Rechercher
                 </button>
               </form>
+            </div>
+
+            {/* Apify run loader */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Charger depuis un run Apify</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Collez un <strong>runId</strong> ou une <strong>URL</strong> de run Apify. Le token Apify doit être configuré côté serveur via <code className="bg-gray-100 px-1 rounded">APIFY_API_KEY</code> (ou <code className="bg-gray-100 px-1 rounded">APIFY_TOKEN</code>).
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Run Apify</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    placeholder="Ex: saZDhyZ1GgVmUKsw9 (ou URL complète)"
+                    value={apifyRunId}
+                    onChange={e => setApifyRunId(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLoadFromApifyRun}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-6 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Charger
+                </button>
+              </div>
             </div>
 
             {/* Results */}

@@ -179,24 +179,24 @@ export default function ImageSearchModal({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-gray-950 dark:to-gray-900">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 rounded-xl">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
                   <Camera className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Recherche par image</h2>
-                  <p className="text-sm text-gray-500">Trouvez des produits similaires dans notre catalogue</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Recherche par image</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-300">Trouvez des produits similaires dans notre catalogue</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleClose}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -210,8 +210,8 @@ export default function ImageSearchModal({
                   className={clsx(
                     'relative border-2 border-dashed rounded-2xl p-8 text-center transition-all',
                     dragActive
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-300 hover:border-emerald-400 hover:bg-gray-50'
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10'
+                      : 'border-gray-300 dark:border-gray-700 hover:border-emerald-400 hover:bg-gray-50 dark:hover:bg-gray-800/40'
                   )}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
@@ -229,7 +229,7 @@ export default function ImageSearchModal({
                   <div className="flex flex-col items-center gap-4">
                     <div className={clsx(
                       'p-4 rounded-full transition-colors',
-                      dragActive ? 'bg-emerald-100' : 'bg-gray-100'
+                      dragActive ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-800'
                     )}>
                       <Upload className={clsx(
                         'h-8 w-8',
@@ -238,15 +238,15 @@ export default function ImageSearchModal({
                     </div>
                     
                     <div>
-                      <p className="text-base font-semibold text-gray-700 mb-1">
+                      <p className="text-base font-semibold text-gray-700 dark:text-gray-200 mb-1">
                         Glissez une image ici
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         ou <span className="text-emerald-600 font-medium">cliquez pour parcourir</span>
                       </p>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                       <ImageIcon className="h-4 w-4" />
                       <span>JPG, PNG, WebP • Max 5 Mo</span>
                     </div>
@@ -255,7 +255,7 @@ export default function ImageSearchModal({
               ) : (
                 /* Aperçu de l'image sélectionnée */
                 <div className="space-y-4">
-                  <div className="relative aspect-video max-h-[300px] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  <div className="relative aspect-video max-h-[300px] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                     <img
                       src={selectedImage}
                       alt="Image à rechercher"
@@ -264,9 +264,9 @@ export default function ImageSearchModal({
                     <button
                       type="button"
                       onClick={resetSearch}
-                      className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-full shadow-md transition-colors"
+                      className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-900/80 hover:bg-white dark:hover:bg-gray-900 rounded-full shadow-md transition-colors"
                     >
-                      <X className="h-4 w-4 text-gray-600" />
+                      <X className="h-4 w-4 text-gray-600 dark:text-gray-200" />
                     </button>
                   </div>
 
@@ -307,7 +307,7 @@ export default function ImageSearchModal({
                 <div className="mt-6">
                   <div className="flex items-center gap-2 mb-4">
                     <CheckCircle className="h-5 w-5 text-emerald-500" />
-                    <h3 className="font-semibold text-gray-900">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
                       {results.length} produit{results.length > 1 ? 's' : ''} similaire{results.length > 1 ? 's' : ''} trouvé{results.length > 1 ? 's' : ''}
                     </h3>
                   </div>
@@ -317,9 +317,9 @@ export default function ImageSearchModal({
                       <a
                         key={result.id}
                         href={`/produits/${result.id}`}
-                        className="group bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 rounded-xl p-3 transition-all"
+                        className="group bg-gray-50 dark:bg-gray-950/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-600/40 rounded-xl p-3 transition-all"
                       >
-                        <div className="relative aspect-square mb-2 rounded-lg overflow-hidden bg-white">
+                        <div className="relative aspect-square mb-2 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
                           {result.image ? (
                             <img
                               src={result.image}
@@ -328,7 +328,7 @@ export default function ImageSearchModal({
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <ImageIcon className="h-8 w-8 text-gray-300" />
+                              <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
                             </div>
                           )}
                           {/* Badge similarité */}
@@ -336,7 +336,7 @@ export default function ImageSearchModal({
                             {result.similarity}%
                           </div>
                         </div>
-                        <p className="text-xs font-medium text-gray-800 line-clamp-2 group-hover:text-emerald-700">
+                        <p className="text-xs font-medium text-gray-800 dark:text-gray-200 line-clamp-2 group-hover:text-emerald-700">
                           {result.name}
                         </p>
                         {result.priceAmount && (
@@ -351,7 +351,7 @@ export default function ImageSearchModal({
                   <button
                     type="button"
                     onClick={resetSearch}
-                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
                   >
                     <Search className="h-4 w-4" />
                     Nouvelle recherche
