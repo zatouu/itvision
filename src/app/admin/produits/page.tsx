@@ -1,7 +1,9 @@
+
 import AdminProductManager from '@/components/AdminProductManager'
 import AdminTabs from '@/components/admin/AdminTabs'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 export default async function AdminProduitsPage() {
   const cookieStore = await cookies()
@@ -25,14 +27,16 @@ export default async function AdminProduitsPage() {
     )
   }
   return (
-    <div>
-      <div className="mb-4">
-        <AdminTabs context="services" />
+    <ErrorBoundary>
+      <div>
+        <div className="mb-4">
+          <AdminTabs context="services" />
+        </div>
+        <section>
+          <AdminProductManager />
+        </section>
       </div>
-      <section>
-        <AdminProductManager />
-      </section>
-    </div>
+    </ErrorBoundary>
   )
 }
 

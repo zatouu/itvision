@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -38,6 +39,36 @@ interface OrderDetails {
 }
 
 export default function OrderConfirmationPage() {
+    const [groupBuyProducts, setGroupBuyProducts] = useState<any[]>([])
+    const [similarProducts, setSimilarProducts] = useState<any[]>([])
+    const [loadingSuggestions, setLoadingSuggestions] = useState(true)
+
+    // Suggestions produits (group buy + similaires)
+    const fetchSuggestions = useCallback(async (order: OrderDetails | null) => {
+      if (!order) return
+      setLoadingSuggestions(true)
+      try {
+        // Groupes d'achat en cours
+        const groupRes = await fetch('/api/catalog/products?onlyGroupBuy=1&limit=6')
+        const groupData = await groupRes.json()
+        setGroupBuyProducts(groupData.items || [])
+
+        // Produits similaires (même catégorie que le 1er article)
+        const firstCat = order.items?.[0]?.category || ''
+        if (firstCat) {
+          const simRes = await fetch(`/api/catalog/products?category=${encodeURIComponent(firstCat)}&limit=6`)
+          const simData = await simRes.json()
+          setSimilarProducts((simData.items || []).filter((p:any) => !order.items.some((it:any) => it.id === p._id)))
+        } else {
+          setSimilarProducts([])
+        }
+      } catch (e) {
+        setGroupBuyProducts([])
+        setSimilarProducts([])
+      } finally {
+        setLoadingSuggestions(false)
+      }
+    }, [])
   const params = useParams()
   const searchParams = useSearchParams()
   const orderId = params?.orderId as string
@@ -97,6 +128,14 @@ export default function OrderConfirmationPage() {
     }
 
     fetchOrder()
+    // Suggestions après chargement commande
+    // eslint-disable-next-line
+  }, [orderId, token])
+
+  useEffect(() => {
+    if (order) fetchSuggestions(order)
+    // eslint-disable-next-line
+  }, [order])
   }, [orderId, token])
 
   const formatCurrency = (amount: number, currency = 'FCFA') =>
@@ -171,6 +210,68 @@ export default function OrderConfirmationPage() {
           <Loader2 className="h-12 w-12 animate-spin text-emerald-600 mx-auto mb-4" />
           <p className="text-gray-600 font-medium">Chargement de votre commande...</p>
         </motion.div>
+          {/* Groupes d'achat en cours */}
+          <div className="max-w-5xl mx-auto p-4 md:p-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="mb-12"
+            >
+              <h2 className="text-2xl font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                <Sparkles className="w-6 h-6 text-emerald-500" /> Groupes d'achat en cours
+              </h2>
+              {loadingSuggestions ? (
+                <div className="text-gray-500 py-8 text-center">Chargement…</div>
+              ) : groupBuyProducts.length === 0 ? (
+                <div className="text-gray-400 py-8 text-center">Aucun groupe d'achat en cours actuellement.</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {groupBuyProducts.map((p:any) => (
+                    <div key={p._id} className="bg-white rounded-xl border border-emerald-100 shadow p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-lg text-gray-900 mb-1 line-clamp-2">{p.name}</div>
+                        <div className="text-sm text-gray-600 mb-2">{p.category}</div>
+                        <div className="text-xs text-emerald-700 mb-2">À partir de {p.groupBuyBestPrice?.toLocaleString('fr-FR')} FCFA</div>
+                        <div className="text-xs text-gray-500 mb-2">{p.groupBuyDiscount ? `Jusqu'à -${p.groupBuyDiscount}%` : ''}</div>
+                      </div>
+                      <button onClick={() => window.location.href = `/produits/${p._id}?groupbuy=1`} className="mt-2 w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white py-2 rounded-lg font-semibold transition">Rejoindre le groupe</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Produits similaires */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 }}
+              className="mb-12"
+            >
+              <h2 className="text-2xl font-bold text-blue-700 mb-4 flex items-center gap-2">
+                <Sparkles className="w-6 h-6 text-blue-500" /> Produits similaires
+              </h2>
+              {loadingSuggestions ? (
+                <div className="text-gray-500 py-8 text-center">Chargement…</div>
+              ) : similarProducts.length === 0 ? (
+                <div className="text-gray-400 py-8 text-center">Aucun produit similaire trouvé.</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {similarProducts.map((p:any) => (
+                    <div key={p._id} className="bg-white rounded-xl border border-blue-100 shadow p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-lg text-gray-900 mb-1 line-clamp-2">{p.name}</div>
+                        <div className="text-sm text-gray-600 mb-2">{p.category}</div>
+                        <div className="text-xs text-emerald-700 mb-2">{p.price?.toLocaleString('fr-FR')} FCFA</div>
+                      </div>
+                      <button onClick={() => window.location.href = `/produits/${p._id}` } className="mt-2 w-full bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white py-2 rounded-lg font-semibold transition">Voir le produit</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </div>
       </div>
     )
   }

@@ -1,3 +1,5 @@
+import dynamic from 'next/dynamic'
+const GroupBuyPaymentModal = dynamic(() => import('@/components/GroupBuyPaymentModal'), { ssr: false })
 "use client"
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
@@ -38,6 +40,8 @@ import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
 export default function PanierPage() {
+    const [showPayment, setShowPayment] = useState(false)
+    const [orderInfo, setOrderInfo] = useState<any>(null)
   const router = useRouter()
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
@@ -288,10 +292,39 @@ export default function PanierPage() {
       if (res.ok && data.success) {
         localStorage.removeItem('cart:items')
         setItems([])
-        router.push(data.confirmationUrl || `/commandes/${data.orderId}`)
+        setOrderInfo({
+          orderId: data.orderId,
+          name,
+          phone,
+          email,
+          items,
+          total: breakdown.total
+        })
+        setShowPayment(true)
       } else {
         alert('Erreur: ' + (data.error || 'erreur inconnue'))
       }
+      // Rendu du modal de paiement après commande
+      const handleClosePayment = () => {
+        setShowPayment(false)
+        if (orderInfo?.orderId) {
+          router.push(`/commandes/${orderInfo.orderId}`)
+        }
+        setOrderInfo(null)
+      }
+      {/* Modal paiement */}
+      {showPayment && orderInfo && (
+        <GroupBuyPaymentModal
+          isOpen={showPayment}
+          onClose={handleClosePayment}
+          groupId={orderInfo.orderId}
+          productName={orderInfo.items.map((it:any)=>it.name).join(', ')}
+          quantity={orderInfo.items.reduce((acc:any,it:any)=>acc+(it.qty||1),0)}
+          unitPrice={Math.round(orderInfo.total/orderInfo.items.reduce((acc:any,it:any)=>acc+(it.qty||1),0))}
+          phone={orderInfo.phone}
+          email={orderInfo.email}
+        />
+      )}
     } catch (e) {
       console.error(e)
       alert('Erreur lors de l envoi')
