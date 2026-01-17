@@ -295,38 +295,49 @@ function ImportProduitsContent() {
     setDialogError(null)
     setFeedback(null)
 
-    let successCount = 0
-    let errorCount = 0
+    try {
+      const itemsToImport = results.filter(item => {
+        const itemId = item.productId || item.productUrl
+        return !importedIds.has(itemId)
+      })
 
-    for (const item of results) {
-      const itemId = item.productId || item.productUrl
-      if (importedIds.has(itemId)) continue
-
-      try {
-        const response = await fetch('/api/products/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ item })
-        })
-
-        const data = await response.json()
-        if (data.success) {
-          successCount++
-          setImportedIds(prev => new Set(prev).add(itemId))
-        } else {
-          errorCount++
-          setDialogError(data.error || 'Erreur lors de l\'import')
-        }
-      } catch (err) {
-        errorCount++
-        setDialogError(getErrorMessage(err, 'Erreur lors de l\'import'))
+      if (itemsToImport.length === 0) {
+        setFeedback('Tous les produits sont déjà importés.')
+        return
       }
-    }
 
-    setFeedback(`${successCount} produit(s) importé(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`)
-    setTimeout(() => setFeedback(null), 5000)
-    setLoading(false)
+      const response = await fetch('/api/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ items: itemsToImport })
+      })
+
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de l\'import en masse')
+      }
+
+      const res = Array.isArray(data.results) ? (data.results as Array<{ productUrl: string; ok: boolean }>) : []
+      const okCount = res.filter(r => r.ok).length
+      const koCount = res.length - okCount
+
+      setImportedIds(prev => {
+        const next = new Set(prev)
+        for (const item of itemsToImport) {
+          const itemId = item.productId || item.productUrl
+          next.add(itemId)
+        }
+        return next
+      })
+
+      setFeedback(`${okCount} produit(s) importé(s) avec succès${koCount > 0 ? `, ${koCount} échec(s)` : ''}`)
+      setTimeout(() => setFeedback(null), 5000)
+    } catch (err) {
+      setDialogError(getErrorMessage(err, 'Erreur lors de l\'import en masse'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
