@@ -1,6 +1,5 @@
+"use client"
 import { useCallback } from 'react'
-'use client'
-
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -19,7 +18,8 @@ import {
   X,
   ChevronRight,
   Download,
-  Copy
+  Copy,
+  Sparkles
 } from 'lucide-react'
 
 interface OrderDetails {
@@ -127,16 +127,17 @@ export default function OrderConfirmationPage() {
       }
     }
 
+
     fetchOrder()
     // Suggestions après chargement commande
     // eslint-disable-next-line
+    // (le useEffect suivant gère fetchSuggestions)
   }, [orderId, token])
 
   useEffect(() => {
     if (order) fetchSuggestions(order)
     // eslint-disable-next-line
   }, [order])
-  }, [orderId, token])
 
   const formatCurrency = (amount: number, currency = 'FCFA') =>
     `${amount.toLocaleString('fr-FR')} ${currency}`
