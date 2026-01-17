@@ -65,9 +65,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const similar = formatSimilarProducts(similarRaw, shippingRates)
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <Header />
-      <main className="pt-[120px] bg-gradient-to-b from-gray-50 to-white">
+      <main className="pt-[120px] bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-950">
         <ProductDetailExperience product={detail} similar={similar} />
       </main>
       <Footer />

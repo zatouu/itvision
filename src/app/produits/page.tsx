@@ -1175,7 +1175,7 @@ export default function ProduitsPage() {
 
   return (
     <ErrorBoundary>
-      <main>
+      <main className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
         <Header />
         {/* Local cart icon for produits page */}
         <div className="fixed right-4 bottom-4 z-40">
@@ -1184,7 +1184,7 @@ export default function ProduitsPage() {
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
       {/* Hero Section avec Cartes de Fonctionnalités */}
-      <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 page-content pt-24 pb-12 mt-16 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-gray-950 dark:via-gray-950 dark:to-emerald-950/20 page-content pt-24 pb-12 mt-16 overflow-hidden">
         {/* Effets de fond subtils */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 right-20 w-72 h-72 bg-emerald-100/40 rounded-full blur-3xl"></div>
@@ -1194,10 +1194,10 @@ export default function ProduitsPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header minimaliste */}
           <div className="text-center mb-10">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3">
               Catalogue <span className="text-emerald-600">Pro</span>
             </h1>
-            <p className="text-lg text-gray-500 max-w-xl mx-auto">
+            <p className="text-lg text-gray-500 dark:text-gray-300 max-w-xl mx-auto">
               Equipement • Import direct • Prix compétitifs
               description: 'pour tout type de produit',
               description: 'pour tout type de produit',
@@ -1207,39 +1207,39 @@ export default function ProduitsPage() {
           {/* Cartes de fonctionnalités épurées */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {/* Carte 1 - Import Direct */}
-            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-emerald-200 transition-all duration-300">
+            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-emerald-200 dark:hover:border-emerald-500/50 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Package className="h-6 w-6 text-emerald-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Import Direct</h3>
-              <p className="text-sm text-gray-500">Chine → Dakar sans intermédiaire</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Import Direct</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Chine → Dakar sans intermédiaire</p>
             </div>
             
             {/* Carte 2 - Marques Premium */}
-            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-500/50 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Star className="h-6 w-6 text-blue-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Marques Leaders</h3>
-              <p className="text-sm text-gray-500">Hikvision, Dahua, Uniview</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Marques Leaders</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Hikvision, Dahua, Uniview</p>
             </div>
             
             {/* Carte 3 - Livraison Express */}
-            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-orange-200 transition-all duration-300">
+            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-500/50 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Clock className="h-6 w-6 text-orange-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Express 3 Jours</h3>
-              <p className="text-sm text-gray-500">Ou maritime économique 60j</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Express 3 Jours</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ou maritime économique 60j</p>
             </div>
             
             {/* Carte 4 - Garantie */}
-            <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
+            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-purple-200 dark:hover:border-purple-500/50 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Shield className="h-6 w-6 text-purple-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Garantie & SAV</h3>
-              <p className="text-sm text-gray-500">Installation Dakar incluse</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Garantie & SAV</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Installation Dakar incluse</p>
             </div>
           </div>
           
@@ -1303,7 +1303,7 @@ export default function ProduitsPage() {
       )}
 
       {/* Products Sections with sidebar filters */}
-      <section className="py-12 bg-gradient-to-b from-white to-gray-50">
+      <section className="py-12 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Mobile filter bar */}
           <div className="lg:hidden mb-4 flex items-center justify-between">
@@ -1311,18 +1311,18 @@ export default function ProduitsPage() {
               value={search}
               onChange={(e)=>setSearch(e.target.value)}
               placeholder="Rechercher un produit..."
-              className="flex-1 border rounded-lg px-3 py-2 text-sm mr-2"
+              className="flex-1 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-3 py-2 text-sm mr-2"
             />
             <ImageSearchButton onClick={() => setShowImageSearch(true)} />
-            <button onClick={()=>setShowFilters(true)} className="px-3 py-2 border rounded-lg text-sm ml-2">Filtres</button>
+            <button onClick={()=>setShowFilters(true)} className="px-3 py-2 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg text-sm ml-2">Filtres</button>
           </div>
 
           <div className="flex gap-6">
             {/* Sidebar Filters Moderne */}
             <aside className="w-72 hidden lg:block">
               <div className="sticky top-24 space-y-4">
-                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
                     <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
@@ -1332,7 +1332,7 @@ export default function ProduitsPage() {
                     value={search}
                     onChange={(e)=>setSearch(e.target.value)}
                     placeholder="Rechercher un produit..."
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all mb-3"
+                    className="w-full border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-xl px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all mb-3"
                   />
                   {/* Bouton recherche par image */}
                   <ImageSearchButton onClick={() => setShowImageSearch(true)} />
@@ -1353,20 +1353,20 @@ export default function ProduitsPage() {
                 </div>
                 
                 {/* Filtres avancés */}
-                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg flex items-center gap-2">
                     <ArrowUpDown className="h-5 w-5 text-emerald-600" />
                     Filtres avancés
                   </h3>
                   
                   {/* Prix */}
                   <div className="mb-4">
-                    <label className="block text-xs font-medium text-gray-700 mb-2">Prix (FCFA)</label>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-2">Prix (FCFA)</label>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="number"
                         placeholder="Min"
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
                         value={priceRange ? (priceRange.min > 0 ? String(priceRange.min) : '') : ''}
                         onChange={(e) => {
                           const min = e.target.value ? parseInt(e.target.value) : 0
@@ -1376,7 +1376,7 @@ export default function ProduitsPage() {
                       <input
                         type="number"
                         placeholder="Max"
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
                         value={priceRange ? (priceRange.max < 999999999 ? String(priceRange.max) : '') : ''}
                         onChange={(e) => {
                           const max = e.target.value ? parseInt(e.target.value) : 999999999
@@ -1396,12 +1396,12 @@ export default function ProduitsPage() {
                   
                   {/* Délai */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">Délai (jours)</label>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-2">Délai (jours)</label>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="number"
                         placeholder="Min"
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
                         value={deliveryRange ? (deliveryRange.min > 0 ? String(deliveryRange.min) : '') : ''}
                         onChange={(e) => {
                           const min = e.target.value ? parseInt(e.target.value) : 0
@@ -1411,7 +1411,7 @@ export default function ProduitsPage() {
                       <input
                         type="number"
                         placeholder="Max"
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
                         value={deliveryRange ? (deliveryRange.max < 999 ? String(deliveryRange.max) : '') : ''}
                         onChange={(e) => {
                           const max = e.target.value ? parseInt(e.target.value) : 999
@@ -1429,14 +1429,14 @@ export default function ProduitsPage() {
                     )}
                   </div>
                 </div>
-                <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm flex items-center gap-2">
                     <Package className="h-4 w-4 text-emerald-600" />
                     Catégories
                   </h3>
                   <div className="space-y-1 text-xs max-h-48 overflow-y-auto scrollbar-hide">
                     {Array.from(new Set(products.map(p => p.category || 'Catalogue import Chine'))).map((category) => (
-                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={selected.includes(category)}
@@ -1445,56 +1445,56 @@ export default function ProduitsPage() {
                           }}
                           className="w-3.5 h-3.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                         />
-                        <span className="text-gray-700">{category}</span>
+                        <span className="text-gray-700 dark:text-gray-200">{category}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
                     <Star className="h-5 w-5 text-emerald-600" />
                     Tarif
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                       <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
-                      <span className="font-medium text-gray-700">Avec prix</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Avec prix</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                       <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
-                      <span className="font-medium text-gray-700">Sur devis</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Sur devis</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                       <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
-                      <span className="font-medium text-gray-700">Achat groupé uniquement</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Achat groupé uniquement</span>
                     </label>
                   </div>
                 </div>
-                <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-emerald-600" />
                     Disponibilité
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                       <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
-                      <span className="font-medium text-gray-700">Tous</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Tous</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                       <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
-                      <span className="font-medium text-gray-700">En stock</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-200">En stock</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
                       <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
-                      <span className="font-medium text-gray-700">Sur commande</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Sur commande</span>
                     </label>
                   </div>
                 </div>
                 {/* Filtres sauvegardés */}
-                <div className="bg-white border rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">Filtres sauvegardés</h3>
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Filtres sauvegardés</h3>
                   {savedFilters.length === 0 ? (
-                    <p className="text-xs text-gray-500">Aucun filtre sauvegardé pour le moment.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Aucun filtre sauvegardé pour le moment.</p>
                   ) : (
                     <div className="space-y-2">
                       {savedFilters.map((saved, index) => (

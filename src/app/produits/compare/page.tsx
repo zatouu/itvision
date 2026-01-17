@@ -103,9 +103,9 @@ function CompareContent() {
 
   if (loading) {
     return (
-      <main>
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <Header />
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
         <Footer />
@@ -115,9 +115,9 @@ function CompareContent() {
 
   if (error || products.length < 2) {
     return (
-      <main>
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <Header />
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || 'Produits introuvables'}</p>
             <Link
@@ -140,7 +140,7 @@ function CompareContent() {
   )
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <Header />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -148,29 +148,29 @@ function CompareContent() {
         <div className="mb-8">
           <Link
             href="/produits"
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-emerald-600 mb-4"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-emerald-600 mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
             Retour aux produits
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <Package className="h-8 w-8 text-emerald-600" />
             Comparaison de produits
           </h1>
-          <p className="text-gray-600 mt-2">{products.length} produit{products.length > 1 ? 's' : ''} sélectionné{products.length > 1 ? 's' : ''}</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">{products.length} produit{products.length > 1 ? 's' : ''} sélectionné{products.length > 1 ? 's' : ''}</p>
         </div>
 
         {/* Tableau de comparaison */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 w-64">Caractéristiques</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white w-64">Caractéristiques</th>
                   {products.map((product) => (
-                    <th key={product.id} className="px-6 py-4 text-center text-sm font-semibold text-gray-900 min-w-[280px]">
+                    <th key={product.id} className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white min-w-[280px]">
                       <div className="flex flex-col items-center gap-3">
-                        <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                        <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                           <Image
                             src={product.image || '/file.svg'}
                             alt={product.name}
@@ -180,9 +180,9 @@ function CompareContent() {
                           />
                         </div>
                         <div>
-                          <h3 className="font-bold text-gray-900 line-clamp-2">{product.name}</h3>
+                          <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2">{product.name}</h3>
                           {product.tagline && (
-                            <p className="text-xs text-gray-500 mt-1">{product.tagline}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{product.tagline}</p>
                           )}
                         </div>
                         <Link
@@ -196,13 +196,13 @@ function CompareContent() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {/* Prix */}
-                <tr className="bg-emerald-50/50">
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">Prix</td>
+                <tr className="bg-emerald-50/50 dark:bg-emerald-900/10">
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Prix</td>
                   {products.map((product) => (
                     <td key={product.id} className="px-6 py-4 text-center">
-                      <div className="text-2xl font-bold text-emerald-600">
+                      <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                         {product.price 
                           ? `${product.price.toLocaleString('fr-FR')} ${product.currency}`
                           : 'Sur devis'
@@ -214,7 +214,7 @@ function CompareContent() {
 
                 {/* Disponibilité */}
                 <tr>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">Disponibilité</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Disponibilité</td>
                   {products.map((product) => (
                     <td key={product.id} className="px-6 py-4 text-center">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
@@ -229,12 +229,12 @@ function CompareContent() {
                 </tr>
 
                 {/* Délai de livraison */}
-                <tr className="bg-gray-50/50">
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">Délai de livraison</td>
+                <tr className="bg-gray-50/50 dark:bg-gray-950/40">
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Délai de livraison</td>
                   {products.map((product) => (
                     <td key={product.id} className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-700">
-                        <Clock className="h-4 w-4 text-gray-400" />
+                      <div className="flex items-center justify-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         {product.deliveryDays ? `${product.deliveryDays} jours` : 'À définir'}
                       </div>
                     </td>

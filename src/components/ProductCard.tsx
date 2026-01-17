@@ -289,10 +289,10 @@ export default function ProductCard({
   return (
     <div 
       onClick={handleCardClick}
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden group hover:shadow-lg hover:border-emerald-300 transition-all duration-200 h-full flex flex-col cursor-pointer"
+      className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden group hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-500/60 transition-all duration-200 h-full flex flex-col cursor-pointer"
     >
       {/* Image */}
-      <div className="relative aspect-square bg-gray-50">
+      <div className="relative aspect-square bg-gray-50 dark:bg-gray-800">
         <Image
           src={images[activeIndex] || images[0] || '/file.svg'}
           alt={name}
@@ -305,7 +305,7 @@ export default function ProductCard({
         {/* Favoris */}
         <button
           onClick={toggleFavorite}
-          className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors z-10"
+          className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-gray-900 transition-colors z-10"
           aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
           <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
@@ -316,7 +316,7 @@ export default function ProductCard({
       <div className="p-4 flex flex-col flex-1">
         {/* Rating + Badges (compact, sans cacher l'image) */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1 text-xs font-semibold text-gray-700">
+          <div className="flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-200">
             <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
             <span>{rating.toFixed(1)}</span>
           </div>
@@ -351,11 +351,11 @@ export default function ProductCard({
         </div>
 
         {/* Titre */}
-        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
+        <h3 className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
           {name}
         </h3>
         {model && (
-          <p className="text-xs text-gray-500 line-clamp-1 mb-2">{model}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{model}</p>
         )}
 
         {/* Features clés (limitées à 2 pour la carte) */}
@@ -364,7 +364,7 @@ export default function ProductCard({
             {features.slice(0, 2).map((feature, idx) => (
               <span 
                 key={idx} 
-                className="inline-flex items-center text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded"
+                className="inline-flex items-center text-[10px] text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded"
               >
                 {feature.length > 30 ? feature.substring(0, 30) + '...' : feature}
               </span>
@@ -374,13 +374,13 @@ export default function ProductCard({
 
         {/* Prix avec variation selon transport */}
         <div className="mb-3">
-          <div className="text-xl font-bold text-emerald-600">
+          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             {computedPriceLabel}
           </div>
           {groupBuyEnabled && (bestActiveGroup || typeof groupBuyBestPrice === 'number') && (
             <div className="mt-1 space-y-1">
               {bestActiveGroup && currentGroupPriceLabel && (
-                <div className="text-[11px] leading-tight text-gray-600 flex items-center justify-between gap-2">
+                <div className="text-[11px] leading-tight text-gray-600 dark:text-gray-300 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1 min-w-0">
                     <Users className="h-3 w-3 text-purple-600 flex-shrink-0" />
                     <span className="font-semibold text-purple-700 truncate">Actuel</span>
@@ -389,7 +389,7 @@ export default function ProductCard({
                 </div>
               )}
               {typeof groupBuyBestPrice === 'number' && groupBuyBestPrice > 0 && (
-                <div className="text-[11px] leading-tight text-gray-600 flex items-center justify-between gap-2">
+                <div className="text-[11px] leading-tight text-gray-600 dark:text-gray-300 flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <span className="font-semibold text-indigo-700 truncate">Possible</span>
                   </div>
@@ -401,20 +401,20 @@ export default function ProductCard({
             </div>
           )}
           {!showQuote && shippingEnabled && activeShipping && (
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 <span>{computedDeliveryDays} jours</span>
               </div>
               {basePrice > 0 && (
-                <div className="text-[10px] text-gray-400 mt-0.5">
+                <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                   Prix source • hors frais et transport
                 </div>
               )}
             </div>
           )}
           {!showQuote && !shippingEnabled && computedDeliveryDays > 0 && (
-            <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
               <Clock className="h-3 w-3" />
               <span>{computedDeliveryDays} jours</span>
             </div>
@@ -424,7 +424,7 @@ export default function ProductCard({
         {/* Shipping details removed from listing card to keep card minimal and encourage clicking 'Voir détails' */}
 
         {/* Action: Voir détails */}
-        <div className="mt-auto pt-3 border-t border-gray-100">
+        <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
           <div className="flex flex-col gap-2">
             {joinHref && (canJoin || isFilledGroup) && (
               <a
@@ -441,7 +441,7 @@ export default function ProductCard({
               onClick={(e) => { e.stopPropagation() }}
               className={
                 joinHref && (canJoin || isFilledGroup)
-                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/40 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
                   : 'w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
               }
             >

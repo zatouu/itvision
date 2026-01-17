@@ -154,7 +154,7 @@ export default function WishlistPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Header />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -162,20 +162,20 @@ export default function WishlistPage() {
         <div className="mb-8">
           <Link
             href="/produits"
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-emerald-600 mb-4"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-emerald-600 mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
             Retour aux produits
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                 <div className="p-2 bg-red-100 rounded-xl">
                   <Heart className="h-6 w-6 text-red-500 fill-red-500" />
                 </div>
                 Mes Favoris
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 {products.length} produit{products.length > 1 ? 's' : ''} sauvegardé{products.length > 1 ? 's' : ''}
               </p>
             </div>
@@ -207,12 +207,12 @@ export default function WishlistPage() {
             </Link>
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
-              <Heart className="h-10 w-10 text-gray-400" />
+          <div className="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
+              <Heart className="h-10 w-10 text-gray-400 dark:text-gray-500" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun favori</h3>
-            <p className="text-gray-600 mb-6">Vous n'avez pas encore ajouté de produits à vos favoris.</p>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Aucun favori</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">Vous n'avez pas encore ajouté de produits à vos favoris.</p>
             <Link
               href="/produits"
               className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold transition"

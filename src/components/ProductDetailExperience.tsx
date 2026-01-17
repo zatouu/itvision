@@ -832,22 +832,22 @@ Merci de me recontacter.`
   }, [gallery])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-950">
       {/* Header avec breadcrumb */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex items-center gap-2 text-sm text-gray-600">
+          <nav className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <Link href="/" className="hover:text-emerald-600 transition-colors">Accueil</Link>
             <span>/</span>
             <Link href="/produits" className="hover:text-emerald-600 transition-colors">Produits</Link>
             {product.category && (
               <>
                 <span>/</span>
-                <span className="text-gray-900 font-medium">{product.category}</span>
+                <span className="text-gray-900 dark:text-white font-medium">{product.category}</span>
               </>
             )}
             <span>/</span>
-            <span className="text-gray-900 font-semibold line-clamp-1">{product.name}</span>
+            <span className="text-gray-900 dark:text-white font-semibold line-clamp-1">{product.name}</span>
           </nav>
         </div>
       </div>
@@ -859,7 +859,7 @@ Merci de me recontacter.`
           <div className="lg:flex-1 lg:min-w-0">
             {/* Galerie d'images */}
             <div className="space-y-4 mb-8">
-              <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
+              <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 group mx-auto">
                 <button
                   type="button"
                   onClick={() => setShowImageModal(true)}
@@ -874,7 +874,7 @@ Merci de me recontacter.`
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
                     priority
                   />
-                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg">
+                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-900/85 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-lg">
                     <ZoomIn className="h-4 w-4" />
                     <span>Cliquer pour agrandir</span>
                   </div>
@@ -902,7 +902,7 @@ Merci de me recontacter.`
                         'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
                         activeImageIndex === index
                           ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
-                          : 'border-gray-200 hover:border-emerald-300'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
                       )}
                       aria-label={`Image ${index + 1}`}
                     >
@@ -921,7 +921,7 @@ Merci de me recontacter.`
 
             {/* Onglets d'information - Dans la colonne gauche */}
             <div className="mt-8">
-              <div className="flex flex-wrap gap-2 border-b border-gray-200 mb-6">
+              <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 mb-6">
                 {(['description', 'features', 'logistics', 'support', 'reviews'] as InfoTab[]).map((tab) => (
                   <button
                     key={tab}
@@ -931,7 +931,7 @@ Merci de me recontacter.`
                       'px-6 py-3 text-sm font-semibold border-b-2 transition-colors',
                       activeTab === tab
                         ? 'border-emerald-500 text-emerald-600'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                        : 'border-transparent text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                     )}
                   >
                     {tab === 'description' && 'Description'}
@@ -943,7 +943,7 @@ Merci de me recontacter.`
                 ))}
               </div>
 
-              <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 sm:p-8">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-6 sm:p-8">
                 <AnimatePresence mode="wait">
                   {activeTab === 'description' && (
                     <motion.div
@@ -951,7 +951,7 @@ Merci de me recontacter.`
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="prose prose-emerald max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-800"
+                      className="prose prose-emerald max-w-none dark:prose-invert"
                     >
                       {product.description ? (
                         <div dangerouslySetInnerHTML={{ __html: product.description }} />
@@ -977,7 +977,7 @@ Merci de me recontacter.`
                         ).map((feature, index) => (
                           <li key={index} className="flex items-start gap-3">
                             <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700">{feature}</span>
+                            <span className="text-gray-700 dark:text-gray-200">{feature}</span>
                           </li>
                         ))}
                       </ul>
@@ -994,19 +994,19 @@ Merci de me recontacter.`
                     >
                       {logisticsEntries.length > 0 && (
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4">Spécifications techniques</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Spécifications techniques</h3>
                           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {logisticsEntries.map((entry, index) => (
-                              <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{entry.label}</div>
-                                <div className="text-base font-semibold text-gray-900">{entry.value || '—'}</div>
+                              <div key={index} className="bg-gray-50 dark:bg-gray-950/40 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{entry.label}</div>
+                                <div className="text-base font-semibold text-gray-900 dark:text-white">{entry.value || '—'}</div>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
                       {logisticsEntries.length === 0 && (
-                        <p className="text-gray-600 text-center py-8">Informations logistiques détaillées disponibles sur demande.</p>
+                        <p className="text-gray-600 dark:text-gray-300 text-center py-8">Informations logistiques détaillées disponibles sur demande.</p>
                       )}
                     </motion.div>
                   )}
@@ -1027,7 +1027,7 @@ Merci de me recontacter.`
                         ].map((item, index) => (
                           <li key={index} className="flex items-start gap-3">
                             <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700">{item}</span>
+                            <span className="text-gray-700 dark:text-gray-200">{item}</span>
                           </li>
                         ))}
                       </ul>
