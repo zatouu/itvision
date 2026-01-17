@@ -500,14 +500,17 @@ const extractFeatures = (item: AliExpressItem): string[] => {
   return [...features].slice(0, 6)
 }
 
-const fetchAliExpress = async (keyword: string, limit: number) => {
+const fetchAliExpress = async (keyword: string, limit: number, sourceOverride?: 'apify' | 'rapidapi') => {
   // Détecter la source d'import (Apify ou RapidAPI)
-  const importSource = (process.env.IMPORT_SOURCE || 'rapidapi').toLowerCase()
-  const apifyKey = process.env.APIFY_API_KEY
+  const importSource = (sourceOverride || process.env.IMPORT_SOURCE || 'rapidapi').toLowerCase()
+  const apifyKey = process.env.APIFY_API_KEY || process.env.APIFY_TOKEN
   const rapidApiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
 
   // Essayer Apify si configuré, sinon RapidAPI
-  if (importSource === 'apify' && apifyKey) {
+  if (importSource === 'apify') {
+    if (!apifyKey) {
+      throw new Error('APIFY_API_KEY (ou APIFY_TOKEN) est requis pour utiliser Apify')
+    }
     try {
       const { importFromApify } = await import('@/lib/import-sources')
       const result = await importFromApify(keyword, limit, {
@@ -534,11 +537,12 @@ const fetchAliExpress = async (keyword: string, limit: number) => {
           attr_value: f.split(':').slice(1).join(':') || f
         }))
       }))
-    } catch (error: any) {
-      console.error('Apify import error, falling back to RapidAPI:', error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erreur Apify'
+      console.error('Apify import error, falling back to RapidAPI:', message)
       // Fallback sur RapidAPI si Apify échoue
       if (!rapidApiKey) {
-        throw new Error(`Apify a échoué et aucune clé RapidAPI disponible: ${error.message}`)
+        throw new Error(`Apify a échoué et aucune clé RapidAPI disponible: ${message}`)
       }
     }
   }
@@ -636,20 +640,23 @@ export async function GET(request: NextRequest) {
 
   const keyword = (searchParams.get('keyword') || '').trim()
   const limit = Math.min(parseInt(searchParams.get('limit') || '6', 10), 12)
+  const sourceParam = (searchParams.get('source') || '').toLowerCase()
+  const sourceOverride = sourceParam === 'apify' || sourceParam === 'rapidapi' ? (sourceParam as 'apify' | 'rapidapi') : undefined
   if (!keyword) {
     return NextResponse.json({ success: false, error: 'Mot-clé requis' }, { status: 400 })
   }
 
   try {
-    const items = await fetchAliExpress(keyword, limit)
+    const items = await fetchAliExpress(keyword, limit, sourceOverride)
     const normalized = items
       .map(normalizeAliExpressItem)
       .filter((item): item is NormalizedAliExpressItem => Boolean(item))
 
     return NextResponse.json({ success: true, items: normalized })
-  } catch (error: any) {
-    console.error('AliExpress search error:', error)
-    return NextResponse.json({ success: false, error: error?.message || 'Import impossible' }, { status: 500 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Import impossible'
+    console.error('AliExpress search error:', message)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 

@@ -52,6 +52,7 @@ function ImportProduitsContent() {
   const [keyword, setKeyword] = useState('')
   const [limit, setLimit] = useState(6)
   const [apifyRunId, setApifyRunId] = useState('')
+  const [searchSource, setSearchSource] = useState<'auto' | 'apify' | 'rapidapi'>('auto')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
@@ -82,7 +83,8 @@ function ImportProduitsContent() {
     setFeedback(null)
 
     try {
-      const response = await fetch(`/api/products/import?keyword=${encodeURIComponent(keyword)}&limit=${limit}`, {
+      const sourceParam = searchSource === 'auto' ? '' : `&source=${searchSource}`
+      const response = await fetch(`/api/products/import?keyword=${encodeURIComponent(keyword)}&limit=${limit}${sourceParam}`, {
         credentials: 'include'
       })
 
@@ -444,6 +446,21 @@ function ImportProduitsContent() {
                     value={limit}
                     onChange={e => setLimit(Math.min(12, Math.max(1, Number(e.target.value) || 1)))}
                   />
+                </div>
+
+                <div className="w-full sm:w-48">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Source
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    value={searchSource}
+                    onChange={e => setSearchSource(e.target.value as 'auto' | 'apify' | 'rapidapi')}
+                  >
+                    <option value="auto">Auto (selon .env)</option>
+                    <option value="apify">Forcer Apify</option>
+                    <option value="rapidapi">Forcer RapidAPI</option>
+                  </select>
                 </div>
                 <button
                   type="submit"
