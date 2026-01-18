@@ -32,7 +32,7 @@ export default function WishlistIcon() {
   return (
     <Link
       href="/produits/favoris"
-      className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg bg-white text-gray-700 hover:text-red-500 hover:shadow transition"
+      className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-200 border border-transparent dark:border-slate-800 hover:text-red-500 hover:shadow transition"
       aria-label="Voir mes favoris"
     >
       <Heart className="h-5 w-5" />

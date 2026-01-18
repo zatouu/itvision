@@ -31,7 +31,7 @@ export default function RootLayout({
     try {
       const stored = localStorage.getItem('theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+      const theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'dark';
       const resolved = theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
       const root = document.documentElement;
       if (resolved === 'dark') {

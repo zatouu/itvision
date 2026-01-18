@@ -83,7 +83,7 @@ export default function ModernModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl overflow-hidden`}
+            className={`relative w-full ${sizeClasses[size]} bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden`}
           >
             {/* Header avec gradient */}
             <div className="relative px-6 py-5 bg-gradient-to-r from-emerald-500 to-teal-600">
@@ -113,13 +113,13 @@ export default function ModernModal({
             </div>
 
             {/* Content */}
-            <div className="px-6 py-5 max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="px-6 py-5 max-h-[calc(100vh-250px)] overflow-y-auto text-gray-900 dark:text-gray-100">
               {children}
             </div>
 
             {/* Footer */}
             {footer && (
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="px-6 py-4 bg-gray-50 dark:bg-slate-950 border-t border-gray-200 dark:border-slate-800">
                 {footer}
               </div>
             )}
@@ -184,7 +184,7 @@ export function ModalSecondaryButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="px-5 py-2.5 text-gray-700 font-medium rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+      className="px-5 py-2.5 text-gray-700 dark:text-gray-200 font-medium rounded-xl border-2 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
     >
       {children}
     </button>

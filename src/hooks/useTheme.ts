@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 type Theme = 'light' | 'dark' | 'system'
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>('system')
+  const [theme, setTheme] = useState<Theme>('dark')
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
 
   useEffect(() => {
@@ -13,6 +13,8 @@ export function useTheme() {
     const stored = localStorage.getItem('theme') as Theme | null
     if (stored && ['light', 'dark', 'system'].includes(stored)) {
       setTheme(stored)
+    } else {
+      setTheme('dark')
     }
 
     // Fonction pour déterminer le thème résolu

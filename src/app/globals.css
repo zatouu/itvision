@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode via class (.dark) pour le toggle */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Animations digitales */
 @keyframes fade-in {
   from {
@@ -74,8 +77,8 @@
 }
 
 .dark {
-  --background: #0b0f14;
-  --foreground: #e5e7eb;
+  --background: #000000;
+  --foreground: #f8fafc;
   --primary-emerald: #34d399;
   --primary-purple: #a78bfa;
   --accent-cyan: #22d3ee;
@@ -84,19 +87,35 @@
 
 /* Overrides globaux pour les pages non encore stylées en dark */
 .dark .bg-white {
-  background-color: #0f172a;
+  background-color: #000000;
 }
 
 .dark .bg-white\/98 {
-  background-color: rgba(15, 23, 42, 0.98);
+  background-color: rgba(0, 0, 0, 0.98);
 }
 
 .dark .bg-gray-50 {
-  background-color: #0b1220;
+  background-color: #000000;
+}
+
+.dark .bg-gray-200 {
+  background-color: #000000;
+}
+
+.dark .bg-slate-50 {
+  background-color: #000000;
+}
+
+.dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.08);
+}
+
+.dark .bg-purple-50 {
+  background-color: rgba(139, 92, 246, 0.08);
 }
 
 .dark .bg-gray-100 {
-  background-color: #111827;
+  background-color: #000000;
 }
 
 .dark .text-gray-900 {
@@ -115,9 +134,25 @@
   color: #cbd5f5;
 }
 
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+.dark .text-gray-400 {
+  color: #94a3b8;
+}
+
 .dark .border-gray-100,
 .dark .border-gray-200 {
   border-color: #1f2937;
+}
+
+.dark .border-gray-300 {
+  border-color: #334155;
+}
+
+.dark .border-gray-400 {
+  border-color: #475569;
 }
 
 .dark .border-emerald-100 {
