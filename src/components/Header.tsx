@@ -14,6 +14,7 @@ const Header = () => {
   const [isServicesOpen, setIsServicesOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
 
   // Fermeture du menu au clic extérieur
   useEffect(() => {
@@ -37,6 +38,27 @@ const Header = () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isMenuOpen])
+
+  useEffect(() => {
+    const header = headerRef.current
+    if (!header) return
+
+    const updateHeaderHeight = () => {
+      const height = Math.ceil(header.getBoundingClientRect().height)
+      document.documentElement.style.setProperty('--header-height', `${height}px`)
+    }
+
+    updateHeaderHeight()
+
+    const observer = new ResizeObserver(updateHeaderHeight)
+    observer.observe(header)
+    window.addEventListener('resize', updateHeaderHeight)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateHeaderHeight)
+    }
+  }, [])
 
   const navigation = [
     { name: 'Accueil', href: '/', icon: HomeIcon },
@@ -108,7 +130,7 @@ const Header = () => {
   // Supprimé - remplacé par UnifiedLoginButton
 
   return (
-    <header className="bg-white/98 dark:bg-slate-950/95 backdrop-blur-md shadow-lg fixed w-full top-0 z-50 border-b border-emerald-100 dark:border-slate-800">
+    <header ref={headerRef} className="bg-white/98 dark:bg-slate-950/95 backdrop-blur-md shadow-lg fixed w-full top-0 z-50 border-b border-emerald-100 dark:border-slate-800">
       {/* Barre de contact - réduite */}
       <div className="bg-gradient-to-r from-emerald-600 to-purple-600 text-white py-1.5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -65,7 +65,7 @@
   --primary-emerald: #10B981;
   --primary-purple: #8B5CF6;
   --accent-cyan: #06B6D4;
-  --header-height: 120px; /* Hauteur réduite du header */
+  --header-height: 120px; /* Valeur par défaut (sera ajustée dynamiquement) */
   color-scheme: light;
 }
 
@@ -85,6 +85,12 @@
   color-scheme: dark;
 }
 
+.dark .page-content,
+.dark .hero-section {
+  background-color: #000000;
+  background-image: none !important;
+}
+
 /* Overrides globaux pour les pages non encore stylées en dark */
 .dark .bg-white {
   background-color: #000000;
@@ -94,8 +100,60 @@
   background-color: rgba(0, 0, 0, 0.98);
 }
 
+.dark .bg-white\/95 {
+  background-color: rgba(0, 0, 0, 0.95);
+}
+
+.dark .bg-white\/90 {
+  background-color: rgba(0, 0, 0, 0.9);
+}
+
+.dark .bg-white\/80 {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.dark .bg-white\/70 {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark .bg-white\/60 {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.dark .bg-white\/50 {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.dark .bg-white\/40 {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.dark .bg-white\/30 {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.dark .bg-white\/20 {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.dark .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
 .dark .bg-gray-50 {
   background-color: #000000;
+}
+
+.dark .bg-gray-50\/50 {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.dark .bg-gray-100\/50 {
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 .dark .bg-gray-200 {
@@ -155,6 +213,37 @@
   border-color: #475569;
 }
 
+.dark .border-white\/10,
+.dark .border-white\/20,
+.dark .border-white\/30,
+.dark .border-white\/40,
+.dark .border-white\/50 {
+  border-color: #1f2937;
+}
+
+/* Uniformiser les ombres/halos en mode nuit */
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: 0 0 0 1px rgba(31, 41, 55, 0.35);
+}
+
+.dark .shadow-emerald-500\/25,
+.dark .shadow-emerald-500\/30,
+.dark .shadow-emerald-500\/40 {
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.dark .hover\:shadow,
+.dark .hover\:shadow-lg,
+.dark .hover\:shadow-xl,
+.dark .hover\:shadow-2xl {
+  box-shadow: 0 0 0 1px rgba(31, 41, 55, 0.5);
+}
+
 .dark .border-emerald-100 {
   border-color: #064e3b;
 }
@@ -173,7 +262,7 @@ body {
 
 /* Section Hero avec padding top réduit */
 .hero-section {
-  padding-top: calc(var(--header-height) + 2rem);
+  padding-top: calc(var(--header-height) + 3rem);
 }
 
 /* Animations personnalisées */
