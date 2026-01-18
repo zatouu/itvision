@@ -426,7 +426,7 @@ export default function DigitalisationPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 py-20 pt-32">
+      <section className="page-content bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 dark:from-black dark:via-black dark:to-black py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
@@ -434,9 +434,9 @@ export default function DigitalisationPage() {
                 Digitalisez vos processus,
               </span>
               <br />
-              <span className="text-gray-900">gagnez en efficacité</span>
+              <span className="text-gray-900 dark:text-white">gagnez en efficacité</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8">
               Accompagnement complet pour PME et grandes entreprises dans leur transformation numérique
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -448,7 +448,7 @@ export default function DigitalisationPage() {
               </button>
               <a
                 href="#solutions"
-                className="border-2 border-emerald-600 text-emerald-600 px-8 py-4 rounded-lg font-semibold hover:bg-emerald-600 hover:text-white transition-all duration-300"
+                className="border-2 border-emerald-600 dark:border-emerald-400 text-emerald-600 dark:text-emerald-300 px-8 py-4 rounded-lg font-semibold hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all duration-300"
               >
                 Découvrir nos solutions
               </a>
@@ -458,13 +458,13 @@ export default function DigitalisationPage() {
       </section>
 
       {/* Avantages Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Pourquoi digitaliser votre entreprise ?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Les bénéfices concrets de la transformation digitale pour votre PME
             </p>
           </div>
@@ -474,24 +474,24 @@ export default function DigitalisationPage() {
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg mx-auto mb-4">
                 <Clock className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Gain de temps</h3>
-              <p className="text-gray-600">Automatisez les tâches répétitives et libérez vos équipes pour des activités à plus forte valeur ajoutée.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Gain de temps</h3>
+              <p className="text-gray-600 dark:text-gray-300">Automatisez les tâches répétitives et libérez vos équipes pour des activités à plus forte valeur ajoutée.</p>
             </div>
             
             <div className="text-center p-6">
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg mx-auto mb-4">
                 <Shield className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Réduction des erreurs</h3>
-              <p className="text-gray-600">Éliminez les erreurs humaines et assurez une qualité constante dans vos processus métier.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Réduction des erreurs</h3>
+              <p className="text-gray-600 dark:text-gray-300">Éliminez les erreurs humaines et assurez une qualité constante dans vos processus métier.</p>
             </div>
             
             <div className="text-center p-6">
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg mx-auto mb-4">
                 <TrendingUp className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Visibilité temps réel</h3>
-              <p className="text-gray-600">Pilotez votre entreprise avec des données en temps réel et des tableaux de bord intuitifs.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Visibilité temps réel</h3>
+              <p className="text-gray-600 dark:text-gray-300">Pilotez votre entreprise avec des données en temps réel et des tableaux de bord intuitifs.</p>
             </div>
           </div>
         </div>
@@ -499,14 +499,14 @@ export default function DigitalisationPage() {
 
       {/* Wizard Diagnostic */}
       {showWizard && !showResults && (
-        <section id="diagnostic-wizard" className="py-16 bg-gradient-to-br from-emerald-50 to-purple-50">
+        <section id="diagnostic-wizard" className="py-16 bg-gradient-to-br from-emerald-50 to-purple-50 dark:from-black dark:to-black">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="bg-white dark:bg-black rounded-2xl shadow-xl p-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                   📋 Diagnostic Digital PME
                 </h2>
-                <p className="text-gray-600">Évaluez votre maturité digitale en 5 minutes</p>
+                <p className="text-gray-600 dark:text-gray-300">Évaluez votre maturité digitale en 5 minutes</p>
                 <div className="mt-4">
                   <div className="flex justify-center space-x-2">
                     {wizardSteps.map((_, index) => (

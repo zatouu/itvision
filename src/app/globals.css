@@ -91,6 +91,19 @@
   background-image: none !important;
 }
 
+/* Uniformiser les backgrounds en dégradé vers un noir total */
+.dark .bg-gradient-to-r,
+.dark .bg-gradient-to-l,
+.dark .bg-gradient-to-b,
+.dark .bg-gradient-to-t,
+.dark .bg-gradient-to-br,
+.dark .bg-gradient-to-bl,
+.dark .bg-gradient-to-tr,
+.dark .bg-gradient-to-tl {
+  background-image: none !important;
+  background-color: #000000 !important;
+}
+
 /* Overrides globaux pour les pages non encore stylées en dark */
 .dark .bg-white {
   background-color: #000000;
