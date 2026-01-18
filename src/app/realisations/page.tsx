@@ -166,13 +166,13 @@ export default function RealisationsPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-white via-gray-50 to-emerald-50 page-content py-20">
+      <section className="bg-gradient-to-br from-white via-gray-50 to-emerald-50 dark:from-black dark:via-black dark:to-black page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Réalisations</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Découvrez nos réalisations phares mettant en avant notre expertise technique en sécurité électronique
             </p>
           </div>
@@ -180,7 +180,7 @@ export default function RealisationsPage() {
       </section>
 
       {/* Filter Section */}
-      <section className="py-8 bg-white border-b">
+      <section className="py-8 bg-white dark:bg-black border-b dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-center gap-4">
             {categories.map((category, index) => (
@@ -189,7 +189,7 @@ export default function RealisationsPage() {
                 className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
                   index === 0 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                    : 'bg-gray-100 dark:bg-slate-900 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600'
                 }`}
               >
                 {category}
@@ -200,7 +200,7 @@ export default function RealisationsPage() {
       </section>
 
       {/* Projects Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 dark:bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-16">
             {projects.map((project, index) => {

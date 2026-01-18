@@ -315,26 +315,26 @@ export default function ServicesPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-white via-gray-50 to-emerald-50 page-content pt-28 pb-20">
+      <section className="bg-gradient-to-br from-white via-gray-50 to-emerald-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white">
               Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Services</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
               Solutions complètes de sécurité électronique adaptées à tous vos besoins, 
               de la conception à la maintenance.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
+              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-gray-900 dark:text-gray-200">
                 <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium">Devis gratuit</span>
               </div>
-              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
+              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-gray-900 dark:text-gray-200">
                 <Clock className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium">Intervention 24h/7j</span>
               </div>
-              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-md">
+              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-gray-900 dark:text-gray-200">
                 <Star className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium">Actifs depuis 2019</span>
               </div>
@@ -344,7 +344,7 @@ export default function ServicesPage() {
       </section>
 
       {/* Services Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {services.map((service, index) => {
@@ -353,7 +353,7 @@ export default function ServicesPage() {
               return (
                 <div
                   key={service.id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden modern-card hover:shadow-2xl transition-all duration-300"
+                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 overflow-hidden modern-card hover:shadow-2xl transition-all duration-300"
                 >
                   {/* Service Header */}
                   <div className="bg-gradient-to-r from-emerald-500 to-purple-600 p-6 text-white">
@@ -378,13 +378,13 @@ export default function ServicesPage() {
                   <div className="p-6">
                     {/* Features */}
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                         <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
                         Fonctionnalités
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {service.features.map((feature, idx) => (
-                          <div key={idx} className="flex items-start text-sm text-gray-600">
+                          <div key={idx} className="flex items-start text-sm text-gray-600 dark:text-gray-300">
                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 mr-2 flex-shrink-0"></div>
                             {feature}
                           </div>
@@ -394,13 +394,13 @@ export default function ServicesPage() {
                     
                     {/* Benefits */}
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                         <ArrowRight className="h-5 w-5 text-purple-600 mr-2" />
                         Avantages
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {service.benefits.map((benefit, idx) => (
-                          <div key={idx} className="flex items-start text-sm text-gray-600">
+                          <div key={idx} className="flex items-start text-sm text-gray-600 dark:text-gray-300">
                             <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2 mr-2 flex-shrink-0"></div>
                             {benefit}
                           </div>
@@ -409,21 +409,21 @@ export default function ServicesPage() {
                     </div>
 
                     {/* Testimonial */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                      <p className="text-sm text-gray-600 italic">"{service.testimonial}"</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 mb-6">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{service.testimonial}"</p>
                       <div className="flex items-center mt-2">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className="h-3 w-3 text-yellow-400 fill-current" />
                         ))}
-                        <span className="text-xs text-gray-500 ml-2">Client vérifié</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Client vérifié</span>
                       </div>
                     </div>
                     
                     {/* Price & CTA */}
-                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4">
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-800 rounded-lg p-4">
                       <div className="text-center mb-4">
                         <p className="text-2xl font-bold text-emerald-600">{service.price}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {service.id === 'maintenance' ? 'Devis basé sur votre équipement' : 'Installation et configuration incluses'}
                         </p>
                       </div>
@@ -523,35 +523,35 @@ export default function ServicesPage() {
       </section>
 
       {/* Section Maintenance Importance */}
-      <section className="py-20 bg-gradient-to-br from-orange-50 via-rose-50 to-emerald-50">
+      <section className="py-20 bg-gradient-to-br from-orange-50 via-rose-50 to-emerald-50 dark:from-black dark:via-black dark:to-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="text-center space-y-4">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white text-sm font-semibold text-orange-600 shadow-md">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-slate-900 text-sm font-semibold text-orange-600 dark:text-orange-300 shadow-md">
               <ShieldCheck className="h-4 w-4" />
               Après l'installation
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
               Maintenance & Support pilotés par contrat
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               On ne se contente pas d'installer. Nous encadrons vos équipements dans des contrats clairs,
               planifions les visites et assurons un reporting complet pour sécuriser votre investissement.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-xl border border-orange-100 p-8">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-orange-100 dark:border-slate-800 p-8">
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full">
-                    <Wrench className="h-8 w-8 text-orange-600" />
+                  <div className="flex items-center justify-center w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                    <Wrench className="h-8 w-8 text-orange-600 dark:text-orange-300" />
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
                     ⚠️ Sans maintenance, la sécurité se dégrade silencieusement
                   </h3>
-                  <p className="text-gray-700">
+                  <p className="text-gray-700 dark:text-gray-300">
                     Un système peut sembler fonctionner alors que les enregistrements sont incomplets,
                     les firmwares obsolètes ou les capteurs décalés. La vraie stabilité vient d'un plan
                     de maintenance pensé dès le devis.
@@ -559,9 +559,9 @@ export default function ServicesPage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-                  <h4 className="font-semibold text-red-800 mb-2">Sans maintenance :</h4>
-                  <ul className="text-red-700 text-sm space-y-1.5">
+                <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 dark:border-red-500/50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-red-800 dark:text-red-200 mb-2">Sans maintenance :</h4>
+                  <ul className="text-red-700 dark:text-red-200 text-sm space-y-1.5">
                     <li>• Pannes au pire moment</li>
                     <li>• Dégradation progressive de la qualité</li>
                     <li>• Perte d'enregistrements critiques</li>
@@ -569,9 +569,9 @@ export default function ServicesPage() {
                     <li>• Obsolescence prématurée</li>
                   </ul>
                 </div>
-                <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
-                  <h4 className="font-semibold text-green-800 mb-2">Avec IT Vision :</h4>
-                  <ul className="text-green-700 text-sm space-y-1.5">
+                <div className="bg-green-50 dark:bg-emerald-900/20 border-l-4 border-green-400 dark:border-emerald-500/50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-green-800 dark:text-emerald-200 mb-2">Avec IT Vision :</h4>
+                  <ul className="text-green-700 dark:text-emerald-200 text-sm space-y-1.5">
                     <li>• Prévention des pannes critiques</li>
                     <li>• Performance optimisée 24h/24</li>
                     <li>• KPIs disponibles dans le portail</li>
@@ -580,8 +580,8 @@ export default function ServicesPage() {
                   </ul>
                 </div>
               </div>
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-blue-800 font-medium">
+              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-500/40">
+                <p className="text-blue-800 dark:text-blue-200 font-medium">
                   💡 <strong>Peu importe qui a installé votre système</strong> : nous reprenons la maintenance de tous les
                   équipements de sécurité électronique, toutes marques confondues.
                 </p>
@@ -640,14 +640,14 @@ export default function ServicesPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-orange-600">Contrats standardisés</p>
-                <h3 className="text-3xl font-bold text-gray-900 mt-2">Choisissez votre contrat de maintenance</h3>
-                <p className="text-gray-600 mt-2 max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-300">Contrats standardisés</p>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mt-2">Choisissez votre contrat de maintenance</h3>
+                <p className="text-gray-600 dark:text-gray-300 mt-2 max-w-2xl">
                   Chaque contrat inclut la programmation des visites, les rapports numériques et un accès au portail client
                   pour suivre les interventions et les recommandations.
                 </p>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 Tarifs indicatifs – ajustés après audit de votre parc.
               </div>
             </div>
@@ -659,32 +659,32 @@ export default function ServicesPage() {
                   <div
                     key={plan.id}
                     className={`rounded-2xl border p-6 shadow-lg bg-gradient-to-br ${plan.accent} ${
-                      isHighlighted ? 'border-emerald-300 shadow-emerald-200/60' : 'border-gray-100'
+                      isHighlighted ? 'border-emerald-300 shadow-emerald-200/60' : 'border-gray-100 dark:border-slate-800'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <span
                         className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                          isHighlighted ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700'
+                          isHighlighted ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-200'
                         }`}
                       >
                         {plan.badge}
                       </span>
                       {isHighlighted && (
-                        <span className="text-xs font-semibold text-emerald-700">Recommandé</span>
+                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Recommandé</span>
                       )}
                     </div>
-                    <h4 className="text-xl font-bold text-gray-900">{plan.title}</h4>
-                    <p className="text-sm text-gray-500 mt-1">{plan.description}</p>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white">{plan.title}</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{plan.description}</p>
                     <div className="mt-5">
                       <p className="text-3xl font-bold text-emerald-600">{plan.price}</p>
-                      <p className="text-sm text-gray-500">{plan.visits}</p>
-                      <p className="text-sm text-gray-500">{plan.sla}</p>
-                      <p className="text-sm text-gray-500">{plan.support}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-300">{plan.visits}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-300">{plan.sla}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-300">{plan.support}</p>
                     </div>
                     <ul className="mt-6 space-y-2">
                       {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                           <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                           {feature}
                         </li>
@@ -695,7 +695,7 @@ export default function ServicesPage() {
                       className={`mt-6 w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 ${
                         isHighlighted
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          : 'bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50'
+                          : 'bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50 dark:bg-slate-900 dark:text-emerald-200 dark:border-emerald-700/60 dark:hover:bg-slate-800'
                       } transition`}
                     >
                       Demander ce contrat
@@ -744,12 +744,12 @@ export default function ServicesPage() {
             {maintenanceOperations.map((operation) => {
               const Icon = operation.icon
               return (
-                <div key={operation.title} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-lg">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold mb-4">
+                <div key={operation.title} className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-6 shadow-lg">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 text-sm font-semibold mb-4">
                     <Icon className="h-4 w-4" />
                     {operation.title}
                   </div>
-                  <ul className="space-y-2 text-sm text-gray-600">
+                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                     {operation.points.map((point) => (
                       <li key={point} className="flex items-start gap-2">
                         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2" />
@@ -774,7 +774,7 @@ export default function ServicesPage() {
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
               <button
                 onClick={() => setIsMaintenanceFormOpen(true)}
-                className="flex-1 bg-white text-emerald-700 font-semibold py-3 rounded-xl shadow-lg hover:bg-emerald-50 transition"
+                className="flex-1 bg-white text-emerald-700 font-semibold py-3 rounded-xl shadow-lg hover:bg-emerald-50 transition dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-slate-800"
               >
                 Planifier ma maintenance
               </button>

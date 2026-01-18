@@ -9,11 +9,11 @@ export default function ControleAccesServicePage() {
   return (
     <main>
       <Header />
-      <section className="bg-gradient-to-br from-green-50 via-white to-gray-50 pt-36 md:pt-40 pb-16">
+      <section className="bg-gradient-to-br from-green-50 via-white to-gray-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Contrôle d'accès</h1>
-            <p className="text-gray-700 max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">Contrôle d'accès</h1>
+            <p className="text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
               Sécurisez vos locaux et fluidifiez l’expérience collaborateurs/visiteurs avec des identifiants
               <strong> NFC/biométrie</strong> et une <strong>gestion centralisée</strong> par zones et horaires. Traçabilité
               complète, intégration portails, parkings et ascenseurs.
@@ -21,9 +21,9 @@ export default function ControleAccesServicePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4">Solutions</h2>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 {[
                   'Badges RFID programmables',
                   'Lecteurs biométriques',
@@ -39,7 +39,7 @@ export default function ControleAccesServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4">Contact</h2>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -55,7 +55,7 @@ export default function ControleAccesServicePage() {
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
-                <a href="tel:+221774133440" className="border-2 border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 inline-flex items-center">
+                <a href="tel:+221774133440" className="border-2 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-900 inline-flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
                   +221 77 413 34 40
                 </a>
@@ -65,35 +65,35 @@ export default function ControleAccesServicePage() {
 
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Bénéfices mesurables</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Bénéfices mesurables</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Maîtrisez précisément <strong>qui entre, quand et où</strong>. Réduisez les risques, éliminez les clés
                 physiques et gagnez en productivité avec des droits dynamiques.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des intrusions et pertes associées</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Historique des passages exploitable</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Droits à la minute près pour employés et visiteurs</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Contexte moderne</h3>
-              <ul className="space-y-2 text-gray-700 text-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Contexte moderne</h3>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Badges NFC, biométrie, QR code invités</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Portails, portes, ascenseurs, parkings intégrés</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Scénarios: multi‑sites, anti‑passback, anti‑tailgating</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Apport IT Vision</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Conception évolutive: <strong>contrôleurs</strong>, lecteurs, câblage, <strong>politiques granulaires</strong>.
                 Intégration vidéosurveillance et supervision pour une sécurité <strong>end‑to‑end</strong>.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Cartographie des zones et profils</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Procédures d’onboarding/offboarding</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Formation et documentation complète</li>
