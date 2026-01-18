@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { User, Eye, EyeOff, UserPlus, AlertCircle, CheckCircle, ArrowLeft, Phone, Mail } from 'lucide-react'
 import Link from 'next/link'
@@ -16,6 +16,7 @@ interface FormData {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const [returnTo, setReturnTo] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -31,6 +32,34 @@ export default function RegisterPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
   const [checkingEmail, setCheckingEmail] = useState(false)
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const candidate = params.get('return') || params.get('redirect')
+      if (candidate && candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.includes('://')) {
+        setReturnTo(candidate)
+      }
+
+      const name = params.get('name')
+      const email = params.get('email')
+      const phone = params.get('phone')
+
+      setFormData(prev => ({
+        ...prev,
+        name: name || prev.name,
+        email: email || prev.email,
+        phone: phone || prev.phone
+      }))
+
+      if (email) {
+        checkEmailAvailability(email)
+      }
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const validatePassword = (password: string) => {
     const minLength = 8
@@ -121,10 +150,11 @@ export default function RegisterPage() {
 
       if (response.ok) {
         setIsSuccess(true)
-        // Rediriger vers la page de connexion après 3 secondes
+        // Onboarding fluide: rediriger vers la connexion, email pré-rempli
+        const target = `/login?email=${encodeURIComponent(formData.email)}&redirect=${encodeURIComponent(returnTo || '/compte')}`
         setTimeout(() => {
-          router.push('/login')
-        }, 3000)
+          router.push(target)
+        }, 900)
       } else {
         setError(data.error || 'Une erreur est survenue lors de la création du compte')
       }
@@ -153,7 +183,7 @@ export default function RegisterPage() {
             </p>
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-4"></div>
             <p className="text-sm text-gray-500">
-              Redirection vers la page de connexion...
+              Redirection vers la connexion...
             </p>
           </div>
         </div>

@@ -48,7 +48,7 @@ export default function FunctionalLogin({ userType }: LoginFormProps) {
             router.push('/tech-interface')
             break
           case 'client':
-            router.push('/client-portal')
+            router.push('/compte')
             break
           default:
             router.push('/')

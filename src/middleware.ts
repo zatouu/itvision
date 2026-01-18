@@ -60,6 +60,9 @@ function getRequiredRole(pathname: string): string | null {
     return 'AUTH'
   }
 
+  // Espace compte catalogue: nécessite un utilisateur authentifié
+  if (pathname === '/compte' || pathname.startsWith('/compte/')) return 'AUTH'
+
   // Routes admin (y compris celles en dehors de /admin/)
   const adminRoutes = [
     '/admin',
@@ -140,7 +143,7 @@ export async function middleware(request: NextRequest) {
     if (requiredRole === 'ADMIN' && !ADMIN_ROLES.includes(role || '')) {
       // Rediriger les non-admins vers leur portail
       if (role === 'CLIENT') {
-        return NextResponse.redirect(new URL('/client-portal', request.url))
+        return NextResponse.redirect(new URL('/compte', request.url))
       } else if (role === 'TECHNICIAN') {
         return NextResponse.redirect(new URL('/tech-interface', request.url))
       } else if (role === 'PRODUCT_MANAGER') {
@@ -211,7 +214,7 @@ function applySecurityHeaders(response: NextResponse, pathname: string) {
   })
 
   // Cache control pour les pages sensibles
-  if (pathname.includes('/admin') || pathname.includes('/login') || pathname.includes('/client-portal') || pathname.includes('/tech-interface')) {
+  if (pathname.includes('/admin') || pathname.includes('/login') || pathname.includes('/client-portal') || pathname.includes('/tech-interface') || pathname.includes('/compte') || pathname.includes('/panier')) {
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }

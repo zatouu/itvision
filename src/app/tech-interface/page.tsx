@@ -28,7 +28,7 @@ export default function TechInterfacePage() {
             console.log('Tech auth failed - wrong role:', role) // Debug log
             // Redirection selon le rôle
             if (role === 'ADMIN') router.push('/admin')
-            else if (role === 'CLIENT') router.push('/client-portal')
+            else if (role === 'CLIENT') router.push('/compte')
             else router.push('/login')
           }
         } else {

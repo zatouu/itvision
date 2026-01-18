@@ -6,6 +6,9 @@ export interface IClient extends Document {
   email: string
   phone: string
   passwordHash: string
+
+  // Favoris catalogue (IDs produits)
+  favoriteProductIds?: string[]
   
   // Profil
   company?: string
@@ -84,6 +87,12 @@ const ClientSchema = new Schema<IClient>({
     type: String,
     required: false,
     minlength: 6
+  },
+
+  // Favoris
+  favoriteProductIds: {
+    type: [String],
+    default: []
   },
   
   // Profil

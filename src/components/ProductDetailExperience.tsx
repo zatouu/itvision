@@ -723,23 +723,49 @@ Merci de me recontacter.`
 
   const toggleFavorite = () => {
     if (typeof window === 'undefined') return
-    try {
-      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      if (isFavorite) {
-        const updated = favorites.filter((id: string) => id !== product.id)
-        localStorage.setItem('wishlist:items', JSON.stringify(updated))
-        setIsFavorite(false)
-        trackEvent('remove_from_wishlist', { productId: product.id })
-      } else {
-        favorites.push(product.id)
-        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
-        setIsFavorite(true)
-        trackEvent('add_to_wishlist', { productId: product.id })
+    ;(async () => {
+      try {
+        const raw = localStorage.getItem('wishlist:items')
+        const favorites: string[] = raw ? JSON.parse(raw) : []
+        const set = new Set(Array.isArray(favorites) ? favorites : [])
+
+        const nextIsFavorite = !isFavorite
+        if (nextIsFavorite) {
+          set.add(product.id)
+        } else {
+          set.delete(product.id)
+        }
+
+        const next = Array.from(set)
+        localStorage.setItem('wishlist:items', JSON.stringify(next))
+        setIsFavorite(nextIsFavorite)
+        window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+        // Persistance côté compte si connecté
+        if (nextIsFavorite) {
+          const res = await fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId: product.id })
+          })
+          if (!res.ok && res.status !== 401) {
+            // Si erreur serveur, on ne casse pas l'UI: on restera en local
+            console.warn('favorite persist failed', res.status)
+          }
+          trackEvent('add_to_wishlist', { productId: product.id })
+        } else {
+          const res = await fetch(`/api/favorites?productId=${encodeURIComponent(product.id)}`, {
+            method: 'DELETE'
+          })
+          if (!res.ok && res.status !== 401) {
+            console.warn('favorite remove persist failed', res.status)
+          }
+          trackEvent('remove_from_wishlist', { productId: product.id })
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error)
       }
-      window.dispatchEvent(new CustomEvent('wishlist:updated'))
-    } catch (error) {
-      console.error('Error toggling favorite:', error)
-    }
+    })()
   }
 
   const logisticsEntries = useMemo(() => {

@@ -138,6 +138,12 @@ export default function GroupOrderDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(joinForm)
       })
+
+      if (res.status === 401) {
+        const returnUrl = `${window.location.pathname}${window.location.search}`
+        router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`)
+        return
+      }
       const data = await res.json()
       
       if (data.success) {

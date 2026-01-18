@@ -32,7 +32,9 @@ import {
   ShoppingCart,
   Heart,
   Eye,
-  Zap
+  Zap,
+  LogIn,
+  UserPlus
 } from 'lucide-react'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
@@ -58,6 +60,26 @@ export default function PanierPage() {
   const [addressValid, setAddressValid] = useState(false)
   const [suggestionScroll, setSuggestionScroll] = useState(0)
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+
+  const handleClosePayment = useCallback(() => {
+    setShowPayment(false)
+    const url = orderInfo?.confirmationUrl || (orderInfo?.orderId ? `/commandes/${orderInfo.orderId}` : null)
+    if (url) router.push(url)
+    setOrderInfo(null)
+  }, [orderInfo, router])
+
+  const paymentModal = showPayment && orderInfo ? (
+    <GroupBuyPaymentModal
+      isOpen={showPayment}
+      onClose={handleClosePayment}
+      groupId={orderInfo.orderId}
+      productName={orderInfo.items.map((it: any) => it.name).join(', ')}
+      quantity={orderInfo.items.reduce((acc: any, it: any) => acc + (it.qty || 1), 0)}
+      unitPrice={Math.round(orderInfo.total / orderInfo.items.reduce((acc: any, it: any) => acc + (it.qty || 1), 0))}
+      phone={orderInfo.phone}
+      email={orderInfo.email}
+    />
+  ) : null
 
   useEffect(() => {
     fetch('/api/shipping-rates')
@@ -295,6 +317,7 @@ export default function PanierPage() {
         setItems([])
         setOrderInfo({
           orderId: data.orderId,
+          confirmationUrl: data.confirmationUrl,
           name,
           phone,
           email,
@@ -305,27 +328,6 @@ export default function PanierPage() {
       } else {
         alert('Erreur: ' + (data.error || 'erreur inconnue'))
       }
-      // Rendu du modal de paiement après commande
-      const handleClosePayment = () => {
-        setShowPayment(false)
-        if (orderInfo?.orderId) {
-          router.push(`/commandes/${orderInfo.orderId}`)
-        }
-        setOrderInfo(null)
-      }
-      {/* Modal paiement */}
-      {showPayment && orderInfo && (
-        <GroupBuyPaymentModal
-          isOpen={showPayment}
-          onClose={handleClosePayment}
-          groupId={orderInfo.orderId}
-          productName={orderInfo.items.map((it:any)=>it.name).join(', ')}
-          quantity={orderInfo.items.reduce((acc:any,it:any)=>acc+(it.qty||1),0)}
-          unitPrice={Math.round(orderInfo.total/orderInfo.items.reduce((acc:any,it:any)=>acc+(it.qty||1),0))}
-          phone={orderInfo.phone}
-          email={orderInfo.email}
-        />
-      )}
     } catch (e) {
       console.error(e)
       alert('Erreur lors de l envoi')
@@ -363,12 +365,16 @@ export default function PanierPage() {
             </motion.a>
           </motion.div>
         </div>
+
+        {paymentModal}
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+      {paymentModal}
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -622,6 +628,45 @@ export default function PanierPage() {
                 </div>
 
                 <div className="space-y-6">
+                  {/* Encart onboarding (compte optionnel) */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-blue-50 p-5"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-emerald-700" />
+                          <p className="text-sm font-semibold text-emerald-900">Commander sans compte (recommandé)</p>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-700">
+                          Vous pouvez finaliser en invité. Si vous ajoutez un email, vous recevez un lien de suivi.
+                        </p>
+                        <p className="mt-2 text-xs text-gray-600">
+                          Créer un compte reste optionnel, utile pour retrouver facilement vos commandes et participer aux achats groupés.
+                        </p>
+                      </div>
+                      <div className="flex w-full flex-col gap-2 md:w-auto">
+                        <a
+                          href={`/login?redirect=${encodeURIComponent('/panier')}${email ? `&email=${encodeURIComponent(email)}` : ''}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          Se connecter
+                        </a>
+                        <a
+                          href={`/register?redirect=${encodeURIComponent('/panier')}&name=${encodeURIComponent(name || '')}&phone=${encodeURIComponent(phone || '')}&email=${encodeURIComponent(email || '')}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 ring-1 ring-gray-200 transition hover:bg-gray-50"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Créer un compte
+                        </a>
+                      </div>
+                    </div>
+                  </motion.div>
+
                   {/* Nom */}
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
@@ -665,6 +710,9 @@ export default function PanierPage() {
                       placeholder="vous@exemple.com"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
                     />
+                    <p className="mt-2 text-xs text-gray-500">
+                      Vous pouvez commander sans créer de compte. Si vous renseignez un email, vous recevrez un lien de suivi de commande.
+                    </p>
                   </motion.div>
 
                   {/* Composant AddressPickerSenegal */}

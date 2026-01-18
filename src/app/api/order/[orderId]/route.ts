@@ -3,6 +3,7 @@ import { Order } from '@/lib/models/Order'
 import { connectDB } from '@/lib/db'
 import { requireAdminApi } from '@/lib/api-auth'
 import crypto from 'crypto'
+import { requireAuth } from '@/lib/jwt'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -41,6 +42,10 @@ export async function GET(
     const adminAuth = await requireAdminApi(req)
     const isAdmin = adminAuth.ok
 
+     // Client owner access (without token)
+     const clientAuth = await requireAuth(req).catch(() => null)
+     const clientUserId = clientAuth?.userId ? String(clientAuth.userId) : null
+
     // Guest access requires token
     const token = getTrackingTokenFromRequest(req)
     const tokenHash = token ? hashTrackingToken(token) : null
@@ -48,13 +53,27 @@ export async function GET(
     const minCreatedAt = getTrackingTokenMinDate()
 
     // Chercher la commande
-    const order = isAdmin
-      ? ((await Order.findOne({ orderId }).lean()) as any)
-      : ((await Order.findOne({
-          orderId,
-          trackingAccessTokenHash: tokenHash || '__invalid__',
-          trackingAccessTokenCreatedAt: { $gte: minCreatedAt }
-        }).lean()) as any)
+    let order: any = null
+    if (isAdmin) {
+      order = (await Order.findOne({ orderId }).lean()) as any
+    } else {
+      const or: any[] = []
+      if (tokenHash) {
+        or.push({ trackingAccessTokenHash: tokenHash, trackingAccessTokenCreatedAt: { $gte: minCreatedAt } })
+      }
+      if (clientUserId) {
+        or.push({ clientId: clientUserId })
+      }
+
+      if (or.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Accès refusé' },
+          { status: 401 }
+        )
+      }
+
+      order = (await Order.findOne({ orderId, $or: or }).lean()) as any
+    }
 
     if (!order) {
       return NextResponse.json(

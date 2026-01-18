@@ -144,7 +144,7 @@ function getRedirectUrl(role: string): string {
       return '/tech-interface'
     case 'CLIENT':
     default:
-      return '/client-portal'
+      return '/compte'
   }
 }
 

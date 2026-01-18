@@ -1,7 +1,7 @@
 "use client"
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users } from 'lucide-react'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users, Heart } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
@@ -194,6 +194,73 @@ export default function ProduitsPage() {
   // Recherche par image
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchResults, setImageSearchResults] = useState<string[]>([]) // IDs des produits trouvés
+
+  // Favoris (utilisé pour le mode liste)
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const update = () => {
+      try {
+        const raw = localStorage.getItem('wishlist:items')
+        const items = raw ? JSON.parse(raw) : []
+        setFavoriteIds(Array.isArray(items) ? items.filter((x: any) => typeof x === 'string') : [])
+      } catch {
+        setFavoriteIds([])
+      }
+    }
+
+    update()
+    window.addEventListener('wishlist:updated', update)
+    window.addEventListener('storage', update)
+    return () => {
+      window.removeEventListener('wishlist:updated', update)
+      window.removeEventListener('storage', update)
+    }
+  }, [])
+
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds])
+
+  const toggleFavoriteFromList = (e: React.MouseEvent, productId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (typeof window === 'undefined') return
+    const id = String(productId || '').trim()
+    if (!id) return
+
+    ;(async () => {
+      try {
+        const raw = localStorage.getItem('wishlist:items')
+        const favorites = raw ? JSON.parse(raw) : []
+        const set = new Set<string>(Array.isArray(favorites) ? favorites : [])
+
+        const nextIsFavorite = !set.has(id)
+        if (nextIsFavorite) {
+          set.add(id)
+        } else {
+          set.delete(id)
+        }
+
+        const next = Array.from(set)
+        localStorage.setItem('wishlist:items', JSON.stringify(next))
+        window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+        // Persister côté compte si connecté (ignore 401)
+        if (nextIsFavorite) {
+          await fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId: id })
+          }).catch(() => null)
+        } else {
+          await fetch(`/api/favorites?productId=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
+        }
+      } catch {
+        // Ignore
+      }
+    })()
+  }
 
   const isRestoringRef = useRef(true)
   const urlSyncRef = useRef<{ filterKey: string; page: number }>({ filterKey: '', page: 1 })
@@ -1810,69 +1877,92 @@ export default function ProduitsPage() {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {filteredProducts.map((product) => (
-                              <Link
-                                key={product.id || product._id}
-                                href={`/produits/${product.id || product._id}`}
-                                className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-emerald-300 transition-all"
-                              >
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                  <div className="relative w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-                                    <Image
-                                      src={product.image || product.gallery?.[0] || '/file.svg'}
-                                      alt={product.name}
-                                      fill
-                                      className="object-contain p-2"
-                                      sizes="(max-width: 640px) 100vw, 128px"
-                                    />
-                                    {product.availabilityStatus === 'in_stock' && (
-                                      <div className="absolute top-2 left-2 bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
-                                        EN STOCK
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-4 mb-2">
-                                      <div className="flex-1 min-w-0">
-                                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
-                                        {product.tagline && <p className="text-sm text-gray-500 line-clamp-1">{product.tagline}</p>}
-                                      </div>
-                                      <div className="text-right flex-shrink-0">
-                                        <div className="text-2xl font-bold text-emerald-600">
-                                          {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                            {filteredProducts.map((product) => {
+                              const productId = String(product.id || product._id || '')
+                              const isFavorite = productId ? favoriteSet.has(productId) : false
+                              return (
+                                <Link
+                                  key={product.id || product._id}
+                                  href={`/produits/${product.id || product._id}`}
+                                  className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-emerald-300 transition-all"
+                                >
+                                  <div className="flex flex-col sm:flex-row gap-4">
+                                    <div className="relative w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                                      <Image
+                                        src={product.image || product.gallery?.[0] || '/file.svg'}
+                                        alt={product.name}
+                                        fill
+                                        className="object-contain p-2"
+                                        sizes="(max-width: 640px) 100vw, 128px"
+                                      />
+
+                                      {product.availabilityStatus === 'in_stock' && (
+                                        <div className="absolute top-2 left-2 bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                                          EN STOCK
                                         </div>
-                                        {(product.deliveryDays || 0) > 0 && (
-                                          <div className="text-xs text-gray-500 flex items-center gap-1 justify-end mt-1">
-                                            <Clock className="h-3 w-3" />
-                                            {product.deliveryDays}j
-                                          </div>
-                                        )}
-                                      </div>
+                                      )}
                                     </div>
-                                    {product.features && product.features.length > 0 && (
-                                      <ul className="flex flex-wrap gap-2 mb-3">
-                                        {product.features.slice(0, 3).map((f, i) => (
-                                          <li key={i} className="flex items-center gap-1 text-xs text-gray-600">
-                                            <CheckCircle className="h-3 w-3 text-emerald-500" />
-                                            <span className="line-clamp-1">{f}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    )}
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-1 text-sm">
-                                        <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
-                                        <span className="font-semibold text-gray-700">{(product.rating || 4.7).toFixed(1)}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between gap-4 mb-2">
+                                        <div className="flex-1 min-w-0">
+                                          <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
+                                          {product.tagline && <p className="text-sm text-gray-500 line-clamp-1">{product.tagline}</p>}
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                          {productId && (
+                                            <div className="flex items-start justify-end mb-2">
+                                              <button
+                                                type="button"
+                                                aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                                                onClick={(e) => toggleFavoriteFromList(e, productId)}
+                                                className="h-9 w-9 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 transition"
+                                              >
+                                                <Heart
+                                                  className={
+                                                    isFavorite
+                                                      ? 'h-5 w-5 text-rose-600 fill-rose-600'
+                                                      : 'h-5 w-5 text-gray-600'
+                                                  }
+                                                />
+                                              </button>
+                                            </div>
+                                          )}
+                                          <div className="text-2xl font-bold text-emerald-600">
+                                            {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                                          </div>
+                                          {(product.deliveryDays || 0) > 0 && (
+                                            <div className="text-xs text-gray-500 flex items-center gap-1 justify-end mt-1">
+                                              <Clock className="h-3 w-3" />
+                                              {product.deliveryDays}j
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm text-emerald-600 font-medium">Voir détails</span>
-                                        <ArrowRight className="h-4 w-4 text-emerald-600" />
+                                      {product.features && product.features.length > 0 && (
+                                        <ul className="flex flex-wrap gap-2 mb-3">
+                                          {product.features.slice(0, 3).map((f, i) => (
+                                            <li key={i} className="flex items-center gap-1 text-xs text-gray-600">
+                                              <CheckCircle className="h-3 w-3 text-emerald-500" />
+                                              <span className="line-clamp-1">{f}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1 text-sm">
+                                          <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
+                                          <span className="font-semibold text-gray-700">{(product.rating || 4.7).toFixed(1)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-emerald-600 font-medium">Voir détails</span>
+                                          <ArrowRight className="h-4 w-4 text-emerald-600" />
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              </Link>
-                            ))}
+                                </Link>
+                              )
+                            })}
                           </div>
                         )}
                       </>

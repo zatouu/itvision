@@ -7,6 +7,7 @@ export interface IUser extends Document {
   name: string
   avatarUrl?: string
   phone?: string
+  favoriteProductIds?: string[]
   role: 'CLIENT' | 'TECHNICIAN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'ADMIN' | 'SUPER_ADMIN'
   isActive: boolean
   loginAttempts: number
@@ -27,6 +28,7 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, required: true },
   avatarUrl: { type: String },
   phone: { type: String },
+  favoriteProductIds: { type: [String], default: [] },
   role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN'], default: 'CLIENT', index: true },
   isActive: { type: Boolean, default: true, index: true },
   loginAttempts: { type: Number, default: 0 },

@@ -29,6 +29,7 @@ export interface ProductCardProps {
   shippingOptions?: ShippingOption[]
   availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   detailHref?: string
+  favoriteButtonEnabled?: boolean
   isNew?: boolean
   isPopular?: boolean
   createdAt?: string
@@ -79,6 +80,7 @@ export default function ProductCard({
   shippingOptions = [],
   availabilityStatus,
   detailHref,
+  favoriteButtonEnabled = true,
   isNew = false,
   isPopular = false,
   createdAt,
@@ -112,41 +114,88 @@ export default function ProductCard({
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(getDefaultShippingOption())
   const [isFavorite, setIsFavorite] = useState(false)
   const shippingEnabled = shippingOptions.length > 0 && availabilityStatus !== 'in_stock'
-  
-  useEffect(() => {
+
+  const getProductIdFromHref = () => {
+    if (!detailHref) return null
+    const productId = detailHref.split(PATH_SEPARATOR).pop()
+    return productId || null
+  }
+
+  const syncFavoriteStateFromLocal = () => {
     if (typeof window === 'undefined' || !detailHref) return
     try {
       const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      const productId = detailHref.split(PATH_SEPARATOR).pop()
-      setIsFavorite(favorites.some((id: string) => id === productId))
+      const productId = getProductIdFromHref()
+      if (!productId) return
+      setIsFavorite(Array.isArray(favorites) && favorites.some((id: string) => id === productId))
     } catch {
       setIsFavorite(false)
+    }
+  }
+  
+  useEffect(() => {
+    syncFavoriteStateFromLocal()
+  }, [detailHref])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => syncFavoriteStateFromLocal()
+    window.addEventListener('wishlist:updated', handler)
+    window.addEventListener('storage', handler)
+    return () => {
+      window.removeEventListener('wishlist:updated', handler)
+      window.removeEventListener('storage', handler)
     }
   }, [detailHref])
   
   const toggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (typeof window === 'undefined' || !detailHref) return
-    try {
-      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      const productId = detailHref.split(PATH_SEPARATOR).pop()
-      
-      if (isFavorite) {
-        const updated = favorites.filter((id: string) => id !== productId)
-        localStorage.setItem('wishlist:items', JSON.stringify(updated))
-        setIsFavorite(false)
-        trackEvent('remove_from_wishlist', { productId })
-      } else {
-        favorites.push(productId)
-        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
-        setIsFavorite(true)
-        trackEvent('add_to_wishlist', { productId })
+    const productId = getProductIdFromHref()
+    if (!productId) return
+
+    ;(async () => {
+      try {
+        const favoritesRaw = localStorage.getItem('wishlist:items')
+        const favorites = favoritesRaw ? JSON.parse(favoritesRaw) : []
+        const set = new Set<string>(Array.isArray(favorites) ? favorites : [])
+
+        const nextIsFavorite = !isFavorite
+        if (nextIsFavorite) {
+          set.add(productId)
+        } else {
+          set.delete(productId)
+        }
+
+        const next = Array.from(set)
+        localStorage.setItem('wishlist:items', JSON.stringify(next))
+        setIsFavorite(nextIsFavorite)
+        window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+        // Persister en base si connecté (ignore 401)
+        if (nextIsFavorite) {
+          const res = await fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId })
+          })
+          if (!res.ok && res.status !== 401) {
+            console.warn('favorite persist failed', res.status)
+          }
+          trackEvent('add_to_wishlist', { productId })
+        } else {
+          const res = await fetch(`/api/favorites?productId=${encodeURIComponent(productId)}`, {
+            method: 'DELETE'
+          })
+          if (!res.ok && res.status !== 401) {
+            console.warn('favorite remove persist failed', res.status)
+          }
+          trackEvent('remove_from_wishlist', { productId })
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error)
       }
-      
-      window.dispatchEvent(new CustomEvent('wishlist:updated'))
-    } catch (error) {
-      console.error('Error toggling favorite:', error)
-    }
+    })()
   }
 
   useEffect(() => {
@@ -303,13 +352,15 @@ export default function ProductCard({
         />
         
         {/* Favoris */}
-        <button
-          onClick={toggleFavorite}
-          className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-gray-900 transition-colors z-10"
-          aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-        >
-          <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
-        </button>
+        {favoriteButtonEnabled && (
+          <button
+            onClick={toggleFavorite}
+            className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-gray-900 transition-colors z-10"
+            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          >
+            <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
+          </button>
+        )}
       </div>
 
       {/* Contenu */}

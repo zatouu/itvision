@@ -5,7 +5,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ProductCard from '@/components/ProductCard'
 import Link from 'next/link'
-import { Heart, Package, ArrowLeft, Trash2 } from 'lucide-react'
+import { Heart, Package, ArrowLeft, Trash2, X } from 'lucide-react'
 
 interface WishlistProduct {
   id: string
@@ -39,77 +39,119 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const removeOne = async (productId: string) => {
+    if (typeof window === 'undefined') return
+    const id = (productId || '').trim()
+    if (!id) return
+
+    try {
+      const raw = localStorage.getItem('wishlist:items')
+      const favorites = raw ? JSON.parse(raw) : []
+      const nextIds = (Array.isArray(favorites) ? favorites : []).filter((x: any) => typeof x === 'string' && x !== id)
+
+      localStorage.setItem('wishlist:items', JSON.stringify(nextIds))
+      setFavoriteIds(nextIds)
+      setProducts(prev => prev.filter(p => (p.id || p._id) !== id))
+      window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+      // Persister côté DB si connecté (ignore 401)
+      fetch(`/api/favorites?productId=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
+    } catch {
+      // Ignore
+    }
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') return
-    
-    try {
-      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      setFavoriteIds(favorites)
-      
-      if (favorites.length === 0) {
+
+    const loadIds = async (): Promise<string[]> => {
+      // 1) Essayer DB (si connecté)
+      try {
+        const res = await fetch('/api/favorites', { method: 'GET' })
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}))
+          const serverIds: string[] = Array.isArray(data?.favorites) ? data.favorites.filter((x: any) => typeof x === 'string') : []
+          // Sync localStorage
+          localStorage.setItem('wishlist:items', JSON.stringify(serverIds))
+          window.dispatchEvent(new CustomEvent('wishlist:updated'))
+          return serverIds
+        }
+      } catch {
+        // ignore
+      }
+
+      // 2) Fallback localStorage (invité)
+      try {
+        const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
+        return Array.isArray(favorites) ? favorites : []
+      } catch {
+        return []
+      }
+    }
+
+    const fetchFavorites = async (favorites: string[]) => {
+      try {
+        setLoading(true)
+        const responses = await Promise.all(
+          favorites.map((id: string) => fetch(`/api/catalog/products/${id}`))
+        )
+
+        const data = await Promise.all(
+          responses.map(res => res.json())
+        )
+
+        const formatted: WishlistProduct[] = data
+          .filter(item => item.success && item.product)
+          .map(item => {
+            const product = item.product
+            const pricing = product.pricing || {}
+            const bestShipping = pricing.shippingOptions?.[0]
+            
+            return {
+              id: product.id,
+              _id: product.id, // Compatibilité
+              name: product.name,
+              category: product.category || 'Catalogue import Chine',
+              description: product.description || '',
+              tagline: product.tagline,
+              priceAmount: !product.requiresQuote ? (bestShipping?.total ?? pricing.salePrice) : undefined,
+              currency: pricing.currency || 'FCFA',
+              requiresQuote: product.requiresQuote || false,
+              deliveryDays: bestShipping?.durationDays ?? product.availability?.leadTimeDays,
+              features: product.features || [],
+              rating: 4.7,
+              shippingOptions: pricing.shippingOptions || [],
+              availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
+                ? product.availability.status
+                : undefined,
+              createdAt: product.createdAt,
+              isImported: !!product.isImported,
+              // Données physiques: l'API detail renvoie logistics/weights
+              weightKg: typeof product.logistics?.weightKg === 'number' ? product.logistics.weightKg : undefined,
+              grossWeightKg: typeof product.weights?.grossWeightKg === 'number' ? product.weights.grossWeightKg : undefined,
+              netWeightKg: typeof product.weights?.netWeightKg === 'number' ? product.weights.netWeightKg : undefined,
+              volumeM3: typeof product.logistics?.volumeM3 === 'number' ? product.logistics.volumeM3 : undefined
+            }
+          })
+
+        setProducts(formatted)
+      } catch (err) {
+        console.error('Error fetching favorites:', err)
+        setError('Erreur lors du chargement des favoris')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    ;(async () => {
+      const ids = await loadIds()
+      setFavoriteIds(ids)
+      if (ids.length === 0) {
         setLoading(false)
         return
       }
-
-      // Charger les produits favoris
-      const fetchFavorites = async () => {
-        try {
-          setLoading(true)
-          const responses = await Promise.all(
-            favorites.map((id: string) => fetch(`/api/catalog/products/${id}`))
-          )
-
-          const data = await Promise.all(
-            responses.map(res => res.json())
-          )
-
-          const formatted: WishlistProduct[] = data
-            .filter(item => item.success && item.product)
-            .map(item => {
-              const product = item.product
-              const pricing = product.pricing || {}
-              const bestShipping = pricing.shippingOptions?.[0]
-              
-              return {
-                id: product.id,
-                _id: product.id, // Compatibilité
-                name: product.name,
-                category: product.category || 'Catalogue import Chine',
-                description: product.description || '',
-                tagline: product.tagline,
-                priceAmount: !product.requiresQuote ? (bestShipping?.total ?? pricing.salePrice) : undefined,
-                currency: pricing.currency || 'FCFA',
-                requiresQuote: product.requiresQuote || false,
-                deliveryDays: bestShipping?.durationDays ?? product.availability?.leadTimeDays,
-                features: product.features || [],
-                rating: 4.7,
-                shippingOptions: pricing.shippingOptions || [],
-                availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
-                  ? product.availability.status
-                  : undefined,
-                createdAt: product.createdAt,
-                isImported: !!product.isImported,
-                // Données physiques: l'API detail renvoie logistics/weights
-                weightKg: typeof product.logistics?.weightKg === 'number' ? product.logistics.weightKg : undefined,
-                grossWeightKg: typeof product.weights?.grossWeightKg === 'number' ? product.weights.grossWeightKg : undefined,
-                netWeightKg: typeof product.weights?.netWeightKg === 'number' ? product.weights.netWeightKg : undefined,
-                volumeM3: typeof product.logistics?.volumeM3 === 'number' ? product.logistics.volumeM3 : undefined
-              }
-            })
-
-          setProducts(formatted)
-        } catch (err) {
-          console.error('Error fetching favorites:', err)
-          setError('Erreur lors du chargement des favoris')
-        } finally {
-          setLoading(false)
-        }
-      }
-
-      fetchFavorites()
-    } catch {
-      setLoading(false)
-    }
+      await fetchFavorites(ids)
+    })()
   }, [])
 
   // Écouter les mises à jour de la wishlist
@@ -150,6 +192,13 @@ export default function WishlistPage() {
       setFavoriteIds([])
       setProducts([])
       window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+      // Si connecté, persister aussi côté DB
+      fetch('/api/favorites', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ favorites: [] })
+      }).catch(() => null)
     }
   }
 
@@ -223,29 +272,44 @@ export default function WishlistPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id || product._id}
-                name={product.name}
-                model={product.tagline}
-                price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
-                priceAmount={product.priceAmount}
-                currency={product.currency || 'FCFA'}
-                requiresQuote={product.requiresQuote}
-                deliveryDays={product.deliveryDays || 0}
-                features={product.features && product.features.length ? product.features.filter(Boolean) : [product.description]}
-                rating={product.rating || 4.7}
-                images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
-                shippingOptions={product.shippingOptions}
-                availabilityStatus={product.availabilityStatus}
-                detailHref={`/produits/${product.id || product._id}`}
-                isPopular={product.rating >= 4.8}
-                createdAt={product.createdAt}
-                isImported={product.isImported}
-                unitWeightKg={product.weightKg ?? product.grossWeightKg ?? product.netWeightKg}
-                unitVolumeM3={product.volumeM3}
-              />
-            ))}
+            {products.map((product) => {
+              const pid = String(product.id || product._id || '')
+              return (
+                <div key={pid} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => removeOne(pid)}
+                    className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-red-600 dark:border-gray-800 dark:bg-gray-950/80 dark:text-gray-200 dark:hover:text-red-300"
+                    aria-label="Retirer des favoris"
+                    title="Retirer des favoris"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+
+                  <ProductCard
+                    name={product.name}
+                    model={product.tagline}
+                    price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                    priceAmount={product.priceAmount}
+                    currency={product.currency || 'FCFA'}
+                    requiresQuote={product.requiresQuote}
+                    deliveryDays={product.deliveryDays || 0}
+                    features={product.features && product.features.length ? product.features.filter(Boolean) : [product.description]}
+                    rating={product.rating || 4.7}
+                    images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
+                    shippingOptions={product.shippingOptions}
+                    availabilityStatus={product.availabilityStatus}
+                    detailHref={`/produits/${pid}`}
+                    favoriteButtonEnabled={false}
+                    isPopular={product.rating >= 4.8}
+                    createdAt={product.createdAt}
+                    isImported={product.isImported}
+                    unitWeightKg={product.weightKg ?? product.grossWeightKg ?? product.netWeightKg}
+                    unitVolumeM3={product.volumeM3}
+                  />
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

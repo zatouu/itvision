@@ -6,6 +6,7 @@ import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
+import { requireAuth } from '@/lib/jwt'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -15,6 +16,10 @@ export async function POST(req: NextRequest) {
   let mongoConnected = false
   
   try {
+    // Checkout invité: l'auth n'est pas obligatoire pour une commande simple.
+    // Si l'utilisateur est connecté, on lie la commande à son compte via clientId.
+    const auth = await requireAuth(req).catch(() => null)
+
     // Parser les données
     const { cart, name, phone, email, address, shippingMethod } = await req.json()
     
@@ -130,6 +135,8 @@ export async function POST(req: NextRequest) {
       clientName: name,
       clientEmail: email,
       clientPhone: phone,
+
+      clientId: auth?.userId ? (auth.userId as any) : undefined,
 
       trackingAccessTokenHash,
       trackingAccessTokenCreatedAt: new Date(),

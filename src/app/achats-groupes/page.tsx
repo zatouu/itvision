@@ -1006,6 +1006,12 @@ export default function GroupOrdersPage() {
                         }
                       })
                     })
+
+                    if (res.status === 401) {
+                      const returnUrl = `${window.location.pathname}${window.location.search}`
+                      router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`)
+                      return
+                    }
                     const data = await res.json()
                     if (data?.success && data?.group?.groupId) {
                       setShowCreateModal(false)

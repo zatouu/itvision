@@ -150,7 +150,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         if (role !== 'TECHNICIAN') {
           // Rediriger vers l'interface correspondant au rôle
           if (role === 'ADMIN') router.replace('/admin-reports')
-          else router.replace('/client-portal')
+          else router.replace('/compte')
           return
         }
         if (cancelled) return

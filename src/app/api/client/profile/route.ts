@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     // Chercher dans User puis dans Client
-    let profile: any = await User.findById(userId).select('-password').lean()
+    let profile: any = await User.findById(userId).select('-passwordHash').lean()
     
     if (!profile) {
       profile = await Client.findById(userId).lean()
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         company: profileData.company,
         address: profileData.address,
         role: profileData.role,
-        avatar: profileData.avatar,
+        avatar: profileData.avatar || profileData.avatarUrl,
         preferences: profileData.preferences || {},
         createdAt: profileData.createdAt
       }
@@ -105,11 +105,12 @@ export async function PUT(request: NextRequest) {
 
     // Changement de mot de passe
     if (currentPassword && newPassword) {
-      if (!profile.password) {
+      const passwordHash: string | undefined = profile.passwordHash
+      if (!passwordHash) {
         return NextResponse.json({ error: 'Mot de passe non configuré' }, { status: 400 })
       }
 
-      const isValidPassword = await bcrypt.compare(currentPassword, profile.password)
+      const isValidPassword = await bcrypt.compare(currentPassword, passwordHash)
       if (!isValidPassword) {
         return NextResponse.json({ error: 'Mot de passe actuel incorrect' }, { status: 400 })
       }
@@ -118,7 +119,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Le nouveau mot de passe doit contenir au moins 6 caractères' }, { status: 400 })
       }
 
-      profile.password = await bcrypt.hash(newPassword, 10)
+      profile.passwordHash = await bcrypt.hash(newPassword, 10)
     }
 
     await profile.save()

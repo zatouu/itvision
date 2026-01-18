@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CheckCircle,
+  AlertCircle,
   Loader2,
   Home,
   MapPin,
@@ -19,7 +20,9 @@ import {
   ChevronRight,
   Download,
   Copy,
-  Sparkles
+  Sparkles,
+  LogIn,
+  UserPlus
 } from 'lucide-react'
 
 interface OrderDetails {
@@ -90,6 +93,10 @@ export default function OrderConfirmationPage() {
   const [currentStep, setCurrentStep] = useState(0)
   const [copiedLink, setCopiedLink] = useState(false)
 
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [claimStatus, setClaimStatus] = useState<'idle' | 'claiming' | 'claimed' | 'failed' | 'conflict'>('idle')
+
   useEffect(() => {
     if (!orderId) return
 
@@ -134,6 +141,66 @@ export default function OrderConfirmationPage() {
     // (le useEffect suivant gère fetchSuggestions)
   }, [orderId, token])
 
+  // Détecter si l'utilisateur est connecté (cookie httpOnly)
+  useEffect(() => {
+    let cancelled = false
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/login', { method: 'GET' })
+        if (!cancelled) {
+          setIsAuthenticated(res.ok)
+          setAuthChecked(true)
+        }
+      } catch {
+        if (!cancelled) {
+          setIsAuthenticated(false)
+          setAuthChecked(true)
+        }
+      }
+    }
+    checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Si connecté + token, associer automatiquement la commande au compte (idempotent)
+  useEffect(() => {
+    if (!isAuthenticated || !orderId || !token) return
+    if (claimStatus !== 'idle') return
+
+    const claim = async () => {
+      try {
+        setClaimStatus('claiming')
+        const csrfToken = await getCsrfToken()
+        const res = await fetch(`/api/order/${encodeURIComponent(orderId)}/claim`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
+          },
+          body: JSON.stringify({ token })
+        })
+
+        if (res.ok) {
+          setClaimStatus('claimed')
+          return
+        }
+
+        if (res.status === 409) {
+          setClaimStatus('conflict')
+          return
+        }
+
+        setClaimStatus('failed')
+      } catch {
+        setClaimStatus('failed')
+      }
+    }
+
+    claim()
+  }, [isAuthenticated, orderId, token, claimStatus])
+
   useEffect(() => {
     if (order) fetchSuggestions(order)
     // eslint-disable-next-line
@@ -141,6 +208,14 @@ export default function OrderConfirmationPage() {
 
   const formatCurrency = (amount: number, currency = 'FCFA') =>
     `${amount.toLocaleString('fr-FR')} ${currency}`
+
+  const onboardingRedirect = (() => {
+    if (!orderId) return '/compte'
+    if (token) {
+      return `/commandes/${encodeURIComponent(orderId)}?token=${encodeURIComponent(token)}&autoclaim=1`
+    }
+    return `/commandes/${encodeURIComponent(orderId)}`
+  })()
 
   const getCsrfToken = async (): Promise<string | null> => {
     try {
@@ -398,6 +473,69 @@ export default function OrderConfirmationPage() {
       </motion.div>
 
       <div className="max-w-5xl mx-auto p-4 md:p-8">
+        {/* Onboarding compte (optionnel) */}
+        {authChecked && !isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border border-emerald-200 p-6 shadow-lg mb-10"
+          >
+            <div className="flex items-start justify-between gap-4 flex-col md:flex-row">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">Créer un compte (optionnel)</h2>
+                <p className="text-gray-600">
+                  Pour retrouver facilement vos commandes et vos achats groupés — sans perdre votre lien.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Astuce: après connexion, cette commande sera automatiquement liée à votre compte.
+                </p>
+              </div>
+              <div className="flex gap-3 w-full md:w-auto">
+                <Link
+                  href={`/login?redirect=${encodeURIComponent(onboardingRedirect)}${order?.clientEmail ? `&email=${encodeURIComponent(order.clientEmail)}` : ''}`}
+                  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-3 rounded-xl font-bold transition"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Se connecter
+                </Link>
+                <Link
+                  href={`/register?redirect=${encodeURIComponent(onboardingRedirect)}&name=${encodeURIComponent(order?.clientName || '')}&phone=${encodeURIComponent(order?.clientPhone || '')}&email=${encodeURIComponent(order?.clientEmail || '')}`}
+                  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white px-5 py-3 rounded-xl font-bold transition"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  Créer mon compte
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {authChecked && isAuthenticated && claimStatus === 'claimed' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-10"
+          >
+            <div className="flex items-center gap-3 text-emerald-900">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">Commande associée à votre compte.</span>
+            </div>
+          </motion.div>
+        )}
+
+        {authChecked && isAuthenticated && claimStatus === 'conflict' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-10"
+          >
+            <div className="flex items-center gap-3 text-yellow-900">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-semibold">Cette commande est déjà associée à un autre compte.</span>
+            </div>
+          </motion.div>
+        )}
+
         {/* Timeline des étapes */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

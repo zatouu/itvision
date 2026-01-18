@@ -13,6 +13,7 @@ interface LoginCredentials {
 
 export default function UnifiedLoginPage() {
   const router = useRouter()
+  const [returnTo, setReturnTo] = useState<string | null>(null)
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
     password: ''
@@ -26,6 +27,30 @@ export default function UnifiedLoginPage() {
   const [resetRequested, setResetRequested] = useState(false)
   const [mfaRequired, setMfaRequired] = useState<{ required: boolean, userId?: string }>({ required: false })
   const [mfaCode, setMfaCode] = useState('')
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const candidate = params.get('return') || params.get('redirect')
+      if (candidate && candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.includes('://')) {
+        setReturnTo(candidate)
+      }
+
+      const prefillEmail = params.get('email')
+      if (prefillEmail) {
+        setCredentials(prev => ({ ...prev, email: prefillEmail }))
+      } else {
+        try {
+          const remembered = localStorage.getItem('rememberEmail')
+          if (remembered) setCredentials(prev => ({ ...prev, email: remembered }))
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const userTypes = [
     {
@@ -86,13 +111,18 @@ export default function UnifiedLoginPage() {
         if (data.user?.role) {
           const role = String(data.user.role).toUpperCase()
           console.log('User role:', role, 'Redirecting to:', data.redirectUrl) // Debug log
+
+          if (returnTo) {
+            window.location.href = returnTo
+            return
+          }
           
           // Utiliser l'URL de redirection de l'API si disponible
           const redirectUrl = data.redirectUrl || (
             role === 'PRODUCT_MANAGER' ? '/admin/produits' :
             role === 'ADMIN' ? '/admin' :
             role === 'TECHNICIAN' ? '/tech-interface' :
-            '/client-portal'
+            '/compte'
           )
           
           console.log('Final redirect URL:', redirectUrl) // Debug log
@@ -101,7 +131,7 @@ export default function UnifiedLoginPage() {
           window.location.href = redirectUrl
         } else {
           console.log('No user role found, redirecting to client-portal') // Debug log
-          router.push('/client-portal')
+          router.push(returnTo || '/compte')
         }
         
         if (remember) {
@@ -248,10 +278,13 @@ export default function UnifiedLoginPage() {
               })
               if (res.ok) {
                 const data = await res.json()
+
+                if (returnTo) return router.push(returnTo)
+
                 const role = String(data.user?.role || '').toUpperCase()
                 if (role === 'ADMIN') return router.push('/admin-reports')
                 if (role === 'TECHNICIAN') return router.push('/tech-interface')
-                return router.push('/client-portal')
+                return router.push('/compte')
               } else {
                 const j = await res.json(); setError(j.error || 'Code invalide')
               }

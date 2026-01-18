@@ -11,6 +11,7 @@ import {
 } from '@/lib/group-order-notifications'
 import crypto from 'crypto'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { requireAuth } from '@/lib/jwt'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -66,6 +67,13 @@ export async function POST(
   const { groupId } = await context.params
   
   try {
+    let auth: Awaited<ReturnType<typeof requireAuth>>
+    try {
+      auth = await requireAuth(req)
+    } catch {
+      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    }
+
     const settings = readPaymentSettings()
     if (!settings.groupOrders.enabled) {
       return NextResponse.json(
@@ -119,6 +127,17 @@ export async function POST(
 
     const normalizedPhone = formatSenegalPhone(phone)
 
+    // Vérifier si déjà participant (par userId)
+    const existingUserParticipant = group.participants.find(
+      (p: any) => p?.userId && String(p.userId) === String(auth.userId)
+    )
+    if (existingUserParticipant) {
+      return NextResponse.json(
+        { success: false, error: 'Vous participez déjà à cet achat groupé' },
+        { status: 400 }
+      )
+    }
+
     // Vérifier si déjà participant (par téléphone, normalisé)
     const existingParticipant = group.participants.find(
       (p: any) => formatSenegalPhone(p.phone) === normalizedPhone
@@ -159,6 +178,7 @@ export async function POST(
     const chatTokenCreatedAt = new Date()
 
     group.participants.push({
+      userId: auth.userId as any,
       name,
       phone: normalizedPhone,
       email,

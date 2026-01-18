@@ -4,6 +4,7 @@ import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { requireAuth } from '@/lib/jwt'
 
 // Générer un ID unique pour le groupe
 function generateGroupId(): string {
@@ -74,6 +75,13 @@ export async function GET(req: NextRequest) {
 // POST - Créer un nouvel achat groupé
 export async function POST(req: NextRequest) {
   try {
+    let auth: Awaited<ReturnType<typeof requireAuth>>
+    try {
+      auth = await requireAuth(req)
+    } catch {
+      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    }
+
     const settings = readPaymentSettings()
     if (!settings.groupOrders.enabled) {
       return NextResponse.json(
@@ -149,6 +157,7 @@ export async function POST(req: NextRequest) {
       priceTiers,
       currentUnitPrice,
       participants: [{
+        userId: auth.userId as any,
         name: creator.name,
         phone: creator.phone,
         email: creator.email,
@@ -162,6 +171,7 @@ export async function POST(req: NextRequest) {
       deadline: new Date(deadline),
       shippingMethod: shippingMethod || 'maritime_60j',
       createdBy: {
+        userId: auth.userId as any,
         name: creator.name,
         phone: creator.phone,
         email: creator.email
