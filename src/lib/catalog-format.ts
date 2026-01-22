@@ -56,6 +56,7 @@ export const formatProductDetail = (
     tagline: product.tagline ?? null,
     description: product.description ?? null,
     category: product.category ?? 'Catalogue import Chine',
+    condition: product.condition ?? 'new',
     image: product.image ?? '/file.svg',
     gallery: normalizeGallery(product),
     features: Array.isArray(product.features) ? product.features : [],
@@ -93,7 +94,7 @@ export const formatProductDetail = (
     },
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé
-    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
     // Achat groupé (front)
     groupBuyEnabled: product.groupBuyEnabled ?? false,
     groupBuyBestPrice,
@@ -121,6 +122,7 @@ export const formatSimilarProducts = (
       name: item.name,
       tagline: item.tagline ?? null,
       category: item.category ?? 'Catalogue import Chine',
+      condition: item.condition ?? 'new',
       image: normalizeGallery(item)[0] ?? '/file.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
       // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice

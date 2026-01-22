@@ -29,6 +29,7 @@ export interface IProduct extends Document {
   category?: string
   description?: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
   price?: number
   baseCost?: number                    // Coût fournisseur en FCFA
   marginRate?: number                  // Marge commerciale (0% par défaut, ajustable manuellement)
@@ -90,6 +91,7 @@ const ProductSchema = new Schema<IProduct>({
   category: { type: String, index: true },
   description: { type: String },
   tagline: { type: String },
+  condition: { type: String, enum: ['new', 'used', 'refurbished'], default: 'new', index: true },
   price: { type: Number },
   baseCost: { type: Number },
   marginRate: { type: Number, default: 0 },  // Marge commerciale par défaut à 0%

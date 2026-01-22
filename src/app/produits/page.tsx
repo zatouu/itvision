@@ -29,6 +29,7 @@ interface ApiProduct {
   category: string
   description: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
   priceAmount?: number
   currency?: string
   image?: string
@@ -590,6 +591,7 @@ export default function ProduitsPage() {
                 category: item.category || 'Catalogue import Chine',
                 description: item.description || item.tagline || 'Équipement import direct Chine avec installation Dakar',
                 tagline: item.tagline || undefined,
+                condition: item.condition || undefined,
                 priceAmount,
                 currency: item.pricing?.currency || 'FCFA',
                 image: item.image || item.gallery?.[0] || '/file.svg',
@@ -1850,6 +1852,7 @@ export default function ProduitsPage() {
                                 key={product.id || product._id}
                                 name={product.name}
                                 model={product.tagline}
+                                condition={product.condition}
                                 price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
                                 priceAmount={product.priceAmount}
                                 currency={product.currency || 'FCFA'}
@@ -1906,6 +1909,16 @@ export default function ProduitsPage() {
                                       <div className="flex items-start justify-between gap-4 mb-2">
                                         <div className="flex-1 min-w-0">
                                           <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
+                                          {product.condition && product.condition !== 'new' && (
+                                            <div className="flex items-center gap-2 mb-1">
+                                              {product.condition === 'used' && (
+                                                <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 text-xs font-semibold">Occasion</span>
+                                              )}
+                                              {product.condition === 'refurbished' && (
+                                                <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs font-semibold">Refurb</span>
+                                              )}
+                                            </div>
+                                          )}
                                           {product.tagline && <p className="text-sm text-gray-500 line-clamp-1">{product.tagline}</p>}
                                         </div>
                                         <div className="text-right flex-shrink-0">

@@ -15,6 +15,7 @@ import {
   Loader2,
   MessageCircle,
   Plane,
+  Play,
   Share2,
   ShieldCheck,
   Ship,
@@ -80,6 +81,7 @@ export interface ProductDetailData {
   description?: string | null
   category?: string | null
   image?: string | null
+  condition?: 'new' | 'used' | 'refurbished'
   gallery: string[]
   features: string[]
   colorOptions: string[]
@@ -140,6 +142,7 @@ export interface SimilarProductSummary {
   tagline?: string | null
   category?: string | null
   image?: string | null
+  condition?: 'new' | 'used' | 'refurbished'
   priceAmount?: number | null
   currency?: string | null
   requiresQuote: boolean
@@ -166,6 +169,33 @@ const shippingIcon = (methodId?: string) => {
 export default function ProductDetailExperience({ product, similar }: ProductDetailExperienceProps) {
   // Galerie : images produit + images variantes
   const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
+
+  const isVideoUrl = (url: string) => {
+    if (!url) return false
+    return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)
+  }
+
+  const getYouTubeId = (url: string) => {
+    try {
+      const u = new URL(url)
+      if (u.hostname.includes('youtu.be')) {
+        const id = u.pathname.replace('/', '').trim()
+        return id || null
+      }
+      if (u.hostname.includes('youtube.com')) {
+        const v = u.searchParams.get('v')
+        if (v) return v
+        const parts = u.pathname.split('/').filter(Boolean)
+        const embedIndex = parts.indexOf('embed')
+        if (embedIndex >= 0 && parts[embedIndex + 1]) return parts[embedIndex + 1]
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const isYouTubeUrl = (url: string) => !!getYouTubeId(url)
   
   // Fonction pour trouver l'option de 15 jours par défaut
   const getDefaultShippingOption = () => {
@@ -203,6 +233,29 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     }
     return baseGallery
   }, [selectedVariants, product.variantGroups, baseGallery])
+
+  type GalleryItem =
+    | { kind: 'image'; src: string }
+    | { kind: 'video'; src: string; poster: string }
+    | { kind: 'youtube'; src: string; embedUrl: string; poster: string }
+
+  const galleryItems = useMemo<GalleryItem[]>(() => {
+    const firstImage = gallery.find((u) => u && !isVideoUrl(u) && !isYouTubeUrl(u)) || product.image || '/file.svg'
+
+    return gallery.map((src) => {
+      const safeSrc = src || '/file.svg'
+      if (isYouTubeUrl(safeSrc)) {
+        const id = getYouTubeId(safeSrc)
+        const embedUrl = id ? `https://www.youtube.com/embed/${id}` : safeSrc
+        const poster = id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : firstImage
+        return { kind: 'youtube', src: safeSrc, embedUrl, poster }
+      }
+      if (isVideoUrl(safeSrc)) {
+        return { kind: 'video', src: safeSrc, poster: firstImage }
+      }
+      return { kind: 'image', src: safeSrc }
+    })
+  }, [gallery, product.image])
   const [quantity, setQuantity] = useState(1)
   const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>(() => {
     const map: Record<string, number> = {}
@@ -892,14 +945,39 @@ Merci de me recontacter.`
                   className="absolute inset-0 cursor-zoom-in"
                   aria-label="Agrandir l'image"
                 >
-                  <Image
-                    src={gallery[activeImageIndex] || '/file.svg'}
-                    alt={product.name}
-                    fill
-                    className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
-                    priority
-                  />
+                  {galleryItems[activeImageIndex]?.kind === 'image' && (
+                    <Image
+                      src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                      alt={product.name}
+                      fill
+                      className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
+                      priority
+                    />
+                  )}
+
+                  {galleryItems[activeImageIndex]?.kind === 'video' && (
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                      <video
+                        src={(galleryItems[activeImageIndex] as any)?.src}
+                        controls
+                        playsInline
+                        className="h-full w-full rounded-xl bg-black object-contain"
+                      />
+                    </div>
+                  )}
+
+                  {galleryItems[activeImageIndex]?.kind === 'youtube' && (
+                    <div className="absolute inset-0 p-4">
+                      <iframe
+                        src={(galleryItems[activeImageIndex] as any)?.embedUrl}
+                        title={product.name}
+                        className="h-full w-full rounded-xl bg-black"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
                   <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-900/85 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-lg">
                     <ZoomIn className="h-4 w-4" />
                     <span>Cliquer pour agrandir</span>
@@ -919,9 +997,9 @@ Merci de me recontacter.`
               {/* Miniatures */}
               {gallery.length > 1 && (
                 <div className="flex gap-3 overflow-x-auto pb-2">
-                  {gallery.map((src, index) => (
+                  {galleryItems.map((item, index) => (
                     <button
-                      key={`${src}-${index}`}
+                      key={`${(item as any).src}-${index}`}
                       type="button"
                       onClick={() => setActiveImageIndex(index)}
                       className={clsx(
@@ -930,15 +1008,22 @@ Merci de me recontacter.`
                           ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
                           : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
                       )}
-                      aria-label={`Image ${index + 1}`}
+                      aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
                     >
                       <Image
-                        src={src}
+                        src={item.kind === 'image' ? item.src : (item as any).poster}
                         alt={`${product.name} ${index + 1}`}
                         fill
                         className="object-cover rounded-lg"
                         sizes="80px"
                       />
+                      {item.kind !== 'image' && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="rounded-full bg-black/60 text-white p-2">
+                            <Play className="h-4 w-4" />
+                          </div>
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -1159,6 +1244,16 @@ Merci de me recontacter.`
                     <ShieldCheck className="h-3 w-3" />
                     IT Vision
                   </span>
+                  {product.condition === 'used' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
+                      Occasion
+                    </span>
+                  )}
+                  {product.condition === 'refurbished' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">
+                      Refurb
+                    </span>
+                  )}
                   {product.isImported && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                       Import Chine
@@ -1217,6 +1312,16 @@ Merci de me recontacter.`
                         className="object-contain p-4 group-hover:scale-105 transition-transform"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       />
+                      {item.condition === 'used' && (
+                        <div className="absolute top-3 left-3 rounded-full bg-amber-600 text-white px-2 py-1 text-[10px] font-bold leading-none shadow">
+                          Occasion
+                        </div>
+                      )}
+                      {item.condition === 'refurbished' && (
+                        <div className="absolute top-3 left-3 rounded-full bg-indigo-600 text-white px-2 py-1 text-[10px] font-bold leading-none shadow">
+                          Refurb
+                        </div>
+                      )}
                     </div>
                     <div className="p-4">
                       <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">{item.name}</h3>
@@ -1325,14 +1430,39 @@ Merci de me recontacter.`
 
               {/* Image principale */}
               <div className="relative aspect-[4/3] bg-gray-950">
-                <Image
-                  src={gallery[activeImageIndex] || '/file.svg'}
-                  alt={product.name}
-                  fill
-                  className="object-contain p-4"
-                  sizes="(max-width: 768px) 100vw, 900px"
-                  priority
-                />
+                {galleryItems[activeImageIndex]?.kind === 'image' && (
+                  <Image
+                    src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                    alt={product.name}
+                    fill
+                    className="object-contain p-4"
+                    sizes="(max-width: 768px) 100vw, 900px"
+                    priority
+                  />
+                )}
+
+                {galleryItems[activeImageIndex]?.kind === 'video' && (
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <video
+                      src={(galleryItems[activeImageIndex] as any)?.src}
+                      controls
+                      playsInline
+                      className="h-full w-full rounded-xl bg-black object-contain"
+                    />
+                  </div>
+                )}
+
+                {galleryItems[activeImageIndex]?.kind === 'youtube' && (
+                  <div className="absolute inset-0 p-4">
+                    <iframe
+                      src={(galleryItems[activeImageIndex] as any)?.embedUrl}
+                      title={product.name}
+                      className="h-full w-full rounded-xl bg-black"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
                 
                 {/* Boutons navigation gauche/droite */}
                 {gallery.length > 1 && (
@@ -1367,7 +1497,7 @@ Merci de me recontacter.`
               {gallery.length > 1 && (
                 <div className="px-4 py-3 bg-gray-800/80 border-t border-gray-700">
                   <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
-                    {gallery.map((src, index) => (
+                    {galleryItems.map((item, index) => (
                       <button
                         key={`modal-thumb-${index}`}
                         type="button"
@@ -1378,15 +1508,22 @@ Merci de me recontacter.`
                             ? 'border-emerald-500 ring-2 ring-emerald-400/50 scale-105'
                             : 'border-gray-600 hover:border-gray-400 opacity-60 hover:opacity-100'
                         )}
-                        aria-label={`Voir image ${index + 1}`}
+                        aria-label={item.kind === 'image' ? `Voir image ${index + 1}` : `Voir vidéo ${index + 1}`}
                       >
                         <Image
-                          src={src}
+                          src={item.kind === 'image' ? item.src : (item as any).poster}
                           alt={`${product.name} ${index + 1}`}
                           fill
                           className="object-cover"
                           sizes="56px"
                         />
+                        {item.kind !== 'image' && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="rounded-full bg-black/60 text-white p-1.5">
+                              <Play className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                        )}
                       </button>
                     ))}
                   </div>

@@ -36,6 +36,7 @@ export interface ProductCardProps {
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
   isImported?: boolean // Produit importé (sans exposer les détails source)
+  condition?: 'new' | 'used' | 'refurbished'
   // Données physiques pour le calcul transport
   unitWeightKg?: number
   unitVolumeM3?: number
@@ -87,6 +88,7 @@ export default function ProductCard({
   onCompareToggle,
   isComparing = false,
   isImported = false,
+  condition = 'new',
   unitWeightKg,
   unitVolumeM3,
   groupBuyEnabled = false,
@@ -98,6 +100,11 @@ export default function ProductCard({
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
     : false
   const showNewBadge = isNew || isRecentlyNew
+  const conditionBadge = condition === 'used'
+    ? { label: 'Occasion', className: 'bg-amber-600 text-white' }
+    : condition === 'refurbished'
+      ? { label: 'Refurb', className: 'bg-indigo-600 text-white' }
+      : null
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
   
@@ -373,6 +380,9 @@ export default function ProductCard({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-1">
+            {conditionBadge && (
+              <span className={`${conditionBadge.className} px-1.5 py-0.5 rounded text-[9px] font-bold leading-none`}>{conditionBadge.label}</span>
+            )}
             {showNewBadge && (
               <span className="bg-red-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Nouv.</span>
             )}

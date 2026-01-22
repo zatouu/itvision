@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     } else if (segment === 'import') {
       match.$or = [
         { price1688: { $gt: 0 } },
-        { 'sourcing.platform': { $in: ['1688', 'alibaba', 'taobao'] } }
+        { 'sourcing.platform': { $in: ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'] } }
       ]
     }
 
@@ -295,6 +295,7 @@ export async function GET(request: NextRequest) {
          tagline: product.tagline ?? null,
          description: product.description ?? null,
          category: product.category ?? null,
+         condition: product.condition ?? 'new',
          image: product.image ?? '/file.svg',
          gallery: Array.isArray(product.gallery) && product.gallery.length > 0
            ? product.gallery
@@ -326,7 +327,7 @@ export async function GET(request: NextRequest) {
          volumeM3,
          // Note: Les informations de sourcing et prix source ne sont pas exposées au public
          // Seul indicateur: si le produit est importé (pour affichage badge "Import")
-         isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+         isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
          // Configuration achat groupé
          groupBuyEnabled: product.groupBuyEnabled ?? false,
          groupBuyBestPrice,

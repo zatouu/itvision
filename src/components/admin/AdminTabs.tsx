@@ -13,6 +13,7 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
   services: [
     { label: 'Catalogue', href: '/admin/catalog' },
     { label: 'Produits', href: '/admin/produits' },
+    { label: 'Ingestion', href: '/admin/ingestion' },
     { label: 'Prix', href: '/admin/prices' },
     { label: 'Variantes', href: '/admin/prices' }
   ],
