@@ -13,6 +13,7 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
   services: [
     { label: 'Catalogue', href: '/admin/catalog' },
     { label: 'Produits', href: '/admin/produits' },
+    { label: 'Import (AliExpress/1688)', href: '/admin/import-produits' },
     { label: 'Ingestion', href: '/admin/ingestion' },
     { label: 'Prix', href: '/admin/prices' },
     { label: 'Variantes', href: '/admin/prices' }
@@ -31,6 +32,7 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
     { label: 'Clients boutique', href: '/admin/users?role=CLIENT' },
     { label: 'Utilisateurs', href: '/admin/users' },
     { label: 'Services', href: '/admin/catalog' },
+    { label: 'Import (AliExpress/1688)', href: '/admin/import-produits' },
     { label: 'Ingestion', href: '/admin/ingestion' },
     { label: 'Paramètres', href: '/admin/migration' }
   ]

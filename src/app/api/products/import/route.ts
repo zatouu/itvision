@@ -202,7 +202,7 @@ const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 0)  // Ma
 async function requireManagerRole(request: NextRequest) {
   try {
     const { role } = await requireAuth(request)
-    const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
+    const allowed = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PRODUCT_MANAGER'
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {

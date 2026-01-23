@@ -1,8 +1,9 @@
 import AdminTabs from '@/components/admin/AdminTabs'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import UsedProductIngestion from '@/components/admin/UsedProductIngestion'
+import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { verifyAuthToken } from '@/lib/jwt'
+import AdminIngestionHub from '@/components/admin/AdminIngestionHub'
 
 export default async function AdminIngestionPage() {
   const cookieStore = await cookies()
@@ -34,8 +35,22 @@ export default async function AdminIngestionPage() {
         <div className="mb-4">
           <AdminTabs context="services" />
         </div>
+        <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Ingestion</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Idle Fish (occasion) + import AliExpress/1688 par URL (sans RapidAPI).
+              </p>
+            </div>
+            <Link href="/admin/import-produits" className="text-sm font-semibold text-blue-700 hover:underline">
+              Ouvrir l’import avancé (recherche + bulk)
+            </Link>
+          </div>
+        </div>
+
         <section>
-          <UsedProductIngestion />
+          <AdminIngestionHub />
         </section>
       </div>
     </ErrorBoundary>
