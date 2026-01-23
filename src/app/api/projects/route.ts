@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Project from '@/lib/models/Project'
 import User from '@/lib/models/User'
+import Client from '@/lib/models/Client'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
 import { requireAuth } from '@/lib/jwt'
 
 async function verifyToken(request: NextRequest) {
   return await requireAuth(request)
+}
+
+function isAdminRole(role: any) {
+  return ['ADMIN', 'SUPER_ADMIN'].includes(String(role || '').toUpperCase())
+}
+
+function asObjectIdString(value: any): string | null {
+  const s = String(value || '').trim()
+  if (!s) return null
+  return /^[a-fA-F0-9]{24}$/.test(s) ? s : null
 }
 
 // GET - Récupérer les projets
@@ -41,6 +52,7 @@ export async function GET(request: NextRequest) {
     const [projects, totalCount] = await Promise.all([
       Project.find(query)
         .populate('clientId', 'id name email phone')
+        .populate('clientCompanyId', 'name company email phone')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -77,7 +89,7 @@ export async function POST(request: NextRequest) {
     const { userId, role } = await verifyToken(request)
     
     // Seuls les admins peuvent créer des projets
-    if (role !== 'ADMIN') {
+    if (!isAdminRole(role)) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
         { status: 403 }
@@ -106,6 +118,14 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const clientCompanyId = asObjectIdString(projectData.clientCompanyId)
+    if (clientCompanyId) {
+      const company = await Client.findById(clientCompanyId).select({ _id: 1 }).lean() as any
+      if (!company?._id) {
+        return NextResponse.json({ error: 'Entreprise introuvable' }, { status: 404 })
+      }
+    }
     
     // Création du projet
     const created = await Project.create({
@@ -113,6 +133,7 @@ export async function POST(request: NextRequest) {
       description: projectData.description || '',
       address: projectData.address,
       clientId: projectData.clientId,
+      clientCompanyId: clientCompanyId || undefined,
       status: (projectData.status || 'lead').toLowerCase(),
       startDate: new Date(projectData.startDate),
       endDate: projectData.endDate ? new Date(projectData.endDate) : undefined,
@@ -135,6 +156,7 @@ export async function POST(request: NextRequest) {
 
     const newProject = (await Project.findById(created._id)
       .populate('clientId', 'id name email phone')
+      .populate('clientCompanyId', 'name company email phone')
       .lean()) as any
 
     if (!newProject) {
@@ -177,7 +199,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Seuls les admins peuvent modifier des projets
-    if (role !== 'ADMIN') {
+    if (!isAdminRole(role)) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
         { status: 403 }
@@ -193,6 +215,17 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const nextCompanyId = updateData.clientCompanyId === null
+      ? null
+      : (asObjectIdString(updateData.clientCompanyId) || undefined)
+
+    if (typeof nextCompanyId === 'string') {
+      const company = await Client.findById(nextCompanyId).select({ _id: 1 }).lean() as any
+      if (!company?._id) {
+        return NextResponse.json({ error: 'Entreprise introuvable' }, { status: 404 })
+      }
+    }
     
     // Mise à jour du projet
     await Project.updateOne(
@@ -203,6 +236,9 @@ export async function PUT(request: NextRequest) {
           description: updateData.description ?? existingProject.description,
           address: updateData.address ?? existingProject.address,
           status: (updateData.status || existingProject.status),
+          ...(nextCompanyId === null
+            ? { clientCompanyId: null }
+            : (typeof nextCompanyId === 'string' ? { clientCompanyId: nextCompanyId } : {})),
           endDate: updateData.endDate ? new Date(updateData.endDate) : null,
           currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
           progress: typeof updateData.progress === 'number' ? updateData.progress : existingProject.progress,
@@ -226,6 +262,7 @@ export async function PUT(request: NextRequest) {
 
     const updatedProject = (await Project.findById(projectId)
       .populate('clientId', 'id name email phone')
+      .populate('clientCompanyId', 'name company email phone')
       .lean()) as any
 
     if (!updatedProject) {
@@ -258,7 +295,7 @@ export async function DELETE(request: NextRequest) {
     await connectMongoose()
     const { userId, role } = await verifyToken(request)
 
-    if (role !== 'ADMIN') {
+    if (!isAdminRole(role)) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
         { status: 403 }

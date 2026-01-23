@@ -133,6 +133,7 @@ export default function InvoiceGenerator() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
 
   // Charger les données
   useEffect(() => {
@@ -140,151 +141,43 @@ export default function InvoiceGenerator() {
     loadQuotes()
   }, [])
 
-  const loadInvoices = () => {
-    const storedInvoices = localStorage.getItem('itvision-invoices')
-    if (storedInvoices) {
-      setInvoices(JSON.parse(storedInvoices))
-    } else {
-      // Factures d'exemple
-      const defaultInvoices: Invoice[] = [
-        {
-          id: 'inv-001',
-          number: 'FAC-2024-001',
-          date: '2024-03-15',
-          dueDate: '2024-04-15',
-          status: 'sent',
-          client: {
-            id: 'client-001',
-            name: 'Moussa Diallo',
-            company: 'Diallo Construction SARL',
-            email: 'moussa@diallo-construction.sn',
-            phone: '+221 77 123 45 67',
-            address: '15 Avenue Bourguiba',
-            city: 'Dakar',
-            postalCode: '12500',
-            taxId: 'SN123456789'
-          },
-          items: [
-            {
-              id: 'item-001',
-              description: 'Installation système vidéosurveillance 16 caméras 4K',
-              quantity: 1,
-              unitPrice: 2500000,
-              totalPrice: 2500000,
-              category: 'videosurveillance',
-              productId: 'system-video-16cam'
-            },
-            {
-              id: 'item-002',
-              description: 'Configuration et formation utilisateurs',
-              quantity: 8,
-              unitPrice: 25000,
-              totalPrice: 200000,
-              category: 'services'
-            }
-          ],
-          subtotal: 2700000,
-          taxRate: 18,
-          taxAmount: 486000,
-          total: 3186000,
-          notes: 'Installation réalisée selon cahier des charges. Garantie 2 ans pièces et main d\'œuvre.',
-          terms: 'Paiement à 30 jours. Pénalités de retard 1.5% par mois.',
-          createdAt: '2024-03-15T09:00:00Z',
-          updatedAt: '2024-03-15T09:00:00Z',
-          createdBy: 'Admin',
-          quoteId: 'quote-001',
-          project: {
-            id: 'proj-001',
-            name: 'Sécurisation Immeuble Diallo',
-            phase: 'Installation'
-          }
-        },
-        {
-          id: 'inv-002',
-          number: 'FAC-2024-002',
-          date: '2024-03-20',
-          dueDate: '2024-04-20',
-          status: 'paid',
-          client: {
-            id: 'client-002',
-            name: 'Aïssatou Fall',
-            company: 'Fall Immobilier',
-            email: 'aissatou@fall-immobilier.sn',
-            phone: '+221 77 234 56 78',
-            address: '42 Rue de la République',
-            city: 'Dakar',
-            postalCode: '12600'
-          },
-          items: [
-            {
-              id: 'item-003',
-              description: 'Câblage fibre optique FTTH - 14 appartements',
-              quantity: 14,
-              unitPrice: 180000,
-              totalPrice: 2520000,
-              category: 'fiber-optic'
-            },
-            {
-              id: 'item-004',
-              description: 'Installation BPI et PBO',
-              quantity: 1,
-              unitPrice: 450000,
-              totalPrice: 450000,
-              category: 'fiber-optic'
-            }
-          ],
-          subtotal: 2970000,
-          taxRate: 18,
-          taxAmount: 534600,
-          total: 3504600,
-          notes: 'Projet Antalya - Installation conforme normes opérateurs.',
-          terms: 'Paiement comptant à la livraison.',
-          createdAt: '2024-03-20T14:30:00Z',
-          updatedAt: '2024-03-22T10:15:00Z',
-          createdBy: 'Admin',
-          paymentMethod: 'Virement bancaire',
-          paymentDate: '2024-03-22',
-          project: {
-            id: 'proj-002',
-            name: 'Résidence Antalya FTTH',
-            phase: 'Terminé'
-          }
-        }
-      ]
-      setInvoices(defaultInvoices)
-      localStorage.setItem('itvision-invoices', JSON.stringify(defaultInvoices))
+  const loadInvoices = async () => {
+    try {
+      const res = await fetch('/api/admin/invoices', { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Erreur lors du chargement des factures')
+      setInvoices(Array.isArray(data?.invoices) ? data.invoices : [])
+    } catch (e) {
+      // Fallback: garder le stockage local (dev/offline)
+      const storedInvoices = localStorage.getItem('itvision-invoices')
+      if (storedInvoices) {
+        setInvoices(JSON.parse(storedInvoices))
+      } else {
+        setInvoices([])
+      }
     }
   }
 
-  const loadQuotes = () => {
-    // Simulation devis disponibles pour conversion
-    const availableQuotes: QuoteReference[] = [
-      {
-        id: 'quote-003',
-        number: 'DEV-2024-003',
-        client: 'Mamadou Ndiaye - Ndiaye Services',
-        total: 1850000,
-        date: '2024-03-10',
-        status: 'approved'
-      },
-      {
-        id: 'quote-004', 
-        number: 'DEV-2024-004',
-        client: 'Fatou Sarr - Sarr Technologie',
-        total: 950000,
-        date: '2024-03-12',
-        status: 'approved'
-      },
-      {
-        id: 'quote-005',
-        number: 'DEV-2024-005',
-        client: 'Omar Ba - Ba Consulting',
-        total: 3200000,
-        date: '2024-03-14',
-        status: 'approved'
-      }
-    ]
-    setQuotes(availableQuotes)
+  const loadQuotes = async () => {
+    try {
+      const res = await fetch('/api/admin/quotes', { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Erreur lors du chargement des devis')
+      const list = Array.isArray(data?.quotes) ? data.quotes : []
+
+      const normalized: QuoteReference[] = list.map((q: any) => ({
+        id: String(q._id || q.id),
+        number: String(q.numero || ''),
+        client: String(q?.client?.name || ''),
+        total: Number(q.total || 0),
+        date: q.date ? new Date(q.date).toISOString().slice(0, 10) : '',
+        status: String(q.status || '')
+      }))
+
+      setQuotes(normalized)
+    } catch {
+      setQuotes([])
+    }
   }
 
   const generateInvoiceNumber = () => {
@@ -293,35 +186,59 @@ export default function InvoiceGenerator() {
     return `FAC-${year}-${nextNumber.toString().padStart(3, '0')}`
   }
 
-  const saveInvoice = (invoice: Invoice) => {
+  const saveInvoice = async (invoice: Invoice) => {
     const now = new Date().toISOString()
-    
-    if (editingInvoice) {
-      // Mise à jour facture existante
-      setInvoices(prev => {
-        const updated = prev.map(inv => 
-          inv.id === invoice.id 
-            ? { ...invoice, updatedAt: now }
-            : inv
-        )
-        localStorage.setItem('itvision-invoices', JSON.stringify(updated))
-        return updated
-      })
-    } else {
-      // Nouvelle facture
-      const newInvoice: Invoice = {
+
+    try {
+      const payload = {
         ...invoice,
-        id: `inv-${Date.now()}`,
-        number: generateInvoiceNumber(),
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'Admin'
+        id: editingInvoice ? invoice.id : undefined,
+        number: editingInvoice ? invoice.number : (invoice.number || generateInvoiceNumber()),
+        createdAt: invoice.createdAt || now,
+        updatedAt: now
       }
+
+      const res = await fetch('/api/admin/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Erreur sauvegarde facture')
+
+      const saved = data.invoice as Invoice
       setInvoices(prev => {
-        const updated = [...prev, newInvoice]
+        const exists = prev.some(i => i.id === saved.id)
+        const updated = exists ? prev.map(i => (i.id === saved.id ? saved : i)) : [saved, ...prev]
         localStorage.setItem('itvision-invoices', JSON.stringify(updated))
         return updated
       })
+    } catch (e) {
+      // fallback local
+      const now2 = new Date().toISOString()
+      if (editingInvoice) {
+        setInvoices(prev => {
+          const updated = prev.map(inv => inv.id === invoice.id ? { ...invoice, updatedAt: now2 } : inv)
+          localStorage.setItem('itvision-invoices', JSON.stringify(updated))
+          return updated
+        })
+      } else {
+        const newInvoice: Invoice = {
+          ...invoice,
+          id: `inv-${Date.now()}`,
+          number: generateInvoiceNumber(),
+          createdAt: now2,
+          updatedAt: now2,
+          createdBy: 'Admin'
+        }
+        setInvoices(prev => {
+          const updated = [...prev, newInvoice]
+          localStorage.setItem('itvision-invoices', JSON.stringify(updated))
+          return updated
+        })
+      }
+      console.error(e)
     }
 
     setEditingInvoice(null)
@@ -330,10 +247,10 @@ export default function InvoiceGenerator() {
   }
 
   const createInvoiceFromQuote = (quoteId: string) => {
-    // Simulation conversion devis vers facture
     const quote = quotes.find(q => q.id === quoteId)
     if (!quote) return
 
+    const baseHT = quote.total ? quote.total / 1.18 : 0
     const newInvoice: Partial<Invoice> = {
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -341,8 +258,8 @@ export default function InvoiceGenerator() {
       quoteId: quote.id,
       client: {
         id: 'client-quote',
-        name: quote.client.split(' - ')[0],
-        company: quote.client.split(' - ')[1] || '',
+        name: quote.client,
+        company: '',
         email: '',
         phone: '',
         address: '',
@@ -354,14 +271,14 @@ export default function InvoiceGenerator() {
           id: 'item-quote',
           description: `Prestations selon devis ${quote.number}`,
           quantity: 1,
-          unitPrice: quote.total / 1.18, // Prix HT
-          totalPrice: quote.total / 1.18,
+          unitPrice: baseHT,
+          totalPrice: baseHT,
           category: 'services'
         }
       ],
-      subtotal: quote.total / 1.18,
+      subtotal: baseHT,
       taxRate: 18,
-      taxAmount: (quote.total / 1.18) * 0.18,
+      taxAmount: baseHT * 0.18,
       total: quote.total,
       notes: `Facture générée depuis le devis ${quote.number}`,
       terms: 'Paiement à 30 jours selon conditions devis.'
@@ -373,20 +290,23 @@ export default function InvoiceGenerator() {
   }
 
   const updateInvoiceStatus = (invoiceId: string, newStatus: Invoice['status']) => {
+    const paymentDate = newStatus === 'paid' ? new Date().toISOString().split('T')[0] : undefined
+    // Optimistic UI
     setInvoices(prev => {
-      const updated = prev.map(inv => 
-        inv.id === invoiceId 
-          ? { 
-              ...inv, 
-              status: newStatus,
-              updatedAt: new Date().toISOString(),
-              ...(newStatus === 'paid' ? { paymentDate: new Date().toISOString().split('T')[0] } : {})
-            }
-          : inv
+      const updated = prev.map(inv => inv.id === invoiceId
+        ? { ...inv, status: newStatus, updatedAt: new Date().toISOString(), ...(paymentDate ? { paymentDate } : {}) }
+        : inv
       )
       localStorage.setItem('itvision-invoices', JSON.stringify(updated))
       return updated
     })
+
+    fetch('/api/admin/invoices', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: invoiceId, status: newStatus, ...(paymentDate ? { paymentDate } : {}) })
+    }).catch(() => {})
   }
 
   const deleteInvoice = (invoiceId: string) => {
@@ -396,21 +316,67 @@ export default function InvoiceGenerator() {
         localStorage.setItem('itvision-invoices', JSON.stringify(updated))
         return updated
       })
+      fetch(`/api/admin/invoices?id=${encodeURIComponent(invoiceId)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      }).catch(() => {})
     }
   }
 
-  const exportInvoicePDF = (invoice: Invoice) => {
-    // Génération PDF (simulation)
-    const pdfContent = generateInvoicePDF(invoice)
-    
-    // Création du blob et téléchargement
-    const blob = new Blob([pdfContent], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${invoice.number}-${invoice.client.company}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+  const exportInvoicePDF = async (invoice: Invoice) => {
+    try {
+      const res = await fetch('/api/admin/invoices/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(invoice)
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Erreur génération PDF')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${invoice.number}-${invoice.client.company || invoice.client.name}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error(e)
+      // fallback: ancien mode texte
+      const pdfContent = generateInvoicePDF(invoice)
+      const blob = new Blob([pdfContent], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${invoice.number}-${invoice.client.company || invoice.client.name}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const sendInvoiceByEmail = async (invoice: Invoice) => {
+    if (!invoice?.id) return
+    try {
+      setSendingInvoiceId(invoice.id)
+      const res = await fetch('/api/admin/invoices/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: invoice.id })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Envoi impossible')
+      }
+      await loadInvoices()
+      alert('Facture envoyée par email')
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de l\'envoi')
+    } finally {
+      setSendingInvoiceId(null)
+    }
   }
 
   const generateInvoicePDF = (invoice: Invoice) => {
@@ -918,6 +884,15 @@ export default function InvoiceGenerator() {
                             title="Télécharger PDF"
                           >
                             <Download className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            onClick={() => sendInvoiceByEmail(invoice)}
+                            disabled={sendingInvoiceId === invoice.id}
+                            className="text-indigo-600 hover:text-indigo-800 p-1 disabled:opacity-60"
+                            title="Envoyer par email"
+                          >
+                            <Send className="h-4 w-4" />
                           </button>
 
                           {invoice.status !== 'paid' && (

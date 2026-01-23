@@ -7,6 +7,13 @@ export interface IUser extends Document {
   name: string
   avatarUrl?: string
   phone?: string
+  // Profil entreprise (B2B)
+  company?: string
+  address?: string
+  city?: string
+  country?: string
+  // Liaison optionnelle vers un enregistrement Client (entreprise)
+  companyClientId?: mongoose.Types.ObjectId
   favoriteProductIds?: string[]
   role: 'CLIENT' | 'TECHNICIAN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'ADMIN' | 'SUPER_ADMIN'
   isActive: boolean
@@ -28,6 +35,11 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, required: true },
   avatarUrl: { type: String },
   phone: { type: String },
+  company: { type: String, trim: true },
+  address: { type: String, trim: true },
+  city: { type: String, trim: true },
+  country: { type: String, trim: true },
+  companyClientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   favoriteProductIds: { type: [String], default: [] },
   role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN'], default: 'CLIENT', index: true },
   isActive: { type: Boolean, default: true, index: true },

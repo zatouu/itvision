@@ -5,6 +5,8 @@ export interface IProject extends Document {
   description?: string
   address: string
   clientId: mongoose.Types.ObjectId
+  // Optionnel: rattacher un projet à une entreprise (Client) pour visibilité multi-utilisateurs
+  clientCompanyId?: mongoose.Types.ObjectId
   status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold'
   startDate: Date
   endDate?: Date | null
@@ -127,6 +129,7 @@ const ProjectSchema = new Schema<IProject>({
   description: { type: String },
   address: { type: String, required: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'], default: 'lead', index: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date },
@@ -242,5 +245,6 @@ const ProjectSchema = new Schema<IProject>({
 }, { timestamps: true })
 
 ProjectSchema.index({ clientId: 1, createdAt: -1 })
+ProjectSchema.index({ clientCompanyId: 1, createdAt: -1 })
 
 export default mongoose.models.Project || mongoose.model<IProject>('Project', ProjectSchema)

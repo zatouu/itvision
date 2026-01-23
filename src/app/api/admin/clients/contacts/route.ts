@@ -5,7 +5,8 @@ import { requireAuth } from '@/lib/jwt'
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
-    if (String(role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
+    const r = String(role || '').toUpperCase()
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(r)) throw new Error('Accès non autorisé')
   })
 }
 

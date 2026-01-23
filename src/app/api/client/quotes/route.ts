@@ -3,6 +3,7 @@ import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import Quote from '@/lib/models/Quote'
 import AdminQuote from '@/lib/models/AdminQuote'
+import User from '@/lib/models/User'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 interface DecodedToken {
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
 
     await connectMongoose()
 
+    const user = await User.findById(userId).select({ companyClientId: 1 }).lean() as any
+    const companyClientId = user?.companyClientId ? String(user.companyClientId) : null
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
@@ -52,8 +56,13 @@ export async function GET(request: NextRequest) {
     }
     const standardQuotes = await Quote.find(queryStandard).sort({ createdAt: -1 }).lean()
 
-    // Récupérer les devis admin
-    const queryAdmin: any = { 'client.id': userId }
+    // Récupérer les devis admin (liés à l'utilisateur ou à l'entreprise)
+    const queryAdmin: any = {
+      $or: [
+        { clientUserId: userId },
+        ...(companyClientId ? [{ clientCompanyId: companyClientId }] : [])
+      ]
+    }
     if (status && status !== 'all') {
       queryAdmin.status = status
     }

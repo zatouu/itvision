@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
         phone: profileData.phone,
         company: profileData.company,
         address: profileData.address,
+        companyClientId: profileData.companyClientId,
         role: profileData.role,
         avatar: profileData.avatar || profileData.avatarUrl,
         preferences: profileData.preferences || {},

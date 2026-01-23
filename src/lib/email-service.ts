@@ -15,6 +15,11 @@ interface EmailData {
   subject: string
   html: string
   text?: string
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+    contentType?: string
+  }>
 }
 
 class EmailService {
@@ -69,11 +74,12 @@ class EmailService {
         to: emailData.to,
         subject: emailData.subject,
         html: emailData.html,
-        text: emailData.text || this.stripHtml(emailData.html)
+        text: emailData.text || this.stripHtml(emailData.html),
+        attachments: emailData.attachments
       }
 
-      const result = await this.transporter.sendMail(mailOptions)
-      console.log('[EMAIL] Email envoyé avec succès:', result.messageId)
+      const result: any = await this.transporter.sendMail(mailOptions as any)
+      console.log('[EMAIL] Email envoyé avec succès:', result?.messageId)
       return true
     } catch (error) {
       console.error('[EMAIL] Erreur lors de l\'envoi:', error)
@@ -87,6 +93,9 @@ class EmailService {
     console.log('\n=== EMAIL SIMULÉ ===')
     console.log(`À: ${emailData.to}`)
     console.log(`Sujet: ${emailData.subject}`)
+    if (emailData.attachments?.length) {
+      console.log(`Pièces jointes: ${emailData.attachments.map(a => a.filename).join(', ')}`)
+    }
     console.log('Contenu HTML:')
     console.log(emailData.html)
     console.log('===================\n')

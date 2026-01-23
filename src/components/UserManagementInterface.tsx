@@ -46,6 +46,11 @@ interface UserData {
   phone?: string
   avatarUrl?: string
   role: string
+  company?: string
+  address?: string
+  city?: string
+  country?: string
+  companyClientId?: any
   isActive: boolean
   loginAttempts: number
   lockedUntil?: string
@@ -62,6 +67,18 @@ interface UserFormData {
   avatarUrl?: string
   role: string
   password?: string
+  company: string
+  address: string
+  city: string
+  country: string
+  companyClientId: string
+}
+
+interface CompanyOption {
+  _id: string
+  name?: string
+  company?: string
+  email?: string
 }
 
 // Configuration des rôles
@@ -77,12 +94,14 @@ const ROLES = [
 // Composant formulaire isolé pour éviter les re-renders
 const UserFormFields = memo(function UserFormFields({
   initialData,
+  companyOptions,
   isEdit,
   onSubmit,
   onCancel,
   isSubmitting
 }: {
   initialData: UserFormData
+  companyOptions: CompanyOption[]
   isEdit: boolean
   onSubmit: (data: UserFormData) => void
   onCancel: () => void
@@ -181,6 +200,71 @@ const UserFormFields = memo(function UserFormFields({
             placeholder="+221 77 123 45 67"
           />
         </div>
+
+        {/* Entreprise (clients) */}
+        {formData.role === 'CLIENT' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Entreprise liée (optionnel)</label>
+              <select
+                value={formData.companyClientId}
+                onChange={(e) => setFormData(prev => ({ ...prev, companyClientId: e.target.value }))}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors bg-white"
+              >
+                <option value="">Aucune</option>
+                {companyOptions.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.company || c.name || c.email || c._id}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Lie l'utilisateur à une entreprise (Client) pour le portail entreprise.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Société (libre)</label>
+                <input
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Nom de société (si pas liée)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Pays</label>
+                <input
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Sénégal"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Adresse</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Adresse"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ville</label>
+                <input
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Dakar"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Rôle avec cartes */}
         <div>
@@ -447,6 +531,8 @@ export default function UserManagementInterface() {
   const searchParams = useSearchParams()
   const didInitFromQuery = useRef(false)
   const [users, setUsers] = useState<UserData[]>([])
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([])
+  const [companyOptionsLoading, setCompanyOptionsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
@@ -518,6 +604,33 @@ export default function UserManagementInterface() {
     fetchUsers()
   }, [currentPage, searchTerm, roleFilter, statusFilter])
 
+  const fetchCompanyOptions = useCallback(async () => {
+    if (companyOptionsLoading) return
+    setCompanyOptionsLoading(true)
+    try {
+      const res = await fetch('/api/admin/clients?limit=200', { credentials: 'include' })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success && Array.isArray(data?.clients)) {
+        setCompanyOptions(data.clients.map((c: any) => ({
+          _id: String(c._id),
+          name: c.name,
+          company: c.company,
+          email: c.email
+        })))
+      }
+    } catch {
+      // silent: l'UI reste utilisable sans liaison entreprise
+    } finally {
+      setCompanyOptionsLoading(false)
+    }
+  }, [companyOptionsLoading])
+
+  useEffect(() => {
+    if ((showCreateModal || showEditModal) && companyOptions.length === 0) {
+      fetchCompanyOptions()
+    }
+  }, [showCreateModal, showEditModal, companyOptions.length, fetchCompanyOptions])
+
   // Créer un utilisateur
   const handleCreateUser = async (formData: UserFormData) => {
     setIsSubmitting(true)
@@ -578,6 +691,11 @@ export default function UserManagementInterface() {
           phone: formData.phone,
           avatarUrl: formData.avatarUrl,
           role: formData.role,
+          company: formData.company,
+          address: formData.address,
+          city: formData.city,
+          country: formData.country,
+          companyClientId: formData.companyClientId || null,
           isActive: selectedUser.isActive
         })
       })
@@ -704,7 +822,12 @@ export default function UserManagementInterface() {
     name: '',
     phone: '',
     avatarUrl: '',
-    role: 'CLIENT'
+    role: 'CLIENT',
+    company: '',
+    address: '',
+    city: '',
+    country: 'Sénégal',
+    companyClientId: ''
   }
 
   return (
@@ -1061,6 +1184,7 @@ export default function UserManagementInterface() {
       >
         <UserFormFields
           initialData={emptyFormData}
+          companyOptions={companyOptions}
           isEdit={false}
           onSubmit={handleCreateUser}
           onCancel={() => setShowCreateModal(false)}
@@ -1086,8 +1210,14 @@ export default function UserManagementInterface() {
               name: selectedUser.name,
               phone: selectedUser.phone || '',
               avatarUrl: selectedUser.avatarUrl || '',
-              role: selectedUser.role
+              role: selectedUser.role,
+              company: selectedUser.company || '',
+              address: selectedUser.address || '',
+              city: selectedUser.city || '',
+              country: selectedUser.country || 'Sénégal',
+              companyClientId: selectedUser.companyClientId ? String((selectedUser.companyClientId as any)?._id || selectedUser.companyClientId) : ''
             }}
+            companyOptions={companyOptions}
             isEdit={true}
             onSubmit={handleUpdateUser}
             onCancel={() => { setShowEditModal(false); setSelectedUser(null); }}

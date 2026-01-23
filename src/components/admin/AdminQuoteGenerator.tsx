@@ -61,6 +61,47 @@ export default function AdminQuoteGenerator() {
   const [showProductModal, setShowProductModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'create' | 'list'>('list')
   const [isSaving, setIsSaving] = useState(false)
+  const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
+
+  const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
+
+  const normalizeQuote = (q: any): Quote => {
+    const id = String(q?._id || q?.id || '')
+    return {
+      id,
+      numero: String(q?.numero || ''),
+      date: q?.date ? new Date(q.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      client: {
+        name: String(q?.client?.name || ''),
+        address: String(q?.client?.address || ''),
+        phone: String(q?.client?.phone || ''),
+        email: String(q?.client?.email || ''),
+        rcn: q?.client?.rcn,
+        ninea: q?.client?.ninea
+      },
+      products: Array.isArray(q?.products)
+        ? q.products.map((p: any) => ({
+            id: String(p?.id || p?._id || `item-${Math.random()}`),
+            description: String(p?.description || ''),
+            quantity: Number(p?.quantity || 0),
+            unitPrice: Number(p?.unitPrice || 0),
+            taxable: Boolean(p?.taxable),
+            total: Number(p?.total || 0)
+          }))
+        : [],
+      subtotal: Number(q?.subtotal || 0),
+      brsAmount: Number(q?.brsAmount || 0),
+      taxAmount: Number(q?.taxAmount || 0),
+      other: Number(q?.other || 0),
+      total: Number(q?.total || 0),
+      status: (q?.status as Quote['status']) || 'draft',
+      notes: q?.notes,
+      bonCommande: q?.bonCommande,
+      dateLivraison: q?.dateLivraison,
+      pointExpedition: q?.pointExpedition,
+      conditions: q?.conditions
+    }
+  }
 
   useEffect(() => {
     loadProducts()
@@ -84,7 +125,8 @@ export default function AdminQuoteGenerator() {
       const res = await fetch('/api/admin/quotes')
       if (res.ok) {
         const data = await res.json()
-        setQuotes(data.quotes || [])
+        const list = Array.isArray(data?.quotes) ? data.quotes : []
+        setQuotes(list.map((q: any) => normalizeQuote(q)).filter((q: Quote) => q.id))
       }
     } catch (error) {
       console.error('Erreur chargement devis:', error)
@@ -96,7 +138,7 @@ export default function AdminQuoteGenerator() {
 
   const createNewQuote = () => {
     const newQuote: Quote = {
-      id: `DEV-${Date.now()}`,
+      id: `TEMP-${Date.now()}`,
       numero: `2024-${String(quotes.length + 1).padStart(3, '0')}`,
       date: new Date().toISOString().split('T')[0],
       client: {
@@ -244,15 +286,16 @@ export default function AdminQuoteGenerator() {
       })
 
       if (res.ok) {
-        const data = await res.json()
-        
+        const data = await res.json().catch(() => null)
+        const saved = data?.quote ? normalizeQuote(data.quote) : currentQuote
+
         // Mettre à jour la liste
         const updatedQuotes = [...quotes]
-        const index = updatedQuotes.findIndex(q => q.id === currentQuote.id)
+        const index = updatedQuotes.findIndex(q => q.id === currentQuote.id || q.id === saved.id)
         if (index >= 0) {
-          updatedQuotes[index] = currentQuote
+          updatedQuotes[index] = saved
         } else {
-          updatedQuotes.push(currentQuote)
+          updatedQuotes.push(saved)
         }
         setQuotes(updatedQuotes)
         
@@ -263,7 +306,8 @@ export default function AdminQuoteGenerator() {
         setActiveTab('list')
         setCurrentQuote(null)
       } else {
-        throw new Error('Erreur de sauvegarde')
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Erreur de sauvegarde')
       }
     } catch (error) {
       console.error('Erreur:', error)
@@ -323,6 +367,36 @@ export default function AdminQuoteGenerator() {
     const updatedQuotes = quotes.filter(q => q.id !== quoteId)
     setQuotes(updatedQuotes)
     localStorage.setItem('itvision-admin-quotes', JSON.stringify(updatedQuotes))
+
+    if (isObjectId(quoteId)) {
+      fetch(`/api/admin/quotes?id=${encodeURIComponent(quoteId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }
+  }
+
+  const sendQuoteByEmail = async (quote: Quote) => {
+    if (!quote?.id || !isObjectId(quote.id)) {
+      alert('Veuillez d\'abord sauvegarder le devis avant envoi.')
+      return
+    }
+    try {
+      setSendingQuoteId(quote.id)
+      const res = await fetch('/api/admin/quotes/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: quote.id })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Envoi impossible')
+      }
+      await loadQuotes()
+      alert('Devis envoyé par email')
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de l\'envoi')
+    } finally {
+      setSendingQuoteId(null)
+    }
   }
 
   const filteredProducts = products.filter(p =>
@@ -463,6 +537,14 @@ export default function AdminQuoteGenerator() {
                           title="Éditer"
                         >
                           <Edit3 className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => sendQuoteByEmail(quote)}
+                          disabled={sendingQuoteId === quote.id}
+                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-60"
+                          title="Envoyer par email"
+                        >
+                          <Send className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => {
@@ -813,6 +895,15 @@ export default function AdminQuoteGenerator() {
               >
                 <Save className="h-5 w-5" />
                 {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </button>
+              <button
+                onClick={() => sendQuoteByEmail(currentQuote)}
+                disabled={sendingQuoteId === currentQuote.id || !currentQuote.client.email}
+                className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!isObjectId(currentQuote.id) ? 'Sauvegardez d\'abord le devis' : ''}
+              >
+                <Send className="h-5 w-5" />
+                {sendingQuoteId === currentQuote.id ? 'Envoi...' : 'Envoyer email'}
               </button>
               <button
                 onClick={exportPDF}

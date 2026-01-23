@@ -18,6 +18,7 @@ interface Project {
   description?: string
   address: string
   clientId: string
+  clientCompanyId?: any
   status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold'
   startDate: string
   endDate?: string
@@ -66,9 +67,15 @@ interface ClientOption {
   phone?: string
 }
 
+interface CompanyOption {
+  id: string
+  label: string
+}
+
 interface NewProjectForm {
   name: string
   clientId: string
+  clientCompanyId: string
   address: string
   startDate: string
   endDate: string
@@ -87,6 +94,7 @@ interface NewProjectForm {
 const buildDefaultProjectForm = (): NewProjectForm => ({
   name: '',
   clientId: '',
+  clientCompanyId: '',
   address: '',
   startDate: new Date().toISOString().slice(0, 10),
   endDate: '',
@@ -115,6 +123,8 @@ export default function ModernProjectManagement() {
   const [error, setError] = useState('')
   const [clients, setClients] = useState<ClientOption[]>([])
   const [clientsLoading, setClientsLoading] = useState(false)
+  const [companies, setCompanies] = useState<CompanyOption[]>([])
+  const [companiesLoading, setCompaniesLoading] = useState(false)
   const [newProjectData, setNewProjectData] = useState<NewProjectForm>(() => buildDefaultProjectForm())
   const [createModalError, setCreateModalError] = useState('')
   const [creatingProject, setCreatingProject] = useState(false)
@@ -169,6 +179,27 @@ export default function ModernProjectManagement() {
     }
   }
 
+  const fetchCompanies = async () => {
+    setCompaniesLoading(true)
+    try {
+      const res = await fetch('/api/admin/clients?limit=200', { credentials: 'include' })
+      const data = await res.json().catch(() => null)
+      const list = res.ok && data?.success && Array.isArray(data?.clients) ? data.clients : []
+      const formatted: CompanyOption[] = list
+        .map((c: any) => ({
+          id: String(c._id),
+          label: String(c.company || c.name || c.email || c._id)
+        }))
+        .filter((c: CompanyOption) => c.id)
+      setCompanies(formatted)
+    } catch (companyError) {
+      console.error('Chargement des entreprises impossible', companyError)
+      toast.error('Chargement entreprises impossible', { description: 'Impossible de récupérer la liste des entreprises.' })
+    } finally {
+      setCompaniesLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchProjects()
   }, [])
@@ -180,6 +211,10 @@ export default function ModernProjectManagement() {
 
   useEffect(() => {
     fetchClients()
+  }, [])
+
+  useEffect(() => {
+    fetchCompanies()
   }, [])
 
   const openCreateModal = () => {
@@ -219,6 +254,10 @@ export default function ModernProjectManagement() {
         description: newProjectData.description || '',
         progress: newProjectData.progress ? Number(newProjectData.progress) : 0,
         value: newProjectData.value ? Number(newProjectData.value) : 0
+      }
+
+      if (newProjectData.clientCompanyId) {
+        payload.clientCompanyId = newProjectData.clientCompanyId
       }
 
       if (newProjectData.endDate) {
@@ -956,6 +995,32 @@ export default function ModernProjectManagement() {
                   {clients.length === 0 && (
                     <p className="mt-1 text-xs text-orange-600">Aucun client chargé pour le moment.</p>
                   )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700">Entreprise (optionnel)</label>
+                    <button
+                      type="button"
+                      onClick={() => fetchCompanies()}
+                      className="text-xs inline-flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                      disabled={companiesLoading}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${companiesLoading ? 'animate-spin' : ''}`} />
+                      Rafraîchir
+                    </button>
+                  </div>
+                  <select
+                    value={newProjectData.clientCompanyId}
+                    onChange={e => handleNewProjectFieldChange('clientCompanyId', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                  >
+                    <option value="">Aucune</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">Lie le projet à une entreprise (portail entreprise + documents).</p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="text-sm font-medium text-gray-700">Adresse *</label>

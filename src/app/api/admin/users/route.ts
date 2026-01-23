@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     await requireAdmin(request)
     const body = await request.json()
 
-    const { username, email, password, name, phone, role, avatarUrl } = body
+    const { username, email, password, name, phone, role, avatarUrl, company, address, city, country, companyClientId } = body
     if (!username || !email || !password || !name || !role) {
       return NextResponse.json({ error: 'Champs requis manquants' }, { status: 400 })
     }
@@ -65,7 +65,20 @@ export async function POST(request: NextRequest) {
     if (exists) return NextResponse.json({ error: 'Utilisateur déjà existant' }, { status: 409 })
 
     const passwordHash = await bcrypt.hash(password, 12)
-    const created = await User.create({ username, email: email.toLowerCase(), passwordHash, name, phone, avatarUrl, role: role.toUpperCase() })
+    const created = await User.create({
+      username,
+      email: email.toLowerCase(),
+      passwordHash,
+      name,
+      phone,
+      avatarUrl,
+      role: role.toUpperCase(),
+      company,
+      address,
+      city,
+      country,
+      companyClientId
+    })
 
     return NextResponse.json({ success: true, user: { id: String(created._id), username, email: created.email, name, phone, avatarUrl: created.avatarUrl, role: created.role } }, { status: 201 })
   } catch (error) {
@@ -81,10 +94,13 @@ export async function PUT(request: NextRequest) {
     await requireAdmin(request)
     const body = await request.json()
 
-    const { id, name, phone, role, isActive, avatarUrl } = body
+    const { id, name, phone, role, isActive, avatarUrl, company, address, city, country, companyClientId } = body
     if (!id) return NextResponse.json({ error: 'ID requis' }, { status: 400 })
 
-    await User.updateOne({ _id: id }, { $set: { name, phone, avatarUrl, role: role?.toUpperCase(), isActive } })
+    await User.updateOne(
+      { _id: id },
+      { $set: { name, phone, avatarUrl, role: role?.toUpperCase(), isActive, company, address, city, country, companyClientId } }
+    )
     const updated = await User.findById(id).lean()
     return NextResponse.json({ success: true, user: updated })
   } catch (error) {

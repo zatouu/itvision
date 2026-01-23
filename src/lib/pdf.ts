@@ -369,3 +369,217 @@ export function generateITVisionQuotePdf(quote: {
 
   return doc.output('arraybuffer') as unknown as ArrayBuffer
 }
+
+export function generateITVisionInvoicePdf(invoice: {
+  numero: string
+  date: string
+  dueDate?: string
+  client: {
+    name: string
+    company?: string
+    address: string
+    phone: string
+    email: string
+    taxId?: string
+  }
+  items: Array<{
+    description: string
+    quantity: number
+    unitPrice: number
+    totalPrice: number
+  }>
+  subtotal: number
+  taxRate: number
+  taxAmount: number
+  total: number
+  notes?: string
+  terms?: string
+  paymentMethod?: string
+  paymentDate?: string
+}): ArrayBuffer {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  // En-tête
+  doc.setFillColor(48, 50, 107)
+  doc.rect(0, 0, pageWidth, 60, 'F')
+
+  doc.setTextColor(255, 140, 0)
+  doc.setFontSize(22)
+  doc.setFont('helvetica', 'bold')
+  doc.text('FACTURE', pageWidth - 145, 30)
+
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`${invoice.client.company || invoice.client.name}`, pageWidth - 260, 48)
+
+  // Informations société
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text('IT Vision', 40, 30)
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(0, 0, 0)
+
+  let yPos = 75
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Adresse de la société', 40, yPos)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  yPos += 12
+  doc.text('11 Cité Lessine, Nord Foire Tel : 774133440/774223348', 40, yPos)
+  yPos += 10
+  doc.text('RC N° : SN DDER 2019 A 10739 - NINEA 007305734', 40, yPos)
+  yPos += 10
+  doc.text('Téléphone : +221 77 413 34 40 / 221 77 422 33 48', 40, yPos)
+
+  // Date et N° facture (droite)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Date', pageWidth - 150, 75)
+  doc.setFont('helvetica', 'normal')
+  doc.text(new Date(invoice.date).toLocaleDateString('fr-FR'), pageWidth - 70, 75)
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('N° facture', pageWidth - 150, 90)
+  doc.setFont('helvetica', 'normal')
+  doc.text(invoice.numero, pageWidth - 70, 90)
+
+  if (invoice.dueDate) {
+    doc.setFont('helvetica', 'bold')
+    doc.text('Échéance', pageWidth - 150, 105)
+    doc.setFont('helvetica', 'normal')
+    doc.text(new Date(invoice.dueDate).toLocaleDateString('fr-FR'), pageWidth - 70, 105)
+  }
+
+  // Facturer à
+  yPos = 120
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Facturer à', 40, yPos)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  yPos += 15
+  doc.text(invoice.client.company || invoice.client.name, 40, yPos)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  yPos += 12
+  if (invoice.client.company) {
+    doc.text(invoice.client.name, 40, yPos)
+    yPos += 12
+  }
+  if (invoice.client.address) {
+    doc.text(invoice.client.address, 40, yPos)
+    yPos += 12
+  }
+  if (invoice.client.phone) {
+    doc.text(`Tel: ${invoice.client.phone}`, 40, yPos)
+    yPos += 10
+  }
+  if (invoice.client.email) {
+    doc.text(`Email: ${invoice.client.email}`, 40, yPos)
+    yPos += 10
+  }
+  if (invoice.client.taxId) {
+    doc.text(`NINEA/Tax ID: ${invoice.client.taxId}`, 40, yPos)
+    yPos += 10
+  }
+
+  // Tableau des lignes
+  yPos += 10
+  const rows = invoice.items.map((it) => ([
+    String(it.quantity),
+    it.description,
+    `${it.unitPrice.toLocaleString('fr-FR')} CFA`,
+    `${it.totalPrice.toLocaleString('fr-FR')} CFA`
+  ]))
+
+  // @ts-expect-error jspdf-autotable
+  doc.autoTable({
+    startY: yPos,
+    head: [['Qté', 'Description', 'Prix unitaire', 'Montant']],
+    body: rows,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 5, lineColor: [200, 200, 200], lineWidth: 0.5 },
+    headStyles: { fillColor: [70, 80, 120], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 60 },
+      1: { halign: 'left', cellWidth: 260 },
+      2: { halign: 'right', cellWidth: 110 },
+      3: { halign: 'right', cellWidth: 110 }
+    }
+  })
+
+  // Totaux
+  // @ts-expect-error jspdf-autotable
+  yPos = doc.lastAutoTable.finalY + 10
+
+  const totalsData = [
+    ['Sous-total HT', `${invoice.subtotal.toLocaleString('fr-FR')} CFA`],
+    [`TVA (${invoice.taxRate.toFixed(0)}%)`, `${invoice.taxAmount.toLocaleString('fr-FR')} CFA`],
+    ['TOTAL TTC', `${invoice.total.toLocaleString('fr-FR')} CFA`]
+  ]
+
+  // @ts-expect-error jspdf-autotable
+  doc.autoTable({
+    startY: yPos,
+    body: totalsData,
+    theme: 'plain',
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: {
+      0: { halign: 'right', cellWidth: 360, fontStyle: 'bold' },
+      1: { halign: 'right', cellWidth: 160, fontStyle: 'bold' }
+    },
+    didParseCell: function (data: any) {
+      if (data.row.index === 2) {
+        data.cell.styles.fillColor = [245, 245, 245]
+        data.cell.styles.fontSize = 12
+        data.cell.styles.fontStyle = 'bold'
+      }
+    }
+  })
+
+  // Notes / modalités
+  // @ts-expect-error jspdf-autotable
+  yPos = doc.lastAutoTable.finalY + 14
+  doc.setTextColor(33, 33, 33)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Notes', 40, yPos)
+  doc.setFont('helvetica', 'normal')
+  const notes = (invoice.notes || '').trim() || '—'
+  doc.text(notes.slice(0, 600), 40, yPos + 12)
+
+  if (invoice.terms) {
+    doc.setFont('helvetica', 'bold')
+    doc.text('Conditions', 40, yPos + 42)
+    doc.setFont('helvetica', 'normal')
+    doc.text(String(invoice.terms).slice(0, 600), 40, yPos + 54)
+  }
+
+  if (invoice.paymentMethod || invoice.paymentDate) {
+    doc.setFont('helvetica', 'bold')
+    doc.text('Paiement', 40, yPos + 84)
+    doc.setFont('helvetica', 'normal')
+    const line = `${invoice.paymentMethod ? `Mode: ${invoice.paymentMethod}` : ''}${invoice.paymentMethod && invoice.paymentDate ? ' • ' : ''}${invoice.paymentDate ? `Date: ${invoice.paymentDate}` : ''}`
+    doc.text(line || '—', 40, yPos + 96)
+  }
+
+  // Footer
+  doc.setDrawColor(229, 231, 235)
+  doc.line(40, pageHeight - 60, pageWidth - 40, pageHeight - 60)
+  doc.setFontSize(9)
+  doc.setTextColor(100, 116, 139)
+  doc.text('IT Vision Plus • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
+  doc.text('www.itvisionplus.sn • contact@itvisionplus.sn • +221 77 413 34 40', 40, pageHeight - 24)
+
+  return doc.output('arraybuffer') as unknown as ArrayBuffer
+}

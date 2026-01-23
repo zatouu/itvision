@@ -21,6 +21,10 @@ export interface IAdminQuote extends Document {
   numero: string
   date: Date
   client: IAdminQuoteClient
+  // Liaison optionnelle vers un utilisateur/client entreprise pour la visibilité portail
+  clientUserId?: mongoose.Types.ObjectId
+  clientCompanyId?: mongoose.Types.ObjectId
+  projectId?: mongoose.Types.ObjectId
   products: IAdminQuoteProduct[]
   subtotal: number
   brsAmount: number // 5% de déduction
@@ -28,6 +32,9 @@ export interface IAdminQuote extends Document {
   other: number
   total: number
   status: 'draft' | 'sent' | 'accepted' | 'rejected'
+  sentAt?: Date
+  acceptedAt?: Date
+  rejectedAt?: Date
   notes?: string
   bonCommande?: string
   dateLivraison?: string
@@ -59,6 +66,9 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   numero: { type: String, required: true, unique: true, index: true },
   date: { type: Date, required: true },
   client: { type: AdminQuoteClientSchema, required: true },
+  clientUserId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
   products: { type: [AdminQuoteProductSchema], default: [] },
   subtotal: { type: Number, default: 0 },
   brsAmount: { type: Number, default: 0 }, // 5% de déduction
@@ -66,6 +76,9 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   other: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   status: { type: String, enum: ['draft', 'sent', 'accepted', 'rejected'], default: 'draft', index: true },
+  sentAt: { type: Date },
+  acceptedAt: { type: Date },
+  rejectedAt: { type: Date },
   notes: { type: String },
   bonCommande: { type: String },
   dateLivraison: { type: String },
@@ -76,6 +89,8 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
 
 AdminQuoteSchema.index({ createdAt: -1 })
 AdminQuoteSchema.index({ 'client.name': 1 })
+AdminQuoteSchema.index({ clientUserId: 1, createdAt: -1 })
+AdminQuoteSchema.index({ clientCompanyId: 1, createdAt: -1 })
 
 export default mongoose.models.AdminQuote || mongoose.model<IAdminQuote>('AdminQuote', AdminQuoteSchema)
 
