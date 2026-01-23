@@ -79,6 +79,12 @@ const menuItems: MenuItem[] = [
     href: '/admin/clients'
   },
   {
+    id: 'clients-boutique',
+    label: 'Clients boutique',
+    icon: Users,
+    href: '/admin/users?role=CLIENT'
+  },
+  {
     id: 'commandes',
     label: 'Commandes',
     icon: ShoppingCart,

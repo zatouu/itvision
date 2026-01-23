@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, memo, useCallback } from 'react'
+import { useState, useEffect, memo, useCallback, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Users, 
@@ -443,6 +444,8 @@ function SimpleModal({
 // Composant principal
 export default function UserManagementInterface() {
   const { fetchWithCsrf } = useCsrf()
+  const searchParams = useSearchParams()
+  const didInitFromQuery = useRef(false)
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -458,6 +461,21 @@ export default function UserManagementInterface() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const usersPerPage = 10
+
+  // Init filters from URL query once (e.g. /admin/users?role=CLIENT)
+  useEffect(() => {
+    if (didInitFromQuery.current) return
+    didInitFromQuery.current = true
+
+    const role = (searchParams?.get('role') || '').trim()
+    const q = (searchParams?.get('q') || '').trim()
+    const isActive = (searchParams?.get('isActive') || '').trim()
+
+    if (q) setSearchTerm(q)
+    if (role) setRoleFilter(role)
+    if (isActive) setStatusFilter(isActive)
+    if (q || role || isActive) setCurrentPage(1)
+  }, [searchParams])
 
   // Stats calculées
   const stats = {
