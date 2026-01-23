@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import UserManagementInterface from '@/components/UserManagementInterface'
 import Breadcrumb from '@/components/Breadcrumb'
 
@@ -8,7 +9,9 @@ export default function AdminUsersPage() {
         backHref="/admin" 
         backLabel="Retour au dashboard"
       />
-      <UserManagementInterface />
+      <Suspense fallback={<div className="px-6 py-8 text-sm text-gray-600">Chargement…</div>}>
+        <UserManagementInterface />
+      </Suspense>
     </div>
   )
 }

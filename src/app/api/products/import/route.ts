@@ -417,7 +417,11 @@ async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Previe
   const html = await res.text()
   // Détection blocage/captcha : page très courte ou contient "robot check"
   if (!html || html.length < 1000 || /robot|verify|captcha|window.location/i.test(html)) {
-    throw new Error('Le site 1688 a bloqué l’accès automatisé (captcha ou protection anti-bot). Essayez de réessayer plus tard ou manuellement.')
+    throw new Error(
+      "CAPTCHA_1688: Le site 1688 a bloqué l’accès automatisé (captcha / anti-bot). " +
+        "Solutions: 1) réessayer plus tard, 2) changer d’IP (4G/VPN), " +
+        "3) faire un import manuel (coller nom + images dans l’admin) en gardant le lien 1688 dans \"Sourcing\"."
+    )
   }
 
   const jsonLd = extractJsonLdProduct(html)
@@ -634,7 +638,11 @@ export async function GET(request: NextRequest) {
       }
     } catch (error: any) {
       console.error('Preview error:', error)
-      return NextResponse.json({ success: false, error: error?.message || 'Import impossible' }, { status: 500 })
+      const message = String(error?.message || 'Import impossible')
+      const isCaptcha = /CAPTCHA_1688|captcha|robot|verify/i.test(message)
+      const code = isCaptcha ? 'CAPTCHA' : 'PREVIEW_FAILED'
+      const status = isCaptcha ? 502 : 500
+      return NextResponse.json({ success: false, error: message.replace(/^CAPTCHA_1688:\s*/i, ''), code }, { status })
     }
   }
 

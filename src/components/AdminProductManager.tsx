@@ -1709,8 +1709,39 @@ export default function AdminProductManager() {
     )
   }
 
+  const startManual1688 = (rawUrl: string) => {
+    const url = String(rawUrl || '').trim()
+    const offerId = (() => {
+      const m = url.match(/offer\/(\d+)/i)
+      return m?.[1] || undefined
+    })()
+
+    setAutoPrice(false)
+    setActiveTab('info')
+    setEditing({
+      ...empty,
+      name: offerId ? `Produit 1688 (offer ${offerId})` : 'Produit 1688 (manuel)',
+      category: 'Catalogue import Chine',
+      tagline: 'Import 1688 (manuel)',
+      requiresQuote: false,
+      stockStatus: 'preorder',
+      currency: 'FCFA',
+      price1688Currency: 'CNY',
+      exchangeRate: 100,
+      sourcing: {
+        platform: '1688',
+        productUrl: url || undefined,
+        notes: `Création manuelle suite blocage captcha 1688.${offerId ? ` offerId ${offerId}.` : ''} Ajouter nom + images manuellement.`
+      }
+    })
+  }
+
   const renderImportTab = () => (
-    <ImportTab onImported={handleImportedProduct} formatCurrency={formatCurrency} />
+    <ImportTab
+      onImported={handleImportedProduct}
+      formatCurrency={formatCurrency}
+      onStartManual1688={startManual1688}
+    />
   )
 
   // Génère un ID unique pour les variantes
@@ -2691,9 +2722,10 @@ type Import1688Preview = {
 type ImportTabProps = {
   onImported: (product: Product) => Promise<void> | void
   formatCurrency: (amount?: number, currency?: string) => string
+  onStartManual1688: (url: string) => void
 }
 
-function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
+function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabProps) {
   const [keyword, setKeyword] = useState('')
   const [limit, setLimit] = useState(6)
   const [results, setResults] = useState<ImportPreview[]>([])
@@ -2706,6 +2738,7 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
   const [preview1688, setPreview1688] = useState<Import1688Preview | null>(null)
   const [loading1688, setLoading1688] = useState(false)
   const [importing1688, setImporting1688] = useState(false)
+  const [captcha1688, setCaptcha1688] = useState(false)
 
   const handleSearch = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -2774,11 +2807,15 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
     setError(null)
     setFeedback(null)
     setPreview1688(null)
+    setCaptcha1688(false)
     try {
       const params = new URLSearchParams({ url: url1688.trim() })
       const res = await fetch(`/api/products/import?${params.toString()}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data?.success) {
+        if (String(data?.code || '').toUpperCase() === 'CAPTCHA') {
+          setCaptcha1688(true)
+        }
         throw new Error(data?.error || 'Prévisualisation impossible')
       }
       setPreview1688(data.item as Import1688Preview)
@@ -3069,6 +3106,31 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
             </div>
           )}
         </div>
+
+        {captcha1688 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="text-sm font-semibold text-amber-900">1688 a demandé un captcha</div>
+            <p className="mt-1 text-xs text-amber-800">
+              Ça arrive souvent selon l’IP du serveur. Tu peux réessayer plus tard, changer de réseau (4G/VPN), ou continuer en création manuelle.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onStartManual1688(url1688.trim())}
+                className="rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-800"
+              >
+                Créer manuellement (pré-rempli)
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(url1688.trim(), '_blank', 'noopener,noreferrer')}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+              >
+                Ouvrir le lien 1688
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
