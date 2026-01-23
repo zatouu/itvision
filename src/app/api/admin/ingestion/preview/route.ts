@@ -149,15 +149,42 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 12_000)
 
-    const res = await fetch(url.toString(), {
-      method: 'GET',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; ITVisionIngestion/1.0)',
-        accept: 'text/html,application/xhtml+xml'
+    let res: Response
+    try {
+      res = await fetch(url.toString(), {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: {
+          'user-agent': 'Mozilla/5.0 (compatible; ITVisionIngestion/1.0)',
+          accept: 'text/html,application/xhtml+xml'
+        }
+      })
+    } catch (e: any) {
+      const name = String(e?.name || '')
+      const msg = String(e?.message || '')
+      const causeCode = String(e?.cause?.code || '')
+      const isTimeout = name === 'AbortError' || causeCode === 'ETIMEDOUT' || msg.toLowerCase().includes('timed out')
+      const isNetwork =
+        isTimeout ||
+        ['ENETUNREACH', 'ECONNRESET', 'EAI_AGAIN', 'ECONNREFUSED'].includes(causeCode) ||
+        msg.toLowerCase().includes('fetch failed')
+
+      if (isNetwork) {
+        const host = url.hostname
+        const hint = host.endsWith('tb.cn')
+          ? "Le domaine des liens courts (m.tb.cn) est souvent bloqué ou trop lent côté serveur. Ouvrez l'annonce sur mobile puis copiez l'URL complète de l'annonce (pas le lien court), ou remplissez manuellement Nom + Images et cliquez \"Créer le produit\"."
+          : 'Essayez une URL plus directe (page de l\'annonce) ou faites une création manuelle (Nom + Images).'
+        return NextResponse.json(
+          { error: `Impossible de récupérer la page (réseau/timeout). ${hint}` },
+          { status: 502 }
+        )
       }
-    }).finally(() => clearTimeout(timeout))
+
+      throw e
+    } finally {
+      clearTimeout(timeout)
+    }
 
     if (!res.ok) {
       return NextResponse.json({ error: `Fetch failed (${res.status})` }, { status: 400 })
@@ -169,6 +196,15 @@ export async function POST(request: NextRequest) {
     }
 
     const html = await res.text()
+
+    // Base URL should reflect final redirected URL for proper relative asset resolution.
+    const baseUrl = (() => {
+      try {
+        return new URL(res.url || url.toString())
+      } catch {
+        return url
+      }
+    })()
 
     const meta = extractMeta(html, [
       { attr: 'property', key: 'og:title' },
@@ -195,7 +231,7 @@ export async function POST(request: NextRequest) {
     ]
 
     const resolvedImages = rawImages
-      .map((u) => resolveUrl(u, url))
+      .map((u) => resolveUrl(u, baseUrl))
       .filter((u): u is string => typeof u === 'string' && u.length > 0)
 
     const gallery = normalizeImages(resolvedImages)
@@ -204,7 +240,7 @@ export async function POST(request: NextRequest) {
       description: description || null,
       image: gallery[0] || '/file.svg',
       gallery,
-      sourceUrl: url.toString(),
+      sourceUrl: baseUrl.toString(),
       videoUrl: ogVideo || null
     }
 

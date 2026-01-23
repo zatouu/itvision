@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       currency,
       // For used/refurb imports we default to preorder (shipping from China)
       stockStatus: body?.stockStatus ? String(body.stockStatus) : 'preorder',
-      image: image || gallery[0] || undefined,
+      image: image || gallery[0] || '/file.svg',
       gallery: gallery.length ? gallery : (image ? [image] : []),
       // Keep the public price simple; admins can refine later
       price: !finalRequiresQuote && typeof price === 'number' && Number.isFinite(price) ? price : undefined,

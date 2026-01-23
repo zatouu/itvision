@@ -94,10 +94,28 @@ type Product = {
   insuranceRate?: number // Frais d'assurance (en %)
 }
 
-async function fetchProducts(q = '', category = '') {
-  const res = await fetch(`/api/products?search=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}`)
+async function fetchProducts(
+  q = '',
+  category = '',
+  opts?: { skip?: number; limit?: number }
+) {
+  const skip = Math.max(Number(opts?.skip ?? 0), 0)
+  const limit = Math.min(Math.max(Number(opts?.limit ?? 50), 1), 100)
+  const params = new URLSearchParams({
+    search: q,
+    category,
+    skip: String(skip),
+    limit: String(limit)
+  })
+  const res = await fetch(`/api/products?${params.toString()}`)
   if (!res.ok) throw new Error('Failed to fetch products')
-  return (await res.json()).items as Product[]
+  const data = await res.json()
+  return {
+    items: (data?.items || []) as Product[],
+    total: Number(data?.total) || 0,
+    skip: Number(data?.skip) || 0,
+    limit: Number(data?.limit) || limit
+  }
 }
 
 const formatCurrency = (amount?: number, currency = 'FCFA') => {
@@ -438,7 +456,10 @@ export default function AdminProductManager() {
   }
 
   const [items, setItems] = useState<Product[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [pageSize, setPageSize] = useState(50)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
@@ -465,21 +486,49 @@ export default function AdminProductManager() {
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
 
+  const normalizeItems = (list: Product[]) =>
+    list.map(item => ({
+      ...item,
+      gallery: item.gallery || [],
+      features: item.features || [],
+      colorOptions: item.colorOptions || [],
+      variantOptions: item.variantOptions || [],
+      shippingOverrides: ensureOverrides(item.shippingOverrides)
+    }))
+
   const refresh = async () => {
     setLoading(true)
     try {
-      const result = await fetchProducts(query, category)
-      setItems(result.map(item => ({
-        ...item,
-        gallery: item.gallery || [],
-        features: item.features || [],
-        colorOptions: item.colorOptions || [],
-        variantOptions: item.variantOptions || [],
-        shippingOverrides: ensureOverrides(item.shippingOverrides)
-      })))
+      const result = await fetchProducts(query, category, { skip: 0, limit: pageSize })
+      setItems(normalizeItems(result.items))
+      setTotalCount(result.total || result.items.length)
       setSelectedIds(new Set())
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMore = async () => {
+    if (loading || loadingMore) return
+    if (totalCount > 0 && items.length >= totalCount) return
+    setLoadingMore(true)
+    try {
+      const result = await fetchProducts(query, category, { skip: items.length, limit: pageSize })
+      const next = normalizeItems(result.items)
+      setItems(prev => {
+        const seen = new Set(prev.map(p => String(p._id || '')))
+        const merged = [...prev]
+        for (const it of next) {
+          const id = String(it._id || '')
+          if (id && seen.has(id)) continue
+          merged.push(it)
+          if (id) seen.add(id)
+        }
+        return merged
+      })
+      setTotalCount(result.total || totalCount)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -2260,8 +2309,8 @@ export default function AdminProductManager() {
       {/* Statistiques rapides */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4">
-          <div className="text-2xl font-bold text-gray-900">{items.length}</div>
-          <div className="text-xs text-gray-500">Produits total</div>
+          <div className="text-2xl font-bold text-gray-900">{totalCount || items.length}</div>
+          <div className="text-xs text-gray-500">Produits (chargés: {items.length})</div>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <div className="text-2xl font-bold text-emerald-600">
@@ -2297,11 +2346,27 @@ export default function AdminProductManager() {
         />
         <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition">Filtrer</button>
 
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            const next = Number(e.target.value) || 50
+            setPageSize(next)
+            // refresh with the new page size
+            setTimeout(() => refresh(), 0)
+          }}
+          className="h-9 rounded-lg border px-2 text-sm"
+          title="Nombre de produits chargés par page"
+        >
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
+
         <div className="h-9 w-px bg-gray-200" />
 
         <div className="flex items-center gap-2">
           <div className="text-xs text-gray-600">
-            {selectedCount > 0 ? `${selectedCount} sélectionné(s)` : 'Sélection'}
+            {selectedCount > 0 ? `${selectedCount} sélectionné(s)` : `Affichés ${items.length}${totalCount ? ` / ${totalCount}` : ''}`}
           </div>
           <select
             value={bulkAction}
@@ -2457,6 +2522,24 @@ export default function AdminProductManager() {
           </tbody>
         </table>
       </div>
+
+      {!loading && (totalCount === 0 || items.length < totalCount) && (
+        <div className="mt-4 flex items-center justify-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
+              </>
+            ) : (
+              `Charger plus`
+            )}
+          </button>
+        </div>
+      )}
 
       {editing && (
         <div

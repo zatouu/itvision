@@ -30,6 +30,7 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
   admin: [
     { label: 'Utilisateurs', href: '/admin/users' },
     { label: 'Services', href: '/admin/catalog' },
+    { label: 'Ingestion', href: '/admin/ingestion' },
     { label: 'Paramètres', href: '/admin/migration' }
   ]
 }
