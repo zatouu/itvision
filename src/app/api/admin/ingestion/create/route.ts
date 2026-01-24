@@ -12,7 +12,7 @@ function requireAdmin(request: NextRequest) {
 }
 
 const asStringArray = (value: any) => {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) return []  
   return value.map((v) => String(v || '').trim()).filter(Boolean)
 }
 

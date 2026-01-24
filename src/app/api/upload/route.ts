@@ -44,27 +44,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Vérifier le type de fichier (image/jpeg couvre .jpg et .jpeg)
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    // Certains navigateurs/systèmes peuvent envoyer un type incorrect pour les JPG
-    const isJpeg = file.type === 'image/jpeg' || 
-                   file.type === 'image/jpg' || 
-                   file.name.toLowerCase().endsWith('.jpg') || 
-                   file.name.toLowerCase().endsWith('.jpeg')
-    const isAllowed = allowedTypes.includes(file.type) || isJpeg
-    
-    if (!isAllowed) {
+    // Vérifier le type de fichier (images + courte vidéo)
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+
+    const lowerName = file.name.toLowerCase()
+    const isJpeg = file.type === 'image/jpeg' ||
+      file.type === 'image/jpg' ||
+      lowerName.endsWith('.jpg') ||
+      lowerName.endsWith('.jpeg')
+
+    const isVideoExt = /\.(mp4|webm|ogg|mov|m4v)$/i.test(lowerName)
+    const isAllowedImage = allowedImageTypes.includes(file.type) || isJpeg
+    const isAllowedVideo =
+      allowedVideoTypes.includes(file.type) ||
+      (isVideoExt && (file.type === '' || file.type === 'application/octet-stream' || file.type.startsWith('video/')))
+
+    if (!isAllowedImage && !isAllowedVideo) {
       return NextResponse.json(
-        { error: `Type de fichier non autorisé: ${file.type}` },
+        { error: `Type de fichier non autorisé: ${file.type || 'inconnu'}` },
         { status: 400 }
       )
     }
 
-    // Vérifier la taille (5MB max)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    // Vérifier la taille
+    const maxImageSize = 5 * 1024 * 1024 // 5MB
+    const maxVideoSize = 30 * 1024 * 1024 // 30MB (courte vidéo)
+    const maxSize = isAllowedVideo ? maxVideoSize : maxImageSize
+
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'Fichier trop volumineux (5MB max)' },
+        { error: isAllowedVideo ? 'Vidéo trop volumineuse (30MB max)' : 'Fichier trop volumineux (5MB max)' },
         { status: 400 }
       )
     }

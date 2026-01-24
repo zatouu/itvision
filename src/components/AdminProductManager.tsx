@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play } from 'lucide-react'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -38,6 +38,7 @@ type Product = {
   category?: string
   description?: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
   price?: number
   baseCost?: number
   marginRate?: number
@@ -121,6 +122,16 @@ async function fetchProducts(
 const formatCurrency = (amount?: number, currency = 'FCFA') => {
   if (typeof amount !== 'number') return '-'
   return `${amount.toLocaleString('fr-FR')} ${currency}`
+}
+
+const isVideoUrl = (url: string) => {
+  if (!url) return false
+  return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)
+}
+
+const isYouTubeUrl = (url: string) => {
+  if (!url) return false
+  return /youtu\.be\//i.test(url) || /youtube\.com\//i.test(url)
 }
 
 type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'groupbuy' | 'import'
@@ -410,6 +421,7 @@ export default function AdminProductManager() {
     category: '',
     description: '',
     tagline: '',
+    condition: 'new',
     price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
     baseCost: undefined, // Coût d'achat fournisseur
     marginRate: 30, // Marge par défaut 30%
@@ -907,6 +919,35 @@ export default function AdminProductManager() {
               list="admin-product-categories"
               onChange={e => setEditing({ ...editing, category: e.target.value })}
             />
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="block text-xs font-medium text-gray-500">État</span>
+                <select
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+                  value={editing.condition || 'new'}
+                  onChange={e => setEditing({ ...editing, condition: (e.target.value as any) || 'new' })}
+                >
+                  <option value="new">Neuf</option>
+                  <option value="used">Occasion (Seconde main)</option>
+                  <option value="refurbished">Refurb (Reconditionné)</option>
+                </select>
+              </label>
+              <div className="flex items-end">
+                <div className="flex flex-wrap gap-2">
+                  {(editing.condition === 'used') && (
+                    <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 text-xs font-semibold">Occasion</span>
+                  )}
+                  {(editing.condition === 'refurbished') && (
+                    <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs font-semibold">Refurb</span>
+                  )}
+                  {(editing.condition === 'new' || !editing.condition) && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs font-semibold">Neuf</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 Description détaillée
@@ -1310,8 +1351,8 @@ export default function AdminProductManager() {
             </div>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50">
               <Upload className="h-4 w-4" />
-              <span>Importer des images (JPG / PNG)</span>
-              <input type="file" className="hidden" multiple accept="image/*" onChange={e => handleGalleryUpload(e.target.files)} disabled={uploadingGallery} />
+              <span>Importer des images / vidéos courtes</span>
+              <input type="file" className="hidden" multiple accept="image/*,video/*" onChange={e => handleGalleryUpload(e.target.files)} disabled={uploadingGallery} />
             </label>
             {uploadingGallery && (
               <p className="flex items-center gap-2 text-xs text-gray-500">
@@ -1322,7 +1363,31 @@ export default function AdminProductManager() {
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {editing.gallery?.map((url, index) => (
                   <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-lg border border-gray-200">
-                    <img src={url} alt={`Galerie ${index + 1}`} className="h-24 w-full object-cover" />
+                    {isVideoUrl(url) ? (
+                      <div className="relative h-24 w-full bg-black">
+                        <video
+                          src={url}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="h-24 w-full object-cover opacity-90"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="rounded-full bg-black/60 text-white p-2">
+                            <Play className="h-4 w-4" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : isYouTubeUrl(url) ? (
+                      <div className="relative h-24 w-full bg-gray-900 flex items-center justify-center text-white">
+                        <div className="flex items-center gap-2 text-xs font-semibold">
+                          <Play className="h-4 w-4" />
+                          Vidéo (YouTube)
+                        </div>
+                      </div>
+                    ) : (
+                      <img src={url} alt={`Galerie ${index + 1}`} className="h-24 w-full object-cover" />
+                    )}
                     <button
                       type="button"
                       className="absolute right-2 top-2 hidden rounded-full bg-black/60 p-1 text-white transition group-hover:flex"

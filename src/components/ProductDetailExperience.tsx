@@ -937,97 +937,103 @@ Merci de me recontacter.`
           {/* Colonne gauche : Galerie + Onglets (scrollable) */}
           <div className="lg:flex-1 lg:min-w-0">
             {/* Galerie d'images */}
-            <div className="space-y-4 mb-8">
-              <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 group mx-auto">
-                <button
-                  type="button"
-                  onClick={() => setShowImageModal(true)}
-                  className="absolute inset-0 cursor-zoom-in"
-                  aria-label="Agrandir l'image"
-                >
-                  {galleryItems[activeImageIndex]?.kind === 'image' && (
-                    <Image
-                      src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
-                      priority
-                    />
-                  )}
-
-                  {galleryItems[activeImageIndex]?.kind === 'video' && (
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
-                      <video
-                        src={(galleryItems[activeImageIndex] as any)?.src}
-                        controls
-                        playsInline
-                        className="h-full w-full rounded-xl bg-black object-contain"
-                      />
-                    </div>
-                  )}
-
-                  {galleryItems[activeImageIndex]?.kind === 'youtube' && (
-                    <div className="absolute inset-0 p-4">
-                      <iframe
-                        src={(galleryItems[activeImageIndex] as any)?.embedUrl}
-                        title={product.name}
-                        className="h-full w-full rounded-xl bg-black"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    </div>
-                  )}
-                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-900/85 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-lg">
-                    <ZoomIn className="h-4 w-4" />
-                    <span>Cliquer pour agrandir</span>
-                  </div>
-                </button>
-                {/* Badge disponibilité */}
-                <div className={clsx(
-                  'absolute top-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm',
-                  product.availability.status === 'in_stock'
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-amber-500 text-white'
-                )}>
-                  <Clock className="h-3.5 w-3.5" />
-                  {product.availability.label}
-                </div>
-              </div>
-              {/* Miniatures */}
-              {gallery.length > 1 && (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {galleryItems.map((item, index) => (
-                    <button
-                      key={`${(item as any).src}-${index}`}
-                      type="button"
-                      onClick={() => setActiveImageIndex(index)}
-                      className={clsx(
-                        'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
-                        activeImageIndex === index
-                          ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
-                      )}
-                      aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
-                    >
-                      <Image
-                        src={item.kind === 'image' ? item.src : (item as any).poster}
-                        alt={`${product.name} ${index + 1}`}
-                        fill
-                        className="object-cover rounded-lg"
-                        sizes="80px"
-                      />
-                      {item.kind !== 'image' && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="rounded-full bg-black/60 text-white p-2">
-                            <Play className="h-4 w-4" />
+            <div className="mb-8">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                {/* Miniatures : horizontales sur mobile, verticales sur desktop */}
+                {gallery.length > 1 && (
+                  <div className="order-2 flex gap-3 overflow-x-auto pb-2 lg:order-1 lg:max-h-[450px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">
+                    {galleryItems.map((item, index) => (
+                      <button
+                        key={`${(item as any).src}-${index}`}
+                        type="button"
+                        onClick={() => setActiveImageIndex(index)}
+                        className={clsx(
+                          'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
+                          activeImageIndex === index
+                            ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
+                        )}
+                        aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
+                      >
+                        <Image
+                          src={item.kind === 'image' ? item.src : (item as any).poster}
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          className="object-cover rounded-lg"
+                          sizes="80px"
+                        />
+                        {item.kind !== 'image' && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="rounded-full bg-black/60 text-white p-2">
+                              <Play className="h-4 w-4" />
+                            </div>
                           </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Média principal */}
+                <div className="order-1 flex-1 lg:order-2">
+                  <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 group mx-auto">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageModal(true)}
+                      className="absolute inset-0 cursor-zoom-in"
+                      aria-label="Agrandir l'image"
+                    >
+                      {galleryItems[activeImageIndex]?.kind === 'image' && (
+                        <Image
+                          src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                          alt={product.name}
+                          fill
+                          className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
+                          priority
+                        />
+                      )}
+
+                      {galleryItems[activeImageIndex]?.kind === 'video' && (
+                        <div className="absolute inset-0 flex items-center justify-center p-4">
+                          <video
+                            src={(galleryItems[activeImageIndex] as any)?.src}
+                            controls
+                            playsInline
+                            className="h-full w-full rounded-xl bg-black object-contain"
+                          />
                         </div>
                       )}
+
+                      {galleryItems[activeImageIndex]?.kind === 'youtube' && (
+                        <div className="absolute inset-0 p-4">
+                          <iframe
+                            src={(galleryItems[activeImageIndex] as any)?.embedUrl}
+                            title={product.name}
+                            className="h-full w-full rounded-xl bg-black"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                          />
+                        </div>
+                      )}
+                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-900/85 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-lg">
+                        <ZoomIn className="h-4 w-4" />
+                        <span>Cliquer pour agrandir</span>
+                      </div>
                     </button>
-                  ))}
+                    {/* Badge disponibilité */}
+                    <div className={clsx(
+                      'absolute top-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm',
+                      product.availability.status === 'in_stock'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-amber-500 text-white'
+                    )}>
+                      <Clock className="h-3.5 w-3.5" />
+                      {product.availability.label}
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Onglets d'information - Dans la colonne gauche */}

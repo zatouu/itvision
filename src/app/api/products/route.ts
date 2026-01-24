@@ -16,6 +16,43 @@ async function requireManagerRole(request: NextRequest) {
   }
 }
 
+const normalizeCondition = (value: any): 'new' | 'used' | 'refurbished' | undefined => {
+  if (value === null || value === undefined) return undefined
+  const v = String(value).trim().toLowerCase()
+  if (!v) return undefined
+
+  if (v === 'new' || v === 'neuf' || v === 'brandnew' || v === 'brand new') return 'new'
+  if (
+    v === 'used' ||
+    v === 'occasion' ||
+    v === 'occas' ||
+    v === '2nd main' ||
+    v === '2ndmain' ||
+    v === 'second main' ||
+    v === 'secondmain' ||
+    v === 'secondhand' ||
+    v === 'second hand' ||
+    v === '2ndhand' ||
+    v === '2nd hand' ||
+    v === 'seconde main' ||
+    v === 'seconde-main' ||
+    v === 'seconde_main'
+  ) {
+    return 'used'
+  }
+  if (
+    v === 'refurb' ||
+    v === 'refurbished' ||
+    v === 'reconditionne' ||
+    v === 'reconditionné' ||
+    v === 'reconditionné'
+  ) {
+    return 'refurbished'
+  }
+
+  return undefined
+}
+
 const parseNumber = (value: any): number | undefined => {
   if (value === null || value === undefined || value === '') return undefined
   const numeric = Number(value)
@@ -43,6 +80,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     category,
     description,
     tagline,
+    condition,
     price,
     baseCost,
     marginRate,
@@ -89,6 +127,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     category,
     description,
     tagline,
+    condition: normalizeCondition(condition),
     currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
       ? currency 
       : 'FCFA',
