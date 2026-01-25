@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+function getPublicOrigin(request: NextRequest): string {
+  const envOrigin = process.env.NEXT_PUBLIC_SITE_URL
+  if (envOrigin) {
+    try {
+      return new URL(envOrigin).origin
+    } catch {
+      // ignore invalid env value
+    }
+  }
+
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const host = forwardedHost || request.headers.get('host') || request.nextUrl.host
+  const protocol = forwardedProto || request.nextUrl.protocol.replace(':', '')
+
+  return `${protocol}://${host}`
+}
+
 function clearAuthCookie(response: NextResponse) {
   response.cookies.set('auth-token', '', { 
     httpOnly: true, 
@@ -24,12 +42,12 @@ export async function POST(request: NextRequest) {
   }
   
   // Redirection pour les soumissions de formulaire ou accès direct
-  const response = NextResponse.redirect(new URL('/login', request.url))
+  const response = NextResponse.redirect(new URL('/login', getPublicOrigin(request)))
   return clearAuthCookie(response)
 }
 
 // Support GET pour les accès directs à l'URL
 export async function GET(request: NextRequest) {
-  const response = NextResponse.redirect(new URL('/login', request.url))
+  const response = NextResponse.redirect(new URL('/login', getPublicOrigin(request)))
   return clearAuthCookie(response)
 }
