@@ -124,7 +124,9 @@ export default function MarketCreateAccountPage() {
     return () => clearTimeout(timeoutId)
   }
 
-  const targetAfterAuth = returnTo || '/achats-groupes'
+  // Par défaut, on renvoie vers le compte Market (qui redirige ensuite vers /compte)
+  // Les parcours panier/achats-groupés/commandes passent déjà un `redirect` explicite.
+  const targetAfterAuth = returnTo || '/market/compte'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -191,9 +193,9 @@ export default function MarketCreateAccountPage() {
       }
 
       setIsSuccess(true)
-      const redirectUrl = typeof loginData?.redirectUrl === 'string' && loginData.redirectUrl.startsWith('/') ? loginData.redirectUrl : targetAfterAuth
+      // Toujours privilégier la redirection demandée (flux Market / checkout), déjà sanitizée.
       setTimeout(() => {
-        router.push(redirectUrl)
+        router.push(targetAfterAuth)
       }, 650)
     } catch {
       setError('Erreur de connexion au serveur')

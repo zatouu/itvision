@@ -64,6 +64,9 @@ function getRequiredRole(pathname: string): string | null {
   // Espace compte catalogue: nécessite un utilisateur authentifié
   if (pathname === '/compte' || pathname.startsWith('/compte/')) return 'AUTH'
 
+  // Point d'entrée Market vers le compte client
+  if (pathname === '/market/compte' || pathname.startsWith('/market/compte/')) return 'AUTH'
+
   // Routes admin (y compris celles en dehors de /admin/)
   const adminRoutes = [
     '/admin',
@@ -220,6 +223,7 @@ function applySecurityHeaders(response: NextResponse, pathname: string) {
     pathname.includes('/login') ||
     pathname.includes('/register') ||
     pathname.includes('/market/creer-compte') ||
+    pathname.includes('/market/compte') ||
     pathname.includes('/client-portal') ||
     pathname.includes('/tech-interface') ||
     pathname.includes('/compte') ||

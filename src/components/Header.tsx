@@ -337,15 +337,22 @@ const Header = () => {
               <ThemeToggle />
               <WishlistIcon />
               {isMarketPage ? (
-                <MarketAuthButton variant="header" className="hidden xl:inline-flex" />
+                <MarketAuthButton
+                  variant="header"
+                  className="hidden xl:inline-flex"
+                  accountHref="/market/compte"
+                  unauthLabel="Connexion Market"
+                  showLogout
+                />
               ) : (
-                <Link
-                  href={marketCreateAccountHref}
-                  className="hidden xl:inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Compte Market
-                </Link>
+                <MarketAuthButton
+                  variant="header"
+                  className="hidden xl:inline-flex"
+                  accountHref="/market/compte"
+                  unauthHref={marketCreateAccountHref}
+                  unauthLabel="Compte Market"
+                  showLogout={false}
+                />
               )}
               <UnifiedLoginButton variant="header" />
             </div>
@@ -436,17 +443,21 @@ const Header = () => {
                   <MarketAuthButton
                     variant="default"
                     className="flex-1 flex items-center justify-center"
+                    accountHref="/market/compte"
+                    unauthLabel="Connexion Market"
+                    showLogout
                     onDone={() => setIsMenuOpen(false)}
                   />
                 ) : (
-                  <Link
-                    href={marketCreateAccountHref}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Compte Market
-                  </Link>
+                  <MarketAuthButton
+                    variant="default"
+                    className="flex-1 flex items-center justify-center"
+                    accountHref="/market/compte"
+                    unauthHref={marketCreateAccountHref}
+                    unauthLabel="Compte Market"
+                    showLogout={false}
+                    onDone={() => setIsMenuOpen(false)}
+                  />
                 )}
                 <Link
                   href="/produits/favoris"

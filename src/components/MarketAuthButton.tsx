@@ -9,9 +9,25 @@ interface MarketAuthButtonProps {
   className?: string
   variant?: 'default' | 'header'
   onDone?: () => void
+  /** If provided, overrides where unauthenticated users are sent (e.g. /market/creer-compte). */
+  unauthHref?: string
+  /** If provided, overrides the account destination when authenticated. */
+  accountHref?: string
+  /** Customize label shown when unauthenticated. */
+  unauthLabel?: string
+  /** Whether to show the logout action when authenticated. */
+  showLogout?: boolean
 }
 
-export default function MarketAuthButton({ className = '', variant = 'header', onDone }: MarketAuthButtonProps) {
+export default function MarketAuthButton({
+  className = '',
+  variant = 'header',
+  onDone,
+  unauthHref,
+  accountHref = '/market/compte',
+  unauthLabel = 'Connexion Market',
+  showLogout = true
+}: MarketAuthButtonProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -48,6 +64,7 @@ export default function MarketAuthButton({ className = '', variant = 'header', o
 
   const redirect = pathname || '/market'
   const loginHref = `/login?redirect=${encodeURIComponent(redirect)}`
+  const resolvedUnauthHref = unauthHref || loginHref
 
   const baseClassName =
     variant === 'header'
@@ -74,7 +91,7 @@ export default function MarketAuthButton({ className = '', variant = 'header', o
     return (
       <div className={`inline-flex items-center gap-2 ${className}`}>
         <Link
-          href="/compte"
+          href={accountHref}
           onClick={() => onDone?.()}
           className={`${baseClassName} border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-300 dark:hover:bg-emerald-900/20`}
         >
@@ -82,27 +99,29 @@ export default function MarketAuthButton({ className = '', variant = 'header', o
           Mon compte
         </Link>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className={`${baseClassName} border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
-          aria-label="Déconnexion Market"
-        >
-          <ShoppingBag className="h-4 w-4" />
-          <span className={variant === 'header' ? 'hidden 2xl:inline' : ''}>Déconnexion</span>
-          <LogOut className="h-4 w-4 opacity-70" />
-        </button>
+        {showLogout ? (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`${baseClassName} border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
+            aria-label="Déconnexion Market"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span className={variant === 'header' ? 'hidden 2xl:inline' : ''}>Déconnexion</span>
+            <LogOut className="h-4 w-4 opacity-70" />
+          </button>
+        ) : null}
       </div>
     )
   }
 
   return (
     <Link
-      href={loginHref}
+      href={resolvedUnauthHref}
       className={`${baseClassName} ${className} border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-300 dark:hover:bg-emerald-900/20`}
     >
       <ShoppingBag className="h-4 w-4" />
-      Connexion Market
+      {unauthLabel}
       <LogIn className="h-4 w-4 opacity-70" />
     </Link>
   )
