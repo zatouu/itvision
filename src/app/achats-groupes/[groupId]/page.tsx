@@ -141,7 +141,9 @@ export default function GroupOrderDetailPage() {
 
       if (res.status === 401) {
         const returnUrl = `${window.location.pathname}${window.location.search}`
-        router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`)
+        router.push(
+          `/market/creer-compte?redirect=${encodeURIComponent(returnUrl)}&name=${encodeURIComponent(joinForm.name || '')}&phone=${encodeURIComponent(joinForm.phone || '')}&email=${encodeURIComponent(joinForm.email || '')}`
+        )
         return
       }
       const data = await res.json()

@@ -499,7 +499,7 @@ export default function OrderConfirmationPage() {
                   Se connecter
                 </Link>
                 <Link
-                  href={`/register?redirect=${encodeURIComponent(onboardingRedirect)}&name=${encodeURIComponent(order?.clientName || '')}&phone=${encodeURIComponent(order?.clientPhone || '')}&email=${encodeURIComponent(order?.clientEmail || '')}`}
+                  href={`/market/creer-compte?redirect=${encodeURIComponent(onboardingRedirect)}&name=${encodeURIComponent(order?.clientName || '')}&phone=${encodeURIComponent(order?.clientPhone || '')}&email=${encodeURIComponent(order?.clientEmail || '')}`}
                   className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white px-5 py-3 rounded-xl font-bold transition"
                 >
                   <UserPlus className="w-5 h-5" />

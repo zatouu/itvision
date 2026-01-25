@@ -657,7 +657,7 @@ export default function PanierPage() {
                           Se connecter
                         </a>
                         <a
-                          href={`/register?redirect=${encodeURIComponent('/panier')}&name=${encodeURIComponent(name || '')}&phone=${encodeURIComponent(phone || '')}&email=${encodeURIComponent(email || '')}`}
+                          href={`/market/creer-compte?redirect=${encodeURIComponent('/panier')}&name=${encodeURIComponent(name || '')}&phone=${encodeURIComponent(phone || '')}&email=${encodeURIComponent(email || '')}`}
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 ring-1 ring-gray-200 transition hover:bg-gray-50"
                         >
                           <UserPlus className="w-4 h-4" />

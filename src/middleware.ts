@@ -7,6 +7,7 @@ import { getJwtSecretKey } from '@/lib/jwt-secret'
 const PUBLIC_ROUTES = [
   '/login',
   '/register',
+  '/market/creer-compte',
   '/forgot-password',
   '/reset-password',
   '/retrouver-ma-commande',
@@ -214,7 +215,16 @@ function applySecurityHeaders(response: NextResponse, pathname: string) {
   })
 
   // Cache control pour les pages sensibles
-  if (pathname.includes('/admin') || pathname.includes('/login') || pathname.includes('/client-portal') || pathname.includes('/tech-interface') || pathname.includes('/compte') || pathname.includes('/panier')) {
+  if (
+    pathname.includes('/admin') ||
+    pathname.includes('/login') ||
+    pathname.includes('/register') ||
+    pathname.includes('/market/creer-compte') ||
+    pathname.includes('/client-portal') ||
+    pathname.includes('/tech-interface') ||
+    pathname.includes('/compte') ||
+    pathname.includes('/panier')
+  ) {
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
