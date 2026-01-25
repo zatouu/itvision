@@ -21,19 +21,7 @@ const validator = {
         pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
       },
       role: {
-        bsonType: 'string',
-        enum: [
-          'CLIENT',
-          'TECHNICIAN',
-          'PRODUCT_MANAGER',
-          'ACCOUNTANT',
-          'ADMIN',
-          'SUPER_ADMIN',
-          // Compat anciennes valeurs
-          'client',
-          'technician',
-          'admin'
-        ]
+        bsonType: 'string'
       },
       name: { bsonType: 'string' },
       company: { bsonType: 'string' },

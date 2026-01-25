@@ -31,19 +31,8 @@ db.createCollection('users', {
         },
         role: {
           bsonType: 'string',
-          // Les rôles applicatifs sont en MAJUSCULES (voir middleware / modèle User)
-          // On accepte aussi les anciennes valeurs en minuscules pour compat.
-          enum: [
-            'CLIENT',
-            'TECHNICIAN',
-            'PRODUCT_MANAGER',
-            'ACCOUNTANT',
-            'ADMIN',
-            'SUPER_ADMIN',
-            'client',
-            'technician',
-            'admin'
-          ]
+          // Validation volontairement souple: l'app contrôle les rôles,
+          // et un enum côté DB peut casser l'inscription lors d'évolutions.
         },
         name: { bsonType: 'string' },
         company: { bsonType: 'string' },
