@@ -23,6 +23,7 @@ export default function UnifiedLoginButton({
     let cancelled = false
 
     async function loadAuthState() {
+      setIsLoading(true)
       try {
         const res = await fetch('/api/auth/login', {
           method: 'GET',
@@ -44,7 +45,7 @@ export default function UnifiedLoginButton({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [pathname])
 
   const getButtonStyles = () => {
     switch (variant) {

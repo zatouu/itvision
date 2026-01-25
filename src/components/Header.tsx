@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck, Heart, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import UnifiedLoginButton from './UnifiedLoginButton'
+import MarketAuthButton from './MarketAuthButton'
 import WishlistIcon from './WishlistIcon'
 import ThemeToggle from './ThemeToggle'
 
@@ -19,6 +20,7 @@ const Header = () => {
   const headerRef = useRef<HTMLElement>(null)
 
   const marketCreateAccountHref = `/market/creer-compte?redirect=${encodeURIComponent(pathname || '/produits')}`
+  const isMarketPage = (pathname || '').startsWith('/market')
 
   // Fermeture du menu au clic extérieur
   useEffect(() => {
@@ -334,13 +336,17 @@ const Header = () => {
             <div className="flex items-center gap-3">
               <ThemeToggle />
               <WishlistIcon />
-              <Link
-                href={marketCreateAccountHref}
-                className="hidden xl:inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
-              >
-                <UserPlus className="h-4 w-4" />
-                Compte Market
-              </Link>
+              {isMarketPage ? (
+                <MarketAuthButton variant="header" className="hidden xl:inline-flex" />
+              ) : (
+                <Link
+                  href={marketCreateAccountHref}
+                  className="hidden xl:inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Compte Market
+                </Link>
+              )}
               <UnifiedLoginButton variant="header" />
             </div>
           </div>
@@ -426,14 +432,21 @@ const Header = () => {
               {/* Actions mobile */}
               <div className="px-4 flex items-center gap-3">
                 <ThemeToggle />
-                <Link
-                  href={marketCreateAccountHref}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Compte Market
-                </Link>
+                {isMarketPage ? (
+                  <MarketAuthButton
+                    variant="default"
+                    className="flex-1 flex items-center justify-center"
+                  />
+                ) : (
+                  <Link
+                    href={marketCreateAccountHref}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Compte Market
+                  </Link>
+                )}
                 <Link
                   href="/produits/favoris"
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-900"
