@@ -74,6 +74,32 @@ const parseStringArray = (value: unknown): string[] | undefined => {
   return undefined
 }
 
+const syncConditionTags = (
+  tags: string[],
+  condition: 'new' | 'used' | 'refurbished' | undefined
+): string[] => {
+  const removeConditionTags = new Set(['occasion', 'refurb', 'refurbished'])
+  const cleaned = (Array.isArray(tags) ? tags : [])
+    .map((t) => (typeof t === 'string' ? t.trim() : ''))
+    .filter(Boolean)
+    .filter((t) => !removeConditionTags.has(t.toLowerCase()))
+
+  const toAdd = condition === 'used' ? 'occasion' : condition === 'refurbished' ? 'refurb' : null
+
+  const merged = toAdd ? [toAdd, ...cleaned] : cleaned
+
+  // Dédoublonner (case-insensitive) en gardant la première occurrence
+  const seen = new Set<string>()
+  const deduped: string[] = []
+  for (const t of merged) {
+    const key = t.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(t)
+  }
+  return deduped
+}
+
 const buildProductPayload = (payload: any): Partial<IProduct> => {
   const {
     name,
@@ -81,6 +107,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     description,
     tagline,
     condition,
+    tags,
     price,
     baseCost,
     marginRate,
@@ -154,6 +181,14 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   normalized.packagingWeightKg = parseNumber(packagingWeightKg)
 
   if (typeof image === 'string') normalized.image = image
+
+  const parsedTags = parseStringArray(tags)
+  if (parsedTags) {
+    normalized.tags = syncConditionTags(parsedTags, normalized.condition)
+  } else if (normalized.condition) {
+    // Si une condition est fournie sans tags, injecter le tag de condition
+    normalized.tags = syncConditionTags([], normalized.condition)
+  }
 
   const parsedGallery = parseStringArray(gallery)
   if (parsedGallery) normalized.gallery = parsedGallery
@@ -283,12 +318,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get('search') || '').trim()
     const category = (searchParams.get('category') || '').trim()
+    const condition = (searchParams.get('condition') || '').trim()
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
     const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0)
 
     const query: any = {}
     if (q) query.name = new RegExp(q, 'i')
     if (category) query.category = category
+    if (condition && (condition === 'new' || condition === 'used' || condition === 'refurbished')) {
+      query.condition = condition
+    }
 
     const [items, total] = await Promise.all([
       Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -365,6 +404,12 @@ export async function PATCH(request: NextRequest) {
       }, { status: 400 })
     }
     
+    // Synchroniser tags/condition en conservant les tags existants
+    const existingTags = Array.isArray((existing as any).tags) ? (existing as any).tags : []
+    const finalCondition = (payload as any).condition ?? (existing as any).condition
+    const incomingTags = (payload as any).tags ?? existingTags
+    ;(payload as any).tags = syncConditionTags(incomingTags, finalCondition)
+
     await Product.updateOne({ _id: id }, { $set: payload })
     const updated = await Product.findById(id).lean()
     return NextResponse.json({ success: true, item: updated })

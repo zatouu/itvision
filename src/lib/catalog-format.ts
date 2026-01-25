@@ -11,6 +11,20 @@ const normalizeGallery = (product: any): string[] => {
   return ['/file.svg']
 }
 
+  const normalizeTags = (product: any): string[] => {
+    const raw = Array.isArray(product?.tags) ? product.tags : []
+    const cleaned = raw
+      .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+      .filter(Boolean)
+    if (cleaned.length > 0) return cleaned
+
+    // Fallback: derive tag from condition for legacy products
+    const condition = product?.condition
+    if (condition === 'used') return ['occasion']
+    if (condition === 'refurbished') return ['refurb']
+    return []
+  }
+
 // Normalise les variantes avec prix (style 1688)
 const normalizeVariantGroups = (product: any) => {
   if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
@@ -57,6 +71,7 @@ export const formatProductDetail = (
     description: product.description ?? null,
     category: product.category ?? 'Catalogue import Chine',
     condition: product.condition ?? 'new',
+      tags: normalizeTags(product),
     image: product.image ?? '/file.svg',
     gallery: normalizeGallery(product),
     features: Array.isArray(product.features) ? product.features : [],
@@ -123,6 +138,7 @@ export const formatSimilarProducts = (
       tagline: item.tagline ?? null,
       category: item.category ?? 'Catalogue import Chine',
       condition: item.condition ?? 'new',
+        tags: normalizeTags(item),
       image: normalizeGallery(item)[0] ?? '/file.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
       // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice

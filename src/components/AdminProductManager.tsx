@@ -39,6 +39,7 @@ type Product = {
   description?: string
   tagline?: string
   condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   price?: number
   baseCost?: number
   marginRate?: number
@@ -98,6 +99,7 @@ type Product = {
 async function fetchProducts(
   q = '',
   category = '',
+  condition = '',
   opts?: { skip?: number; limit?: number }
 ) {
   const skip = Math.max(Number(opts?.skip ?? 0), 0)
@@ -105,6 +107,7 @@ async function fetchProducts(
   const params = new URLSearchParams({
     search: q,
     category,
+    condition,
     skip: String(skip),
     limit: String(limit)
   })
@@ -422,6 +425,7 @@ export default function AdminProductManager() {
     description: '',
     tagline: '',
     condition: 'new',
+    tags: [],
     price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
     baseCost: undefined, // Coût d'achat fournisseur
     marginRate: 30, // Marge par défaut 30%
@@ -475,6 +479,7 @@ export default function AdminProductManager() {
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
+  const [conditionFilter, setConditionFilter] = useState<string>('')
   const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; count: number }>>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState<'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category'>(
@@ -487,6 +492,7 @@ export default function AdminProductManager() {
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const [newGalleryInput, setNewGalleryInput] = useState('')
+  const [newTagInput, setNewTagInput] = useState('')
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
@@ -503,6 +509,7 @@ export default function AdminProductManager() {
       ...item,
       gallery: item.gallery || [],
       features: item.features || [],
+      tags: item.tags || [],
       colorOptions: item.colorOptions || [],
       variantOptions: item.variantOptions || [],
       shippingOverrides: ensureOverrides(item.shippingOverrides)
@@ -511,7 +518,7 @@ export default function AdminProductManager() {
   const refresh = async () => {
     setLoading(true)
     try {
-      const result = await fetchProducts(query, category, { skip: 0, limit: pageSize })
+      const result = await fetchProducts(query, category, conditionFilter, { skip: 0, limit: pageSize })
       setItems(normalizeItems(result.items))
       setTotalCount(result.total || result.items.length)
       setSelectedIds(new Set())
@@ -525,7 +532,7 @@ export default function AdminProductManager() {
     if (totalCount > 0 && items.length >= totalCount) return
     setLoadingMore(true)
     try {
-      const result = await fetchProducts(query, category, { skip: items.length, limit: pageSize })
+      const result = await fetchProducts(query, category, conditionFilter, { skip: items.length, limit: pageSize })
       const next = normalizeItems(result.items)
       setItems(prev => {
         const seen = new Set(prev.map(p => String(p._id || '')))
@@ -813,6 +820,7 @@ export default function AdminProductManager() {
       ...product,
       gallery: product.gallery || [],
       features: product.features || [],
+      tags: product.tags || [],
       colorOptions: product.colorOptions || [],
       variantOptions: product.variantOptions || [],
       shippingOverrides: ensureOverrides(product.shippingOverrides),
@@ -946,6 +954,57 @@ export default function AdminProductManager() {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="text-xs font-medium text-gray-600 mb-2">Tags</div>
+              <div className="flex flex-wrap gap-2">
+                {(editing.tags || []).length === 0 && (
+                  <span className="text-xs text-gray-500 italic">Aucun tag</span>
+                )}
+                {(editing.tags || []).map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:border-red-200 hover:bg-red-50"
+                    onClick={() => setEditing(prev => (prev
+                      ? { ...prev, tags: (prev.tags || []).filter(t => t !== tag) }
+                      : prev))}
+                    title="Retirer"
+                  >
+                    <span>#{tag}</span>
+                    <span className="text-gray-400">×</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Ajouter un tag (ex: promo, hikvision, poe...)"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  onClick={() => {
+                    const tag = newTagInput.trim().replace(/^#/, '')
+                    if (!tag) return
+                    setEditing(prev => {
+                      if (!prev) return prev
+                      const next = Array.isArray(prev.tags) ? [...prev.tags] : []
+                      if (!next.some(t => String(t).toLowerCase() === tag.toLowerCase())) next.push(tag)
+                      return { ...prev, tags: next }
+                    })
+                    setNewTagInput('')
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Ajouter
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Les tags <span className="font-semibold">occasion</span> / <span className="font-semibold">refurb</span> sont ajoutés automatiquement selon l’état lors de l’enregistrement.
+              </p>
             </div>
 
             <div>
@@ -2440,6 +2499,38 @@ export default function AdminProductManager() {
           list="admin-product-categories"
           className="w-48 border rounded-lg px-3 py-2 text-sm"
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { id: '', label: 'Tous' },
+            { id: 'new', label: 'Neuf' },
+            { id: 'used', label: 'Occasion' },
+            { id: 'refurbished', label: 'Refurb' }
+          ] as const).map((chip) => {
+            const active = conditionFilter === chip.id
+            return (
+              <button
+                key={chip.id || 'all'}
+                type="button"
+                onClick={() => {
+                  setConditionFilter(chip.id)
+                  // refresh immediately with the new filter
+                  setTimeout(() => refresh(), 0)
+                }}
+                className={
+                  'h-9 rounded-full px-3 text-sm font-medium border transition ' +
+                  (active
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50')
+                }
+                aria-pressed={active}
+              >
+                {chip.label}
+              </button>
+            )
+          })}
+        </div>
+
         <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition">Filtrer</button>
 
         <select

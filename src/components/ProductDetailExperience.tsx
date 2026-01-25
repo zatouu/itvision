@@ -75,6 +75,7 @@ export interface ProductWeights {
 }
 
 export interface ProductDetailData {
+  tags?: string[]
   id: string
   name: string
   tagline?: string | null

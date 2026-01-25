@@ -23,6 +23,12 @@ const normalizeCondition = (value: any): 'new' | 'used' | 'refurbished' => {
   return 'new'
 }
 
+const conditionToTag = (condition: 'new' | 'used' | 'refurbished') => {
+  if (condition === 'used') return 'occasion'
+  if (condition === 'refurbished') return 'refurb'
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
@@ -63,6 +69,10 @@ export async function POST(request: NextRequest) {
       description,
       tagline,
       condition,
+      tags: (() => {
+        const tag = conditionToTag(condition)
+        return tag ? [tag] : []
+      })(),
       requiresQuote: finalRequiresQuote,
       currency,
       // For used/refurb imports we default to preorder (shipping from China)

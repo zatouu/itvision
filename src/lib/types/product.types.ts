@@ -179,6 +179,8 @@ export interface ProductResponse {
   tagline: string | null
   description: string | null
   category: string | null
+  condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   image: string
   gallery: string[]
   features: string[]
@@ -211,6 +213,8 @@ export interface ProductSummary {
   tagline: string | null
   category: string | null
   image: string
+  condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   priceAmount: number | null
   currency: Currency
   requiresQuote: boolean
@@ -231,6 +235,8 @@ export interface ProductCreateInput {
   category?: string
   description?: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   price?: number
   baseCost?: number
   marginRate?: number

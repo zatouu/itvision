@@ -21,6 +21,7 @@ export interface IProduct extends Document {
   description?: string
   tagline?: string
   condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   
   // Pricing standard
   price?: number
@@ -194,6 +195,12 @@ const ProductSchema = new Schema<IProduct>({
       values: ['new', 'used', 'refurbished'],
       message: 'Condition invalide. Valeurs acceptées: new, used, refurbished'
     }
+  },
+
+  tags: {
+    type: [String],
+    default: [],
+    index: true
   },
   
   // Pricing standard
