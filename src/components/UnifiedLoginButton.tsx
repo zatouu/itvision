@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { LogIn, ChevronDown } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { LogIn, LogOut } from 'lucide-react'
 
 interface UnifiedLoginButtonProps {
   className?: string
@@ -13,7 +14,37 @@ export default function UnifiedLoginButton({
   className = "", 
   variant = 'default' 
 }: UnifiedLoginButtonProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadAuthState() {
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          cache: 'no-store'
+        })
+        if (cancelled) return
+        setIsAuthenticated(res.ok)
+      } catch {
+        if (cancelled) return
+        setIsAuthenticated(false)
+      } finally {
+        if (cancelled) return
+        setIsLoading(false)
+      }
+    }
+
+    loadAuthState()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const getButtonStyles = () => {
     switch (variant) {
@@ -26,12 +57,40 @@ export default function UnifiedLoginButton({
     }
   }
 
-  const loginOptions: never[] = []
+  const loginHref = `/login?redirect=${encodeURIComponent(pathname || '/')}`
+
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json'
+        }
+      })
+    } finally {
+      setIsAuthenticated(false)
+      router.refresh()
+    }
+  }
 
   if (variant === 'header') {
+    if (!isLoading && isAuthenticated) {
+      return (
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`${getButtonStyles()} ${className} inline-flex items-center bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-black`}
+        >
+          <LogOut className="h-5 w-5 mr-2" />
+          Déconnexion
+        </button>
+      )
+    }
+
     return (
       <Link
-        href="/login"
+        href={loginHref}
         className={`${getButtonStyles()} ${className} inline-flex items-center`}
       >
         Connexion
@@ -39,8 +98,21 @@ export default function UnifiedLoginButton({
     )
   }
 
+  if (!isLoading && isAuthenticated) {
+    return (
+      <button
+        type="button"
+        onClick={handleLogout}
+        className={`${getButtonStyles()} ${className} inline-flex items-center`}
+      >
+        <LogOut className="h-5 w-5 mr-2" />
+        Déconnexion
+      </button>
+    )
+  }
+
   return (
-    <Link href="/login" className={`${getButtonStyles()} ${className} inline-flex items-center`}>
+    <Link href={loginHref} className={`${getButtonStyles()} ${className} inline-flex items-center`}>
       <LogIn className="h-5 w-5 mr-2" />
       Connexion
     </Link>
