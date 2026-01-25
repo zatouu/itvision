@@ -149,6 +149,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[REGISTER] Erreur serveur:', error)
+
+    // Validator MongoDB (collection-level) : configuration incompatible
+    // Ex: enum role en minuscules alors que l'app utilise des rôles en MAJUSCULES.
+    const anyError = error as any
+    if (typeof anyError?.code === 'number' && anyError.code === 121) {
+      return NextResponse.json({
+        error: 'Erreur de configuration de la base de données (validation).',
+        code: 'DB_VALIDATION_FAILED'
+      }, { status: 500 })
+    }
     
     // Gérer les erreurs de validation MongoDB
     if (error instanceof Error && error.message.includes('duplicate key')) {

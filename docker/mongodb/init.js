@@ -31,7 +31,19 @@ db.createCollection('users', {
         },
         role: {
           bsonType: 'string',
-          enum: ['client', 'technician', 'admin']
+          // Les rôles applicatifs sont en MAJUSCULES (voir middleware / modèle User)
+          // On accepte aussi les anciennes valeurs en minuscules pour compat.
+          enum: [
+            'CLIENT',
+            'TECHNICIAN',
+            'PRODUCT_MANAGER',
+            'ACCOUNTANT',
+            'ADMIN',
+            'SUPER_ADMIN',
+            'client',
+            'technician',
+            'admin'
+          ]
         },
         name: { bsonType: 'string' },
         company: { bsonType: 'string' },
@@ -117,7 +129,7 @@ print('✅ Index créés pour optimiser les performances');
 const adminUser = {
   email: 'admin@itvision.sn',
   name: 'Administrateur IT Vision',
-  role: 'admin',
+  role: 'ADMIN',
   passwordHash: '$2a$12$example.hash.for.admin123',
   isActive: true,
   permissions: ['all'],
@@ -128,7 +140,7 @@ const adminUser = {
 const technicianUser = {
   email: 'technicien@itvision.sn',
   name: 'Moussa Diop',
-  role: 'technician',
+  role: 'TECHNICIAN',
   passwordHash: '$2a$12$example.hash.for.tech123',
   isActive: true,
   permissions: ['create_reports', 'view_projects', 'update_status'],
@@ -140,7 +152,7 @@ const clientUser = {
   email: 'client@example.com',
   name: 'Amadou Ba',
   company: 'IT Solutions SARL',
-  role: 'client',
+  role: 'CLIENT',
   passwordHash: '$2a$12$example.hash.for.client123',
   phone: '+221 77 123 45 67',
   isActive: true,
