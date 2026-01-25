@@ -436,6 +436,7 @@ const Header = () => {
                   <MarketAuthButton
                     variant="default"
                     className="flex-1 flex items-center justify-center"
+                    onDone={() => setIsMenuOpen(false)}
                   />
                 ) : (
                   <Link

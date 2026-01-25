@@ -3,14 +3,15 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LogIn, LogOut, ShoppingBag } from 'lucide-react'
+import { LogIn, LogOut, ShoppingBag, User } from 'lucide-react'
 
 interface MarketAuthButtonProps {
   className?: string
   variant?: 'default' | 'header'
+  onDone?: () => void
 }
 
-export default function MarketAuthButton({ className = '', variant = 'header' }: MarketAuthButtonProps) {
+export default function MarketAuthButton({ className = '', variant = 'header', onDone }: MarketAuthButtonProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -65,20 +66,33 @@ export default function MarketAuthButton({ className = '', variant = 'header' }:
     } finally {
       setIsAuthenticated(false)
       router.refresh()
+      onDone?.()
     }
   }
 
   if (!isLoading && isAuthenticated) {
     return (
-      <button
-        type="button"
-        onClick={handleLogout}
-        className={`${baseClassName} ${className} border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
-      >
-        <ShoppingBag className="h-4 w-4" />
-        Déconnexion Market
-        <LogOut className="h-4 w-4 opacity-70" />
-      </button>
+      <div className={`inline-flex items-center gap-2 ${className}`}>
+        <Link
+          href="/compte"
+          onClick={() => onDone?.()}
+          className={`${baseClassName} border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-300 dark:hover:bg-emerald-900/20`}
+        >
+          <User className="h-4 w-4" />
+          Mon compte
+        </Link>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`${baseClassName} border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
+          aria-label="Déconnexion Market"
+        >
+          <ShoppingBag className="h-4 w-4" />
+          <span className={variant === 'header' ? 'hidden 2xl:inline' : ''}>Déconnexion</span>
+          <LogOut className="h-4 w-4 opacity-70" />
+        </button>
+      </div>
     )
   }
 
