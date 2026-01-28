@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -31,7 +31,9 @@ import {
   Info,
   Megaphone,
   Users,
-  TrendingDown
+  TrendingDown,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
@@ -899,6 +901,18 @@ Merci de me recontacter.`
     setSelectedVariants(prev => ({ ...prev, [groupName]: variantId }))
   }, [])
 
+  const thumbnailsRef = useRef<HTMLDivElement>(null)
+
+  const scrollThumbnails = (direction: 'up' | 'down') => {
+    if (thumbnailsRef.current) {
+      const scrollAmount = 120
+      thumbnailsRef.current.scrollBy({
+        top: direction === 'up' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+    }
+  }
+
   // Handler pour le changement d'image depuis le Sidebar (quand on sélectionne une variante)
   const handleImageChange = useCallback((imageUrl: string) => {
     const imgIndex = gallery.findIndex(img => img === imageUrl)
@@ -940,43 +954,8 @@ Merci de me recontacter.`
             {/* Galerie d'images */}
             <div className="mb-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-                {/* Miniatures : horizontales sur mobile, verticales sur desktop */}
-                {gallery.length > 1 && (
-                  <div className="order-2 flex gap-3 overflow-x-auto pb-2 lg:order-1 lg:max-h-[450px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">
-                    {galleryItems.map((item, index) => (
-                      <button
-                        key={`${(item as any).src}-${index}`}
-                        type="button"
-                        onClick={() => setActiveImageIndex(index)}
-                        className={clsx(
-                          'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
-                          activeImageIndex === index
-                            ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
-                        )}
-                        aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
-                      >
-                        <Image
-                          src={item.kind === 'image' ? item.src : (item as any).poster}
-                          alt={`${product.name} ${index + 1}`}
-                          fill
-                          className="object-cover rounded-lg"
-                          sizes="80px"
-                        />
-                        {item.kind !== 'image' && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="rounded-full bg-black/60 text-white p-2">
-                              <Play className="h-4 w-4" />
-                            </div>
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Média principal */}
-                <div className="order-1 flex-1 lg:order-2">
+                {/* Média principal - order-1 sur Desktop */}
+                <div className="order-1 flex-1 lg:order-1">
                   <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 group mx-auto">
                     <button
                       type="button"
@@ -1034,6 +1013,64 @@ Merci de me recontacter.`
                     </div>
                   </div>
                 </div>
+
+                {/* Miniatures : horizontales sur mobile, verticales à droite sur desktop */}
+                {gallery.length > 1 && (
+                  <div className="order-2 flex flex-col items-center gap-2 lg:order-2 lg:h-[450px]">
+                    <button 
+                      onClick={() => scrollThumbnails('up')}
+                      className="hidden lg:flex p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors shadow-sm z-10"
+                      aria-label="Défiler vers le haut"
+                      type="button"
+                    >
+                      <ChevronUp className="h-5 w-5" />
+                    </button>
+
+                    <div 
+                      ref={thumbnailsRef}
+                      className="flex gap-3 overflow-x-auto pb-2 w-full lg:w-auto lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0 lg:flex-1 scrollbar-hide scroll-smooth"
+                    >
+                      {galleryItems.map((item, index) => (
+                        <button
+                          key={`${(item as any).src}-${index}`}
+                          type="button"
+                          onClick={() => setActiveImageIndex(index)}
+                          className={clsx(
+                            'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
+                            activeImageIndex === index
+                              ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
+                          )}
+                          aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
+                        >
+                          <Image
+                            src={item.kind === 'image' ? item.src : (item as any).poster}
+                            alt={`${product.name} ${index + 1}`}
+                            fill
+                            className="object-cover rounded-lg"
+                            sizes="80px"
+                          />
+                          {item.kind !== 'image' && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="rounded-full bg-black/60 text-white p-2">
+                                <Play className="h-4 w-4" />
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={() => scrollThumbnails('down')}
+                      className="hidden lg:flex p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors shadow-sm z-10"
+                      aria-label="Défiler vers le bas"
+                      type="button"
+                    >
+                      <ChevronDown className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

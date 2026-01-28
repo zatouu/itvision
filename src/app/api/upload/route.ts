@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       lowerName.endsWith('.jpg') ||
       lowerName.endsWith('.jpeg')
 
-    const isVideoExt = /\.(mp4|webm|ogg|mov|m4v)$/i.test(lowerName)
+    const isVideoExt = /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(lowerName)
     const isAllowedImage = allowedImageTypes.includes(file.type) || isJpeg
     const isAllowedVideo =
       allowedVideoTypes.includes(file.type) ||
@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier la taille
-    const maxImageSize = 5 * 1024 * 1024 // 5MB
-    const maxVideoSize = 30 * 1024 * 1024 // 30MB (courte vidéo)
+    const maxImageSize = 10 * 1024 * 1024 // 10MB
+    const maxVideoSize = 100 * 1024 * 1024 // 100MB (courte vidéo)
     const maxSize = isAllowedVideo ? maxVideoSize : maxImageSize
 
     if (file.size > maxSize) {
