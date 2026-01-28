@@ -110,6 +110,14 @@ export const formatProductDetail = (
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé
     isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
+    // Exposer les infos simplifiées pour le simulateur 1688 si disponibles
+    pricing1688: product.price1688 ? {
+      price1688: product.price1688,
+      price1688Currency: 'CNY', // ou product.currencySource
+      exchangeRate: product.exchangeRate || 100, // Fallback safe
+      serviceFeeRate: product.serviceFeeRate || 10,
+      insuranceRate: product.insuranceRate || 0
+    } : null,
     // Achat groupé (front)
     groupBuyEnabled: product.groupBuyEnabled ?? false,
     groupBuyBestPrice,

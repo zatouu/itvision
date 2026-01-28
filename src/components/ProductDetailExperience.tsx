@@ -91,6 +91,14 @@ export interface ProductDetailData {
   variantOptions: string[]
   // Variantes avec prix et images (style 1688)
   variantGroups?: ProductVariantGroup[]
+  // Infos pour le simulateur 1688
+  pricing1688?: {
+    price1688: number
+    price1688Currency: string
+    exchangeRate: number
+    serviceFeeRate?: number | null
+    insuranceRate?: number | null
+  } | null
   requiresQuote: boolean
   currency?: string | null
   pricing: {

@@ -37,6 +37,7 @@ import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './P
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'
+import ProductPricing1688 from './ProductPricing1688'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Helpers
@@ -126,10 +127,27 @@ export default function ProductDetailSidebar({
     return product.logistics.volumeM3 ?? null
   }, [product.logistics.volumeM3])
 
+  // Quantité totale actuelle (variant ou simple)
+  const currentTotalQty = useMemo(() => {
+    const entries = Object.entries(variantQuantities).filter(([, qty]) => qty > 0)
+    if (entries.length === 0) return quantity
+    return entries.reduce((acc, [, qty]) => acc + qty, 0)
+  }, [variantQuantities, quantity])
+
+  // Prix unitaire basé sur les paliers (tiered pricing)
+  const tieredUnitPrice = useMemo(() => {
+    if (!product.priceTiers || product.priceTiers.length === 0) return null
+    // Trier par minQty décroissant
+    const sorted = [...product.priceTiers].sort((a, b) => b.minQty - a.minQty)
+    const tier = sorted.find(t => currentTotalQty >= t.minQty)
+    return tier ? tier.price : null
+  }, [product.priceTiers, currentTotalQty])
+
   // Calcul du prix de base (hors variantes)
   const baseUnitPrice = useMemo(() => {
+    if (tieredUnitPrice !== null) return tieredUnitPrice
     return product.pricing.totalWithFees ?? product.pricing.salePrice ?? 0
-  }, [product.pricing.totalWithFees, product.pricing.salePrice])
+  }, [product.pricing.totalWithFees, product.pricing.salePrice, tieredUnitPrice])
 
   const groupBuyHeadline = useMemo(() => {
     const d = product.groupBuyDiscount
@@ -589,6 +607,38 @@ Merci de me recontacter.`
         </div>
         <p className="text-xs text-gray-500 mb-3">Prix unitaire estimé – hors transport</p>
 
+        {/* ══ PRIX DÉGRESSIFS (TIERS) ══ */}
+        {product.priceTiers && product.priceTiers.length > 0 && (
+          <div className="mb-4 bg-white/50 rounded-lg p-3 text-xs border border-emerald-100/50">
+            <div className="flex items-center gap-1.5 font-semibold text-emerald-800 mb-2">
+              <TrendingDown className="h-3.5 w-3.5" />
+              Prix dégressifs disponibles :
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[...product.priceTiers].sort((a, b) => a.minQty - b.minQty).map((tier, idx) => {
+                const isCurrent = currentTotalQty >= tier.minQty && 
+                  (!product.priceTiers![idx + 1] || currentTotalQty < product.priceTiers![idx + 1].minQty)
+                
+                return (
+                  <div key={tier.minQty} className={clsx(
+                    "flex flex-col items-center justify-center p-2 rounded-lg border transition-all",
+                    isCurrent
+                      ? "bg-emerald-100 border-emerald-300 text-emerald-900 shadow-sm ring-1 ring-emerald-200"
+                      : "bg-white border-gray-100 text-gray-500"
+                  )}>
+                    <div className="text-[10px] font-medium opacity-80 mb-0.5">
+                      {tier.minQty}{tier.maxQty ? `-${tier.maxQty}` : '+'} pcs
+                    </div>
+                    <div className={clsx("font-bold", isCurrent ? "text-sm" : "text-xs")}>
+                      {formatCurrency(tier.price, product.pricing.currency)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ══ DÉTAIL DES FRAIS - TOUJOURS VISIBLE ══ */}
         {product.pricing.fees && (
           <div className="border-t border-emerald-100 pt-3 space-y-2">
@@ -1017,6 +1067,20 @@ Merci de me recontacter.`
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          4.5 SIMULATEUR 1688 (IMPORT AVANCÉ)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      {product.pricing1688 && (
+        <ProductPricing1688
+          productId={product.id}
+          pricing1688={product.pricing1688}
+          weightKg={unitWeightKg}
+          volumeM3={unitVolumeM3}
+          baseCost={product.pricing.baseCost}
+          orderQuantity={currentTotalQty}
+        />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
