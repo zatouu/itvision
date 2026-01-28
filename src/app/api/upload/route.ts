@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: isAllowedVideo ? 'Vidéo trop volumineuse (30MB max)' : 'Fichier trop volumineux (5MB max)' },
+        { error: isAllowedVideo ? 'Vidéo trop volumineuse (100MB max)' : 'Fichier trop volumineux (5MB max)' },
         { status: 400 }
       )
     }

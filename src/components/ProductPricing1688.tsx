@@ -79,8 +79,8 @@ export default function ProductPricing1688({
           shippingMethod: selectedMethod,
           weightKg: weightKg || undefined,
           volumeM3: volumeM3 || undefined,
-          serviceFeeRate: pricing1688.serviceFeeRate ||,
-          orderQuantity 10,
+          serviceFeeRate: pricing1688.serviceFeeRate || 10,
+          orderQuantity: orderQuantity || 1,
           insuranceRate: pricing1688.insuranceRate || 0
         })
       })

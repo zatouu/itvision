@@ -43,12 +43,14 @@ export default function ImageUpload({
           body: formData,
         })
 
-        const result = await response.json()
+        const result = await response.json().catch(() => ({ success: false, error: 'Réponse serveur invalide (taille trop grande ?)' }))
 
         if (result.success) {
           onUpload(result.url, result.filename)
         } else {
-          alert(`Erreur upload ${file.name}: ${result.error}`)
+          const msg = result.error || 'Erreur inconnue'
+          // Afficher une alerte plus visible ou un toast
+          alert(`Erreur upload ${file.name}: ${msg}`)
         }
       }
     } catch (error) {
