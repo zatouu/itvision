@@ -108,8 +108,8 @@ export default function ProductPricing1688({
     <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Prix d'origine</h3>
+          <Truck className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Simulateur 1688</h3>
         </div>
         <button
           onClick={() => setShowDetails(!showDetails)}
@@ -120,28 +120,6 @@ export default function ProductPricing1688({
       </div>
 
       <div className="space-y-3">
-        <div className="bg-white rounded-lg p-4 border border-blue-100">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Prix direct</span>
-            <span className="text-lg font-bold text-gray-900">
-              {pricing1688.price1688.toLocaleString('fr-FR')} {pricing1688.price1688Currency}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Taux de change</span>
-            <span className="text-sm font-medium text-gray-700">
-              1 {pricing1688.price1688Currency} = {pricing1688.exchangeRate} FCFA
-            </span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">Coût produit</span>
-              <span className="text-xl font-bold text-blue-600">
-                {formatCurrency(productCostFCFA)}
-              </span>
-            </div>
-          </div>
-        </div>
 
         {showDetails && (
           <div className="space-y-3">
@@ -152,33 +130,33 @@ export default function ProductPricing1688({
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setSelectedMethod('air_express')}
-                  className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
                     selectedMethod === 'air_express'
                       ? 'bg-emerald-500 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
-                  Express<br />3 jours
+                  Express<br />3-5 jrs
                 </button>
                 <button
                   onClick={() => setSelectedMethod('air_15')}
-                  className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
                     selectedMethod === 'air_15'
                       ? 'bg-emerald-500 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
-                  Aérien<br />6-10 jours
+                  Aérien<br />10-15 jrs
                 </button>
                 <button
                   onClick={() => setSelectedMethod('sea_freight')}
-                  className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
                     selectedMethod === 'sea_freight'
                       ? 'bg-emerald-500 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
-                  Maritime<br />50-60 jours
+                  Maritime<br />45-50 jrs
                 </button>
               </div>
             </div>

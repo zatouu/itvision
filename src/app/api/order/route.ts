@@ -110,9 +110,9 @@ export async function POST(req: NextRequest) {
     }
 
     let transportCost = 0
-    // Appliquer le poids minimum de 1kg
-    const effectiveWeight = Math.max(totalWeight || 0, 1)
-    const effectiveVolume = Math.max(totalVolume || 0, 0.001)
+    // Appliquer le poids minimum via minimumCharge plus bas, pas de forçage physique ici
+    const effectiveWeight = Math.max(totalWeight || 0, 0)
+    const effectiveVolume = Math.max(totalVolume || 0, 0)
 
     if (rate.billing === 'per_kg') {
       transportCost = Math.round(effectiveWeight * rate.rate)
@@ -164,10 +164,10 @@ export async function POST(req: NextRequest) {
       
       address: {
         street: address.street,
-        city: address.city,
-        postalCode: address.postalCode,
-        country: address.country,
-        notes: address.notes
+        city: address.city || address.neighborhood || address.region, // Map region/neighborhood for generic address object
+        postalCode: address.postalCode || address.department,
+        country: address.country || 'Sénégal',
+        notes: address.additionalInfo || address.notes
       },
       
       status: 'pending',

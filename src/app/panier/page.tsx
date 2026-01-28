@@ -175,9 +175,8 @@ export default function PanierPage() {
     const rate = shippingRates[selectedMethodId]
     if (!rate) return 0
 
-    // Minimums physiques (cohérents avec /api/order)
-    const effectiveWeight = Math.max(totalWeight || 0, 1)
-    const effectiveVolume = Math.max(totalVolume || 0, 0.001)
+    const effectiveWeight = Math.max(totalWeight || 0, 0)
+    const effectiveVolume = Math.max(totalVolume || 0, 0)
 
     let billed = 0
     if (rate.billing === 'per_cubic_meter') {
@@ -207,7 +206,13 @@ export default function PanierPage() {
     const selectedMethodId = SHIPPING_CHOICES[shippingMethod]?.methodId || 'air_15'
     const rate = shippingRates[selectedMethodId]
     if (!rate) return 'Transport'
-    return rate.billing === 'per_cubic_meter' ? 'Transport (min 0.001m³)' : 'Transport (min 1kg)'
+    
+    // Si un minimum de facturation est défini qui correspond au prix unitaire (ex: 1kg), on l'indique
+    if (rate.minimumCharge && rate.rate && rate.minimumCharge === rate.rate) {
+       return `Transport (min 1${rate.billing === 'per_cubic_meter' ? 'm³' : 'kg'})`
+    }
+    
+    return 'Transport'
   }, [shippingMethod, shippingRates])
 
   useEffect(() => {
