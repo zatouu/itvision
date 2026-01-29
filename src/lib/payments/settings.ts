@@ -120,6 +120,24 @@ export function writePaymentSettings(payload: Partial<PaymentSettings>): Payment
         typeof payload?.groupOrders?.paymentManagementEnabled === 'boolean'
           ? payload.groupOrders.paymentManagementEnabled
           : current.groupOrders.paymentManagementEnabled
+    },
+    providers: {
+      manual: {
+        waveMerchantPhone: payload.providers?.manual?.waveMerchantPhone ?? current.providers.manual.waveMerchantPhone,
+        orangeMerchantPhone: payload.providers?.manual?.orangeMerchantPhone ?? current.providers.manual.orangeMerchantPhone,
+        instructions: payload.providers?.manual?.instructions ?? current.providers.manual.instructions
+      },
+      gateway: {
+        active: typeof payload.providers?.gateway?.active === 'boolean' ? payload.providers.gateway.active : current.providers.gateway.active,
+        provider: payload.providers?.gateway?.provider ?? current.providers.gateway.provider,
+        apiKey: payload.providers?.gateway?.apiKey ?? current.providers.gateway.apiKey,
+        apiSecret: payload.providers?.gateway?.apiSecret ?? current.providers.gateway.apiSecret,
+        merchantId: payload.providers?.gateway?.merchantId ?? current.providers.gateway.merchantId
+      },
+      escrow: {
+        enabled: typeof payload.providers?.escrow?.enabled === 'boolean' ? payload.providers.escrow.enabled : current.providers.escrow.enabled,
+        holdPercentage: payload.providers?.escrow?.holdPercentage ?? current.providers.escrow.holdPercentage
+      }
     }
   }
 
