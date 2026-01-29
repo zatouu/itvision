@@ -11,6 +11,24 @@ export type PaymentSettings = {
     chatEnabled: boolean
     paymentLinksEnabled: boolean
     paymentManagementEnabled: boolean
+  },
+  providers: {
+    manual: {
+      waveMerchantPhone: string
+      orangeMerchantPhone: string
+      instructions: string
+    },
+    gateway: {
+      active: boolean
+      provider: 'paydunya' | 'stripe' | 'cinetpay'
+      apiKey: string
+      apiSecret: string
+      merchantId: string
+    },
+    escrow: {
+      enabled: boolean
+      holdPercentage: number
+    }
   }
 }
 
@@ -20,6 +38,24 @@ const DEFAULT_SETTINGS: PaymentSettings = {
     chatEnabled: true,
     paymentLinksEnabled: true,
     paymentManagementEnabled: true
+  },
+  providers: {
+    manual: {
+      waveMerchantPhone: '+221770000000',
+      orangeMerchantPhone: '+221760000000',
+      instructions: "Paiement à la livraison ou retrait au bureau."
+    },
+    gateway: {
+      active: false,
+      provider: 'paydunya',
+      apiKey: '',
+      apiSecret: '',
+      merchantId: ''
+    },
+    escrow: {
+      enabled: true,
+      holdPercentage: 100
+    }
   }
 }
 
@@ -41,6 +77,24 @@ export function readPaymentSettings(): PaymentSettings {
         chatEnabled: Boolean(parsed?.groupOrders?.chatEnabled ?? DEFAULT_SETTINGS.groupOrders.chatEnabled),
         paymentLinksEnabled: Boolean(parsed?.groupOrders?.paymentLinksEnabled ?? DEFAULT_SETTINGS.groupOrders.paymentLinksEnabled),
         paymentManagementEnabled: Boolean(parsed?.groupOrders?.paymentManagementEnabled ?? DEFAULT_SETTINGS.groupOrders.paymentManagementEnabled)
+      },
+      providers: {
+        manual: {
+          waveMerchantPhone: parsed?.providers?.manual?.waveMerchantPhone ?? DEFAULT_SETTINGS.providers.manual.waveMerchantPhone,
+          orangeMerchantPhone: parsed?.providers?.manual?.orangeMerchantPhone ?? DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
+          instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions
+        },
+        gateway: {
+          active: Boolean(parsed?.providers?.gateway?.active ?? DEFAULT_SETTINGS.providers.gateway.active),
+          provider: parsed?.providers?.gateway?.provider ?? DEFAULT_SETTINGS.providers.gateway.provider,
+          apiKey: parsed?.providers?.gateway?.apiKey ?? DEFAULT_SETTINGS.providers.gateway.apiKey,
+          apiSecret: parsed?.providers?.gateway?.apiSecret ?? DEFAULT_SETTINGS.providers.gateway.apiSecret,
+          merchantId: parsed?.providers?.gateway?.merchantId ?? DEFAULT_SETTINGS.providers.gateway.merchantId
+        },
+        escrow: {
+          enabled: Boolean(parsed?.providers?.escrow?.enabled ?? DEFAULT_SETTINGS.providers.escrow.enabled),
+          holdPercentage: Number(parsed?.providers?.escrow?.holdPercentage ?? DEFAULT_SETTINGS.providers.escrow.holdPercentage)
+        }
       }
     }
 
