@@ -698,9 +698,46 @@ export default function AdminOrdersPage() {
                             </button>
                           )}
                           
-                          {/* Menu actions */}
-                          <div className="relative">
-                            <buttonitems-center justify-between mt-4">
+                          </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Modal Details */}
+      <AnimatePresence>
+        {selectedOrder && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setSelectedOrder(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl"
+            >
+              <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">Commande #{selectedOrder.orderId}</h2>
+                    <p className="text-slate-400 text-sm">Passée le {new Date(selectedOrder.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</p>
+                  </div>
+                  <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-white/10 rounded-full transition">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between mt-4">
                   <div className="flex gap-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeColor(selectedOrder.status)}`}>
                       {statusLabels[selectedOrder.status] || selectedOrder.status}
@@ -781,88 +818,6 @@ export default function AdminOrdersPage() {
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Poids / Volume:</span>
                     <span>{(selectedOrder.shipping.totalWeight || 0).toFixed(2)}kg / {(selectedOrder.shipping.totalVolume || 0).toFixed(3)}m³</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold border-t pt-2 mw-y-auto shadow-2xl"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-emerald-600 text-white p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedOrder.orderId}</h2>
-                    <p className="text-white/80 text-sm mt-1">Créée le {formatDateTime(selectedOrder.createdAt)}</p>
-                  </div>
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="text-white/80 hover:text-white text-2xl p-2"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="flex gap-3 mt-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeColor(selectedOrder.status)}`}>
-                    {statusLabels[selectedOrder.status] || selectedOrder.status}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${paymentBadgeColor(selectedOrder.paymentStatus)}`}>
-                    {paymentLabels[selectedOrder.paymentStatus] || selectedOrder.paymentStatus}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-6">
-                {/* Client */}
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <User className="w-5 h-5 text-blue-600" />
-                    Informations Client
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <p><span className="text-gray-600">Nom:</span> <span className="font-semibold">{selectedOrder.clientName}</span></p>
-                    <p><span className="text-gray-600">Téléphone:</span> <span className="font-semibold">{selectedOrder.clientPhone}</span></p>
-                    {selectedOrder.clientEmail && <p><span className="text-gray-600">Email:</span> <span className="font-semibold">{selectedOrder.clientEmail}</span></p>}
-                  </div>
-                </div>
-
-                {/* Adresse */}
-                {selectedOrder.address && (
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-emerald-600" />
-                      Adresse de Livraison
-                    </h3>
-                    <div className="space-y-1 text-sm bg-gray-50 p-4 rounded-lg">
-                      <p>{selectedOrder.address.street}</p>
-                      <p>{selectedOrder.address.neighborhood}, {selectedOrder.address.department}</p>
-                      <p>{selectedOrder.address.region}, Sénégal</p>
-                      {selectedOrder.address.additionalInfo && <p className="text-gray-600">{selectedOrder.address.additionalInfo}</p>}
-                    </div>
-                  </div>
-                )}
-
-                {/* Articles */}
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3">Articles ({selectedOrder.items.length})</h3>
-                  <div className="space-y-2">
-                    {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex justify-between p-3 bg-gray-50 rounded-lg text-sm">
-                        <span>{item.name} × {item.qty || 1}</span>
-                        <span className="font-semibold">{formatCurrency(item.price * (item.qty || 1))}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Totaux */}
-                <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Sous-total:</span>
-                    <span className="font-semibold">{formatCurrency(selectedOrder.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Transport ({selectedOrder.shipping.method}):</span>
-                    <span className="font-semibold">{formatCurrency(selectedOrder.shipping.totalCost)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold border-t pt-2">
                     <span>Total:</span>

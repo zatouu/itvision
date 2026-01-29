@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
+import { useToast } from '@/components/ui/Toaster'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
@@ -46,6 +47,7 @@ export default function PanierPage() {
     const [showPayment, setShowPayment] = useState(false)
     const [orderInfo, setOrderInfo] = useState<any>(null)
   const router = useRouter()
+  const { addToast } = useToast()
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
   const [suggestedProducts, setSuggestedProducts] = useState<any[]>([])
@@ -60,6 +62,14 @@ export default function PanierPage() {
   const [addressValid, setAddressValid] = useState(false)
   const [suggestionScroll, setSuggestionScroll] = useState(0)
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
+
+  const highlightError = (field: string) => {
+    setErrors(prev => ({ ...prev, [field]: true }))
+    setTimeout(() => {
+      setErrors(prev => ({ ...prev, [field]: false }))
+    }, 2000)
+  }
 
   const handleClosePayment = useCallback(() => {
     setShowPayment(false)
@@ -279,8 +289,15 @@ export default function PanierPage() {
   }
 
   const handleCheckout = async () => {
+    if (items.length === 0) {
+      addToast('Votre panier est vide', 'error')
+      return
+    }
     if (!name || !phone || !addressValid || !address) {
-      alert('Veuillez remplir tous les champs')
+      if (!name) highlightError('name')
+      if (!phone) highlightError('phone')
+      if (!addressValid) highlightError('address')
+      addToast('Veuillez remplir les informations de livraison obligatoires', 'error')
       return
     }
     setSending(true)
@@ -683,7 +700,7 @@ export default function PanierPage() {
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder="Jean Dupont"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.name ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-emerald-500'}`}
                     />
                   </motion.div>
 
@@ -698,7 +715,7 @@ export default function PanierPage() {
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="+221 77 123 45 67"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.phone ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-emerald-500'}`}
                     />
                   </motion.div>
 
@@ -742,8 +759,16 @@ export default function PanierPage() {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setStep(3)}
-                      disabled={!name || !phone || !addressValid}
+                      onClick={() => {
+                        if (!name || !phone || !addressValid) {
+                          if (!name) highlightError('name')
+                          if (!phone) highlightError('phone')
+                          if (!addressValid) highlightError('address')
+                          addToast('Veuillez remplir les informations obligatoires', 'error')
+                          return
+                        }
+                        setStep(3)
+                      }}
                       className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition"
                     >
                       Vérifier la commande
