@@ -43,7 +43,8 @@ import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
 export default function PanierPage() {
-    const { data: session } = useSession() // Utilisation de la session
+    const sessionObj = useSession() // Utilisation de la session
+    const session = sessionObj?.data
     const [orderInfo, setOrderInfo] = useState<any>(null)
   const router = useRouter()
   const { addToast } = useToast()
@@ -666,14 +667,14 @@ export default function PanierPage() {
                       </div>
                       <div className="flex w-full flex-col gap-2 md:w-auto">
                         <a
-                          href={`/login?redirect=${encodeURIComponent('/panier')}${email ? `&email=${encodeURIComponent(email)}` : ''}`}
+                          href="/login?redirect=/panier"
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800"
                         >
                           <LogIn className="w-4 h-4" />
                           Se connecter
                         </a>
                         <a
-                          href={`/market/creer-compte?redirect=${encodeURIComponent('/panier')}&name=${encodeURIComponent(name || '')}&phone=${encodeURIComponent(phone || '')}&email=${encodeURIComponent(email || '')}`}
+                          href="/market/creer-compte?redirect=/panier"
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 ring-1 ring-gray-200 transition hover:bg-gray-50"
                         >
                           <UserPlus className="w-4 h-4" />
