@@ -3,11 +3,17 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import PageVisitTracker from '@/components/PageVisitTracker'
 import { Toaster } from '@/components/ui/Toaster'
+import SessionProviderClient from '@/components/SessionProviderClient'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const viewport = {
+  themeColor: "#0a0a0a",
+}
+
 export const metadata: Metadata = {
   title: 'IT Vision - Sécurité Électronique & Solutions Technologiques',
+  manifest: '/manifest.webmanifest',
   description: 'IT Vision : Votre partenaire expert en sécurité électronique. Solutions innovantes de vidéosurveillance, contrôle d\'accès, domotique et sécurité incendie. Vision technologique avancée.',
   keywords: 'IT Vision, sécurité électronique, vidéosurveillance, contrôle accès, domotique, sécurité incendie, technologie, innovation, solutions IT',
   authors: [{ name: 'IT Vision' }],
@@ -51,8 +57,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={`${inter.className} bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100`}>
-        <PageVisitTracker />
-        {children}
+        <SessionProviderClient>
+          <PageVisitTracker />
+          {children}
+          <Toaster />
+        </SessionProviderClient>
       </body>
     </html>
   )
