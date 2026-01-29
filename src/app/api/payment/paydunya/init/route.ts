@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import dbConnect from '@/lib/mongodb'
+import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import Order from '@/lib/models/Order'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { PayDunyaService } from '@/lib/payment-providers/paydunya'
 
@@ -18,48 +19,67 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PayDunya n\'est pas activé' }, { status: 403 })
     }
 
-    await dbConnect()
+    await connectDB()
 
-    // 1. Retrouver la commande et le participant
+    let amount = 0;
+    let description = "";
+    let customerName = "";
+    let customerPhone = "";
+    let customerEmail = "";
+
+    // 1. Essayer de trouver une commande groupée (Legacy / Group Buy)
     const groupOrder = await GroupOrder.findOne({ 
       "participants.paymentReference": reference 
     })
 
-    if (!groupOrder) {
-      return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+    if (groupOrder) {
+      const participant = groupOrder.participants.find(
+        (p: any) => p.paymentReference === reference
+      )
+
+      if (participant) {
+        if (participant.paymentStatus === 'paid') {
+          return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
+        }
+        amount = participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice));
+        description = `Paiement Achat Groupé #${groupOrder.groupId} - ${groupOrder.product.name} (${participant.qty}x)`;
+        customerName = participant.name;
+        customerPhone = participant.phone;
+        customerEmail = participant.email;
+      }
+    } else {
+      // 2. Essayer de trouver une commande standard
+      const standardOrder = await Order.findOne({ orderId: reference });
+      
+      if (standardOrder) {
+        if (standardOrder.paymentStatus === 'completed') {
+           return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
+        }
+        amount = standardOrder.total;
+        description = `Commande #${standardOrder.orderId}`;
+        customerName = standardOrder.clientName || "Client";
+        customerPhone = standardOrder.clientPhone || "";
+        customerEmail = standardOrder.clientEmail || "";
+      } else {
+         return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+      }
     }
 
-    const participant = groupOrder.participants.find(
-      (p: any) => p.paymentReference === reference
-    )
-
-    if (!participant) {
-      return NextResponse.json({ error: 'Participant introuvable' }, { status: 404 })
-    }
-
-    if (participant.paymentStatus === 'paid') {
-      return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
-    }
-
-    // 2. Calculer le montant sûr
-    const amount = participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice))
-    
     // 3. Initialiser PayDunya
     const paydunya = new PayDunyaService(settings.providers.gateway)
     
     // URL de base du site
-    // On utilise une variable d'env ou on déduit de la request
     const protocol = request.headers.get('x-forwarded-proto') || 'http'
     const host = request.headers.get('host')
     const baseUrl = `${protocol}://${host}`
 
     const invoice = {
-      amount: Math.ceil(amount), // PayDunya n'aime pas les décimales parfois
+      amount: Math.ceil(amount),
       reference: reference,
-      description: `Paiement Achat Groupé #${groupOrder.groupId} - ${groupOrder.product.name} (${participant.qty}x)`,
-      customerName: participant.name,
-      customerPhone: participant.phone.replace(/\+/g, ''), // Nettoyage simple
-      customerEmail: participant.email,
+      description: description,
+      customerName: customerName,
+      customerPhone: customerPhone ? customerPhone.replace(/\+/g, '') : "",
+      customerEmail: customerEmail,
       returnUrl: `${baseUrl}/payment/success?ref=${reference}`,
       cancelUrl: `${baseUrl}/payment/cancel?ref=${reference}`,
       callbackUrl: `${baseUrl}/api/payment/paydunya/callback` // IPN

@@ -51,6 +51,8 @@ export interface IOrder extends Document {
   
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
   paymentStatus: 'pending' | 'completed' | 'failed'
+  paymentMethod?: string
+  transactionId?: string
   
   notes?: string
   internalNotes?: string
@@ -126,6 +128,8 @@ const OrderSchema = new Schema<IOrder>({
     enum: ['pending', 'completed', 'failed'],
     default: 'pending'
   },
+  paymentMethod: { type: String },
+  transactionId: { type: String },
   
   notes: { type: String },
   internalNotes: { type: String },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import Order from '@/lib/models/Order'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { PayDunyaService } from '@/lib/payment-providers/paydunya'
 
@@ -47,34 +48,54 @@ export async function POST(request: NextRequest) {
     // On cherche le participant via la référence retournée par PayDunya
     const reference = verification.reference
     
+    let orderFound = false;
+
+    // 1. Essai GroupOrder
     const groupOrder = await GroupOrder.findOne({ 
       "participants.paymentReference": reference 
     })
 
-    if (!groupOrder) {
+    if (groupOrder) {
+      const participant = groupOrder.participants.find(
+        (p: any) => p.paymentReference === reference
+      )
+
+      if (participant) {
+          orderFound = true;
+          // Mettre à jour le statut
+          if (participant.paymentStatus !== 'paid') {
+              participant.paymentStatus = 'paid'
+              participant.paidAmount = verification.amount
+              participant.transactionId = token
+              participant.paymentUpdatedAt = new Date()
+              
+              await groupOrder.save()
+              console.log(`Paiement validé pour ${participant.name} (${reference})`)
+          }
+      }
+    } else {
+        // 2. Essai Standard Order
+        const standardOrder = await Order.findOne({ orderId: reference })
+        
+        if (standardOrder) {
+            orderFound = true;
+            if (standardOrder.paymentStatus !== 'paid') {
+                standardOrder.paymentStatus = 'paid';
+                standardOrder.paymentMethod = 'paydunya';
+                standardOrder.transactionId = token;
+                // standardOrder.paidAt = new Date(); // If schema supports it
+                
+                await standardOrder.save();
+                console.log(`Paiement standard validé pour ${reference}`);
+            }
+        }
+    }
+
+    if (!orderFound) {
         console.error('Callback: Commande introuvable pour ref', reference)
         return NextResponse.json({ message: 'Commande introuvable' }, { status: 404 })
     }
 
-    const participant = groupOrder.participants.find(
-      (p: any) => p.paymentReference === reference
-    )
-
-    if (participant) {
-        // Mettre à jour le statut
-        if (participant.paymentStatus !== 'paid') {
-            participant.paymentStatus = 'paid'
-            participant.paidAmount = verification.amount
-            participant.transactionId = token // On garde le token PayDunya comme ID de transaction
-            participant.paymentUpdatedAt = new Date()
-            
-            // Mise à jour des totaux de la commande groupée (facultatif mais recommandé pour le suivi global)
-            // groupOrder.currentQty += ... (si ce n'était pas déjà compté)
-            
-            await groupOrder.save()
-            console.log(`Paiement validé pour ${participant.name} (${reference})`)
-        }
-    }
 
     // Répondre à PayDunya que tout est OK
     return NextResponse.json({ response_code: '00', response_text: 'Success' })

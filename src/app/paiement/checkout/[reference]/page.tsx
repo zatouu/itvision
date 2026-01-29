@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
-import dbConnect from '@/lib/mongodb'
+import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import { Order } from '@/lib/models/Order'
 import CheckoutInterface from '@/components/payment/CheckoutInterface'
 import { readPaymentSettings } from '@/lib/payments/settings'
 
@@ -19,15 +20,66 @@ export default async function CheckoutPage({ params }: PageProps) {
   const { reference } = await params
   if (!reference) return notFound()
 
-  await dbConnect()
+  await connectDB()
 
-  // Chercher la commande correspondante à la référence de paiement
-  // La référence est unique par participant
+  let participantData = null
+  let groupData = null
+  let orderType = 'group' // 'group' or 'standard'
+
+  // 1. Essayer de trouver une commande groupée (référence paiement participant)
   const groupOrder = await GroupOrder.findOne({ 
     "participants.paymentReference": reference 
   })
 
-  if (!groupOrder) {
+  if (groupOrder) {
+    const participant = groupOrder.participants.find(
+      (p: any) => p.paymentReference === reference
+    )
+
+    if (participant) {
+        const amount = participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice))
+        
+        participantData = {
+            name: participant.name,
+            phone: participant.phone,
+            amount: amount,
+            reference: reference, // reference paiement
+            status: participant.paymentStatus || 'pending'
+        }
+
+        groupData = {
+            productName: groupOrder.product.name,
+            groupId: groupOrder.groupId
+        }
+    }
+  }
+
+  // 2. Si pas trouvé, essayer de trouver une commande standard (OrderId)
+  if (!participantData) {
+    const standardOrder = await Order.findOne({ orderId: reference })
+    
+    if (standardOrder) {
+        orderType = 'standard'
+        participantData = {
+            name: standardOrder.clientName,
+            phone: standardOrder.clientPhone,
+            amount: standardOrder.total,
+            reference: standardOrder.orderId, // Ici la ref est l'ID commande
+            status: standardOrder.paymentStatus === 'completed' ? 'paid' : 'pending'
+        }
+
+        const itemsCount = standardOrder.items.length
+        const itemsSummary = standardOrder.items.slice(0, 2).map((i: any) => i.name).join(', ')
+        const productName = itemsCount > 2 ? `${itemsSummary} + ${itemsCount - 2} autres` : itemsSummary
+
+        groupData = {
+            productName: `Commande: ${productName}`,
+            groupId: standardOrder.orderId
+        }
+    }
+  }
+
+  if (!participantData || !groupData) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
@@ -38,44 +90,20 @@ export default async function CheckoutPage({ params }: PageProps) {
       </div>
     )
   }
-
-  // Extraire le participant spécifique
-  // Note: On utilise 'any' ici car TypeScript peut avoir du mal avec les sous-documents Mongoose 
-  // sans types génériques complexes, mais la structure est validée par la query.
-  const participant = groupOrder.participants.find(
-    (p: any) => p.paymentReference === reference
-  )
-
-  if (!participant) return notFound() // Ne devrait pas arriver avec la query ci-dessus
-
-  // Calculer le montant si pas explicite (fallback)
-  // Normalement totalAmount est set, sinon qty * price
-  const amount = participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice))
   
   // charger les réglages
   const settings = readPaymentSettings()
-
-  // Préparer les données pour le client
-  // Sérialisation nécessaire pour passer du Server au Client Component
-  const participantData = {
-    name: participant.name,
-    phone: participant.phone,
-    amount: amount,
-    reference: reference,
-    status: participant.paymentStatus || 'pending'
-  }
-
-  const groupData = {
-    productName: groupOrder.product.name,
-    groupId: groupOrder.groupId
-  }
 
   return (
     <div className="min-h-screen bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="text-center mb-10">
         <h2 className="text-3xl font-extrabold text-slate-900">Finalisation du paiement</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Achat Groupé <span className="font-semibold text-indigo-600">#{groupOrder.groupId}</span>
+          {orderType === 'group' ? (
+              <>Achat Groupé <span className="font-semibold text-indigo-600">#{groupData.groupId}</span></>
+          ) : (
+              <>Commande <span className="font-semibold text-indigo-600">{groupData.groupId}</span></>
+          )}
         </p>
       </div>
       
