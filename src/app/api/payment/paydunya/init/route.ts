@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import Order from '@/lib/models/Order'
+import { Order } from '@/lib/models/Order'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { PayDunyaService } from '@/lib/payment-providers/paydunya'
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         description = `Paiement Achat Groupé #${groupOrder.groupId} - ${groupOrder.product.name} (${participant.qty}x)`;
         customerName = participant.name;
         customerPhone = participant.phone;
-        customerEmail = participant.email;
+        customerEmail = participant.email || "";
       }
     } else {
       // 2. Essayer de trouver une commande standard

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import Order from '@/lib/models/Order'
+import { Order } from '@/lib/models/Order'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { PayDunyaService } from '@/lib/payment-providers/paydunya'
 

@@ -64,15 +64,47 @@ export default function PanierPage() {
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
-  // Pré-remplir les données si l'utilisateur est connecté
+  // 1. Restaurer depuis sessionStorage au montage (pour conserver les infos si redirection login)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const saved = sessionStorage.getItem('cart_checkout_form')
+        if (saved) {
+          try {
+            const data = JSON.parse(saved)
+            setName(prev => prev || data.name || '')
+            setPhone(prev => prev || data.phone || '')
+            setEmail(prev => prev || data.email || '')
+            setAddress((prev: any) => (Object.keys(prev || {}).length === 0 ? data.address : prev))
+          } catch (e) {}
+        }
+    }
+  }, [])
+
+  // 2. Sauvegarder les changements pour persistance
+  useEffect(() => {
+     const hasData = name || phone || email || (address && Object.keys(address).length > 0)
+     if (hasData && typeof window !== 'undefined') {
+        sessionStorage.setItem('cart_checkout_form', JSON.stringify({ name, phone, email, address }))
+     }
+  }, [name, phone, email, address])
+
+  // 3. Pré-remplir les données si l'utilisateur est connecté (Session + Profil API)
   useEffect(() => {
     if (session?.user) {
-      if (session.user.name && !name) setName(session.user.name)
-      if (session.user.email && !email) setEmail(session.user.email)
-      // Si le téléphone est dispo dans la session (custom field), on pourrait l'ajouter ici
-      // if ((session.user as any).phone && !phone) setPhone((session.user as any).phone)
+      // Priorité à la session pour name/email si vides
+      setName(prev => prev || session.user?.name || '')
+      setEmail(prev => prev || session.user?.email || '')
+      
+      // Récupérer le profil complet pour le téléphone
+      fetch('/api/client/profile')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+            if (data?.phone) setPhone((prev: string) => prev || data.phone)
+             // Si on avait l'adresse structurée dans le profil, on pourrait l'assigner ici
+        })
+        .catch(() => {})
     }
-  }, [session, name, email])
+  }, [session])
 
   const highlightError = (field: string) => {
     setErrors(prev => ({ ...prev, [field]: true }))

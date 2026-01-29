@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronDown, MapPin, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -170,6 +170,15 @@ export default function AddressPickerSenegal({
   const [street, setStreet] = useState<string>(value.street || '')
   const [additionalInfo, setAdditionalInfo] = useState<string>(value.additionalInfo || '')
   const [openDropdown, setOpenDropdown] = useState<'region' | 'department' | 'neighborhood' | null>(null)
+
+  // Sync state with props when value changes (e.g. prefill from session)
+  useEffect(() => {
+    if (value.region !== undefined && value.region !== region) setRegion(value.region)
+    if (value.department !== undefined && value.department !== department) setDepartment(value.department)
+    if (value.neighborhood !== undefined && value.neighborhood !== neighborhood) setNeighborhood(value.neighborhood)
+    if (value.street !== undefined && value.street !== street) setStreet(value.street)
+    if (value.additionalInfo !== undefined && value.additionalInfo !== additionalInfo) setAdditionalInfo(value.additionalInfo)
+  }, [value])
 
   // Listes déroulantes filtrées
   const regionList = Object.keys(SENEGAL_REGIONS)
