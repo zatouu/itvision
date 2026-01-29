@@ -119,13 +119,13 @@ export default function ProductDetailSidebar({
 
   // Poids unitaire du produit
   const unitWeightKg = useMemo(() => {
-    return product.weights?.netWeightKg ?? product.logistics.weightKg ?? null
-  }, [product.weights, product.logistics.weightKg])
+    return product?.weights?.netWeightKg ?? product?.logistics?.weightKg ?? null
+  }, [product])
 
   // Volume unitaire du produit
   const unitVolumeM3 = useMemo(() => {
-    return product.logistics.volumeM3 ?? null
-  }, [product.logistics.volumeM3])
+    return product?.logistics?.volumeM3 ?? null
+  }, [product])
 
   // Quantité totale actuelle (variant ou simple)
   const currentTotalQty = useMemo(() => {
@@ -247,6 +247,7 @@ export default function ProductDetailSidebar({
   const shippingEstimate = useMemo(() => {
     if (!selectedShippingId) return null
     
+    if (!shippingRates) return null
     const rate = shippingRates[selectedShippingId as ShippingMethodId]
     if (!rate) return null
 

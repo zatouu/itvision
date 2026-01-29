@@ -1,10 +1,9 @@
 
 "use client"
-import dynamic from 'next/dynamic'
-const GroupBuyPaymentModal = dynamic(() => import('@/components/GroupBuyPaymentModal'), { ssr: false })
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react' // Ajout de useSession
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
@@ -44,7 +43,7 @@ import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
 export default function PanierPage() {
-    const [showPayment, setShowPayment] = useState(false)
+    const { data: session } = useSession() // Utilisation de la session
     const [orderInfo, setOrderInfo] = useState<any>(null)
   const router = useRouter()
   const { addToast } = useToast()
@@ -64,6 +63,16 @@ export default function PanierPage() {
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
+  // Pré-remplir les données si l'utilisateur est connecté
+  useEffect(() => {
+    if (session?.user) {
+      if (session.user.name && !name) setName(session.user.name)
+      if (session.user.email && !email) setEmail(session.user.email)
+      // Si le téléphone est dispo dans la session (custom field), on pourrait l'ajouter ici
+      // if ((session.user as any).phone && !phone) setPhone((session.user as any).phone)
+    }
+  }, [session, name, email])
+
   const highlightError = (field: string) => {
     setErrors(prev => ({ ...prev, [field]: true }))
     setTimeout(() => {
@@ -72,24 +81,10 @@ export default function PanierPage() {
   }
 
   const handleClosePayment = useCallback(() => {
-    setShowPayment(false)
     const url = orderInfo?.confirmationUrl || (orderInfo?.orderId ? `/commandes/${orderInfo.orderId}` : null)
     if (url) router.push(url)
     setOrderInfo(null)
   }, [orderInfo, router])
-
-  const paymentModal = showPayment && orderInfo ? (
-    <GroupBuyPaymentModal
-      isOpen={showPayment}
-      onClose={handleClosePayment}
-      groupId={orderInfo.orderId}
-      productName={orderInfo.items.map((it: any) => it.name).join(', ')}
-      quantity={orderInfo.items.reduce((acc: any, it: any) => acc + (it.qty || 1), 0)}
-      unitPrice={Math.round(orderInfo.total / orderInfo.items.reduce((acc: any, it: any) => acc + (it.qty || 1), 0))}
-      phone={orderInfo.phone}
-      email={orderInfo.email}
-    />
-  ) : null
 
   useEffect(() => {
     fetch('/api/shipping-rates')
@@ -300,6 +295,15 @@ export default function PanierPage() {
       addToast('Veuillez remplir les informations de livraison obligatoires', 'error')
       return
     }
+
+    // Validation téléphone Sénégal
+    const cleanedPhone = phone.replace(/\s+/g, '').replace(/^(\+|00)?221/, '')
+    if (!/^(77|78|76|70|75)\d{7}$/.test(cleanedPhone)) {
+      addToast('Numéro de téléphone invalide (Ex: 77 123 45 67)', 'error')
+      highlightError('phone')
+      return
+    }
+
     setSending(true)
     try {
       const shippingMap: Record<string, string> = {
@@ -337,16 +341,8 @@ export default function PanierPage() {
       if (res.ok && data.success) {
         localStorage.removeItem('cart:items')
         setItems([])
-        setOrderInfo({
-          orderId: data.orderId,
-          confirmationUrl: data.confirmationUrl,
-          name,
-          phone,
-          email,
-          items,
-          total: breakdown.total
-        })
-        setShowPayment(true)
+        const ref = data.orderId || data.reference;
+        router.push(`/paiement/checkout/${ref}`)
       } else {
         alert('Erreur: ' + (data.error || 'erreur inconnue'))
       }
@@ -388,15 +384,13 @@ export default function PanierPage() {
           </motion.div>
         </div>
 
-        {paymentModal}
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-      {paymentModal}
-
+      
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
