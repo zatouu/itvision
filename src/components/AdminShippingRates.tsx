@@ -32,20 +32,20 @@ export default function AdminShippingRates() {
         setForm({
           air_express_rate: toNumber(rates?.air_express?.rate, 12000),
           air_express_min: toNumber(rates?.air_express?.minimumCharge, 20000),
-          air_15_rate: toNumber(rates?.air_15?.rate, 8000),
+          air_15_rate: toNumber(rates?.air_15?.rate, 8500),
           air_15_min: toNumber(rates?.air_15?.minimumCharge, 15000),
-          sea_freight_rate: toNumber(rates?.sea_freight?.rate, 170000),
-          sea_freight_min: toNumber(rates?.sea_freight?.minimumCharge, 170000)
+          sea_freight_rate: toNumber(rates?.sea_freight?.rate, 180000),
+          sea_freight_min: toNumber(rates?.sea_freight?.minimumCharge, 180000)
         })
       })
       .catch(() => {
         setForm({
           air_express_rate: 12000,
           air_express_min: 20000,
-          air_15_rate: 8000,
+          air_15_rate: 8500,
           air_15_min: 15000,
-          sea_freight_rate: 170000,
-          sea_freight_min: 170000
+          sea_freight_rate: 180000,
+          sea_freight_min: 180000
         })
       })
   }, [])

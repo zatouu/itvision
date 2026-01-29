@@ -97,18 +97,26 @@ export default function ModularQuoteGenerator() {
     ]
     setProductTypes(allProductTypes)
 
-    // Charger les prix depuis localStorage
-    const storedPrices = localStorage.getItem('itvision-price-overrides')
-    if (storedPrices) {
-      setPriceOverrides(JSON.parse(storedPrices))
-    }
+    // Charger les prix depuis l'API
+    fetch('/api/admin/pricing-overrides')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.overrides)) {
+          setPriceOverrides(d.overrides)
+        }
+      })
+      .catch(console.error)
 
-    // Écouter les mises à jour de prix
+    // Écouter les mises à jour de prix (via event window pour recharger depuis API)
     const handlePriceUpdate = () => {
-      const updatedPrices = localStorage.getItem('itvision-price-overrides')
-      if (updatedPrices) {
-        setPriceOverrides(JSON.parse(updatedPrices))
-      }
+      fetch('/api/admin/pricing-overrides')
+        .then(r => r.json())
+        .then(d => {
+          if (d.success && Array.isArray(d.overrides)) {
+            setPriceOverrides(d.overrides)
+          }
+        })
+        .catch(console.error)
     }
 
     window.addEventListener('prices-updated', handlePriceUpdate)

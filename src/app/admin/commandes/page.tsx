@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   FileText,
   Send,
-  Bell
+  Bell,
+  Printer
 } from 'lucide-react'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
@@ -40,6 +41,16 @@ const formatDate = (date?: string) => {
 const formatDateTime = (date?: string) => {
   if (!date) return '-'
   return new Date(date).toLocaleString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// Mapping des labels transport
+const shippingLabels: Record<string, string> = {
+  air_express: 'Express (3-5 jrs)',
+  air_15: 'Aérien (10-15 jrs)',
+  sea_freight: 'Maritime (45-50 jrs)',
+  express_3j: 'Express (3-5 jrs)', // legacy aliases
+  air_15j: 'Aérien (10-15 jrs)',
+  maritime_60j: 'Maritime (45-50 jrs)'
 }
 
 // Traductions des statuts
@@ -206,7 +217,7 @@ export default function AdminOrdersPage() {
         o.total,
         statusLabels[o.status] || o.status,
         paymentLabels[o.paymentStatus] || o.paymentStatus,
-        `"${o.address?.city || ''} ${o.address?.street || ''}"`,
+        `"${o.address?.street || ''} ${o.address?.neighborhood || ''} ${o.address?.city || ''}"`,
         formatDateTime(o.createdAt)
       ].join(';'))
     ].join('\n')
@@ -219,6 +230,88 @@ export default function AdminOrdersPage() {
     a.download = `commandes_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     showNotification('success', `${filteredOrders.length} commandes exportées`)
+  }
+
+  const printOrder = (order: Order) => {
+     // Ouvrir une nouvelle fenêtre pour l'impression simplifiée
+     const printWindow = window.open('', '_blank')
+     if (!printWindow) return
+     
+     const html = `
+       <html>
+         <head>
+           <title>Commande ${order.orderId}</title>
+           <style>
+             body { font-family: sans-serif; padding: 20px; line-height: 1.5; }
+             .header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+             .section { margin-bottom: 20px; }
+             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+             table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+             th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+             .total { text-align: right; font-size: 1.2em; font-weight: bold; margin-top: 20px; }
+             @media print { .no-print { display: none; } }
+           </style>
+         </head>
+         <body>
+           <div class="header">
+             <div>
+               <h1>IT Vision</h1>
+               <p>Commande #${order.orderId}</p>
+             </div>
+             <div style="text-align:right">
+               <p>Date: ${formatDateTime(order.createdAt)}</p>
+               <p>Statut: ${statusLabels[order.status] || order.status}</p>
+             </div>
+           </div>
+           
+           <div class="grid">
+             <div class="section">
+               <h3>Client</h3>
+               <p><strong>${order.clientName}</strong></p>
+               <p>${order.clientPhone}</p>
+               <p>${order.clientEmail || ''}</p>
+             </div>
+             
+             <div class="section">
+               <h3>Livraison</h3>
+               <p>${order.address?.street}</p>
+               <p>${order.address?.neighborhood || order.address?.city}</p>
+               <p>${order.address?.region || 'Sénégal'}</p>
+               <p><em>Transport: ${shippingLabels[order.shipping.method] || order.shipping.method}</em></p>
+             </div>
+           </div>
+
+           <div class="section">
+             <h3>Articles</h3>
+             <table>
+               <thead>
+                 <tr><th>Article</th><th>Qté</th><th style="text-align:right">Prix</th><th style="text-align:right">Total</th></tr>
+               </thead>
+               <tbody>
+                 ${order.items.map(item => `
+                   <tr>
+                     <td>${item.name}</td>
+                     <td>${item.qty || 1}</td>
+                     <td style="text-align:right">${formatCurrency(item.price)}</td>
+                     <td style="text-align:right">${formatCurrency((item.price || 0) * (item.qty || 1))}</td>
+                   </tr>
+                 `).join('')}
+               </tbody>
+             </table>
+           </div>
+
+           <div class="total">
+             <p>Sous-total: ${formatCurrency(order.subtotal)}</p>
+             <p>Transport: ${formatCurrency(order.shipping.totalCost)}</p>
+             <p>TOTAL: ${formatCurrency(order.total)}</p>
+           </div>
+           
+           <script>window.print();</script>
+         </body>
+       </html>
+     `
+     printWindow.document.write(html)
+     printWindow.document.close()
   }
 
   // Filtres et tri
@@ -607,70 +700,89 @@ export default function AdminOrdersPage() {
                           
                           {/* Menu actions */}
                           <div className="relative">
-                            <button
-                              onClick={() => setShowActionsMenu(showActionsMenu === order.orderId ? null : order.orderId)}
-                              className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition"
-                              title="Plus d'actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            
-                            {showActionsMenu === order.orderId && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
-                                <button
-                                  onClick={() => updateOrderStatus(order.orderId, 'delivered')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-emerald-50 text-emerald-700 rounded-t-lg transition"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                  Marquer livré
-                                </button>
-                                <button
-                                  onClick={() => updateOrderStatus(order.orderId, 'cancelled')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-700 transition"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                  Annuler
-                                </button>
-                                <button
-                                  onClick={() => updatePaymentStatus(order.orderId, 'completed')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-50 text-blue-700 transition"
-                                >
-                                  <DollarSign className="w-4 h-4" />
-                                  Paiement reçu
-                                </button>
-                                <button
-                                  onClick={() => deleteOrder(order.orderId)}
-                                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-700 rounded-b-lg transition"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Supprimer
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        )}
-      </div>
+                            <buttonitems-center justify-between mt-4">
+                  <div className="flex gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeColor(selectedOrder.status)}`}>
+                      {statusLabels[selectedOrder.status] || selectedOrder.status}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${paymentBadgeColor(selectedOrder.paymentStatus)}`}>
+                      {paymentLabels[selectedOrder.paymentStatus] || selectedOrder.paymentStatus}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => printOrder(selectedOrder)}
+                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Imprimer
+                  </button>
+                </div>
+              </div>
 
-      {/* Modal Détails */}
-      <AnimatePresence>
-        {showDetailModal && selectedOrder && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowDetailModal(false)}
-          >
-            <motion.div
-              className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl"
+              <div className="p-6 space-y-6">
+                {/* Client */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <User className="w-5 h-5 text-blue-600" />
+                    Informations Client
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="text-gray-600">Nom:</span> <span className="font-semibold">{selectedOrder.clientName}</span></p>
+                    <p><span className="text-gray-600">Téléphone:</span> <span className="font-semibold">{selectedOrder.clientPhone}</span></p>
+                    {selectedOrder.clientEmail && <p><span className="text-gray-600">Email:</span> <span className="font-semibold">{selectedOrder.clientEmail}</span></p>}
+                  </div>
+                </div>
+
+                {/* Adresse */}
+                {selectedOrder.address && (
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-emerald-600" />
+                      Adresse de Livraison
+                    </h3>
+                    <div className="space-y-1 text-sm bg-gray-50 p-4 rounded-lg">
+                      <p className="font-semibold">{selectedOrder.address.street}</p>
+                      <p>{[selectedOrder.address.neighborhood, selectedOrder.address.city, selectedOrder.address.department].filter(Boolean).join(', ')}</p>
+                      <p>{selectedOrder.address.region || 'Sénégal'}</p>
+                      {selectedOrder.address.additionalInfo && <p className="text-gray-600 italic mt-2">Note: {selectedOrder.address.additionalInfo}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Articles */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3">Articles ({selectedOrder.items.length})</h3>
+                  <div className="space-y-2">
+                    {selectedOrder.items.map((item) => (
+                      <div key={item.id} className="flex justify-between p-3 bg-gray-50 rounded-lg text-sm">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-xs text-gray-500">Variante: {item.variantId || 'Standard'}</span>
+                        </div>
+                        <div className="text-right">
+                          <div>{formatCurrency(item.price * (item.qty || 1))}</div>
+                          <div className="text-xs text-gray-500">{item.qty || 1} x {formatCurrency(item.price)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Totaux */}
+                <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Sous-total:</span>
+                    <span className="font-semibold">{formatCurrency(selectedOrder.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Transport ({shippingLabels[selectedOrder.shipping.method] || selectedOrder.shipping.method}):</span>
+                    <span className="font-semibold">{formatCurrency(selectedOrder.shipping.totalCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Poids / Volume:</span>
+                    <span>{(selectedOrder.shipping.totalWeight || 0).toFixed(2)}kg / {(selectedOrder.shipping.totalVolume || 0).toFixed(3)}m³</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold border-t pt-2 mw-y-auto shadow-2xl"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}

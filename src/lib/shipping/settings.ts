@@ -16,12 +16,12 @@ export type ShippingRateOverrides = Partial<Record<ShippingMethodId, ShippingRat
 
 const DEFAULT_OVERRIDES: ShippingRateOverrides = {
   // Correction demandée:
-  // - Express = 12 000 FCFA/kg
-  // - Fret aérien = 8 000 FCFA/kg
-  air_express: { rate: 12000, minimumCharge: 20000 },
-  air_15: { rate: 8000, minimumCharge: 15000 },
-  // Maritime = 170 000 FCFA/m³ (par défaut)
-  sea_freight: { rate: 170000, minimumCharge: 170000 }
+  // - Express = 12 000 FCFA/kg (min 12000)
+  // - Fret aérien = 8 500 FCFA/kg (min 8500)
+  // - Maritime = 180 000 FCFA/m³ (min 0 ou proportional)
+  air_express: { rate: 12000, minimumCharge: 12000 },
+  air_15: { rate: 8500, minimumCharge: 8500 },
+  sea_freight: { rate: 180000, minimumCharge: 0 }
 }
 
 function ensureFile() {
