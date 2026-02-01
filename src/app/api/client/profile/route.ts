@@ -3,8 +3,10 @@ import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
+import { Order } from '@/lib/models/Order' // Import Order
 import bcrypt from 'bcryptjs'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { findRegionByDepartment } from '@/lib/senegal-address' // Import helper
 
 interface DecodedToken {
   userId: string
@@ -50,9 +52,40 @@ export async function GET(request: NextRequest) {
     }
 
     const profileData = profile as any
+
+    // Récupérer la dernière commande pour l'adresse
+    let lastAddress = null
+    try {
+        const lastOrder = await Order.findOne({ 
+            $or: [
+                { clientId: userId },
+                { clientEmail: profileData.email }
+            ]
+        })
+        .sort({ createdAt: -1 })
+        .limit(1)
+        .lean() as any // Type assertion needed for lean Order
+        
+        if (lastOrder && lastOrder.address) {
+            // Reconstruire l'adresse structurée
+            const department = lastOrder.address.postalCode 
+            const region = findRegionByDepartment(department || '') || lastOrder.address.city
+            
+            lastAddress = {
+                street: lastOrder.address.street || '',
+                department: department || '',
+                neighborhood: lastOrder.address.city || '', // On a stocké le quartier dans city
+                region: region || '',
+                additionalInfo: lastOrder.address.notes || ''
+            }
+        }
+    } catch (e) {
+        console.error('Erreur récupération dernière commande:', e)
+    }
     
     return NextResponse.json({
       success: true,
+      lastAddress,
       profile: {
         _id: profileData._id.toString(),
         name: profileData.name,

@@ -99,8 +99,18 @@ export default function PanierPage() {
       fetch('/api/client/profile')
         .then(res => res.ok ? res.json() : null)
         .then(data => {
-            if (data?.phone) setPhone((prev: string) => prev || data.phone)
-             // Si on avait l'adresse structurée dans le profil, on pourrait l'assigner ici
+            if (data?.profile?.phone) setPhone((prev: string) => prev || data.profile.phone)
+            
+            // Si l'utilisateur n'a pas encore rempli d'adresse et qu'on en trouve une de sa dernière commande
+            if (data?.lastAddress) {
+                setAddress((prev: any) => {
+                    // Si l'adresse locale est vide ou presque, on utilise celle du serveur
+                    if (!prev || Object.keys(prev).length === 0) {
+                        return data.lastAddress
+                    }
+                    return prev
+                })
+            }
         })
         .catch(() => {})
     }
