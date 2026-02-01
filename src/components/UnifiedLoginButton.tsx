@@ -77,21 +77,28 @@ export default function UnifiedLoginButton({
 
   if (variant === 'header') {
     if (!isLoading && isAuthenticated) {
+      // Si connecté : bouton Admin (caché si pas admin) ou Logout
       return (
-        <button
-          type="button"
-          onClick={handleLogout}
-          className={`${getButtonStyles()} ${className} inline-flex items-center bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-black`}
-        >
-          <LogOut className="h-5 w-5 mr-2" />
-          Déconnexion
-        </button>
+             <div className="flex gap-2">
+                 {/* Si on veut montrer un bouton Admin explicite si on est connecté, c'est ici. 
+                     Mais le composant ne connait pas le rôle exact sans appel API supplémentaire.
+                     On va juste proposer la déconnexion ici, car le bouton "Mon Compte" gère la partie client.
+                 */}
+                <button
+                type="button"
+                onClick={handleLogout}
+                className={`${getButtonStyles()} ${className} inline-flex items-center bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700`}
+                >
+                <LogOut className="h-5 w-5 mr-2" />
+                Déconnexion
+                </button>
+             </div>
       )
     }
 
     return (
       <Link
-        href={loginHref}
+        href="/login"
         className={`${getButtonStyles()} ${className} inline-flex items-center`}
       >
         Connexion

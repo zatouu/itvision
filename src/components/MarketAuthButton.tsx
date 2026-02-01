@@ -25,7 +25,7 @@ export default function MarketAuthButton({
   onDone,
   unauthHref,
   accountHref = '/market/compte',
-  unauthLabel = 'Connexion Market',
+  unauthLabel = 'Mon compte',
   showLogout = true
 }: MarketAuthButtonProps) {
   const router = useRouter()

@@ -19,9 +19,6 @@ const Header = () => {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const headerRef = useRef<HTMLElement>(null)
 
-  const marketCreateAccountHref = `/market/creer-compte?redirect=${encodeURIComponent(pathname || '/produits')}`
-  const isMarketPage = (pathname || '').startsWith('/market')
-
   // Fermeture du menu au clic extérieur
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -336,24 +333,16 @@ const Header = () => {
             <div className="flex items-center gap-3">
               <ThemeToggle />
               <WishlistIcon />
-              {isMarketPage ? (
-                <MarketAuthButton
+              {/* Bouton "Mon Compte" (Client) */}
+              <MarketAuthButton
                   variant="header"
                   className="hidden xl:inline-flex"
-                  accountHref="/market/compte"
-                  unauthLabel="Connexion Market"
-                  showLogout
-                />
-              ) : (
-                <MarketAuthButton
-                  variant="header"
-                  className="hidden xl:inline-flex"
-                  accountHref="/market/compte"
-                  unauthHref={marketCreateAccountHref}
-                  unauthLabel="Compte Market"
+                  accountHref="/compte"
+                  unauthHref="/login?role=client"
+                  unauthLabel="Mon compte"
                   showLogout={false}
-                />
-              )}
+              />
+              {/* Bouton "Connexion" (Admin / Général) */}
               <UnifiedLoginButton variant="header" />
             </div>
           </div>
@@ -439,26 +428,15 @@ const Header = () => {
               {/* Actions mobile */}
               <div className="px-4 flex items-center gap-3">
                 <ThemeToggle />
-                {isMarketPage ? (
-                  <MarketAuthButton
-                    variant="default"
-                    className="flex-1 flex items-center justify-center"
-                    accountHref="/market/compte"
-                    unauthLabel="Connexion Market"
-                    showLogout
-                    onDone={() => setIsMenuOpen(false)}
-                  />
-                ) : (
-                  <MarketAuthButton
-                    variant="default"
-                    className="flex-1 flex items-center justify-center"
-                    accountHref="/market/compte"
-                    unauthHref={marketCreateAccountHref}
-                    unauthLabel="Compte Market"
-                    showLogout={false}
-                    onDone={() => setIsMenuOpen(false)}
-                  />
-                )}
+                <MarketAuthButton
+                  variant="default"
+                  className="flex-1 flex items-center justify-center"
+                  accountHref="/compte"
+                  unauthHref="/login?role=client"
+                  unauthLabel="Mon compte"
+                  showLogout={false}
+                  onDone={() => setIsMenuOpen(false)}
+                />
                 <Link
                   href="/produits/favoris"
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-900"
