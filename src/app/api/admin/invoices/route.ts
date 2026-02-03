@@ -5,6 +5,8 @@ import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import { requireAdminApi } from '@/lib/api-auth'
 
+export const dynamic = 'force-dynamic'
+
 function toDate(value: any): Date | undefined {
   if (!value) return undefined
   const d = new Date(value)

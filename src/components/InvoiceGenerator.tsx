@@ -143,7 +143,11 @@ export default function InvoiceGenerator() {
 
   const loadInvoices = async () => {
     try {
-      const res = await fetch('/api/admin/invoices', { credentials: 'include' })
+      const res = await fetch('/api/admin/invoices', { 
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache' }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Erreur lors du chargement des factures')
       setInvoices(Array.isArray(data?.invoices) ? data.invoices : [])

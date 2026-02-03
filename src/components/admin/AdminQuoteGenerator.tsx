@@ -408,11 +408,14 @@ export default function AdminQuoteGenerator() {
     setConvertingId(quote.id)
 
     try {
+      // 1. Calculer les totaux de facture (sans BRS, structure standard)
+      // On reprend les articles tels quels et on ajoute une catégorie par défaut
       const items = quote.products.map(p => ({
         description: p.description,
         quantity: p.quantity,
         unitPrice: p.unitPrice,
-        totalPrice: p.total
+        totalPrice: p.total,
+        category: 'products' 
       }))
 
       const payload = {
