@@ -124,130 +124,162 @@ export function generateITVisionQuotePdf(quote: {
   notes?: string
   bonCommande?: string
   dateLivraison?: string
+  colonel?: string
+  pointExpedition?: string
+  conditions?: string
+  images?: {
+    logo?: string
+    stamp?: string
+  }
 }): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
 
-  // En-tête avec fond bleu marine et titre en haut à droite
-  doc.setFillColor(48, 50, 107) // Bleu marine foncé
-  doc.rect(0, 0, pageWidth, 60, 'F')
+  // En-tête avec fond bleu marine
+  doc.setFillColor(48, 50, 107) // Bleu marine IT Vision
+  doc.rect(0, 0, pageWidth, 80, 'F')
   
-  // Titre "DEVIS" en orange en haut à droite
-  doc.setTextColor(255, 140, 0) // Orange
-  doc.setFontSize(22)
+  // Titre "DEVIS" en jaune/orange en haut à droite
+  doc.setTextColor(255, 200, 0) // Jaune/Orange plus vif
+  doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
-  doc.text('DEVIS', pageWidth - 120, 30)
+  doc.text('DEVIS', pageWidth - 40, 35, { align: 'right' })
   
   // Sous-titre en blanc
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Maintenance ${quote.client.name}`, pageWidth - 200, 48)
+  doc.text(`Maintenance ${quote.client.name}`.toUpperCase(), pageWidth - 40, 55, { align: 'right' })
 
-  // Logo et informations société (gauche)
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.text('IT Vision', 40, 30)
+  // Logo
+  if (quote.images?.logo) {
+    try {
+      doc.addImage(quote.images.logo, 'PNG', 40, 10, 80, 60)
+    } catch (e) {
+      console.error('Error adding logo', e)
+      // Fallback
+      doc.setFillColor(255, 255, 255)
+      doc.circle(70, 40, 30, 'F')
+      doc.setTextColor(48, 50, 107)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('It', 60, 38)
+      doc.text('Vision', 55, 50)
+    }
+  } else {
+    // Logo (cercle blanc avec texte IT Vision si image non dispo)
+    doc.setFillColor(255, 255, 255)
+    doc.circle(70, 40, 30, 'F')
+    // Simuler le logo
+    doc.setTextColor(48, 50, 107)
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('It', 60, 38)
+    doc.text('Vision', 55, 50)
+  }
   
-  // Informations société sous le logo
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  
-  let yPos = 75
-  doc.setFontSize(9)
+  // Infos societé en orange et noir
+  let yPos = 100
+  doc.setTextColor(255, 140, 0) // Orange
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('Adresse de la société', 40, yPos)
   
+  // Date et N° devis à droite (alignés)
+  doc.text('Date', pageWidth - 200, yPos)
+  doc.setTextColor(0, 0, 0) // Noir
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.text(new Date(quote.date).toLocaleDateString('fr-FR'), pageWidth - 100, yPos)
+  
+  yPos += 15
+  doc.setTextColor(0, 0, 0)
+  doc.text('11 Cité Lessine, Nord Foire Tel :', 40, yPos)
+  
+  // N° Devis
+  doc.setTextColor(255, 140, 0)
+  doc.setFont('helvetica', 'bold')
+  doc.text('N° devis', pageWidth - 200, yPos)
+  doc.setTextColor(0, 0, 0)
+  doc.setFont('helvetica', 'normal')
+  doc.text(quote.numero, pageWidth - 100, yPos)
+
   yPos += 12
-  doc.text('11 Cité Lessine, Nord Foire Tel : 774133440/774223348', 40, yPos)
-  yPos += 10
+  doc.text('774133440/774223348', 40, yPos)
+  yPos += 12
   doc.text('RC N° : SN DDER 2019 A 10739 - NINEA 007305734', 40, yPos)
-  yPos += 10
+  yPos += 12
   doc.text('Téléphone : +221 77 413 34 40 / 221 77 422 33 48', 40, yPos)
 
-  // Date et N° devis (droite)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Date', pageWidth - 150, 75)
-  doc.setFont('helvetica', 'normal')
-  doc.text(new Date(quote.date).toLocaleDateString('fr-FR'), pageWidth - 70, 75)
-  
-  doc.setFont('helvetica', 'bold')
-  doc.text('N° devis', pageWidth - 150, 90)
-  doc.setFont('helvetica', 'normal')
-  doc.text(quote.numero, pageWidth - 70, 90)
-
-  // Devis pour (client)
-  yPos = 120
-  doc.setFontSize(10)
+  // Devis pour
+  yPos += 25
+  doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
   doc.text('Devis pour', 40, yPos)
   
+  yPos += 15
+  doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  yPos += 15
   doc.text(quote.client.name, 40, yPos)
   
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
+  // Adresse client (optionnel)
   if (quote.client.address) {
-    yPos += 12
+    yPos += 15
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    // Multiline address if needed, usually short
     doc.text(quote.client.address, 40, yPos)
   }
-  if (quote.client.phone) {
-    yPos += 10
-    doc.text(`Tel: ${quote.client.phone}`, 40, yPos)
-  }
-  if (quote.client.email) {
-    yPos += 10
-    doc.text(`Email: ${quote.client.email}`, 40, yPos)
-  }
 
-  // Tableau des informations de commande (optionnel)
-  yPos += 20
+  // Tableau Informations (Colonel, BC, etc.)
+  yPos += 30
   const infoTableData = [[
+    quote.colonel || '',
     quote.bonCommande || '',
     quote.dateLivraison || '',
-    '', // Point d'expédition
-    quote.notes || ''
+    quote.pointExpedition || '',
+    quote.conditions || ''
   ]]
   
   // @ts-expect-error jspdf-autotable
   doc.autoTable({
     startY: yPos,
-    head: [['Bon de commande', 'Date de livraison', 'Point d\'expédition', 'Conditions']],
+    head: [['Colonel', 'Bon de commande', 'Date de livraison', 'Point d\'expédition', 'Conditions']],
     body: infoTableData,
     theme: 'grid',
     styles: {
-      fontSize: 8,
-      cellPadding: 4,
+      fontSize: 9,
+      cellPadding: 8,
       lineColor: [200, 200, 200],
-      lineWidth: 0.5
+      lineWidth: 0.1,
+      halign: 'left',
+      textColor: [0, 0, 0]
     },
     headStyles: {
-      fillColor: [70, 80, 120],
+      fillColor: [54, 69, 79], // Dark Slate / Blueish
       textColor: [255, 255, 255],
-      fontSize: 8,
-      fontStyle: 'bold'
+      fontSize: 9,
+      fontStyle: 'bold',
+      halign: 'left'
     }
   })
 
-  // Tableau des produits
+  // Tableau Produits
   // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 10
+  yPos = doc.lastAutoTable.finalY + 20
 
   const productRows = quote.products.map(p => [
     p.quantity.toString(),
     p.description,
     `${p.unitPrice.toLocaleString('fr-FR')} CFA`,
-    p.taxable ? 'Non' : 'Oui',
+    p.taxable ? 'Oui' : 'Non', // Note: Screenshot says "Oui" for 'Main d'oeuvre' implies Taxable usually. Logic inverse? 
+    // Usually taxable=true means "Oui". Code was p.taxable ? 'Non' : 'Oui' which is weird. 
+    // I'll assume standard boolean meaning: taxable=true -> Oui.
     `${p.total.toLocaleString('fr-FR')} CFA`
   ])
+  
+  // Screenshot shows "Imposable ?" -> "Oui" for Main d'oeuvre. So taxable=true.
 
   // @ts-expect-error jspdf-autotable
   doc.autoTable({
@@ -257,22 +289,27 @@ export function generateITVisionQuotePdf(quote: {
     theme: 'grid',
     styles: {
       fontSize: 9,
-      cellPadding: 5,
+      cellPadding: 8,
       lineColor: [200, 200, 200],
-      lineWidth: 0.5
+      lineWidth: 0.1,
+      textColor: [0, 0, 0],
+      valign: 'middle'
     },
     headStyles: {
-      fillColor: [70, 80, 120],
+      fillColor: [54, 69, 79],
       textColor: [255, 255, 255],
       fontSize: 9,
       fontStyle: 'bold'
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 60 },
-      1: { halign: 'left', cellWidth: 220 },
-      2: { halign: 'right', cellWidth: 90 },
-      3: { halign: 'center', cellWidth: 70 },
-      4: { halign: 'right', cellWidth: 100 }
+      0: { halign: 'left', cellWidth: 50 },
+      1: { halign: 'left', cellWidth: 230, fontStyle: 'bold' }, // Description bold like screenshot
+      2: { halign: 'right' },
+      3: { halign: 'center' },
+      4: { halign: 'right' }
+    },
+    alternateRowStyles: {
+      fillColor: [255, 255, 255]
     }
   })
 
@@ -282,90 +319,94 @@ export function generateITVisionQuotePdf(quote: {
 
   const totalsData = [
     ['Sous-total', `${quote.subtotal.toLocaleString('fr-FR')} CFA`],
-    ['BRS', `5.00%`, `${quote.brsAmount.toLocaleString('fr-FR')} CFA`],
-    ['Taxe de vente', '', `${quote.taxAmount.toLocaleString('fr-FR')} CFA`],
-    ['Autres', '', `${quote.other.toLocaleString('fr-FR')} CFA`],
-    ['TOTAL', '', `${quote.total.toLocaleString('fr-FR')} CFA`]
+    ['BRS', `${quote.brsAmount.toLocaleString('fr-FR')} CFA`], // Screenshot column align
+    ['Taxe de vente', `${quote.taxAmount.toLocaleString('fr-FR')} CFA`],
+    ['Autres', `${quote.other.toLocaleString('fr-FR')} CFA`],
+    ['TOTAL', `${quote.total.toLocaleString('fr-FR')} CFA`]
   ]
 
+  // We want to force the table to the right
   // @ts-expect-error jspdf-autotable
   doc.autoTable({
     startY: yPos,
     body: totalsData,
     theme: 'plain',
-    styles: {
-      fontSize: 10,
-      cellPadding: 4
-    },
+    styles: { fontSize: 10, cellPadding: 5, textColor: [0, 0, 0] },
     columnStyles: {
-      0: { halign: 'right', cellWidth: 360, fontStyle: 'bold' },
-      1: { halign: 'right', cellWidth: 80 },
-      2: { halign: 'right', cellWidth: 100, fontStyle: 'bold' }
+      0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] }, // Labels orange? Screenshot has "Sous-total" orange.
+      1: { halign: 'right', cellWidth: 150, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
-      // Mettre en surbrillance la ligne TOTAL
+      // TOTAL Row styling
       if (data.row.index === 4) {
-        data.cell.styles.fillColor = [245, 245, 245]
-        data.cell.styles.fontSize = 12
+        data.cell.styles.fillColor = [54, 69, 79]
+        data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
-      }
-      // Mettre en surbrillance la ligne BRS
-      if (data.row.index === 1) {
-        data.cell.styles.textColor = [255, 100, 0]
+      } else {
+        // Labels column 0 styling - Orange text for labels
+         if (data.column.index === 0) {
+             data.cell.styles.textColor = [255, 140, 0]
+         }
       }
     }
   })
 
-  // Notes conditionnelles de paiement
-  if (quote.notes) {
-    // @ts-expect-error jspdf-autotable
-    yPos = doc.lastAutoTable.finalY + 20
-    
-    if (yPos > pageHeight - 100) {
-      doc.addPage()
-      yPos = 40
-    }
-    
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'italic')
-    doc.text('Nous vous remercions de votre confiance.', 40, yPos)
-    
-    yPos += 15
-    doc.setFont('helvetica', 'bold')
-    doc.text('Conditions de paiement:', 40, yPos)
-    doc.setFont('helvetica', 'normal')
-    doc.text(quote.notes, 140, yPos)
-  }
-
-  // Cachet et signature
+  // Footer / Notes
   // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 40
+  yPos = doc.lastAutoTable.finalY + 30
   
-  if (yPos > pageHeight - 120) {
+  if (yPos > pageHeight - 100) {
     doc.addPage()
     yPos = 40
   }
 
-  // Zone cachet (simulé avec texte)
-  doc.setFillColor(240, 240, 255)
-  doc.rect(pageWidth / 2 - 80, yPos, 120, 80, 'F')
-  doc.setDrawColor(100, 100, 200)
-  doc.rect(pageWidth / 2 - 80, yPos, 120, 80, 'S')
-  
   doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(100, 100, 200)
-  doc.text('CACHET ET SIGNATURE', pageWidth / 2, yPos + 40, { align: 'center' })
-
-  // Footer
-  doc.setDrawColor(200, 200, 200)
-  doc.line(40, pageHeight - 60, pageWidth - 40, pageHeight - 60)
+  doc.setTextColor(255, 140, 0) // Orange
+  doc.text('Nous vous remercions de votre confiance.', 40, yPos)
   
-  doc.setFontSize(8)
-  doc.setTextColor(100, 100, 100)
-  doc.setFont('helvetica', 'italic')
-  doc.text('IT Vision Plus - Sécurité électronique & Digitalisation', pageWidth / 2, pageHeight - 45, { align: 'center' })
-  doc.text('www.itvisionplus.sn • contact@itvisionplus.sn • +221 77 413 34 40', pageWidth / 2, pageHeight - 32, { align: 'center' })
+  // Stamp
+  const stampX = pageWidth - 200
+  const stampY = yPos - 10
+  
+  if (quote.images?.stamp) {
+    try {
+      doc.addImage(quote.images.stamp, 'PNG', stampX, stampY, 120, 80)
+    } catch (e) {
+      console.error('Error adding stamp', e)
+       // Stamp Image placeholder (fallback)
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: 0.8 }));
+      doc.setDrawColor(40, 40, 180)
+      doc.setLineWidth(2)
+      doc.rect(stampX, stampY, 120, 60)
+      
+      doc.setTextColor(40, 40, 180)
+      doc.setFontSize(8)
+      doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
+      doc.text('NINEA 007305734', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
+      doc.restoreGraphicsState();
+    }
+  } else {
+    // Stamp Image placeholder (Blue rectangle rotated?)
+    // Text inside
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.8 }));
+    doc.setDrawColor(40, 40, 180)
+    doc.setLineWidth(2)
+    doc.rect(stampX, stampY, 120, 60)
+    
+    doc.setTextColor(40, 40, 180)
+    doc.setFontSize(8)
+    doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
+    doc.text('NINEA 007305734', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
+    doc.restoreGraphicsState();
+  }
+
+  // Condition paiement
+  yPos += 40
+  doc.setTextColor(0, 0, 0)
+  doc.setFontSize(10)
+  doc.text('Condition de paiement 100%', 40, yPos)
 
   return doc.output('arraybuffer') as unknown as ArrayBuffer
 }
@@ -396,83 +437,116 @@ export function generateITVisionInvoicePdf(invoice: {
   terms?: string
   paymentMethod?: string
   paymentDate?: string
+  images?: {
+    logo?: string
+    stamp?: string
+  }
 }): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
 
-  // En-tête
+  // En-tête avec fond bleu marine
   doc.setFillColor(48, 50, 107)
-  doc.rect(0, 0, pageWidth, 60, 'F')
+  doc.rect(0, 0, pageWidth, 80, 'F')
 
-  doc.setTextColor(255, 140, 0)
-  doc.setFontSize(22)
+  // Titre "FACTURE" en jaune/orange
+  doc.setTextColor(255, 200, 0)
+  doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
-  doc.text('FACTURE', pageWidth - 145, 30)
+  doc.text('FACTURE', pageWidth - 40, 35, { align: 'right' })
 
+  // Client Name/Company in white under Title
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${invoice.client.company || invoice.client.name}`, pageWidth - 260, 48)
+  const clientName = invoice.client.company || invoice.client.name
+  doc.text(clientName.toUpperCase(), pageWidth - 40, 55, { align: 'right' })
 
-  // Informations société
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.text('IT Vision', 40, 30)
+  // Logo
+  if (invoice.images?.logo) {
+    try {
+      doc.addImage(invoice.images.logo, 'PNG', 40, 10, 80, 60)
+    } catch (e) {
+      console.error('Error adding logo', e)
+      doc.setFillColor(255, 255, 255)
+      doc.circle(70, 40, 30, 'F')
+      doc.setTextColor(48, 50, 107)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('It', 60, 38)
+      doc.text('Vision', 55, 50)
+    }
+  } else {
+    // Logo (cercle blanc avec texte IT Vision si image non dispo)
+    doc.setFillColor(255, 255, 255)
+    doc.circle(70, 40, 30, 'F')
+    // Simuler le logo
+    doc.setTextColor(48, 50, 107)
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('It', 60, 38)
+    doc.text('Vision', 55, 50)
+  }
 
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-
-  let yPos = 75
-  doc.setFontSize(9)
+  // Infos societé
+  let yPos = 100
+  doc.setTextColor(255, 140, 0) // Orange
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('Adresse de la société', 40, yPos)
 
+  // Date et N° facture aligned right
+  doc.text('Date', pageWidth - 200, yPos)
+  doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  yPos += 12
+  doc.text(new Date(invoice.date).toLocaleDateString('fr-FR'), pageWidth - 100, yPos)
+
+  yPos += 15
+  doc.setTextColor(0, 0, 0)
   doc.text('11 Cité Lessine, Nord Foire Tel : 774133440/774223348', 40, yPos)
-  yPos += 10
+  
+  // N° Facture
+  doc.setTextColor(255, 140, 0)
+  doc.setFont('helvetica', 'bold')
+  doc.text('N° facture', pageWidth - 200, yPos)
+  doc.setTextColor(0, 0, 0)
+  doc.setFont('helvetica', 'normal')
+  doc.text(invoice.numero, pageWidth - 100, yPos)
+
+  yPos += 12
+  doc.setTextColor(0, 0, 0)
   doc.text('RC N° : SN DDER 2019 A 10739 - NINEA 007305734', 40, yPos)
-  yPos += 10
-  doc.text('Téléphone : +221 77 413 34 40 / 221 77 422 33 48', 40, yPos)
-
-  // Date et N° facture (droite)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Date', pageWidth - 150, 75)
-  doc.setFont('helvetica', 'normal')
-  doc.text(new Date(invoice.date).toLocaleDateString('fr-FR'), pageWidth - 70, 75)
-
-  doc.setFont('helvetica', 'bold')
-  doc.text('N° facture', pageWidth - 150, 90)
-  doc.setFont('helvetica', 'normal')
-  doc.text(invoice.numero, pageWidth - 70, 90)
-
+  
+  // Échéance if exists
   if (invoice.dueDate) {
+    doc.setTextColor(255, 140, 0)
     doc.setFont('helvetica', 'bold')
-    doc.text('Échéance', pageWidth - 150, 105)
+    doc.text('Échéance', pageWidth - 200, yPos)
+    doc.setTextColor(0, 0, 0)
     doc.setFont('helvetica', 'normal')
-    doc.text(new Date(invoice.dueDate).toLocaleDateString('fr-FR'), pageWidth - 70, 105)
+    doc.text(new Date(invoice.dueDate).toLocaleDateString('fr-FR'), pageWidth - 100, yPos)
   }
 
+  yPos += 12
+  doc.text('Téléphone : +221 77 413 34 40 / 221 77 422 33 48', 40, yPos)
+
   // Facturer à
-  yPos = 120
-  doc.setFontSize(10)
+  yPos += 25
+  doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
   doc.text('Facturer à', 40, yPos)
 
+  yPos += 15
+  doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  yPos += 15
-  doc.text(invoice.client.company || invoice.client.name, 40, yPos)
+  doc.text(clientName, 40, yPos)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  yPos += 12
-  if (invoice.client.company) {
+  yPos += 15
+  if (invoice.client.company && invoice.client.name !== invoice.client.company) {
     doc.text(invoice.client.name, 40, yPos)
     yPos += 12
   }
@@ -494,7 +568,7 @@ export function generateITVisionInvoicePdf(invoice: {
   }
 
   // Tableau des lignes
-  yPos += 10
+  yPos += 20
   const rows = invoice.items.map((it) => ([
     String(it.quantity),
     it.description,
@@ -508,13 +582,28 @@ export function generateITVisionInvoicePdf(invoice: {
     head: [['Qté', 'Description', 'Prix unitaire', 'Montant']],
     body: rows,
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 5, lineColor: [200, 200, 200], lineWidth: 0.5 },
-    headStyles: { fillColor: [70, 80, 120], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 8, 
+      lineColor: [200, 200, 200], 
+      lineWidth: 0.1,
+      textColor: [0, 0, 0],
+      valign: 'middle'
+    },
+    headStyles: { 
+      fillColor: [54, 69, 79], 
+      textColor: [255, 255, 255], 
+      fontSize: 9, 
+      fontStyle: 'bold' 
+    },
     columnStyles: {
       0: { halign: 'center', cellWidth: 60 },
-      1: { halign: 'left', cellWidth: 260 },
+      1: { halign: 'left', cellWidth: 260, fontStyle: 'bold' },
       2: { halign: 'right', cellWidth: 110 },
       3: { halign: 'right', cellWidth: 110 }
+    },
+    alternateRowStyles: {
+      fillColor: [255, 255, 255]
     }
   })
 
@@ -533,44 +622,82 @@ export function generateITVisionInvoicePdf(invoice: {
     startY: yPos,
     body: totalsData,
     theme: 'plain',
-    styles: { fontSize: 10, cellPadding: 4 },
+    styles: { fontSize: 10, cellPadding: 5, textColor: [0,0,0] },
     columnStyles: {
-      0: { halign: 'right', cellWidth: 360, fontStyle: 'bold' },
+      0: { halign: 'right', cellWidth: 360, fontStyle: 'normal', textColor: [255, 140, 0] },
       1: { halign: 'right', cellWidth: 160, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
       if (data.row.index === 2) {
-        data.cell.styles.fillColor = [245, 245, 245]
-        data.cell.styles.fontSize = 12
+        data.cell.styles.fillColor = [54, 69, 79]
+        data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
+      } else {
+        if (data.column.index === 0) {
+            data.cell.styles.textColor = [255, 140, 0]
+        }
       }
     }
   })
 
   // Notes / modalités
   // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 14
-  doc.setTextColor(33, 33, 33)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Notes', 40, yPos)
-  doc.setFont('helvetica', 'normal')
-  const notes = (invoice.notes || '').trim() || '—'
-  doc.text(notes.slice(0, 600), 40, yPos + 12)
-
-  if (invoice.terms) {
-    doc.setFont('helvetica', 'bold')
-    doc.text('Conditions', 40, yPos + 42)
+  yPos = doc.lastAutoTable.finalY + 30
+  
+  // Footer text
+  doc.setFontSize(10)
+  doc.setTextColor(255, 140, 0)
+  doc.text('Nous vous remercions de votre confiance.', 40, yPos)
+  
+  yPos += 20
+  doc.setTextColor(0, 0, 0)
+  
+  if (invoice.notes) {
     doc.setFont('helvetica', 'normal')
-    doc.text(String(invoice.terms).slice(0, 600), 40, yPos + 54)
+    const notes = (invoice.notes || '').trim()
+    if (notes) doc.text(`Notes: ${notes.slice(0, 600)}`, 40, yPos)
+    yPos += 15
   }
 
   if (invoice.paymentMethod || invoice.paymentDate) {
-    doc.setFont('helvetica', 'bold')
-    doc.text('Paiement', 40, yPos + 84)
-    doc.setFont('helvetica', 'normal')
-    const line = `${invoice.paymentMethod ? `Mode: ${invoice.paymentMethod}` : ''}${invoice.paymentMethod && invoice.paymentDate ? ' • ' : ''}${invoice.paymentDate ? `Date: ${invoice.paymentDate}` : ''}`
-    doc.text(line || '—', 40, yPos + 96)
+    const line = `Paiement: ${invoice.paymentMethod || ''} ${invoice.paymentDate ? ' — Date: ' + invoice.paymentDate : ''}`
+    doc.text(line, 40, yPos)
+  }
+
+  // Stamp simulation
+  const stampX = pageWidth - 200
+  const stampY = yPos - 30
+
+  if (invoice.images?.stamp) {
+    try {
+      doc.addImage(invoice.images.stamp, 'PNG', stampX, stampY, 120, 80)
+    } catch (e) {
+      console.error('Error adding stamp', e)
+       // Fallback
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: 0.8 }));
+      doc.setDrawColor(40, 40, 180)
+      doc.setLineWidth(2)
+      doc.rect(stampX, stampY, 120, 60)
+      
+      doc.setTextColor(40, 40, 180)
+      doc.setFontSize(8)
+      doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
+      doc.text('COMPTABILITÉ', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
+      doc.restoreGraphicsState();
+    }
+  } else {
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.8 }));
+    doc.setDrawColor(40, 40, 180)
+    doc.setLineWidth(2)
+    doc.rect(stampX, stampY, 120, 60)
+    
+    doc.setTextColor(40, 40, 180)
+    doc.setFontSize(8)
+    doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
+    doc.text('COMPTABILITÉ', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
+    doc.restoreGraphicsState();
   }
 
   // Footer

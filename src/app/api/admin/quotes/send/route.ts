@@ -4,6 +4,21 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminQuote from '@/lib/models/AdminQuote'
 import { generateITVisionQuotePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
+import fs from 'fs'
+import path from 'path'
+
+// Helper to load image
+const loadImage = (relativePath: string) : string | undefined => {
+  try {
+    const fullPath = path.join(process.cwd(), relativePath)
+    if (fs.existsSync(fullPath)) {
+      return fs.readFileSync(fullPath).toString('base64')
+    }
+  } catch (e) {
+    console.error(`Failed to load image ${relativePath}`, e)
+  }
+  return undefined
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,7 +66,11 @@ export async function POST(request: NextRequest) {
       total: Number(quote.total || 0),
       notes: quote.notes,
       bonCommande: quote.bonCommande,
-      dateLivraison: quote.dateLivraison
+      dateLivraison: quote.dateLivraison,
+      images: {
+        logo: loadImage('public/images/logo-it-vision.png'),
+        stamp: loadImage('public/images/cachetitv.png')
+      }
     })
 
     const pdfBytes = Buffer.from(new Uint8Array(pdfArrayBuffer))

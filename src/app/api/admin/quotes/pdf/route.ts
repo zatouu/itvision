@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateITVisionQuotePdf } from '@/lib/pdf'
 import { requireAdminApi } from '@/lib/api-auth'
+import fs from 'fs'
+import path from 'path'
+
+// Helper to load image
+const loadImage = (relativePath: string) => {
+  try {
+    const fullPath = path.join(process.cwd(), relativePath)
+    if (fs.existsSync(fullPath)) {
+      return fs.readFileSync(fullPath).toString('base64')
+    }
+  } catch (e) {
+    console.error(`Failed to load image ${relativePath}`, e)
+  }
+  return undefined
+}
 
 // POST: Générer un PDF de devis
 export async function POST(request: NextRequest) {
@@ -12,6 +27,10 @@ export async function POST(request: NextRequest) {
 
     const quoteData = await request.json()
     
+    // Charger logo et cachet
+    const logoBase64 = loadImage('public/images/logo-it-vision.png')
+    const stampBase64 = loadImage('public/images/cachetitv.png')
+
     // Générer le PDF
     const pdfBuffer = generateITVisionQuotePdf({
       numero: quoteData.numero,
@@ -38,7 +57,14 @@ export async function POST(request: NextRequest) {
       total: quoteData.total,
       notes: quoteData.notes,
       bonCommande: quoteData.bonCommande,
-      dateLivraison: quoteData.dateLivraison
+      dateLivraison: quoteData.dateLivraison,
+      colonel: quoteData.colonel,
+      pointExpedition: quoteData.pointExpedition,
+      conditions: quoteData.conditions,
+      images: {
+        logo: logoBase64,
+        stamp: stampBase64
+      }
     })
 
     // Retourner le PDF

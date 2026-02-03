@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminApi } from '@/lib/api-auth'
 import { generateITVisionInvoicePdf } from '@/lib/pdf'
+import fs from 'fs'
+import path from 'path'
+
+// Helper to load image
+const loadImage = (relativePath: string) => {
+  try {
+    const fullPath = path.join(process.cwd(), relativePath)
+    if (fs.existsSync(fullPath)) {
+      return fs.readFileSync(fullPath).toString('base64')
+    }
+  } catch (e) {
+    console.error(`Failed to load image ${relativePath}`, e)
+  }
+  return undefined
+}
 
 // POST: Générer un PDF de facture
 export async function POST(request: NextRequest) {
@@ -11,6 +26,10 @@ export async function POST(request: NextRequest) {
     }
 
     const invoiceData = await request.json()
+
+    // Charger logo et cachet
+    const logoBase64 = loadImage('public/images/logo-it-vision.png')
+    const stampBase64 = loadImage('public/images/cachetitv.png')
 
     const pdfBuffer = generateITVisionInvoicePdf({
       numero: invoiceData.number || invoiceData.numero,
@@ -37,7 +56,11 @@ export async function POST(request: NextRequest) {
       notes: invoiceData.notes,
       terms: invoiceData.terms,
       paymentDate: invoiceData.paymentDate,
-      paymentMethod: invoiceData.paymentMethod
+      paymentMethod: invoiceData.paymentMethod,
+      images: {
+        logo: logoBase64,
+        stamp: stampBase64
+      }
     })
 
     return new NextResponse(pdfBuffer, {

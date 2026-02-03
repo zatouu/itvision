@@ -5,6 +5,21 @@ import AdminInvoice from '@/lib/models/AdminInvoice'
 import User from '@/lib/models/User'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 import { generateITVisionInvoicePdf } from '@/lib/pdf'
+import fs from 'fs'
+import path from 'path'
+
+// Helper to load image
+const loadImage = (relativePath: string) => {
+  try {
+    const fullPath = path.join(process.cwd(), relativePath)
+    if (fs.existsSync(fullPath)) {
+      return fs.readFileSync(fullPath).toString('base64')
+    }
+  } catch (e) {
+    console.error(`Failed to load image ${relativePath}`, e)
+  }
+  return undefined
+}
 
 interface DecodedToken {
   userId: string
@@ -80,7 +95,11 @@ export async function GET(request: NextRequest) {
       notes: invoice.notes ? String(invoice.notes) : undefined,
       terms: invoice.terms ? String(invoice.terms) : undefined,
       paymentMethod: invoice.paymentMethod ? String(invoice.paymentMethod) : undefined,
-      paymentDate: invoice.paymentDate ? String(invoice.paymentDate) : undefined
+      paymentDate: invoice.paymentDate ? String(invoice.paymentDate) : undefined,
+      images: {
+        logo: loadImage('public/images/logo-it-vision.png'),
+        stamp: loadImage('public/images/cachetitv.png')
+      }
     })
 
     return new NextResponse(pdfBuffer, {
