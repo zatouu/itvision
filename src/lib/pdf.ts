@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf'
+import jsPDF, { GState } from 'jspdf'
 import 'jspdf-autotable'
 
 export function generateDiagnosticPdf(payload: any): ArrayBuffer {
@@ -375,7 +375,7 @@ export function generateITVisionQuotePdf(quote: {
       console.error('Error adding stamp', e)
        // Stamp Image placeholder (fallback)
       doc.saveGraphicsState();
-      doc.setGState(new doc.GState({ opacity: 0.8 }));
+      doc.setGState(new GState({ opacity: 0.8 }));
       doc.setDrawColor(40, 40, 180)
       doc.setLineWidth(2)
       doc.rect(stampX, stampY, 120, 60)
@@ -390,7 +390,7 @@ export function generateITVisionQuotePdf(quote: {
     // Stamp Image placeholder (Blue rectangle rotated?)
     // Text inside
     doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.8 }));
+    doc.setGState(new GState({ opacity: 0.8 }));
     doc.setDrawColor(40, 40, 180)
     doc.setLineWidth(2)
     doc.rect(stampX, stampY, 120, 60)
@@ -675,7 +675,7 @@ export function generateITVisionInvoicePdf(invoice: {
       console.error('Error adding stamp', e)
        // Fallback
       doc.saveGraphicsState();
-      doc.setGState(new doc.GState({ opacity: 0.8 }));
+      doc.setGState(new GState({ opacity: 0.8 }));
       doc.setDrawColor(40, 40, 180)
       doc.setLineWidth(2)
       doc.rect(stampX, stampY, 120, 60)
@@ -688,7 +688,7 @@ export function generateITVisionInvoicePdf(invoice: {
     }
   } else {
     doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.8 }));
+    doc.setGState(new GState({ opacity: 0.8 }));
     doc.setDrawColor(40, 40, 180)
     doc.setLineWidth(2)
     doc.rect(stampX, stampY, 120, 60)
