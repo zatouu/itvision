@@ -127,13 +127,14 @@ interface Profile {
   preferences?: any
 }
 
-type TabType = 'dashboard' | 'projects' | 'quotes' | 'interventions' | 'maintenance' | 'documents' | 'support' | 'profile'
+type TabType = 'dashboard' | 'projects' | 'quotes' | 'invoices' | 'interventions' | 'maintenance' | 'documents' | 'support' | 'profile'
 
 export default function ModernClientPortal() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [quotes, setQuotes] = useState<Quote[]>([])
+  const [invoices, setInvoices] = useState<any[]>([])
   const [interventions, setInterventions] = useState<Intervention[]>([])
   const [maintenanceContracts, setMaintenanceContracts] = useState<any[]>([])
   const [maintenanceVisits, setMaintenanceVisits] = useState<any[]>([])
@@ -228,6 +229,9 @@ export default function ModernClientPortal() {
         break
       case 'quotes':
         fetchQuotes()
+        break
+      case 'invoices':
+        fetchInvoices()
         break
       case 'interventions':
         fetchInterventions()
@@ -385,6 +389,25 @@ export default function ModernClientPortal() {
       }
     } catch (err) {
       console.error('Erreur profil:', err)
+    }
+  }
+
+  const fetchInvoices = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/client/invoices')
+      const data = await res.json()
+      if (data.invoices) {
+        setInvoices(data.invoices)
+      } else {
+        setError(data.error || 'Erreur lors du chargement des factures')
+      }
+    } catch (err) {
+      setError('Erreur de connexion')
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -777,7 +800,8 @@ export default function ModernClientPortal() {
   const tabs = [
     { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects' as TabType, label: 'Mes Projets', icon: FolderKanban },
-    { id: 'quotes' as TabType, label: 'Devis', icon: Receipt },
+    { id: 'quotes' as TabType, label: 'Devis', icon: FileText },
+    { id: 'invoices' as TabType, label: 'Factures', icon: Receipt },
     { id: 'interventions' as TabType, label: 'Interventions', icon: Wrench },
     { id: 'maintenance' as TabType, label: 'Maintenance', icon: Shield },
     { id: 'documents' as TabType, label: 'Documents', icon: FileText },
@@ -795,11 +819,11 @@ export default function ModernClientPortal() {
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+              <div className="w-10 h-10 bg-[#30326B] rounded-xl flex items-center justify-center text-[#FFC800] font-bold text-lg shadow-lg">
                 ITV
               </div>
               <div>
-                <div className="text-sm font-semibold text-gray-900">IT Vision</div>
+                <div className="text-sm font-semibold text-[#30326B]">IT Vision</div>
                 <div className="text-xs text-gray-500">Portail Client</div>
               </div>
             </div>
@@ -811,12 +835,12 @@ export default function ModernClientPortal() {
                 {socketConnected ? (
                   <>
                     <div className="relative">
-                      <Wifi className="h-4 w-4 text-emerald-500" />
-                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                      <Wifi className="h-4 w-4 text-[#30326B]" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#FFC800] rounded-full animate-pulse"></span>
                     </div>
-                    <span className="text-xs font-medium text-emerald-600 hidden sm:inline">LIVE</span>
+                    <span className="text-xs font-medium text-[#30326B] hidden sm:inline">LIVE</span>
                     {liveUpdates > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">
+                      <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">
                         {liveUpdates}
                       </span>
                     )}
@@ -840,11 +864,11 @@ export default function ModernClientPortal() {
                 className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 rounded-lg px-3 py-2 transition"
                 onClick={() => setActiveTab('profile')}
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm">
+                <div className="w-8 h-8 bg-[#30326B] rounded-lg flex items-center justify-center text-white font-semibold text-sm">
                   {profile?.name?.charAt(0).toUpperCase() || 'C'}
                 </div>
                 <div className="hidden md:block">
-                  <div className="text-sm font-semibold text-gray-900">{profile?.name || 'Client'}</div>
+                  <div className="text-sm font-semibold text-[#30326B]">{profile?.name || 'Client'}</div>
                   <div className="text-xs text-gray-500">{profile?.company || 'Entreprise'}</div>
                 </div>
               </div>
@@ -866,11 +890,11 @@ export default function ModernClientPortal() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
                     isActive
-                      ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                      ? 'bg-[#30326B]/10 text-[#30326B] font-semibold'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={`h-5 w-5 ${isActive ? 'text-[#FFC800]' : 'text-gray-500'}`} />
                   <span>{tab.label}</span>
                 </button>
               )
@@ -906,7 +930,7 @@ export default function ModernClientPortal() {
 
                     {/* KPIs */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-6 text-white">
+                      <div className="bg-gradient-to-br from-[#30326B] to-[#1a1b4b] rounded-xl p-6 text-white">
                         <div className="flex items-center justify-between mb-2">
                           <FolderKanban className="h-8 w-8 opacity-80" />
                         </div>
@@ -914,15 +938,15 @@ export default function ModernClientPortal() {
                         <div className="text-sm opacity-90">Projets Actifs</div>
                       </div>
 
-                      <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-6 text-white">
+                      <div className="bg-gradient-to-br from-[#FFC800] to-amber-500 rounded-xl p-6 text-white">
                         <div className="flex items-center justify-between mb-2">
                           <Target className="h-8 w-8 opacity-80" />
                         </div>
                         <div className="text-3xl font-bold mb-1">{dashboardData.kpis.avgProgress}%</div>
-                        <div className="text-sm opacity-90">Progression Moyenne</div>
+                        <div className="text-sm font-medium opacity-90">Progression Moyenne</div>
                       </div>
 
-                      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl p-6 text-white">
+                      <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-white">
                         <div className="flex items-center justify-between mb-2">
                           <DollarSign className="h-8 w-8 opacity-80" />
                         </div>
@@ -930,7 +954,7 @@ export default function ModernClientPortal() {
                         <div className="text-sm opacity-90">Investissement Total</div>
                       </div>
 
-                      <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 text-white">
+                      <div className="bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl p-6 text-white">
                         <div className="flex items-center justify-between mb-2">
                           <CheckCircle2 className="h-8 w-8 opacity-80" />
                         </div>
@@ -938,7 +962,7 @@ export default function ModernClientPortal() {
                         <div className="text-sm opacity-90">Projets Livrés</div>
                       </div>
 
-                      <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-xl p-6 text-white">
+                      <div className="bg-gradient-to-br from-[#30326B] to-slate-900 rounded-xl p-6 text-white border border-[#FFC800]/50">
                         <div className="flex items-center justify-between mb-2">
                           <Receipt className="h-8 w-8 opacity-80" />
                         </div>
@@ -951,13 +975,13 @@ export default function ModernClientPortal() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <button
                         onClick={() => setIsProjectRequestOpen(true)}
-                        className="bg-white border-2 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 rounded-xl p-6 text-left transition-all hover:shadow-lg group"
+                        className="bg-white border-2 border-gray-200 hover:border-[#FFC800] hover:bg-orange-50/50 rounded-xl p-6 text-left transition-all hover:shadow-lg group"
                       >
                         <div className="flex items-center justify-between mb-3">
-                          <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 group-hover:scale-110 transition">
+                          <div className="w-12 h-12 bg-[#30326B]/10 text-[#30326B] rounded-lg flex items-center justify-center group-hover:bg-[#30326B]/20 group-hover:scale-110 transition">
                             <Plus className="h-6 w-6" />
                           </div>
-                          <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition" />
+                          <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-[#30326B] group-hover:translate-x-1 transition" />
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 mb-1">Nouveau Projet</h3>
                         <p className="text-sm text-gray-600">Demandez un nouveau projet ou service</p>
@@ -1020,7 +1044,7 @@ export default function ModernClientPortal() {
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">
-                                <div className="text-2xl font-bold text-emerald-600">{project.progress}%</div>
+                                <div className="text-2xl font-bold text-[#30326B]">{project.progress}%</div>
                                 <div className="text-xs text-gray-500">{project.currentPhase}</div>
                               </div>
                               <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -1117,11 +1141,11 @@ export default function ModernClientPortal() {
                           <div className="mt-4">
                             <div className="flex items-center justify-between text-sm mb-2">
                               <span className="text-gray-600">Progression</span>
-                              <span className="font-semibold text-emerald-600">{project.progress}%</span>
+                              <span className="font-semibold text-[#30326B]">{project.progress}%</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div 
-                                className="bg-gradient-to-r from-emerald-500 to-green-600 h-2 rounded-full transition-all"
+                                className="bg-gradient-to-r from-[#FFC800] to-orange-500 h-2 rounded-full transition-all"
                                 style={{ width: `${project.progress}%` }}
                               />
                             </div>
@@ -1195,6 +1219,93 @@ export default function ModernClientPortal() {
                               </td>
                             </tr>
                           ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'invoices' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Factures</h1>
+                        <p className="text-gray-600">Consultez et réglez vos factures</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">N° Facture</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Date</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Échéance</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Statut</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Montant</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {Array.isArray(invoices) && invoices.length > 0 ? (
+                            invoices.map(invoice => (
+                              <tr key={invoice.id || invoice._id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4">
+                                  <span className="font-mono text-sm">{invoice.number || invoice.numero}</span>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                  {formatDate(invoice.date)}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                  {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold 
+                                    ${invoice.status === 'paid' ? 'bg-green-100 text-green-700' : 
+                                      invoice.status === 'overdue' ? 'bg-red-100 text-red-700' : 
+                                      invoice.status === 'sent' ? 'bg-blue-100 text-blue-700' : 
+                                      'bg-gray-100 text-gray-700'}`}>
+                                    {invoice.status === 'paid' ? 'Payée' :
+                                     invoice.status === 'overdue' ? 'En retard' :
+                                     invoice.status === 'sent' ? 'Envoyée' :
+                                     invoice.status === 'draft' ? 'Brouillon' : invoice.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 font-semibold text-gray-900">
+                                  {formatCurrency(invoice.total || 0)}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <button
+                                    onClick={() => {
+                                      fetch('/api/client/invoices/pdf', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify(invoice)
+                                      })
+                                      .then(res => res.blob())
+                                      .then(blob => {
+                                        const url = window.URL.createObjectURL(blob)
+                                        const a = document.createElement('a')
+                                        a.href = url
+                                        a.download = `Facture-${invoice.number || invoice.numero}.pdf`
+                                        a.click()
+                                      })
+                                    }}
+                                    className="p-2 text-[#FFC800] hover:bg-orange-50 rounded-lg transition"
+                                    title="Télécharger PDF"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                                Aucune facture trouvée.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
