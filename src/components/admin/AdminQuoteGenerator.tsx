@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   FileText, Download, Save, Plus, Trash2, Eye, Send, 
   Building, User, Phone, Mail, MapPin, Calendar, Hash,
-  Package, DollarSign, Calculator, Edit3, X, Search, CheckCircle
+  Package, DollarSign, Calculator, Edit3, X, Search, CheckCircle,
+  Receipt
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -62,6 +64,8 @@ export default function AdminQuoteGenerator() {
   const [activeTab, setActiveTab] = useState<'create' | 'list'>('list')
   const [isSaving, setIsSaving] = useState(false)
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
+  const [convertingId, setConvertingId] = useState<string | null>(null)
+  const router = useRouter()
 
   const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
 
@@ -399,6 +403,60 @@ export default function AdminQuoteGenerator() {
     }
   }
 
+  const convertToInvoice = async (quote: Quote) => {
+    if (!confirm('Voulez-vous convertir ce devis en facture ?')) return
+    setConvertingId(quote.id)
+
+    try {
+      const items = quote.products.map(p => ({
+        description: p.description,
+        quantity: p.quantity,
+        unitPrice: p.unitPrice,
+        totalPrice: p.total
+      }))
+
+      const payload = {
+        date: new Date().toISOString(),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'draft',
+        quoteId: quote.id,
+        client: {
+          name: quote.client.name,
+          address: quote.client.address,
+          email: quote.client.email,
+          phone: quote.client.phone,
+          taxId: quote.client.ninea
+        },
+        items,
+        subtotal: quote.subtotal,
+        taxAmount: quote.taxAmount,
+        total: quote.total,
+        notes: `Facture générée depuis le devis ${quote.numero}`
+      }
+
+      const res = await fetch('/api/admin/invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        alert('Facture créée avec succès !')
+        router.push('/admin/factures')
+      } else {
+        const error = await res.json()
+        alert('Erreur lors de la conversion: ' + (error.error || 'Erreur inconnue'))
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Erreur lors de la conversion')
+    } finally {
+      setConvertingId(null)
+    }
+  }
+
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
     p.category.toLowerCase().includes(searchProduct.toLowerCase())
@@ -555,6 +613,14 @@ export default function AdminQuoteGenerator() {
                           title="Télécharger PDF"
                         >
                           <Download className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => convertToInvoice(quote)}
+                          disabled={convertingId === quote.id}
+                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Convertir en facture"
+                        >
+                           <Receipt className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => deleteQuote(quote.id)}

@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   Menu,
   ShoppingCart,
-  UsersRound
+  UsersRound,
+  Receipt
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -71,6 +72,12 @@ const menuItems: MenuItem[] = [
     label: 'Devis',
     icon: FileText,
     href: '/admin/devis'
+  },
+  {
+    id: 'factures',
+    label: 'Factures',
+    icon: Receipt,
+    href: '/admin/factures'
   },
   {
     id: 'clients',
