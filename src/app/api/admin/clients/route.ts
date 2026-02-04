@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { safeSearchRegex } from '@/lib/security-utils'
 import Client from '@/lib/models/Client'
+import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
+import bcrypt from 'bcryptjs'
+import { emailService } from '@/lib/email-service'
+import { getClientCredentialsEmail } from '@/lib/email-templates'
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
@@ -128,6 +132,45 @@ export async function POST(request: NextRequest) {
       rating: rating || 0,
       lastContact: new Date()
     })
+
+    // Création automatique du compte utilisateur si l'accès portail est activé
+    if (canAccessPortal) {
+      try {
+        const userExists = await User.findOne({ email })
+        if (!userExists) {
+          // Générer un mot de passe aléatoire (10 char, alphanum)
+          const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-2).toUpperCase()
+          const passwordHash = await bcrypt.hash(tempPassword, 10)
+          
+          await User.create({
+            username: email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+            email,
+            passwordHash,
+            name,
+            role: 'CLIENT',
+            company: company || name,
+            companyClientId: client._id,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+
+          // Envoyer l'email
+          const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/login`
+          const emailContent = getClientCredentialsEmail(name, email, loginUrl, tempPassword)
+          
+          await emailService.sendEmail({
+            to: email,
+            subject: emailContent.subject,
+            html: emailContent.html,
+            text: emailContent.text
+          })
+        }
+      } catch (err) {
+        console.error('Erreur lors de la création du compte utilisateur:', err)
+        // On ne bloque pas la réponse si le user fail, mais on log
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 
