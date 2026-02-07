@@ -463,177 +463,227 @@
       if (ordersMatch) data.orders = parseInt(ordersMatch[1].replace(/[^\d]/g, ''));
     } catch {}
 
-    // ===== SPÉCIFICATIONS (poids, dimensions) =====
-    const specs = {};
-    let weightKg = 0;
-    let lengthCm = 0, widthCm = 0, heightCm = 0;
+    // ===== TROUVER LES SECTIONS PAR TEXTE DES HEADINGS =====
+    // AliExpress fr: les sections sont identifiées par leur heading textuel
+    // "Détails" → tableau clé-valeur  |  "Présentation" → Caractéristiques + Spécifications
+    
+    // Helper: trouver une section par le texte de son heading
+    const findSectionByHeading = (keywords) => {
+      // Chercher dans h1-h6, strong, b, span, div qui contiennent un des keywords
+      const allHeadings = document.querySelectorAll('h1, h2, h3, h4, h5, h6, strong, b, [class*="title" i], [class*="Title" i], [class*="heading" i]');
+      for (const h of allHeadings) {
+        const text = h.textContent?.trim().toLowerCase() || '';
+        if (keywords.some(k => text === k || text.startsWith(k))) {
+          // Remonter au parent conteneur (la section qui contient ce heading)
+          let section = h.parentElement;
+          // Remonter jusqu'à trouver un conteneur assez large
+          for (let i = 0; i < 5 && section; i++) {
+            if (section.innerText && section.innerText.length > text.length + 50) {
+              return section;
+            }
+            section = section.parentElement;
+          }
+          return h.parentElement;
+        }
+      }
+      return null;
+    };
+
+    // Cliquer sur "Voir plus" / "Voir tout" s'il existe
     try {
-      // Méthode 1: Tables de specs (lignes clé-valeur)
-      const specSelectors = [
-        '[class*="specification" i] li',
-        '[class*="specification" i] tr',
-        '[class*="property" i] li',
-        '[class*="attr" i] li',
-        '[class*="detail" i] li',
-        '[data-pl*="specification"] li',
-        '[class*="ProductProperties"] li',
-        'table[class*="spec" i] tr',
-        '[class*="info" i] li'
-      ];
-      for (const sel of specSelectors) {
-        document.querySelectorAll(sel).forEach(row => {
-          const text = row.textContent?.trim() || '';
-          // Chercher pattern "clé : valeur" ou "clé valeur"
-          const kvMatch = text.match(/^([^:：\n]+)[:\s：]+(.+)$/);
-          if (kvMatch) {
-            const key = kvMatch[1].trim();
-            const value = kvMatch[2].trim();
-            if (key.length > 1 && key.length < 60 && value.length > 0 && value.length < 200) {
+      document.querySelectorAll('button, a, span, div').forEach(el => {
+        const text = (el.textContent || '').trim().toLowerCase();
+        if ((text.includes('voir plus') || text.includes('voir tout') || text.includes('see more') || text.includes('view more'))
+            && text.length < 30) {
+          el.click();
+          console.log('[IT Vision] Bouton cliqué:', text);
+        }
+      });
+      await wait(1000);
+    } catch {}
+
+    // ===== SECTION "DÉTAILS" (tableau clé-valeur) =====
+    const specs = {};
+    try {
+      const detailsSection = findSectionByHeading(['détails', 'details', 'specifications', 'spécifications']);
+      if (detailsSection) {
+        console.log('[IT Vision] Section Détails trouvée');
+        // Extraire les lignes de tableau (td-td ou div-div pairs)
+        detailsSection.querySelectorAll('tr').forEach(row => {
+          const cells = row.querySelectorAll('td, th');
+          if (cells.length >= 2) {
+            const key = cells[0].textContent?.trim();
+            const value = cells[1].textContent?.trim();
+            if (key && value && key.length < 60 && value.length < 200) {
               specs[key] = value;
             }
           }
         });
+        // Aussi chercher des paires dans des div adjacents (AliExpress utilise parfois des div au lieu de table)
+        if (Object.keys(specs).length === 0) {
+          const allText = detailsSection.innerText || '';
+          const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+          for (const line of lines) {
+            const kvMatch = line.match(/^([^:：]+?)\s*[:\s：]\s*(.+)$/);
+            if (kvMatch && kvMatch[1].length < 60 && kvMatch[2].length < 200) {
+              specs[kvMatch[1].trim()] = kvMatch[2].trim();
+            }
+          }
+        }
       }
+      console.log('[IT Vision] Specs Détails:', Object.keys(specs).length);
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction Détails:', e);
+    }
 
-      // Méthode 2: Chercher dans le texte visible de la page
-      const pageText = document.body.innerText;
-
-      // === POIDS ===
-      // Chercher "Package Weight" / "Item Weight" / "Poids" / "Weight" / "Gross Weight"
-      const weightPatterns = [
-        /(?:gross\s*weight|poids\s*brut|package\s*weight|poids\s*colis)[:\s：]*(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i,
-        /(?:net\s*weight|poids\s*net|item\s*weight|poids\s*article)[:\s：]*(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i,
-        /(?:weight|poids)[:\s：]*(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i,
-      ];
-      for (const pattern of weightPatterns) {
-        const m = pageText.match(pattern);
-        if (m) {
-          const val = parseFloat(m[1].replace(',', '.'));
-          const unit = m[2].toLowerCase();
-          if (unit === 'kg') weightKg = val;
-          else if (unit === 'g') weightKg = val / 1000;
-          else if (unit === 'lb') weightKg = val * 0.4536;
-          if (weightKg > 0) break;
+    // ===== SECTION "PRÉSENTATION" (Caractéristiques + Spécifications + poids) =====
+    let presentationText = '';
+    try {
+      const presSection = findSectionByHeading(['présentation', 'presentation', 'overview', 'description']);
+      if (presSection) {
+        console.log('[IT Vision] Section Présentation trouvée');
+        presentationText = presSection.innerText?.trim() || '';
+        // Nettoyer
+        presentationText = presentationText
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/\t/g, ' ')
+          .slice(0, 5000)
+          .trim();
+      }
+      
+      // Fallback: chercher "Caractéristiques" ou "Spécifications" directement
+      if (!presentationText || presentationText.length < 50) {
+        const caracSection = findSectionByHeading(['caractéristiques', 'caractéristiques :', 'features']);
+        if (caracSection) {
+          presentationText = caracSection.innerText?.trim().slice(0, 5000) || '';
         }
       }
 
-      // Aussi chercher dans les specs extraites
-      if (weightKg === 0) {
+      console.log('[IT Vision] Présentation:', presentationText.length, 'chars');
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction Présentation:', e);
+    }
+
+    // ===== POIDS & DIMENSIONS (depuis Présentation + Détails + page entière) =====
+    let weightKg = 0;
+    let lengthCm = 0, widthCm = 0, heightCm = 0;
+    try {
+      // Texte combiné à chercher (Présentation d'abord, puis page entière)
+      const searchTexts = [presentationText, document.body.innerText].filter(t => t.length > 0);
+      
+      for (const searchText of searchTexts) {
+        if (weightKg > 0 && lengthCm > 0) break; // Déjà trouvé
+
+        // === POIDS ===
+        if (weightKg === 0) {
+          const weightPatterns = [
+            /(?:poids\s*(?:du\s*)?(?:colis|paquet|emballage|package|brut|net|produit|article))\s*[:\s：]+\s*(\d+(?:[.,]\d+)?)\s*(kg|g|lb|oz)/i,
+            /(?:package\s*weight|gross\s*weight|net\s*weight|item\s*weight|product\s*weight)\s*[:\s：]+\s*(\d+(?:[.,]\d+)?)\s*(kg|g|lb|oz)/i,
+            /(?:weight|poids)\s*[:\s：]+\s*(\d+(?:[.,]\d+)?)\s*(kg|g|lb|oz)/i,
+            /(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i,
+          ];
+          for (const pattern of weightPatterns) {
+            const m = searchText.match(pattern);
+            if (m) {
+              const val = parseFloat(m[1].replace(',', '.'));
+              const unit = m[2].toLowerCase();
+              if (unit === 'kg' && val > 0 && val < 500) weightKg = val;
+              else if (unit === 'g' && val > 0) weightKg = val / 1000;
+              else if (unit === 'lb') weightKg = val * 0.4536;
+              else if (unit === 'oz') weightKg = val * 0.02835;
+              if (weightKg > 0) {
+                console.log('[IT Vision] Poids trouvé:', weightKg, 'kg');
+                break;
+              }
+            }
+          }
+        }
+
+        // === DIMENSIONS ===
+        if (lengthCm === 0) {
+          const dimPatterns = [
+            /(?:taille|dimensions?|size|package\s*size)\s*[:\s：]+\s*(?:environ\s*)?(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in|m\b)/i,
+            /(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)\b/i,
+          ];
+          for (const pattern of dimPatterns) {
+            const m = searchText.match(pattern);
+            if (m) {
+              let l = parseFloat(m[1].replace(',', '.'));
+              let w = parseFloat(m[2].replace(',', '.'));
+              let h = parseFloat(m[3].replace(',', '.'));
+              const unit = m[4].toLowerCase();
+              if (unit === 'mm') { l /= 10; w /= 10; h /= 10; }
+              else if (unit === 'inch' || unit === 'in') { l *= 2.54; w *= 2.54; h *= 2.54; }
+              else if (unit === 'm' && l < 10) { l *= 100; w *= 100; h *= 100; }
+              if (l > 0 && w > 0 && h > 0 && l < 500 && w < 500 && h < 500) {
+                lengthCm = Math.round(l * 10) / 10;
+                widthCm = Math.round(w * 10) / 10;
+                heightCm = Math.round(h * 10) / 10;
+                console.log('[IT Vision] Dimensions trouvées:', lengthCm, 'x', widthCm, 'x', heightCm, 'cm');
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Chercher aussi dans les specs du tableau Détails
+      if (weightKg === 0 || lengthCm === 0) {
         for (const [key, value] of Object.entries(specs)) {
           const k = key.toLowerCase();
-          if (k.includes('weight') || k.includes('poids')) {
+          if (weightKg === 0 && (k.includes('weight') || k.includes('poids'))) {
             const wm = String(value).match(/(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i);
             if (wm) {
               const val = parseFloat(wm[1].replace(',', '.'));
               if (wm[2].toLowerCase() === 'kg') weightKg = val;
               else if (wm[2].toLowerCase() === 'g') weightKg = val / 1000;
               else if (wm[2].toLowerCase() === 'lb') weightKg = val * 0.4536;
-              if (weightKg > 0) break;
             }
           }
-        }
-      }
-
-      // === DIMENSIONS (Package Size / Taille) ===
-      const dimPatterns = [
-        /(?:package\s*size|taille\s*colis|dimensions?\s*colis)[:\s：]*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)/i,
-        /(?:item\s*size|taille|dimensions?)[:\s：]*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)/i,
-        /(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)/i,
-      ];
-      for (const pattern of dimPatterns) {
-        const m = pageText.match(pattern);
-        if (m) {
-          let l = parseFloat(m[1].replace(',', '.'));
-          let w = parseFloat(m[2].replace(',', '.'));
-          let h = parseFloat(m[3].replace(',', '.'));
-          const unit = m[4].toLowerCase();
-          if (unit === 'mm') { l /= 10; w /= 10; h /= 10; }
-          else if (unit === 'inch' || unit === 'in') { l *= 2.54; w *= 2.54; h *= 2.54; }
-          if (l > 0 && w > 0 && h > 0) {
-            lengthCm = Math.round(l * 10) / 10;
-            widthCm = Math.round(w * 10) / 10;
-            heightCm = Math.round(h * 10) / 10;
-            break;
-          }
-        }
-      }
-
-      // Aussi chercher dans les specs extraites
-      if (lengthCm === 0) {
-        for (const [key, value] of Object.entries(specs)) {
-          const k = key.toLowerCase();
-          if (k.includes('size') || k.includes('dimension') || k.includes('taille')) {
+          if (lengthCm === 0 && (k.includes('size') || k.includes('dimension') || k.includes('taille'))) {
             const dm = String(value).match(/(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)/);
             if (dm) {
               lengthCm = parseFloat(dm[1].replace(',', '.'));
               widthCm = parseFloat(dm[2].replace(',', '.'));
               heightCm = parseFloat(dm[3].replace(',', '.'));
-              // Si très petites valeurs, probablement en mètres
-              if (lengthCm < 1 && widthCm < 1 && heightCm < 1) {
-                lengthCm *= 100; widthCm *= 100; heightCm *= 100;
-              }
-              break;
             }
           }
         }
       }
 
-      console.log('[IT Vision] Specs:', Object.keys(specs).length, 'Poids:', weightKg, 'kg, Dim:', lengthCm, 'x', widthCm, 'x', heightCm, 'cm');
+      console.log('[IT Vision] Final — Poids:', weightKg, 'kg | Dim:', lengthCm, 'x', widthCm, 'x', heightCm, 'cm');
     } catch (e) {
-      console.warn('[IT Vision] Erreur extraction specs:', e);
+      console.warn('[IT Vision] Erreur extraction poids/dimensions:', e);
     }
 
-    // ===== DESCRIPTION (onglets Détails/Présentation) =====
+    // ===== DESCRIPTION COMBINÉE =====
     try {
-      // Méthode 1: Contenu des panneaux de description/détails (chargés après clic onglets)
-      const descPanelSelectors = [
-        '[class*="description" i][class*="content" i]',
-        '[class*="Description" i][class*="Content" i]',
-        '[class*="detail" i][class*="content" i]',
-        '[class*="product-description" i]',
-        '[data-pl="product-description"]',
-        '[class*="tab" i][class*="panel" i]',
-        '[role="tabpanel"]',
-        '#product-description',
-        '#description',
-        '[class*="ProductDescription"]',
-        '[class*="desc" i][class*="module" i]'
-      ];
-      for (const sel of descPanelSelectors) {
-        try {
-          const els = document.querySelectorAll(sel);
-          for (const el of els) {
-            const text = el.innerText?.trim();
-            // Prendre le plus long contenu trouvé
-            if (text && text.length > 50 && (!data.description || text.length > data.description.length)) {
-              data.description = text.replace(/\n{3,}/g, '\n\n').replace(/\t/g, ' ').slice(0, 3000).trim();
-            }
-          }
-        } catch {}
-      }
+      const descParts = [];
 
-      // Méthode 2: Images de description (AliExpress met souvent la description dans des images)
-      // On collecte les textes alt des images de description
-      if (!data.description || data.description.length < 100) {
-        const descImgAlts = [];
-        document.querySelectorAll('[class*="description" i] img, [class*="detail" i][class*="content" i] img, [role="tabpanel"] img').forEach(img => {
-          const alt = img.getAttribute('alt')?.trim();
-          if (alt && alt.length > 10 && alt.length < 500) descImgAlts.push(alt);
-        });
-        if (descImgAlts.length > 0) {
-          const altText = descImgAlts.join('\n');
-          if (!data.description || altText.length > data.description.length) {
-            data.description = altText.slice(0, 3000);
-          }
+      // Partie 1: Tableau Détails formaté
+      if (Object.keys(specs).length > 0) {
+        descParts.push('=== Détails ===');
+        for (const [k, v] of Object.entries(specs)) {
+          descParts.push(`${k}: ${v}`);
         }
       }
 
-      // Méthode 3: JSON-LD description
+      // Partie 2: Texte de Présentation (Caractéristiques + Spécifications)
+      if (presentationText && presentationText.length > 20) {
+        descParts.push('\n=== Présentation ===');
+        descParts.push(presentationText);
+      }
+
+      if (descParts.length > 0) {
+        data.description = descParts.join('\n').slice(0, 4000).trim();
+      }
+
+      // Fallback: JSON-LD
       if (!data.description && jsonLdProduct?.description) {
         data.description = jsonLdProduct.description.trim().slice(0, 3000);
       }
 
-      // Méthode 4: meta description (fallback court)
+      // Fallback: meta description
       if (!data.description) {
         const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
           || document.querySelector('meta[property="og:description"]')?.getAttribute('content');
@@ -642,38 +692,89 @@
         }
       }
 
-      // Méthode 5: Spécifications formatées comme description
-      if (!data.description && Object.keys(specs).length > 0) {
-        data.description = Object.entries(specs).map(([k, v]) => `${k}: ${v}`).join('\n');
-      }
-
-      console.log('[IT Vision] Description:', data.description?.length || 0, 'chars');
+      console.log('[IT Vision] Description finale:', data.description?.length || 0, 'chars');
     } catch (e) {
-      console.warn('[IT Vision] Erreur extraction description:', e);
+      console.warn('[IT Vision] Erreur description:', e);
     }
 
-    // ===== VARIANTES =====
+    // ===== VARIANTES (groupées par type: Couleur, Taille, etc.) =====
     try {
-      const variants = [];
-      // Chercher les images de variantes (SKU)
-      document.querySelectorAll('[class*="sku" i] img, [class*="variant" i] img, [class*="property" i] img').forEach(img => {
-        const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-        const name = img.getAttribute('alt') || img.getAttribute('title') || img.closest('[class*="item"]')?.textContent?.trim() || '';
-        if (name && name.length < 80) {
-          let imgUrl = src;
-          if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
-          variants.push({ name: name.trim(), image: imgUrl || undefined });
+      data.variantGroups = [];
+      
+      // AliExpress structure: un label "Couleur:" suivi d'options cliquables
+      // Chercher tous les groupes de sélection de variantes
+      const processedLabels = new Set();
+      
+      // Méthode 1: Chercher les labels de variantes et leurs options adjacentes
+      document.querySelectorAll('[class*="sku" i], [class*="Sku" i], [class*="variant" i], [class*="property" i], [class*="Property" i]').forEach(container => {
+        // Chercher le label du groupe (ex: "Couleur:", "Taille:", "Capacité:")
+        const labelEl = container.querySelector('[class*="title" i], [class*="label" i], [class*="name" i], span, strong, b');
+        let groupName = labelEl?.textContent?.trim()?.replace(/[:\s：]+$/, '')?.trim() || '';
+        
+        // Nettoyer le nom (enlever la valeur sélectionnée si présente)
+        groupName = groupName.replace(/\s*:\s*.*$/, '').trim();
+        
+        if (!groupName || groupName.length > 30 || groupName.length < 2 || processedLabels.has(groupName)) return;
+        processedLabels.add(groupName);
+        
+        const variants = [];
+        
+        // Chercher les options (images ou textes)
+        container.querySelectorAll('img').forEach(img => {
+          let src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+          if (src.startsWith('//')) src = 'https:' + src;
+          const name = img.getAttribute('alt') || img.getAttribute('title') || '';
+          if (name && name.length < 80 && !variants.find(v => v.name === name)) {
+            // Image HD (enlever suffixes resize)
+            const hdSrc = src.replace(/_\d+x\d+[^.]*/, '');
+            variants.push({ id: `v-${variants.length}`, name: name.trim(), image: hdSrc || undefined, isDefault: variants.length === 0 });
+          }
+        });
+        
+        // Options textuelles (sans image)
+        container.querySelectorAll('[class*="item" i], [class*="option" i], button, span[role="button"], [class*="chip" i]').forEach(item => {
+          const name = item.textContent?.trim();
+          // Exclure le label lui-même et les textes trop courts/longs
+          if (name && name.length > 0 && name.length < 50 
+              && name !== groupName && !name.includes(':')
+              && !variants.find(v => v.name === name)) {
+            const img = item.querySelector('img');
+            let imgUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || undefined;
+            if (imgUrl?.startsWith('//')) imgUrl = 'https:' + imgUrl;
+            variants.push({ id: `v-${variants.length}`, name: name.trim(), image: imgUrl, isDefault: variants.length === 0 });
+          }
+        });
+        
+        if (variants.length > 1) {
+          data.variantGroups.push({ name: groupName, variants });
+          console.log('[IT Vision] Variante groupe:', groupName, '→', variants.length, 'options');
         }
       });
-      // Variantes textuelles (tailles, couleurs)
-      document.querySelectorAll('[class*="sku" i] [class*="item" i], [class*="property" i] [class*="item" i]').forEach(item => {
-        const name = item.textContent?.trim();
-        if (name && name.length > 0 && name.length < 50 && !variants.find(v => v.name === name)) {
-          variants.push({ name });
+
+      // Méthode 2: Fallback — chercher le texte "Couleur: XXX" dans le header produit
+      if (data.variantGroups.length === 0) {
+        const allText = document.body.innerText.slice(0, 3000);
+        const variantLabels = allText.match(/(?:Couleur|Color|Taille|Size|Capacit[eé]|Capacity|Style|Mod[eè]le|Model)\s*[:\s：]+\s*([^\n]+)/gi);
+        if (variantLabels) {
+          for (const match of variantLabels) {
+            const parts = match.split(/[:\s：]+/);
+            if (parts.length >= 2) {
+              const groupName = parts[0].trim();
+              const value = parts.slice(1).join(' ').trim();
+              if (groupName && value && !processedLabels.has(groupName)) {
+                processedLabels.add(groupName);
+                data.variantGroups.push({
+                  name: groupName,
+                  variants: [{ id: 'v-0', name: value, isDefault: true }]
+                });
+              }
+            }
+          }
         }
-      });
-      if (variants.length > 0) data.variants = variants.slice(0, 30);
-    } catch {}
+      }
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction variantes:', e);
+    }
 
     // Features
     data.features = [
@@ -683,7 +784,8 @@
       data.gallery.length > 0 && `${data.gallery.length} images`,
       weightKg > 0 && `Poids: ${weightKg} kg`,
       (lengthCm > 0) && `Dimensions: ${lengthCm}×${widthCm}×${heightCm} cm`,
-      Object.keys(specs).length > 0 && `${Object.keys(specs).length} spécifications`
+      Object.keys(specs).length > 0 && `${Object.keys(specs).length} spécifications`,
+      data.variantGroups?.length > 0 && `${data.variantGroups.length} types de variantes`
     ].filter(Boolean);
 
     // Données logistiques
