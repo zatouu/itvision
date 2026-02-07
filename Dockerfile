@@ -1,8 +1,6 @@
-# Dockerfile pour l'application Next.js securite-electronique
-FROM node:20-alpine AS base
-
-# Installation des dépendances système nécessaires
-RUN apk add --no-cache libc6-compat
+# Dockerfile pour l'application Next.js IT Vision
+# Utilise node:20-slim (Debian) pour supporter Playwright + Chromium
+FROM node:20-slim AS base
 
 # Étape 1: Installation des dépendances
 FROM base AS deps
@@ -16,6 +14,10 @@ COPY package.json package-lock.json* ./
 
 # Installation des dépendances (inclure dev pour le build)
 RUN npm ci --legacy-peer-deps && npm cache clean --force
+
+# Installer le navigateur Chromium de Playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npx playwright install --with-deps chromium
 
 # Étape 2: Build de l'application
 FROM base AS builder
@@ -38,17 +40,30 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-# Création d'un utilisateur non-root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Dépendances système pour Chromium + outils
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl wget ca-certificates \
+    # Dépendances Chromium headless
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
+    libpango-1.0-0 libcairo2 libasound2 libxshmfence1 \
+    fonts-noto-cjk fonts-noto-color-emoji \
+  && rm -rf /var/lib/apt/lists/*
 
-# Outils nécessaires pour les healthchecks (utilisés par docker-compose)
-RUN apk add --no-cache curl wget
+# Création d'un utilisateur non-root
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 --gid nodejs nextjs
 
 # Copie des fichiers nécessaires
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Copier Playwright + Chromium depuis l'étape deps
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+COPY --from=deps /ms-playwright /ms-playwright
+COPY --from=deps /app/node_modules/playwright ./node_modules/playwright
+COPY --from=deps /app/node_modules/playwright-core ./node_modules/playwright-core
 
 # Création des dossiers pour les uploads
 RUN mkdir -p ./public/uploads
@@ -56,6 +71,7 @@ RUN chown -R nextjs:nodejs ./public/uploads
 
 # Configuration des permissions
 RUN chown -R nextjs:nodejs /app
+RUN chmod -R 755 /ms-playwright
 USER nextjs
 
 # Variables d'environnement

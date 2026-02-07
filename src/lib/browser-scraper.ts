@@ -274,196 +274,329 @@ export class BrowserScraper {
         await page.waitForFunction(() => {
           const h1 = document.querySelector('h1')
           return h1 && h1.textContent && h1.textContent.trim().length > 3
-        }, { timeout: 15000 })
+        }, { timeout: 15000 }).catch(() => {})
         
         // Attente supplémentaire pour React/Vue hydration
-        await page.waitForTimeout(2000)
+        await page.waitForTimeout(3000)
+
+        // Scroll complet pour charger les images lazy et la description
+        await this.humanScroll(page)
+        await page.waitForTimeout(1000)
+
+        // Cliquer sur l'onglet "description" s'il existe pour charger le contenu
+        try {
+          const descTab = await page.$('[class*="detail"][class*="tab"], [data-tab="detail"], .tab-title:has-text("详情"), .tab-title:has-text("产品")')
+          if (descTab) {
+            await descTab.click()
+            await page.waitForTimeout(2000)
+          }
+        } catch {}
 
       const data = await page.evaluate(() => {
-        const result: Partial<Product1688> = {
+        const result: any = {
           gallery: [],
           features: [],
           specifications: {},
           variantGroups: [],
         }
 
-        // Titre - méthode 1: JSON-LD (le plus fiable)
+        // ===== TITRE =====
+        // Méthode 1: JSON-LD
         try {
-          const jsonLd = document.querySelector('script[type="application/ld+json"]')?.textContent
-          if (jsonLd) {
-            const data = JSON.parse(jsonLd)
-            const product = Array.isArray(data) ? data.find(d => d['@type'] === 'Product') : data
+          const scripts = document.querySelectorAll('script[type="application/ld+json"]')
+          for (const script of scripts) {
+            const jsonLd = JSON.parse(script.textContent || '')
+            const product = Array.isArray(jsonLd) ? jsonLd.find((d: any) => d['@type'] === 'Product') : jsonLd
             if (product?.name && product.name.length > 5) {
-              result.name = product.name
+              result.name = product.name.trim()
+              // JSON-LD images souvent les meilleures
+              if (product.image) {
+                const imgs = Array.isArray(product.image) ? product.image : [product.image]
+                imgs.forEach((img: string) => {
+                  if (typeof img === 'string' && img.startsWith('http')) result.gallery.push(img)
+                })
+              }
+              // JSON-LD price
+              if (product.offers?.price) {
+                result.price1688 = parseFloat(product.offers.price)
+              }
+              break
             }
           }
-        } catch (e) {}
+        } catch {}
 
-        // Titre - méthode 2: meta tags
+        // Méthode 2: og:title
         if (!result.name) {
-          result.name = document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
-                       document.querySelector('meta[name="title"]')?.getAttribute('content') || undefined
+          const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content')
+          if (ogTitle && ogTitle.length > 5) result.name = ogTitle.trim()
         }
 
-        // Titre - méthode 3: h1 avec filtres
+        // Méthode 3: h1
         if (!result.name) {
           const h1 = document.querySelector('h1')
           if (h1) {
-            const text = h1.textContent?.trim() || ''
-            // Nettoyer le titre
-            const clean = text
-              .replace(/1688\.com/g, '')
-              .replace(/阿里巴巴/g, '')
-              .replace(/批发/g, '')
-              .replace(/经营部/g, '')
-              .replace(/公司/g, '')
-              .replace(/\s+/g, ' ')
-              .trim()
-            if (clean.length > 5 && clean.length < 200) {
-              result.name = clean
+            const clean = (h1.textContent || '').replace(/1688\.com/g, '').replace(/\s+/g, ' ').trim()
+            if (clean.length > 5 && clean.length < 300) result.name = clean
+          }
+        }
+        if (!result.name || result.name.length < 3) result.name = 'Produit 1688'
+
+        // ===== PRIX (avec paliers) =====
+        if (!result.price1688) {
+          const priceSelectors = [
+            '.price-now .price-num', '.price .price-num', '.offer-price',
+            '[class*="price"] [class*="num"]', '[class*="Price"] [class*="Num"]',
+            '.mod-detail-price .price', '[data-price]'
+          ]
+          for (const sel of priceSelectors) {
+            const el = document.querySelector(sel)
+            if (el?.textContent) {
+              const m = el.textContent.match(/(\d+(?:\.\d+)?)/)
+              if (m) { result.price1688 = parseFloat(m[1]); break }
             }
           }
         }
-
-        // Fallback
-        if (!result.name || result.name.length < 5) {
-          result.name = 'Produit 1688'
+        // Fallback: chercher ¥ dans le body
+        if (!result.price1688) {
+          const bodyText = document.body.innerText.slice(0, 3000)
+          const m = bodyText.match(/¥\s*(\d+(?:\.\d+)?)/)
+          if (m) result.price1688 = parseFloat(m[1])
         }
 
-        // Prix
-        const priceSelectors = [
-          '.price-now .price-num',
-          '.price .price-num',
-          '.offer-price',
-          '[class*="price"] [class*="num"]',
-          '.price-1688',
+        // ===== IMAGES (haute résolution) =====
+        // Collecter toutes les images CDN 1688/alibaba
+        const collectImages = (selectors: string[]) => {
+          const imgs = new Set<string>()
+          for (const sel of selectors) {
+            document.querySelectorAll(sel).forEach(el => {
+              const tag = el.tagName.toLowerCase()
+              let src = ''
+              if (tag === 'img') {
+                src = el.getAttribute('src') || el.getAttribute('data-src') || el.getAttribute('data-lazy-src') || ''
+              } else {
+                // Div avec background-image
+                const bg = (el as HTMLElement).style?.backgroundImage
+                if (bg) {
+                  const m = bg.match(/url\(["']?([^"')]+)/)
+                  if (m) src = m[1]
+                }
+              }
+              if (!src) return
+              // Normaliser: supprimer les suffixes de resize pour avoir la HD
+              src = src.replace(/_\d+x\d+[^.]*/, '').replace(/\.\d+x\d+\./, '.')
+              // Accepter uniquement les images CDN Alibaba/1688
+              if (/(cbu\d*|img|gw)\.alicdn\.com/i.test(src) || /1688\.com/i.test(src)) {
+                // Assurer URL absolue
+                if (src.startsWith('//')) src = 'https:' + src
+                imgs.add(src)
+              }
+            })
+            if (imgs.size >= 10) break
+          }
+          return Array.from(imgs)
+        }
+
+        const galleryImages = collectImages([
+          '.detail-gallery img, .detail-gallery [style*="background"]',
+          '.offer-img img',
+          '.main-image img, .main-image [style*="background"]',
+          '[class*="gallery"] img, [class*="Gallery"] img',
+          '[class*="slider"] img, [class*="Slider"] img',
+          '[class*="thumb"] img, [class*="Thumb"] img',
+          '.tab-content img',
+        ])
+        
+        // Aussi récupérer les images de la description (produit en contexte)
+        const descImages = collectImages([
+          '.detail-desc img, [class*="detailDesc"] img, [class*="DetailDesc"] img',
+          '[class*="description"] img, [class*="Description"] img',
+          '#desc img, #detail img',
+        ])
+        
+        // Merger: gallery d'abord, puis description, dédoublonner
+        const allImgs = [...new Set([...result.gallery, ...galleryImages, ...descImages])].slice(0, 20)
+        result.gallery = allImgs
+
+        // og:image fallback
+        if (result.gallery.length === 0) {
+          const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+          if (ogImg) {
+            let src = ogImg
+            if (src.startsWith('//')) src = 'https:' + src
+            result.gallery = [src]
+          }
+        }
+        result.image = result.gallery[0]
+
+        // ===== DESCRIPTION =====
+        const descSelectors = [
+          '.detail-desc', '[class*="detailDesc"]', '[class*="DetailDesc"]',
+          '[class*="description"]', '[class*="Description"]',
+          '#desc', '#detail', '.offer-detail',
+          '.content-detail', '[class*="offerDetail"]',
         ]
-        for (const selector of priceSelectors) {
-          const el = document.querySelector(selector)
-          if (el?.textContent) {
-            const match = el.textContent.match(/(\d+(?:\.\d+)?)/)
-            if (match) {
-              result.price1688 = parseFloat(match[1])
+        for (const sel of descSelectors) {
+          const el = document.querySelector(sel)
+          if (el) {
+            // Extraire le texte brut (pas le HTML)
+            const text = (el as HTMLElement).innerText?.trim()
+            if (text && text.length > 20) {
+              // Nettoyer: limiter à 2000 caractères, supprimer lignes vides multiples
+              result.description = text
+                .replace(/\n{3,}/g, '\n\n')
+                .replace(/\t/g, ' ')
+                .slice(0, 2000)
+                .trim()
               break
             }
           }
         }
 
-        // Images
-        const imgSelectors = [
-          '.detail-gallery img',
-          '.offer-img img',
-          '.main-image img',
-          '[class*="gallery"] img',
-          '.tab-content img',
-        ]
-        for (const selector of imgSelectors) {
-          const imgs = document.querySelectorAll(selector)
-          imgs.forEach(img => {
-            const src = img.getAttribute('src') || img.getAttribute('data-src')
-            if (src && !src.includes('lazyload')) {
-              result.gallery!.push(src.replace(/_\d+x\d+/, ''))
-            }
-          })
-          if (result.gallery!.length > 0) break
-        }
-        result.image = result.gallery?.[0]
-
-        // Variantes
+        // ===== VARIANTES =====
         const skuSelectors = [
-          '.sku-item',
-          '.offer-sku',
-          '[class*="sku"]',
-          '.prop-item',
+          '.sku-item', '.offer-sku', '[class*="sku"] li', '[class*="Sku"] li',
+          '.prop-item', '[class*="variant"] li'
         ]
         const variants: any[] = []
-        for (const selector of skuSelectors) {
-          const items = document.querySelectorAll(selector)
-          items.forEach((item, idx) => {
+        for (const sel of skuSelectors) {
+          document.querySelectorAll(sel).forEach((item, idx) => {
             const name = item.textContent?.trim()
-            const img = item.querySelector('img')?.getAttribute('src')
-            if (name && name.length < 50) {
-              variants.push({
-                id: `sku-${idx}`,
-                name,
-                image: img,
-                isDefault: idx === 0,
-              })
+            const img = item.querySelector('img')?.getAttribute('src') || item.querySelector('img')?.getAttribute('data-src')
+            if (name && name.length > 0 && name.length < 80) {
+              let imgUrl = img || undefined
+              if (imgUrl?.startsWith('//')) imgUrl = 'https:' + imgUrl
+              variants.push({ id: `sku-${idx}`, name, image: imgUrl, isDefault: idx === 0 })
             }
           })
           if (variants.length > 0) break
         }
         if (variants.length > 0) {
-          result.variantGroups = [{
-            name: 'Modèle',
-            variants,
-          }]
+          result.variantGroups = [{ name: 'Modèle', variants: variants.slice(0, 30) }]
         }
 
-        // MOQ
-        const moqSelectors = [
-          '.moq-info',
-          '[class*="moq"]',
-          '.min-order',
-          '.offer-quantity',
-        ]
-        for (const selector of moqSelectors) {
-          const el = document.querySelector(selector)
+        // ===== MOQ =====
+        const moqSelectors = ['.moq-info', '[class*="moq"]', '.min-order', '.offer-quantity', '[class*="MinOrder"]']
+        for (const sel of moqSelectors) {
+          const el = document.querySelector(sel)
           if (el?.textContent) {
-            const match = el.textContent.match(/(\d+)\s*(?:件|个|pcs|pieces)/i)
-            if (match) {
-              result.moq = parseInt(match[1])
-              break
-            }
+            const m = el.textContent.match(/(\d+)\s*(?:件|个|pcs|pi[eè]ces?|unit)/i)
+            if (m) { result.moq = parseInt(m[1]); break }
           }
         }
+        if (!result.moq) {
+          const bodyText = document.body.innerText.slice(0, 5000)
+          const m = bodyText.match(/(?:起订|最少订购|minimum)[^\d]*(\d+)/i)
+          if (m) result.moq = parseInt(m[1])
+        }
 
-        // Fournisseur
-        const supplierName = document.querySelector('.company-name, .supplier-name, [class*="company"]')?.textContent?.trim()
-        if (supplierName) {
+        // ===== FOURNISSEUR =====
+        const supplierSels = '.company-name, .supplier-name, [class*="company"], [class*="Company"], [class*="shopName"], [class*="StoreName"]'
+        const supplierName = document.querySelector(supplierSels)?.textContent?.trim()
+        if (supplierName && supplierName.length < 100) {
+          const locEl = document.querySelector('.company-location, [class*="location"], [class*="Location"]')
+          const yearsEl = document.querySelector('[class*="year"]')
           result.supplier = {
             name: supplierName,
-            location: document.querySelector('.company-location, .supplier-location, [class*="location"]')?.textContent?.trim() || 'Chine',
-            verified: document.querySelector('.verified-badge, [class*="verified"]') !== null,
-            yearsInBusiness: 0,
+            location: locEl?.textContent?.trim() || 'Chine',
+            verified: document.querySelector('[class*="verified"], [class*="Verified"], [class*="trust"]') !== null,
+            yearsInBusiness: yearsEl?.textContent ? parseInt(yearsEl.textContent.match(/(\d+)/)?.[1] || '0') : 0,
             rating: 0,
             transactions: 0,
             responseTime: '',
           }
         }
 
-        // Spécifications
-        const specRows = document.querySelectorAll('.offer-attr-row, .parameter-row, [class*="spec"] tr')
-        specRows.forEach(row => {
-          const cells = row.querySelectorAll('td, th, .attr-name, .attr-value')
-          if (cells.length >= 2) {
-            const key = cells[0].textContent?.trim()
-            const value = cells[1].textContent?.trim()
-            if (key && value) {
-              result.specifications![key] = value
+        // ===== SPÉCIFICATIONS =====
+        const specSelectors = [
+          '.offer-attr-row', '.parameter-row', 
+          '[class*="attr"] tr', '[class*="Attr"] tr',
+          '[class*="param"] tr', '[class*="Param"] tr',
+          '[class*="spec"] tr', '[class*="Spec"] tr',
+          '.detail-attribute tr', '.product-param tr'
+        ]
+        for (const sel of specSelectors) {
+          document.querySelectorAll(sel).forEach(row => {
+            const cells = row.querySelectorAll('td, th, .attr-name, .attr-value, span')
+            if (cells.length >= 2) {
+              const key = cells[0].textContent?.trim()
+              const value = cells[1].textContent?.trim()
+              if (key && value && key.length < 60 && value.length < 300) {
+                result.specifications[key] = value
+              }
+            }
+          })
+        }
+
+        // ===== POIDS & DIMENSIONS depuis specs =====
+        let weightKg = 0, lengthCm = 0, widthCm = 0, heightCm = 0
+        for (const [key, value] of Object.entries(result.specifications)) {
+          const k = key.toLowerCase()
+          const v = String(value)
+          // Poids
+          if (k.includes('重量') || k.includes('weight') || k.includes('毛重') || k.includes('净重')) {
+            const mKg = v.match(/(\d+(?:\.\d+)?)\s*(?:kg|千克)/i)
+            if (mKg) { weightKg = parseFloat(mKg[1]); continue }
+            const mG = v.match(/(\d+(?:\.\d+)?)\s*(?:g|克)/i)
+            if (mG) { weightKg = parseFloat(mG[1]) / 1000; continue }
+          }
+          // Dimensions (LxWxH)
+          if (k.includes('尺寸') || k.includes('大小') || k.includes('dimension') || k.includes('size') || k.includes('规格') || k.includes('长宽高')) {
+            // Format: 30x20x15 cm ou 30*20*15cm
+            const mDim = v.match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i)
+            if (mDim) {
+              let l = parseFloat(mDim[1]), w = parseFloat(mDim[2]), h = parseFloat(mDim[3])
+              // Si en mm, convertir en cm
+              if (v.toLowerCase().includes('mm') && l > 100) { l /= 10; w /= 10; h /= 10 }
+              lengthCm = l; widthCm = w; heightCm = h
+              continue
             }
           }
-        })
+        }
 
-        // Valeurs par défaut
+        // Fallback poids depuis texte général
+        if (!weightKg) {
+          const bodyText = document.body.innerText.slice(0, 8000)
+          const wm = bodyText.match(/(?:重量|毛重|净重|weight)[\s:]*?(\d+(?:\.\d+)?)\s*(?:kg|千克)/i)
+          if (wm) weightKg = parseFloat(wm[1])
+          if (!weightKg) {
+            const wg = bodyText.match(/(?:重量|毛重|净重|weight)[\s:]*?(\d+(?:\.\d+)?)\s*(?:g|克)/i)
+            if (wg) weightKg = parseFloat(wg[1]) / 1000
+          }
+        }
+
+        // Valeurs par défaut (seulement si pas trouvé de vraies valeurs)
         result.category = 'Catalogue import Chine'
         result.tagline = 'Import 1688'
-        result.availabilityNote = 'Import 1688 — vérifier poids/dimensions avant transport'
         result.currency = 'FCFA'
         result.price1688Currency = 'CNY'
         result.exchangeRate = 100
-        result.weightKg = 1
-        result.lengthCm = 10
-        result.widthCm = 10
-        result.heightCm = 10
+        result.weightKg = weightKg > 0 ? Number(weightKg.toFixed(2)) : 1
+        result.lengthCm = lengthCm > 0 ? Math.round(lengthCm) : 10
+        result.widthCm = widthCm > 0 ? Math.round(widthCm) : 10
+        result.heightCm = heightCm > 0 ? Math.round(heightCm) : 10
 
-        return result as Product1688
+        const hasRealDims = weightKg > 0 || (lengthCm > 0 && widthCm > 0 && heightCm > 0)
+        result.availabilityNote = hasRealDims
+          ? `Import 1688 — poids: ${result.weightKg}kg, dimensions: ${result.lengthCm}×${result.widthCm}×${result.heightCm}cm`
+          : 'Import 1688 — vérifier poids/dimensions avant transport'
+
+        // Features enrichies
+        result.features = [
+          result.moq ? `MOQ: ${result.moq} unités` : null,
+          result.supplier?.name ? `Fournisseur: ${result.supplier.name}` : null,
+          weightKg > 0 ? `Poids: ${result.weightKg}kg` : null,
+          (lengthCm > 0 && widthCm > 0 && heightCm > 0) ? `Dimensions: ${result.lengthCm}×${result.widthCm}×${result.heightCm}cm` : null,
+          Object.keys(result.specifications).length > 0 ? `${Object.keys(result.specifications).length} spécifications` : null,
+          result.price1688 ? `Prix usine: ¥${result.price1688}` : null,
+        ].filter(Boolean) as string[]
+
+        return result
       })
 
       return {
         ...data,
         productUrl: url,
-      }
+      } as Product1688
     })
   }
 

@@ -398,100 +398,42 @@ async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Previe
   }
 
   const offerId = extractOfferId(url)
-  const res = await fetch(url.toString(), {
-    headers: {
-      // User-Agent d’un vrai navigateur récent (Windows/Chrome)
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1'
-    },
-    cache: 'no-store'
-  })
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Impossible de charger la page 1688 (${res.status}). ${body ? body.slice(0, 120) : ''}`)
+  // Utiliser Playwright pour scraper (contourne le captcha)
+  const { scrape1688WithBrowser } = await import('@/lib/browser-scraper')
+  const scrapeResult = await scrape1688WithBrowser(url.toString())
+
+  if (!scrapeResult.success || !scrapeResult.data) {
+    throw new Error(scrapeResult.error || 'Scraping 1688 échoué via Playwright')
   }
 
-  const html = await res.text()
-  // Détection blocage/captcha : page très courte ou contient "robot check"
-  if (!html || html.length < 1000 || /robot|verify|captcha|window.location/i.test(html)) {
-    throw new Error(
-      "CAPTCHA_1688: Le site 1688 a bloqué l’accès automatisé (captcha / anti-bot). " +
-        "Solutions: 1) réessayer plus tard, 2) changer d’IP (4G/VPN), " +
-        "3) faire un import manuel (coller nom + images dans l’admin) en gardant le lien 1688 dans \"Sourcing\"."
-    )
-  }
-
-  const jsonLd = extractJsonLdProduct(html)
-  const title = (typeof jsonLd.name === 'string' && jsonLd.name.trim()) || extractTitle(html)
-  if (!title || /1688|robot|verify|captcha/i.test(title)) {
-    throw new Error('Impossible d’extraire le titre du produit. Le scraping est probablement bloqué par 1688 (captcha ou page protégée).')
-  }
-
-  const images = [...new Set([...(jsonLd.images || []), ...extractImages(html)])]
-  const price1688 = jsonLd.price ?? extractPrice1688(html)
-
-  const variantNames = extractVariantNamesFromText(html)
-  const variantGroups = variantNames.length
-    ? [
-        {
-          name: 'Modèle',
-          variants: variantNames.slice(0, 25).map((name, idx) => ({
-            id: randomUUID(),
-            name,
-            image: images[idx + 1] || images[0],
-            price1688,
-            stock: undefined,
-            isDefault: idx === 0
-          }))
-        }
-      ]
-    : undefined
-
-  const gallery = images.slice(0, 10)
-  const image = gallery[0]
-
-  // Defaults chosen to satisfy import logistics validation; admin should adjust.
-  const weightKg = 1
-  const lengthCm = 10
-  const widthCm = 10
-  const heightCm = 10
-
-  const features: string[] = []
-  if (offerId) features.push(`1688 offerId: ${offerId}`)
-  if (typeof price1688 === 'number') features.push(`Prix 1688 (min): ¥${price1688}`)
-  if (variantNames.length) {
-    features.push(`Variantes: ${variantNames.slice(0, 4).join(' / ')}${variantNames.length > 4 ? '…' : ''}`)
-  }
+  const data = scrapeResult.data
 
   return {
     offerId,
-    name: title,
+    name: data.name,
     productUrl: url.toString(),
-    image,
-    gallery,
-    price1688,
+    image: data.image,
+    gallery: data.gallery || [],
+    price1688: data.price1688,
     price1688Currency: 'CNY',
-    exchangeRate: 100,
+    exchangeRate: data.exchangeRate || 100,
     currency: 'FCFA',
-    category: 'Catalogue import Chine',
-    tagline: 'Import 1688',
-    availabilityNote: 'Import 1688 — à vérifier: poids/dimensions avant calcul transport',
-    features,
-    weightKg,
-    lengthCm,
-    widthCm,
-    heightCm,
-    variantGroups
+    category: data.category || 'Catalogue import Chine',
+    tagline: data.tagline || 'Import 1688',
+    availabilityNote: data.availabilityNote || 'Import 1688 — vérifier poids/dimensions',
+    features: data.features || [],
+    weightKg: data.weightKg || 1,
+    lengthCm: data.lengthCm || 10,
+    widthCm: data.widthCm || 10,
+    heightCm: data.heightCm || 10,
+    variantGroups: data.variantGroups?.map(g => ({
+      ...g,
+      variants: g.variants.map(v => ({
+        ...v,
+        stock: v.stock ?? undefined,
+      }))
+    }))
   }
 }
 
@@ -755,14 +697,14 @@ export async function POST(request: NextRequest) {
           }
 
           if (is1688Url(preview.productUrl)) {
-            const item1688 = preview as Import1688Preview
+            const item1688 = preview as Import1688Preview & { description?: string; supplier?: { name?: string } }
             const payload: any = {
               name: item1688.name,
               category: item1688.category || 'Catalogue import Chine',
               tagline: item1688.tagline || 'Import 1688',
-              description: item1688.offerId
+              description: item1688.description || (item1688.offerId
                 ? `Import depuis 1688 • offerId ${item1688.offerId}`
-                : 'Import depuis 1688',
+                : 'Import depuis 1688'),
               currency: 'FCFA',
               image: item1688.image,
               gallery: Array.isArray(item1688.gallery) ? item1688.gallery : [],
@@ -778,7 +720,7 @@ export async function POST(request: NextRequest) {
               exchangeRate: typeof item1688.exchangeRate === 'number' && item1688.exchangeRate > 0 ? item1688.exchangeRate : 100,
               serviceFeeRate: 10,
               insuranceRate: 2.5,
-              // Logistics placeholders (required for imported items)
+              // Logistics (réelles si extraites par Playwright)
               weightKg: Number(item1688.weightKg) || 1,
               lengthCm: Number(item1688.lengthCm) || 10,
               widthCm: Number(item1688.widthCm) || 10,
@@ -788,10 +730,10 @@ export async function POST(request: NextRequest) {
               // Sourcing
               sourcing: {
                 platform: '1688',
-                supplierName: undefined,
+                supplierName: item1688.supplier?.name || undefined,
                 supplierContact: undefined,
                 productUrl: item1688.productUrl,
-                notes: `Import auto 1688${item1688.offerId ? ` (offerId ${item1688.offerId})` : ''}. Vérifier poids/dimensions.`
+                notes: `Import Playwright 1688${item1688.offerId ? ` (offerId ${item1688.offerId})` : ''}.`
               },
               shippingOverrides: []
             }
@@ -937,14 +879,14 @@ export async function POST(request: NextRequest) {
           }
 
           if (is1688Url(productUrl)) {
-            const preview = it as Import1688Preview
+            const preview = it as Import1688Preview & { description?: string; supplier?: { name?: string }; specifications?: Record<string, string> }
             const payload: Record<string, unknown> = {
               name: preview.name,
               category: preview.category || 'Catalogue import Chine',
               tagline: preview.tagline || 'Import 1688',
-              description: preview.offerId
+              description: preview.description || (preview.offerId
                 ? `Import depuis 1688 • offerId ${preview.offerId}`
-                : 'Import depuis 1688',
+                : 'Import depuis 1688'),
               currency: 'FCFA',
               image: preview.image,
               gallery: Array.isArray(preview.gallery) ? preview.gallery : [],
@@ -960,7 +902,7 @@ export async function POST(request: NextRequest) {
               exchangeRate: typeof preview.exchangeRate === 'number' && preview.exchangeRate > 0 ? preview.exchangeRate : 100,
               serviceFeeRate: 10,
               insuranceRate: 2.5,
-              // Logistics placeholders (required for imported items)
+              // Logistics (réelles si extraites)
               weightKg: Number(preview.weightKg) || 1,
               lengthCm: Number(preview.lengthCm) || 10,
               widthCm: Number(preview.widthCm) || 10,
@@ -970,10 +912,10 @@ export async function POST(request: NextRequest) {
               // Sourcing
               sourcing: {
                 platform: '1688',
-                supplierName: undefined,
+                supplierName: preview.supplier?.name || undefined,
                 supplierContact: undefined,
                 productUrl: preview.productUrl,
-                notes: `Import auto 1688${preview.offerId ? ` (offerId ${preview.offerId})` : ''}. Vérifier poids/dimensions.`
+                notes: `Import extension 1688${preview.offerId ? ` (offerId ${preview.offerId})` : ''}.`
               },
               shippingOverrides: []
             }
