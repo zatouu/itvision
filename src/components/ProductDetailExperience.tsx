@@ -168,6 +168,25 @@ interface ProductDetailExperienceProps {
   similar: SimilarProductSummary[]
 }
 
+// Simple markdown parser for product descriptions (bold, lists, paragraphs)
+const parseMarkdown = (text: string): string => {
+  if (!text) return ''
+  
+  return text
+    // Bold text: **text** → <strong>text</strong>
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Lists: - item → <li>item</li> wrapped in <ul>
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    // Double line breaks → paragraphs
+    .replace(/\n\n/g, '</p><p>')
+    // Wrap in paragraphs
+    .replace(/^(.*)$/s, '<p>$1</p>')
+    // Clean up empty paragraphs
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<ul>.*<\/ul>)<\/p>/g, '$1')
+}
+
 type InfoTab = 'description' | 'features' | 'logistics' | 'support' | 'reviews'
 
 const shippingIcon = (methodId?: string) => {
@@ -1117,7 +1136,7 @@ Merci de me recontacter.`
                       className="prose prose-emerald max-w-none dark:prose-invert"
                     >
                       {product.description ? (
-                        <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                        <div dangerouslySetInnerHTML={{ __html: parseMarkdown(product.description) }} />
                       ) : (
                         <p className="text-gray-500 italic">
                           Description détaillée disponible sur demande auprès de nos équipes sourcing.

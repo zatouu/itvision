@@ -656,34 +656,65 @@
       console.warn('[IT Vision] Erreur extraction poids/dimensions:', e);
     }
 
-    // ===== DESCRIPTION COMBINÉE =====
+    // ===== DESCRIPTION NETTOYÉE ET STRUCTURÉE =====
     try {
       const descParts = [];
 
-      // Partie 1: Tableau Détails formaté
+      // Partie 1: Tableau Détails (formaté proprement)
       if (Object.keys(specs).length > 0) {
-        descParts.push('=== Détails ===');
-        for (const [k, v] of Object.entries(specs)) {
-          descParts.push(`${k}: ${v}`);
+        descParts.push('**Détails du produit**');
+        // Filtrer les specs utiles (exclure les vides ou redondants)
+        const usefulSpecs = Object.entries(specs).filter(([k, v]) => {
+          const key = k.toLowerCase();
+          const val = v.toLowerCase();
+          return v && v.length > 0 && v.length < 200 
+            && !key.includes('sku') && !key.includes('model')
+            && !val.includes('n/a') && !val.includes('non spécifié');
+        });
+        
+        for (const [k, v] of usefulSpecs.slice(0, 20)) { // Max 20 specs
+          descParts.push(`- **${k}**: ${v}`);
         }
       }
 
-      // Partie 2: Texte de Présentation (Caractéristiques + Spécifications)
+      // Partie 2: Présentation (nettoyée)
       if (presentationText && presentationText.length > 20) {
-        descParts.push('\n=== Présentation ===');
-        descParts.push(presentationText);
+        // Nettoyer le texte de présentation
+        let cleanText = presentationText
+          .replace(/\n{3,}/g, '\n\n') // Réduire les sauts de ligne multiples
+          .replace(/\t/g, ' ') // Remplacer les tabs par espaces
+          .replace(/\s{2,}/g, ' ') // Réduire les espaces multiples
+          .replace(/([.!?])\s*\n\s*/g, '$1\n\n') // Saut de ligne après les phrases
+          .trim();
+
+        // Découper en paragraphes logiques
+        const paragraphs = cleanText.split('\n\n').filter(p => p.length > 10);
+        
+        if (paragraphs.length > 0) {
+          descParts.push('\n**Présentation**');
+          // Limiter à 3 paragraphes les plus pertinents
+          paragraphs.slice(0, 3).forEach(p => {
+            descParts.push(p.trim());
+          });
+        }
       }
 
+      // Assembler la description finale
       if (descParts.length > 0) {
-        data.description = descParts.join('\n').slice(0, 4000).trim();
+        let finalDesc = descParts.join('\n\n');
+        // Limiter la longueur totale
+        if (finalDesc.length > 3500) {
+          finalDesc = finalDesc.slice(0, 3500) + '...';
+        }
+        data.description = finalDesc.trim();
       }
 
-      // Fallback: JSON-LD
+      // Fallback: JSON-LD description (plus court)
       if (!data.description && jsonLdProduct?.description) {
-        data.description = jsonLdProduct.description.trim().slice(0, 3000);
+        data.description = jsonLdProduct.description.trim().slice(0, 2000);
       }
 
-      // Fallback: meta description
+      // Fallback: meta description (très court)
       if (!data.description) {
         const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
           || document.querySelector('meta[property="og:description"]')?.getAttribute('content');
