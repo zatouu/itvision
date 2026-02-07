@@ -954,37 +954,59 @@ Merci de me recontacter.`
   }, [gallery])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-950">
-      {/* Header avec breadcrumb */}
-      <div className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-            <Link href="/" className="hover:text-emerald-600 transition-colors">Accueil</Link>
-            <span>/</span>
-            <Link href="/produits" className="hover:text-emerald-600 transition-colors">Produits</Link>
-            {product.category && (
-              <>
-                <span>/</span>
-                <span className="text-gray-900 dark:text-white font-medium">{product.category}</span>
-              </>
-            )}
-            <span>/</span>
-            <span className="text-gray-900 dark:text-white font-semibold line-clamp-1">{product.name}</span>
-          </nav>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header style 1688 - simple et direct */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-start gap-4">
+            {/* Nom du produit */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-normal text-gray-900 leading-tight mb-1">{product.name}</h1>
+              {/* Info produit style 1688 */}
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                {product.category && (
+                  <span>Catégorie: {product.category}</span>
+                )}
+                {product.availability.label && (
+                  <span className="text-orange-600">{product.availability.label}</span>
+                )}
+                {product.isImported && (
+                  <span className="text-blue-600">Import Chine</span>
+                )}
+              </div>
+            </div>
+            {/* Actions rapides */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="p-2 rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+                aria-label="Ajouter aux favoris"
+              >
+                <Heart className={clsx('h-5 w-5', isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600')} />
+              </button>
+              <button
+                onClick={() => setShareFeedback('Lien copié!')}
+                className="p-2 rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+                aria-label="Partager"
+              >
+                <Share2 className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        {/* Layout principal avec sidebar sticky */}
-        <div className="lg:flex lg:gap-12">
-          {/* Colonne gauche : Galerie + Onglets (scrollable) */}
-          <div className="lg:flex-1 lg:min-w-0">
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Layout principal style 1688 */}
+        <div className="flex gap-6">
+          {/* Colonne gauche : Galerie + Onglets */}
+          <div className="flex-1 min-w-0">
             {/* Galerie d'images */}
             <div className="mb-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-                {/* Média principal - order-1 sur Desktop */}
+                {/* Média principal - style 1688 */}
                 <div className="order-1 flex-1 lg:order-1">
-                  <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 group mx-auto">
+                  <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded overflow-hidden bg-white border group mx-auto">
                     <button
                       type="button"
                       onClick={() => setShowImageModal(true)}
@@ -996,7 +1018,7 @@ Merci de me recontacter.`
                           src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
                           alt={product.name}
                           fill
-                          className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                          className="object-contain p-6 transition-transform duration-200 group-hover:scale-105"
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
                           priority
                         />
@@ -1029,14 +1051,16 @@ Merci de me recontacter.`
                         <span>Cliquer pour agrandir</span>
                       </div>
                     </button>
-                    {/* Badge disponibilité */}
+                    {/* Badge disponibilité style 1688 */}
                     <div className={clsx(
-                      'absolute top-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm',
+                      'absolute top-2 right-2 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
                       product.availability.status === 'in_stock'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-amber-500 text-white'
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-500 text-white'
                     )}>
-                      <Clock className="h-3.5 w-3.5" />
+                      {product.availability.status === 'in_stock' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
                       {product.availability.label}
                     </div>
                   </div>
@@ -1064,10 +1088,10 @@ Merci de me recontacter.`
                           type="button"
                           onClick={() => setActiveImageIndex(index)}
                           className={clsx(
-                            'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
+                            'relative h-16 w-16 flex-shrink-0 rounded border transition-all',
                             activeImageIndex === index
-                              ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
+                              ? 'border-orange-500 shadow-md'
+                              : 'border-gray-300 hover:border-orange-300'
                           )}
                           aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
                         >
@@ -1075,13 +1099,13 @@ Merci de me recontacter.`
                             src={item.kind === 'image' ? item.src : (item as any).poster}
                             alt={`${product.name} ${index + 1}`}
                             fill
-                            className="object-cover rounded-lg"
-                            sizes="80px"
+                            className="object-cover"
+                            sizes="64px"
                           />
                           {item.kind !== 'image' && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="rounded-full bg-black/60 text-white p-2">
-                                <Play className="h-4 w-4" />
+                              <div className="rounded-full bg-black/60 text-white p-1">
+                                <Play className="h-3 w-3" />
                               </div>
                             </div>
                           )}
@@ -1102,31 +1126,31 @@ Merci de me recontacter.`
               </div>
             </div>
 
-            {/* Onglets d'information - Dans la colonne gauche */}
-            <div className="mt-8">
-              <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 mb-6">
+            {/* Onglets d'information - style 1688 */}
+            <div className="mt-6">
+              <div className="flex gap-6 border-b border-gray-300 mb-4">
                 {(['description', 'features', 'logistics', 'support', 'reviews'] as InfoTab[]).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
                     className={clsx(
-                      'px-6 py-3 text-sm font-semibold border-b-2 transition-colors',
+                      'px-0 py-3 text-sm font-normal border-b-2 transition-colors',
                       activeTab === tab
-                        ? 'border-emerald-500 text-emerald-600'
-                        : 'border-transparent text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
                     )}
                   >
-                    {tab === 'description' && 'Description'}
+                    {tab === 'description' && 'Description du produit'}
                     {tab === 'features' && 'Caractéristiques'}
                     {tab === 'logistics' && 'Logistique'}
-                    {tab === 'support' && 'Garantie & SAV'}
-                    {tab === 'reviews' && 'Avis clients'}
+                    {tab === 'support' && 'Service après-vente'}
+                    {tab === 'reviews' && 'Avis'}
                   </button>
                 ))}
               </div>
 
-              <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-6 sm:p-8">
+              <div className="bg-white border border-gray-200 rounded p-4">
                 <AnimatePresence mode="wait">
                   {activeTab === 'description' && (
                     <motion.div
