@@ -752,7 +752,7 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = preview as NormalizedAliExpressItem & { description?: string }
+          const ali = preview as NormalizedAliExpressItem & { description?: string; lengthCm?: number; widthCm?: number; heightCm?: number }
           const payload = {
             name: ali.name,
             category: ali.category,
@@ -769,7 +769,10 @@ export async function POST(request: NextRequest) {
             stockStatus: 'preorder' as const,
             stockQuantity: 0,
             leadTimeDays: 15,
-            weightKg: ali.weightKg,
+            weightKg: ali.weightKg || undefined,
+            lengthCm: ali.lengthCm || undefined,
+            widthCm: ali.widthCm || undefined,
+            heightCm: ali.heightCm || undefined,
             availabilityNote: ali.availabilityNote,
             sourcing: {
               platform: 'aliexpress',
@@ -934,7 +937,7 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = it as NormalizedAliExpressItem & { description?: string }
+          const ali = it as NormalizedAliExpressItem & { description?: string; lengthCm?: number; widthCm?: number; heightCm?: number }
           const payload = {
             name: ali.name,
             category: ali.category,
@@ -951,7 +954,10 @@ export async function POST(request: NextRequest) {
             stockStatus: 'preorder' as const,
             stockQuantity: 0,
             leadTimeDays: 15,
-            weightKg: ali.weightKg,
+            weightKg: ali.weightKg || undefined,
+            lengthCm: ali.lengthCm || undefined,
+            widthCm: ali.widthCm || undefined,
+            heightCm: ali.heightCm || undefined,
             availabilityNote: ali.availabilityNote,
             sourcing: {
               platform: 'aliexpress',

@@ -175,11 +175,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       tagline: p.tagline || 'Import AliExpress',
       availabilityNote: p.availabilityNote || 'Import AliExpress — freight 3j/15j/60j',
       features: p.features || [],
-      weightKg: p.weightKg || 1,
+      weightKg: p.weightKg || undefined,
+      lengthCm: p.lengthCm || undefined,
+      widthCm: p.widthCm || undefined,
+      heightCm: p.heightCm || undefined,
       shopName: p.shopName,
       orders: p.orders,
       totalRated: p.rating,
-      description: p.description
+      description: p.description,
+      specifications: p.specifications
     };
   };
 

@@ -260,13 +260,45 @@
     // Attendre chargement dynamique (React hydration)
     await wait(3000);
     
-    // Scroll progressif pour déclencher lazy load
-    for (let y = 0; y <= 2000; y += 500) {
+    // Scroll profond pour déclencher lazy load (description est en bas)
+    const docHeight = Math.max(document.body.scrollHeight, 5000);
+    for (let y = 0; y <= docHeight; y += 400) {
       window.scrollTo(0, y);
-      await wait(300);
+      await wait(200);
     }
+    await wait(1000);
+
+    // Cliquer sur les onglets Description / Détails / Spécifications
+    try {
+      const tabSelectors = [
+        '[data-pl="product-description"]',
+        '[class*="tab" i][class*="item" i]',
+        '[role="tab"]',
+        'div[class*="Tab"] span',
+        'button[class*="tab" i]',
+        '.detail-tab-item', '.product-tab'
+      ];
+      for (const sel of tabSelectors) {
+        document.querySelectorAll(sel).forEach(tab => {
+          const text = (tab.textContent || '').toLowerCase();
+          if (text.includes('description') || text.includes('detail') || text.includes('détail')
+              || text.includes('specification') || text.includes('spécification')
+              || text.includes('overview') || text.includes('présentation')) {
+            tab.click();
+            console.log('[IT Vision] Onglet cliqué:', text.trim());
+          }
+        });
+      }
+      await wait(2000);
+      // Re-scroll pour charger le contenu lazy des onglets
+      window.scrollTo(0, document.body.scrollHeight / 2);
+      await wait(1000);
+    } catch (e) {
+      console.warn('[IT Vision] Erreur clic onglets:', e);
+    }
+
     window.scrollTo(0, 0);
-    await wait(500);
+    await wait(300);
 
     const data = {
       platform: 'aliexpress',
@@ -431,52 +463,191 @@
       if (ordersMatch) data.orders = parseInt(ordersMatch[1].replace(/[^\d]/g, ''));
     } catch {}
 
-    // ===== DESCRIPTION =====
+    // ===== SPÉCIFICATIONS (poids, dimensions) =====
+    const specs = {};
+    let weightKg = 0;
+    let lengthCm = 0, widthCm = 0, heightCm = 0;
     try {
-      // Méthode 1: meta description (toujours disponible)
-      const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
-        || document.querySelector('meta[property="og:description"]')?.getAttribute('content');
-      if (metaDesc && metaDesc.length > 20) {
-        data.description = metaDesc.trim();
-      }
-
-      // Méthode 2: JSON-LD description
-      if (!data.description && jsonLdProduct?.description) {
-        data.description = jsonLdProduct.description.trim().slice(0, 2000);
-      }
-
-      // Méthode 3: DOM - chercher les blocs de description/specs
-      if (!data.description) {
-        const descSelectors = [
-          '[data-pl="product-description"]',
-          '[class*="Description" i]', '[class*="description" i]',
-          '[class*="detail" i][class*="desc" i]',
-          '[class*="overview" i]', '[class*="specification" i]',
-          '#product-description', '#description'
-        ];
-        for (const sel of descSelectors) {
-          try {
-            const el = document.querySelector(sel);
-            if (el) {
-              const text = el.innerText?.trim();
-              if (text && text.length > 30) {
-                data.description = text.replace(/\n{3,}/g, '\n\n').slice(0, 2000).trim();
-                break;
-              }
+      // Méthode 1: Tables de specs (lignes clé-valeur)
+      const specSelectors = [
+        '[class*="specification" i] li',
+        '[class*="specification" i] tr',
+        '[class*="property" i] li',
+        '[class*="attr" i] li',
+        '[class*="detail" i] li',
+        '[data-pl*="specification"] li',
+        '[class*="ProductProperties"] li',
+        'table[class*="spec" i] tr',
+        '[class*="info" i] li'
+      ];
+      for (const sel of specSelectors) {
+        document.querySelectorAll(sel).forEach(row => {
+          const text = row.textContent?.trim() || '';
+          // Chercher pattern "clé : valeur" ou "clé valeur"
+          const kvMatch = text.match(/^([^:：\n]+)[:\s：]+(.+)$/);
+          if (kvMatch) {
+            const key = kvMatch[1].trim();
+            const value = kvMatch[2].trim();
+            if (key.length > 1 && key.length < 60 && value.length > 0 && value.length < 200) {
+              specs[key] = value;
             }
-          } catch {}
+          }
+        });
+      }
+
+      // Méthode 2: Chercher dans le texte visible de la page
+      const pageText = document.body.innerText;
+
+      // === POIDS ===
+      // Chercher "Package Weight" / "Item Weight" / "Poids" / "Weight" / "Gross Weight"
+      const weightPatterns = [
+        /(?:gross\s*weight|poids\s*brut|package\s*weight|poids\s*colis)[:\s：]*(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i,
+        /(?:net\s*weight|poids\s*net|item\s*weight|poids\s*article)[:\s：]*(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i,
+        /(?:weight|poids)[:\s：]*(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i,
+      ];
+      for (const pattern of weightPatterns) {
+        const m = pageText.match(pattern);
+        if (m) {
+          const val = parseFloat(m[1].replace(',', '.'));
+          const unit = m[2].toLowerCase();
+          if (unit === 'kg') weightKg = val;
+          else if (unit === 'g') weightKg = val / 1000;
+          else if (unit === 'lb') weightKg = val * 0.4536;
+          if (weightKg > 0) break;
         }
       }
 
-      // Méthode 4: Specs/propriétés comme description
-      if (!data.description) {
-        const specItems = [];
-        document.querySelectorAll('[class*="specification" i] tr, [class*="property" i] li, [class*="attr" i] li').forEach(row => {
-          const text = row.textContent?.trim();
-          if (text && text.length > 3 && text.length < 200) specItems.push(text);
-        });
-        if (specItems.length > 0) data.description = specItems.join('\n');
+      // Aussi chercher dans les specs extraites
+      if (weightKg === 0) {
+        for (const [key, value] of Object.entries(specs)) {
+          const k = key.toLowerCase();
+          if (k.includes('weight') || k.includes('poids')) {
+            const wm = String(value).match(/(\d+(?:[.,]\d+)?)\s*(kg|g|lb)/i);
+            if (wm) {
+              const val = parseFloat(wm[1].replace(',', '.'));
+              if (wm[2].toLowerCase() === 'kg') weightKg = val;
+              else if (wm[2].toLowerCase() === 'g') weightKg = val / 1000;
+              else if (wm[2].toLowerCase() === 'lb') weightKg = val * 0.4536;
+              if (weightKg > 0) break;
+            }
+          }
+        }
       }
+
+      // === DIMENSIONS (Package Size / Taille) ===
+      const dimPatterns = [
+        /(?:package\s*size|taille\s*colis|dimensions?\s*colis)[:\s：]*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)/i,
+        /(?:item\s*size|taille|dimensions?)[:\s：]*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)/i,
+        /(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm|inch|in)/i,
+      ];
+      for (const pattern of dimPatterns) {
+        const m = pageText.match(pattern);
+        if (m) {
+          let l = parseFloat(m[1].replace(',', '.'));
+          let w = parseFloat(m[2].replace(',', '.'));
+          let h = parseFloat(m[3].replace(',', '.'));
+          const unit = m[4].toLowerCase();
+          if (unit === 'mm') { l /= 10; w /= 10; h /= 10; }
+          else if (unit === 'inch' || unit === 'in') { l *= 2.54; w *= 2.54; h *= 2.54; }
+          if (l > 0 && w > 0 && h > 0) {
+            lengthCm = Math.round(l * 10) / 10;
+            widthCm = Math.round(w * 10) / 10;
+            heightCm = Math.round(h * 10) / 10;
+            break;
+          }
+        }
+      }
+
+      // Aussi chercher dans les specs extraites
+      if (lengthCm === 0) {
+        for (const [key, value] of Object.entries(specs)) {
+          const k = key.toLowerCase();
+          if (k.includes('size') || k.includes('dimension') || k.includes('taille')) {
+            const dm = String(value).match(/(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)/);
+            if (dm) {
+              lengthCm = parseFloat(dm[1].replace(',', '.'));
+              widthCm = parseFloat(dm[2].replace(',', '.'));
+              heightCm = parseFloat(dm[3].replace(',', '.'));
+              // Si très petites valeurs, probablement en mètres
+              if (lengthCm < 1 && widthCm < 1 && heightCm < 1) {
+                lengthCm *= 100; widthCm *= 100; heightCm *= 100;
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      console.log('[IT Vision] Specs:', Object.keys(specs).length, 'Poids:', weightKg, 'kg, Dim:', lengthCm, 'x', widthCm, 'x', heightCm, 'cm');
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction specs:', e);
+    }
+
+    // ===== DESCRIPTION (onglets Détails/Présentation) =====
+    try {
+      // Méthode 1: Contenu des panneaux de description/détails (chargés après clic onglets)
+      const descPanelSelectors = [
+        '[class*="description" i][class*="content" i]',
+        '[class*="Description" i][class*="Content" i]',
+        '[class*="detail" i][class*="content" i]',
+        '[class*="product-description" i]',
+        '[data-pl="product-description"]',
+        '[class*="tab" i][class*="panel" i]',
+        '[role="tabpanel"]',
+        '#product-description',
+        '#description',
+        '[class*="ProductDescription"]',
+        '[class*="desc" i][class*="module" i]'
+      ];
+      for (const sel of descPanelSelectors) {
+        try {
+          const els = document.querySelectorAll(sel);
+          for (const el of els) {
+            const text = el.innerText?.trim();
+            // Prendre le plus long contenu trouvé
+            if (text && text.length > 50 && (!data.description || text.length > data.description.length)) {
+              data.description = text.replace(/\n{3,}/g, '\n\n').replace(/\t/g, ' ').slice(0, 3000).trim();
+            }
+          }
+        } catch {}
+      }
+
+      // Méthode 2: Images de description (AliExpress met souvent la description dans des images)
+      // On collecte les textes alt des images de description
+      if (!data.description || data.description.length < 100) {
+        const descImgAlts = [];
+        document.querySelectorAll('[class*="description" i] img, [class*="detail" i][class*="content" i] img, [role="tabpanel"] img').forEach(img => {
+          const alt = img.getAttribute('alt')?.trim();
+          if (alt && alt.length > 10 && alt.length < 500) descImgAlts.push(alt);
+        });
+        if (descImgAlts.length > 0) {
+          const altText = descImgAlts.join('\n');
+          if (!data.description || altText.length > data.description.length) {
+            data.description = altText.slice(0, 3000);
+          }
+        }
+      }
+
+      // Méthode 3: JSON-LD description
+      if (!data.description && jsonLdProduct?.description) {
+        data.description = jsonLdProduct.description.trim().slice(0, 3000);
+      }
+
+      // Méthode 4: meta description (fallback court)
+      if (!data.description) {
+        const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
+          || document.querySelector('meta[property="og:description"]')?.getAttribute('content');
+        if (metaDesc && metaDesc.length > 20) {
+          data.description = metaDesc.trim();
+        }
+      }
+
+      // Méthode 5: Spécifications formatées comme description
+      if (!data.description && Object.keys(specs).length > 0) {
+        data.description = Object.entries(specs).map(([k, v]) => `${k}: ${v}`).join('\n');
+      }
+
+      console.log('[IT Vision] Description:', data.description?.length || 0, 'chars');
     } catch (e) {
       console.warn('[IT Vision] Erreur extraction description:', e);
     }
@@ -509,15 +680,24 @@
       data.rating && `Note: ${data.rating}/5`,
       data.orders && `${data.orders} commandes`,
       data.shopName && `Boutique: ${data.shopName}`,
-      data.gallery.length > 0 && `${data.gallery.length} images`
+      data.gallery.length > 0 && `${data.gallery.length} images`,
+      weightKg > 0 && `Poids: ${weightKg} kg`,
+      (lengthCm > 0) && `Dimensions: ${lengthCm}×${widthCm}×${heightCm} cm`,
+      Object.keys(specs).length > 0 && `${Object.keys(specs).length} spécifications`
     ].filter(Boolean);
+
+    // Données logistiques
+    data.specifications = specs;
+    data.weightKg = weightKg > 0 ? weightKg : undefined;
+    data.lengthCm = lengthCm > 0 ? lengthCm : undefined;
+    data.widthCm = widthCm > 0 ? widthCm : undefined;
+    data.heightCm = heightCm > 0 ? heightCm : undefined;
 
     // Valeurs par défaut
     data.category = 'Catalogue import Chine';
     data.tagline = 'Import AliExpress';
     data.availabilityNote = 'Import AliExpress - freight 3j/15j/60j';
     data.currency = 'FCFA';
-    data.weightKg = 1;
 
     console.log('[IT Vision] AliExpress extrait:', data);
     return data;
