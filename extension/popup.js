@@ -184,6 +184,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const { products = [] } = await chrome.storage.local.get('products');
       
+      // Récupérer le cookie d'authentification depuis le site IT Vision
+      const cookieUrl = apiUrl.replace(/\/$/, '');
+      let authCookie = null;
+      try {
+        authCookie = await chrome.cookies.get({ url: cookieUrl, name: 'auth-token' });
+      } catch (e) {
+        console.warn('[IT Vision] Impossible de lire le cookie auth:', e);
+      }
+      
+      if (!authCookie?.value) {
+        showNotification('Connectez-vous d\'abord sur ' + cookieUrl + ' puis réessayez.', 'error');
+        btnExport.disabled = false;
+        btnExport.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Exporter vers IT Vision
+        `;
+        return;
+      }
+
       // Envoyer les données scrapées (pas les URLs) au bon endpoint
       const payload = {
         items: products.map(transformProductForApi)
@@ -192,9 +213,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch(`${apiUrl}/api/products/import`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cookie': `auth-token=${authCookie.value}`
         },
-        credentials: 'include',
         body: JSON.stringify(payload)
       });
 

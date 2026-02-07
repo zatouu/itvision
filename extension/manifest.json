@@ -6,12 +6,16 @@
   "permissions": [
     "activeTab",
     "storage",
+    "cookies",
     "clipboardWrite",
-    "contextMenus"
+    "contextMenus",
+    "notifications"
   ],
   "host_permissions": [
     "*://detail.1688.com/*",
     "*://www.aliexpress.com/*",
+    "*://*.itvisionplus.sn/*",
+    "*://itvisionplus.sn/*",
     "*://*.itvision.sn/*",
     "*://localhost/*"
   ],
