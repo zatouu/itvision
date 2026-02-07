@@ -7,13 +7,14 @@
     "activeTab",
     "storage",
     "cookies",
+    "scripting",
     "clipboardWrite",
     "contextMenus",
     "notifications"
   ],
   "host_permissions": [
-    "*://detail.1688.com/*",
-    "*://www.aliexpress.com/*",
+    "*://*.1688.com/*",
+    "*://*.aliexpress.com/*",
     "*://*.itvisionplus.sn/*",
     "*://itvisionplus.sn/*",
     "*://*.itvision.sn/*",
@@ -37,8 +38,9 @@
   "content_scripts": [
     {
       "matches": [
-        "*://detail.1688.com/*",
-        "*://www.aliexpress.com/item/*"
+        "*://*.1688.com/*",
+        "*://*.aliexpress.com/item/*",
+        "*://*.aliexpress.com/i/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],

@@ -85,9 +85,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_PRODUCT' });
+      // Essayer d'envoyer au content script existant, sinon l'injecter dynamiquement
+      let response;
+      try {
+        response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_PRODUCT' });
+      } catch (e) {
+        // Content script pas chargé — l'injecter manuellement
+        console.log('[IT Vision] Content script absent, injection dynamique...');
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ['content.css']
+        });
+        // Attendre que le script s'initialise
+        await new Promise(r => setTimeout(r, 1500));
+        response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_PRODUCT' });
+      }
       
-      if (response.success) {
+      if (response && response.success) {
         // Ajouter aux produits
         const { products = [] } = await chrome.storage.local.get('products');
         
