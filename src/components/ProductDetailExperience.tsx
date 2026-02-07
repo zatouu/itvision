@@ -955,23 +955,23 @@ Merci de me recontacter.`
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header style 1688 - simple et direct */}
-      <div className="bg-white border-b">
+      {/* Header avec dégradé marque */}
+      <div className="bg-gradient-to-r from-violet-600 to-green-600 border-b">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-start gap-4">
             {/* Nom du produit */}
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-normal text-gray-900 leading-tight mb-1">{product.name}</h1>
+              <h1 className="text-xl font-normal text-white leading-tight mb-1">{product.name}</h1>
               {/* Info produit style 1688 */}
-              <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-4 text-sm text-white/80">
                 {product.category && (
                   <span>Catégorie: {product.category}</span>
                 )}
                 {product.availability.label && (
-                  <span className="text-orange-600">{product.availability.label}</span>
+                  <span className="text-white font-medium">{product.availability.label}</span>
                 )}
                 {product.isImported && (
-                  <span className="text-blue-600">Import Chine</span>
+                  <span className="text-white/90">Import Chine</span>
                 )}
               </div>
             </div>
@@ -979,17 +979,17 @@ Merci de me recontacter.`
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsFavorite(!isFavorite)}
-                className="p-2 rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+                className="p-2 rounded border border-white/20 hover:bg-white/10 transition-colors"
                 aria-label="Ajouter aux favoris"
               >
-                <Heart className={clsx('h-5 w-5', isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600')} />
+                <Heart className={clsx('h-5 w-5', isFavorite ? 'fill-white text-white' : 'text-white/80')} />
               </button>
               <button
                 onClick={() => setShareFeedback('Lien copié!')}
-                className="p-2 rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+                className="p-2 rounded border border-white/20 hover:bg-white/10 transition-colors"
                 aria-label="Partager"
               >
-                <Share2 className="h-5 w-5 text-gray-600" />
+                <Share2 className="h-5 w-5 text-white/80" />
               </button>
             </div>
           </div>
@@ -1051,11 +1051,11 @@ Merci de me recontacter.`
                         <span>Cliquer pour agrandir</span>
                       </div>
                     </button>
-                    {/* Badge disponibilité style 1688 */}
+                    {/* Badge disponibilité style marque */}
                     <div className={clsx(
                       'absolute top-2 right-2 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
                       product.availability.status === 'in_stock'
-                        ? 'bg-orange-500 text-white'
+                        ? 'bg-green-500 text-white'
                         : 'bg-gray-500 text-white'
                     )}>
                       {product.availability.status === 'in_stock' && (
@@ -1090,8 +1090,8 @@ Merci de me recontacter.`
                           className={clsx(
                             'relative h-16 w-16 flex-shrink-0 rounded border transition-all',
                             activeImageIndex === index
-                              ? 'border-orange-500 shadow-md'
-                              : 'border-gray-300 hover:border-orange-300'
+                              ? 'border-green-500 shadow-md'
+                              : 'border-gray-300 hover:border-green-300'
                           )}
                           aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
                         >
@@ -1137,7 +1137,7 @@ Merci de me recontacter.`
                     className={clsx(
                       'px-0 py-3 text-sm font-normal border-b-2 transition-colors',
                       activeTab === tab
-                        ? 'border-orange-500 text-orange-600'
+                        ? 'border-green-500 text-green-600'
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     )}
                   >
