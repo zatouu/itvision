@@ -177,11 +177,12 @@ const parseMarkdown = (text: string): string => {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     // Lists: - item → <li>item</li> wrapped in <ul>
     .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    // Wrap consecutive list items in <ul>
+    .replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/g, '<ul>$&</ul>')
     // Double line breaks → paragraphs
     .replace(/\n\n/g, '</p><p>')
-    // Wrap in paragraphs
-    .replace(/^(.*)$/s, '<p>$1</p>')
+    // Wrap in paragraphs (avoid wrapping lists)
+    .replace(/^(?!<ul>.*<\/ul>$)(.*)$/gm, '<p>$1</p>')
     // Clean up empty paragraphs
     .replace(/<p><\/p>/g, '')
     .replace(/<p>(<ul>.*<\/ul>)<\/p>/g, '$1')
