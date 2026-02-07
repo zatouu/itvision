@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
               name: data.name,
               category: data.category || 'Catalogue import Chine',
               tagline: data.tagline || 'Import 1688',
-              description: `Import depuis 1688 via navigateur\nMOQ: ${data.moq || 'N/A'}`,
+              description: data.description || `Import depuis 1688 via navigateur\nMOQ: ${data.moq || 'N/A'}`,
               currency: 'FCFA',
               image: data.image,
               gallery: data.gallery || [],
