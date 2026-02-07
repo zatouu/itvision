@@ -119,10 +119,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Transformer les données scrapées au format attendu par /api/products/import
+  const transformProductForApi = (p) => {
+    if (p.platform === '1688') {
+      return {
+        name: p.name || 'Produit 1688',
+        productUrl: p.url,
+        image: p.image,
+        gallery: p.gallery || [],
+        price1688: p.price1688,
+        price1688Currency: 'CNY',
+        exchangeRate: p.exchangeRate || 100,
+        currency: 'FCFA',
+        category: p.category || 'Catalogue import Chine',
+        tagline: p.tagline || 'Import 1688',
+        availabilityNote: p.availabilityNote || 'Import 1688 — vérifier poids/dimensions',
+        features: p.features || [],
+        weightKg: p.weightKg || 1,
+        lengthCm: p.lengthCm || 10,
+        widthCm: p.widthCm || 10,
+        heightCm: p.heightCm || 10,
+        variantGroups: p.variantGroups || [],
+        moq: p.moq,
+        specifications: p.specifications
+      };
+    }
+    // AliExpress
+    return {
+      name: p.name || 'Produit AliExpress',
+      productUrl: p.url,
+      image: p.image,
+      gallery: p.gallery || [],
+      price: p.price,
+      baseCost: p.price,
+      currency: 'FCFA',
+      category: p.category || 'Catalogue import Chine',
+      tagline: p.tagline || 'Import AliExpress',
+      availabilityNote: p.availabilityNote || 'Import AliExpress — freight 3j/15j/60j',
+      features: p.features || [],
+      weightKg: p.weightKg || 1,
+      shopName: p.shopName,
+      orders: p.orders,
+      totalRated: p.rating
+    };
+  };
+
   // Exporter vers API IT Vision
   btnExport.addEventListener('click', async () => {
     const apiUrl = apiUrlInput.value.trim();
-    const apiToken = apiTokenInput.value.trim();
 
     if (!apiUrl) {
       showNotification('Veuillez configurer l\'URL API', 'error');
@@ -140,17 +184,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const { products = [] } = await chrome.storage.local.get('products');
       
-      // Transformer au format attendu par l'API
+      // Envoyer les données scrapées (pas les URLs) au bon endpoint
       const payload = {
-        urls: products.map(p => p.url)
+        items: products.map(transformProductForApi)
       };
 
-      const response = await fetch(`${apiUrl}/api/scrape/bulk`, {
+      const response = await fetch(`${apiUrl}/api/products/import`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': apiToken || ''
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
@@ -170,6 +214,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           showNotification('Erreur API: ' + result.error, 'error');
         }
+      } else if (response.status === 401 || response.status === 403) {
+        showNotification('Non authentifié. Connectez-vous sur ' + apiUrl + ' d\'abord.', 'error');
       } else {
         const error = await response.text();
         showNotification('Erreur HTTP ' + response.status + ': ' + error.slice(0, 100), 'error');

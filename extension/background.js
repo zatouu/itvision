@@ -11,7 +11,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({
     products: [],
     settings: {
-      apiUrl: 'http://localhost:3000',
+      apiUrl: 'https://itvisionplus.sn',
       apiToken: ''
     }
   });

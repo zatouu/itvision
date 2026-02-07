@@ -48,87 +48,185 @@
   const scrape1688 = async () => {
     console.log('[IT Vision] Extraction 1688...');
     
-    // Attendre chargement
-    await wait(1500);
+    // Attendre chargement complet (1688 charge en plusieurs étapes)
+    await wait(2000);
     
-    // Scroll pour charger les images
-    window.scrollTo(0, 500);
-    await wait(500);
-    window.scrollTo(0, 1000);
+    // Scroll progressif pour charger images et contenu lazy-loaded
+    for (let y = 0; y <= 2000; y += 400) {
+      window.scrollTo(0, y);
+      await wait(300);
+    }
+    window.scrollTo(0, 0);
     await wait(300);
 
     const data = {
       platform: '1688',
-      url: window.location.href,
+      url: window.location.href.split('?')[0], // URL propre sans tracking params
       timestamp: new Date().toISOString()
     };
 
-    // Titre
-    data.name = trySelectors([
-      '.offer-title',
-      '.detail-title',
-      'h1[data-spm="title"]',
-      'h1.title',
-      'h1'
-    ]) || 'Produit 1688';
-
-    // Prix
-    const priceEl = document.querySelector('.price-now .price-num, .price .price-num, .offer-price');
-    if (priceEl) {
-      const match = priceEl.textContent.match(/(\d+(?:\.\d+)?)/);
-      data.price1688 = match ? parseFloat(match[1]) : null;
+    // Titre (nombreux fallbacks car 1688 change souvent le DOM)
+    try {
+      data.name = trySelectors([
+        '.offer-title',
+        '.detail-title',
+        'h1[data-spm="title"]',
+        'h1.title',
+        '.title-text',
+        '.mod-detail-title h1',
+        '[class*="offerTitle"]',
+        '[class*="DetailTitle"]',
+        'h1'
+      ]) || document.title.replace(/[-|].*$/, '').trim() || 'Produit 1688';
+    } catch (e) {
+      data.name = document.title.replace(/[-|].*$/, '').trim() || 'Produit 1688';
     }
 
-    // Images
-    data.gallery = extractImages([
-      '.detail-gallery img',
-      '.offer-img img',
-      '.main-image img',
-      '.tab-content img'
-    ]);
-    data.image = data.gallery[0];
+    // Prix (extraction plus robuste avec regex sur tout le contenu visible)
+    try {
+      const priceEl = document.querySelector(
+        '.price-now .price-num, .price .price-num, .offer-price, ' +
+        '[class*="price"] [class*="num"], [class*="Price"] [class*="Num"], ' +
+        '.mod-detail-price .price, [data-price]'
+      );
+      const priceMatch = priceEl?.textContent?.match(/(\d+(?:\.\d+)?)/);
+      data.price1688 = priceMatch ? parseFloat(priceMatch[1]) : null;
+      // Essayer aussi d'extraire les prix par paliers
+      const priceTiers = [];
+      document.querySelectorAll('[class*="price"] tr, [class*="Price"] tr, .price-range-item, .batch-price-item').forEach(row => {
+        const texts = row.textContent || '';
+        const qtyMatch = texts.match(/(\d+)\s*[-~≥]\s*(\d+)?/);
+        const prMatch = texts.match(/¥?\s*(\d+(?:\.\d+)?)/);
+        if (qtyMatch && prMatch) {
+          priceTiers.push({
+            minQty: parseInt(qtyMatch[1]),
+            maxQty: qtyMatch[2] ? parseInt(qtyMatch[2]) : undefined,
+            price: parseFloat(prMatch[1])
+          });
+        }
+      });
+      if (priceTiers.length > 0) data.priceTiers = priceTiers;
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction prix:', e);
+    }
 
-    // Variantes
-    const variants = [];
-    document.querySelectorAll('.sku-item, .offer-sku, .prop-item').forEach((item, idx) => {
-      const name = item.textContent?.trim();
-      const img = item.querySelector('img')?.getAttribute('src');
-      if (name && name.length < 50) {
-        variants.push({ id: `sku-${idx}`, name, image: img, isDefault: idx === 0 });
+    // Images (plus de sélecteurs)
+    try {
+      data.gallery = extractImages([
+        '.detail-gallery img',
+        '.offer-img img',
+        '.main-image img',
+        '.tab-content img',
+        '[class*="gallery"] img',
+        '[class*="slider"] img',
+        '[class*="thumb"] img',
+        '.detail-desc img'
+      ]);
+      // Fallback: og:image
+      if (data.gallery.length === 0) {
+        const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
+        if (ogImg) data.gallery = [ogImg];
       }
-    });
-    
-    if (variants.length > 0) {
-      data.variantGroups = [{ name: 'Modèle', variants }];
+      data.image = data.gallery[0];
+    } catch (e) {
+      data.gallery = [];
+      console.warn('[IT Vision] Erreur extraction images:', e);
     }
 
-    // MOQ
-    const moqEl = document.querySelector('.moq-info, [class*="moq"], .min-order');
-    if (moqEl) {
-      const match = moqEl.textContent.match(/(\d+)\s*(?:件|个|pcs)/i);
-      data.moq = match ? parseInt(match[1]) : null;
+    // Variantes (plus de sélecteurs)
+    try {
+      const variants = [];
+      const variantSelectors = '.sku-item, .offer-sku, .prop-item, [class*="sku"] li, [class*="Sku"] li, [class*="variant"] li';
+      document.querySelectorAll(variantSelectors).forEach((item, idx) => {
+        const name = item.textContent?.trim();
+        const img = item.querySelector('img')?.getAttribute('src') || item.querySelector('img')?.getAttribute('data-src');
+        if (name && name.length > 0 && name.length < 80) {
+          variants.push({ id: `sku-${idx}`, name, image: img || undefined, isDefault: idx === 0 });
+        }
+      });
+      if (variants.length > 0) {
+        data.variantGroups = [{ name: 'Modèle', variants }];
+      }
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction variantes:', e);
+    }
+
+    // MOQ (extraction robuste)
+    try {
+      const moqSelectors = '.moq-info, [class*="moq"], .min-order, [class*="MinOrder"], [class*="minOrder"]';
+      const moqEl = document.querySelector(moqSelectors);
+      if (moqEl) {
+        const moqMatch = moqEl.textContent.match(/(\d+)\s*(?:件|个|pcs|pi[eè]ces?|unit)/i);
+        data.moq = moqMatch ? parseInt(moqMatch[1]) : null;
+      }
+      // Fallback: chercher dans le texte général
+      if (!data.moq) {
+        const bodyText = document.body.innerText.slice(0, 5000);
+        const moqFallback = bodyText.match(/(?:起订|最少|minimum)[^\d]*(\d+)/i);
+        if (moqFallback) data.moq = parseInt(moqFallback[1]);
+      }
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction MOQ:', e);
     }
 
     // Fournisseur
-    const supplierName = document.querySelector('.company-name, .supplier-name, [class*="company"]')?.textContent?.trim();
-    if (supplierName) {
-      data.supplier = {
-        name: supplierName,
-        location: document.querySelector('.company-location, [class*="location"]')?.textContent?.trim() || 'Chine',
-        verified: document.querySelector('.verified-badge, [class*="verified"]') !== null
-      };
+    try {
+      const supplierName = document.querySelector(
+        '.company-name, .supplier-name, [class*="company"], [class*="Company"], [class*="shopName"], [class*="StoreName"]'
+      )?.textContent?.trim();
+      if (supplierName && supplierName.length < 100) {
+        data.supplier = {
+          name: supplierName,
+          location: document.querySelector('.company-location, [class*="location"], [class*="Location"]')?.textContent?.trim() || 'Chine',
+          verified: document.querySelector('[class*="verified"], [class*="Verified"], [class*="trust"]') !== null
+        };
+      }
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction fournisseur:', e);
     }
 
     // Spécifications
-    data.specifications = {};
-    document.querySelectorAll('.offer-attr-row, .parameter-row').forEach(row => {
-      const cells = row.querySelectorAll('td, .attr-name, .attr-value');
-      if (cells.length >= 2) {
-        const key = cells[0].textContent?.trim();
-        const value = cells[1].textContent?.trim();
-        if (key && value) data.specifications[key] = value;
+    try {
+      data.specifications = {};
+      document.querySelectorAll('.offer-attr-row, .parameter-row, [class*="attr"] tr, [class*="Attr"] tr, [class*="param"] tr').forEach(row => {
+        const cells = row.querySelectorAll('td, .attr-name, .attr-value, th');
+        if (cells.length >= 2) {
+          const key = cells[0].textContent?.trim();
+          const value = cells[1].textContent?.trim();
+          if (key && value && key.length < 50 && value.length < 200) {
+            data.specifications[key] = value;
+          }
+        }
+      });
+    } catch (e) {
+      data.specifications = {};
+      console.warn('[IT Vision] Erreur extraction spécifications:', e);
+    }
+
+    // Extraire poids/dimensions depuis les spécifications
+    let weightKg = 1, lengthCm = 10, widthCm = 10, heightCm = 10;
+    try {
+      const specs = Object.entries(data.specifications || {});
+      for (const [key, value] of specs) {
+        const k = key.toLowerCase();
+        if (k.includes('重量') || k.includes('weight')) {
+          const wm = String(value).match(/(\d+(?:\.\d+)?)\s*(?:kg|千克)/i);
+          if (wm) weightKg = parseFloat(wm[1]);
+          const wg = String(value).match(/(\d+(?:\.\d+)?)\s*(?:g|克)/i);
+          if (wg && !wm) weightKg = parseFloat(wg[1]) / 1000;
+        }
+        if (k.includes('尺寸') || k.includes('dimension') || k.includes('size')) {
+          const dims = String(value).match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
+          if (dims) {
+            lengthCm = parseFloat(dims[1]);
+            widthCm = parseFloat(dims[2]);
+            heightCm = parseFloat(dims[3]);
+          }
+        }
       }
-    });
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction poids/dimensions:', e);
+    }
 
     // Valeurs par défaut
     data.category = 'Catalogue import Chine';
@@ -137,14 +235,15 @@
     data.currency = 'FCFA';
     data.price1688Currency = 'CNY';
     data.exchangeRate = 100;
-    data.weightKg = 1;
-    data.lengthCm = 10;
-    data.widthCm = 10;
-    data.heightCm = 10;
+    data.weightKg = weightKg;
+    data.lengthCm = lengthCm;
+    data.widthCm = widthCm;
+    data.heightCm = heightCm;
     data.features = [
       data.moq && `MOQ: ${data.moq} unités`,
       data.supplier?.name && `Fournisseur: ${data.supplier.name}`,
-      Object.keys(data.specifications).length > 0 && `${Object.keys(data.specifications).length} spécifications`
+      data.priceTiers?.length && `${data.priceTiers.length} paliers de prix`,
+      Object.keys(data.specifications || {}).length > 0 && `${Object.keys(data.specifications).length} spécifications`
     ].filter(Boolean);
 
     console.log('[IT Vision] 1688 extrait:', data);
