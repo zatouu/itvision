@@ -80,6 +80,9 @@ const nextConfig = {
     // Note: do NOT expose server secrets (JWT_SECRET / NEXTAUTH_SECRET) here.
   },
   
+  // Packages serveur exclus du bundling (binaires natifs)
+  serverExternalPackages: ['playwright', 'playwright-core'],
+  
   // Optimisations de sécurité
   poweredByHeader: false, // Masquer le header "Powered by Next.js"
   
