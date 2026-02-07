@@ -178,7 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       weightKg: p.weightKg || 1,
       shopName: p.shopName,
       orders: p.orders,
-      totalRated: p.rating
+      totalRated: p.rating,
+      description: p.description
     };
   };
 

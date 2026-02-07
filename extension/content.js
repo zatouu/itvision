@@ -334,6 +334,39 @@
     });
     if (variants.length > 0) data.variants = variants;
 
+    // Description
+    try {
+      const descSelectors = [
+        '[class*="product-description"]', '[class*="ProductDescription"]',
+        '[class*="detail-desc"]', '[class*="DetailDesc"]',
+        '[data-pl="product-description"]',
+        '.product-overview', '[class*="overview"]',
+        '[class*="specification"] table', '[class*="Specification"]',
+        '#product-description', '.description-content'
+      ];
+      for (const sel of descSelectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const text = el.innerText?.trim();
+          if (text && text.length > 20) {
+            data.description = text.replace(/\n{3,}/g, '\n\n').replace(/\t/g, ' ').slice(0, 2000).trim();
+            break;
+          }
+        }
+      }
+      // Fallback: utiliser les specs comme description
+      if (!data.description) {
+        const specItems = [];
+        document.querySelectorAll('[class*="specification"] tr, [class*="property"] .property-item, [class*="attr"] li').forEach(row => {
+          const text = row.textContent?.trim();
+          if (text && text.length > 3 && text.length < 200) specItems.push(text);
+        });
+        if (specItems.length > 0) data.description = specItems.join('\n');
+      }
+    } catch (e) {
+      console.warn('[IT Vision] Erreur extraction description:', e);
+    }
+
     // Features
     data.features = [
       data.rating && `Note: ${data.rating}/5`,

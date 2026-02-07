@@ -80,6 +80,21 @@ const nextConfig = {
     // Note: do NOT expose server secrets (JWT_SECRET / NEXTAUTH_SECRET) here.
   },
   
+  // Autoriser les images externes (CDN AliExpress / 1688 / Alibaba)
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.alicdn.com' },
+      { protocol: 'https', hostname: '**.aliexpress.com' },
+      { protocol: 'https', hostname: '**.1688.com' },
+      { protocol: 'https', hostname: '**.alibaba.com' },
+      { protocol: 'https', hostname: 'ae*.alicdn.com' },
+      { protocol: 'https', hostname: 'cbu*.alicdn.com' },
+      { protocol: 'https', hostname: 'img.alicdn.com' },
+      { protocol: 'https', hostname: 'gw.alicdn.com' },
+      { protocol: 'http', hostname: '**.alicdn.com' },
+    ],
+  },
+
   // Packages serveur exclus du bundling (binaires natifs)
   serverExternalPackages: ['playwright', 'playwright-core'],
   

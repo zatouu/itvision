@@ -752,11 +752,11 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = preview as NormalizedAliExpressItem
+          const ali = preview as NormalizedAliExpressItem & { description?: string }
           const payload = {
             name: ali.name,
             category: ali.category,
-            description: `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+            description: ali.description || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
             tagline: ali.tagline,
             baseCost: ali.baseCost,
             marginRate: DEFAULT_MARGIN,
@@ -934,11 +934,11 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = it as NormalizedAliExpressItem
+          const ali = it as NormalizedAliExpressItem & { description?: string }
           const payload = {
             name: ali.name,
             category: ali.category,
-            description: `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+            description: ali.description || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
             tagline: ali.tagline,
             baseCost: ali.baseCost,
             marginRate: DEFAULT_MARGIN,
