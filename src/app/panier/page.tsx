@@ -37,6 +37,9 @@ import {
 } from 'lucide-react'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
+import { getServiceFeeTier, calculateCompleteFees } from '@/lib/pricing/tiered-service-fees'
+import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { ServiceFeeTierProgress } from '@/components/ServiceFeeTierProgress'
 import { useToast } from '@/components/ui/Toaster'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
@@ -211,26 +214,42 @@ export default function PanierPage() {
   const transportGlobal = useMemo(() => {
     let totalWeight = 0
     let totalVolume = 0
+    let totalVolumetricWeight = 0
+    
     for (const it of items) {
       const qty = it.qty || 1
       const w = typeof it.unitWeightKg === 'number' ? it.unitWeightKg : (typeof it.weightKg === 'number' ? it.weightKg : 0)
       const v = typeof it.unitVolumeM3 === 'number' ? it.unitVolumeM3 : (typeof it.volumeM3 === 'number' ? it.volumeM3 : 0)
       totalWeight += w * qty
       totalVolume += v * qty
+      
+      // Calcul du poids volumétrique
+      if (it.lengthCm && it.widthCm && it.heightCm && w > 0) {
+        const weightInfo = calculateBilledWeight({
+          actualWeightKg: w,
+          lengthCm: it.lengthCm,
+          widthCm: it.widthCm,
+          heightCm: it.heightCm
+        })
+        totalVolumetricWeight += weightInfo.volumetricWeight * qty
+      }
     }
 
     const selectedMethodId = SHIPPING_CHOICES[shippingMethod]?.methodId || 'air_15'
     const rate = shippingRates[selectedMethodId]
     if (!rate) return 0
 
-    const effectiveWeight = Math.max(totalWeight || 0, 0)
-    const effectiveVolume = Math.max(totalVolume || 0, 0)
+    // Pour le fret aérien, utiliser le max entre poids réel et volumétrique
+    let billedWeight = totalWeight
+    if (rate.billing === 'per_kg') {
+      billedWeight = Math.max(totalWeight, totalVolumetricWeight)
+    }
 
     let billed = 0
     if (rate.billing === 'per_cubic_meter') {
-      billed = effectiveVolume * rate.rate
+      billed = Math.max(totalVolume || 0, 0) * rate.rate
     } else {
-      billed = effectiveWeight * rate.rate
+      billed = Math.max(billedWeight || 0.1, 0.1) * rate.rate
     }
 
     const withMinCharge = typeof rate.minimumCharge === 'number' ? Math.max(billed, rate.minimumCharge) : billed
@@ -240,14 +259,38 @@ export default function PanierPage() {
   const weightSummary = useMemo(() => {
     let totalWeight = 0
     let totalVolume = 0
+    let totalVolumetricWeight = 0
+    let hasVolumetric = false
+    
     for (const it of items) {
       const qty = it.qty || 1
       const w = typeof it.unitWeightKg === 'number' ? it.unitWeightKg : (typeof it.weightKg === 'number' ? it.weightKg : 0)
       const v = typeof it.unitVolumeM3 === 'number' ? it.unitVolumeM3 : (typeof it.volumeM3 === 'number' ? it.volumeM3 : 0)
       totalWeight += w * qty
       totalVolume += v * qty
+      
+      // Calcul du poids volumétrique
+      if (it.lengthCm && it.widthCm && it.heightCm && w > 0) {
+        const weightInfo = calculateBilledWeight({
+          actualWeightKg: w,
+          lengthCm: it.lengthCm,
+          widthCm: it.widthCm,
+          heightCm: it.heightCm
+        })
+        totalVolumetricWeight += weightInfo.volumetricWeight * qty
+        if (weightInfo.billingMethod === 'volumetric') {
+          hasVolumetric = true
+        }
+      }
     }
-    return { totalWeight, totalVolume }
+    
+    return { 
+      totalWeight, 
+      totalVolume, 
+      totalVolumetricWeight,
+      billedWeight: Math.max(totalWeight, totalVolumetricWeight),
+      hasVolumetric 
+    }
   }, [items])
 
   const transportLabel = useMemo(() => {
@@ -587,7 +630,14 @@ export default function PanierPage() {
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-3">
-                    📦 Poids: {weightSummary.totalWeight.toFixed(2)}kg · 📊 Volume: {weightSummary.totalVolume.toFixed(3)}m³ · 📊 Quantité: {breakdown.totalQuantity}
+                    📦 Poids réel: {weightSummary.totalWeight.toFixed(2)}kg
+                    {weightSummary.hasVolumetric && (
+                      <span className="text-amber-600 ml-1">
+                        · 📊 Volumétrique: {weightSummary.totalVolumetricWeight.toFixed(2)}kg
+                        · ⚖️ Facturé: {weightSummary.billedWeight.toFixed(2)}kg
+                      </span>
+                    )}
+                    · � Quantité: {breakdown.totalQuantity}
                   </p>
                 </div>
 
@@ -606,7 +656,7 @@ export default function PanierPage() {
                   </motion.div>
                 )}
 
-                {/* Tarifs progressifs */}
+                {/* Tarifs progressifs - Réduction par quantité */}
                 {breakdown.tier && breakdown.discountAmount > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -616,20 +666,57 @@ export default function PanierPage() {
                     <TrendingDown className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
                       <p className="text-emerald-700 font-semibold">{breakdown.tier.label}</p>
-                      <p className="text-emerald-600 text-xs mt-1">Réduction appliquée: -{formatCurrency(breakdown.discountAmount)}</p>
+                      <p className="text-emerald-600 text-xs mt-1">Réduction volume: -{formatCurrency(breakdown.discountAmount)}</p>
                     </div>
                   </motion.div>
                 )}
 
-                {/* Prices */}
+                {/* Progression B2B - Réduction sur frais de service */}
+                {(() => {
+                  const currentAmount = breakdown.products
+                  const b2bTier = getServiceFeeTier(currentAmount)
+                  return (
+                    <div className="mb-6">
+                      <ServiceFeeTierProgress
+                        currentAmount={currentAmount}
+                        currentFeeRate={b2bTier.feeRate}
+                        variant="compact"
+                      />
+                    </div>
+                  )
+                })()}
+
+                {/* Prices avec décomposition */}
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm text-gray-700">
                     <span>Produits (avec frais)</span>
                     <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
                   </div>
+                  {(() => {
+                    const currentAmount = breakdown.products
+                    const b2bTier = getServiceFeeTier(currentAmount)
+                    const standardFee = Math.round(currentAmount * 0.10)
+                    const actualFee = Math.round(currentAmount * (b2bTier.feeRate / 100))
+                    const savings = standardFee - actualFee
+                    
+                    if (savings > 0) {
+                      return (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-emerald-700 flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold">B2B</span>
+                            Frais de service réduits ({b2bTier.feeRate}%)
+                          </span>
+                          <span className="font-semibold text-emerald-700">
+                            Économie: {formatCurrency(savings)}
+                          </span>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
                   {breakdown.discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-emerald-700 font-semibold">
-                      <span>Réduction progressive ({breakdown.discountPercent}%)</span>
+                      <span>Réduction volume ({breakdown.discountPercent}%)</span>
                       <span>-{formatCurrency(breakdown.discountAmount)}</span>
                     </div>
                   )}
@@ -641,6 +728,9 @@ export default function PanierPage() {
                     <span className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-orange-600" />
                       {transportLabel}
+                      {weightSummary.hasVolumetric && (
+                        <span className="text-xs text-amber-600">(poids volumétrique)</span>
+                      )}
                     </span>
                     <span className="font-semibold">{formatCurrency(transportGlobal)}</span>
                   </div>

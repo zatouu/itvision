@@ -83,6 +83,18 @@ export interface IProduct extends Document {
   // TensorFlow.js Image Search
   imageEmbedding?: number[]      // Vecteur de features MobileNet (1280 dimensions)
   embeddingUpdatedAt?: Date      // Date de dernière mise à jour de l'embedding
+  // Historique des prix fournisseur (surveillance automatique)
+  priceHistory?: Array<{
+    date: Date
+    price1688: number
+    exchangeRate: number
+    changePercent: number
+    source: string // 'auto_check', 'manual_update', 'import'
+  }>
+  // Dernière vérification automatique du prix
+  lastPriceCheckAt?: Date
+  // Alerte prix configurée
+  priceAlertThreshold?: number // % de changement pour alerte (ex: 10 pour 10%)
   createdAt: Date
   updatedAt: Date
 }
@@ -173,9 +185,22 @@ const ProductSchema = new Schema<IProduct>({
   imageEmbedding: {
     type: [Number],
     default: undefined,
-    index: false, // Les embeddings ne sont pas indexés par défaut (trop grands)
+    index: false,
   },
-  embeddingUpdatedAt: { type: Date }
+  embeddingUpdatedAt: { type: Date },
+  // Historique des prix fournisseur
+  priceHistory: {
+    type: [new Schema({
+      date: { type: Date, required: true, default: Date.now },
+      price1688: { type: Number, required: true },
+      exchangeRate: { type: Number, required: true, default: 100 },
+      changePercent: { type: Number, default: 0 },
+      source: { type: String, enum: ['auto_check', 'manual_update', 'import'], default: 'manual_update' }
+    }, { _id: false })],
+    default: []
+  },
+  lastPriceCheckAt: { type: Date },
+  priceAlertThreshold: { type: Number, default: 10 } // 10% par défaut
 }, { timestamps: true })
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)

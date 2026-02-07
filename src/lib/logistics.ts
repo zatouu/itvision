@@ -1,4 +1,5 @@
 import type { IProduct } from './models/Product.validated'
+import { calculateBilledWeight } from './pricing/volumetric-weight'
 
 export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight'
 
@@ -20,6 +21,14 @@ export interface ShippingOptionPricing {
   cost: number
   total: number
   currency: string
+  // Informations sur le calcul du poids (transparence client)
+  weightDetails?: {
+    actualWeight: number
+    volumetricWeight: number
+    billedWeight: number
+    billingMethod: 'actual' | 'volumetric'
+    volumetricRatio?: number // ex: 2.5 si le poids volumétrique est 2.5x le poids réel
+  }
 }
 
 // Taux par défaut pour les frais additionnels (centralisés)
@@ -186,12 +195,29 @@ export const computeProductPricing = (
     : Object.values(shippingRates)
     .map((method): ShippingOptionPricing | null => {
       let billedAmount: number | null = null
+      let weightDetails: ShippingOptionPricing['weightDetails'] | undefined
 
       if (method.billing === 'per_kg') {
-        if (typeof weightKg !== 'number' || weightKg <= 0) return null
+        // Calcul du poids facturable avec prise en compte du poids volumétrique (IATA)
+        const weightInfo = calculateBilledWeight({
+          actualWeightKg: weightKg ?? 0.1,
+          lengthCm: product.lengthCm,
+          widthCm: product.widthCm,
+          heightCm: product.heightCm
+        })
+
         const customRate = resolveOverrideRate(overrides, method.id, 'ratePerKg')
         const rate = typeof customRate === 'number' ? customRate : method.rate
-        billedAmount = roundCurrency(weightKg * rate)
+        billedAmount = roundCurrency(weightInfo.billedWeight * rate)
+
+        // Stocker les détails de calcul pour transparence
+        weightDetails = {
+          actualWeight: weightInfo.actualWeight,
+          volumetricWeight: weightInfo.volumetricWeight,
+          billedWeight: weightInfo.billedWeight,
+          billingMethod: weightInfo.billingMethod,
+          volumetricRatio: weightInfo.volumetricWeight > 0 ? weightInfo.volumetricWeight / weightInfo.actualWeight : undefined
+        }
       } else {
         const vol = volumeM3
         if (typeof vol !== 'number' || vol <= 0) return null
@@ -219,7 +245,8 @@ export const computeProductPricing = (
         durationDays: method.durationDays,
         cost: cost ?? 0,
         total: total ?? cost ?? 0,
-        currency
+        currency,
+        weightDetails
       }
     })
     .filter((option): option is ShippingOptionPricing => option !== null)

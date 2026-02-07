@@ -227,6 +227,13 @@ const ensureMinimumWeight = (weight?: number | null) => {
   return 1
 }
 
+function isTaobaoUrl(rawUrl: string): boolean {
+  const url = safeUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return host.endsWith('taobao.com') || host.endsWith('tmall.com')
+}
+
 function safeUrl(raw: string) {
   try {
     return new URL(raw)
@@ -627,6 +634,20 @@ export async function GET(request: NextRequest) {
   const rawUrl = (searchParams.get('url') || '').trim()
   if (rawUrl) {
     try {
+      // Détection Taobao/Tmall - import non supporté automatiquement
+      if (isTaobaoUrl(rawUrl)) {
+        return NextResponse.json({
+          success: false,
+          code: 'TAOBAO_NOT_SUPPORTED',
+          error: 'Import automatique depuis Taobao/Tmall temporairement indisponible.',
+          message: 'Solutions alternatives : 1) Utilisez 1688.com (mêmes fournisseurs, prix B2B meilleurs), 2) Import manuel via l\'admin (coller nom, prix et images)',
+          alternatives: [
+            { platform: '1688', url: `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(rawUrl.split('/').pop() || '')}` },
+            { platform: 'manual', description: 'Import manuel via /admin/import-produits' }
+          ]
+        }, { status: 400 })
+      }
+      
       if (is1688Url(rawUrl)) {
         const preview = await buildPreviewFrom1688Url(rawUrl)
         return NextResponse.json({ success: true, item: preview })
@@ -708,6 +729,17 @@ export async function POST(request: NextRequest) {
 
       for (const url of urls) {
         try {
+          // Détection Taobao/Tmail dans le bulk import
+          if (isTaobaoUrl(url)) {
+            results.push({
+              url,
+              ok: false,
+              error: 'Import Taobao/Tmall non supporté automatiquement. Utilisez 1688.com ou import manuel.'
+            })
+            failedCount++
+            continue
+          }
+          
           let preview: NormalizedAliExpressItem | Import1688Preview
           if (is1688Url(url)) {
             preview = await buildPreviewFrom1688Url(url)
@@ -894,6 +926,16 @@ export async function POST(request: NextRequest) {
             continue
           }
 
+          if (isTaobaoUrl(productUrl)) {
+            results.push({
+              productUrl,
+              ok: false,
+              error: 'Import Taobao/Tmall non supporté automatiquement. Utilisez 1688.com ou import manuel.'
+            })
+            failedCount++
+            continue
+          }
+
           if (is1688Url(productUrl)) {
             const preview = it as Import1688Preview
             const payload: Record<string, unknown> = {
@@ -1013,6 +1055,20 @@ export async function POST(request: NextRequest) {
     const item = body?.item as (NormalizedAliExpressItem | Import1688Preview) | undefined
     if (!item || !item.name || !item.productUrl) {
       return NextResponse.json({ success: false, error: 'Données import invalides' }, { status: 400 })
+    }
+
+    // Détection Taobao pour import unique
+    if (isTaobaoUrl(item.productUrl)) {
+      return NextResponse.json({
+        success: false,
+        code: 'TAOBAO_NOT_SUPPORTED',
+        error: 'Import automatique depuis Taobao/Tmall temporairement indisponible.',
+        message: 'Solutions alternatives : 1) Utilisez 1688.com (mêmes fournisseurs, prix B2B meilleurs), 2) Import manuel via l\'admin (coller nom, prix et images)',
+        alternatives: [
+          { platform: '1688', url: `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(item.name)}` },
+          { platform: 'manual', description: 'Import manuel via /admin/import-produits' }
+        ]
+      }, { status: 400 })
     }
 
     if (is1688Url(item.productUrl)) {

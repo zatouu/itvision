@@ -16,7 +16,7 @@ services:
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
-      - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
+      - ./docker/mongodb/init-safe.js:/docker-entrypoint-initdb.d/init.js:ro
     command: ["mongod", "--bind_ip_all"]
     networks:
       - itvision-network

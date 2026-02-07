@@ -26,7 +26,12 @@ import {
   Truck,
   DollarSign,
   Share2,
-  Copy
+  Copy,
+  MessageCircle,
+  Briefcase,
+  TrendingUp,
+  Gift,
+  Megaphone
 } from 'lucide-react'
 import GroupOrderChat, { saveGroupChatAccess } from '@/components/group-orders/GroupOrderChat'
 
@@ -175,6 +180,53 @@ export default function GroupOrderDetailPage() {
     navigator.clipboard.writeText(window.location.href)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const shareOnWhatsApp = () => {
+    if (!group) return
+    const text = encodeURIComponent(
+      `🔥 *Achat Groupé - ${group.product.name}*\n\n` +
+      `💰 Prix actuel: ${formatCurrency(group.currentUnitPrice)} / unité\n` +
+      `📦 Quantité: ${group.currentQty} / ${group.targetQty} réservées\n` +
+      `${group.currentQty >= group.minQty ? '✅ *Minimum atteint !*\n' : ''}` +
+      `⏰ ${daysLeft > 0 ? `${daysLeft} jours restants` : 'Derniers jours !'}\n\n` +
+      `💡 Plus on est nombreux, moins c'est cher !\n` +
+      `Rejoins-nous ici: ${window.location.href}`
+    )
+    window.open(`https://wa.me/?text=${text}`, '_blank')
+  }
+
+  const shareAsStatus = () => {
+    if (!group) return
+    const text = encodeURIComponent(
+      `🔥 *Achat Groupé en cours !*\n\n` +
+      `📦 ${group.product.name}\n` +
+      `💰 À partir de ${formatCurrency(group.currentUnitPrice)}\n` +
+      `👥 Déjà ${group.participants.length} participant(s)\n` +
+      `⏰ ${daysLeft > 0 ? `${daysLeft} jours restants` : 'Derniers jours !'}\n\n` +
+      `👉 Rejoins-nous: ${window.location.href}`
+    )
+    window.open(`https://wa.me/?text=${text}`, '_blank')
+  }
+
+  const calculateSavingsForNewParticipant = (qty: number): number => {
+    if (!group) return 0
+    const currentTotal = group.currentQty
+    const newTotal = currentTotal + qty
+    
+    // Trouver le nouveau palier
+    const sortedTiers = [...group.priceTiers].sort((a, b) => a.minQty - b.minQty)
+    let newTier = sortedTiers[0]
+    for (const tier of sortedTiers) {
+      if (newTotal >= tier.minQty) {
+        newTier = tier
+      }
+    }
+    
+    const currentSavings = (group.product.basePrice - group.currentUnitPrice) * qty
+    const potentialNewSavings = newTier ? (group.product.basePrice - newTier.price) * qty : 0
+    
+    return potentialNewSavings > currentSavings ? potentialNewSavings - currentSavings : 0
   }
 
   const calculatePriceForQty = (qty: number): number => {
@@ -505,10 +557,32 @@ export default function GroupOrderDetailPage() {
                   className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2"
                 >
                   {copied ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copié !' : 'Copier le lien'}
+                  {copied ? 'Copié !' : 'Copier'}
                 </button>
-                <button className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition">
-                  <Share2 className="w-5 h-5" />
+                <button
+                  onClick={shareOnWhatsApp}
+                  className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Partager
+                </button>
+              </div>
+              
+              {/* Encart incitatif pour partager */}
+              <div className="mt-4 p-3 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-lg border border-emerald-200">
+                <p className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
+                  <Megaphone className="w-4 h-4" />
+                  Plus on est nombreux, moins c'est cher !
+                </p>
+                <p className="text-xs text-emerald-700 mt-1">
+                  Partage cet achat groupé avec tes amis ou collègues pour débloquer des prix encore plus bas.
+                </p>
+                <button
+                  onClick={shareAsStatus}
+                  className="mt-2 w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
+                >
+                  <Gift className="w-4 h-4" />
+                  Publier en statut WhatsApp
                 </button>
               </div>
               
@@ -637,19 +711,66 @@ export default function GroupOrderDetailPage() {
                   </div>
                 </div>
                 
-                {/* Estimation */}
+                {/* Estimation avec incitation */}
                 <div className="p-4 bg-emerald-50 rounded-xl space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Prix unitaire estimé</span>
                     <span className="font-semibold">{formatCurrency(estimatedPrice)}</span>
                   </div>
-                  <div className="flex justify-between text-lg">
+                  
+                  {/* Calcul de l'économie potentielle si nouveaux participants */}
+                  {(() => {
+                    const additionalSavings = calculateSavingsForNewParticipant(joinForm.qty)
+                    if (additionalSavings > 0) {
+                      return (
+                        <div className="flex items-center gap-2 text-sm text-emerald-700 bg-white p-2 rounded-lg">
+                          <TrendingUp className="w-4 h-4" />
+                          <span>
+                            Invite des amis pour économiser encore 
+                            <strong className="ml-1">{formatCurrency(additionalSavings)}</strong> de plus !
+                          </span>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+                  
+                  <div className="border-t border-emerald-200 pt-2 flex justify-between text-lg">
                     <span className="font-semibold text-gray-900">Total estimé</span>
                     <span className="font-bold text-emerald-600">{formatCurrency(estimatedPrice * joinForm.qty)}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    * Le prix final peut varier selon le nombre total de participants
+                  <p className="text-xs text-gray-500">
+                    * Le prix final peut baisser si plus de personnes rejoignent
                   </p>
+                </div>
+                
+                {/* Section Entrepreneur / Bulk */}
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Vous êtes entrepreneur ?
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Cet achat groupé est idéal pour les revendeurs. Le prix actuel vous permet 
+                    une marge attractive pour la revente. Plus vous prenez de quantité, plus 
+                    votre marge augmente !
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setJoinForm({ ...joinForm, qty: Math.max(10, joinForm.qty) })}
+                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition"
+                    >
+                      Je prends 10 unités
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setJoinForm({ ...joinForm, qty: Math.max(20, joinForm.qty) })}
+                      className="flex-1 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm transition"
+                    >
+                      Je prends 20 unités
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex gap-3 pt-4">

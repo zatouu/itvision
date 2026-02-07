@@ -64,8 +64,13 @@ export default async function CheckoutPage({ params }: PageProps) {
             name: standardOrder.clientName,
             phone: standardOrder.clientPhone,
             amount: standardOrder.total,
-            reference: standardOrder.orderId, // Ici la ref est l'ID commande
-            status: standardOrder.paymentStatus === 'completed' ? 'paid' : 'pending'
+            reference: standardOrder.orderId,
+            status: standardOrder.paymentStatus === 'completed' ? 'paid' : 'pending',
+            // Nouveaux champs pour décomposition prix
+            fees: standardOrder.fees,
+            shipping: standardOrder.shipping,
+            subtotal: standardOrder.subtotal,
+            subtotalBeforeDiscounts: standardOrder.subtotalBeforeDiscounts
         }
 
         const itemsCount = standardOrder.items.length

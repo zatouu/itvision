@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import ProductDetailExperience from '@/components/ProductDetailExperience'
+import ProductDetail1688 from '@/components/ProductDetail1688'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
@@ -65,10 +65,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const similar = formatSimilarProducts(similarRaw, shippingRates)
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="pt-[120px] bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-950">
-        <ProductDetailExperience product={detail} similar={similar} />
+      <main className="pt-[120px]">
+        <ProductDetail1688 product={detail} similar={similar} />
       </main>
       <Footer />
     </div>

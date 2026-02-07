@@ -76,7 +76,19 @@ interface Order {
   clientEmail?: string
   items: any[]
   subtotal: number
-  shipping: { method: string; totalCost: number; totalWeight: number; totalVolume: number }
+  subtotalBeforeDiscounts?: number
+  shipping: { 
+    method: string; 
+    totalCost: number; 
+    totalWeight: number; 
+    totalVolume: number;
+    weightDetails?: {
+      actualWeight: number
+      volumetricWeight: number
+      billedWeight: number
+      billingMethod: 'actual' | 'volumetric'
+    }
+  }
   total: number
   status: string
   paymentStatus: string
@@ -86,6 +98,22 @@ interface Order {
   currency: string
   notes?: string
   timeline?: { action: string; date: string; by: string }[]
+  // Nouveaux champs pour décomposition
+  fees?: {
+    supplierCost: number
+    serviceFeeRate: number
+    serviceFeeStandardRate: number
+    serviceFeeAmount: number
+    serviceFeeSavings: number
+    insuranceRate: number
+    insuranceAmount: number
+    totalFees: number
+    quantityDiscount?: {
+      percent: number
+      amount: number
+      label: string
+    }
+  }
 }
 
 export default function AdminOrdersPage() {
@@ -301,9 +329,16 @@ export default function AdminOrdersPage() {
            </div>
 
            <div class="total">
-             <p>Sous-total: ${formatCurrency(order.subtotal)}</p>
-             <p>Transport: ${formatCurrency(order.shipping.totalCost)}</p>
-             <p>TOTAL: ${formatCurrency(order.total)}</p>
+             ${order.fees ? `
+             <p style="font-size:0.9em;color:#666;margin:4px 0">Fournisseur: ${formatCurrency(order.fees.supplierCost)}</p>
+             <p style="font-size:0.9em;color:#666;margin:4px 0">Frais (${order.fees.serviceFeeRate}%): ${formatCurrency(order.fees.serviceFeeAmount)}</p>
+             ${order.fees.serviceFeeSavings > 0 ? `<p style="font-size:0.85em;color:#059669;margin:4px 0">Économie B2B: -${formatCurrency(order.fees.serviceFeeSavings)}</p>` : ''}
+             <p style="font-size:0.9em;color:#666;margin:4px 0">Assurance (${order.fees.insuranceRate}%): ${formatCurrency(order.fees.insuranceAmount)}</p>
+             ${order.fees.quantityDiscount?.amount ? `<p style="font-size:0.85em;color:#059669;margin:4px 0">Réduction volume: -${formatCurrency(order.fees.quantityDiscount.amount)}</p>` : ''}
+             ` : ''}
+             <p style="font-size:0.9em;color:#666;margin:4px 0">Sous-total: ${formatCurrency(order.subtotal)}</p>
+             <p style="font-size:0.9em;color:#666;margin:4px 0">Transport: ${formatCurrency(order.shipping.totalCost)}${order.shipping.weightDetails?.billingMethod === 'volumetric' ? ' (volumétrique)' : ''}</p>
+             <p style="font-size:1.2em;color:#000;margin-top:10px">TOTAL: ${formatCurrency(order.total)}</p>
            </div>
            
            <script>window.print();</script>
@@ -805,20 +840,69 @@ export default function AdminOrdersPage() {
                   </div>
                 </div>
 
-                {/* Totaux */}
+                {/* Totaux avec décomposition */}
                 <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-4 rounded-lg space-y-2">
+                  {selectedOrder.fees && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Coût fournisseur:</span>
+                        <span className="font-medium">{formatCurrency(selectedOrder.fees.supplierCost)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Frais de service ({selectedOrder.fees.serviceFeeRate}%):</span>
+                        <span className="font-medium">{formatCurrency(selectedOrder.fees.serviceFeeAmount)}</span>
+                      </div>
+                      {selectedOrder.fees.serviceFeeSavings > 0 && (
+                        <div className="flex justify-between text-sm text-emerald-600">
+                          <span>Économie B2B:</span>
+                          <span className="font-medium">-{formatCurrency(selectedOrder.fees.serviceFeeSavings)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Assurance ({selectedOrder.fees.insuranceRate}%):</span>
+                        <span className="font-medium">{formatCurrency(selectedOrder.fees.insuranceAmount)}</span>
+                      </div>
+                      {selectedOrder.fees.quantityDiscount && selectedOrder.fees.quantityDiscount.amount > 0 && (
+                        <div className="flex justify-between text-sm text-emerald-600">
+                          <span>Réduction volume ({selectedOrder.fees.quantityDiscount.percent}%):</span>
+                          <span className="font-medium">-{formatCurrency(selectedOrder.fees.quantityDiscount.amount)}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-gray-300 my-2" />
+                    </>
+                  )}
+                  
                   <div className="flex justify-between text-sm">
-                    <span>Sous-total:</span>
+                    <span className="font-semibold">Sous-total:</span>
                     <span className="font-semibold">{formatCurrency(selectedOrder.subtotal)}</span>
                   </div>
+                  
                   <div className="flex justify-between text-sm">
-                    <span>Transport ({shippingLabels[selectedOrder.shipping.method] || selectedOrder.shipping.method}):</span>
+                    <span className="flex items-center gap-2">
+                      Transport ({shippingLabels[selectedOrder.shipping.method] || selectedOrder.shipping.method})
+                      {selectedOrder.shipping.weightDetails?.billingMethod === 'volumetric' && (
+                        <span className="text-xs text-amber-600">(volumétrique)</span>
+                      )}
+                    </span>
                     <span className="font-semibold">{formatCurrency(selectedOrder.shipping.totalCost)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Poids / Volume:</span>
-                    <span>{(selectedOrder.shipping.totalWeight || 0).toFixed(2)}kg / {(selectedOrder.shipping.totalVolume || 0).toFixed(3)}m³</span>
+                  
+                  {/* Détails poids */}
+                  <div className="text-xs text-gray-500 space-y-1 pt-1">
+                    {selectedOrder.shipping.weightDetails?.actualWeight != null && selectedOrder.shipping.weightDetails.actualWeight > 0 && (
+                      <p>Poids réel: {selectedOrder.shipping.weightDetails.actualWeight.toFixed(2)}kg</p>
+                    )}
+                    {selectedOrder.shipping.weightDetails?.volumetricWeight != null && selectedOrder.shipping.weightDetails.volumetricWeight > 0 && (
+                      <p>Poids volumétrique: {selectedOrder.shipping.weightDetails.volumetricWeight.toFixed(2)}kg</p>
+                    )}
+                    {selectedOrder.shipping.weightDetails?.billedWeight != null && selectedOrder.shipping.weightDetails.billedWeight > 0 && (
+                      <p className="font-medium text-gray-600">Poids facturé: {selectedOrder.shipping.weightDetails.billedWeight.toFixed(2)}kg</p>
+                    )}
+                    {selectedOrder.shipping.totalVolume > 0 && (
+                      <p>Volume: {selectedOrder.shipping.totalVolume.toFixed(4)}m³</p>
+                    )}
                   </div>
+                  
                   <div className="flex justify-between text-lg font-bold border-t pt-2">
                     <span>Total:</span>
                     <span className="text-transparent bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text">{formatCurrency(selectedOrder.total)}</span>

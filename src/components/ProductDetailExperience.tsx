@@ -845,7 +845,7 @@ Merci de me recontacter.`
       entries.push({ label: 'Poids net (produit)', value: `${weights.netWeightKg.toFixed(2)} kg` })
     }
     if (weights?.grossWeightKg) {
-      entries.push({ label: 'Poids brut (avec emballage)', value: `${weights.grossWeightKg.toFixed(2)} kg` })
+          entries.push({ label: 'Poids brut (avec emballage)', value: `${weights.grossWeightKg.toFixed(2)} kg` })
     } else if (product.logistics.weightKg && !weights?.netWeightKg) {
       // Fallback legacy
       entries.push({ label: 'Poids', value: `${product.logistics.weightKg.toFixed(2)} kg` })

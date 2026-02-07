@@ -8,7 +8,10 @@ import SessionProviderClient from '@/components/SessionProviderClient'
 const inter = Inter({ subsets: ['latin'] })
 
 export const viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 }
 
 export const metadata: Metadata = {
@@ -34,21 +37,32 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const themeScript = `(() => {
+  const themeScript = `(function() {
     try {
-      const stored = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'dark';
-      const resolved = theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
-      const root = document.documentElement;
+      var stored = localStorage.getItem('theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var theme = stored || 'system';
+      var resolved = theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
+      var root = document.documentElement;
+      var body = document.body;
+      
       if (resolved === 'dark') {
         root.classList.add('dark');
         root.style.colorScheme = 'dark';
+        body.style.backgroundColor = '#0b0f14';
+        body.style.color = '#e5e7eb';
       } else {
         root.classList.remove('dark');
         root.style.colorScheme = 'light';
+        body.style.backgroundColor = '#ffffff';
+        body.style.color = '#171717';
       }
-    } catch (e) {}
+      
+      // Marquer comme initialisé pour activer les styles dark
+      root.classList.add('theme-initialized');
+    } catch (e) {
+      document.documentElement.classList.add('theme-initialized');
+    }
   })();`
 
   return (
@@ -56,7 +70,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${inter.className} bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100`}>
+      <body className={`${inter.className}`} style={{ backgroundColor: '#ffffff', color: '#171717' }}>
         <SessionProviderClient>
           <PageVisitTracker />
           {children}

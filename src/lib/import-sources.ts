@@ -3,7 +3,7 @@
  * Permet de basculer facilement entre RapidAPI, Apify, scraping direct, etc.
  */
 
-export type ImportSource = 'rapidapi' | 'apify' | 'scraperapi' | 'direct' | 'affiliate'
+export type ImportSource = 'rapidapi' | 'apify' | 'scraperapi' | 'direct' | 'affiliate' | 'browser'
 
 export interface ImportConfig {
   source: ImportSource
@@ -315,6 +315,93 @@ export async function importFromAffiliateAPI(
 }
 
 /**
+ * Import depuis navigateur (Playwright)
+ * Scraping robuste avec anti-detection
+ */
+export async function importFromBrowser(
+  keyword: string,
+  limit: number,
+  config: ImportConfig
+): Promise<ProductSearchResult> {
+  // Le scraping navigateur fonctionne par URL, pas par keyword
+  // On utilise ici pour re-scraper des URLs spécifiques
+  const { BrowserScraper } = await import('./browser-scraper')
+  
+  const urls = config.options?.urls || []
+  if (urls.length === 0) {
+    throw new Error('importFromBrowser nécessite config.options.urls (array d\'URLs)')
+  }
+
+  const scraper = new BrowserScraper({
+    headless: config.options?.headless ?? true,
+    proxy: config.options?.proxy,
+  })
+
+  const items: ImportItem[] = []
+
+  try {
+    await scraper.init()
+
+    for (const url of urls.slice(0, limit)) {
+      try {
+        let result
+        if (url.includes('1688.com')) {
+          result = await scraper.scrape1688(url)
+        } else if (url.includes('aliexpress.com')) {
+          result = await scraper.scrapeAliExpress(url)
+        } else {
+          continue
+        }
+
+        if (result.success && result.data) {
+          const data = result.data
+          const is1688 = url.includes('1688.com')
+          
+          const item: ImportItem = {
+            name: data.name,
+            productUrl: data.productUrl,
+            image: data.image,
+            gallery: data.gallery || [],
+            currency: 'FCFA',
+            features: data.features || [],
+            category: data.category || 'Catalogue import Chine',
+            tagline: data.tagline || 'Import navigateur',
+            availabilityNote: is1688 
+              ? `Import 1688 navigateur${(data as any).moq ? ` • MOQ: ${(data as any).moq}` : ''}`
+              : `Import AliExpress navigateur${(data as any).rating ? ` • ${(data as any).rating}/5` : ''}`,
+            shopName: is1688 ? (data as any).supplier?.name : (data as any).shopName,
+            orders: (data as any).orders,
+            totalRated: (data as any).totalRated,
+          }
+
+          // Prix
+          if (is1688 && (data as any).price1688) {
+            const rate = (data as any).exchangeRate || 100
+            item.baseCost = Math.round((data as any).price1688 * rate)
+            item.price = item.baseCost
+          } else if ((data as any).price) {
+            item.baseCost = Math.round((data as any).price * 620) // USD -> FCFA
+            item.price = item.baseCost
+          }
+
+          items.push(item)
+        }
+      } catch (error) {
+        console.error(`Browser scraping failed for ${url}:`, error)
+      }
+    }
+
+    return {
+      items,
+      total: items.length,
+      hasMore: false,
+    }
+  } finally {
+    await scraper.close()
+  }
+}
+
+/**
  * Fonction principale qui route vers la bonne source
  */
 export async function searchProducts(
@@ -331,6 +418,8 @@ export async function searchProducts(
       return importFromScraperAPI(keyword, limit, config)
     case 'affiliate':
       return importFromAffiliateAPI(keyword, limit, config)
+    case 'browser':
+      return importFromBrowser(keyword, limit, config)
     default:
       throw new Error(`Source d'import non supportée: ${config.source}`)
   }

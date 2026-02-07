@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { connectDB } from '@/lib/db'
-import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
@@ -63,41 +63,15 @@ export async function POST(req: NextRequest) {
     const trackingToken = crypto.randomBytes(32).toString('base64url')
     const trackingAccessTokenHash = hashTrackingToken(trackingToken)
 
-    // Calculer les totaux
-    let subtotal = 0 // Produits avec frais inclus
-    let totalWeight = 0
-    let totalVolume = 0
-    let totalQuantity = 0
-
-    for (const item of cart) {
-      if (!item.id || typeof item.price !== 'number') continue
-      const qty = item.qty || 1
-      subtotal += item.price * qty
-      totalQuantity += qty
-      
-      // Accumuler poids/volume
-      if (item.unitWeightKg) totalWeight += item.unitWeightKg * qty
-      if (item.unitVolumeM3) totalVolume += item.unitVolumeM3 * qty
-    }
-
-    // Validation: quantité minimale
-    if (totalQuantity < 5) {
-      return NextResponse.json(
-        { success: false, error: `Quantité minimale: 5 produits (actuellement ${totalQuantity})` },
-        { status: 400 }
-      )
-    }
-
-    // Calculer le transport global basé sur la méthode de livraison
-    // Le client envoie des identifiants courts (ex: 'express_3j', 'air_15j', 'maritime_60j')
-    const method = shippingMethod || 'air_15j'
-
+    // Mapping des méthodes de livraison
     const methodMap: Record<string, ShippingMethodId> = {
       express_3j: 'air_express',
       air_15j: 'air_15',
       maritime_60j: 'sea_freight'
     }
 
+    // Calculer les totaux avec le nouveau calculateur complet
+    const method = shippingMethod || 'air_15j'
     const internalMethod = methodMap[method as string] || 'air_15'
     const shippingRates = getConfiguredShippingRates()
     const rate: ShippingRate | undefined = shippingRates[internalMethod]
@@ -109,22 +83,49 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    let transportCost = 0
-    // Appliquer le poids minimum via minimumCharge plus bas, pas de forçage physique ici
-    const effectiveWeight = Math.max(totalWeight || 0, 0)
-    const effectiveVolume = Math.max(totalVolume || 0, 0)
+    // Préparer les items pour le calculateur
+    const calculatorItems = cart.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      price1688: item.price1688,
+      qty: item.qty || 1,
+      weightKg: item.unitWeightKg || item.weightKg,
+      lengthCm: item.lengthCm,
+      widthCm: item.widthCm,
+      heightCm: item.heightCm,
+      volumeM3: item.unitVolumeM3 || item.volumeM3
+    }))
 
-    if (rate.billing === 'per_kg') {
-      transportCost = Math.round(effectiveWeight * rate.rate)
-    } else {
-      transportCost = Math.round(effectiveVolume * rate.rate)
+    // Calcul complet
+    const calculation = await calculateCartTotal(
+      calculatorItems,
+      internalMethod,
+      {
+        rate: rate.rate,
+        minimumCharge: rate.minimumCharge,
+        label: rate.label
+      }
+    )
+
+    // Vérification quantité minimale
+    if (calculation.totalQuantity < 5) {
+      return NextResponse.json(
+        { success: false, error: `Quantité minimale: 5 produits (actuellement ${calculation.totalQuantity})` },
+        { status: 400 }
+      )
     }
-    if (typeof rate.minimumCharge === 'number') transportCost = Math.max(transportCost, rate.minimumCharge)
 
-    // Appliquer les tarifs progressifs selon la quantité
-    const pricingTier = applyTierDiscount(subtotal, totalQuantity)
-    const finalSubtotal = pricingTier.finalPrice
-    const total = finalSubtotal + transportCost
+    // Extraire les valeurs calculées
+    const {
+      fees,
+      subtotalBeforeDiscounts,
+      quantityDiscount,
+      subtotal,
+      shipping,
+      total,
+      totalQuantity
+    } = calculation
 
     // Se connecter à MongoDB et sauvegarder la commande
     await connectDB()
@@ -152,19 +153,42 @@ export async function POST(req: NextRequest) {
         shipping: item.shipping
       })),
       
+      // Nouvelle décomposition des frais
+      fees: {
+        supplierCost: fees.supplierCost,
+        serviceFeeRate: fees.serviceFeeRate,
+        serviceFeeStandardRate: fees.serviceFeeStandardRate,
+        serviceFeeAmount: fees.serviceFeeAmount,
+        serviceFeeSavings: fees.serviceFeeSavings,
+        insuranceRate: fees.insuranceRate,
+        insuranceAmount: fees.insuranceAmount,
+        totalFees: fees.totalFees,
+        quantityDiscount: quantityDiscount && quantityDiscount.amount > 0 ? {
+          percent: quantityDiscount.percent,
+          amount: quantityDiscount.amount,
+          label: quantityDiscount.tier?.label || `Réduction ${quantityDiscount.percent}%`
+        } : undefined
+      },
+      subtotalBeforeDiscounts,
       subtotal,
       shipping: {
         method,
-        totalCost: transportCost,
+        totalCost: shipping?.cost || 0,
         currency: 'FCFA',
-        totalWeight,
-        totalVolume
+        totalWeight: shipping?.actualWeight || 0,
+        totalVolume: cart.reduce((sum: number, item: any) => sum + ((item.unitVolumeM3 || item.volumeM3 || 0) * (item.qty || 1)), 0),
+        weightDetails: shipping ? {
+          actualWeight: shipping.actualWeight,
+          volumetricWeight: shipping.volumetricWeight,
+          billedWeight: shipping.billedWeight,
+          billingMethod: shipping.billingMethod
+        } : undefined
       },
       total,
       
       address: {
         street: address.street,
-        city: address.city || address.neighborhood || address.region, // Map region/neighborhood for generic address object
+        city: address.city || address.neighborhood || address.region,
         postalCode: address.postalCode || address.department,
         country: address.country || 'Sénégal',
         notes: address.additionalInfo || address.notes
@@ -183,12 +207,83 @@ export async function POST(req: NextRequest) {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
       const trackingUrl = `${baseUrl}/commandes/${encodeURIComponent(orderId)}?token=${encodeURIComponent(trackingToken)}`
       const subject = `Votre commande ${orderId} - lien de suivi`
+      
+      // Décomposition des prix pour l'email
+      const hasVolumetric = shipping?.billingMethod === 'volumetric'
+      const volumetricNote = hasVolumetric 
+        ? `<p style="color:#d97706;font-size:12px;margin:4px 0">* Transport calculé sur poids volumétrique (${shipping?.billedWeight?.toFixed(2)}kg vs ${shipping?.actualWeight?.toFixed(2)}kg réels)</p>` 
+        : ''
+      
+      const b2bSavingsNote = fees.serviceFeeSavings > 0
+        ? `<p style="color:#059669;font-size:12px;margin:4px 0">* Économie B2B: ${fees.serviceFeeSavings.toLocaleString('fr-FR')} FCFA (frais réduits ${fees.serviceFeeStandardRate}% → ${fees.serviceFeeRate}%)</p>`
+        : ''
+      
+      const quantityDiscountNote = quantityDiscount?.amount && quantityDiscount.amount > 0
+        ? `<p style="color:#059669;font-size:12px;margin:4px 0">* Réduction volume ${quantityDiscount.percent}%: -${quantityDiscount.amount.toLocaleString('fr-FR')} FCFA</p>`
+        : ''
+      
       const html = `
-        <div style="font-family:Arial,sans-serif;line-height:1.5">
-          <h2 style="margin:0 0 8px">Commande confirmée</h2>
-          <p style="margin:0 0 12px">Merci ${String(name || '').trim() || ''}. Voici votre lien de suivi (gardez-le précieusement) :</p>
-          <p style="margin:0 0 16px"><a href="${trackingUrl}">${trackingUrl}</a></p>
-          <p style="margin:0;color:#555">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+        <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:0 auto">
+          <div style="background:linear-gradient(135deg,#10b981,#3b82f6);padding:24px;border-radius:12px 12px 0 0;text-align:center">
+            <h2 style="color:white;margin:0;font-size:24px">Commande Confirmée</h2>
+            <p style="color:white/80;margin:8px 0 0">Merci pour votre confiance ${String(name || '').trim() || ''} !</p>
+          </div>
+          
+          <div style="background:#f8fafc;padding:24px;border:1px solid #e2e8f0;border-top:none">
+            <p style="color:#64748b;font-size:14px;margin:0 0 16px">Voici le détail de votre commande et votre lien de suivi (gardez-le précieusement) :</p>
+            
+            <div style="background:white;padding:20px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:20px">
+              <h3 style="color:#1e293b;margin:0 0 16px;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Décomposition du Prix</h3>
+              
+              <table style="width:100%;border-collapse:collapse;font-size:14px">
+                <tr>
+                  <td style="padding:8px 0;color:#64748b">Coût fournisseur</td>
+                  <td style="padding:8px 0;text-align:right;font-weight:500">${fees.supplierCost.toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b">Frais de service (${fees.serviceFeeRate}%)</td>
+                  <td style="padding:8px 0;text-align:right;font-weight:500">${fees.serviceFeeAmount.toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b">Assurance (${fees.insuranceRate}%)</td>
+                  <td style="padding:8px 0;text-align:right;font-weight:500">${fees.insuranceAmount.toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+                ${quantityDiscount?.amount && quantityDiscount.amount > 0 ? `
+                <tr style="color:#059669">
+                  <td style="padding:8px 0">Réduction volume (${quantityDiscount.percent}%)</td>
+                  <td style="padding:8px 0;text-align:right;font-weight:500">-${quantityDiscount.amount.toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+                ` : ''}
+                <tr style="border-top:2px solid #e2e8f0">
+                  <td style="padding:12px 0 8px;color:#64748b;font-weight:600">Sous-total</td>
+                  <td style="padding:12px 0 8px;text-align:right;font-weight:600">${subtotal.toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b">Transport${hasVolumetric ? ' *' : ''}</td>
+                  <td style="padding:8px 0;text-align:right;font-weight:500">${(shipping?.cost || 0).toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+                <tr style="background:#f0fdf4;border-top:2px solid #22c55e">
+                  <td style="padding:16px 8px;color:#166534;font-weight:700;font-size:18px">TOTAL</td>
+                  <td style="padding:16px 8px;text-align:right;color:#166534;font-weight:700;font-size:18px">${total.toLocaleString('fr-FR')} FCFA</td>
+                </tr>
+              </table>
+              
+              ${b2bSavingsNote}
+              ${volumetricNote}
+              ${quantityDiscountNote}
+            </div>
+            
+            <div style="background:#eff6ff;padding:16px;border-radius:8px;border:1px solid #bfdbfe;text-align:center">
+              <p style="color:#1e40af;font-weight:600;margin:0 0 12px">Votre lien de suivi</p>
+              <a href="${trackingUrl}" style="display:inline-block;background:#3b82f6;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:12px">Suivre ma commande</a>
+              <p style="color:#64748b;font-size:12px;margin:0;word-break:break-all">${trackingUrl}</p>
+            </div>
+            
+            <div style="margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0">
+              <p style="color:#94a3b8;font-size:12px;margin:0">Commande: <span style="font-family:monospace;color:#64748b">${orderId}</span></p>
+              <p style="color:#94a3b8;font-size:12px;margin:8px 0 0">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+            </div>
+          </div>
         </div>
       `.trim()
 
@@ -204,7 +299,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Enregistrer chaque produit dans la comptabilité (asynchrone, n'attend pas)
-    const accountingEntries = []
+    const transportCost = shipping?.cost || 0
+    const accountingEntries: any[] = []
     Promise.all(
       cart.map(async (item: any) => {
         if (!item.id || !item.price) return
@@ -253,11 +349,14 @@ export async function POST(req: NextRequest) {
 
     console.log('Nouvelle commande créée:', {
       orderId,
-      subtotal,
-      transport: transportCost,
+      supplierCost: fees.supplierCost,
+      serviceFeeRate: fees.serviceFeeRate,
+      quantityDiscount: quantityDiscount?.amount || 0,
+      transport: shipping?.cost || 0,
       total,
       itemCount: cart.length,
-      clientName: name
+      clientName: name,
+      billingMethod: shipping?.billingMethod || 'actual'
     })
 
     return NextResponse.json(
@@ -266,8 +365,20 @@ export async function POST(req: NextRequest) {
         orderId,
         message: 'Commande enregistrée avec succès',
         total,
-        transport: transportCost,
+        transport: shipping?.cost || 0,
         subtotal,
+        subtotalBeforeDiscounts,
+        fees: {
+          supplierCost: fees.supplierCost,
+          serviceFeeRate: fees.serviceFeeRate,
+          serviceFeeSavings: fees.serviceFeeSavings,
+          insuranceAmount: fees.insuranceAmount,
+          totalFees: fees.totalFees
+        },
+        quantityDiscount: quantityDiscount && quantityDiscount.amount > 0 ? {
+          percent: quantityDiscount.percent,
+          amount: quantityDiscount.amount
+        } : null,
         confirmationUrl: `/commandes/${orderId}?token=${encodeURIComponent(trackingToken)}`
       },
       { status: 201 }

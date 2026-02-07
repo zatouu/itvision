@@ -32,6 +32,7 @@ interface OrderDetails {
   clientPhone: string
   items: any[]
   subtotal: number
+  subtotalBeforeDiscounts?: number
   shipping: any
   total: number
   status: string
@@ -39,6 +40,22 @@ interface OrderDetails {
   address: any
   createdAt: string
   currency: string
+  // Nouveaux champs pour décomposition
+  fees?: {
+    supplierCost: number
+    serviceFeeRate: number
+    serviceFeeStandardRate: number
+    serviceFeeAmount: number
+    serviceFeeSavings: number
+    insuranceRate: number
+    insuranceAmount: number
+    totalFees: number
+    quantityDiscount?: {
+      percent: number
+      amount: number
+      label: string
+    }
+  }
 }
 
 export default function OrderConfirmationPage() {
@@ -852,25 +869,71 @@ export default function OrderConfirmationPage() {
           </h2>
 
           <div className="space-y-4">
-            <div className="flex justify-between text-gray-700">
-              <span>Produits (avec frais inclus)</span>
-              <span className="font-semibold">{formatCurrency(order.subtotal, order.currency)}</span>
-            </div>
+            {/* Décomposition détaillée si disponible */}
+            {order.fees && (
+              <>
+                <div className="flex justify-between text-gray-700">
+                  <span>Coût fournisseur</span>
+                  <span className="font-medium">{formatCurrency(order.fees.supplierCost, order.currency)}</span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span>Frais de service ({order.fees.serviceFeeRate}%)</span>
+                  <span className="font-medium">{formatCurrency(order.fees.serviceFeeAmount, order.currency)}</span>
+                </div>
+                {order.fees.serviceFeeSavings > 0 && (
+                  <div className="flex justify-between text-emerald-600 text-sm">
+                    <span>Économie B2B (tarif réduit)</span>
+                    <span className="font-medium">-{formatCurrency(order.fees.serviceFeeSavings, order.currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-700">
+                  <span>Assurance ({order.fees.insuranceRate}%)</span>
+                  <span className="font-medium">{formatCurrency(order.fees.insuranceAmount, order.currency)}</span>
+                </div>
+                {order.fees.quantityDiscount && order.fees.quantityDiscount.amount > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Réduction volume ({order.fees.quantityDiscount.percent}%)</span>
+                    <span className="font-medium">-{formatCurrency(order.fees.quantityDiscount.amount, order.currency)}</span>
+                  </div>
+                )}
+                <div className="border-t border-gray-300 pt-2" />
+              </>
+            )}
+
+            {/* Fallback si pas de décomposition */}
+            {!order.fees && (
+              <div className="flex justify-between text-gray-700">
+                <span>Produits (avec frais inclus)</span>
+                <span className="font-semibold">{formatCurrency(order.subtotal, order.currency)}</span>
+              </div>
+            )}
 
             <div className="flex justify-between text-gray-700 pb-4 border-b-2">
               <span className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-orange-600" />
                 Transport ({order.shipping.method})
+                {order.shipping.weightDetails?.billingMethod === 'volumetric' && (
+                  <span className="text-xs text-amber-600">(poids volumétrique)</span>
+                )}
               </span>
               <span className="font-semibold">{formatCurrency(order.shipping.totalCost, order.currency)}</span>
             </div>
 
-            {order.shipping.totalWeight > 0 && (
-              <p className="text-sm text-gray-600">Poids total: {order.shipping.totalWeight.toFixed(2)} kg</p>
-            )}
-            {order.shipping.totalVolume > 0 && (
-              <p className="text-sm text-gray-600">Volume total: {order.shipping.totalVolume.toFixed(4)} m³</p>
-            )}
+            {/* Détails poids/volume */}
+            <div className="text-sm text-gray-600 space-y-1">
+              {order.shipping.weightDetails?.actualWeight > 0 && (
+                <p>Poids réel: {order.shipping.weightDetails.actualWeight.toFixed(2)} kg</p>
+              )}
+              {order.shipping.weightDetails?.volumetricWeight > 0 && (
+                <p>Poids volumétrique: {order.shipping.weightDetails.volumetricWeight.toFixed(2)} kg</p>
+              )}
+              {order.shipping.weightDetails?.billedWeight > 0 && (
+                <p className="font-medium">Poids facturé: {order.shipping.weightDetails.billedWeight.toFixed(2)} kg</p>
+              )}
+              {order.shipping.totalVolume > 0 && (
+                <p>Volume total: {order.shipping.totalVolume.toFixed(4)} m³</p>
+              )}
+            </div>
 
             <motion.div
               initial={{ scale: 0.95 }}

@@ -23,6 +23,31 @@ export interface IOrderShipping {
   currency: string
   totalWeight?: number
   totalVolume?: number
+  // Détail du calcul poids volumétrique (transparence)
+  weightDetails?: {
+    actualWeight: number
+    volumetricWeight: number
+    billedWeight: number
+    billingMethod: 'actual' | 'volumetric'
+  }
+}
+
+export interface IOrderFees {
+  // Décomposition des frais pour transparence
+  supplierCost: number        // Coût fournisseur (1688 converti)
+  serviceFeeRate: number      // Taux appliqué (peut être réduit B2B)
+  serviceFeeStandardRate: number // Taux standard (10%)
+  serviceFeeAmount: number    // Montant frais service
+  serviceFeeSavings: number   // Économie si réduction B2B
+  insuranceRate: number     // Taux assurance (2.5%)
+  insuranceAmount: number   // Montant assurance
+  totalFees: number          // Total frais
+  // Réduction par quantité (existante)
+  quantityDiscount?: {
+    percent: number
+    amount: number
+    label: string
+  }
 }
 
 export interface IOrder extends Document {
@@ -37,9 +62,11 @@ export interface IOrder extends Document {
   trackingAccessTokenCreatedAt?: Date
   
   items: IOrderItem[]
-  subtotal: number // Produits avec frais inclus
+  fees: IOrderFees                  // Décomposition des frais
+  subtotal: number                   // Produits avec frais inclus
+  subtotalBeforeDiscounts: number     // Avant réduction quantité
   shipping: IOrderShipping
-  total: number // Subtotal + transport
+  total: number                      // Subtotal + transport
   
   address: {
     street?: string
@@ -91,7 +118,35 @@ const OrderShippingSchema = new Schema<IOrderShipping>({
   totalCost: { type: Number, required: true },
   currency: { type: String, default: 'FCFA' },
   totalWeight: { type: Number },
-  totalVolume: { type: Number }
+  totalVolume: { type: Number },
+  weightDetails: {
+    type: new Schema({
+      actualWeight: { type: Number, required: true },
+      volumetricWeight: { type: Number, required: true },
+      billedWeight: { type: Number, required: true },
+      billingMethod: { type: String, enum: ['actual', 'volumetric'], required: true }
+    }, { _id: false }),
+    required: false
+  }
+}, { _id: false })
+
+const OrderFeesSchema = new Schema<IOrderFees>({
+  supplierCost: { type: Number, required: true },
+  serviceFeeRate: { type: Number, required: true },
+  serviceFeeStandardRate: { type: Number, required: true },
+  serviceFeeAmount: { type: Number, required: true },
+  serviceFeeSavings: { type: Number, default: 0 },
+  insuranceRate: { type: Number, required: true },
+  insuranceAmount: { type: Number, required: true },
+  totalFees: { type: Number, required: true },
+  quantityDiscount: {
+    type: new Schema({
+      percent: { type: Number, required: true },
+      amount: { type: Number, required: true },
+      label: { type: String, required: true }
+    }, { _id: false }),
+    required: false
+  }
 }, { _id: false })
 
 const OrderSchema = new Schema<IOrder>({
@@ -105,7 +160,9 @@ const OrderSchema = new Schema<IOrder>({
   trackingAccessTokenCreatedAt: { type: Date, sparse: true },
   
   items: [OrderItemSchema],
+  fees: { type: OrderFeesSchema, required: true },
   subtotal: { type: Number, required: true },
+  subtotalBeforeDiscounts: { type: Number, required: true },
   shipping: { type: OrderShippingSchema, required: true },
   total: { type: Number, required: true },
   

@@ -12,6 +12,35 @@ interface CheckoutInterfaceProps {
     amount: number
     reference: string
     status: string
+    // Nouveaux champs pour décomposition
+    fees?: {
+      supplierCost: number
+      serviceFeeRate: number
+      serviceFeeStandardRate: number
+      serviceFeeAmount: number
+      serviceFeeSavings: number
+      insuranceRate: number
+      insuranceAmount: number
+      totalFees: number
+      quantityDiscount?: {
+        percent: number
+        amount: number
+        label: string
+      }
+    }
+    shipping?: {
+      method: string
+      totalCost: number
+      totalWeight?: number
+      weightDetails?: {
+        actualWeight: number
+        volumetricWeight: number
+        billedWeight: number
+        billingMethod: 'actual' | 'volumetric'
+      }
+    }
+    subtotal?: number
+    subtotalBeforeDiscounts?: number
   }
   group: {
     productName: string
@@ -105,6 +134,47 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
           <p className="text-slate-600 text-sm mb-1">Produit</p>
           <p className="font-medium text-slate-800">{group.productName}</p>
         </div>
+
+        {/* Décomposition des prix si disponible */}
+        {participant.fees && (
+          <div className="mb-6 space-y-2 text-sm">
+            <div className="flex justify-between text-slate-600">
+              <span>Fournisseur</span>
+              <span>{formatCurrency(participant.fees.supplierCost)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Frais ({participant.fees.serviceFeeRate}%)</span>
+              <span>{formatCurrency(participant.fees.serviceFeeAmount)}</span>
+            </div>
+            {participant.fees.serviceFeeSavings > 0 && (
+              <div className="flex justify-between text-emerald-600 text-xs">
+                <span>Économie B2B</span>
+                <span>-{formatCurrency(participant.fees.serviceFeeSavings)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-slate-600">
+              <span>Assurance ({participant.fees.insuranceRate}%)</span>
+              <span>{formatCurrency(participant.fees.insuranceAmount)}</span>
+            </div>
+            {participant.fees.quantityDiscount && participant.fees.quantityDiscount.amount > 0 && (
+              <div className="flex justify-between text-emerald-600">
+                <span>Réduction volume</span>
+                <span>-{formatCurrency(participant.fees.quantityDiscount.amount)}</span>
+              </div>
+            )}
+            {participant.shipping && (
+              <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
+                <span className="flex items-center gap-1">
+                  Transport
+                  {participant.shipping.weightDetails?.billingMethod === 'volumetric' && (
+                    <span className="text-xs text-amber-600">(volumétrique)</span>
+                  )}
+                </span>
+                <span>{formatCurrency(participant.shipping.totalCost)}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mb-6">
           <p className="text-slate-600 text-sm mb-1">Montant à payer</p>
