@@ -856,18 +856,9 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                   </div>
 
                   {/* Détail prix — transparence */}
-                  {(product.pricing.baseCost || product.pricing.fees || product.pricing1688) && (
+                  {(product.pricing.baseCost || product.pricing.fees) && (
                     <div className="mt-2 pt-2 border-t border-green-200/60 space-y-0.5 text-[11px] text-gray-500">
-                      {product.pricing1688?.price1688 && (
-                        <div className="flex justify-between">
-                          <span>Prix source</span>
-                          <span className="text-gray-600 font-medium">
-                            ¥{product.pricing1688.price1688.toLocaleString('fr-FR')}
-                            {product.pricing.baseCost ? ` → ${formatCurrency(product.pricing.baseCost)}` : ''}
-                          </span>
-                        </div>
-                      )}
-                      {!product.pricing1688?.price1688 && product.pricing.baseCost && (
+                      {product.pricing.baseCost && (
                         <div className="flex justify-between">
                           <span>Prix source</span>
                           <span className="text-gray-600 font-medium">{formatCurrency(product.pricing.baseCost)}</span>
@@ -884,12 +875,6 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                             <span className="text-gray-600 font-medium">+{formatCurrency(product.pricing.fees.insuranceAmount)}</span>
                           </div>
                         </>
-                      )}
-                      {product.pricing1688?.exchangeRate && (
-                        <div className="flex justify-between text-[10px] text-gray-400 pt-0.5">
-                          <span>Taux de change</span>
-                          <span>1 CNY = {product.pricing1688.exchangeRate} FCFA</span>
-                        </div>
                       )}
                     </div>
                   )}
