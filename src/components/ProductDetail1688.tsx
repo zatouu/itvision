@@ -21,6 +21,7 @@ import {
   Minus,
   Package,
   Plane,
+  Play,
   Plus,
   Share2,
   Shield,
@@ -236,6 +237,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 })
   const imageRef = useRef<HTMLDivElement>(null)
+  const thumbContainerRef = useRef<HTMLDivElement>(null)
   const [adding, setAdding] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null)
@@ -411,6 +413,14 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
     return `https://wa.me/221774133440?text=${message}`
   }
 
+  const isVideoUrl = (url: string) => /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)
+
+  const scrollThumbs = (direction: 'up' | 'down') => {
+    if (!thumbContainerRef.current) return
+    const scrollAmount = 80
+    thumbContainerRef.current.scrollBy({ top: direction === 'up' ? -scrollAmount : scrollAmount, behavior: 'smooth' })
+  }
+
   const getShippingIcon = (id?: string) => {
     if (!id) return Plane
     if (id.includes('sea')) return Ship
@@ -441,72 +451,126 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
         {/* ═══ LAYOUT PRINCIPAL : Galerie gauche + Sidebar droite fixe ═══ */}
         <div className="flex flex-col lg:flex-row gap-6">
 
-          {/* ──────── COLONNE GAUCHE : Galerie grand format ──────── */}
+          {/* ──────── COLONNE GAUCHE : Galerie style 1688 ──────── */}
           <div className="flex-1 min-w-0">
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              {/* Image principale avec zoom */}
-              <div
-                ref={imageRef}
-                className="relative aspect-[4/3] bg-gray-50 cursor-zoom-in group"
-                onMouseEnter={() => setIsZoomed(true)}
-                onMouseLeave={() => setIsZoomed(false)}
-                onMouseMove={handleMouseMove}
-                onClick={() => setShowImageModal(true)}
-              >
-                <Image
-                  src={gallery[activeImageIndex] || '/file.svg'}
-                  alt={product.name}
-                  fill
-                  className={clsx("object-contain p-6 transition-transform duration-300", isZoomed && "scale-[2]")}
-                  style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : undefined}
-                  sizes="(max-width: 1024px) 100vw, 55vw"
-                  priority
-                />
-                {product.isImported && (
-                  <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-md">
-                    <Globe className="w-3 h-3" />
-                    Import Chine
+              <div className="flex gap-2 p-2">
+
+                {/* Thumbnails verticales à gauche avec flèches haut/bas */}
+                {gallery.length > 1 && (
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0" style={{ width: 72 }}>
+                    <button
+                      onClick={() => scrollThumbs('up')}
+                      className="w-full flex items-center justify-center py-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition"
+                    >
+                      <ChevronUp className="w-5 h-5" />
+                    </button>
+                    <div
+                      ref={thumbContainerRef}
+                      className="flex flex-col gap-2 overflow-y-auto scrollbar-hide flex-1"
+                      style={{ maxHeight: 420 }}
+                    >
+                      {gallery.map((media, idx) => {
+                        const isVideo = isVideoUrl(media)
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveImageIndex(idx)}
+                            onMouseEnter={() => setActiveImageIndex(idx)}
+                            className={clsx(
+                              "relative flex-shrink-0 rounded-md border-2 overflow-hidden transition-all",
+                              activeImageIndex === idx
+                                ? "border-green-500 ring-2 ring-green-200 shadow-sm"
+                                : "border-gray-200 hover:border-green-400 opacity-70 hover:opacity-100"
+                            )}
+                            style={{ width: 64, height: 64 }}
+                          >
+                            {isVideo ? (
+                              <>
+                                <video src={media} muted className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                  <Play className="w-4 h-4 text-white fill-white" />
+                                </div>
+                              </>
+                            ) : (
+                              <Image src={media} alt={`${product.name} ${idx + 1}`} fill className="object-cover" sizes="64px" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <button
+                      onClick={() => scrollThumbs('down')}
+                      className="w-full flex items-center justify-center py-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition"
+                    >
+                      <ChevronDown className="w-5 h-5" />
+                    </button>
                   </div>
                 )}
-                {product.condition === 'used' && (
-                  <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">Occasion</div>
-                )}
-                <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                  <ZoomIn className="w-3 h-3" />
-                  Cliquer pour agrandir
-                </div>
-                {/* Navigation flèches */}
-                {gallery.length > 1 && (
-                  <>
-                    <button onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i => i > 0 ? i - 1 : gallery.length - 1) }} className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition">
-                      <ArrowLeft className="w-5 h-5 text-gray-700" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i => i < gallery.length - 1 ? i + 1 : 0) }} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition">
-                      <ArrowRight className="w-5 h-5 text-gray-700" />
-                    </button>
-                  </>
-                )}
-              </div>
 
-              {/* Barre de thumbnails */}
-              {gallery.length > 1 && (
-                <div className="flex gap-2 p-4 overflow-x-auto">
-                  {gallery.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveImageIndex(idx)}
-                      className={clsx(
-                        "relative w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden transition-all",
-                        activeImageIndex === idx
-                          ? "border-green-500 ring-2 ring-green-200 shadow-md"
-                          : "border-gray-200 hover:border-green-300 opacity-70 hover:opacity-100"
-                      )}
+                {/* Image / Vidéo principale à droite */}
+                <div className="flex-1 relative">
+                  {isVideoUrl(gallery[activeImageIndex] || '') ? (
+                    <div className="relative aspect-[4/3] bg-black rounded-lg overflow-hidden">
+                      <video
+                        src={gallery[activeImageIndex]}
+                        controls
+                        autoPlay
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      ref={imageRef}
+                      className="relative aspect-[4/3] bg-gray-50 cursor-zoom-in group rounded-lg overflow-hidden"
+                      onMouseEnter={() => setIsZoomed(true)}
+                      onMouseLeave={() => setIsZoomed(false)}
+                      onMouseMove={handleMouseMove}
+                      onClick={() => setShowImageModal(true)}
                     >
-                      <Image src={img} alt={`${product.name} ${idx + 1}`} fill className="object-cover" sizes="80px" />
-                    </button>
-                  ))}
+                      <Image
+                        src={gallery[activeImageIndex] || '/file.svg'}
+                        alt={product.name}
+                        fill
+                        className={clsx("object-contain p-4 transition-transform duration-300", isZoomed && "scale-[2]")}
+                        style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : undefined}
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        priority
+                      />
+                      {product.isImported && (
+                        <div className="absolute top-3 left-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-md">
+                          <Globe className="w-3 h-3" />
+                          Import Chine
+                        </div>
+                      )}
+                      {product.condition === 'used' && (
+                        <div className="absolute top-3 right-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">Occasion</div>
+                      )}
+                      <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <ZoomIn className="w-3 h-3" />
+                        Cliquer pour agrandir
+                      </div>
+                      {/* Flèches navigation sur l'image */}
+                      {gallery.length > 1 && (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i => i > 0 ? i - 1 : gallery.length - 1) }} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition">
+                            <ArrowLeft className="w-4 h-4 text-gray-700" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i => i < gallery.length - 1 ? i + 1 : 0) }} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition">
+                            <ArrowRight className="w-4 h-4 text-gray-700" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* Compteur d'images */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                    {gallery.map((_, idx) => (
+                      <div key={idx} className={clsx("w-1.5 h-1.5 rounded-full transition", activeImageIndex === idx ? "bg-green-500 w-4" : "bg-gray-300")} />
+                    ))}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* ──────── ONGLETS sous la galerie (style 1688) ──────── */}
