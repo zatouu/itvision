@@ -846,17 +846,57 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                   <span>128 avis</span>
                 </div>
 
-                {/* ══ Prix dynamique (paliers) ══ */}
+                {/* ══ Prix dynamique (paliers) + détail transparence ══ */}
                 <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-lg p-4 mb-4">
-                  <div className="flex items-baseline gap-2 mb-3">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-extrabold text-green-600">
                       {formatCurrency(baseUnitPrice)}
                     </span>
                     <span className="text-sm text-gray-500">/unité</span>
                   </div>
+
+                  {/* Détail prix — transparence */}
+                  {(product.pricing.baseCost || product.pricing.fees || product.pricing1688) && (
+                    <div className="mt-2 pt-2 border-t border-green-200/60 space-y-0.5 text-[11px] text-gray-500">
+                      {product.pricing1688?.price1688 && (
+                        <div className="flex justify-between">
+                          <span>Prix source</span>
+                          <span className="text-gray-600 font-medium">
+                            ¥{product.pricing1688.price1688.toLocaleString('fr-FR')}
+                            {product.pricing.baseCost ? ` → ${formatCurrency(product.pricing.baseCost)}` : ''}
+                          </span>
+                        </div>
+                      )}
+                      {!product.pricing1688?.price1688 && product.pricing.baseCost && (
+                        <div className="flex justify-between">
+                          <span>Prix source</span>
+                          <span className="text-gray-600 font-medium">{formatCurrency(product.pricing.baseCost)}</span>
+                        </div>
+                      )}
+                      {product.pricing.fees && (
+                        <>
+                          <div className="flex justify-between">
+                            <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
+                            <span className="text-gray-600 font-medium">+{formatCurrency(product.pricing.fees.serviceFeeAmount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
+                            <span className="text-gray-600 font-medium">+{formatCurrency(product.pricing.fees.insuranceAmount)}</span>
+                          </div>
+                        </>
+                      )}
+                      {product.pricing1688?.exchangeRate && (
+                        <div className="flex justify-between text-[10px] text-gray-400 pt-0.5">
+                          <span>Taux de change</span>
+                          <span>1 CNY = {product.pricing1688.exchangeRate} FCFA</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {product.priceTiers && product.priceTiers.length > 0 && (
                     <>
-                      <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                      <div className="text-xs font-semibold text-gray-600 mb-2 mt-3 flex items-center gap-1">
                         <TrendingDown className="w-3.5 h-3.5 text-green-600" />
                         Prix dégressifs
                       </div>
@@ -875,23 +915,6 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                     </>
                   )}
                 </div>
-
-                {/* ══ Frais transparents ══ */}
-                {product.pricing.fees && (
-                  <div className="text-xs space-y-1 mb-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="font-semibold text-gray-700 flex items-center gap-1 mb-1">
-                      <Shield className="w-3 h-3" /> Détail du prix (transparence)
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>Frais de service ({product.pricing.fees.serviceFeeRate}%)</span>
-                      <span className="text-blue-600 font-medium">+{formatCurrency(product.pricing.fees.serviceFeeAmount)}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>Assurance ({product.pricing.fees.insuranceRate}%)</span>
-                      <span className="text-blue-600 font-medium">+{formatCurrency(product.pricing.fees.insuranceAmount)}</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* ══ Variantes avec quantités ══ */}
