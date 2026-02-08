@@ -1,18 +1,23 @@
 @import "tailwindcss";
 
-/* PROTECTION: Cacher le body jusqu'à ce que le thème soit appliqué (script head blocking) */
-html:not(.theme-initialized) body {
-  visibility: hidden;
-}
-
-/* Transition douce UNIQUEMENT après initialisation du thème */
-html.theme-initialized,
-html.theme-initialized body {
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
 /* Dark mode via class (.dark) pour le toggle */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Base theme variables */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
 
 /* Animations digitales */
 @keyframes fade-in {
@@ -91,23 +96,6 @@ html.theme-initialized body {
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: #9ca3af;
-}
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary-emerald: #10B981;
-  --primary-purple: #8B5CF6;
-  --accent-cyan: #06B6D4;
-  --header-height: 120px;
-  /* Light mode defaults for theme-aware variables */
-  --bg-white: #ffffff;
-  --bg-gray-50: #f9fafb;
-  --bg-gray-100: #f3f4f6;
-  --text-gray-900: #111827;
-  --text-gray-700: #374151;
-  --text-black: #000000;
-  color-scheme: light;
 }
 
 @theme inline {

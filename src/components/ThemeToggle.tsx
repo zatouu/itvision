@@ -4,7 +4,19 @@ import { Moon, Sun, Monitor } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function ThemeToggle() {
-  const { theme, resolvedTheme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme, mounted } = useTheme()
+
+  // Prevent hydration mismatch - render placeholder until mounted
+  if (!mounted) {
+    return (
+      <button
+        className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+        aria-label="Changer le thème"
+      >
+        <Sun className="h-4 w-4" />
+      </button>
+    )
+  }
 
   const cycleTheme = () => {
     if (theme === 'light') {
