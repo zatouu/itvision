@@ -54,6 +54,55 @@ const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
   return `${amount.toLocaleString('fr-FR')} ${currency}`
 }
 
+// Markdown → HTML pour les descriptions produit (specs table + paragraphes)
+const parseMarkdown = (text: string): string => {
+  if (!text) return ''
+  const sections = text.split(/\n\n+/)
+  const htmlParts: string[] = []
+  let specRows: string[] = []
+
+  const flushSpecs = () => {
+    if (specRows.length > 0) {
+      htmlParts.push(
+        '<table class="w-full text-sm border-collapse mb-4"><tbody>' +
+        specRows.join('') +
+        '</tbody></table>'
+      )
+      specRows = []
+    }
+  }
+
+  for (const section of sections) {
+    const trimmed = section.trim()
+    if (!trimmed) continue
+    if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+      flushSpecs()
+      const title = trimmed.replace(/\*\*/g, '')
+      htmlParts.push(`<h3 class="text-base font-semibold text-gray-900 mt-4 mb-2">${title}</h3>`)
+      continue
+    }
+    if (/^- \*\*/.test(trimmed)) {
+      const lines = trimmed.split('\n')
+      for (const line of lines) {
+        const match = line.match(/^- \*\*(.+?)\*\*:\s*(.+)$/)
+        if (match) {
+          const bg = specRows.length % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+          specRows.push(
+            `<tr class="${bg}"><td class="py-2 px-3 text-gray-500 font-medium whitespace-nowrap border-b border-gray-100">${match[1]}</td>` +
+            `<td class="py-2 px-3 text-gray-900 border-b border-gray-100">${match[2]}</td></tr>`
+          )
+        }
+      }
+      continue
+    }
+    flushSpecs()
+    const html = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>')
+    htmlParts.push(`<p class="text-sm text-gray-700 leading-relaxed mb-3">${html}</p>`)
+  }
+  flushSpecs()
+  return htmlParts.join('\n')
+}
+
 interface ProductVariant {
   id: string
   name: string
@@ -265,16 +314,16 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
       {/* Header minimal style 1688 */}
       <div className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/produits" className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition">
+          <Link href="/produits" className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition">
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Retour au catalogue</span>
           </Link>
           <div className="flex items-center gap-4">
-            <button onClick={shareProduct} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition">
+            <button onClick={shareProduct} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition">
               <Share2 className="w-4 h-4" />
               <span className="hidden sm:inline">Partager</span>
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium">
+            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-violet-500 text-white rounded-lg hover:from-green-600 hover:to-violet-600 transition font-medium">
               <MessageCircle className="w-4 h-4" />
               <span>Contacter le fournisseur</span>
             </button>
@@ -285,9 +334,9 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link href="/" className="hover:text-orange-500">Accueil</Link>
+          <Link href="/" className="hover:text-green-600">Accueil</Link>
           <span>&gt;</span>
-          <Link href="/produits" className="hover:text-orange-500">Produits</Link>
+          <Link href="/produits" className="hover:text-green-600">Produits</Link>
           {product.category && (
             <>
               <span>&gt;</span>
@@ -327,7 +376,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 
                 {/* Badge import */}
                 {product.isImported && (
-                  <div className="absolute top-3 left-3 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                  <div className="absolute top-3 left-3 bg-gradient-to-r from-green-500 to-violet-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                     <Globe className="w-3 h-3" />
                     Import Chine
                   </div>
@@ -350,8 +399,8 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                       className={clsx(
                         "relative w-16 h-16 flex-shrink-0 rounded-lg border-2 overflow-hidden transition",
                         activeImageIndex === idx 
-                          ? "border-orange-500 ring-2 ring-orange-200" 
-                          : "border-gray-200 hover:border-orange-300"
+                          ? "border-green-500 ring-2 ring-green-200" 
+                          : "border-gray-200 hover:border-green-300"
                       )}
                     >
                       <Image
@@ -371,8 +420,8 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             {product.supplier && (
               <div className="bg-white rounded-xl p-4 shadow-sm mt-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                    <Store className="w-6 h-6 text-orange-500" />
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <Store className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900">{product.supplier.name}</h3>
@@ -385,7 +434,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2 text-gray-600">
-                    <BadgeCheck className={clsx("w-4 h-4", product.supplier.verified ? "text-emerald-500" : "text-gray-400")} />
+                    <BadgeCheck className={clsx("w-4 h-4", product.supplier.verified ? "text-green-500" : "text-gray-400")} />
                     {product.supplier.verified ? "Fournisseur vérifié" : "Non vérifié"}
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
@@ -397,12 +446,12 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                     {product.supplier.rating}/5
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
-                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    <TrendingUp className="w-4 h-4 text-green-500" />
                     {product.supplier.transactions}+ transactions
                   </div>
                 </div>
 
-                <button className="w-full mt-3 py-2 border-2 border-orange-500 text-orange-500 rounded-lg font-medium hover:bg-orange-50 transition flex items-center justify-center gap-2">
+                <button className="w-full mt-3 py-2 border-2 border-green-500 text-green-600 rounded-lg font-medium hover:bg-green-50 transition flex items-center justify-center gap-2">
                   <Building2 className="w-4 h-4" />
                   Voir le profil fournisseur
                 </button>
@@ -434,9 +483,9 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
               </div>
 
               {/* Prix style 1688 - Tableau dégressif */}
-              <div className="bg-orange-50 rounded-lg p-4 mb-4">
+              <div className="bg-gradient-to-br from-green-50 to-violet-50 rounded-lg p-4 mb-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4 text-orange-500" />
+                  <TrendingDown className="w-4 h-4 text-green-600" />
                   Prix selon quantité
                 </h3>
                 <div className="space-y-2">
@@ -446,7 +495,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                       className={clsx(
                         "flex items-center justify-between p-2 rounded-lg text-sm",
                         quantity >= row.qty && (!row.maxQty || quantity <= row.maxQty)
-                          ? "bg-orange-500 text-white"
+                          ? "bg-gradient-to-r from-green-500 to-violet-500 text-white"
                           : "bg-white text-gray-700"
                       )}
                     >
@@ -483,8 +532,8 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                         className={clsx(
                           "flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm transition",
                           selectedVariants[group.name] === variant.id
-                            ? "border-orange-500 bg-orange-50 text-orange-700"
-                            : "border-gray-200 hover:border-orange-300"
+                            ? "border-green-500 bg-green-50 text-green-700"
+                            : "border-gray-200 hover:border-green-300"
                         )}
                       >
                         {variant.image && (
@@ -539,7 +588,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
               {/* Total */}
               <div className="border-t pt-4 mb-4">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-bold text-orange-600">
+                  <span className="text-3xl font-bold text-green-600">
                     {formatCurrency(totalPrice)}
                   </span>
                   <span className="text-gray-500">pour {quantity} unité(s)</span>
@@ -551,13 +600,13 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
 
               {/* Actions principales style 1688 */}
               <div className="grid grid-cols-2 gap-3">
-                <button className="py-3 border-2 border-orange-500 text-orange-500 rounded-lg font-bold hover:bg-orange-50 transition flex items-center justify-center gap-2">
+                <button className="py-3 border-2 border-violet-500 text-violet-600 rounded-lg font-bold hover:bg-violet-50 transition flex items-center justify-center gap-2">
                   <MessageCircle className="w-5 h-5" />
                   Négocier
                 </button>
                 <button 
                   onClick={addToCart}
-                  className="py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2"
+                  className="py-3 bg-gradient-to-r from-green-500 to-violet-500 text-white rounded-lg font-bold hover:from-green-600 hover:to-violet-600 transition flex items-center justify-center gap-2"
                 >
                   <ShoppingCart className="w-5 h-5" />
                   Ajouter au panier
@@ -567,7 +616,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
               {/* Trust badges */}
               <div className="grid grid-cols-3 gap-2 mt-4 text-xs text-center text-gray-500">
                 <div className="flex flex-col items-center gap-1">
-                  <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                  <ShieldCheck className="w-5 h-5 text-green-500" />
                   <span>Paiement sécurisé</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
@@ -584,7 +633,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             {/* Logistique rapide */}
             <div className="bg-white rounded-xl p-4 shadow-sm mt-4">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-orange-500" />
+                <Truck className="w-5 h-5 text-green-600" />
                 Options de transport
               </h3>
               <div className="space-y-2">
@@ -593,7 +642,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                     <div className="flex items-center gap-2">
                       {opt.id.includes('sea') ? <Ship className="w-4 h-4 text-blue-500" /> : 
                        opt.id.includes('express') ? <Plane className="w-4 h-4 text-purple-500" /> : 
-                       <Plane className="w-4 h-4 text-emerald-500" />}
+                       <Plane className="w-4 h-4 text-green-500" />}
                       <span>{opt.label}</span>
                     </div>
                     <span className="font-medium">{formatCurrency(opt.cost || opt.baseCost)}/kg</span>
@@ -603,22 +652,23 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             </div>
           </div>
 
-          {/* Colonne droite: Sidebar */}
+          {/* Colonne droite: Sidebar sticky */}
           <div className="lg:col-span-3">
+            <div className="lg:sticky lg:top-20 space-y-4">
             {/* Carte sécurité */}
             <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
               <h3 className="font-semibold text-gray-900 mb-3">Protection acheteur</h3>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5" />
+                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
                   <span className="text-gray-600">Paiement sécurisé</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5" />
+                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
                   <span className="text-gray-600">Garantie qualité</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5" />
+                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
                   <span className="text-gray-600">Remboursement si non conforme</span>
                 </li>
               </ul>
@@ -626,7 +676,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
 
             {/* Achat groupé */}
             {product.groupBuyEnabled && (
-              <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-4 text-white mb-4">
+              <div className="bg-gradient-to-br from-green-500 to-violet-500 rounded-xl p-4 text-white mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-5 h-5" />
                   <span className="font-bold">Achat groupé actif!</span>
@@ -637,7 +687,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 </p>
                 <Link 
                   href={`/achats-groupes?product=${product.id}`}
-                  className="block w-full py-2 bg-white text-orange-600 rounded-lg text-center font-bold text-sm hover:bg-orange-50 transition"
+                  className="block w-full py-2 bg-white text-green-600 rounded-lg text-center font-bold text-sm hover:bg-green-50 transition"
                 >
                   Voir les achats groupés
                 </Link>
@@ -664,16 +714,17 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-orange-500 transition">
+                      <h4 className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-green-600 transition">
                         {item.name}
                       </h4>
-                      <p className="text-orange-600 font-bold text-sm">
+                      <p className="text-green-600 font-bold text-sm">
                         {formatCurrency(item.priceAmount) || 'Sur devis'}
                       </p>
                     </div>
                   </Link>
                 ))}
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -693,7 +744,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 className={clsx(
                   "flex-1 py-4 text-sm font-medium border-b-2 transition",
                   activeTab === tab.id
-                    ? "border-orange-500 text-orange-600"
+                    ? "border-green-500 text-green-600"
                     : "border-transparent text-gray-500 hover:text-gray-700"
                 )}
               >
@@ -707,7 +758,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
               <div className="grid md:grid-cols-2 gap-4">
                 {product.features.filter(Boolean).map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-700">{feature}</span>
                   </div>
                 ))}
@@ -729,9 +780,9 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             )}
 
             {activeTab === 'description' && (
-              <div className="prose max-w-none">
+              <div className="max-w-none">
                 {product.description ? (
-                  <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                  <div dangerouslySetInnerHTML={{ __html: parseMarkdown(product.description) }} />
                 ) : (
                   <p className="text-gray-500">Description détaillée disponible sur demande.</p>
                 )}
@@ -747,10 +798,10 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                       <div className="flex items-center gap-2 mb-2">
                         {opt.id.includes('sea') ? <Ship className="w-5 h-5 text-blue-500" /> : 
                          opt.id.includes('express') ? <Plane className="w-5 h-5 text-purple-500" /> : 
-                         <Plane className="w-5 h-5 text-emerald-500" />}
+                         <Plane className="w-5 h-5 text-green-500" />}
                         <span className="font-bold">{opt.label}</span>
                       </div>
-                      <p className="text-2xl font-bold text-orange-600">{formatCurrency(opt.cost || opt.baseCost)}</p>
+                      <p className="text-2xl font-bold text-green-600">{formatCurrency(opt.cost || opt.baseCost)}</p>
                       <p className="text-sm text-gray-500">par kg</p>
                     </div>
                   ))}
@@ -761,7 +812,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             {activeTab === 'reviews' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-4 pb-4 border-b">
-                  <div className="text-4xl font-bold text-orange-600">4.8</div>
+                  <div className="text-4xl font-bold text-green-600">4.8</div>
                   <div>
                     <div className="flex gap-1">
                       {[1,2,3,4,5].map(s => <Star key={s} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
