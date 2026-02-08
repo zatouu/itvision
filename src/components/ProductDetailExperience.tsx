@@ -168,24 +168,68 @@ interface ProductDetailExperienceProps {
   similar: SimilarProductSummary[]
 }
 
-// Simple markdown parser for product descriptions (bold, lists, paragraphs)
+// Markdown → HTML pour les descriptions produit (specs table + paragraphes)
 const parseMarkdown = (text: string): string => {
   if (!text) return ''
-  
-  return text
-    // Bold text: **text** → <strong>text</strong>
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Lists: - item → <li>item</li> wrapped in <ul>
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    // Wrap consecutive list items in <ul>
-    .replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/g, '<ul>$&</ul>')
-    // Double line breaks → paragraphs
-    .replace(/\n\n/g, '</p><p>')
-    // Wrap in paragraphs (avoid wrapping lists)
-    .replace(/^(?!<ul>.*<\/ul>$)(.*)$/gm, '<p>$1</p>')
-    // Clean up empty paragraphs
-    .replace(/<p><\/p>/g, '')
-    .replace(/<p>(<ul>.*<\/ul>)<\/p>/g, '$1')
+
+  // Séparer les sections par double saut de ligne
+  const sections = text.split(/\n\n+/)
+  const htmlParts: string[] = []
+
+  let inSpecsList = false
+  let specRows: string[] = []
+
+  const flushSpecs = () => {
+    if (specRows.length > 0) {
+      htmlParts.push(
+        '<table class="w-full text-sm border-collapse mb-4"><tbody>' +
+        specRows.join('') +
+        '</tbody></table>'
+      )
+      specRows = []
+    }
+    inSpecsList = false
+  }
+
+  for (const section of sections) {
+    const trimmed = section.trim()
+    if (!trimmed) continue
+
+    // Titre de section : **Texte**
+    if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+      flushSpecs()
+      const title = trimmed.replace(/\*\*/g, '')
+      htmlParts.push(`<h3 class="text-base font-semibold text-gray-900 mt-4 mb-2">${title}</h3>`)
+      continue
+    }
+
+    // Ligne spec : - **Clé**: Valeur
+    if (/^- \*\*/.test(trimmed)) {
+      inSpecsList = true
+      const lines = trimmed.split('\n')
+      for (const line of lines) {
+        const match = line.match(/^- \*\*(.+?)\*\*:\s*(.+)$/)
+        if (match) {
+          const even = specRows.length % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+          specRows.push(
+            `<tr class="${even}"><td class="py-2 px-3 text-gray-500 font-medium whitespace-nowrap border-b border-gray-100">${match[1]}</td>` +
+            `<td class="py-2 px-3 text-gray-900 border-b border-gray-100">${match[2]}</td></tr>`
+          )
+        }
+      }
+      continue
+    }
+
+    // Paragraphe normal
+    flushSpecs()
+    const html = trimmed
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br/>')
+    htmlParts.push(`<p class="text-sm text-gray-700 leading-relaxed mb-3">${html}</p>`)
+  }
+
+  flushSpecs()
+  return htmlParts.join('\n')
 }
 
 type InfoTab = 'description' | 'features' | 'logistics' | 'support' | 'reviews'
@@ -997,8 +1041,8 @@ Merci de me recontacter.`
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-4">
-        {/* Layout principal style 1688 */}
-        <div className="flex gap-6">
+        {/* Layout principal style 1688 : galerie gauche + sidebar droite */}
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Colonne gauche : Galerie + Onglets */}
           <div className="flex-1 min-w-0">
             {/* Galerie d'images */}
@@ -1158,7 +1202,7 @@ Merci de me recontacter.`
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="prose prose-emerald max-w-none dark:prose-invert"
+                      className="prose max-w-none"
                     >
                       {product.description ? (
                         <div dangerouslySetInnerHTML={{ __html: parseMarkdown(product.description) }} />
@@ -1183,8 +1227,8 @@ Merci de me recontacter.`
                           : ['Qualité professionnelle import Chine', 'Installation & support IT Vision Dakar', 'Tarification optimisée selon le mode de transport']
                         ).map((feature, index) => (
                           <li key={index} className="flex items-start gap-3">
-                            <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700 dark:text-gray-200">{feature}</span>
+                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-gray-700">{feature}</span>
                           </li>
                         ))}
                       </ul>
@@ -1233,8 +1277,8 @@ Merci de me recontacter.`
                           'Support import dédié & livraison sécurisée'
                         ].map((item, index) => (
                           <li key={index} className="flex items-start gap-3">
-                            <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700 dark:text-gray-200">{item}</span>
+                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-gray-700">{item}</span>
                           </li>
                         ))}
                       </ul>
@@ -1250,7 +1294,7 @@ Merci de me recontacter.`
                     >
                       {reviewsLoading ? (
                         <div className="text-center py-12">
-                          <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto" />
+                          <Loader2 className="h-8 w-8 animate-spin text-green-500 mx-auto" />
                         </div>
                       ) : reviews.length === 0 ? (
                         <div className="text-center py-12">
@@ -1261,7 +1305,7 @@ Merci de me recontacter.`
                         <div className="space-y-6">
                           <div className="flex items-center gap-6 pb-6 border-b border-gray-200 dark:border-gray-800">
                             <div className="text-center">
-                              <div className="text-5xl font-bold text-emerald-600">{averageRating.toFixed(1)}</div>
+                              <div className="text-5xl font-bold text-green-600">{averageRating.toFixed(1)}</div>
                               <div className="flex items-center justify-center gap-1 mt-2">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <Star
@@ -1283,14 +1327,14 @@ Merci de me recontacter.`
                               <div key={review.id} className="bg-gray-50 dark:bg-gray-950/40 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
                                       {review.userName.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                       <div className="flex items-center gap-2">
                                         <span className="text-sm font-semibold text-gray-900 dark:text-white">{review.userName}</span>
                                         {review.verified && (
-                                          <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 text-xs font-medium rounded-full">
+                                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                             Vérifié
                                           </span>
                                         )}
@@ -1336,7 +1380,7 @@ Merci de me recontacter.`
               {/* En-tête produit */}
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
                     <ShieldCheck className="h-3 w-3" />
                     IT Vision
                   </span>
@@ -1398,7 +1442,7 @@ Merci de me recontacter.`
                   <Link
                     key={item.id}
                     href={`/produits/${item.id}`}
-                    className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden hover:border-emerald-300 dark:hover:border-emerald-600/40 hover:shadow-lg transition-all group"
+                    className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden hover:border-green-300 hover:shadow-lg transition-all group"
                   >
                     <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
                       <Image
@@ -1421,7 +1465,7 @@ Merci de me recontacter.`
                     </div>
                     <div className="p-4">
                       <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">{item.name}</h3>
-                      <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mb-2">{itemPrice || 'Sur devis'}</div>
+                      <div className="text-lg font-bold text-green-600 mb-2">{itemPrice || 'Sur devis'}</div>
                       <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <Icon className="h-3 w-3" />
                         <span>{item.availabilityLabel || (item.availabilityStatus === 'in_stock' ? 'Stock Dakar' : 'Commande Chine')}</span>
@@ -1475,7 +1519,7 @@ Merci de me recontacter.`
                 value={negotiationMessage}
                 onChange={(e) => setNegotiationMessage(e.target.value)}
                 rows={4}
-                className="w-full rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-3 focus:border-emerald-500 focus:outline-none resize-none"
+                className="w-full rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-3 focus:border-green-500 focus:outline-none resize-none"
               />
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs text-gray-500 dark:text-gray-400">Produit : {product.name}</span>
@@ -1483,7 +1527,7 @@ Merci de me recontacter.`
                   type="button"
                   onClick={handleNegotiationSubmit}
                   disabled={negotiationStatus === 'sending'}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-4 py-2 text-sm font-semibold text-white hover:from-green-600 hover:to-violet-600 transition-colors disabled:opacity-50"
                 >
                   {negotiationStatus === 'sending' && <Loader2 className="h-4 w-4 animate-spin" />}
                   {negotiationStatus === 'sent' ? 'Message envoyé !' : 'Envoyer'}
@@ -1601,7 +1645,7 @@ Merci de me recontacter.`
                         className={clsx(
                           'relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all',
                           activeImageIndex === index
-                            ? 'border-emerald-500 ring-2 ring-emerald-400/50 scale-105'
+                            ? 'border-green-500 ring-2 ring-green-400/50 scale-105'
                             : 'border-gray-600 hover:border-gray-400 opacity-60 hover:opacity-100'
                         )}
                         aria-label={item.kind === 'image' ? `Voir image ${index + 1}` : `Voir vidéo ${index + 1}`}

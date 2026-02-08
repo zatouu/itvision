@@ -591,10 +591,10 @@ Merci de me recontacter.`
       {/* ═══════════════════════════════════════════════════════════════════════
           1. PRIX PRINCIPAL + TRANSPARENCE DES FRAIS
           ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-gradient-to-br from-emerald-50 via-white to-teal-50 rounded-2xl p-5 border border-emerald-100 shadow-sm">
+      <div className="bg-gradient-to-br from-green-50 via-white to-violet-50 rounded-2xl p-5 border border-green-100 shadow-sm">
         {/* Badge transparence */}
         <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
             <Shield className="h-3 w-3" />
             Prix sans frais cachés
           </span>
@@ -602,7 +602,7 @@ Merci de me recontacter.`
 
         {/* Prix principal */}
         <div className="flex items-baseline gap-3 mb-1">
-          <span className="text-4xl font-extrabold text-emerald-600">
+          <span className="text-4xl font-extrabold text-green-600">
             {baseUnitPrice > 0 ? formatCurrency(baseUnitPrice, product.pricing.currency) : 'Sur devis'}
           </span>
         </div>
@@ -610,8 +610,8 @@ Merci de me recontacter.`
 
         {/* ══ PRIX DÉGRESSIFS (TIERS) ══ */}
         {product.priceTiers && product.priceTiers.length > 0 && (
-          <div className="mb-4 bg-white/50 rounded-lg p-3 text-xs border border-emerald-100/50">
-            <div className="flex items-center gap-1.5 font-semibold text-emerald-800 mb-2">
+          <div className="mb-4 bg-white/50 rounded-lg p-3 text-xs border border-green-100/50">
+            <div className="flex items-center gap-1.5 font-semibold text-green-800 mb-2">
               <TrendingDown className="h-3.5 w-3.5" />
               Prix dégressifs disponibles :
             </div>
@@ -624,7 +624,7 @@ Merci de me recontacter.`
                   <div key={tier.minQty} className={clsx(
                     "flex flex-col items-center justify-center p-2 rounded-lg border transition-all",
                     isCurrent
-                      ? "bg-emerald-100 border-emerald-300 text-emerald-900 shadow-sm ring-1 ring-emerald-200"
+                      ? "bg-green-100 border-green-300 text-green-900 shadow-sm ring-1 ring-green-200"
                       : "bg-white border-gray-100 text-gray-500"
                   )}>
                     <div className="text-[10px] font-medium opacity-80 mb-0.5">
@@ -642,7 +642,7 @@ Merci de me recontacter.`
 
         {/* ══ DÉTAIL DES FRAIS - TOUJOURS VISIBLE ══ */}
         {product.pricing.fees && (
-          <div className="border-t border-emerald-100 pt-3 space-y-2">
+          <div className="border-t border-green-100 pt-3 space-y-2">
             <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1">
               <Info className="h-3 w-3" />
               Détail du prix (transparence totale)
@@ -681,7 +681,7 @@ Merci de me recontacter.`
             {/* Ligne de total */}
             <div className="flex justify-between font-semibold text-gray-800 pt-2 mt-2 border-t border-dashed border-gray-200">
               <span>Total produit (hors transport)</span>
-              <span className="text-emerald-600">{formatCurrency(baseUnitPrice, product.pricing.currency)}</span>
+              <span className="text-green-600">{formatCurrency(baseUnitPrice, product.pricing.currency)}</span>
             </div>
           </div>
         )}
@@ -698,7 +698,7 @@ Merci de me recontacter.`
         <button
           type="button"
           onClick={() => setShowPriceDetails(!showPriceDetails)}
-          className="mt-3 text-xs text-gray-500 hover:text-emerald-600 font-medium flex items-center gap-1"
+          className="mt-3 text-xs text-gray-500 hover:text-green-600 font-medium flex items-center gap-1"
         >
           {showPriceDetails ? (
             <>
@@ -768,7 +768,7 @@ Merci de me recontacter.`
                       className={clsx(
                         'relative flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md cursor-pointer overflow-hidden',
                         hasQuantity
-                          ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                          ? 'border-green-500 bg-green-50 shadow-sm'
                           : isSelected
                           ? 'border-blue-500 bg-blue-50 shadow-sm'
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
@@ -824,7 +824,7 @@ Merci de me recontacter.`
                         <div className="flex items-center justify-between gap-2 min-w-0">
                           <h4 className={clsx(
                             'text-sm font-semibold flex-1 min-w-0 truncate',
-                            hasQuantity ? 'text-emerald-700' : isSelected ? 'text-blue-700' : 'text-gray-800'
+                            hasQuantity ? 'text-green-700' : isSelected ? 'text-violet-700' : 'text-gray-800'
                           )}>
                             {variant.name}
                           </h4>
@@ -844,7 +844,7 @@ Merci de me recontacter.`
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={clsx(
                               'text-base font-bold whitespace-nowrap',
-                              hasQuantity ? 'text-emerald-600' : 'text-orange-600'
+                              hasQuantity ? 'text-green-600' : 'text-violet-600'
                             )}>
                               {priceDisplay}
                             </span>
@@ -872,7 +872,7 @@ Merci de me recontacter.`
                           className={clsx(
                             'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
                             qty > 0
-                              ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                              ? 'bg-green-100 text-green-600 hover:bg-green-200'
                               : 'bg-gray-100 text-gray-400'
                           )}
                         >
@@ -889,7 +889,7 @@ Merci de me recontacter.`
                           className={clsx(
                             'w-12 h-8 text-center text-sm font-semibold border rounded-lg focus:outline-none focus:ring-2',
                             hasQuantity
-                              ? 'border-emerald-300 bg-emerald-50 text-emerald-700 focus:ring-emerald-500'
+                              ? 'border-green-300 bg-green-50 text-green-700 focus:ring-green-500'
                               : 'border-gray-300 bg-white text-gray-700 focus:ring-gray-400'
                           )}
                         />
@@ -901,7 +901,7 @@ Merci de me recontacter.`
                           className={clsx(
                             'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
                             !isOutOfStock
-                              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                              ? 'bg-green-500 text-white hover:bg-green-600'
                               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           )}
                         >
@@ -911,7 +911,7 @@ Merci de me recontacter.`
 
                       {/* Badge quantité sélectionnée */}
                       {hasQuantity && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                           <Check className="h-3 w-3 text-white" />
                         </div>
                       )}
@@ -1149,7 +1149,7 @@ Merci de me recontacter.`
           {/* Total général */}
           <div className="flex justify-between font-bold text-lg pt-3 mt-2 border-t-2 border-gray-300">
             <span className="text-gray-800">Total estimé</span>
-            <span className="text-emerald-600">
+            <span className="text-green-600">
               {formatCurrency(grandTotal, product.pricing.currency)}
             </span>
           </div>
@@ -1176,7 +1176,7 @@ Merci de me recontacter.`
             type="button"
             onClick={() => addToCart(true)}
             disabled={adding || variantCalculations.totalQuantity === 0}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-4 text-base font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white px-6 py-4 text-base font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ShoppingCart className="h-5 w-5" />
             {adding ? 'Ajout en cours...' : 'Acheter maintenant'}
@@ -1190,7 +1190,7 @@ Merci de me recontacter.`
               type="button"
               onClick={() => addToCart(false)}
               disabled={adding || variantCalculations.totalQuantity === 0}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 text-emerald-600 px-4 py-3 text-sm font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-green-500 text-green-600 px-4 py-3 text-sm font-semibold hover:bg-green-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="h-4 w-4" />
               <span>Ajouter au panier</span>
@@ -1231,7 +1231,7 @@ Merci de me recontacter.`
           <button
             type="button"
             onClick={onOpenNegotiation}
-            className="flex items-center justify-center gap-2 rounded-xl border-2 border-gray-200 text-gray-600 px-4 py-3 text-sm font-medium hover:border-emerald-400 hover:text-emerald-600 transition-all"
+            className="flex items-center justify-center gap-2 rounded-xl border-2 border-gray-200 text-gray-600 px-4 py-3 text-sm font-medium hover:border-violet-400 hover:text-violet-600 transition-all"
             title="Négocier le prix"
           >
             <MessageCircle className="h-4 w-4" />
@@ -1325,7 +1325,7 @@ Merci de me recontacter.`
                   </div>
                   <div className="mt-2 h-2 bg-white/15 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-emerald-400"
+                      className="h-full bg-green-400"
                       style={{
                         width: `${primaryGroup.targetQty > 0 ? Math.min(100, Math.round((primaryGroup.currentQty / primaryGroup.targetQty) * 100)) : 0}%`
                       }}
@@ -1411,7 +1411,7 @@ Merci de me recontacter.`
                         </Link>
                       </div>
                       <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+                        <div className="h-full bg-green-500" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
                   )
@@ -1484,7 +1484,7 @@ Merci de me recontacter.`
                     {product.priceTiers && product.priceTiers.length > 0 && (
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <TrendingDown className="w-5 h-5 text-emerald-600" />
+                          <TrendingDown className="w-5 h-5 text-green-600" />
                           Prix dégressifs
                         </h4>
                         <div className="space-y-2">
@@ -1497,27 +1497,27 @@ Merci de me recontacter.`
                                 className={clsx(
                                   'flex items-center justify-between p-3 rounded-xl border-2 transition-all',
                                   groupBuyQty >= tier.minQty 
-                                    ? 'border-emerald-500 bg-emerald-50' 
+                                    ? 'border-green-500 bg-green-50' 
                                     : 'border-gray-200 bg-white'
                                 )}
                               >
                                 <div className="flex items-center gap-3">
                                   <div className={clsx(
                                     'w-8 h-8 rounded-full flex items-center justify-center',
-                                    groupBuyQty >= tier.minQty ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'
+                                    groupBuyQty >= tier.minQty ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
                                   )}>
                                     {groupBuyQty >= tier.minQty ? <Check className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                                   </div>
                                   <div>
                                     <div className="font-semibold text-gray-900">{tier.minQty}+ unités</div>
                                     <div className="text-xs text-gray-500">
-                                      {savingsPercent > 0 && <span className="text-emerald-600 font-medium">-{savingsPercent}% </span>}
+                                      {savingsPercent > 0 && <span className="text-green-600 font-medium">-{savingsPercent}% </span>}
                                       par rapport au prix de base
                                     </div>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <div className="font-bold text-lg text-emerald-600">{formatCurrency(tier.price, 'FCFA')}</div>
+                                  <div className="font-bold text-lg text-green-600">{formatCurrency(tier.price, 'FCFA')}</div>
                                   {savings > 0 && (
                                     <div className="text-xs text-gray-400">-{formatCurrency(savings, 'FCFA')}/u</div>
                                   )}
