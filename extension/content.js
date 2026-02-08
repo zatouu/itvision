@@ -133,19 +133,73 @@
       console.warn('[IT Vision] Erreur extraction images:', e);
     }
 
-    // Variantes (plus de sélecteurs)
+    // Variantes (extraction enrichie avec prix et images)
     try {
-      const variants = [];
-      const variantSelectors = '.sku-item, .offer-sku, .prop-item, [class*="sku"] li, [class*="Sku"] li, [class*="variant"] li';
-      document.querySelectorAll(variantSelectors).forEach((item, idx) => {
-        const name = item.textContent?.trim();
-        const img = item.querySelector('img')?.getAttribute('src') || item.querySelector('img')?.getAttribute('data-src');
-        if (name && name.length > 0 && name.length < 80) {
-          variants.push({ id: `sku-${idx}`, name, image: img || undefined, isDefault: idx === 0 });
+      data.variantGroups = [];
+      const processedGroups = new Set();
+
+      // Méthode 1: Conteneurs SKU structurés (1688 moderne)
+      document.querySelectorAll('[class*="sku" i], [class*="Sku" i], [class*="prop" i], [class*="variant" i]').forEach(container => {
+        const labelEl = container.querySelector('[class*="title" i], [class*="label" i], [class*="name" i], dt, h4, h5, strong');
+        let groupName = labelEl?.textContent?.trim()?.replace(/[:\s：]+$/, '')?.trim() || '';
+        groupName = groupName.replace(/\s*[:\s：].*$/, '').trim();
+        if (!groupName || groupName.length > 40 || groupName.length < 1 || processedGroups.has(groupName)) return;
+        
+        const variants = [];
+        // Chercher les items individuels
+        container.querySelectorAll('li, [class*="item" i], [class*="option" i], [class*="prop-value" i]').forEach((item, idx) => {
+          const text = item.textContent?.trim();
+          if (!text || text.length > 80 || text.length < 1 || text === groupName) return;
+          // Ignorer si c'est le label du groupe lui-même
+          if (item === labelEl || item.contains(labelEl)) return;
+
+          const img = item.querySelector('img');
+          let imgUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || undefined;
+          if (imgUrl) {
+            imgUrl = imgUrl.replace(/_\d+x\d+[^.]*/, '');
+            if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+          }
+
+          // Essayer d'extraire un prix de la variante
+          const priceMatch = text.match(/[¥￥]\s*(\d+(?:\.\d+)?)/);
+          const variantPrice = priceMatch ? parseFloat(priceMatch[1]) : undefined;
+          // Nom nettoyé (sans le prix)
+          const cleanName = text.replace(/[¥￥]\s*\d+(?:\.\d+)?/, '').trim() || text;
+
+          if (!variants.find(v => v.name === cleanName)) {
+            variants.push({
+              id: `sku-${idx}`,
+              name: cleanName,
+              image: imgUrl,
+              price1688: variantPrice || data.price1688,
+              stock: 1000,
+              isDefault: idx === 0
+            });
+          }
+        });
+        
+        if (variants.length > 1) {
+          processedGroups.add(groupName);
+          data.variantGroups.push({ name: groupName, variants });
+          console.log('[IT Vision] 1688 Variante:', groupName, '→', variants.length, 'options');
         }
       });
-      if (variants.length > 0) {
-        data.variantGroups = [{ name: 'Modèle', variants }];
+
+      // Méthode 2: Fallback items plats
+      if (data.variantGroups.length === 0) {
+        const variants = [];
+        document.querySelectorAll('.sku-item, .offer-sku, .prop-item').forEach((item, idx) => {
+          const name = item.textContent?.trim();
+          const img = item.querySelector('img')?.getAttribute('src') || item.querySelector('img')?.getAttribute('data-src');
+          let imgUrl = img || undefined;
+          if (imgUrl?.startsWith('//')) imgUrl = 'https:' + imgUrl;
+          if (name && name.length > 0 && name.length < 80 && !variants.find(v => v.name === name)) {
+            variants.push({ id: `sku-${idx}`, name, image: imgUrl, price1688: data.price1688, stock: 1000, isDefault: idx === 0 });
+          }
+        });
+        if (variants.length > 1) {
+          data.variantGroups.push({ name: 'Modèle', variants });
+        }
       }
     } catch (e) {
       console.warn('[IT Vision] Erreur extraction variantes:', e);
@@ -389,10 +443,10 @@
       }
     }
 
-    // ===== IMAGES (approche multi-source) =====
+    // ===== IMAGES (approche ciblée — uniquement galerie produit) =====
     const imageSet = new Set();
     
-    // Source 1: JSON-LD images
+    // Source 1: JSON-LD images (le plus fiable)
     if (jsonLdProduct?.image) {
       const imgs = Array.isArray(jsonLdProduct.image) ? jsonLdProduct.image : [jsonLdProduct.image];
       imgs.forEach(img => { if (typeof img === 'string' && img.startsWith('http')) imageSet.add(img); });
@@ -402,37 +456,46 @@
     const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
     if (ogImg && ogImg.startsWith('http')) imageSet.add(ogImg);
 
-    // Source 3: Scanner TOUTES les <img> avec URLs CDN AliExpress
-    document.querySelectorAll('img').forEach(img => {
-      const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
-      if (!src) return;
-      // Images CDN AliExpress (ae01, ae04, etc.)
-      if (/ae\d+\.alicdn\.com/i.test(src) || /img\.aliexpress/i.test(src) || /cbu\d*\.alicdn\.com/i.test(src)) {
-        // Vérifier que c'est une image produit (pas icône/logo)
-        const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
-        const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
-        // Accepter si dimensions inconnues ou si > 100px
-        if ((!w && !h) || w > 100 || h > 100) {
-          // Enlever suffixes de resize pour HD
+    // Source 3: Images de la GALERIE PRODUIT uniquement (pas toute la page)
+    const gallerySelectors = [
+      '[class*="gallery" i] img', '[class*="Gallery" i] img',
+      '[class*="slider" i] img', '[class*="Slider" i] img',
+      '[class*="image-view" i] img', '[class*="ImageView" i] img',
+      '[class*="product-image" i] img', '[class*="ProductImage" i] img',
+      '[data-pl="product-image"] img', '[class*="magnifier" i] img',
+      '[class*="thumb" i]:not([class*="review" i]) img'
+    ];
+    for (const sel of gallerySelectors) {
+      document.querySelectorAll(sel).forEach(img => {
+        const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+        if (!src) return;
+        if (/ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress/i.test(src)) {
           let clean = src.replace(/_\d+x\d+[^.]*/, '').replace(/\.\d+x\d+\./, '.');
           if (clean.startsWith('//')) clean = 'https:' + clean;
           imageSet.add(clean);
         }
-      }
-    });
+      });
+    }
 
-    // Source 4: background-image dans les div de gallery
-    document.querySelectorAll('[style*="background-image"]').forEach(el => {
+    // Source 4: background-image dans les div de gallery uniquement
+    document.querySelectorAll('[class*="gallery" i] [style*="background-image"], [class*="slider" i] [style*="background-image"]').forEach(el => {
       const bg = el.style.backgroundImage;
       const m = bg.match(/url\(["']?([^"')]+)/);
-      if (m && /ae\d+\.alicdn|aliexpress/i.test(m[1])) {
+      if (m && /ae\d+\.alicdn|cbu\d*\.alicdn|aliexpress/i.test(m[1])) {
         let src = m[1].replace(/_\d+x\d+[^.]*/, '');
         if (src.startsWith('//')) src = 'https:' + src;
         imageSet.add(src);
       }
     });
 
-    data.gallery = Array.from(imageSet).slice(0, 15);
+    // Dédouper par nom de fichier (même image, résolutions différentes)
+    const seen = new Set();
+    data.gallery = Array.from(imageSet).filter(url => {
+      const fname = url.split('/').pop()?.split('?')[0]?.replace(/_\d+x\d+/, '') || url;
+      if (seen.has(fname)) return false;
+      seen.add(fname);
+      return true;
+    }).slice(0, 12);
     data.image = data.gallery[0];
     console.log('[IT Vision] Images trouvées:', data.gallery.length);
 

@@ -598,6 +598,27 @@ input[type="checkbox"] {
   background-color: initial !important;
 }
 
+/* Input quantité variant (sidebar produit) — override global !important */
+input.variant-qty-input {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+input.variant-qty-input::-webkit-outer-spin-button,
+input.variant-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input.variant-qty-input:focus {
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
 /* Animation de défilement pour les logos partenaires */
 @keyframes scroll {
   0% {

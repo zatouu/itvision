@@ -945,8 +945,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                                   value={qty}
                                   onChange={(e) => setVariantQuantityDirect(variant.id, parseInt(e.target.value) || 0)}
                                   disabled={isOutOfStock}
-                                  className="w-8 h-6 text-center text-xs font-semibold rounded border-0 bg-transparent p-0"
-                                  style={{ color: hasQty ? '#16a34a' : '#374151', backgroundColor: 'transparent', border: 'none' }}
+                                  className={clsx("variant-qty-input w-8 h-6 text-center text-xs font-semibold rounded p-0", hasQty ? "text-green-600" : "text-gray-700")}
                                 />
                                 <button onClick={() => handleVariantQuantityChange(variant.id, 1)} disabled={isOutOfStock} className={clsx("w-6 h-6 rounded flex items-center justify-center text-lg transition", !isOutOfStock ? "text-green-600 hover:bg-green-100" : "text-gray-300")}>
                                   <Plus className="w-3 h-3" />

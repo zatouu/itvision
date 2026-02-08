@@ -773,6 +773,7 @@ export async function POST(request: NextRequest) {
             lengthCm: ali.lengthCm || undefined,
             widthCm: ali.widthCm || undefined,
             heightCm: ali.heightCm || undefined,
+            variantGroups: Array.isArray((ali as any).variantGroups) ? (ali as any).variantGroups : [],
             availabilityNote: ali.availabilityNote,
             sourcing: {
               platform: 'aliexpress',
@@ -960,6 +961,7 @@ export async function POST(request: NextRequest) {
             lengthCm: ali.lengthCm || undefined,
             widthCm: ali.widthCm || undefined,
             heightCm: ali.heightCm || undefined,
+            variantGroups: Array.isArray((ali as any).variantGroups) ? (ali as any).variantGroups : [],
             availabilityNote: ali.availabilityNote,
             sourcing: {
               platform: 'aliexpress',

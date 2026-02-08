@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       lengthCm: p.lengthCm || undefined,
       widthCm: p.widthCm || undefined,
       heightCm: p.heightCm || undefined,
+      variantGroups: p.variantGroups || [],
       shopName: p.shopName,
       orders: p.orders,
       totalRated: p.rating,
