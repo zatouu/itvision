@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
+import { createWriteStream, existsSync } from 'fs'
 import path from 'path'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
 import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
 import { requireAuth } from '@/lib/jwt'
+
+export const maxDuration = 120
+export const dynamic = 'force-dynamic'
 
 // Vérification d'authentification requise pour l'upload
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; userId?: string; role?: string }> {
@@ -91,10 +96,20 @@ export async function POST(request: NextRequest) {
       await mkdir(uploadDir, { recursive: true })
     }
 
-    // Sauvegarder le fichier
+    // Sauvegarder le fichier (streaming pour les gros fichiers vidéo)
     const filepath = path.join(uploadDir, filename)
-    const bytes = await file.arrayBuffer()
-    await writeFile(filepath, new Uint8Array(bytes))
+    if (isAllowedVideo && file.size > 5 * 1024 * 1024) {
+      // Streaming pour fichiers > 5MB (évite de tout charger en RAM)
+      const webStream = file.stream()
+      const nodeStream = Readable.fromWeb(webStream as any)
+      const writeStream = createWriteStream(filepath)
+      await pipeline(nodeStream, writeStream)
+      console.log(`[upload] Vidéo streamée: ${filename} (${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+    } else {
+      const bytes = await file.arrayBuffer()
+      await writeFile(filepath, new Uint8Array(bytes))
+      console.log(`[upload] Fichier écrit: ${filename} (${(file.size / 1024).toFixed(0)}KB)`)
+    }
 
     // URL publique - utiliser l'API pour servir les fichiers en mode standalone
     // En développement, les fichiers statiques fonctionnent directement

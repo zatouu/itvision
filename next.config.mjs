@@ -95,6 +95,13 @@ const nextConfig = {
     ],
   },
 
+  // Augmenter la limite de taille du body pour les uploads vidéo (défaut ~4MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '150mb',
+    },
+  },
+
   // Packages serveur exclus du bundling (binaires natifs)
   serverExternalPackages: ['playwright', 'playwright-core'],
   
