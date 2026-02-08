@@ -819,9 +819,9 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             )}
           </div>
 
-          {/* ──────── COLONNE DROITE : Sidebar fixe au scroll ──────── */}
+          {/* ──────── COLONNE DROITE : Sidebar fixe au scroll avec scroll interne ──────── */}
           <div className="w-full lg:w-[420px] flex-shrink-0">
-            <div className="lg:sticky lg:top-4 space-y-4">
+            <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1 space-y-4 scrollbar-thin">
 
               {/* ══ Titre + Disponibilité ══ */}
               <div className="bg-white rounded-xl p-5 shadow-sm">

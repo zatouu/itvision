@@ -5,24 +5,30 @@ import { useEffect, useState } from 'react'
 type Theme = 'light' | 'dark' | 'system'
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>('dark')
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme') as Theme | null
+      if (stored && ['light', 'dark', 'system'].includes(stored)) return stored
+    }
+    return 'light'
+  })
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme') as Theme | null
+      const t = (stored && ['light', 'dark', 'system'].includes(stored)) ? stored : 'light'
+      if (t === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      return t === 'dark' ? 'dark' : 'light'
+    }
+    return 'light'
+  })
 
   useEffect(() => {
-    // Charger le thème depuis localStorage
-    const stored = localStorage.getItem('theme') as Theme | null
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
-      setTheme(stored)
-    } else {
-      setTheme('dark')
-    }
-
     // Fonction pour déterminer le thème résolu
     const getResolvedTheme = (): 'light' | 'dark' => {
       if (theme === 'system') {
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       }
-      return theme
+      return theme === 'dark' ? 'dark' : 'light'
     }
 
     // Appliquer le thème

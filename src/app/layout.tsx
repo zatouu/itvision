@@ -41,24 +41,16 @@ export default function RootLayout({
     try {
       var stored = localStorage.getItem('theme');
       var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var theme = stored || 'system';
+      var theme = stored || 'light';
       var resolved = theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
       var root = document.documentElement;
-      var body = document.body;
-      
       if (resolved === 'dark') {
         root.classList.add('dark');
         root.style.colorScheme = 'dark';
-        body.style.backgroundColor = '#0b0f14';
-        body.style.color = '#e5e7eb';
       } else {
         root.classList.remove('dark');
         root.style.colorScheme = 'light';
-        body.style.backgroundColor = '#ffffff';
-        body.style.color = '#171717';
       }
-      
-      // Marquer comme initialisé pour activer les styles dark
       root.classList.add('theme-initialized');
     } catch (e) {
       document.documentElement.classList.add('theme-initialized');
@@ -70,7 +62,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${inter.className}`} style={{ backgroundColor: '#ffffff', color: '#171717' }}>
+      <body className={`${inter.className}`}>
         <SessionProviderClient>
           <PageVisitTracker />
           {children}

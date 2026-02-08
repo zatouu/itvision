@@ -1,27 +1,13 @@
 @import "tailwindcss";
 
-/* PROTECTION: Empêcher le flash dark mode avant initialisation */
-/* Les styles dark ne s'appliquent que si le thème est explicitement initialisé */
-html:not(.theme-initialized) .dark\:bg-slate-950,
-html:not(.theme-initialized) .dark\:bg-slate-950\/95,
-html:not(.theme-initialized) .dark\:bg-slate-900,
-html:not(.theme-initialized) .dark\:bg-gray-950,
-html:not(.theme-initialized) .dark\:bg-gray-900 {
-  background-color: #ffffff !important;
+/* PROTECTION: Cacher le body jusqu'à ce que le thème soit appliqué (script head blocking) */
+html:not(.theme-initialized) body {
+  visibility: hidden;
 }
 
-html:not(.theme-initialized) .dark\:text-white,
-html:not(.theme-initialized) .dark\:text-gray-100,
-html:not(.theme-initialized) .dark\:text-gray-200 {
-  color: #171717 !important;
-}
-
-/* Transition douce pour éviter le flash au changement de thème */
-html {
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-body {
+/* Transition douce UNIQUEMENT après initialisation du thème */
+html.theme-initialized,
+html.theme-initialized body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -82,6 +68,29 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Scrollbar fine pour sidebar produit */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
 }
 
 :root {
