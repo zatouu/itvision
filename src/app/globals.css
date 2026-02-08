@@ -99,7 +99,14 @@ html.theme-initialized body {
   --primary-emerald: #10B981;
   --primary-purple: #8B5CF6;
   --accent-cyan: #06B6D4;
-  --header-height: 120px; /* Valeur par défaut (sera ajustée dynamiquement) */
+  --header-height: 120px;
+  /* Light mode defaults for theme-aware variables */
+  --bg-white: #ffffff;
+  --bg-gray-50: #f9fafb;
+  --bg-gray-100: #f3f4f6;
+  --text-gray-900: #111827;
+  --text-gray-700: #374151;
+  --text-black: #000000;
   color-scheme: light;
 }
 
@@ -116,10 +123,24 @@ html.theme-initialized body {
   --primary-emerald: #34d399;
   --primary-purple: #a78bfa;
   --accent-cyan: #22d3ee;
+  --bg-white: #0f172a;
+  --bg-gray-50: #0b1220;
+  --bg-gray-100: #111827;
+  --text-gray-900: #f9fafb;
+  --text-gray-700: #d1d5db;
+  --text-black: #f9fafb;
   color-scheme: dark;
 }
 
-/* Dark overrides moved to layout.tsx inline <style> to bypass Tailwind v4 tree-shaking */
+/* Classes that use the theme-aware CSS variables - wrapped in @layer to prevent Tailwind from stripping them */
+@layer components {
+  .bg-white { background-color: var(--bg-white, #ffffff) !important; }
+  .bg-gray-50 { background-color: var(--bg-gray-50, #f9fafb) !important; }
+  .bg-gray-100 { background-color: var(--bg-gray-100, #f3f4f6) !important; }
+  .text-gray-900 { color: var(--text-gray-900, #111827) !important; }
+  .text-gray-700 { color: var(--text-gray-700, #374151) !important; }
+  .text-black { color: var(--text-black, #000000) !important; }
+}
 
 body {
   background: var(--background);

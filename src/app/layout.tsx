@@ -37,6 +37,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Blocking theme script - sets class, color-scheme, AND injects dark mode CSS
   const themeScript = `(function() {
     try {
       var stored = localStorage.getItem('theme');
@@ -44,6 +45,7 @@ export default function RootLayout({
       var theme = stored || 'light';
       var resolved = theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
       var root = document.documentElement;
+      
       if (resolved === 'dark') {
         root.classList.add('dark');
         root.style.colorScheme = 'dark';
@@ -52,75 +54,34 @@ export default function RootLayout({
         root.style.colorScheme = 'light';
       }
       root.classList.add('theme-initialized');
+      
+      // Inject dark mode CSS directly - bypasses Tailwind v4 tree-shaking
+      var style = document.createElement('style');
+      style.id = 'dark-mode-overrides';
+      if (resolved === 'dark') {
+        style.textContent = 
+          'html.dark .bg-white, html.dark [class*="bg-white/"] { background-color: #0f172a !important; }' +
+          'html.dark .bg-gray-50, html.dark .bg-slate-50 { background-color: #0b1220 !important; }' +
+          'html.dark .bg-gray-100, html.dark .bg-gray-200 { background-color: #111827 !important; }' +
+          'html.dark .text-gray-900 { color: #f9fafb !important; }' +
+          'html.dark .text-gray-800 { color: #e5e7eb !important; }' +
+          'html.dark .text-gray-700, html.dark .text-gray-600 { color: #d1d5db !important; }' +
+          'html.dark .text-gray-500 { color: #9ca3af !important; }' +
+          'html.dark .text-black { color: #f9fafb !important; }' +
+          'html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-300 { border-color: #1f2937 !important; }' +
+          'html.dark .page-content, html.dark .hero-section { background-color: #0b0f14 !important; }' +
+          'html.dark input, html.dark textarea, html.dark select { color: #e5e7eb !important; background-color: #1e293b !important; border-color: #334155 !important; }';
+      }
+      document.head.appendChild(style);
     } catch (e) {
       document.documentElement.classList.add('theme-initialized');
     }
   })();`
 
-  // Dark mode overrides — injected as inline <style> to bypass Tailwind v4 tree-shaking
-  // (Tailwind v4 strips .dark .utility-class rules from globals.css during compilation)
-  const darkModeCSS = `
-    .dark .page-content, .dark .hero-section { background-color: #0b0f14; }
-    .dark .bg-white { background-color: #0f172a !important; }
-    .dark .bg-white\\/98 { background-color: rgba(15,23,42,0.98) !important; }
-    .dark .bg-white\\/95 { background-color: rgba(15,23,42,0.95) !important; }
-    .dark .bg-white\\/90 { background-color: rgba(15,23,42,0.9) !important; }
-    .dark .bg-white\\/80 { background-color: rgba(15,23,42,0.8) !important; }
-    .dark .bg-white\\/70 { background-color: rgba(15,23,42,0.7) !important; }
-    .dark .bg-white\\/60 { background-color: rgba(15,23,42,0.6) !important; }
-    .dark .bg-white\\/50 { background-color: rgba(15,23,42,0.5) !important; }
-    .dark .bg-white\\/40 { background-color: rgba(15,23,42,0.4) !important; }
-    .dark .bg-white\\/30 { background-color: rgba(15,23,42,0.3) !important; }
-    .dark .bg-white\\/20 { background-color: rgba(15,23,42,0.2) !important; }
-    .dark .bg-white\\/10 { background-color: rgba(15,23,42,0.12) !important; }
-    .dark .bg-white\\/5 { background-color: rgba(15,23,42,0.08) !important; }
-    .dark .bg-gray-50, .dark .bg-slate-50 { background-color: #0b1220 !important; }
-    .dark .bg-gray-50\\/50, .dark .bg-gray-100\\/50 { background-color: rgba(15,23,42,0.5) !important; }
-    .dark .bg-gray-100 { background-color: #111827 !important; }
-    .dark .bg-gray-200 { background-color: #111827 !important; }
-    .dark .bg-emerald-50 { background-color: rgba(16,185,129,0.08) !important; }
-    .dark .bg-purple-50 { background-color: rgba(139,92,246,0.08) !important; }
-    .dark .text-gray-900 { color: #f9fafb !important; }
-    .dark .text-gray-800 { color: #e5e7eb !important; }
-    .dark .text-gray-700 { color: #d1d5db !important; }
-    .dark .text-gray-600 { color: #cbd5f5 !important; }
-    .dark .text-gray-500 { color: #9ca3af !important; }
-    .dark .text-gray-400 { color: #94a3b8 !important; }
-    .dark .text-black { color: #f9fafb !important; }
-    .dark .border-gray-100, .dark .border-gray-200 { border-color: #1f2937 !important; }
-    .dark .border-gray-300 { border-color: #334155 !important; }
-    .dark .border-gray-400 { border-color: #475569 !important; }
-    .dark .border-emerald-100 { border-color: #064e3b !important; }
-    .dark .border-white\\/10, .dark .border-white\\/20, .dark .border-white\\/30,
-    .dark .border-white\\/40, .dark .border-white\\/50 { border-color: #1f2937 !important; }
-    .dark .shadow-sm, .dark .shadow, .dark .shadow-md,
-    .dark .shadow-lg, .dark .shadow-xl, .dark .shadow-2xl {
-      box-shadow: 0 10px 25px rgba(0,0,0,0.35) !important;
-    }
-    .dark input[type="text"], .dark input[type="email"], .dark input[type="password"],
-    .dark input[type="number"], .dark input[type="tel"], .dark input[type="url"],
-    .dark input[type="search"], .dark input[type="date"], .dark textarea, .dark select {
-      color: #e5e7eb !important;
-      background-color: #1e293b !important;
-      border-color: #334155 !important;
-    }
-    .dark input[type="text"]:focus, .dark input[type="email"]:focus,
-    .dark input[type="password"]:focus, .dark input[type="number"]:focus,
-    .dark textarea:focus, .dark select:focus {
-      color: #f9fafb !important;
-      background-color: #1e293b !important;
-      border-color: #6366f1 !important;
-      box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
-    }
-    .dark input::placeholder, .dark textarea::placeholder { color: #64748b !important; }
-    .dark input.variant-qty-input { background-color: transparent !important; border: none !important; }
-  `
-
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <style dangerouslySetInnerHTML={{ __html: darkModeCSS }} />
       </head>
       <body className={`${inter.className}`}>
         <SessionProviderClient>
