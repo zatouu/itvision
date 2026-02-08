@@ -109,7 +109,7 @@ export const formatProductDetail = (
     },
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé
-    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
+    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
     // Exposer les infos simplifiées pour le simulateur 1688 si disponibles
     pricing1688: product.price1688 ? {
       price1688: product.price1688,

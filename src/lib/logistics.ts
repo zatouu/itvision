@@ -165,7 +165,7 @@ export const computeProductPricing = (
   const isInStock = product.stockStatus === 'in_stock'
   
   // Déterminer si le produit est importé
-  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform)))
+  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress'].includes(product.sourcing.platform)))
 
   // Calcul des frais additionnels (uniquement pour les produits importés avec un prix)
   let fees: PricingFees | undefined

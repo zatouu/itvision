@@ -902,47 +902,56 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 </div>
               </div>
 
-              {/* ══ Variantes avec quantités ══ */}
+              {/* ══ Variantes avec quantités (style 1688 compact) ══ */}
               {product.variantGroups && product.variantGroups.length > 0 && (
-                <div className="bg-white rounded-xl p-5 shadow-sm">
+                <div className="bg-white rounded-xl shadow-sm">
                   {product.variantGroups.map(group => (
-                    <div key={group.name} className="mb-4 last:mb-0">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">{group.name}</h4>
-                      <div className="space-y-2">
+                    <div key={group.name}>
+                      <div className="px-4 pt-4 pb-2">
+                        <h4 className="text-sm font-bold text-gray-800">{group.name}</h4>
+                      </div>
+                      <div className="divide-y divide-gray-100">
                         {group.variants.map(variant => {
                           const qty = variantQuantities[variant.id] || 0
                           const hasQty = qty > 0
                           const price = (variant.priceFCFA && variant.priceFCFA > 0) ? variant.priceFCFA : baseUnitPrice
                           const isOutOfStock = variant.stock <= 0
                           return (
-                            <div key={variant.id} className={clsx("relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all", hasQty ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-green-300")}>
+                            <div key={variant.id} className={clsx("flex items-center gap-2 px-4 py-2.5 transition-colors", hasQty ? "bg-green-50/60" : "hover:bg-gray-50")}>
                               {variant.image && (
-                                <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border">
-                                  <Image src={variant.image} alt={variant.name} fill className="object-cover" sizes="48px" />
+                                <div className="relative flex-shrink-0 group/img">
+                                  <div className="relative w-10 h-10 rounded overflow-hidden border border-gray-200">
+                                    <Image src={variant.image} alt={variant.name} fill className="object-cover" sizes="40px" />
+                                  </div>
+                                  <div className="hidden group-hover/img:block absolute bottom-full left-0 mb-2 z-50 pointer-events-none">
+                                    <div className="relative w-40 h-40 rounded-lg overflow-hidden border-2 border-white shadow-xl bg-white">
+                                      <Image src={variant.image} alt={variant.name} fill className="object-contain" sizes="160px" />
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-gray-900 truncate">{variant.name}</div>
-                                <div className="flex items-center gap-2">
-                                  <span className={clsx("text-sm font-bold", hasQty ? "text-green-600" : "text-gray-700")}>{formatCurrency(price)}</span>
-                                  {variant.stock > 0 && <span className="text-[10px] text-gray-400">Stock: {variant.stock}</span>}
-                                </div>
+                                <div className="text-xs font-medium text-gray-900 leading-tight line-clamp-2">{variant.name}</div>
                               </div>
-                              {/* Contrôle quantité */}
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <button onClick={() => handleVariantQuantityChange(variant.id, -1)} disabled={qty === 0} className={clsx("w-7 h-7 rounded-lg flex items-center justify-center transition", qty > 0 ? "bg-green-100 text-green-600 hover:bg-green-200" : "bg-gray-100 text-gray-400")}>
-                                  <Minus className="w-3.5 h-3.5" />
+                              <span className={clsx("text-xs font-bold whitespace-nowrap", hasQty ? "text-green-600" : "text-gray-700")}>{formatCurrency(price)}</span>
+                              <span className="text-[10px] text-gray-400 whitespace-nowrap w-16 text-right">{variant.stock > 0 ? `${variant.stock.toLocaleString('fr-FR')} en stock` : 'Épuisé'}</span>
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                <button onClick={() => handleVariantQuantityChange(variant.id, -1)} disabled={qty === 0} className={clsx("w-6 h-6 rounded flex items-center justify-center text-lg transition", qty > 0 ? "text-green-600 hover:bg-green-100" : "text-gray-300")}>
+                                  <Minus className="w-3 h-3" />
                                 </button>
-                                <input type="number" min={0} value={qty} onChange={(e) => setVariantQuantityDirect(variant.id, parseInt(e.target.value) || 0)} disabled={isOutOfStock} className={clsx("w-10 h-7 text-center text-sm font-semibold border rounded-lg", hasQty ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200")} />
-                                <button onClick={() => handleVariantQuantityChange(variant.id, 1)} disabled={isOutOfStock} className={clsx("w-7 h-7 rounded-lg flex items-center justify-center transition", !isOutOfStock ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-100 text-gray-400")}>
-                                  <Plus className="w-3.5 h-3.5" />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={qty}
+                                  onChange={(e) => setVariantQuantityDirect(variant.id, parseInt(e.target.value) || 0)}
+                                  disabled={isOutOfStock}
+                                  className="w-8 h-6 text-center text-xs font-semibold rounded border-0 bg-transparent p-0"
+                                  style={{ color: hasQty ? '#16a34a' : '#374151', backgroundColor: 'transparent', border: 'none' }}
+                                />
+                                <button onClick={() => handleVariantQuantityChange(variant.id, 1)} disabled={isOutOfStock} className={clsx("w-6 h-6 rounded flex items-center justify-center text-lg transition", !isOutOfStock ? "text-green-600 hover:bg-green-100" : "text-gray-300")}>
+                                  <Plus className="w-3 h-3" />
                                 </button>
                               </div>
-                              {hasQty && (
-                                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <Check className="h-3 w-3 text-white" />
-                                </div>
-                              )}
                             </div>
                           )
                         })}
