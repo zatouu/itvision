@@ -51,7 +51,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.products) {
     const count = changes.products.newValue?.length || 0;
     chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
-    chrome.action.setBadgeBackgroundColor({ color: '#f97316' });
+    chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
   }
 });
 

@@ -849,7 +849,7 @@
         bottom: 20px;
         right: 20px;
         z-index: 999999;
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: linear-gradient(135deg, #22c55e, #8b5cf6);
         color: white;
         padding: 12px 20px;
         border-radius: 50px;
@@ -857,7 +857,7 @@
         font-family: system-ui, sans-serif;
         font-weight: 600;
         font-size: 14px;
-        box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+        box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
         display: flex;
         align-items: center;
         gap: 8px;

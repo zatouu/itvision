@@ -883,13 +883,14 @@ export async function POST(request: NextRequest) {
 
           if (is1688Url(productUrl)) {
             const preview = it as Import1688Preview & { description?: string; supplier?: { name?: string }; specifications?: Record<string, string> }
+            const rawDesc = preview.description || (preview.offerId
+              ? `Import depuis 1688 • offerId ${preview.offerId}`
+              : 'Import depuis 1688')
             const payload: Record<string, unknown> = {
-              name: preview.name,
+              name: preview.name?.slice(0, 200),
               category: preview.category || 'Catalogue import Chine',
-              tagline: preview.tagline || 'Import 1688',
-              description: preview.description || (preview.offerId
-                ? `Import depuis 1688 • offerId ${preview.offerId}`
-                : 'Import depuis 1688'),
+              tagline: (preview.tagline || 'Import 1688').slice(0, 200),
+              description: rawDesc.slice(0, 4900),
               currency: 'FCFA',
               image: preview.image,
               gallery: Array.isArray(preview.gallery) ? preview.gallery : [],
@@ -938,11 +939,12 @@ export async function POST(request: NextRequest) {
           }
 
           const ali = it as NormalizedAliExpressItem & { description?: string; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = ali.description || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
           const payload = {
-            name: ali.name,
+            name: (ali.name || 'Produit AliExpress').slice(0, 200),
             category: ali.category,
-            description: ali.description || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
-            tagline: ali.tagline,
+            description: aliDesc.slice(0, 4900),
+            tagline: (ali.tagline || 'Import AliExpress').slice(0, 200),
             baseCost: ali.baseCost,
             marginRate: DEFAULT_MARGIN,
             price: ali.price,
@@ -983,6 +985,7 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           failedCount++
           const message = error instanceof Error ? error.message : 'Import impossible'
+          console.error(`[import] Échec pour ${productUrl}:`, message)
           results.push({ productUrl, ok: false, error: message })
         }
       }

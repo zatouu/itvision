@@ -237,8 +237,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Cookie': `auth-token=${authCookie.value}`
+          'Authorization': `Bearer ${authCookie.value}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
