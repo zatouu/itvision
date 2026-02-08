@@ -662,15 +662,137 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 )}
 
                 {activeTab === 'reviews' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 pb-4 border-b">
-                      <div className="text-4xl font-bold text-green-600">4.8</div>
-                      <div>
-                        <div className="flex gap-1">{[1,2,3,4,5].map(s => <Star key={s} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}</div>
-                        <p className="text-sm text-gray-500 mt-1">Avis vérifiés par notre équipe</p>
+                  <div>
+                    {/* En-tête avis style 1688 */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-base font-bold text-gray-900">Avis sur les produits</h3>
+                      <div className="flex items-center gap-1">
+                        {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 text-yellow-400 fill-yellow-400" />)}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">5.0</span>
+                      <span className="text-sm text-gray-500">( 3 avis )</span>
+                      <span className="text-xs text-gray-400 ml-1">| Taux de commentaires positifs : 100 %</span>
+                    </div>
+
+                    {/* Tabs de filtre avis */}
+                    <div className="flex gap-2 mb-6 flex-wrap">
+                      {[
+                        { label: 'tous 3', active: true },
+                        { label: 'Image incluse 2', active: false },
+                        { label: 'Avis positif 3', active: false },
+                        { label: 'Contenu 3', active: false },
+                      ].map((filter, idx) => (
+                        <button
+                          key={idx}
+                          className={clsx(
+                            "px-4 py-1.5 rounded text-sm font-medium border transition",
+                            filter.active
+                              ? "bg-green-500 text-white border-green-500"
+                              : "bg-white text-gray-600 border-gray-300 hover:border-green-400"
+                          )}
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Cartes d'avis */}
+                    <div className="space-y-6">
+                      {/* Avis placeholder 1 */}
+                      <div className="border-b border-gray-100 pb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">A</div>
+                          <span className="text-sm text-gray-500">Achat anonyme</span>
+                          <span className="text-xs text-gray-400">| 1ensemble</span>
+                          <span className="text-xs text-green-600 font-medium ml-1">Clients réguliers</span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                          Excellent produit, conforme à la description. La qualité est au rendez-vous et le rapport qualité-prix est très satisfaisant.
+                        </p>
+                        {/* Images de l'avis */}
+                        {gallery.length > 0 && (
+                          <div className="flex gap-2">
+                            {gallery.slice(0, 3).map((img, imgIdx) => (
+                              <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-green-400 transition">
+                                <Image src={img} alt={`Avis photo ${imgIdx + 1}`} fill className="object-cover" sizes="80px" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Avis placeholder 2 */}
+                      <div className="border-b border-gray-100 pb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">B</div>
+                          <span className="text-sm text-gray-500">Achat anonyme</span>
+                          <span className="text-xs text-gray-400">| 1ensemble</span>
+                          <span className="text-xs text-green-600 font-medium ml-1">Clients réguliers</span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                          Peut mieux faire sur l&apos;emballage mais le produit fonctionne parfaitement.
+                        </p>
+                        {gallery.length > 1 && (
+                          <div className="flex gap-2">
+                            {gallery.slice(1, 3).map((img, imgIdx) => (
+                              <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-green-400 transition">
+                                <Image src={img} alt={`Avis photo ${imgIdx + 1}`} fill className="object-cover" sizes="80px" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Avis placeholder 3 */}
+                      <div className="pb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">C</div>
+                          <span className="text-sm text-gray-500">Achat anonyme</span>
+                          <span className="text-xs text-gray-400">| 2 pièces</span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          Livraison rapide, produit conforme. Je recommande.
+                        </p>
                       </div>
                     </div>
-                    <p className="text-gray-500 text-sm">Les avis clients apparaîtront ici après vérification.</p>
+
+                    {/* Bouton voir tous les avis */}
+                    <div className="flex justify-center mt-4 pt-4 border-t border-gray-200">
+                      <button className="px-6 py-2 border border-gray-300 rounded text-sm text-gray-600 hover:border-green-400 hover:text-green-600 transition flex items-center gap-1">
+                        <ChevronDown className="w-4 h-4" />
+                        Voir tous les avis
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ──────── Détails du produit (images grand format scroll vertical style 1688) ──────── */}
+            <div className="mt-6 bg-white rounded-xl shadow-sm">
+              <div className="border-b px-6 py-4">
+                <h2 className="text-lg font-bold text-gray-900">Détails du produit</h2>
+              </div>
+              <div className="p-4 space-y-1">
+                {gallery.map((media, idx) => (
+                  <div key={idx} className="relative w-full">
+                    {isVideoUrl(media) ? (
+                      <video src={media} controls className="w-full rounded-lg" />
+                    ) : (
+                      <Image
+                        src={media}
+                        alt={`${product.name} - détail ${idx + 1}`}
+                        width={800}
+                        height={800}
+                        className="w-full h-auto rounded-lg"
+                        sizes="(max-width: 1024px) 100vw, 55vw"
+                      />
+                    )}
+                  </div>
+                ))}
+                {product.description && (
+                  <div className="pt-4 border-t mt-4">
+                    <div dangerouslySetInnerHTML={{ __html: parseMarkdown(product.description) }} />
                   </div>
                 )}
               </div>
