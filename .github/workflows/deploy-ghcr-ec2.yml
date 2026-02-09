@@ -126,6 +126,12 @@ jobs:
             echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> .env.ec2
             echo "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" >> .env.ec2
             echo "MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db" >> .env.ec2
+            echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env.ec2
+            echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env.ec2
+            echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env.ec2
+            echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env.ec2
+            echo "SMTP_FROM=${{ secrets.SMTP_FROM }}" >> .env.ec2
+            echo "SMTP_SECURE=${{ secrets.SMTP_SECURE }}" >> .env.ec2
 
             # Login au registre GHCR (méthode sécurisée avec stdin)
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} --password-stdin
