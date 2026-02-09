@@ -70,7 +70,7 @@ class EmailService {
 
     try {
       const mailOptions = {
-        from: `"IT Vision Plus" <${process.env.SMTP_USER}>`,
+        from: `"IT Vision Plus" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: emailData.to,
         subject: emailData.subject,
         html: emailData.html,

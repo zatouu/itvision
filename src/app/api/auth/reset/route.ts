@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
     await User.updateOne({ _id: user._id }, {
       $set: { 
         passwordHash,
+        forcePasswordReset: false,
         // Réinitialiser les tentatives de connexion en cas de succès
         loginAttempts: 0
       },

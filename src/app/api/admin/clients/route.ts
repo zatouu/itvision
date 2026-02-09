@@ -5,8 +5,9 @@ import Client from '@/lib/models/Client'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
-import { getClientCredentialsEmail } from '@/lib/email-templates'
+import { getClientInvitationEmail } from '@/lib/email-templates'
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
@@ -138,11 +139,15 @@ export async function POST(request: NextRequest) {
       try {
         const userExists = await User.findOne({ email })
         if (!userExists) {
-          // Générer un mot de passe aléatoire (10 char, alphanum)
-          const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-2).toUpperCase()
+          // Générer un token de réinitialisation de mot de passe
+          const resetToken = crypto.randomBytes(32).toString('hex')
+          const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 heures
+          
+          // Créer l'utilisateur avec un mot de passe invalide (force reset)
+          const tempPassword = crypto.randomBytes(32).toString('hex')
           const passwordHash = await bcrypt.hash(tempPassword, 10)
           
-          await User.create({
+          const user = await User.create({
             username: email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
             email,
             passwordHash,
@@ -151,13 +156,16 @@ export async function POST(request: NextRequest) {
             company: company || name,
             companyClientId: client._id,
             isActive: true,
+            forcePasswordReset: true,
+            passwordResetToken: resetToken,
+            passwordResetExpires: tokenExpires,
             createdAt: new Date(),
             updatedAt: new Date()
           })
 
-          // Envoyer l'email
-          const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/login`
-          const emailContent = getClientCredentialsEmail(name, email, loginUrl, tempPassword)
+          // Envoyer l'email d'invitation avec le lien de réinitialisation
+          const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`
+          const emailContent = getClientInvitationEmail(name, resetUrl)
           
           await emailService.sendEmail({
             to: email,
@@ -165,6 +173,8 @@ export async function POST(request: NextRequest) {
             html: emailContent.html,
             text: emailContent.text
           })
+          
+          console.log(`[CLIENT_CREATED] Email d'invitation envoyé à ${email} avec token de réinitialisation`)
         }
       } catch (err) {
         console.error('Erreur lors de la création du compte utilisateur:', err)

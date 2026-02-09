@@ -24,6 +24,7 @@ export interface IUser extends Document {
   twoFactorExpires?: Date
   passwordResetToken?: string
   passwordResetExpires?: Date
+  forcePasswordReset?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -50,6 +51,7 @@ const UserSchema = new Schema<IUser>({
   twoFactorExpires: { type: Date },
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },
+  forcePasswordReset: { type: Boolean, default: false },
 }, { timestamps: true })
 
 // Index uniques déjà définis via unique:true dans les champs ci-dessus
