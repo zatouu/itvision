@@ -37,6 +37,12 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-${NEXT_PUBLIC_SITE_URL}}
       UPLOAD_DIR: /app/public/uploads
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_SECURE: ${SMTP_SECURE}
     volumes:
       - uploads_data:/app/public/uploads
       - app_logs:/app/logs
