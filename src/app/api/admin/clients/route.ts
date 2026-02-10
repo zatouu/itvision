@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Générer un clientId unique basé sur le max des IDs existants
-    const lastClient = await Client.findOne().sort({ clientId: -1 }).select('clientId').lean()
+    const lastClient = await Client.findOne().sort({ clientId: -1 }).select('clientId').lean() as { clientId: string } | null
     let nextNumber = 1
     if (lastClient?.clientId) {
       const match = lastClient.clientId.match(/CL(\d+)/)
