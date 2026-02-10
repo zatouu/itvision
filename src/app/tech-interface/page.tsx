@@ -19,24 +19,19 @@ export default function TechInterfacePage() {
         
         if (response.ok) {
           const data = await response.json()
-          console.log('Tech auth check result:', data) // Debug log
-          
           const role = String(data.user?.role || '').toUpperCase()
           if (role === 'TECHNICIAN') {
             setIsAuthenticated(true)
           } else {
-            console.log('Tech auth failed - wrong role:', role) // Debug log
             // Redirection selon le rôle
             if (role === 'ADMIN') router.push('/admin')
             else if (role === 'CLIENT') router.push('/compte')
             else router.push('/login')
           }
         } else {
-          console.log('Tech auth check failed, redirecting to login') // Debug log
           router.push('/login')
         }
-      } catch (error) {
-        console.error('Tech auth check error:', error)
+      } catch {
         router.push('/login')
       } finally {
         setLoading(false)

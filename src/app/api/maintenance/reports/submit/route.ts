@@ -4,6 +4,7 @@ import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
 import { addNotification } from '@/lib/notifications-memory'
 import { verifyJwtPayload } from '@/lib/jwt'
+import { emailService } from '@/lib/email-service'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
@@ -255,24 +256,40 @@ async function notifyAdminNewReport(report: any) {
     metadata: { reportMongoId: String(report._id), reportId: report.reportId }
   })
   
-  // Exemple d'envoi d'email (à adapter avec votre service email)
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      // await sendEmail({
-      //   to: 'admin@itvision.sn',
-      //   subject: `Nouveau rapport à valider - ${report.reportId}`,
-      //   template: 'new-report-validation',
-      //   data: {
-      //     reportId: report.reportId,
-      //     technicianName: report.technicianName,
-      //     clientName: report.clientName,
-      //     interventionDate: report.interventionDate,
-      //     priority: report.priority,
-      //     validationUrl: `https://itvision.sn/validation-rapports?report=${report._id}`
-      //   }
-      // })
-    } catch (emailError) {
-      console.error('Erreur envoi email notification:', emailError)
-    }
+  // Envoi d'email de notification à l'admin
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+    const dateStr = report.interventionDate
+      ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
+      : 'Non spécifiée'
+    const priorityLabel = report.priority === 'urgent' ? '🔴 URGENT' :
+      report.priority === 'high' ? '🟠 Haute' :
+      report.priority === 'medium' ? '🟡 Moyenne' : '🟢 Faible'
+
+    await emailService.sendEmail({
+      to: 'contact@itvisionplus.sn',
+      subject: `Nouveau rapport à valider - ${report.reportId}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:linear-gradient(135deg,#059669,#2563eb);color:white;padding:20px;border-radius:10px 10px 0 0">
+            <h2 style="margin:0">📋 Nouveau rapport soumis</h2>
+          </div>
+          <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
+            <p><strong>Rapport :</strong> ${report.reportId}</p>
+            <p><strong>Site :</strong> ${report.site || 'Non spécifié'}</p>
+            <p><strong>Date d'intervention :</strong> ${dateStr}</p>
+            <p><strong>Priorité :</strong> ${priorityLabel}</p>
+            <p style="margin-top:20px">
+              <a href="${siteUrl}/admin" style="background:#2563eb;color:white;padding:10px 20px;border-radius:5px;text-decoration:none">
+                Valider le rapport
+              </a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Nouveau rapport soumis: ${report.reportId}\nSite: ${report.site}\nDate: ${dateStr}\nPriorité: ${priorityLabel}`
+    })
+  } catch (emailError) {
+    console.error('Erreur envoi email notification:', emailError)
   }
 }

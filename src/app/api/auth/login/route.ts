@@ -162,10 +162,27 @@ export async function GET(request: NextRequest) {
 
     const decoded = await verifyJwtPayload(token)
     
+    // Enrichir avec les données utilisateur depuis la DB si possible
+    let name: string | undefined
+    let username: string | undefined
+    try {
+      await connectMongoose()
+      const userId = String(decoded.userId || decoded.id || decoded.sub || '')
+      if (userId) {
+        const user = await User.findById(userId).select('name username').lean() as any
+        if (user) {
+          name = user.name
+          username = user.username
+        }
+      }
+    } catch {}
+
     return NextResponse.json({
       user: {
         id: String(decoded.userId || decoded.id || decoded.sub || ''),
         email: typeof decoded.email === 'string' ? decoded.email : undefined,
+        name: name || (decoded as any).name || (decoded as any).username,
+        username: username || (decoded as any).username,
         role: String(decoded.role || ''),
         permissions: (decoded as any).permissions
       }

@@ -149,9 +149,9 @@ export default function EnhancedMaintenanceForm({
     endTime: existingReport?.endTime || '',
     duration: existingReport?.duration || '',
     
-    // Intervenant
-    technician: existingReport?.technician || 'Moussa Diop',
-    technicianId: existingReport?.technicianId || 'TECH-001',
+    // Intervenant (sera mis à jour depuis la session)
+    technician: existingReport?.technician || '',
+    technicianId: existingReport?.technicianId || '',
     
     // Observations et problèmes
     initialObservations: existingReport?.initialObservations || '',
@@ -225,6 +225,24 @@ export default function EnhancedMaintenanceForm({
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [createdReportId, setCreatedReportId] = useState<string | null>(null)
+
+  // Charger les infos du technicien connecté
+  useEffect(() => {
+    if (!isReadOnly && !formData.technicianId) {
+      fetch('/api/auth/login', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.user) {
+            setFormData(prev => ({
+              ...prev,
+              technician: prev.technician || data.user.name || data.user.username || data.user.email || '',
+              technicianId: prev.technicianId || data.user.id || ''
+            }))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [isReadOnly, formData.technicianId])
 
   // Géolocalisation automatique
   useEffect(() => {
