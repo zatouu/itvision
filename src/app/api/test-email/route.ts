@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { EmailService } from '@/lib/email-service'
+import { emailService } from '@/lib/email-service'
 
 export async function GET(request: NextRequest) {
   try {
-    const emailService = EmailService.getInstance()
     
     console.log('📧 Test d\'envoi d\'email vers cheikhoumarndiaye@gmail.com')
     console.log('Configuration SMTP:')
