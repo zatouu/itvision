@@ -109,9 +109,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Générer un clientId unique
-    const count = await Client.countDocuments()
-    const clientId = `CL${String(count + 1).padStart(4, '0')}`
+    // Générer un clientId unique basé sur le max des IDs existants
+    const lastClient = await Client.findOne().sort({ clientId: -1 }).select('clientId').lean()
+    let nextNumber = 1
+    if (lastClient?.clientId) {
+      const match = lastClient.clientId.match(/CL(\d+)/)
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1
+      }
+    }
+    const clientId = `CL${String(nextNumber).padStart(4, '0')}`
 
     // Créer le client
     const client = await Client.create({
