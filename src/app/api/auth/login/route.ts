@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import User from '@/lib/models/User'
+import Technician from '@/lib/models/Technician'
 import { connectMongoose } from '@/lib/mongoose'
 import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
@@ -24,14 +25,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Recherche de l'utilisateur dans la base de données
-    const user = (await User.findOne({ email: email.toLowerCase() }).lean()) as any
+    let user = (await User.findOne({ email: email.toLowerCase() }).lean()) as any
     
+    // Si pas trouvé dans User, chercher dans Technician et créer le User manquant
     if (!user) {
-      logLoginAttempt(false, request, undefined, { reason: 'user_not_found', email })
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 401 }
-      )
+      const tech = await Technician.findOne({ email: email.toLowerCase() }).lean() as any
+      if (tech && tech.passwordHash) {
+        const techPasswordValid = await bcrypt.compare(password, tech.passwordHash)
+        if (techPasswordValid) {
+          // Créer le User manquant à partir du Technician
+          const username = email.toLowerCase().split('@')[0] + '_tech_' + Date.now().toString(36)
+          const created = await User.create({
+            username,
+            email: email.toLowerCase(),
+            passwordHash: tech.passwordHash,
+            name: tech.name || email.split('@')[0],
+            phone: tech.phone || '',
+            role: 'TECHNICIAN',
+            isActive: true
+          })
+          user = await User.findById(created._id).lean() as any
+        }
+      }
+      if (!user) {
+        logLoginAttempt(false, request, undefined, { reason: 'user_not_found', email })
+        return NextResponse.json(
+          { error: 'Utilisateur non trouvé' },
+          { status: 401 }
+        )
+      }
     }
 
     // Vérification verrouillage
@@ -43,7 +65,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérification du mot de passe avec bcrypt
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash)
+    let isValidPassword = await bcrypt.compare(password, user.passwordHash)
+
+    // Fallback: si le mot de passe échoue dans User, vérifier dans Technician
+    // (les hash peuvent différer si créés par deux routes séparées)
+    if (!isValidPassword && String(user.role).toUpperCase() === 'TECHNICIAN') {
+      const tech = await Technician.findOne({ email: email.toLowerCase() }).lean() as any
+      if (tech?.passwordHash) {
+        const techPasswordValid = await bcrypt.compare(password, tech.passwordHash)
+        if (techPasswordValid) {
+          // Synchroniser le hash du Technician vers le User
+          await User.updateOne({ _id: user._id }, { $set: { passwordHash: tech.passwordHash, loginAttempts: 0 } })
+          isValidPassword = true
+        }
+      }
+    }
 
     if (!isValidPassword) {
       logLoginAttempt(false, request, user.id, { reason: 'invalid_password' })

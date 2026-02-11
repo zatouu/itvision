@@ -68,12 +68,8 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase()
-    const [existsTech, existsUser] = await Promise.all([
-      Technician.findOne({ email: normalizedEmail }).lean(),
-      User.findOne({ email: normalizedEmail }).lean()
-    ])
+    const existsTech = await Technician.findOne({ email: normalizedEmail }).lean()
     if (existsTech) return NextResponse.json({ error: 'Technicien déjà existant' }, { status: 409 })
-    if (existsUser) return NextResponse.json({ error: 'Un utilisateur avec cet email existe déjà' }, { status: 409 })
 
     const passwordHash = await bcrypt.hash(password, 12)
 
@@ -88,17 +84,24 @@ export async function POST(request: NextRequest) {
       isAvailable: isAvailable !== false,
     })
 
-    // Créer aussi un User avec rôle TECHNICIAN pour que le login fonctionne
-    const username = normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36)
-    await User.create({
-      username,
-      email: normalizedEmail,
-      passwordHash,
-      name,
-      phone: phone || '',
-      role: 'TECHNICIAN',
-      isActive: true
-    })
+    // Créer un User TECHNICIAN si aucun n'existe déjà pour cet email
+    // (le User peut déjà exister s'il a été créé via /api/admin/users)
+    const existingUser = await User.findOne({ email: normalizedEmail }).lean() as any
+    if (!existingUser) {
+      const username = normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36)
+      await User.create({
+        username,
+        email: normalizedEmail,
+        passwordHash,
+        name,
+        phone: phone || '',
+        role: 'TECHNICIAN',
+        isActive: true
+      })
+    } else if (existingUser.role !== 'TECHNICIAN') {
+      // Si le User existe mais n'est pas TECHNICIAN, mettre à jour son rôle
+      await User.updateOne({ _id: existingUser._id }, { $set: { role: 'TECHNICIAN' } })
+    }
 
     return NextResponse.json({ success: true, technician: { id: String(created._id), name: created.name, email: created.email, phone: created.phone, isAvailable: created.isAvailable, specialties: created.specialties } }, { status: 201 })
 
