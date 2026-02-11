@@ -305,7 +305,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
     
-    const { technicianId, role, userId } = await verifyTechnicianToken(request)
+    const tokenData = await verifyTechnicianToken(request)
     const { searchParams } = new URL(request.url)
     
     const status = searchParams.get('status')
@@ -313,10 +313,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = parseInt(searchParams.get('skip') || '0')
     
-    // Construction filtre
+    // Construction filtre - résoudre le vrai Technician._id
     const filter: Record<string, unknown> = {}
-    if (role === 'TECHNICIAN') {
-      filter.technicianId = technicianId || userId
+    if (tokenData.role === 'TECHNICIAN') {
+      let resolvedTechId = tokenData.technicianId || tokenData.userId
+      // Essayer de trouver le Technician par _id, sinon par email
+      const tech = await Technician.findById(resolvedTechId).select('_id').lean().catch(() => null)
+        || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() : null)
+      if (tech) resolvedTechId = String(tech._id)
+      filter.technicianId = resolvedTechId
     }
     
     if (status && status !== 'all') {
@@ -363,7 +368,7 @@ export async function POST(request: NextRequest) {
   try {
       await connectMongoose()
 
-      const { technicianId } = await verifyTechnicianToken(request)
+      const tokenData = await verifyTechnicianToken(request)
       const reportData = await request.json()
       const structuredFields = extractStructuredFields(reportData, { includeEmpty: true })
 
@@ -375,14 +380,18 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Vérification que le technicien existe
-      const technician = await Technician.findById(technicianId)
+    // Vérification que le technicien existe (chercher par _id puis par email en fallback)
+      let technician = await Technician.findById(tokenData.technicianId).catch(() => null)
+      if (!technician && tokenData.email) {
+        technician = await Technician.findOne({ email: String(tokenData.email).toLowerCase() })
+      }
     if (!technician || !technician.isActive) {
       return NextResponse.json(
         { error: 'Technicien non autorisé' },
         { status: 403 }
       )
     }
+      const technicianId = String(technician._id)
       
       // Calcul automatique de la durée si startTime/endTime fournis
       let duration = reportData.duration
@@ -426,30 +435,29 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const photos = typeof reportData.photos === 'object' && reportData.photos !== null
-        ? {
-            before: Array.isArray(reportData.photos.before)
-              ? reportData.photos.before
-                  .map((photo: any) => ({
-                    url: toNonEmptyString(photo.url) || '',
-                    caption: toNonEmptyString(photo.caption),
-                    timestamp: toDate(photo.timestamp) || new Date(),
-                    gps: photo.gps
-                  }))
-                  .filter((p: any) => p.url)
-              : [],
-            after: Array.isArray(reportData.photos.after)
-              ? reportData.photos.after
-                  .map((photo: any) => ({
-                    url: toNonEmptyString(photo.url) || '',
-                    caption: toNonEmptyString(photo.caption),
-                    timestamp: toDate(photo.timestamp) || new Date(),
-                    gps: photo.gps
-                  }))
-                  .filter((p: any) => p.url)
-              : []
-          }
-        : { before: [], after: [] }
+      // Support photos en format nested {before:[], after:[]} ou flat photosBefore/photosAfter
+      const parsePhotos = (input: any): Array<{url: string, caption?: string, timestamp: Date, gps?: any}> => {
+        if (!Array.isArray(input)) return []
+        return input
+          .map((photo: any) => {
+            if (typeof photo === 'string') return { url: photo, timestamp: new Date() }
+            if (typeof photo === 'object' && photo !== null) {
+              return {
+                url: toNonEmptyString(photo.url) || '',
+                caption: toNonEmptyString(photo.caption),
+                timestamp: toDate(photo.timestamp) || new Date(),
+                gps: photo.gps
+              }
+            }
+            return null
+          })
+          .filter((p: any) => p && p.url)
+      }
+
+      const photos = {
+        before: parsePhotos(reportData.photos?.before || reportData.photosBefore),
+        after: parsePhotos(reportData.photos?.after || reportData.photosAfter)
+      }
     
     // Création du rapport avec valeurs par défaut compatibles schéma
     const newReport = new MaintenanceReport({
@@ -535,7 +543,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectMongoose()
     
-    const { technicianId } = await verifyTechnicianToken(request)
+    const tokenData = await verifyTechnicianToken(request)
       const updateData = await request.json()
     const reportId = updateData.reportId
     
@@ -545,6 +553,12 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Résoudre le vrai Technician._id
+    let technicianId = tokenData.technicianId || tokenData.userId
+    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null)
+      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() : null)
+    if (techRecord) technicianId = String(techRecord._id)
     
     // Vérification propriété et droits
       const existingReport = await MaintenanceReport.findOne({

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
     
-    const { technicianId } = await verifyTechnicianToken(request)
+    const tokenData = await verifyTechnicianToken(request)
     const { reportId, finalChecks } = await request.json()
     
     if (!reportId) {
@@ -34,6 +34,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Résoudre le vrai Technician._id depuis le token (qui contient User._id)
+    let technicianId = tokenData.technicianId || tokenData.userId
+    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null)
+      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() : null)
+    if (techRecord) technicianId = String(techRecord._id)
     
     // Récupération et vérification du rapport
     const report = await MaintenanceReport.findOne({
