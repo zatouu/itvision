@@ -318,9 +318,9 @@ export async function GET(request: NextRequest) {
     if (tokenData.role === 'TECHNICIAN') {
       let resolvedTechId = tokenData.technicianId || tokenData.userId
       // Essayer de trouver le Technician par _id, sinon par email
-      const tech = await Technician.findById(resolvedTechId).select('_id').lean().catch(() => null)
-        || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() : null)
-      if (tech) resolvedTechId = String(tech._id)
+      const tech = await Technician.findById(resolvedTechId).select('_id').lean().catch(() => null) as any
+        || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() as any : null)
+      if (tech && tech._id) resolvedTechId = String(tech._id)
       filter.technicianId = resolvedTechId
     }
     
@@ -451,7 +451,7 @@ export async function POST(request: NextRequest) {
             }
             return null
           })
-          .filter((p: any) => p && p.url)
+          .filter((p: any): p is {url: string, caption?: string, timestamp: Date, gps?: any} => p !== null && p.url)
       }
 
       const photos = {
@@ -556,9 +556,9 @@ export async function PUT(request: NextRequest) {
 
     // Résoudre le vrai Technician._id
     let technicianId = tokenData.technicianId || tokenData.userId
-    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null)
-      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() : null)
-    if (techRecord) technicianId = String(techRecord._id)
+    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null) as any
+      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() as any : null)
+    if (techRecord && techRecord._id) technicianId = String(techRecord._id)
     
     // Vérification propriété et droits
       const existingReport = await MaintenanceReport.findOne({

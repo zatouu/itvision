@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
 
     // Résoudre le vrai Technician._id depuis le token (qui contient User._id)
     let technicianId = tokenData.technicianId || tokenData.userId
-    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null)
-      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() : null)
-    if (techRecord) technicianId = String(techRecord._id)
+    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null) as any
+      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() as any : null)
+    if (techRecord && techRecord._id) technicianId = String(techRecord._id)
     
     // Récupération et vérification du rapport
     const report = await MaintenanceReport.findOne({
