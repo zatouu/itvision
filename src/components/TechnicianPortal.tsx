@@ -270,19 +270,16 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
   const handleSaveReport = async (data: any) => {
     try {
-      // Déjà géré dans le formulaire via l'API, on met juste à jour l'état local minimal
-      setStats((prev) => ({ ...prev, pendingReports: prev.pendingReports + 1 }))
+      // Recharger les données pour refléter le nouveau brouillon
+      await loadTechnicianData()
     } catch {}
   }
 
   const handleSubmitReport = async (data: any) => {
     try {
+      // Retour au dashboard et rechargement des données
       setCurrentView('dashboard')
-      setStats(prev => ({
-        ...prev,
-        completedToday: prev.completedToday + 1,
-        pendingReports: Math.max(0, prev.pendingReports - 1)
-      }))
+      await loadTechnicianData()
     } catch {}
   }
 

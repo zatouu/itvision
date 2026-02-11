@@ -132,7 +132,7 @@ interface EnhancedMaintenanceFormProps {
 }
 
 export default function EnhancedMaintenanceForm({ 
-  projectId = 'PRJ-001', 
+  projectId, 
   isReadOnly = false,
   existingReport = {},
   onSave,
@@ -224,6 +224,9 @@ export default function EnhancedMaintenanceForm({
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [uploadedPhotosBefore, setUploadedPhotosBefore] = useState<string[]>([])
+  const [uploadedPhotosAfter, setUploadedPhotosAfter] = useState<string[]>([])
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [createdReportId, setCreatedReportId] = useState<string | null>(null)
 
   // Charger les infos du technicien connecté
@@ -477,6 +480,14 @@ export default function EnhancedMaintenanceForm({
       }))
     }
 
+  const validateForSave = (): boolean => {
+    const errors: string[] = []
+    if (!formData.site.trim()) errors.push('Le nom du site est requis')
+    if (!formData.clientName.trim()) errors.push('Le nom du client est requis')
+    setValidationErrors(errors)
+    return errors.length === 0
+  }
+
   const validateForm = (): boolean => {
     const errors: string[] = []
 
@@ -510,12 +521,14 @@ export default function EnhancedMaintenanceForm({
   }
 
   const handleSave = async (): Promise<string | null> => {
-    if (!validateForm()) return null
+    if (!validateForSave()) return null
 
     setIsGenerating(true)
     try {
       const payload: any = {
         site: formData.site,
+        clientName: formData.clientName,
+        clientContact: formData.clientContact,
         interventionDate: formData.interventionDate,
         startTime: formData.startTime,
         endTime: formData.endTime,
@@ -575,7 +588,10 @@ export default function EnhancedMaintenanceForm({
         templateId: 'manual',
         templateVersion: '1.0',
         technician: formData.technician,
-        projectId,
+        technicianId: formData.technicianId,
+        projectId: projectId || undefined,
+        photosBefore: uploadedPhotosBefore.length > 0 ? uploadedPhotosBefore : undefined,
+        photosAfter: uploadedPhotosAfter.length > 0 ? uploadedPhotosAfter : undefined,
         technicianSignature: formData.technicianSignature,
         clientSignature: formData.clientSignature,
         clientTitle: formData.clientTitle,
@@ -603,7 +619,8 @@ export default function EnhancedMaintenanceForm({
 
       const dataToSave = { ...formData, status: 'draft' as const }
       onSave?.(dataToSave)
-      alert('Rapport sauvegardé avec succès!')
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
       return id || null
     } catch (error: any) {
       alert(error?.message || 'Erreur lors de la sauvegarde')
@@ -645,7 +662,6 @@ export default function EnhancedMaintenanceForm({
 
       const dataToSubmit = { ...formData, status: 'completed' as const }
       onSubmit?.(dataToSubmit)
-      alert('Rapport envoyé pour validation!')
     } catch (error: any) {
       alert(error?.message || 'Erreur lors de l\'envoi')
     } finally {
@@ -694,6 +710,14 @@ export default function EnhancedMaintenanceForm({
           </div>
         </div>
       </div>
+
+      {/* Confirmation sauvegarde */}
+      {saveSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+          <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+          <span className="text-green-800 font-medium">Brouillon sauvegardé avec succès</span>
+        </div>
+      )}
 
       {/* Erreurs de validation */}
       {validationErrors.length > 0 && (
@@ -930,7 +954,7 @@ export default function EnhancedMaintenanceForm({
                 const files = Array.from(e.target.files || [])
                 const urls = await uploadPhotos(files as File[], 'before')
                 setFormData(prev=>({ ...prev, photosBefore: files as File[] }))
-                console.log('Uploaded before:', urls)
+                if (urls.length > 0) setUploadedPhotosBefore(prev => [...prev, ...urls])
               }}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
           </div>
@@ -941,7 +965,7 @@ export default function EnhancedMaintenanceForm({
                 const files = Array.from(e.target.files || [])
                 const urls = await uploadPhotos(files as File[], 'after')
                 setFormData(prev=>({ ...prev, photosAfter: files as File[] }))
-                console.log('Uploaded after:', urls)
+                if (urls.length > 0) setUploadedPhotosAfter(prev => [...prev, ...urls])
               }}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
           </div>
