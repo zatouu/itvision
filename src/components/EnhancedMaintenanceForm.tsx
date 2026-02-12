@@ -123,12 +123,24 @@ interface MaintenanceFormData {
   billingNeedsQuote: boolean
 }
 
+interface ClientOption {
+  id: string
+  clientId: string
+  name: string
+  company?: string
+  contactPerson?: string
+  email: string
+  phone: string
+  address?: string
+}
+
 interface EnhancedMaintenanceFormProps {
   projectId?: string
   isReadOnly?: boolean
   existingReport?: Partial<MaintenanceFormData>
   onSave?: (data: MaintenanceFormData) => void
   onSubmit?: (data: MaintenanceFormData) => void
+  clients?: ClientOption[]
 }
 
 export default function EnhancedMaintenanceForm({ 
@@ -136,7 +148,8 @@ export default function EnhancedMaintenanceForm({
   isReadOnly = false,
   existingReport = {},
   onSave,
-  onSubmit
+  onSubmit,
+  clients = []
 }: EnhancedMaintenanceFormProps) {
   
   const [formData, setFormData] = useState<MaintenanceFormData>({
@@ -759,17 +772,52 @@ export default function EnhancedMaintenanceForm({
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nom du client *
+              Client *
             </label>
-            <input
-              type="text"
-              value={formData.clientName}
-              onChange={(e) => updateField('clientName', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Nom du client"
-              disabled={isReadOnly}
-              required
-            />
+            {clients.length > 0 && !isReadOnly ? (
+              <div className="space-y-2">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const c = clients.find(cl => cl.id === e.target.value)
+                    if (c) {
+                      setFormData(prev => ({
+                        ...prev,
+                        clientName: c.company || c.name,
+                        clientContact: c.contactPerson || '',
+                        site: prev.site || c.address || c.company || c.name
+                      }))
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                >
+                  <option value="">Sélectionner un client...</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.company || c.name}{c.contactPerson ? ` — ${c.contactPerson}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={formData.clientName}
+                  onChange={(e) => updateField('clientName', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ou saisir manuellement le nom du client"
+                  required
+                />
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={formData.clientName}
+                onChange={(e) => updateField('clientName', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Nom du client"
+                disabled={isReadOnly}
+                required
+              />
+            )}
           </div>
           
           <div>
