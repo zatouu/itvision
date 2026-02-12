@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { safeSearchRegex } from '@/lib/security-utils'
 import Client from '@/lib/models/Client'
+import Contact from '@/lib/models/Contact'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import bcrypt from 'bcryptjs'
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     await requireAdmin(request)
 
     const body = await request.json()
-    const { name, email, phone, company, address, city, country, canAccessPortal, notes, tags, category, rating } = body
+    const { name, email, phone, company, address, city, country, canAccessPortal, notes, tags, category, rating, contacts, contactPrincipal } = body
 
     // Validation
     if (!name || !email || !phone) {
@@ -130,6 +131,7 @@ export async function POST(request: NextRequest) {
       address: address || '',
       city: city || '',
       country: country || 'Sénégal',
+      contactPerson: contactPrincipal || '',
       isActive: true,
       permissions: {
         canAccessPortal: canAccessPortal ?? true
@@ -140,6 +142,23 @@ export async function POST(request: NextRequest) {
       rating: rating || 0,
       lastContact: new Date()
     })
+
+    // Sauvegarder les contacts supplémentaires
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      const contactDocs = contacts
+        .filter((c: any) => c.nom?.trim())
+        .map((c: any) => ({
+          clientId: client._id,
+          nom: c.nom.trim(),
+          fonction: c.fonction?.trim() || undefined,
+          telephone: c.telephone?.trim() || undefined,
+          email: c.email?.trim().toLowerCase() || undefined,
+          isPrimary: c.isPrimary || false
+        }))
+      if (contactDocs.length > 0) {
+        await Contact.insertMany(contactDocs)
+      }
+    }
 
     // Création automatique du compte utilisateur si l'accès portail est activé
     if (canAccessPortal) {

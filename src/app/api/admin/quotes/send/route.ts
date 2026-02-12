@@ -4,6 +4,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminQuote from '@/lib/models/AdminQuote'
 import { generateITVisionQuotePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
+import { getClientEmailRecipients } from '@/lib/client-contacts'
 import fs from 'fs'
 import path from 'path'
 
@@ -36,7 +37,14 @@ export async function POST(request: NextRequest) {
     const quote = await AdminQuote.findById(id).lean() as any
     if (!quote) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
 
-    const recipient = to || String(quote?.client?.email || '').trim()
+    // Résoudre tous les emails contacts du client (email principal + contacts supplémentaires)
+    let recipient = to
+    if (!recipient && quote.clientCompanyId) {
+      recipient = await getClientEmailRecipients(String(quote.clientCompanyId), String(quote?.client?.email || ''))
+    }
+    if (!recipient) {
+      recipient = String(quote?.client?.email || '').trim()
+    }
     if (!recipient) return NextResponse.json({ error: 'Email destinataire manquant' }, { status: 400 })
 
     const pdfArrayBuffer = generateITVisionQuotePdf({

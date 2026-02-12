@@ -5,6 +5,7 @@ import Technician from '@/lib/models/Technician'
 import { addNotification } from '@/lib/notifications-memory'
 import { verifyJwtPayload } from '@/lib/jwt'
 import { emailService } from '@/lib/email-service'
+import { getClientContactEmails } from '@/lib/client-contacts'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
@@ -113,9 +114,16 @@ export async function POST(request: NextRequest) {
     
     await report.save()
     
-    // Notification admin (ici on simule, mais dans un vrai système on enverrait email/push)
+    // Notification admin
     try {
       await notifyAdminNewReport(report)
+    } catch {}
+
+    // Notification contacts client (si le rapport est lié à un client)
+    try {
+      if (report.clientId) {
+        await notifyClientContacts(report)
+      }
     } catch {}
     
     // Mise à jour statistiques technicien
@@ -297,5 +305,54 @@ async function notifyAdminNewReport(report: any) {
     })
   } catch (emailError) {
     console.error('Erreur envoi email notification:', emailError)
+  }
+}
+
+// Notification des contacts client lors de la soumission d'un rapport
+async function notifyClientContacts(report: any) {
+  try {
+    const clientId = String(report.clientId)
+    const emails = await getClientContactEmails(clientId)
+    if (emails.length === 0) return
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+    const dateStr = report.interventionDate
+      ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
+      : 'Non spécifiée'
+
+    await emailService.sendEmail({
+      to: emails.join(', '),
+      subject: `Fiche d'intervention ${report.reportId} - IT Vision Plus`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:20px;border-radius:10px 10px 0 0">
+            <h2 style="margin:0">📋 Fiche d'intervention</h2>
+            <p style="margin:5px 0 0;opacity:0.9">IT Vision Plus - Sécurité Électronique</p>
+          </div>
+          <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
+            <p>Bonjour,</p>
+            <p>Une intervention a été réalisée sur votre site. Voici les détails :</p>
+            <table style="width:100%;border-collapse:collapse;margin:15px 0">
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold;width:40%">Référence</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.reportId}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Site</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.site || 'Non spécifié'}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Date d'intervention</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${dateStr}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Horaires</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.startTime || ''} - ${report.endTime || ''}</td></tr>
+            </table>
+            <p>Pour consulter le rapport complet, connectez-vous à votre espace client :</p>
+            <p style="text-align:center;margin:20px 0">
+              <a href="${siteUrl}/espace-client" style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
+                Accéder à mon espace
+              </a>
+            </p>
+            <p style="color:#6b7280;font-size:13px">Merci de votre confiance.<br>L'équipe IT Vision Plus</p>
+          </div>
+        </div>
+      `,
+      text: `Fiche d'intervention ${report.reportId}\nSite: ${report.site}\nDate: ${dateStr}\nHoraires: ${report.startTime || ''} - ${report.endTime || ''}\nConsultez votre espace client: ${siteUrl}/espace-client`
+    })
+
+    console.log(`[REPORT] Notification envoyée aux contacts client: ${emails.join(', ')}`)
+  } catch (error) {
+    console.error('Erreur notification contacts client:', error)
   }
 }

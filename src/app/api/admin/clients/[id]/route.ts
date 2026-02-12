@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Client from '@/lib/models/Client'
+import Contact from '@/lib/models/Contact'
 import { requireAuth } from '@/lib/jwt'
 
 function requireAdmin(request: NextRequest) {
@@ -28,7 +29,11 @@ export async function GET(
       }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, client })
+    // Charger les contacts associés
+    const contacts = await Contact.find({ clientId: id }).sort({ isPrimary: -1, nom: 1 }).lean()
+    const contactsMapped = contacts.map((c: any) => ({ ...c, id: String(c._id) }))
+
+    return NextResponse.json({ success: true, client, contacts: contactsMapped })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
     const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500
@@ -46,7 +51,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { name, email, phone, company, address, city, country, canAccessPortal, notes, isActive, tags, category, rating } = body
+    const { name, email, phone, company, address, city, country, canAccessPortal, notes, isActive, tags, category, rating, contacts, contactPrincipal } = body
 
     // Vérifier si le client existe
     const existingClient = await Client.findById(id)
@@ -87,11 +92,32 @@ export async function PUT(
     }
     updateData.lastContact = new Date()
 
+    if (contactPrincipal !== undefined) updateData.contactPerson = contactPrincipal
+
     const client = await Client.findByIdAndUpdate(
       id,
       { $set: updateData },
       { new: true, runValidators: true }
     )
+
+    // Mettre à jour les contacts supplémentaires si fournis
+    if (Array.isArray(contacts)) {
+      // Supprimer les anciens contacts et recréer
+      await Contact.deleteMany({ clientId: id })
+      const contactDocs = contacts
+        .filter((c: any) => c.nom?.trim())
+        .map((c: any) => ({
+          clientId: id,
+          nom: c.nom.trim(),
+          fonction: c.fonction?.trim() || undefined,
+          telephone: c.telephone?.trim() || undefined,
+          email: c.email?.trim().toLowerCase() || undefined,
+          isPrimary: c.isPrimary || false
+        }))
+      if (contactDocs.length > 0) {
+        await Contact.insertMany(contactDocs)
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 

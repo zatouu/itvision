@@ -4,6 +4,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import { generateITVisionInvoicePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
+import { getClientEmailRecipients } from '@/lib/client-contacts'
 import fs from 'fs'
 import path from 'path'
 
@@ -36,7 +37,14 @@ export async function POST(request: NextRequest) {
     const invoice = await AdminInvoice.findById(id).lean() as any
     if (!invoice) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 })
 
-    const recipient = to || String(invoice?.client?.email || '').trim()
+    // Résoudre tous les emails contacts du client (email principal + contacts supplémentaires)
+    let recipient = to
+    if (!recipient && invoice.clientCompanyId) {
+      recipient = await getClientEmailRecipients(String(invoice.clientCompanyId), String(invoice?.client?.email || ''))
+    }
+    if (!recipient) {
+      recipient = String(invoice?.client?.email || '').trim()
+    }
     if (!recipient) return NextResponse.json({ error: 'Email destinataire manquant' }, { status: 400 })
 
     const pdfArrayBuffer = generateITVisionInvoicePdf({
