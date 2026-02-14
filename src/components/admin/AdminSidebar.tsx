@@ -23,7 +23,8 @@ import {
   Menu,
   ShoppingCart,
   UsersRound,
-  Receipt
+  Receipt,
+  ClipboardCheck
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -119,7 +120,20 @@ const menuItems: MenuItem[] = [
     id: 'maintenance',
     label: 'Maintenance',
     icon: Wrench,
-    href: '/admin/maintenance'
+    children: [
+      {
+        id: 'maintenance-contrats',
+        label: 'Contrats',
+        icon: Wrench,
+        href: '/admin/maintenance'
+      },
+      {
+        id: 'maintenance-rapports',
+        label: 'Rapports d\'intervention',
+        icon: ClipboardCheck,
+        href: '/admin/rapports'
+      }
+    ]
   },
   {
     id: 'marketplace',
