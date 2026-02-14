@@ -25,6 +25,7 @@ export interface IProduct extends Document {
   
   // Pricing standard
   price?: number
+  b2bPrice?: number              // Prix entreprise en FCFA (séparé du prix marketplace)
   baseCost?: number
   marginRate?: number
   currency: Currency
@@ -209,6 +210,13 @@ const ProductSchema = new Schema<IProduct>({
     validate: {
       validator: validatePositiveNumber,
       message: 'Le prix doit être positif ou nul'
+    }
+  },
+  b2bPrice: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le prix entreprise doit être positif ou nul'
     }
   },
   baseCost: {

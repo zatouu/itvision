@@ -321,6 +321,7 @@ export async function GET(request: NextRequest) {
              : null
          },
          pricing,
+         b2bPrice: product.b2bPrice ?? null,
          // Backwards compat for older consumers
          price: pricing.salePrice ?? product.price ?? product.baseCost ?? null,
          weightKg,

@@ -12,6 +12,7 @@ import Image from 'next/image'
 
 interface QuoteProduct {
   id: string
+  productId?: string
   description: string
   quantity: number
   unitPrice: number
@@ -51,8 +52,11 @@ interface Product {
   _id: string
   name: string
   price?: number
+  b2bPrice?: number | null
   category: string
   inStock: boolean
+  image?: string
+  availability?: { status: string }
 }
 
 export default function AdminQuoteGenerator() {
@@ -86,6 +90,7 @@ export default function AdminQuoteGenerator() {
       products: Array.isArray(q?.products)
         ? q.products.map((p: any) => ({
             id: String(p?.id || p?._id || `item-${Math.random()}`),
+            productId: p?.productId ? String(p.productId) : undefined,
             description: String(p?.description || ''),
             quantity: Number(p?.quantity || 0),
             unitPrice: Number(p?.unitPrice || 0),
@@ -114,10 +119,20 @@ export default function AdminQuoteGenerator() {
 
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/catalog/products')
+      const res = await fetch('/api/catalog/products?limit=200')
       if (res.ok) {
         const data = await res.json()
-        setProducts(data.products || [])
+        const mapped = (data.products || []).map((p: any) => ({
+          _id: String(p._id || p.id),
+          name: p.name || '',
+          price: p.price ?? null,
+          b2bPrice: p.b2bPrice ?? null,
+          category: p.category || '',
+          inStock: p.availability?.status === 'in_stock',
+          image: p.image || null,
+          availability: p.availability
+        }))
+        setProducts(mapped)
       }
     } catch (error) {
       console.error('Erreur chargement produits:', error)
@@ -166,13 +181,16 @@ export default function AdminQuoteGenerator() {
   const addProductToQuote = (product: Product) => {
     if (!currentQuote) return
 
+    const effectivePrice = product.b2bPrice || product.price || 0
+
     const newProduct: QuoteProduct = {
       id: `item-${Date.now()}`,
+      productId: product._id,
       description: product.name,
       quantity: 1,
-      unitPrice: product.price || 0,
+      unitPrice: effectivePrice,
       taxable: true,
-      total: product.price || 0
+      total: effectivePrice
     }
 
     const updatedQuote = {
@@ -278,6 +296,25 @@ export default function AdminQuoteGenerator() {
     })
   }
 
+  const persistB2bPrices = async (quote: Quote) => {
+    const updates = quote.products
+      .filter(p => p.productId && p.unitPrice > 0)
+      .map(p => ({ productId: p.productId!, b2bPrice: p.unitPrice }))
+
+    if (updates.length === 0) return
+
+    try {
+      await fetch('/api/products/b2b-price', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ updates })
+      })
+    } catch (err) {
+      console.error('Erreur sauvegarde prix B2B:', err)
+    }
+  }
+
   const saveQuote = async () => {
     if (!currentQuote) return
 
@@ -292,6 +329,9 @@ export default function AdminQuoteGenerator() {
       if (res.ok) {
         const data = await res.json().catch(() => null)
         const saved = data?.quote ? normalizeQuote(data.quote) : currentQuote
+
+        // Persister les prix B2B modifiés
+        await persistB2bPrices(currentQuote)
 
         // Mettre à jour la liste
         const updatedQuotes = [...quotes]
@@ -1031,21 +1071,41 @@ export default function AdminQuoteGenerator() {
                       className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{product.name}</h4>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate">{product.name}</h4>
                           <p className="text-sm text-gray-500">{product.category}</p>
                         </div>
-                        {product.inStock && (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                            En stock
-                          </span>
-                        )}
+                        <div className="flex gap-1 ml-2 flex-shrink-0">
+                          {product.inStock && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                              En stock
+                            </span>
+                          )}
+                          {product.b2bPrice ? (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                              Prix B2B
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center justify-between mt-4">
-                        <span className="text-lg font-bold text-blue-600">
-                          {(product.price || 0).toLocaleString('fr-FR')} CFA
-                        </span>
+                      <div className="flex items-end justify-between mt-4">
+                        <div>
+                          {product.b2bPrice ? (
+                            <>
+                              <span className="text-lg font-bold text-purple-600">
+                                {product.b2bPrice.toLocaleString('fr-FR')} CFA
+                              </span>
+                              <span className="text-xs text-gray-400 ml-2 line-through">
+                                {(product.price || 0).toLocaleString('fr-FR')}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-lg font-bold text-blue-600">
+                              {(product.price || 0).toLocaleString('fr-FR')} CFA
+                            </span>
+                          )}
+                        </div>
                         <button
                           onClick={() => addProductToQuote(product)}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"

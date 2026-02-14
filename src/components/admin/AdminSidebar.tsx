@@ -140,18 +140,6 @@ const menuItems: MenuItem[] = [
         href: '/admin/produits'
       },
       {
-        id: 'produits-catalogue',
-        label: 'Catalogue services',
-        icon: Package,
-        href: '/admin/catalog'
-      },
-      {
-        id: 'produits-import',
-        label: 'Import (AliExpress/1688)',
-        icon: Download,
-        href: '/admin/import-produits'
-      },
-      {
         id: 'produits-prix',
         label: 'Gestion des prix',
         icon: Tags,

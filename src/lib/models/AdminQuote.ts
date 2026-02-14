@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IAdminQuoteProduct {
+  productId?: mongoose.Types.ObjectId  // Référence au produit DB (optionnel pour lignes manuelles)
   description: string
   quantity: number
   unitPrice: number
@@ -46,6 +47,7 @@ export interface IAdminQuote extends Document {
 }
 
 const AdminQuoteProductSchema = new Schema<IAdminQuoteProduct>({
+  productId: { type: Schema.Types.ObjectId, ref: 'Product' },
   description: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true, min: 0 },

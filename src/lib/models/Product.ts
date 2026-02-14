@@ -32,6 +32,7 @@ export interface IProduct extends Document {
   condition?: 'new' | 'used' | 'refurbished'
   tags?: string[]
   price?: number
+  b2bPrice?: number                    // Prix entreprise en FCFA (séparé du prix marketplace)
   baseCost?: number                    // Coût fournisseur en FCFA
   marginRate?: number                  // Marge commerciale (0% par défaut, ajustable manuellement)
   currency?: string
@@ -107,6 +108,7 @@ const ProductSchema = new Schema<IProduct>({
   condition: { type: String, enum: ['new', 'used', 'refurbished'], default: 'new', index: true },
   tags: { type: [String], default: [], index: true },
   price: { type: Number },
+  b2bPrice: { type: Number },  // Prix entreprise (défini depuis les devis)
   baseCost: { type: Number },
   marginRate: { type: Number, default: 0 },  // Marge commerciale par défaut à 0%
   currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
