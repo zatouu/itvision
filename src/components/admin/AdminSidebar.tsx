@@ -24,7 +24,13 @@ import {
   ShoppingCart,
   UsersRound,
   Receipt,
-  ClipboardCheck
+  ClipboardCheck,
+  Calendar,
+  FolderKanban,
+  Shield,
+  Download,
+  Tags,
+  ListChecks
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -65,6 +71,12 @@ const menuItems: MenuItem[] = [
         label: 'Paiements',
         icon: CreditCard,
         href: '/admin/paiements'
+      },
+      {
+        id: 'migration',
+        label: 'Paramètres / Migration',
+        icon: Settings,
+        href: '/admin/migration'
       }
     ]
   },
@@ -73,6 +85,18 @@ const menuItems: MenuItem[] = [
     label: 'Devis',
     icon: FileText,
     href: '/admin/devis'
+  },
+  {
+    id: 'projets',
+    label: 'Projets',
+    icon: FolderKanban,
+    href: '/admin/projects'
+  },
+  {
+    id: 'planning',
+    label: 'Planning',
+    icon: Calendar,
+    href: '/admin/planning'
   },
   {
     id: 'factures',
@@ -108,7 +132,32 @@ const menuItems: MenuItem[] = [
     id: 'produits',
     label: 'Produits',
     icon: Package,
-    href: '/admin/produits'
+    children: [
+      {
+        id: 'produits-liste',
+        label: 'Liste produits',
+        icon: ListChecks,
+        href: '/admin/produits'
+      },
+      {
+        id: 'produits-catalogue',
+        label: 'Catalogue services',
+        icon: Package,
+        href: '/admin/catalog'
+      },
+      {
+        id: 'produits-import',
+        label: 'Import (AliExpress/1688)',
+        icon: Download,
+        href: '/admin/import-produits'
+      },
+      {
+        id: 'produits-prix',
+        label: 'Gestion des prix',
+        icon: Tags,
+        href: '/admin/prices'
+      }
+    ]
   },
   {
     id: 'technicians',
@@ -140,6 +189,12 @@ const menuItems: MenuItem[] = [
     label: 'Marketplace',
     icon: Briefcase,
     href: '/admin/marketplace'
+  },
+  {
+    id: 'garanties',
+    label: 'Garanties',
+    icon: Shield,
+    href: '/admin/garanties'
   },
   {
     id: 'comptabilite',
