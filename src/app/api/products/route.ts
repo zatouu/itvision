@@ -114,6 +114,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     currency,
     image,
     gallery,
+    descriptionImages,
     features,
     requiresQuote,
     deliveryDays,
@@ -192,6 +193,9 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
 
   const parsedGallery = parseStringArray(gallery)
   if (parsedGallery) normalized.gallery = parsedGallery
+
+  const parsedDescImages = parseStringArray(descriptionImages)
+  if (parsedDescImages) normalized.descriptionImages = parsedDescImages
 
   const parsedFeatures = parseStringArray(features)
   if (parsedFeatures) normalized.features = parsedFeatures

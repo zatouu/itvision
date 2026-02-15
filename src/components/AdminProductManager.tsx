@@ -674,6 +674,7 @@ export default function AdminProductManager() {
       const payload: Record<string, unknown> = {
         ...editing,
         gallery: (editing.gallery || []).filter(Boolean),
+        descriptionImages: (editing.descriptionImages || []).filter(Boolean),
         features: (editing.features || []).filter(Boolean),
         colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
         variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),

@@ -74,6 +74,7 @@ export const formatProductDetail = (
       tags: normalizeTags(product),
     image: product.image ?? '/file.svg',
     gallery: normalizeGallery(product),
+    descriptionImages: Array.isArray(product.descriptionImages) ? product.descriptionImages : [],
     features: Array.isArray(product.features) ? product.features : [],
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],

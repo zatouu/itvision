@@ -130,6 +130,7 @@ interface ProductDetailData {
   image?: string | null
   condition?: 'new' | 'used' | 'refurbished'
   gallery: string[]
+  descriptionImages: string[]
   features: string[]
   colorOptions: string[]
   variantOptions: string[]
@@ -774,8 +775,8 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                 <h2 className="text-lg font-bold text-gray-900">Détails du produit</h2>
               </div>
               <div className="p-4 space-y-1">
-                {gallery.map((media, idx) => (
-                  <div key={idx} className="relative w-full">
+                {(product.descriptionImages.length > 0 ? product.descriptionImages : gallery).map((media, idx) => (
+                  <div key={`detail-${idx}`} className="relative w-full">
                     {isVideoUrl(media) ? (
                       <video src={media} controls className="w-full rounded-lg" />
                     ) : (
