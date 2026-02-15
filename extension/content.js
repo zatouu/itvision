@@ -495,7 +495,7 @@
       if (seen.has(fname)) return false;
       seen.add(fname);
       return true;
-    }).slice(0, 12);
+    }).slice(0, 15);
     data.image = data.gallery[0];
     console.log('[IT Vision] Images trouvées:', data.gallery.length);
 
@@ -567,6 +567,26 @@
 
     // ===== SECTION "DÉTAILS" (tableau clé-valeur) =====
     const specs = {};
+
+    // Filtrage: exclure les specs dont la clé est un nombre, trop courte, ou inutile
+    const isUsefulSpecKey = (key) => {
+      if (!key || key.length < 2 || key.length > 60) return false;
+      // Exclure si la clé est un nombre pur (ex: "4", "1080")
+      if (/^\d+([.,]\d+)?$/.test(key.trim())) return false;
+      // Exclure des clés connues pour être du bruit
+      const noise = ['sku', 'model number', 'item specifics', 'n/a', 'non spécifié',
+        'produit chimique', 'remplacement', 'cn (origine)', 'cn'];
+      if (noise.some(n => key.toLowerCase().includes(n))) return false;
+      return true;
+    };
+
+    const isUsefulSpecValue = (val) => {
+      if (!val || val.length === 0 || val.length > 200) return false;
+      const lower = val.toLowerCase();
+      if (lower === 'n/a' || lower === 'non spécifié' || lower === 'none' || lower === 'no') return false;
+      return true;
+    };
+
     try {
       const detailsSection = findSectionByHeading(['détails', 'details', 'specifications', 'spécifications']);
       if (detailsSection) {
@@ -577,18 +597,18 @@
           if (cells.length >= 2) {
             const key = cells[0].textContent?.trim();
             const value = cells[1].textContent?.trim();
-            if (key && value && key.length < 60 && value.length < 200) {
+            if (isUsefulSpecKey(key) && isUsefulSpecValue(value)) {
               specs[key] = value;
             }
           }
         });
-        // Aussi chercher des paires dans des div adjacents (AliExpress utilise parfois des div au lieu de table)
+        // Aussi chercher des paires dans des div adjacents
         if (Object.keys(specs).length === 0) {
           const allText = detailsSection.innerText || '';
           const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 3);
           for (const line of lines) {
             const kvMatch = line.match(/^([^:：]+?)\s*[:\s：]\s*(.+)$/);
-            if (kvMatch && kvMatch[1].length < 60 && kvMatch[2].length < 200) {
+            if (kvMatch && isUsefulSpecKey(kvMatch[1].trim()) && isUsefulSpecValue(kvMatch[2].trim())) {
               specs[kvMatch[1].trim()] = kvMatch[2].trim();
             }
           }
@@ -601,13 +621,83 @@
 
     // ===== SECTION "PRÉSENTATION" (Caractéristiques + Spécifications + poids) =====
     let presentationText = '';
+    // Images descriptives du produit (souvent dans la section présentation)
+    const descriptionImages = [];
     try {
       const presSection = findSectionByHeading(['présentation', 'presentation', 'overview', 'description']);
       if (presSection) {
         console.log('[IT Vision] Section Présentation trouvée');
-        presentationText = presSection.innerText?.trim() || '';
-        // Nettoyer
-        presentationText = presentationText
+
+        // Extraire les images descriptives (souvent des infographies produit)
+        presSection.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+          if (src && /ae\d+\.alicdn|cbu\d*\.alicdn|img\.aliexpress/i.test(src)) {
+            let clean = src.replace(/_\d+x\d+[^.]*/, '');
+            if (clean.startsWith('//')) clean = 'https:' + clean;
+            descriptionImages.push(clean);
+          }
+        });
+
+        // Nettoyer le texte en excluant les sections de bruit
+        // Cloner pour ne pas modifier le DOM
+        const clone = presSection.cloneNode(true);
+
+        // Supprimer les blocs de bruit connus
+        const noiseSelectors = [
+          '[class*="review" i]', '[class*="Review" i]', '[class*="feedback" i]',
+          '[class*="rating" i]', '[class*="Rating" i]',
+          '[class*="recommend" i]', '[class*="Recommend" i]',
+          '[class*="also-like" i]', '[class*="AlsoLike" i]',
+          '[class*="buyer" i]', '[class*="Buyer" i]',
+          '[class*="seller" i]', '[class*="Seller" i]', '[class*="store-info" i]',
+          '[class*="price" i]', '[class*="Price" i]',
+          '[class*="coupon" i]', '[class*="Coupon" i]',
+          '[class*="shipping" i]', '[class*="Shipping" i]',
+          '[class*="cart" i]', '[class*="Cart" i]',
+          '[class*="quantity" i]', '[class*="Quantity" i]'
+        ];
+        noiseSelectors.forEach(sel => {
+          clone.querySelectorAll(sel).forEach(el => el.remove());
+        });
+
+        let rawText = clone.innerText?.trim() || '';
+
+        // Supprimer les lignes de bruit par pattern
+        const noisePatterns = [
+          /^\d+[.,]?\d*\s*[€$£¥]/m,                      // Lignes de prix
+          /^(?:Économisez|Save|Payez|Pay)\s/im,            // Offres
+          /^\d+\s*(?:Avis|Reviews?|évaluations?)\b/im,     // Compteurs avis
+          /^(?:Avis des acheteurs|Buyer reviews)\b/im,     // Titre section avis
+          /^(?:Vous aimerez aussi|You may also like)\b/im, // Recommandations
+          /^(?:Trier par|Sort by)\b/im,                    // Contrôles tri
+          /^(?:Toutes les notes|All ratings)\b/im,         // Filtres avis
+          /^\(\d+\)$/m,                                    // Compteurs entre parenthèses
+          /^(?:Color|Couleur|Taille|Size)\s*:/im,          // Sélecteurs variantes
+          /^\d+[.,]\d+\s*(?:\/\s*5)?$/m,                  // Notes isolées
+          /^(?:Est-ce utile|Is this helpful)\b/im,         // Utilité avis
+          /^(?:Ce vendeur|This seller)\b/im,               // Info vendeur
+          /^(?:Fin\s*:|Ends?)\s/im,                        // Dates d'expiration promo
+          /^(?:Ventes? totales?|Total sales)\b/im,         // Stats vendeur
+          /^Venant tous d/im,                              // "Venant tous d'achats vérifiés"
+          /\bPayPal\b.*sans frais/im,                      // Paiement
+          /^-?\d+[.,]\d+\s*[€$£]\s*(sur|on)\s/im,        // Réductions
+          /^-\d+%\s*suppl/im,                              // Réductions supplémentaires
+          /^\w[*]+\w\s*\|/m,                               // Noms masqués d'avis (c***r |)
+          /^\d{2}\s+(?:janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc)/im, // Dates d'avis
+          /^\d{2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/im
+        ];
+
+        const cleanedLines = rawText.split('\n')
+          .map(l => l.trim())
+          .filter(l => {
+            if (l.length < 3) return false;
+            for (const pattern of noisePatterns) {
+              if (pattern.test(l)) return false;
+            }
+            return true;
+          });
+
+        presentationText = cleanedLines.join('\n')
           .replace(/\n{3,}/g, '\n\n')
           .replace(/\t/g, ' ')
           .slice(0, 5000)
@@ -623,6 +713,7 @@
       }
 
       console.log('[IT Vision] Présentation:', presentationText.length, 'chars');
+      console.log('[IT Vision] Images description:', descriptionImages.length);
     } catch (e) {
       console.warn('[IT Vision] Erreur extraction Présentation:', e);
     }
@@ -723,61 +814,68 @@
     try {
       const descParts = [];
 
-      // Partie 1: Tableau Détails (formaté proprement)
-      if (Object.keys(specs).length > 0) {
-        descParts.push('**Détails du produit**');
-        // Filtrer les specs utiles (exclure les vides ou redondants)
-        const usefulSpecs = Object.entries(specs).filter(([k, v]) => {
-          const key = k.toLowerCase();
-          const val = v.toLowerCase();
-          return v && v.length > 0 && v.length < 200 
-            && !key.includes('sku') && !key.includes('model')
-            && !val.includes('n/a') && !val.includes('non spécifié');
-        });
-        
-        for (const [k, v] of usefulSpecs.slice(0, 20)) { // Max 20 specs
+      // Partie 1: Titre produit formaté
+      if (data.name) {
+        descParts.push(`# ${data.name}`);
+      }
+
+      // Partie 2: Tableau Détails (specs filtrées)
+      const usefulSpecs = Object.entries(specs)
+        .filter(([k, v]) => isUsefulSpecKey(k) && isUsefulSpecValue(v));
+
+      if (usefulSpecs.length > 0) {
+        descParts.push('\n## Caractéristiques techniques');
+        for (const [k, v] of usefulSpecs.slice(0, 20)) {
           descParts.push(`- **${k}**: ${v}`);
         }
       }
 
-      // Partie 2: Présentation (nettoyée)
-      if (presentationText && presentationText.length > 20) {
-        // Nettoyer le texte de présentation
+      // Partie 3: Présentation (déjà nettoyée des avis/prix/bruit)
+      if (presentationText && presentationText.length > 30) {
         let cleanText = presentationText
-          .replace(/\n{3,}/g, '\n\n') // Réduire les sauts de ligne multiples
-          .replace(/\t/g, ' ') // Remplacer les tabs par espaces
-          .replace(/\s{2,}/g, ' ') // Réduire les espaces multiples
-          .replace(/([.!?])\s*\n\s*/g, '$1\n\n') // Saut de ligne après les phrases
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/\t/g, ' ')
+          .replace(/\s{2,}/g, ' ')
           .trim();
 
-        // Découper en paragraphes logiques
-        const paragraphs = cleanText.split('\n\n').filter(p => p.length > 10);
-        
+        // Découper en paragraphes et filtrer les très courts
+        const paragraphs = cleanText.split('\n\n')
+          .filter(p => p.trim().length > 15)
+          .slice(0, 5);
+
         if (paragraphs.length > 0) {
-          descParts.push('\n**Présentation**');
-          // Limiter à 3 paragraphes les plus pertinents
-          paragraphs.slice(0, 3).forEach(p => {
-            descParts.push(p.trim());
-          });
+          descParts.push('\n## Description');
+          paragraphs.forEach(p => descParts.push(p.trim()));
         }
+      }
+
+      // Partie 4: Infos boutique et notes
+      const metaParts = [
+        data.shopName && `Boutique: ${data.shopName}`,
+        data.rating && `Note: ${data.rating}/5`,
+        data.orders && `${data.orders} commandes`
+      ].filter(Boolean);
+
+      if (metaParts.length > 0) {
+        descParts.push('\n## Informations');
+        metaParts.forEach(p => descParts.push(`- ${p}`));
       }
 
       // Assembler la description finale
       if (descParts.length > 0) {
         let finalDesc = descParts.join('\n\n');
-        // Limiter la longueur totale
-        if (finalDesc.length > 3500) {
-          finalDesc = finalDesc.slice(0, 3500) + '...';
+        if (finalDesc.length > 4500) {
+          finalDesc = finalDesc.slice(0, 4500) + '...';
         }
         data.description = finalDesc.trim();
       }
 
-      // Fallback: JSON-LD description (plus court)
+      // Fallback: JSON-LD description
       if (!data.description && jsonLdProduct?.description) {
         data.description = jsonLdProduct.description.trim().slice(0, 2000);
       }
 
-      // Fallback: meta description (très court)
+      // Fallback: meta description
       if (!data.description) {
         const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
           || document.querySelector('meta[property="og:description"]')?.getAttribute('content');
@@ -870,7 +968,21 @@
       console.warn('[IT Vision] Erreur extraction variantes:', e);
     }
 
-    // Features
+    // Enrichir la galerie avec les images descriptives (infographies produit)
+    if (descriptionImages.length > 0) {
+      const existingSet = new Set(data.gallery.map(u => u.split('/').pop()?.split('?')[0]));
+      for (const img of descriptionImages) {
+        const fname = img.split('/').pop()?.split('?')[0];
+        if (fname && !existingSet.has(fname)) {
+          data.gallery.push(img);
+          existingSet.add(fname);
+        }
+        if (data.gallery.length >= 20) break;
+      }
+      console.log('[IT Vision] Galerie enrichie:', data.gallery.length, 'images');
+    }
+
+    // Features (résumé compact)
     data.features = [
       data.rating && `Note: ${data.rating}/5`,
       data.orders && `${data.orders} commandes`,
