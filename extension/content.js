@@ -892,78 +892,181 @@
     // ===== VARIANTES (groupées par type: Couleur, Taille, etc.) =====
     try {
       data.variantGroups = [];
-      
-      // AliExpress structure: un label "Couleur:" suivi d'options cliquables
-      // Chercher tous les groupes de sélection de variantes
+
+      // Normaliser les noms de groupes vers le français
+      const normalizeGroupName = (raw) => {
+        const s = raw.trim().replace(/[:\s：]+$/, '').replace(/\s*:\s*.*$/, '').trim();
+        const lower = s.toLowerCase();
+        // Couleur
+        if (/^colou?r|^couleur|^farbe/i.test(lower)) return 'Couleur';
+        if (lower === 'color' || lower === 'colour' || lower === 'colors') return 'Couleur';
+        // Taille
+        if (/^size|^taille|^größe/i.test(lower)) return 'Taille';
+        if (lower === 'shoe size' || lower === 'shoe us size' || lower === 'us size' || lower === 'eu size') return 'Taille';
+        // Autres connus
+        if (/^capacit/i.test(lower)) return 'Capacité';
+        if (/^style/i.test(lower)) return 'Style';
+        if (/^mod[eè]le|^model/i.test(lower)) return 'Modèle';
+        if (/^type/i.test(lower)) return 'Type';
+        if (/^quantit/i.test(lower)) return 'Quantité';
+        if (/^mat[eéi]/i.test(lower)) return 'Matière';
+        if (/^plug|^prise/i.test(lower)) return 'Prise';
+        if (/^puissance|^watt|^power/i.test(lower)) return 'Puissance';
+        if (/^longueur|^length/i.test(lower)) return 'Longueur';
+        if (s.length >= 2 && s.length <= 25) return s;
+        return '';
+      };
+
+      // Vérifier qu'un nom de variante est valide (pas du bruit)
+      const isValidVariantName = (name, groupName) => {
+        if (!name || name.length < 1 || name.length > 80) return false;
+        // Exclure le label du groupe lui-même
+        if (name === groupName || name.toLowerCase() === groupName.toLowerCase()) return false;
+        // Exclure les textes qui ressemblent à du bruit UI
+        if (/^(acheter|buy|ajouter|add|partager|share|signaler|report|voir|see|ok|non|oui)/i.test(name)) return false;
+        if (/[:\s：]{2,}/.test(name)) return false;
+        // Exclure les prix isolés
+        if (/^[€$£¥￥]\s*\d/.test(name) || /^\d+[.,]\d+\s*[€$£¥￥]$/.test(name)) return false;
+        // Exclure les compteurs / pourcentages
+        if (/^\d+\s*(%|avis|reviews?|commandes?|sold|vendu)$/i.test(name)) return false;
+        // Exclure les textes trop longs qui contiennent des retours à la ligne
+        if (name.includes('\n') || name.includes('\r')) return false;
+        return true;
+      };
+
       const processedLabels = new Set();
-      
-      // Méthode 1: Chercher les labels de variantes et leurs options adjacentes
-      document.querySelectorAll('[class*="sku" i], [class*="Sku" i], [class*="variant" i], [class*="property" i], [class*="Property" i]').forEach(container => {
-        // Chercher le label du groupe (ex: "Couleur:", "Taille:", "Capacité:")
-        const labelEl = container.querySelector('[class*="title" i], [class*="label" i], [class*="name" i], span, strong, b');
-        let groupName = labelEl?.textContent?.trim()?.replace(/[:\s：]+$/, '')?.trim() || '';
-        
-        // Nettoyer le nom (enlever la valeur sélectionnée si présente)
-        groupName = groupName.replace(/\s*:\s*.*$/, '').trim();
-        
-        if (!groupName || groupName.length > 30 || groupName.length < 2 || processedLabels.has(groupName)) return;
-        processedLabels.add(groupName);
-        
+
+      // ── Méthode 1: Conteneurs de propriétés SKU structurés ──
+      // AliExpress utilise des conteneurs avec des classes spécifiques pour chaque groupe de variantes
+      const skuContainers = document.querySelectorAll(
+        '[class*="sku-property" i], [class*="skuProperty" i], [class*="sku--property" i], ' +
+        '[class*="product-sku" i], [class*="productSku" i], ' +
+        '[class*="sku-item-property" i], [data-sku-col], ' +
+        '[class*="property-item" i]:not([class*="property-item-value" i])'
+      );
+
+      // Si les sélecteurs spécifiques ne trouvent rien, fallback sur les sélecteurs plus larges
+      const containers = skuContainers.length > 0 ? skuContainers
+        : document.querySelectorAll('[class*="sku" i][class*="prop" i], [class*="variant" i][class*="group" i]');
+
+      containers.forEach(container => {
+        // Trouver le label du groupe
+        const labelEl = container.querySelector(
+          '[class*="title" i], [class*="label" i], [class*="name" i]:not(img), ' +
+          '[class*="header" i], dt, h4, h5'
+        );
+        if (!labelEl) return;
+
+        const rawLabel = labelEl.textContent?.trim() || '';
+        const groupName = normalizeGroupName(rawLabel);
+        if (!groupName || processedLabels.has(groupName)) return;
+
         const variants = [];
-        
-        // Chercher les options (images ou textes)
-        container.querySelectorAll('img').forEach(img => {
+        const seenNames = new Set();
+
+        // 1) Images avec alt (typique pour les couleurs)
+        container.querySelectorAll('img[alt], img[title]').forEach(img => {
           let src = img.getAttribute('src') || img.getAttribute('data-src') || '';
           if (src.startsWith('//')) src = 'https:' + src;
-          const name = img.getAttribute('alt') || img.getAttribute('title') || '';
-          if (name && name.length < 80 && !variants.find(v => v.name === name)) {
-            // Image HD (enlever suffixes resize)
-            const hdSrc = src.replace(/_\d+x\d+[^.]*/, '');
-            variants.push({ id: `v-${variants.length}`, name: name.trim(), image: hdSrc || undefined, isDefault: variants.length === 0 });
-          }
+          // Ignorer les icônes minuscules et placeholders
+          if (src.includes('placeholder') || src.includes('data:image')) return;
+          const name = (img.getAttribute('alt') || img.getAttribute('title') || '').trim();
+          const cleanName = name.replace(/\s*#\d+$/, '').trim();
+          if (!cleanName || seenNames.has(cleanName.toLowerCase())) return;
+          if (!isValidVariantName(cleanName, groupName)) return;
+
+          seenNames.add(cleanName.toLowerCase());
+          const hdSrc = src.replace(/_\d+x\d+[^.]*/, '');
+          variants.push({
+            id: `v-${variants.length}`,
+            name: cleanName,
+            image: hdSrc || undefined,
+            isDefault: variants.length === 0
+          });
         });
-        
-        // Options textuelles (sans image)
-        container.querySelectorAll('[class*="item" i], [class*="option" i], button, span[role="button"], [class*="chip" i]').forEach(item => {
-          const name = item.textContent?.trim();
-          // Exclure le label lui-même et les textes trop courts/longs
-          if (name && name.length > 0 && name.length < 50 
-              && name !== groupName && !name.includes(':')
-              && !variants.find(v => v.name === name)) {
-            const img = item.querySelector('img');
-            let imgUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || undefined;
-            if (imgUrl?.startsWith('//')) imgUrl = 'https:' + imgUrl;
-            variants.push({ id: `v-${variants.length}`, name: name.trim(), image: imgUrl, isDefault: variants.length === 0 });
+
+        // 2) Options textuelles (boutons, spans cliquables) — seulement ceux directement dans le conteneur d'items
+        const itemEls = container.querySelectorAll(
+          '[class*="item" i] > span, [class*="item" i] > div, ' +
+          '[class*="option" i], [class*="value" i], ' +
+          'button > span, [role="button"] > span, [role="radio"]'
+        );
+        itemEls.forEach(item => {
+          // Prendre seulement le texte direct, pas les enfants profonds
+          let name = '';
+          if (item.childNodes.length <= 3) {
+            name = item.textContent?.trim() || '';
+          } else {
+            // Si beaucoup d'enfants, c'est probablement un conteneur, prendre le premier noeud texte
+            for (const child of item.childNodes) {
+              if (child.nodeType === 3 && child.textContent?.trim()) {
+                name = child.textContent.trim();
+                break;
+              }
+            }
           }
+
+          if (!name || seenNames.has(name.toLowerCase())) return;
+          if (!isValidVariantName(name, groupName)) return;
+          // Ignorer si c'est un sous-texte du label
+          if (rawLabel.includes(name)) return;
+
+          seenNames.add(name.toLowerCase());
+          const img = item.closest('[class*="item" i], [class*="option" i]')?.querySelector('img');
+          let imgUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || undefined;
+          if (imgUrl?.startsWith('//')) imgUrl = 'https:' + imgUrl;
+          if (imgUrl) imgUrl = imgUrl.replace(/_\d+x\d+[^.]*/, '');
+
+          variants.push({
+            id: `v-${variants.length}`,
+            name,
+            image: imgUrl,
+            isDefault: variants.length === 0
+          });
         });
-        
-        if (variants.length > 1) {
+
+        if (variants.length >= 1) {
+          processedLabels.add(groupName);
           data.variantGroups.push({ name: groupName, variants });
           console.log('[IT Vision] Variante groupe:', groupName, '→', variants.length, 'options');
         }
       });
 
-      // Méthode 2: Fallback — chercher le texte "Couleur: XXX" dans le header produit
+      // ── Méthode 2: Fallback — JSON embarqué dans la page (AliExpress stocke souvent les SKU en JSON) ──
       if (data.variantGroups.length === 0) {
-        const allText = document.body.innerText.slice(0, 3000);
-        const variantLabels = allText.match(/(?:Couleur|Color|Taille|Size|Capacit[eé]|Capacity|Style|Mod[eè]le|Model)\s*[:\s：]+\s*([^\n]+)/gi);
-        if (variantLabels) {
-          for (const match of variantLabels) {
-            const parts = match.split(/[:\s：]+/);
-            if (parts.length >= 2) {
-              const groupName = parts[0].trim();
-              const value = parts.slice(1).join(' ').trim();
-              if (groupName && value && !processedLabels.has(groupName)) {
-                processedLabels.add(groupName);
-                data.variantGroups.push({
-                  name: groupName,
-                  variants: [{ id: 'v-0', name: value, isDefault: true }]
-                });
+        const scripts = document.querySelectorAll('script:not([src])');
+        for (const script of scripts) {
+          const text = script.textContent || '';
+          // Chercher des patterns JSON de propriétés SKU
+          const skuMatch = text.match(/"skuPropertyList"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
+          if (skuMatch) {
+            try {
+              const skuList = JSON.parse(skuMatch[1]);
+              for (const group of skuList) {
+                const groupName = normalizeGroupName(group.skuPropertyName || group.name || '');
+                if (!groupName || processedLabels.has(groupName)) continue;
+                const values = group.skuPropertyValues || group.values || [];
+                if (!Array.isArray(values) || values.length === 0) continue;
+                const variants = values.map((v, idx) => ({
+                  id: `v-${idx}`,
+                  name: (v.propertyValueDisplayName || v.name || v.propertyValueName || '').trim(),
+                  image: v.skuPropertyImagePath || v.image || undefined,
+                  isDefault: idx === 0
+                })).filter(v => v.name && isValidVariantName(v.name, groupName));
+                if (variants.length >= 1) {
+                  processedLabels.add(groupName);
+                  data.variantGroups.push({ name: groupName, variants });
+                  console.log('[IT Vision] Variante JSON:', groupName, '→', variants.length);
+                }
               }
-            }
+            } catch (e) { /* JSON parse error, skip */ }
+            if (data.variantGroups.length > 0) break;
           }
         }
       }
+
+      console.log('[IT Vision] Total groupes de variantes:', data.variantGroups.length,
+        data.variantGroups.map(g => `${g.name}(${g.variants.length})`).join(', '));
     } catch (e) {
       console.warn('[IT Vision] Erreur extraction variantes:', e);
     }
