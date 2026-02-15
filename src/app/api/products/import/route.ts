@@ -161,6 +161,36 @@ interface NormalizedAliExpressItem {
   sourcingNotes?: string
 }
 
+// Formater les spécifications en markdown compatible avec parseMarkdown
+// Produit un bloc `- **Key**: Value` qui sera rendu en tableau propre
+const formatSpecsAsMarkdown = (specs?: Record<string, string>, rawDescription?: string): string => {
+  const parts: string[] = []
+
+  // Tableau de spécifications
+  if (specs && typeof specs === 'object') {
+    const entries = Object.entries(specs).filter(([k, v]) => k && v && k.length < 60 && v.length < 200)
+    if (entries.length > 0) {
+      parts.push('**Spécifications**')
+      parts.push(entries.map(([k, v]) => `- **${k}**: ${v}`).join('\n'))
+    }
+  }
+
+  // Texte de description brut (nettoyé)
+  if (rawDescription && rawDescription.length > 20) {
+    // Éviter de re-dupliquer les specs déjà formatées
+    const cleanDesc = rawDescription
+      .replace(/^\s*spécifications?\s*$/gim, '')
+      .replace(/^\s*specifications?\s*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    if (cleanDesc.length > 20) {
+      parts.push(cleanDesc)
+    }
+  }
+
+  return parts.join('\n\n').slice(0, 4900) || ''
+}
+
 type Import1688Preview = {
   offerId?: string
   name: string
@@ -752,11 +782,12 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = preview as NormalizedAliExpressItem & { description?: string; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const ali = preview as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string>; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
           const payload = {
             name: ali.name,
             category: ali.category,
-            description: ali.description || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+            description: aliDesc,
             tagline: ali.tagline,
             baseCost: ali.baseCost,
             marginRate: DEFAULT_MARGIN,
@@ -940,12 +971,12 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = it as NormalizedAliExpressItem & { description?: string; lengthCm?: number; widthCm?: number; heightCm?: number }
-          const aliDesc = ali.description || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
+          const ali = it as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string>; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
           const payload = {
             name: (ali.name || 'Produit AliExpress').slice(0, 200),
             category: ali.category,
-            description: aliDesc.slice(0, 4900),
+            description: aliDesc,
             tagline: (ali.tagline || 'Import AliExpress').slice(0, 200),
             baseCost: ali.baseCost,
             marginRate: DEFAULT_MARGIN,
@@ -1079,11 +1110,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, product: created.toObject(), action: 'created' }, { status: 201 })
     }
 
-    const ali = item as NormalizedAliExpressItem
+    const ali = item as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string> }
+    const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
     const payload = {
       name: ali.name,
       category: ali.category,
-      description: `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+      description: aliDesc,
       tagline: ali.tagline,
       baseCost: ali.baseCost,
       marginRate: DEFAULT_MARGIN,
