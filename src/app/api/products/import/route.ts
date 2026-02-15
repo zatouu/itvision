@@ -914,6 +914,7 @@ export async function POST(request: NextRequest) {
               heightCm: Number(preview.heightCm) || 10,
               // Variants
               variantGroups: Array.isArray(preview.variantGroups) ? preview.variantGroups : [],
+              descriptionImages: Array.isArray((preview as any).descriptionImages) ? (preview as any).descriptionImages : [],
               // Sourcing
               sourcing: {
                 platform: '1688',
@@ -952,6 +953,7 @@ export async function POST(request: NextRequest) {
             currency: ali.currency,
             image: ali.image,
             gallery: ali.gallery,
+            descriptionImages: Array.isArray((ali as any).descriptionImages) ? (ali as any).descriptionImages : [],
             features: ali.features,
             requiresQuote: typeof ali.price === 'number' ? false : true,
             stockStatus: 'preorder' as const,

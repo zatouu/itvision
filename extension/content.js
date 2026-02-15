@@ -994,6 +994,9 @@
       data.variantGroups?.length > 0 && `${data.variantGroups.length} types de variantes`
     ].filter(Boolean);
 
+    // Images de description séparées (grandes images de présentation)
+    data.descriptionImages = descriptionImages.slice(0, 30);
+
     // Données logistiques
     data.specifications = specs;
     data.weightKg = weightKg > 0 ? weightKg : undefined;

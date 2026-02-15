@@ -38,6 +38,7 @@ export interface IProduct extends Document {
   currency?: string
   image?: string
   gallery?: string[]
+  descriptionImages?: string[]          // Images de présentation/description (grandes, séparées de la galerie)
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
@@ -114,6 +115,7 @@ const ProductSchema = new Schema<IProduct>({
   currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
   image: { type: String },
   gallery: { type: [String], default: [] },
+  descriptionImages: { type: [String], default: [] },
   features: { type: [String], default: [] },
   requiresQuote: { type: Boolean, default: false },
   deliveryDays: { type: Number, default: 0 },

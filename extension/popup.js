@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         widthCm: p.widthCm || 10,
         heightCm: p.heightCm || 10,
         variantGroups: p.variantGroups || [],
+        descriptionImages: p.descriptionImages || [],
         moq: p.moq,
         specifications: p.specifications
       };
@@ -168,6 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       productUrl: p.url,
       image: p.image,
       gallery: p.gallery || [],
+      descriptionImages: p.descriptionImages || [],
       price: p.price,
       baseCost: p.price,
       currency: 'FCFA',

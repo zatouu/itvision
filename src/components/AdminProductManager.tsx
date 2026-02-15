@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useState, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play } from 'lucide-react'
+import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage } from 'lucide-react'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -46,6 +46,7 @@ type Product = {
   currency?: string
   image?: string
   gallery?: string[]
+  descriptionImages?: string[]
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
@@ -491,8 +492,13 @@ export default function AdminProductManager() {
   const [activeTab, setActiveTab] = useState<ProductTab>('info')
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
+  const [uploadingDescImages, setUploadingDescImages] = useState(false)
   const [newGalleryInput, setNewGalleryInput] = useState('')
   const [newTagInput, setNewTagInput] = useState('')
+  const [dragOverGallery, setDragOverGallery] = useState(false)
+  const [dragOverDesc, setDragOverDesc] = useState(false)
+  const [dragItem, setDragItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
+  const [dragOverItem, setDragOverItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
@@ -633,6 +639,7 @@ export default function AdminProductManager() {
       setAutoPrice(false)
       setUploadingMain(false)
       setUploadingGallery(false)
+      setUploadingDescImages(false)
       setNewGalleryInput('')
       setSaveError(null)
     }
@@ -892,10 +899,111 @@ export default function AdminProductManager() {
       }
     } catch (error) {
       console.error('Galerie import', error)
-      alert('Impossible d’ajouter certains fichiers au moment du téléversement.')
+      alert('Impossible d\'ajouter certains fichiers.')
     } finally {
       setUploadingGallery(false)
     }
+  }
+
+  const handleDescImagesUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    try {
+      setUploadingDescImages(true)
+      const uploads: string[] = []
+      for (const file of Array.from(files)) {
+        try {
+          const url = await uploadMediaFile(file)
+          uploads.push(url)
+        } catch (error) {
+          console.error('Upload description image', error)
+        }
+      }
+      if (uploads.length > 0) {
+        setEditing(prev => (prev ? { ...prev, descriptionImages: [...(prev.descriptionImages || []), ...uploads] } : prev))
+      }
+    } catch (error) {
+      console.error('Description images import', error)
+    } finally {
+      setUploadingDescImages(false)
+    }
+  }
+
+  const handleDropUpload = async (e: React.DragEvent, target: 'gallery' | 'desc') => {
+    e.preventDefault()
+    if (target === 'gallery') setDragOverGallery(false)
+    else setDragOverDesc(false)
+
+    if (dragItem) {
+      handleImageReorderDrop(target)
+      return
+    }
+
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
+    if (imageFiles.length === 0) return
+
+    const fileList = Object.assign(imageFiles, { item: (i: number) => imageFiles[i] }) as unknown as FileList
+    if (target === 'gallery') {
+      await handleGalleryUpload(fileList)
+    } else {
+      await handleDescImagesUpload(fileList)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, target: 'gallery' | 'desc') => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = dragItem ? 'move' : 'copy'
+    if (target === 'gallery') setDragOverGallery(true)
+    else setDragOverDesc(true)
+  }
+
+  const handleDragLeave = (target: 'gallery' | 'desc') => {
+    if (target === 'gallery') setDragOverGallery(false)
+    else setDragOverDesc(false)
+  }
+
+  const moveImage = (type: 'gallery' | 'desc', fromIndex: number, toIndex: number) => {
+    if (!editing) return
+    const field = type === 'gallery' ? 'gallery' : 'descriptionImages'
+    const arr = [...(editing[field] || [])]
+    if (fromIndex < 0 || fromIndex >= arr.length || toIndex < 0 || toIndex >= arr.length) return
+    const [moved] = arr.splice(fromIndex, 1)
+    arr.splice(toIndex, 0, moved)
+    setEditing({ ...editing, [field]: arr })
+  }
+
+  const handleImageReorderDrop = (targetType: 'gallery' | 'desc') => {
+    if (!dragItem || !dragOverItem || !editing) {
+      setDragItem(null)
+      setDragOverItem(null)
+      return
+    }
+    if (dragItem.type === targetType && dragOverItem.type === targetType) {
+      moveImage(targetType, dragItem.index, dragOverItem.index)
+    } else if (dragItem.type !== targetType) {
+      const sourceField = dragItem.type === 'gallery' ? 'gallery' : 'descriptionImages'
+      const targetField = targetType === 'gallery' ? 'gallery' : 'descriptionImages'
+      const sourceArr = [...(editing[sourceField] || [])]
+      const targetArr = [...(editing[targetField] || [])]
+      const [moved] = sourceArr.splice(dragItem.index, 1)
+      const insertAt = dragOverItem ? dragOverItem.index : targetArr.length
+      targetArr.splice(insertAt, 0, moved)
+      setEditing({ ...editing, [sourceField]: sourceArr, [targetField]: targetArr })
+    }
+    setDragItem(null)
+    setDragOverItem(null)
+  }
+
+  const transferImage = (fromType: 'gallery' | 'desc', index: number) => {
+    if (!editing) return
+    const sourceField = fromType === 'gallery' ? 'gallery' : 'descriptionImages'
+    const targetField = fromType === 'gallery' ? 'descriptionImages' : 'gallery'
+    const sourceArr = [...(editing[sourceField] || [])]
+    const targetArr = [...(editing[targetField] || [])]
+    const [moved] = sourceArr.splice(index, 1)
+    targetArr.push(moved)
+    setEditing({ ...editing, [sourceField]: sourceArr, [targetField]: targetArr })
   }
 
   const renderInfoTab = () => {
@@ -1330,8 +1438,82 @@ export default function AdminProductManager() {
 
   const renderMediaTab = () => {
     if (!editing) return null
+
+    const renderImageGrid = (
+      images: string[],
+      type: 'gallery' | 'desc',
+      field: 'gallery' | 'descriptionImages'
+    ) => (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        {images.map((url, index) => (
+          <div
+            key={`${type}-${url}-${index}`}
+            draggable
+            onDragStart={() => setDragItem({ type, index })}
+            onDragOver={(e) => { e.preventDefault(); setDragOverItem({ type, index }) }}
+            onDragEnd={() => { setDragItem(null); setDragOverItem(null) }}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleImageReorderDrop(type) }}
+            className={`group relative overflow-hidden rounded-lg border-2 transition-all cursor-grab active:cursor-grabbing ${
+              dragOverItem?.type === type && dragOverItem?.index === index
+                ? 'border-emerald-400 bg-emerald-50 scale-105'
+                : dragItem?.type === type && dragItem?.index === index
+                  ? 'border-emerald-300 opacity-50'
+                  : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            {isVideoUrl(url) ? (
+              <div className="relative h-24 w-full bg-black">
+                <video src={url} muted playsInline preload="metadata" className="h-24 w-full object-cover opacity-90" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-full bg-black/60 text-white p-2"><Play className="h-4 w-4" /></div>
+                </div>
+              </div>
+            ) : isYouTubeUrl(url) ? (
+              <div className="relative h-24 w-full bg-gray-900 flex items-center justify-center text-white">
+                <div className="flex items-center gap-2 text-xs font-semibold"><Play className="h-4 w-4" /> YouTube</div>
+              </div>
+            ) : (
+              <img src={url} alt={`${type} ${index + 1}`} className="h-24 w-full object-cover" />
+            )}
+            <div className="absolute left-1 top-1 hidden group-hover:flex">
+              <div className="rounded bg-black/60 p-0.5 text-white"><GripVertical className="h-3.5 w-3.5" /></div>
+            </div>
+            <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
+              {index > 0 && (
+                <button type="button" className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  onClick={() => moveImage(type, index, index - 1)}>
+                  <ArrowLeft className="h-3 w-3" />
+                </button>
+              )}
+              {index < images.length - 1 && (
+                <button type="button" className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  onClick={() => moveImage(type, index, index + 1)}>
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              )}
+              <button type="button" className="rounded-full bg-purple-600/80 p-1 text-white hover:bg-purple-700"
+                title={type === 'gallery' ? 'Déplacer vers Description' : 'Déplacer vers Galerie'}
+                onClick={() => transferImage(type, index)}>
+                <FileImage className="h-3 w-3" />
+              </button>
+              <button type="button" className="rounded-full bg-red-600/80 p-1 text-white hover:bg-red-700"
+                onClick={() => setEditing(prev => (prev
+                  ? { ...prev, [field]: (prev[field] || []).filter((_: string, idx: number) => idx !== index) }
+                  : prev))}>
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5 hidden group-hover:block">
+              {index + 1}/{images.length}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+
     return (
       <div className="space-y-6">
+        {/* Image principale */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
             <ImageIcon className="h-4 w-4" />
@@ -1355,17 +1537,10 @@ export default function AdminProductManager() {
               <div className="flex flex-wrap items-center gap-3">
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <Upload className="h-4 w-4" />
-                  <span>Téléverser depuis l’ordinateur</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (file) handleMainImageUpload(file)
-                    }}
-                    disabled={uploadingMain}
-                  />
+                  <span>Téléverser</span>
+                  <input type="file" className="hidden" accept="image/*"
+                    onChange={e => { const file = e.target.files?.[0]; if (file) handleMainImageUpload(file) }}
+                    disabled={uploadingMain} />
                 </label>
                 {uploadingMain && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
               </div>
@@ -1373,94 +1548,119 @@ export default function AdminProductManager() {
           </div>
         </div>
 
+        {/* Galerie produit (miniatures affichées sur la page produit) */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
-            <ImageIcon className="h-4 w-4" />
-            Galerie & médias secondaires
-          </div>
-          <div className="mt-4 space-y-4 text-sm text-gray-700">
-            <textarea
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              rows={4}
-              placeholder="Une URL par ligne"
-              value={(editing.gallery || []).join('\n')}
-              onChange={e => setEditing({
-                ...editing,
-                gallery: e.target.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-              })}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                placeholder="Ajouter une URL (https://...)"
-                value={newGalleryInput}
-                onChange={e => setNewGalleryInput(e.target.value)}
-              />
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-                onClick={() => {
-                  if (!newGalleryInput.trim()) return
-                  setEditing(prev => (prev ? { ...prev, gallery: [...(prev.gallery || []), newGalleryInput.trim()] } : prev))
-                  setNewGalleryInput('')
-                }}
-              >
-                <Plus className="h-4 w-4" /> Ajouter
-              </button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+              <ImageIcon className="h-4 w-4" />
+              Galerie produit
+              <span className="text-xs font-normal normal-case text-gray-400">— miniatures affichées sur la fiche</span>
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50">
-              <Upload className="h-4 w-4" />
-              <span>Importer des images / vidéos courtes</span>
-              <input type="file" className="hidden" multiple accept="image/*,video/*" onChange={e => handleGalleryUpload(e.target.files)} disabled={uploadingGallery} />
-            </label>
+            <span className="text-xs text-gray-400">{(editing.gallery || []).length} image(s)</span>
+          </div>
+
+          <div
+            className={`mt-4 rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+              dragOverGallery ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50'
+            }`}
+            onDragOver={e => handleDragOver(e, 'gallery')}
+            onDragLeave={() => handleDragLeave('gallery')}
+            onDrop={e => handleDropUpload(e, 'gallery')}
+          >
+            <Upload className="mx-auto h-8 w-8 text-gray-300" />
+            <p className="mt-2 text-sm text-gray-500">
+              Glissez-déposez des images ici ou
+            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                <Upload className="h-4 w-4" />
+                <span>Parcourir</span>
+                <input type="file" className="hidden" multiple accept="image/*,video/*"
+                  onChange={e => handleGalleryUpload(e.target.files)} disabled={uploadingGallery} />
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-60"
+                  placeholder="Ou coller une URL..."
+                  value={newGalleryInput}
+                  onChange={e => setNewGalleryInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newGalleryInput.trim()) {
+                      setEditing(prev => (prev ? { ...prev, gallery: [...(prev.gallery || []), newGalleryInput.trim()] } : prev))
+                      setNewGalleryInput('')
+                    }
+                  }}
+                />
+                <button type="button"
+                  className="rounded-lg bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
+                  onClick={() => {
+                    if (!newGalleryInput.trim()) return
+                    setEditing(prev => (prev ? { ...prev, gallery: [...(prev.gallery || []), newGalleryInput.trim()] } : prev))
+                    setNewGalleryInput('')
+                  }}>
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
             {uploadingGallery && (
-              <p className="flex items-center gap-2 text-xs text-gray-500">
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs text-emerald-600">
                 <Loader2 className="h-3 w-3 animate-spin" /> Téléversement en cours...
               </p>
             )}
-            {(editing.gallery?.length ?? 0) > 0 && (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {editing.gallery?.map((url, index) => (
-                  <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-lg border border-gray-200">
-                    {isVideoUrl(url) ? (
-                      <div className="relative h-24 w-full bg-black">
-                        <video
-                          src={url}
-                          muted
-                          playsInline
-                          preload="metadata"
-                          className="h-24 w-full object-cover opacity-90"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="rounded-full bg-black/60 text-white p-2">
-                            <Play className="h-4 w-4" />
-                          </div>
-                        </div>
-                      </div>
-                    ) : isYouTubeUrl(url) ? (
-                      <div className="relative h-24 w-full bg-gray-900 flex items-center justify-center text-white">
-                        <div className="flex items-center gap-2 text-xs font-semibold">
-                          <Play className="h-4 w-4" />
-                          Vidéo (YouTube)
-                        </div>
-                      </div>
-                    ) : (
-                      <img src={url} alt={`Galerie ${index + 1}`} className="h-24 w-full object-cover" />
-                    )}
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 hidden rounded-full bg-black/60 p-1 text-white transition group-hover:flex"
-                      onClick={() => setEditing(prev => (prev
-                        ? { ...prev, gallery: (prev.gallery || []).filter((_, idx) => idx !== index) }
-                        : prev))}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+          </div>
+
+          {(editing.gallery?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs text-gray-400">Glissez pour réorganiser · Survolez pour les actions</p>
+              {renderImageGrid(editing.gallery || [], 'gallery', 'gallery')}
+            </div>
+          )}
+        </div>
+
+        {/* Images de description / présentation (grandes images) */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-purple-700">
+              <FileImage className="h-4 w-4" />
+              Images de description
+              <span className="text-xs font-normal normal-case text-gray-400">— grandes images de présentation</span>
+            </div>
+            <span className="text-xs text-gray-400">{(editing.descriptionImages || []).length} image(s)</span>
+          </div>
+
+          <div
+            className={`mt-4 rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+              dragOverDesc ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-50'
+            }`}
+            onDragOver={e => handleDragOver(e, 'desc')}
+            onDragLeave={() => handleDragLeave('desc')}
+            onDrop={e => handleDropUpload(e, 'desc')}
+          >
+            <FileImage className="mx-auto h-8 w-8 text-gray-300" />
+            <p className="mt-2 text-sm text-gray-500">
+              Glissez-déposez des images de description ici
+            </p>
+            <div className="mt-3 flex justify-center">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700">
+                <Upload className="h-4 w-4" />
+                <span>Parcourir</span>
+                <input type="file" className="hidden" multiple accept="image/*"
+                  onChange={e => handleDescImagesUpload(e.target.files)} disabled={uploadingDescImages} />
+              </label>
+            </div>
+            {uploadingDescImages && (
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs text-purple-600">
+                <Loader2 className="h-3 w-3 animate-spin" /> Téléversement en cours...
+              </p>
             )}
           </div>
+
+          {(editing.descriptionImages?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs text-gray-400">Glissez pour réorganiser · Survolez pour les actions</p>
+              {renderImageGrid(editing.descriptionImages || [], 'desc', 'descriptionImages')}
+            </div>
+          )}
         </div>
       </div>
     )

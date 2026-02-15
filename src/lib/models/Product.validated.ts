@@ -33,6 +33,7 @@ export interface IProduct extends Document {
   // Médias
   image?: string
   gallery: string[]
+  descriptionImages: string[]  // Images de présentation/description (grandes, séparées de la galerie)
   
   // Caractéristiques
   features: string[]
@@ -256,6 +257,14 @@ const ProductSchema = new Schema<IProduct>({
     validate: {
       validator: (arr: string[]) => arr.length <= 20,
       message: 'Maximum 20 images dans la galerie'
+    }
+  },
+  descriptionImages: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: (arr: string[]) => arr.length <= 30,
+      message: 'Maximum 30 images de description'
     }
   },
   
