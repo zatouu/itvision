@@ -446,25 +446,36 @@
     // ===== IMAGES (approche ciblée — uniquement galerie produit) =====
     const imageSet = new Set();
 
-    // Filtre anti-bruit : exclure logos paiement, promos, icônes UI
+    // Filtre anti-bruit : exclure logos paiement, icônes UI — PAS les CDN produit
     const isNoiseImage = (url) => {
       if (!url) return true;
       const lower = url.toLowerCase();
-      // Logos paiement / fintech
-      if (/paypal|klarna|afterpay|clearpay|affirm|stripe|visa|mastercard|amex|american.?express|discover|unionpay|jcb|diners/i.test(lower)) return true;
-      // Icônes / badges / banners promotionnels
-      if (/promo|badge|banner|icon|logo|coupon|voucher|coin|reward|loyalty/i.test(lower)) return true;
-      // Images de UI AliExpress
-      if (/assets\.alicdn|g\.alicdn/i.test(lower)) return true;
-      // Petites icônes (souvent dans /imgextra/ avec des noms très courts)
-      if (/\/icon[s]?\//i.test(lower)) return true;
-      // Images SVG (icônes UI)
+      // Images trop petites (data URI, 1x1 pixels)
+      if (lower.startsWith('data:')) return true;
+      if (/1x1|pixel|tracker|beacon/i.test(lower)) return true;
+      // SVG = icônes UI
       if (lower.endsWith('.svg')) return true;
-      // Images GIF animées (souvent des pubs)
-      if (lower.endsWith('.gif')) return true;
-      // Patterns de tracking pixels
-      if (/pixel|tracker|beacon|1x1/i.test(lower)) return true;
+      // Domaines connus de logos paiement / fintech (pas alicdn!)
+      if (/paypal\.com|klarna\.com|afterpay\.com|clearpay\.com|stripe\.com/i.test(lower)) return true;
+      // Fichiers nommés explicitement comme logos/icônes dans le chemin
+      const filename = lower.split('/').pop()?.split('?')[0] || '';
+      if (/^(paypal|klarna|afterpay|visa|mastercard|amex|jcb|diners|unionpay|discover)[_\-.]/.test(filename)) return true;
+      if (/^(icon|logo|badge|banner)[_\-.]/.test(filename)) return true;
+      // Chemins UI AliExpress connus (pas imgextra qui contient les vrais produits)
+      if (/\/icon[s]?\//i.test(lower)) return true;
+      if (/\/ui\//i.test(lower)) return true;
       return false;
+    };
+
+    // Vérifier qu'une URL est une image produit AliExpress (CDN alicdn ou aliexpress)
+    const isAliProductImage = (src) => {
+      return /ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn|assets\.alicdn\.com\/imgextra/i.test(src);
+    };
+
+    const cleanImageUrl = (src) => {
+      let clean = src.replace(/_\d+x\d+[^.]*/, '').replace(/\.\d+x\d+\./, '.');
+      if (clean.startsWith('//')) clean = 'https:' + clean;
+      return clean;
     };
     
     // Source 1: JSON-LD images (le plus fiable)
@@ -479,38 +490,61 @@
     const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
     if (ogImg && ogImg.startsWith('http') && !isNoiseImage(ogImg)) imageSet.add(ogImg);
 
-    // Source 3: Images de la GALERIE PRODUIT uniquement (pas toute la page)
+    // Source 3: Images de la GALERIE PRODUIT (sélecteurs précis + larges)
     const gallerySelectors = [
-      '[class*="gallery" i] img', '[class*="Gallery" i] img',
-      '[class*="slider" i] img', '[class*="Slider" i] img',
+      // Sélecteurs très spécifiques AliExpress
+      '[class*="slider--img"] img', '[class*="Slider--img"] img',
       '[class*="image-view" i] img', '[class*="ImageView" i] img',
       '[class*="product-image" i] img', '[class*="ProductImage" i] img',
       '[data-pl="product-image"] img', '[class*="magnifier" i] img',
-      '[class*="thumb" i]:not([class*="review" i]):not([class*="payment" i]) img'
+      // Galerie/carousel
+      '[class*="gallery" i] img', '[class*="Gallery" i] img',
+      '[class*="slider" i] img', '[class*="Slider" i] img',
+      // Thumbnails produit (pas review/payment)
+      '[class*="thumb" i]:not([class*="review" i]):not([class*="payment" i]) img',
+      // AliExpress moderne: les images dans la section principale produit
+      '[class*="pdp-info" i] img', '[class*="product-main" i] img',
+      '[class*="detail-gallery" i] img', '[class*="DetailGallery" i] img'
     ];
     for (const sel of gallerySelectors) {
       document.querySelectorAll(sel).forEach(img => {
         const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
-        if (!src) return;
-        if (isNoiseImage(src)) return;
-        if (/ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress/i.test(src)) {
-          let clean = src.replace(/_\d+x\d+[^.]*/, '').replace(/\.\d+x\d+\./, '.');
-          if (clean.startsWith('//')) clean = 'https:' + clean;
-          imageSet.add(clean);
+        if (!src || isNoiseImage(src)) return;
+        if (isAliProductImage(src)) {
+          imageSet.add(cleanImageUrl(src));
         }
       });
     }
 
-    // Source 4: background-image dans les div de gallery uniquement
-    document.querySelectorAll('[class*="gallery" i] [style*="background-image"], [class*="slider" i] [style*="background-image"]').forEach(el => {
+    // Source 4: background-image dans les div de gallery
+    document.querySelectorAll('[class*="gallery" i] [style*="background-image"], [class*="slider" i] [style*="background-image"], [class*="image-view" i] [style*="background-image"]').forEach(el => {
       const bg = el.style.backgroundImage;
       const m = bg.match(/url\(["']?([^"')]+)/);
-      if (m && !isNoiseImage(m[1]) && /ae\d+\.alicdn|cbu\d*\.alicdn|aliexpress/i.test(m[1])) {
-        let src = m[1].replace(/_\d+x\d+[^.]*/, '');
-        if (src.startsWith('//')) src = 'https:' + src;
-        imageSet.add(src);
+      if (m && !isNoiseImage(m[1]) && isAliProductImage(m[1])) {
+        imageSet.add(cleanImageUrl(m[1]));
       }
     });
+
+    // Source 5: Fallback — images assez grandes dans la zone produit principale
+    // Si on n'a trouvé que 0-2 images, chercher plus largement
+    if (imageSet.size <= 2) {
+      console.log('[IT Vision] Peu d\'images trouvées, recherche élargie...');
+      // Chercher dans tout le haut de page (section produit, pas footer/sidebar)
+      const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
+      if (mainArea) {
+        mainArea.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+          if (!src || isNoiseImage(src)) return;
+          if (!isAliProductImage(src)) return;
+          // Vérifier que l'image est assez grande (pas un petit icône)
+          const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
+          const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
+          if (w > 0 && w < 50) return; // Trop petite = icône
+          if (h > 0 && h < 50) return;
+          imageSet.add(cleanImageUrl(src));
+        });
+      }
+    }
 
     // Dédouper par nom de fichier (même image, résolutions différentes)
     const seen = new Set();
@@ -522,7 +556,7 @@
       return true;
     }).slice(0, 15);
     data.image = data.gallery[0];
-    console.log('[IT Vision] Images trouvées:', data.gallery.length);
+    console.log('[IT Vision] Images galerie trouvées:', data.gallery.length);
 
     // ===== BOUTIQUE =====
     try {
@@ -656,11 +690,14 @@
         // Extraire les images descriptives (souvent des infographies produit)
         presSection.querySelectorAll('img').forEach(img => {
           const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-          if (src && !isNoiseImage(src) && /ae\d+\.alicdn|cbu\d*\.alicdn|img\.aliexpress/i.test(src)) {
-            let clean = src.replace(/_\d+x\d+[^.]*/, '');
-            if (clean.startsWith('//')) clean = 'https:' + clean;
-            descriptionImages.push(clean);
-          }
+          if (!src || isNoiseImage(src)) return;
+          if (!isAliProductImage(src)) return;
+          // Exclure les petites images (icônes paiement, badges)
+          const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
+          const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
+          if (w > 0 && w < 80) return;
+          if (h > 0 && h < 80) return;
+          descriptionImages.push(cleanImageUrl(src));
         });
 
         // Nettoyer le texte en excluant les sections de bruit
