@@ -191,6 +191,8 @@ export default function ProduitsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [allProducts, setAllProducts] = useState<ApiProduct[]>([])
+  const observerTarget = useRef<HTMLDivElement>(null)
   const [savedFilters, setSavedFilters] = useState<Array<{ name: string; filters: any }>>([])
   // Recherche par image
   const [showImageSearch, setShowImageSearch] = useState(false)
@@ -626,17 +628,30 @@ export default function ProduitsPage() {
                   : undefined
               }
             })
+            // Infinite scroll: append products instead of replacing
+            if (currentPage === 1) {
+              setAllProducts(formatted)
+            } else {
+              setAllProducts(prev => [...prev, ...formatted])
+            }
             setProducts(formatted)
           } else {
-            setProducts(getFallbackProducts())
+            if (currentPage === 1) {
+              setProducts(getFallbackProducts())
+              setAllProducts(getFallbackProducts())
+            }
             setError('Mode démonstration - Connexion API indisponible')
           }
         } catch (err) {
           console.error('Error fetching products:', err)
-          setProducts(getFallbackProducts())
+          if (currentPage === 1) {
+            setProducts(getFallbackProducts())
+            setAllProducts(getFallbackProducts())
+          }
           setError('Mode démonstration - Connexion API indisponible')
         } finally {
           setLoading(false)
+          setLoadingMore(false)
         }
       }
 
@@ -747,12 +762,30 @@ export default function ProduitsPage() {
     return () => clearTimeout(timer)
   }, [search])
 
-  // Les filtres principaux sont maintenant appliqués côté serveur.
-  // On garde uniquement un filtre local pour la recherche par image.
+  // Infinite scroll: use accumulated products
   const filteredProducts = useMemo(() => {
-    if (imageSearchResults.length === 0) return products
-    return products.filter((product) => imageSearchResults.includes(product.id))
-  }, [products, imageSearchResults])
+    const productsToFilter = currentPage === 1 ? products : allProducts
+    if (imageSearchResults.length === 0) return productsToFilter
+    return productsToFilter.filter((product) => imageSearchResults.includes(product.id))
+  }, [products, allProducts, imageSearchResults, currentPage])
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!observerTarget.current || loading || loadingMore || !hasMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          setLoadingMore(true)
+          setCurrentPage(prev => prev + 1)
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    )
+
+    observer.observe(observerTarget.current)
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore])
 
   // Gestion de la comparaison
   const handleCompareToggle = (productId: string, isSelected: boolean) => {
@@ -1984,51 +2017,25 @@ export default function ProduitsPage() {
               )}
 
 
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="mt-12 flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1 || loading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      >
-                        Précédent
-                      </button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum
-                          if (totalPages <= 5) {
-                            pageNum = i + 1
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i
-                          } else {
-                            pageNum = currentPage - 2 + i
-                          }
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              disabled={loading}
-                              className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
-                                currentPage === pageNum
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'text-gray-700 bg-white border border-gray-200 hover:bg-gray-50'
-                              } disabled:opacity-50`}
-                            >
-                              {pageNum}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages || loading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      >
-                        Suivant
-                      </button>
+                  {/* Infinite Scroll Trigger */}
+                  {hasMore && (
+                    <div ref={observerTarget} className="mt-12 flex items-center justify-center py-8">
+                      {loadingMore ? (
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
+                          <p className="text-sm text-gray-600 font-medium">Chargement de plus de produits...</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-sm text-gray-500">Faites défiler pour voir plus de produits</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!hasMore && filteredProducts.length > 0 && currentPage > 1 && (
+                    <div className="mt-12 text-center py-8 border-t border-gray-200">
+                      <p className="text-sm text-gray-600 font-medium">✓ Vous avez vu tous les produits disponibles</p>
+                      <p className="text-xs text-gray-500 mt-1">{filteredProducts.length} produits au total</p>
                     </div>
                   )}
                 </div>
