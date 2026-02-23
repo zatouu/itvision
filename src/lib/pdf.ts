@@ -307,7 +307,6 @@ export function generateITVisionQuotePdf(quote: {
   })
 
   // Totaux
-  // @ts-expect-error jspdf-autotable
   yPos = (doc as any).lastAutoTable?.finalY + 10
 
   const totalsData = [
@@ -563,7 +562,6 @@ export function generateITVisionInvoicePdf(invoice: {
     `${it.totalPrice.toLocaleString('fr-FR')} CFA`
   ]))
 
-  // @ts-expect-error jspdf-autotable
   autoTable(doc, {
     startY: yPos,
     head: [['Qté', 'Description', 'Prix unitaire', 'Montant']],
@@ -595,7 +593,6 @@ export function generateITVisionInvoicePdf(invoice: {
   })
 
   // Totaux
-  // @ts-expect-error jspdf-autotable
   yPos = (doc as any).lastAutoTable?.finalY + 10
 
   const totalsData = [
@@ -604,7 +601,6 @@ export function generateITVisionInvoicePdf(invoice: {
     ['TOTAL TTC', `${invoice.total.toLocaleString('fr-FR')} CFA`]
   ]
 
-  // @ts-expect-error jspdf-autotable
   autoTable(doc, {
     startY: yPos,
     body: totalsData,
@@ -628,7 +624,6 @@ export function generateITVisionInvoicePdf(invoice: {
   })
 
   // Notes / modalités
-  // @ts-expect-error jspdf-autotable
   yPos = (doc as any).lastAutoTable?.finalY + 30
   
   // Footer text
