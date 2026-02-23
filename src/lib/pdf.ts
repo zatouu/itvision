@@ -135,15 +135,15 @@ export function generateITVisionQuotePdf(quote: {
   const pageHeight = doc.internal.pageSize.getHeight()
 
   // En-tête avec fond bleu marine
-  doc.setFillColor(48, 50, 107) // Bleu marine IT Vision
+  doc.setFillColor(48, 50, 107)
   doc.rect(0, 0, pageWidth, 80, 'F')
-  
-  // Titre "DEVIS" en jaune/orange en haut à droite
-  doc.setTextColor(255, 200, 0) // Jaune/Orange plus vif
+
+  // Titre "DEVIS" en jaune/orange
+  doc.setTextColor(255, 200, 0)
   doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
   doc.text('DEVIS', pageWidth - 40, 35, { align: 'right' })
-  
+
   // Sous-titre en blanc
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
@@ -155,8 +155,6 @@ export function generateITVisionQuotePdf(quote: {
     try {
       doc.addImage(quote.images.logo, 'PNG', 40, 10, 80, 60)
     } catch (e) {
-      console.error('Error adding logo', e)
-      // Fallback
       doc.setFillColor(255, 255, 255)
       doc.circle(70, 40, 30, 'F')
       doc.setTextColor(48, 50, 107)
@@ -166,35 +164,30 @@ export function generateITVisionQuotePdf(quote: {
       doc.text('Vision', 55, 50)
     }
   } else {
-    // Logo (cercle blanc avec texte IT Vision si image non dispo)
     doc.setFillColor(255, 255, 255)
     doc.circle(70, 40, 30, 'F')
-    // Simuler le logo
     doc.setTextColor(48, 50, 107)
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.text('It', 60, 38)
     doc.text('Vision', 55, 50)
   }
-  
-  // Infos societé en orange et noir
+
+  // Infos société
   let yPos = 100
-  doc.setTextColor(255, 140, 0) // Orange
+  doc.setTextColor(255, 140, 0)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('Adresse de la société', 40, yPos)
-  
-  // Date et N° devis à droite (alignés)
+
   doc.text('Date', pageWidth - 200, yPos)
-  doc.setTextColor(0, 0, 0) // Noir
+  doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   doc.text(new Date(quote.date).toLocaleDateString('fr-FR'), pageWidth - 100, yPos)
-  
+
   yPos += 15
-  doc.setTextColor(0, 0, 0)
   doc.text('11 Cité Lessine, Nord Foire Tel :', 40, yPos)
-  
-  // N° Devis
+
   doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
   doc.text('N° devis', pageWidth - 200, yPos)
@@ -214,23 +207,21 @@ export function generateITVisionQuotePdf(quote: {
   doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
   doc.text('Devis pour', 40, yPos)
-  
+
   yPos += 15
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
   doc.text(quote.client.name, 40, yPos)
-  
-  // Adresse client (optionnel)
+
   if (quote.client.address) {
     yPos += 15
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    // Multiline address if needed, usually short
     doc.text(quote.client.address, 40, yPos)
   }
 
-  // Tableau Informations (Colonel, BC, etc.)
+  // Tableau Informations
   yPos += 30
   const infoTableData = [[
     quote.colonel || '',
@@ -239,33 +230,31 @@ export function generateITVisionQuotePdf(quote: {
     quote.pointExpedition || '',
     quote.conditions || ''
   ]]
-  
-  import('jspdf-autotable').then(({ default: autoTable }) => {
-    autoTable(doc, {
-      startY: yPos,
-      head: [['Colonel', 'Bon de commande', 'Date de livraison', 'Point d\'expédition', 'Conditions']],
-      body: infoTableData,
-      theme: 'grid',
-      styles: {
-        fontSize: 9,
-        cellPadding: 8,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-        halign: 'left',
-        textColor: [0, 0, 0]
-      },
-      headStyles: {
-        fillColor: [54, 69, 79], // Dark Slate / Blueish
-        textColor: [255, 255, 255],
-        fontSize: 9,
-        fontStyle: 'bold',
-        halign: 'left'
-      }
-    })
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Colonel', 'Bon de commande', 'Date de livraison', "Point d'expédition", 'Conditions']],
+    body: infoTableData,
+    theme: 'grid',
+    styles: {
+      fontSize: 9,
+      cellPadding: 8,
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1,
+      halign: 'left',
+      textColor: [0, 0, 0]
+    },
+    headStyles: {
+      fillColor: [54, 69, 79],
+      textColor: [255, 255, 255],
+      fontSize: 9,
+      fontStyle: 'bold',
+      halign: 'left'
+    }
   })
 
   // Tableau Produits
-  yPos = (doc as any).lastAutoTable?.finalY + 20
+  yPos = ((doc as any).lastAutoTable?.finalY || 300) + 20
 
   const productRows = quote.products.map(p => [
     p.quantity.toString(),
@@ -307,11 +296,11 @@ export function generateITVisionQuotePdf(quote: {
   })
 
   // Totaux
-  yPos = (doc as any).lastAutoTable?.finalY + 10
+  yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
   const totalsData = [
     ['Sous-total', `${quote.subtotal.toLocaleString('fr-FR')} CFA`],
-    ['BRS', `${quote.brsAmount.toLocaleString('fr-FR')} CFA`], // Screenshot column align
+    ['BRS', `${quote.brsAmount.toLocaleString('fr-FR')} CFA`],
     ['Taxe de vente', `${quote.taxAmount.toLocaleString('fr-FR')} CFA`],
     ['Autres', `${quote.other.toLocaleString('fr-FR')} CFA`],
     ['TOTAL', `${quote.total.toLocaleString('fr-FR')} CFA`]
@@ -339,56 +328,49 @@ export function generateITVisionQuotePdf(quote: {
     }
   })
 
-  yPos = (doc as any).lastAutoTable?.finalY + 30
-  
+  yPos = ((doc as any).lastAutoTable?.finalY || 500) + 30
+
   if (yPos > pageHeight - 100) {
     doc.addPage()
     yPos = 40
   }
 
   doc.setFontSize(10)
-  doc.setTextColor(255, 140, 0) // Orange
+  doc.setTextColor(255, 140, 0)
   doc.text('Nous vous remercions de votre confiance.', 40, yPos)
-  
+
   // Stamp
   const stampX = pageWidth - 200
   const stampY = yPos - 10
-  
+
   if (quote.images?.stamp) {
     try {
       doc.addImage(quote.images.stamp, 'PNG', stampX, stampY, 120, 80)
     } catch (e) {
-      console.error('Error adding stamp', e)
-       // Stamp Image placeholder (fallback)
-      doc.saveGraphicsState();
-      doc.setGState(new GState({ opacity: 0.8 }));
+      doc.saveGraphicsState()
+      doc.setGState(new GState({ opacity: 0.8 }))
       doc.setDrawColor(40, 40, 180)
       doc.setLineWidth(2)
       doc.rect(stampX, stampY, 120, 60)
-      
       doc.setTextColor(40, 40, 180)
       doc.setFontSize(8)
       doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
       doc.text('NINEA 007305734', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
-      doc.restoreGraphicsState();
+      doc.restoreGraphicsState()
     }
   } else {
-    // Stamp Image placeholder (Blue rectangle rotated?)
-    // Text inside
-    doc.saveGraphicsState();
-    doc.setGState(new GState({ opacity: 0.8 }));
+    doc.saveGraphicsState()
+    doc.setGState(new GState({ opacity: 0.8 }))
     doc.setDrawColor(40, 40, 180)
     doc.setLineWidth(2)
     doc.rect(stampX, stampY, 120, 60)
-    
     doc.setTextColor(40, 40, 180)
     doc.setFontSize(8)
     doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
     doc.text('NINEA 007305734', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
-    doc.restoreGraphicsState();
+    doc.restoreGraphicsState()
   }
 
-  // Condition paiement
   yPos += 40
   doc.setTextColor(0, 0, 0)
   doc.setFontSize(10)
@@ -432,29 +414,24 @@ export function generateITVisionInvoicePdf(invoice: {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
 
-  // En-tête avec fond bleu marine
   doc.setFillColor(48, 50, 107)
   doc.rect(0, 0, pageWidth, 80, 'F')
 
-  // Titre "FACTURE" en jaune/orange
   doc.setTextColor(255, 200, 0)
   doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
   doc.text('FACTURE', pageWidth - 40, 35, { align: 'right' })
 
-  // Client Name/Company in white under Title
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
   const clientName = invoice.client.company || invoice.client.name
   doc.text(clientName.toUpperCase(), pageWidth - 40, 55, { align: 'right' })
 
-  // Logo
   if (invoice.images?.logo) {
     try {
       doc.addImage(invoice.images.logo, 'PNG', 40, 10, 80, 60)
     } catch (e) {
-      console.error('Error adding logo', e)
       doc.setFillColor(255, 255, 255)
       doc.circle(70, 40, 30, 'F')
       doc.setTextColor(48, 50, 107)
@@ -464,10 +441,8 @@ export function generateITVisionInvoicePdf(invoice: {
       doc.text('Vision', 55, 50)
     }
   } else {
-    // Logo (cercle blanc avec texte IT Vision si image non dispo)
     doc.setFillColor(255, 255, 255)
     doc.circle(70, 40, 30, 'F')
-    // Simuler le logo
     doc.setTextColor(48, 50, 107)
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
@@ -475,24 +450,20 @@ export function generateITVisionInvoicePdf(invoice: {
     doc.text('Vision', 55, 50)
   }
 
-  // Infos societé
   let yPos = 100
-  doc.setTextColor(255, 140, 0) // Orange
+  doc.setTextColor(255, 140, 0)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('Adresse de la société', 40, yPos)
 
-  // Date et N° facture aligned right
   doc.text('Date', pageWidth - 200, yPos)
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   doc.text(new Date(invoice.date).toLocaleDateString('fr-FR'), pageWidth - 100, yPos)
 
   yPos += 15
-  doc.setTextColor(0, 0, 0)
   doc.text('11 Cité Lessine, Nord Foire Tel : 774133440/774223348', 40, yPos)
-  
-  // N° Facture
+
   doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
   doc.text('N° facture', pageWidth - 200, yPos)
@@ -501,10 +472,8 @@ export function generateITVisionInvoicePdf(invoice: {
   doc.text(invoice.numero, pageWidth - 100, yPos)
 
   yPos += 12
-  doc.setTextColor(0, 0, 0)
   doc.text('RC N° : SN DDER 2019 A 10739 - NINEA 007305734', 40, yPos)
-  
-  // Échéance if exists
+
   if (invoice.dueDate) {
     doc.setTextColor(255, 140, 0)
     doc.setFont('helvetica', 'bold')
@@ -517,7 +486,6 @@ export function generateITVisionInvoicePdf(invoice: {
   yPos += 12
   doc.text('Téléphone : +221 77 413 34 40 / 221 77 422 33 48', 40, yPos)
 
-  // Facturer à
   yPos += 25
   doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
@@ -553,7 +521,6 @@ export function generateITVisionInvoicePdf(invoice: {
     yPos += 10
   }
 
-  // Tableau des lignes
   yPos += 20
   const rows = invoice.items.map((it) => ([
     String(it.quantity),
@@ -567,19 +534,19 @@ export function generateITVisionInvoicePdf(invoice: {
     head: [['Qté', 'Description', 'Prix unitaire', 'Montant']],
     body: rows,
     theme: 'grid',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 8, 
-      lineColor: [200, 200, 200], 
+    styles: {
+      fontSize: 9,
+      cellPadding: 8,
+      lineColor: [200, 200, 200],
       lineWidth: 0.1,
       textColor: [0, 0, 0],
       valign: 'middle'
     },
-    headStyles: { 
-      fillColor: [54, 69, 79], 
-      textColor: [255, 255, 255], 
-      fontSize: 9, 
-      fontStyle: 'bold' 
+    headStyles: {
+      fillColor: [54, 69, 79],
+      textColor: [255, 255, 255],
+      fontSize: 9,
+      fontStyle: 'bold'
     },
     columnStyles: {
       0: { halign: 'center', cellWidth: 60 },
@@ -592,8 +559,7 @@ export function generateITVisionInvoicePdf(invoice: {
     }
   })
 
-  // Totaux
-  yPos = (doc as any).lastAutoTable?.finalY + 10
+  yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
   const totalsData = [
     ['Sous-total HT', `${invoice.subtotal.toLocaleString('fr-FR')} CFA`],
@@ -623,19 +589,16 @@ export function generateITVisionInvoicePdf(invoice: {
     }
   })
 
-  // Notes / modalités
-  yPos = (doc as any).lastAutoTable?.finalY + 30
-  
-  // Footer text
+  yPos = ((doc as any).lastAutoTable?.finalY || 500) + 30
+
   doc.setFontSize(10)
   doc.setTextColor(255, 140, 0)
   doc.text('Nous vous remercions de votre confiance.', 40, yPos)
-  
+
   yPos += 20
   doc.setTextColor(0, 0, 0)
-  
+
   if (invoice.notes) {
-    doc.setFont('helvetica', 'normal')
     const notes = (invoice.notes || '').trim()
     if (notes) doc.text(`Notes: ${notes.slice(0, 600)}`, 40, yPos)
     yPos += 15
@@ -646,7 +609,6 @@ export function generateITVisionInvoicePdf(invoice: {
     doc.text(line, 40, yPos)
   }
 
-  // Stamp simulation
   const stampX = pageWidth - 200
   const stampY = yPos - 30
 
@@ -654,35 +616,30 @@ export function generateITVisionInvoicePdf(invoice: {
     try {
       doc.addImage(invoice.images.stamp, 'PNG', stampX, stampY, 120, 80)
     } catch (e) {
-      console.error('Error adding stamp', e)
-       // Fallback
-      doc.saveGraphicsState();
-      doc.setGState(new GState({ opacity: 0.8 }));
+      doc.saveGraphicsState()
+      doc.setGState(new GState({ opacity: 0.8 }))
       doc.setDrawColor(40, 40, 180)
       doc.setLineWidth(2)
       doc.rect(stampX, stampY, 120, 60)
-      
       doc.setTextColor(40, 40, 180)
       doc.setFontSize(8)
       doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
       doc.text('COMPTABILITÉ', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
-      doc.restoreGraphicsState();
+      doc.restoreGraphicsState()
     }
   } else {
-    doc.saveGraphicsState();
-    doc.setGState(new GState({ opacity: 0.8 }));
+    doc.saveGraphicsState()
+    doc.setGState(new GState({ opacity: 0.8 }))
     doc.setDrawColor(40, 40, 180)
     doc.setLineWidth(2)
     doc.rect(stampX, stampY, 120, 60)
-    
     doc.setTextColor(40, 40, 180)
     doc.setFontSize(8)
     doc.text('IT VISION +', stampX + 60, stampY + 20, { align: 'center', angle: 15 })
     doc.text('COMPTABILITÉ', stampX + 60, stampY + 35, { align: 'center', angle: 15 })
-    doc.restoreGraphicsState();
+    doc.restoreGraphicsState()
   }
 
-  // Footer
   doc.setDrawColor(229, 231, 235)
   doc.line(40, pageHeight - 60, pageWidth - 40, pageHeight - 60)
   doc.setFontSize(9)
