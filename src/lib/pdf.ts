@@ -1,5 +1,5 @@
 import jsPDF, { GState } from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 
 export function generateDiagnosticPdf(payload: any): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
@@ -36,8 +36,7 @@ export function generateDiagnosticPdf(payload: any): ArrayBuffer {
     [`Fourchette`, payload?.scoring?.priceHint || '-'],
   ]
 
-  // @ts-expect-error plugin jspdf-autotable injecte autoTable sur l'instance
-  doc.autoTable({ startY: 130, head: [['Champ', 'Valeur']], body: lines, styles: { cellPadding: 6, fontSize: 10 } })
+  autoTable(doc, { startY: 130, head: [['Champ', 'Valeur']], body: lines, styles: { cellPadding: 6, fontSize: 10 } })
 
   // Footer
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -79,8 +78,7 @@ export function generateQuotePdf(quote: {
   quote.sections.forEach((s) => {
     s.items.forEach((it) => rows.push([s.name, it.name, it.quantity, it.unitPrice.toLocaleString('fr-FR'), it.totalPrice.toLocaleString('fr-FR')]))
   })
-  // @ts-expect-error plugin jspdf-autotable injecte autoTable sur l'instance
-  doc.autoTable({
+  autoTable(doc, {
     startY: 160,
     head: [['Service', 'Article', 'Qté', 'PU', 'Total']],
     body: rows,
@@ -242,47 +240,42 @@ export function generateITVisionQuotePdf(quote: {
     quote.conditions || ''
   ]]
   
-  // @ts-expect-error jspdf-autotable
-  doc.autoTable({
-    startY: yPos,
-    head: [['Colonel', 'Bon de commande', 'Date de livraison', 'Point d\'expédition', 'Conditions']],
-    body: infoTableData,
-    theme: 'grid',
-    styles: {
-      fontSize: 9,
-      cellPadding: 8,
-      lineColor: [200, 200, 200],
-      lineWidth: 0.1,
-      halign: 'left',
-      textColor: [0, 0, 0]
-    },
-    headStyles: {
-      fillColor: [54, 69, 79], // Dark Slate / Blueish
-      textColor: [255, 255, 255],
-      fontSize: 9,
-      fontStyle: 'bold',
-      halign: 'left'
-    }
+  import('jspdf-autotable').then(({ default: autoTable }) => {
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Colonel', 'Bon de commande', 'Date de livraison', 'Point d\'expédition', 'Conditions']],
+      body: infoTableData,
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 8,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+        halign: 'left',
+        textColor: [0, 0, 0]
+      },
+      headStyles: {
+        fillColor: [54, 69, 79], // Dark Slate / Blueish
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: 'bold',
+        halign: 'left'
+      }
+    })
   })
 
   // Tableau Produits
-  // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 20
+  yPos = (doc as any).lastAutoTable?.finalY + 20
 
   const productRows = quote.products.map(p => [
     p.quantity.toString(),
     p.description,
     `${p.unitPrice.toLocaleString('fr-FR')} CFA`,
-    p.taxable ? 'Oui' : 'Non', // Note: Screenshot says "Oui" for 'Main d'oeuvre' implies Taxable usually. Logic inverse? 
-    // Usually taxable=true means "Oui". Code was p.taxable ? 'Non' : 'Oui' which is weird. 
-    // I'll assume standard boolean meaning: taxable=true -> Oui.
+    p.taxable ? 'Oui' : 'Non',
     `${p.total.toLocaleString('fr-FR')} CFA`
   ])
-  
-  // Screenshot shows "Imposable ?" -> "Oui" for Main d'oeuvre. So taxable=true.
 
-  // @ts-expect-error jspdf-autotable
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Quantité', 'Description', 'Prix unitaire', 'Imposable ?', 'Montant']],
     body: productRows,
@@ -303,7 +296,7 @@ export function generateITVisionQuotePdf(quote: {
     },
     columnStyles: {
       0: { halign: 'left', cellWidth: 50 },
-      1: { halign: 'left', cellWidth: 230, fontStyle: 'bold' }, // Description bold like screenshot
+      1: { halign: 'left', cellWidth: 230, fontStyle: 'bold' },
       2: { halign: 'right' },
       3: { halign: 'center' },
       4: { halign: 'right' }
@@ -315,7 +308,7 @@ export function generateITVisionQuotePdf(quote: {
 
   // Totaux
   // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 10
+  yPos = (doc as any).lastAutoTable?.finalY + 10
 
   const totalsData = [
     ['Sous-total', `${quote.subtotal.toLocaleString('fr-FR')} CFA`],
@@ -325,35 +318,29 @@ export function generateITVisionQuotePdf(quote: {
     ['TOTAL', `${quote.total.toLocaleString('fr-FR')} CFA`]
   ]
 
-  // We want to force the table to the right
-  // @ts-expect-error jspdf-autotable
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     body: totalsData,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 5, textColor: [0, 0, 0] },
     columnStyles: {
-      0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] }, // Labels orange? Screenshot has "Sous-total" orange.
+      0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] },
       1: { halign: 'right', cellWidth: 150, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
-      // TOTAL Row styling
       if (data.row.index === 4) {
         data.cell.styles.fillColor = [54, 69, 79]
         data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
       } else {
-        // Labels column 0 styling - Orange text for labels
-         if (data.column.index === 0) {
-             data.cell.styles.textColor = [255, 140, 0]
-         }
+        if (data.column.index === 0) {
+          data.cell.styles.textColor = [255, 140, 0]
+        }
       }
     }
   })
 
-  // Footer / Notes
-  // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 30
+  yPos = (doc as any).lastAutoTable?.finalY + 30
   
   if (yPos > pageHeight - 100) {
     doc.addPage()
@@ -577,7 +564,7 @@ export function generateITVisionInvoicePdf(invoice: {
   ]))
 
   // @ts-expect-error jspdf-autotable
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Qté', 'Description', 'Prix unitaire', 'Montant']],
     body: rows,
@@ -609,7 +596,7 @@ export function generateITVisionInvoicePdf(invoice: {
 
   // Totaux
   // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 10
+  yPos = (doc as any).lastAutoTable?.finalY + 10
 
   const totalsData = [
     ['Sous-total HT', `${invoice.subtotal.toLocaleString('fr-FR')} CFA`],
@@ -618,7 +605,7 @@ export function generateITVisionInvoicePdf(invoice: {
   ]
 
   // @ts-expect-error jspdf-autotable
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     body: totalsData,
     theme: 'plain',
@@ -642,7 +629,7 @@ export function generateITVisionInvoicePdf(invoice: {
 
   // Notes / modalités
   // @ts-expect-error jspdf-autotable
-  yPos = doc.lastAutoTable.finalY + 30
+  yPos = (doc as any).lastAutoTable?.finalY + 30
   
   // Footer text
   doc.setFontSize(10)

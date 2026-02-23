@@ -4,7 +4,7 @@ import { emailService } from '@/lib/email-service'
 export async function GET(request: NextRequest) {
   try {
     
-    console.log('📧 Test d\'envoi d\'email vers cheikhoumarndiaye@gmail.com')
+    console.log('📧 Test d\'envoi d\'email vers zatou1900@gmail.com')
     console.log('Configuration SMTP:')
     console.log('- Host:', process.env.SMTP_HOST)
     console.log('- Port:', process.env.SMTP_PORT)
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     console.log('- Secure:', process.env.SMTP_SECURE)
 
     const result = await emailService.sendEmail({
-      to: 'cheikhoumarndiaye@gmail.com',
+      to: 'zatou1900@gmail.com',
       subject: 'Test SMTP - IT Vision Plus',
       html: `
         <!DOCTYPE html>
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
               <h1>🎉 Test SMTP Réussi!</h1>
             </div>
             <div class="content">
-              <h2>Bonjour Cheikh Oumar,</h2>
+              <h2>Bonjour,</h2>
               <p>Ceci est un email de test pour vérifier la configuration SMTP OVH d'IT Vision Plus.</p>
               
               <div class="info">
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       text: `
 Test SMTP - IT Vision Plus
 
-Bonjour Cheikh Oumar,
+Bonjour,
 
 Ceci est un email de test pour vérifier la configuration SMTP OVH d'IT Vision Plus.
 
@@ -98,7 +98,7 @@ contact@itvisionplus.sn | itvisionplus.sn
 
     return NextResponse.json({
       success: true,
-      message: 'Email envoyé avec succès à cheikhoumarndiaye@gmail.com',
+      message: 'Email envoyé avec succès à zatou1900@gmail.com',
       details: result
     })
   } catch (error: any) {
