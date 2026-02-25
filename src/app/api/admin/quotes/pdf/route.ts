@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
 
     const quoteData = await request.json()
     
-    // Charger logo et cachet
-    const logoBase64 = loadImage('public/images/logo-it-vision.png')
-    const stampBase64 = loadImage('public/images/cachetitv.png')
+    // Charger logo et cachet (format data URI requis par jsPDF)
+    const logoBase64 = loadImage('public/images/logo-it-vision.png') ? `data:image/png;base64,${loadImage('public/images/logo-it-vision.png')}` : undefined
+    const stampBase64 = loadImage('public/images/cachetitv.png') ? `data:image/png;base64,${loadImage('public/images/cachetitv.png')}` : undefined
 
     // Générer le PDF
     const pdfBuffer = generateITVisionQuotePdf({
@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       total: quoteData.total,
       notes: quoteData.notes,
       bonCommande: quoteData.bonCommande,
-      dateLivraison: quoteData.dateLivraison,
-      colonel: quoteData.colonel,
-      pointExpedition: quoteData.pointExpedition,
-      conditions: quoteData.conditions,
+      dateLivraison: quoteData.dateLivraison || '',
+      colonel: quoteData.colonel || '',
+      pointExpedition: quoteData.pointExpedition || '',
+      conditions: quoteData.conditions || '',
       images: {
         logo: logoBase64,
         stamp: stampBase64

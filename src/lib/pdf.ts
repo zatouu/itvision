@@ -259,9 +259,9 @@ export function generateITVisionQuotePdf(quote: {
   const productRows = quote.products.map(p => [
     p.quantity.toString(),
     p.description,
-    `${p.unitPrice.toLocaleString('fr-FR')} CFA`,
+    `${p.unitPrice.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`,
     p.taxable ? 'Oui' : 'Non',
-    `${p.total.toLocaleString('fr-FR')} CFA`
+    `${p.total.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`
   ])
 
   autoTable(doc, {
@@ -285,10 +285,10 @@ export function generateITVisionQuotePdf(quote: {
     },
     columnStyles: {
       0: { halign: 'left', cellWidth: 50 },
-      1: { halign: 'left', cellWidth: 230, fontStyle: 'bold' },
-      2: { halign: 'right' },
-      3: { halign: 'center' },
-      4: { halign: 'right' }
+      1: { halign: 'left', cellWidth: 220, fontStyle: 'bold' },
+      2: { halign: 'right', cellWidth: 90 },
+      3: { halign: 'center', cellWidth: 60 },
+      4: { halign: 'right', cellWidth: 90 }
     },
     alternateRowStyles: {
       fillColor: [255, 255, 255]
@@ -299,11 +299,11 @@ export function generateITVisionQuotePdf(quote: {
   yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
   const totalsData = [
-    ['Sous-total', `${quote.subtotal.toLocaleString('fr-FR')} CFA`],
-    ['BRS', `${quote.brsAmount.toLocaleString('fr-FR')} CFA`],
-    ['Taxe de vente', `${quote.taxAmount.toLocaleString('fr-FR')} CFA`],
-    ['Autres', `${quote.other.toLocaleString('fr-FR')} CFA`],
-    ['TOTAL', `${quote.total.toLocaleString('fr-FR')} CFA`]
+    ['Sous-total', `${quote.subtotal.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
+    ['BRS', `${quote.brsAmount.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
+    ['Taxe de vente', `${quote.taxAmount.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
+    ['Autres', `${quote.other.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
+    ['TOTAL', `${quote.total.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`]
   ]
 
   autoTable(doc, {
@@ -313,7 +313,7 @@ export function generateITVisionQuotePdf(quote: {
     styles: { fontSize: 10, cellPadding: 5, textColor: [0, 0, 0] },
     columnStyles: {
       0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] },
-      1: { halign: 'right', cellWidth: 150, fontStyle: 'bold' }
+      1: { halign: 'right', cellWidth: 160, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
       if (data.row.index === 4) {
@@ -525,8 +525,8 @@ export function generateITVisionInvoicePdf(invoice: {
   const rows = invoice.items.map((it) => ([
     String(it.quantity),
     it.description,
-    `${it.unitPrice.toLocaleString('fr-FR')} CFA`,
-    `${it.totalPrice.toLocaleString('fr-FR')} CFA`
+    `${it.unitPrice.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`,
+    `${it.totalPrice.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`
   ]))
 
   autoTable(doc, {
@@ -549,10 +549,10 @@ export function generateITVisionInvoicePdf(invoice: {
       fontStyle: 'bold'
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 60 },
+      0: { halign: 'center', cellWidth: 50 },
       1: { halign: 'left', cellWidth: 260, fontStyle: 'bold' },
-      2: { halign: 'right', cellWidth: 110 },
-      3: { halign: 'right', cellWidth: 110 }
+      2: { halign: 'right', cellWidth: 100 },
+      3: { halign: 'right', cellWidth: 100 }
     },
     alternateRowStyles: {
       fillColor: [255, 255, 255]
@@ -562,9 +562,9 @@ export function generateITVisionInvoicePdf(invoice: {
   yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
   const totalsData = [
-    ['Sous-total HT', `${invoice.subtotal.toLocaleString('fr-FR')} CFA`],
-    [`TVA (${invoice.taxRate.toFixed(0)}%)`, `${invoice.taxAmount.toLocaleString('fr-FR')} CFA`],
-    ['TOTAL TTC', `${invoice.total.toLocaleString('fr-FR')} CFA`]
+    ['Sous-total HT', `${invoice.subtotal.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
+    [`TVA (${invoice.taxRate.toFixed(0)}%)`, `${invoice.taxAmount.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
+    ['TOTAL TTC', `${invoice.total.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`]
   ]
 
   autoTable(doc, {
@@ -573,7 +573,7 @@ export function generateITVisionInvoicePdf(invoice: {
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 5, textColor: [0,0,0] },
     columnStyles: {
-      0: { halign: 'right', cellWidth: 360, fontStyle: 'normal', textColor: [255, 140, 0] },
+      0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] },
       1: { halign: 'right', cellWidth: 160, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
