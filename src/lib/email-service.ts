@@ -12,6 +12,7 @@ interface EmailConfig {
 
 interface EmailData {
   to: string
+  bcc?: string
   subject: string
   html: string
   text?: string
@@ -72,6 +73,7 @@ class EmailService {
       const mailOptions = {
         from: `"IT Vision Plus" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: emailData.to,
+        bcc: emailData.bcc,
         subject: emailData.subject,
         html: emailData.html,
         text: emailData.text || this.stripHtml(emailData.html),

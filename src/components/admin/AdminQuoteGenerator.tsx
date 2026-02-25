@@ -32,8 +32,11 @@ interface QuoteClient {
 interface Quote {
   id: string
   numero: string
+  title?: string
   date: string
   client: QuoteClient
+  cci?: string
+  companyAddress?: string
   products: QuoteProduct[]
   subtotal: number
   brsAmount: number // 5% de déduction
@@ -78,6 +81,9 @@ export default function AdminQuoteGenerator() {
     return {
       id,
       numero: String(q?.numero || ''),
+      title: String(q?.title || ''),
+      cci: String(q?.cci || ''),
+      companyAddress: String(q?.companyAddress || '11 Cité Lessine, Nord Foire'),
       date: q?.date ? new Date(q.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
       client: {
         name: String(q?.client?.name || ''),
@@ -158,7 +164,10 @@ export default function AdminQuoteGenerator() {
   const createNewQuote = () => {
     const newQuote: Quote = {
       id: `TEMP-${Date.now()}`,
-      numero: `2024-${String(quotes.length + 1).padStart(3, '0')}`,
+      numero: `2026-${String(quotes.length + 1).padStart(3, '0')}`,
+      title: '',
+      cci: '',
+      companyAddress: '11 Cité Lessine, Nord Foire',
       date: new Date().toISOString().split('T')[0],
       client: {
         name: '',

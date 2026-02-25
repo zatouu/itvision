@@ -105,6 +105,8 @@ export function generateQuotePdf(quote: {
 // Fonction pour générer le devis au format IT Vision avec BRS (5%)
 export function generateITVisionQuotePdf(quote: {
   numero: string
+  title?: string
+  companyAddress?: string
   date: string
   client: {
     name: string
@@ -155,7 +157,7 @@ export function generateITVisionQuotePdf(quote: {
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Maintenance ${quote.client.name}`.toUpperCase(), pageWidth - 40, 55, { align: 'right' })
+  doc.text((quote.title || `Maintenance ${quote.client.name}`).toUpperCase(), pageWidth - 40, 55, { align: 'right' })
 
   // Logo
   if (quote.images?.logo) {
@@ -193,7 +195,7 @@ export function generateITVisionQuotePdf(quote: {
   doc.text(new Date(quote.date).toLocaleDateString('fr-FR'), pageWidth - 100, yPos)
 
   yPos += 15
-  doc.text('11 Cité Lessine, Nord Foire Tel :', 40, yPos)
+  doc.text(`${quote.companyAddress || '11 Cité Lessine, Nord Foire'} Tel :`, 40, yPos)
 
   doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')

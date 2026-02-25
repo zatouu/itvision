@@ -20,12 +20,14 @@ export interface IAdminQuoteClient {
 
 export interface IAdminQuote extends Document {
   numero: string
+  title?: string
   date: Date
   client: IAdminQuoteClient
   // Liaison optionnelle vers un utilisateur/client entreprise pour la visibilité portail
   clientUserId?: mongoose.Types.ObjectId
   clientCompanyId?: mongoose.Types.ObjectId
   projectId?: mongoose.Types.ObjectId
+  cci?: string
   products: IAdminQuoteProduct[]
   subtotal: number
   brsAmount: number // 5% de déduction
@@ -66,11 +68,13 @@ const AdminQuoteClientSchema = new Schema<IAdminQuoteClient>({
 
 const AdminQuoteSchema = new Schema<IAdminQuote>({
   numero: { type: String, required: true, unique: true, index: true },
+  title: { type: String },
   date: { type: Date, required: true },
   client: { type: AdminQuoteClientSchema, required: true },
   clientUserId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
+  cci: { type: String },
   products: { type: [AdminQuoteProductSchema], default: [] },
   subtotal: { type: Number, default: 0 },
   brsAmount: { type: Number, default: 0 }, // 5% de déduction
