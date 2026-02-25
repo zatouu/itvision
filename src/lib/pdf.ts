@@ -1,6 +1,12 @@
 import jsPDF, { GState } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+const formatPrice = (price: number | undefined | null) => {
+  if (price == null) return '0'
+  return Math.round(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+}
+
+
 export function generateDiagnosticPdf(payload: any): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
@@ -79,6 +85,7 @@ export function generateQuotePdf(quote: {
     s.items.forEach((it) => rows.push([s.name, it.name, it.quantity, it.unitPrice.toLocaleString('fr-FR'), it.totalPrice.toLocaleString('fr-FR')]))
   })
   autoTable(doc, {
+    margin: { left: 40, right: 40 },
     startY: 160,
     head: [['Service', 'Article', 'Qté', 'PU', 'Total']],
     body: rows,
@@ -87,10 +94,10 @@ export function generateQuotePdf(quote: {
 
   const y = (doc as any).lastAutoTable?.finalY || 180
   doc.setFontSize(11)
-  doc.text(`Sous-total HT: ${quote.totals.subtotalHT.toLocaleString('fr-FR')} FCFA`, 360, y + 30)
-  doc.text(`TVA 18%: ${quote.totals.taxAmount.toLocaleString('fr-FR')} FCFA`, 360, y + 48)
+  doc.text(`Sous-total HT: ${formatPrice(quote.totals.subtotalHT)} FCFA`, 360, y + 30)
+  doc.text(`TVA 18%: ${formatPrice(quote.totals.taxAmount)} FCFA`, 360, y + 48)
   doc.setFont('helvetica', 'bold')
-  doc.text(`Total TTC: ${quote.totals.totalTTC.toLocaleString('fr-FR')} FCFA`, 360, y + 66)
+  doc.text(`Total TTC: ${formatPrice(quote.totals.totalTTC)} FCFA`, 360, y + 66)
 
   return doc.output('arraybuffer') as unknown as ArrayBuffer
 }
@@ -232,6 +239,7 @@ export function generateITVisionQuotePdf(quote: {
   ]]
 
   autoTable(doc, {
+    margin: { left: 40, right: 40 },
     startY: yPos,
     head: [['Colonel', 'Bon de commande', 'Date de livraison', "Point d'expédition", 'Conditions']],
     body: infoTableData,
@@ -259,12 +267,13 @@ export function generateITVisionQuotePdf(quote: {
   const productRows = quote.products.map(p => [
     p.quantity.toString(),
     p.description,
-    `${p.unitPrice.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`,
+    `${formatPrice(p.unitPrice)} CFA`,
     p.taxable ? 'Oui' : 'Non',
-    `${p.total.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`
+    `${formatPrice(p.total)} CFA`
   ])
 
   autoTable(doc, {
+    margin: { left: 40, right: 40 },
     startY: yPos,
     head: [['Quantité', 'Description', 'Prix unitaire', 'Imposable ?', 'Montant']],
     body: productRows,
@@ -284,10 +293,10 @@ export function generateITVisionQuotePdf(quote: {
       fontStyle: 'bold'
     },
     columnStyles: {
-      0: { halign: 'left', cellWidth: 50 },
-      1: { halign: 'left', cellWidth: 220, fontStyle: 'bold' },
-      2: { halign: 'right', cellWidth: 90 },
-      3: { halign: 'center', cellWidth: 60 },
+      0: { halign: 'center', cellWidth: 40 },
+      1: { halign: 'left', cellWidth: 'auto', fontStyle: 'bold' },
+      2: { halign: 'right', cellWidth: 85 },
+      3: { halign: 'center', cellWidth: 65 },
       4: { halign: 'right', cellWidth: 90 }
     },
     alternateRowStyles: {
@@ -299,27 +308,30 @@ export function generateITVisionQuotePdf(quote: {
   yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
   const totalsData = [
-    ['Sous-total', `${quote.subtotal.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
-    ['BRS', `${quote.brsAmount.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
-    ['Taxe de vente', `${quote.taxAmount.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
-    ['Autres', `${quote.other.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
-    ['TOTAL', `${quote.total.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`]
+    ['Sous-total', `${formatPrice(quote.subtotal)} CFA`],
+    ['BRS', `${formatPrice(quote.brsAmount)} CFA`],
+    ['Taxe de vente', `${formatPrice(quote.taxAmount)} CFA`],
+    ['Autres', `${formatPrice(quote.other)} CFA`],
+    ['TOTAL', `${formatPrice(quote.total)} CFA`]
   ]
 
   autoTable(doc, {
+    margin: { left: 40, right: 40 },
     startY: yPos,
     body: totalsData,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 5, textColor: [0, 0, 0] },
     columnStyles: {
-      0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] },
-      1: { halign: 'right', cellWidth: 160, fontStyle: 'bold' }
+      0: { halign: 'right', cellWidth: 'auto', fontStyle: 'normal', textColor: [255, 140, 0] },
+      1: { halign: 'right', cellWidth: 120, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
       if (data.row.index === 4) {
         data.cell.styles.fillColor = [54, 69, 79]
         data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 12
+        data.cell.styles.cellPadding = 8
       } else {
         if (data.column.index === 0) {
           data.cell.styles.textColor = [255, 140, 0]
@@ -525,11 +537,12 @@ export function generateITVisionInvoicePdf(invoice: {
   const rows = invoice.items.map((it) => ([
     String(it.quantity),
     it.description,
-    `${it.unitPrice.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`,
-    `${it.totalPrice.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`
+    `${formatPrice(it.unitPrice)} CFA`,
+    `${formatPrice(it.totalPrice)} CFA`
   ]))
 
   autoTable(doc, {
+    margin: { left: 40, right: 40 },
     startY: yPos,
     head: [['Qté', 'Description', 'Prix unitaire', 'Montant']],
     body: rows,
@@ -549,9 +562,9 @@ export function generateITVisionInvoicePdf(invoice: {
       fontStyle: 'bold'
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 50 },
-      1: { halign: 'left', cellWidth: 260, fontStyle: 'bold' },
-      2: { halign: 'right', cellWidth: 100 },
+      0: { halign: 'center', cellWidth: 40 },
+      1: { halign: 'left', cellWidth: 'auto', fontStyle: 'bold' },
+      2: { halign: 'right', cellWidth: 90 },
       3: { halign: 'right', cellWidth: 100 }
     },
     alternateRowStyles: {
@@ -561,26 +574,29 @@ export function generateITVisionInvoicePdf(invoice: {
 
   yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
-  const totalsData = [
-    ['Sous-total HT', `${invoice.subtotal.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
-    [`TVA (${invoice.taxRate.toFixed(0)}%)`, `${invoice.taxAmount.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`],
-    ['TOTAL TTC', `${invoice.total.toLocaleString('fr-FR').replace(/\s/g, '\u00A0')} CFA`]
+  const invoiceTotalsData = [
+    ['Sous-total HT', `${formatPrice(invoice.subtotal)} CFA`],
+    [`TVA (${invoice.taxRate.toFixed(0)}%)`, `${formatPrice(invoice.taxAmount)} CFA`],
+    ['TOTAL TTC', `${formatPrice(invoice.total)} CFA`]
   ]
 
   autoTable(doc, {
+    margin: { left: 40, right: 40 },
     startY: yPos,
-    body: totalsData,
+    body: invoiceTotalsData,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 5, textColor: [0,0,0] },
     columnStyles: {
-      0: { halign: 'right', cellWidth: 350, fontStyle: 'normal', textColor: [255, 140, 0] },
-      1: { halign: 'right', cellWidth: 160, fontStyle: 'bold' }
+      0: { halign: 'right', cellWidth: 'auto', fontStyle: 'normal', textColor: [255, 140, 0] },
+      1: { halign: 'right', cellWidth: 120, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
       if (data.row.index === 2) {
         data.cell.styles.fillColor = [54, 69, 79]
         data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 12
+        data.cell.styles.cellPadding = 8
       } else {
         if (data.column.index === 0) {
             data.cell.styles.textColor = [255, 140, 0]
