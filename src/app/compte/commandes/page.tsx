@@ -53,7 +53,7 @@ export default async function CompteCommandesPage() {
     .lean()) as any[]
 
   return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-black dark:via-black dark:to-black">
+    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-black dark:via-black dark:to-black">
       <div className="mx-auto max-w-5xl px-4 py-10">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -87,7 +87,7 @@ export default async function CompteCommandesPage() {
                 </Link>
                 <Link
                   href="/produits"
-                  className="rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:from-emerald-700 hover:to-blue-700"
+                  className="rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-5 py-3 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600"
                 >
                   Voir le catalogue
                 </Link>
@@ -126,7 +126,7 @@ export default async function CompteCommandesPage() {
                     <div className="mt-1">
                       <Link
                         href={`/commandes/${encodeURIComponent(o.orderId)}`}
-                        className="text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+                        className="text-sm font-semibold text-green-700 hover:underline dark:text-green-400"
                       >
                         Ouvrir →
                       </Link>

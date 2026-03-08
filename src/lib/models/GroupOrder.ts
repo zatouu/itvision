@@ -172,10 +172,13 @@ GroupOrderSchema.index({ 'product.productId': 1, status: 1 })
 GroupOrderSchema.index({ 'participants.phone': 1 })
 
 // Méthode pour calculer le prix unitaire basé sur la quantité
+// Logique : on prend le palier le plus élevé dont le minQty est atteint.
+// maxQty n'est utilisé que pour les paliers intermédiaires, pas le dernier.
 GroupOrderSchema.methods.calculateUnitPrice = function(qty: number): number {
-  const tiers = this.priceTiers.sort((a: any, b: any) => b.minQty - a.minQty)
+  if (!this.priceTiers || this.priceTiers.length === 0) return this.product.basePrice
+  const tiers = [...this.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
   for (const tier of tiers) {
-    if (qty >= tier.minQty && (!tier.maxQty || qty <= tier.maxQty)) {
+    if (qty >= tier.minQty) {
       return tier.price
     }
   }
@@ -199,13 +202,19 @@ GroupOrderSchema.pre('save', function(next) {
   }
 
   // Mettre à jour currentUnitPrice en fonction de currentQty et des paliers
+  // Prend le meilleur palier atteint (le plus haut minQty <= currentQty)
   if (this.priceTiers && this.priceTiers.length > 0) {
     const sortedTiers = [...this.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
+    let matched = false
     for (const tier of sortedTiers) {
-      if (this.currentQty >= tier.minQty && (!tier.maxQty || this.currentQty <= tier.maxQty)) {
+      if (this.currentQty >= tier.minQty) {
         this.currentUnitPrice = tier.price
+        matched = true
         break
       }
+    }
+    if (!matched) {
+      this.currentUnitPrice = this.product.basePrice
     }
   }
 

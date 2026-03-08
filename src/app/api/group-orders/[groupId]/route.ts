@@ -157,6 +157,15 @@ export async function POST(
       )
     }
     
+    // Vérifier maxQty avant d'ajouter
+    if (group.maxQty && (group.currentQty + qty) > group.maxQty) {
+      const remaining = group.maxQty - group.currentQty
+      return NextResponse.json(
+        { success: false, error: `Quantité max dépassée. Il reste ${remaining} unité(s) disponible(s).` },
+        { status: 400 }
+      )
+    }
+
     // Calculer nouveau prix avec la quantité ajoutée
     const previousUnitPrice = group.currentUnitPrice
     const newTotalQty = group.currentQty + qty
@@ -165,7 +174,7 @@ export async function POST(
     if (group.priceTiers && group.priceTiers.length > 0) {
       const sortedTiers = [...group.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
       for (const tier of sortedTiers) {
-        if (newTotalQty >= tier.minQty && (!tier.maxQty || newTotalQty <= tier.maxQty)) {
+        if (newTotalQty >= tier.minQty) {
           newUnitPrice = tier.price
           break
         }

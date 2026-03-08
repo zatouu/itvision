@@ -55,7 +55,7 @@ export default async function CompteAchatsGroupesPage() {
     .lean()) as any[]
 
   return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-black dark:via-black dark:to-black">
+    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-black dark:via-black dark:to-black">
       <div className="mx-auto max-w-5xl px-4 py-10">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -83,7 +83,7 @@ export default async function CompteAchatsGroupesPage() {
               <div className="mt-6">
                 <Link
                   href="/achats-groupes"
-                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:from-emerald-700 hover:to-blue-700"
+                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-5 py-3 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600"
                 >
                   Voir les achats groupés
                 </Link>
@@ -116,7 +116,7 @@ export default async function CompteAchatsGroupesPage() {
                     <div className="mt-1">
                       <Link
                         href={`/achats-groupes/${encodeURIComponent(g.groupId)}`}
-                        className="text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+                        className="text-sm font-semibold text-green-700 hover:underline dark:text-green-400"
                       >
                         Ouvrir →
                       </Link>

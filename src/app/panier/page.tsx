@@ -33,8 +33,10 @@ import {
   Eye,
   Zap,
   LogIn,
-  UserPlus
+  UserPlus,
+  Users
 } from 'lucide-react'
+import Link from 'next/link'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
 import { getServiceFeeTier, calculateCompleteFees } from '@/lib/pricing/tiered-service-fees'
@@ -66,6 +68,7 @@ export default function PanierPage() {
   const [suggestionScroll, setSuggestionScroll] = useState(0)
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [activeGroups, setActiveGroups] = useState<any[]>([])
 
   // 1. Restaurer depuis sessionStorage au montage (pour conserver les infos si redirection login)
   useEffect(() => {
@@ -174,6 +177,32 @@ export default function PanierPage() {
       }
     }
     fetchSuggestions()
+  }, [items])
+
+  // Chercher les achats groupés actifs pour les produits du panier
+  useEffect(() => {
+    if (items.length === 0) { setActiveGroups([]); return }
+    const fetchGroups = async () => {
+      try {
+        const productIds = items.map(i => i.id?.split('-')[0] || i.id).filter(Boolean)
+        const unique = [...new Set(productIds)]
+        const results: any[] = []
+        for (const pid of unique.slice(0, 5)) {
+          try {
+            const res = await fetch(`/api/group-orders?productId=${encodeURIComponent(pid)}&limit=1`)
+            const data = await res.json()
+            if (data?.success && data.groups?.length > 0) {
+              const g = data.groups[0]
+              if (g.status === 'open') {
+                results.push({ ...g, cartProductId: pid, cartProductName: items.find(i => (i.id?.split('-')[0] || i.id) === pid)?.name })
+              }
+            }
+          } catch {}
+        }
+        setActiveGroups(results)
+      } catch {}
+    }
+    fetchGroups()
   }, [items])
 
   // Ajouter un produit suggéré au panier
@@ -449,7 +478,7 @@ export default function PanierPage() {
   // Panier vide
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-emerald-50 p-4 md:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-violet-50 p-4 md:p-8">
         <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -462,7 +491,7 @@ export default function PanierPage() {
             <motion.a
               href="/"
               whileHover={{ scale: 1.05 }}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg"
             >
               <Home className="w-5 h-5" />
               Retour à l'accueil
@@ -475,13 +504,13 @@ export default function PanierPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
       
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white py-8 px-4 md:px-8 shadow-xl"
+        className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-8 px-4 md:px-8 shadow-xl"
       >
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
@@ -511,7 +540,7 @@ export default function PanierPage() {
                   whileHover={{ scale: 1.1 }}
                   className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-4 transition-all ${
                     s.active
-                      ? 'bg-white text-emerald-600 border-white'
+                      ? 'bg-white text-green-600 border-white'
                       : 'bg-white/30 text-white border-white/50'
                   }`}
                 >
@@ -562,9 +591,9 @@ export default function PanierPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 truncate">{it.name}</h3>
                           {it.variantId && <p className="text-xs text-gray-500">Variante: {it.variantId}</p>}
-                          <p className="text-sm text-emerald-600 font-bold mt-1">{formatCurrency(it.price)}</p>
+                          <p className="text-sm text-green-600 font-bold mt-1">{formatCurrency(it.price)}</p>
                           {recentViewed && recentViewed.some(rv => it.id.startsWith(rv.id)) && (
-                            <span className="inline-block text-xs text-emerald-600 font-semibold mt-1">⭐ Vu récemment</span>
+                            <span className="inline-block text-xs text-green-600 font-semibold mt-1">⭐ Vu récemment</span>
                           )}
                         </div>
 
@@ -580,9 +609,9 @@ export default function PanierPage() {
                             <div className="w-8 text-center font-semibold text-sm">{it.qty || 1}</div>
                             <button
                               onClick={() => updateQty(it.id, (it.qty || 1) + 1)}
-                              className="w-8 h-8 rounded flex items-center justify-center hover:bg-emerald-100 transition"
+                              className="w-8 h-8 rounded flex items-center justify-center hover:bg-green-100 transition"
                             >
-                              <Plus className="w-4 h-4 text-emerald-600" />
+                              <Plus className="w-4 h-4 text-green-600" />
                             </button>
                           </motion.div>
                           <p className="text-sm font-bold text-gray-900">{formatCurrency((it.price || 0) * (it.qty || 1))}</p>
@@ -599,6 +628,56 @@ export default function PanierPage() {
                     </motion.div>
                   ))}
                 </div>
+
+                {/* Banner achats groupés */}
+                {activeGroups.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-green-50 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 text-sm">Achat groupé disponible !</p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {activeGroups.length === 1
+                            ? 'Un produit de votre panier est disponible en achat groupé pour moins cher.'
+                            : `${activeGroups.length} produits de votre panier sont disponibles en achat groupé.`}
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {activeGroups.map((g: any) => {
+                            const cartItem = items.find(i => (i.id?.split('-')[0] || i.id) === g.cartProductId)
+                            const cartPrice = cartItem?.price || 0
+                            const saving = cartPrice > 0 && g.currentUnitPrice < cartPrice ? cartPrice - g.currentUnitPrice : 0
+                            return (
+                              <Link
+                                key={g.groupId}
+                                href={`/achats-groupes/${g.groupId}`}
+                                className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-gray-200 hover:border-violet-300 hover:shadow-sm transition"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-gray-900 truncate">{g.cartProductName || g.product?.name}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    Groupe: {formatCurrency(g.currentUnitPrice)} / unité
+                                    {saving > 0 && (
+                                      <span className="ml-1 font-bold text-green-600">(-{formatCurrency(saving)})</span>
+                                    )}
+                                  </p>
+                                </div>
+                                <span className="ml-2 px-2.5 py-1 bg-gradient-to-r from-green-500 to-violet-500 text-white text-[11px] font-bold rounded-lg flex-shrink-0">
+                                  Rejoindre
+                                </span>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* Récap */}
@@ -661,12 +740,12 @@ export default function PanierPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex gap-3"
+                    className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3"
                   >
-                    <TrendingDown className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <TrendingDown className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <p className="text-emerald-700 font-semibold">{breakdown.tier.label}</p>
-                      <p className="text-emerald-600 text-xs mt-1">Réduction volume: -{formatCurrency(breakdown.discountAmount)}</p>
+                      <p className="text-green-700 font-semibold">{breakdown.tier.label}</p>
+                      <p className="text-green-600 text-xs mt-1">Réduction volume: -{formatCurrency(breakdown.discountAmount)}</p>
                     </div>
                   </motion.div>
                 )}
@@ -702,11 +781,11 @@ export default function PanierPage() {
                     if (savings > 0) {
                       return (
                         <div className="flex justify-between text-sm">
-                          <span className="text-emerald-700 flex items-center gap-1">
-                            <span className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold">B2B</span>
+                          <span className="text-green-700 flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold">B2B</span>
                             Frais de service réduits ({b2bTier.feeRate}%)
                           </span>
-                          <span className="font-semibold text-emerald-700">
+                          <span className="font-semibold text-green-700">
                             Économie: {formatCurrency(savings)}
                           </span>
                         </div>
@@ -715,7 +794,7 @@ export default function PanierPage() {
                     return null
                   })()}
                   {breakdown.discountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-emerald-700 font-semibold">
+                    <div className="flex justify-between text-sm text-green-700 font-semibold">
                       <span>Réduction volume ({breakdown.discountPercent}%)</span>
                       <span>-{formatCurrency(breakdown.discountAmount)}</span>
                     </div>
@@ -737,10 +816,10 @@ export default function PanierPage() {
                   <motion.div
                     initial={{ scale: 0.95 }}
                     animate={{ scale: 1 }}
-                    className="flex justify-between items-center pt-3 text-xl font-bold bg-gradient-to-r from-emerald-50 to-blue-50 rounded-lg p-4"
+                    className="flex justify-between items-center pt-3 text-xl font-bold bg-gradient-to-r from-green-50 to-violet-50 rounded-lg p-4"
                   >
                     <span className="text-gray-900">Total</span>
-                    <span className="text-transparent bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text">
+                    <span className="text-transparent bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text">
                       {formatCurrency(breakdown.total)}
                     </span>
                   </motion.div>
@@ -751,7 +830,7 @@ export default function PanierPage() {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setStep(2)}
                   disabled={breakdown.totalQuantity < 5}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition shadow-lg"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition shadow-lg"
                 >
                   Continuer vers l'adresse
                   <ArrowRight className="w-5 h-5" />
@@ -782,13 +861,13 @@ export default function PanierPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 }}
-                    className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-blue-50 p-5"
+                    className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-violet-50 p-5"
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-emerald-700" />
-                          <p className="text-sm font-semibold text-emerald-900">Commander sans compte (recommandé)</p>
+                          <Sparkles className="w-4 h-4 text-green-700" />
+                          <p className="text-sm font-semibold text-green-900">Commander sans compte (recommandé)</p>
                         </div>
                         <p className="mt-2 text-sm text-gray-700">
                           Vous pouvez finaliser en invité. Si vous ajoutez un email, vous recevez un lien de suivi.
@@ -827,7 +906,7 @@ export default function PanierPage() {
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder="Jean Dupont"
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.name ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-emerald-500'}`}
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.name ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-green-500'}`}
                     />
                   </motion.div>
 
@@ -842,7 +921,7 @@ export default function PanierPage() {
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="+221 77 123 45 67"
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.phone ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-emerald-500'}`}
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.phone ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-green-500'}`}
                     />
                   </motion.div>
 
@@ -857,7 +936,7 @@ export default function PanierPage() {
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="vous@exemple.com"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                     />
                     <p className="mt-2 text-xs text-gray-500">
                       Vous pouvez commander sans créer de compte. Si vous renseignez un email, vous recevrez un lien de suivi de commande.
@@ -896,7 +975,7 @@ export default function PanierPage() {
                         }
                         setStep(3)
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition"
+                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition"
                     >
                       Vérifier la commande
                       <ArrowRight className="w-5 h-5" />
@@ -945,7 +1024,7 @@ export default function PanierPage() {
                     className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg"
                   >
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-emerald-600" />
+                      <MapPin className="w-5 h-5 text-green-600" />
                       Adresse de livraison
                     </h3>
                     <div className="space-y-2 text-sm">
@@ -1019,7 +1098,7 @@ export default function PanierPage() {
                       className="flex justify-between items-center p-4 bg-white rounded-xl border-2 border-amber-200"
                     >
                       <span className="text-lg font-bold text-gray-900">Total</span>
-                      <span className="text-2xl font-bold text-transparent bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text">
+                      <span className="text-2xl font-bold text-transparent bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text">
                         {formatCurrency(breakdown.total)}
                       </span>
                     </motion.div>
@@ -1030,7 +1109,7 @@ export default function PanierPage() {
                     whileTap={{ scale: 0.98 }}
                     onClick={handleCheckout}
                     disabled={sending}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 text-white py-4 rounded-xl font-bold transition shadow-lg"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 disabled:opacity-50 text-white py-4 rounded-xl font-bold transition shadow-lg"
                   >
                     {sending ? (
                       <>
@@ -1142,7 +1221,7 @@ export default function PanierPage() {
                         </span>
                       )}
                       {product.stockStatus === 'in_stock' && (
-                        <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
                           <Zap className="w-3 h-3" /> Stock
                         </span>
                       )}
@@ -1171,7 +1250,7 @@ export default function PanierPage() {
                     
                     {/* Prix */}
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-lg font-bold text-emerald-600">
+                      <span className="text-lg font-bold text-green-600">
                         {formatCurrency(product.price)}
                       </span>
                       {product.weightKg && (
@@ -1184,7 +1263,7 @@ export default function PanierPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => addSuggestedToCart(product)}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 rounded-lg text-sm font-semibold transition"
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-violet-600 hover:from-green-700 hover:to-violet-700 text-white py-2 rounded-lg text-sm font-semibold transition"
                     >
                       <ShoppingCart className="w-4 h-4" />
                       Ajouter
@@ -1223,16 +1302,16 @@ export default function PanierPage() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4"
+                className="mt-6 bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-xl p-4 flex items-center gap-4"
               >
-                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                  <TrendingDown className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <TrendingDown className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-emerald-800">
+                  <p className="font-semibold text-green-800">
                     🎉 Ajoutez {20 - breakdown.totalQuantity} produit(s) pour débloquer -5% supplémentaire !
                   </p>
-                  <p className="text-sm text-emerald-700">
+                  <p className="text-sm text-green-700">
                     Les tarifs dégressifs s&apos;appliquent automatiquement selon la quantité totale
                   </p>
                 </div>
@@ -1275,7 +1354,7 @@ export default function PanierPage() {
                     )}
                   </div>
                   <p className="text-sm font-medium text-gray-900 line-clamp-2">{product.name}</p>
-                  <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(product.price)}</p>
+                  <p className="text-sm font-bold text-green-600 mt-1">{formatCurrency(product.price)}</p>
                 </motion.div>
               ))}
             </div>

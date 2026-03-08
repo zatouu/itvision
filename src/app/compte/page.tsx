@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { verifyAuthServer } from '@/lib/auth-server'
 import mongoose from 'mongoose'
@@ -21,7 +22,9 @@ import {
   Store,
   Mail,
   Settings,
-  LogOut
+  LogOut,
+  Zap,
+  TrendingDown
 } from 'lucide-react'
 
 export default async function ComptePage() {
@@ -68,21 +71,30 @@ export default async function ComptePage() {
   const favoritePreviewById = new Map<string, any>(favoritePreviewDocs.map((p) => [String(p._id), p]))
   const favoritePreviewProducts = favoritePreviewIds.map((id) => favoritePreviewById.get(String(id))).filter(Boolean)
 
+  // Achats groupés ouverts (promo)
+  const openGroups = (await GroupOrder.find({ status: 'open', deadline: { $gte: new Date() } })
+    .sort({ currentQty: -1 })
+    .limit(3)
+    .select('groupId product.name product.image product.basePrice currentUnitPrice currentQty targetQty deadline participants')
+    .lean()) as any[]
+
   // Stats
   const totalOrders = recentOrders.length
   const totalGroups = recentGroups.length
   const totalFavorites = favoriteProductIds.length
   const pendingOrders = recentOrders.filter(o => ['pending', 'processing'].includes(String(o.status || '').toLowerCase()))
 
+  const formatCurrency = (v: number) => `${Math.round(v).toLocaleString('fr-FR')} FCFA`
+
   // Nom
   const displayName = auth.user.name || auth.user.email?.split('@')[0] || 'Utilisateur'
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-black">
+    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-slate-950 dark:via-slate-900 dark:to-black">
       <div className="mx-auto max-w-7xl px-4 py-8">
         {/* Header utilisateur premium */}
-        <div className="relative overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-700 p-8 shadow-2xl dark:border-emerald-900/30">
+        <div className="relative overflow-hidden rounded-3xl border border-green-100 bg-gradient-to-br from-green-600 via-green-700 to-violet-700 p-8 shadow-2xl dark:border-green-900/30">
           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
           
@@ -148,13 +160,13 @@ export default async function ComptePage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             href="/compte/commandes"
-            className="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg transition hover:shadow-xl dark:border-emerald-900/30 dark:bg-slate-900"
+            className="group relative overflow-hidden rounded-2xl border border-green-100 bg-white p-6 shadow-lg transition hover:shadow-xl dark:border-green-900/30 dark:bg-slate-900"
           >
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-emerald-100 opacity-50 dark:bg-emerald-900/20" />
+            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-green-100 opacity-50 dark:bg-green-900/20" />
             
             <div className="relative">
               <div className="flex items-start justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
                   <Package className="h-6 w-6" />
                 </div>
                 {pendingOrders.length > 0 && (
@@ -169,7 +181,7 @@ export default async function ComptePage() {
                 {totalOrders === 0 ? 'Aucune commande pour le moment' : `${totalOrders} commande${totalOrders > 1 ? 's' : ''} enregistrée${totalOrders > 1 ? 's' : ''}`}
               </p>
               
-              <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 group-hover:gap-3 dark:text-emerald-400 transition-all">
+              <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-green-700 group-hover:gap-3 dark:text-green-400 transition-all">
                 Voir mes commandes
                 <ArrowRight className="h-4 w-4" />
               </div>
@@ -178,13 +190,13 @@ export default async function ComptePage() {
 
           <Link
             href="/panier"
-            className="group relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-lg transition hover:shadow-xl dark:border-blue-900/30 dark:bg-slate-900"
+            className="group relative overflow-hidden rounded-2xl border border-violet-100 bg-white p-6 shadow-lg transition hover:shadow-xl dark:border-violet-900/30 dark:bg-slate-900"
           >
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-blue-100 opacity-50 dark:bg-blue-900/20" />
+            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-violet-100 opacity-50 dark:bg-violet-900/20" />
             
             <div className="relative">
               <div className="flex items-start justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400">
                   <ShoppingCart className="h-6 w-6" />
                 </div>
               </div>
@@ -194,7 +206,7 @@ export default async function ComptePage() {
                 Finalisez votre commande
               </p>
               
-              <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 group-hover:gap-3 dark:text-blue-400 transition-all">
+              <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-violet-700 group-hover:gap-3 dark:text-violet-400 transition-all">
                 Accéder au panier
                 <ArrowRight className="h-4 w-4" />
               </div>
@@ -299,9 +311,118 @@ export default async function ComptePage() {
           </Link>
         </div>
 
-        {/* Footer note */}
-        <div className="mt-8">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Interface refondue — Marketplace moderne B2C/B2B</p>
+        {/* Banner achats groupés — incitation proactive */}
+        {openGroups.length > 0 && (
+          <div className="mt-8">
+            <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-green-50 p-6 shadow-lg dark:border-violet-900/30 dark:bg-slate-900">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-green-500 to-violet-500 text-white">
+                    <TrendingDown className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Achats groupés en cours</h3>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Rejoignez un groupe et payez moins cher — import direct Chine</p>
+                  </div>
+                </div>
+                <Link
+                  href="/achats-groupes"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-4 py-2.5 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600"
+                >
+                  <Zap className="h-4 w-4" />
+                  Voir tous les groupes
+                </Link>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {openGroups.map((g: any) => {
+                  const progress = g.targetQty > 0 ? Math.min(100, Math.round((g.currentQty / g.targetQty) * 100)) : 0
+                  const savings = g.product?.basePrice && g.currentUnitPrice ? Math.round(((g.product.basePrice - g.currentUnitPrice) / g.product.basePrice) * 100) : 0
+                  return (
+                    <Link
+                      key={g.groupId}
+                      href={`/achats-groupes/${g.groupId}`}
+                      className="group flex gap-3 rounded-xl border border-gray-200 bg-white p-3 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
+                    >
+                      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                        {g.product?.image ? (
+                          <Image src={g.product.image} alt={g.product.name} fill className="object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-gray-300">
+                            <Package className="h-6 w-6" />
+                          </div>
+                        )}
+                        {savings > 0 && (
+                          <span className="absolute bottom-0 right-0 rounded-tl-lg bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            -{savings}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">{g.product?.name}</p>
+                        <p className="text-sm font-bold text-green-600">{formatCurrency(g.currentUnitPrice)}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <div className="h-1.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-green-400 to-violet-500"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-semibold text-gray-500">{progress}%</span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Favoris preview */}
+        {favoritePreviewProducts.length > 0 && (
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Heart className="h-5 w-5 text-pink-500" />
+                Vos favoris
+              </h3>
+              <Link href="/produits/favoris" className="text-sm font-semibold text-green-700 hover:underline dark:text-green-400">
+                Voir tout →
+              </Link>
+            </div>
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              {favoritePreviewProducts.map((p: any) => (
+                <Link
+                  key={String(p._id)}
+                  href={`/produits/${p._id}`}
+                  className="group rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                >
+                  <div className="relative h-28 bg-gray-100">
+                    {(p.image || p.gallery?.[0]) ? (
+                      <Image src={p.image || p.gallery[0]} alt={p.name} fill className="object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-gray-300">
+                        <Package className="h-8 w-8" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">{p.name}</p>
+                    {p.price ? (
+                      <p className="text-sm font-bold text-green-600 mt-0.5">{formatCurrency(p.price)}</p>
+                    ) : p.requiresQuote ? (
+                      <p className="text-xs font-semibold text-violet-600 mt-0.5">Sur devis</p>
+                    ) : null}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">IT Vision+ — Marketplace import Chine &amp; produits tech</p>
         </div>
       </div>
     </div>

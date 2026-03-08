@@ -20,7 +20,12 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X
+  X,
+  Briefcase,
+  Calculator,
+  Flame,
+  BarChart3,
+  Rocket
 } from 'lucide-react'
 
 interface GroupOrder {
@@ -50,8 +55,8 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', 
 })
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800', icon: Users },
-  filled: { label: 'Objectif atteint', color: 'bg-blue-100 text-blue-800', icon: Target },
+  open: { label: 'Ouvert', color: 'bg-green-100 text-green-800', icon: Users },
+  filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800', icon: Target },
   ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800', icon: ShoppingCart },
   ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800', icon: Package },
   shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800', icon: Package },
@@ -267,9 +272,9 @@ export default function GroupOrdersPage() {
   }, [productIdParam, sortBy, sortedGroups])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white py-16 px-4">
+      <section className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -343,13 +348,84 @@ export default function GroupOrdersPage() {
                 transition={{ delay: i * 0.1 }}
                 className="text-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-white border"
               >
-                <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white">
+                <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-r from-green-500 to-violet-500 rounded-full flex items-center justify-center text-white">
                   <step.icon className="w-7 h-7" />
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
                 <p className="text-sm text-gray-600">{step.desc}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section Entrepreneur */}
+      <section className="py-10 px-4 bg-gradient-to-r from-violet-50 via-white to-green-50 border-b">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-100 text-violet-800 rounded-full text-xs font-bold mb-4">
+                <Briefcase className="w-3.5 h-3.5" />
+                Pour les entrepreneurs &amp; revendeurs
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+                Lancez votre business sans capital
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Importez directement depuis la Chine à des prix groupés imbattables.
+                Revendez au Sénégal avec une marge attractive, sans bloquer de gros stock.
+              </p>
+              <div className="space-y-3">
+                {[
+                  { icon: Calculator, text: 'Prix source réels + commission transparente IT Vision' },
+                  { icon: BarChart3, text: 'Marges de 25% à 50% pour les revendeurs' },
+                  { icon: Rocket, text: 'Démarrez avec juste 5 unités, sans risque' },
+                  { icon: Users, text: 'Plus il y a de participants, plus les prix baissent' }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-green-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-sm text-gray-700 font-medium pt-1">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-violet-200 p-6 shadow-lg">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-violet-600" />
+                Exemple de rentabilité
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <span className="text-sm text-gray-700">Prix import groupé</span>
+                  <span className="font-bold text-green-700">15 000 FCFA</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-violet-50 rounded-lg">
+                  <span className="text-sm text-gray-700">Prix de revente marché</span>
+                  <span className="font-bold text-violet-700">22 000 FCFA</span>
+                </div>
+                <div className="border-t pt-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-gray-800">Marge / unité</span>
+                    <span className="font-bold text-green-600">+7 000 FCFA (47%)</span>
+                  </div>
+                  {[
+                    { qty: 10, profit: '70 000' },
+                    { qty: 20, profit: '140 000' },
+                    { qty: 50, profit: '350 000' }
+                  ].map((row) => (
+                    <div key={row.qty} className="flex justify-between text-sm py-1">
+                      <span className="text-gray-500">{row.qty} unités revendues</span>
+                      <span className="font-semibold text-green-700">+{row.profit} FCFA</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-500 text-center mt-2">
+                  * Exemple illustratif. Les marges varient selon le produit et le prix de revente.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -365,13 +441,13 @@ export default function GroupOrdersPage() {
                 <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
                   <div className="text-sm font-bold text-gray-900 mb-3">Résumé</div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-emerald-700">{stats.totalOpen}</div>
-                      <div className="text-[10px] font-semibold text-emerald-700/80">Ouverts</div>
+                    <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-center">
+                      <div className="text-lg font-extrabold text-green-700">{stats.totalOpen}</div>
+                      <div className="text-[10px] font-semibold text-green-700/80">Ouverts</div>
                     </div>
-                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-blue-700">{stats.totalFilled}</div>
-                      <div className="text-[10px] font-semibold text-blue-700/80">Atteints</div>
+                    <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 text-center">
+                      <div className="text-lg font-extrabold text-violet-700">{stats.totalFilled}</div>
+                      <div className="text-[10px] font-semibold text-violet-700/80">Atteints</div>
                     </div>
                     <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
                       <div className="text-lg font-extrabold text-gray-800">{stats.totalParticipants}</div>
@@ -383,8 +459,8 @@ export default function GroupOrdersPage() {
                 {/* Search */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                      <Search className="w-4 h-4 text-emerald-600" />
+                    <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
+                      <Search className="w-4 h-4 text-green-600" />
                     </div>
                     <div>
                       <div className="text-sm font-bold text-gray-900">Recherche</div>
@@ -398,7 +474,7 @@ export default function GroupOrdersPage() {
                       placeholder="Ex: caméra, wifi, 3MP…"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
 
@@ -420,7 +496,7 @@ export default function GroupOrdersPage() {
                       onClick={() => setStatusFilter('open')}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
                         statusFilter === 'open'
-                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          ? 'bg-green-600 text-white border-green-600'
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -431,7 +507,7 @@ export default function GroupOrdersPage() {
                       onClick={() => setStatusFilter('filled')}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
                         statusFilter === 'filled'
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-violet-600 text-white border-violet-600'
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -447,7 +523,7 @@ export default function GroupOrdersPage() {
                       <button
                         type="button"
                         onClick={resetFilters}
-                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                        className="text-xs font-semibold text-green-700 hover:text-green-800"
                       >
                         Réinitialiser
                       </button>
@@ -458,8 +534,8 @@ export default function GroupOrdersPage() {
                 {/* Sort */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
-                      <Filter className="w-4 h-4 text-blue-600" />
+                    <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center">
+                      <Filter className="w-4 h-4 text-violet-600" />
                     </div>
                     <div>
                       <div className="text-sm font-bold text-gray-900">Trier</div>
@@ -469,7 +545,7 @@ export default function GroupOrdersPage() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="recommended">Recommandé</option>
                     <option value="progress">Proche de l'objectif</option>
@@ -480,7 +556,7 @@ export default function GroupOrdersPage() {
 
                 {/* Product filter + actions */}
                 {productIdParam ? (
-                  <div className="bg-white rounded-2xl border border-emerald-200 p-4 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-green-200 p-4 shadow-sm">
                     <div className="flex items-center gap-3">
                       {productPreview?.image ? (
                         <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-50 border">
@@ -492,8 +568,8 @@ export default function GroupOrdersPage() {
                           />
                         </div>
                       ) : (
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-emerald-600" />
+                        <div className="w-12 h-12 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
+                          <Package className="w-5 h-5 text-green-600" />
                         </div>
                       )}
                       <div className="min-w-0">
@@ -505,7 +581,7 @@ export default function GroupOrdersPage() {
                     <div className="mt-4 space-y-2">
                       <button
                         onClick={() => setShowCreateModal(true)}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
                       >
                         <ShoppingCart className="w-4 h-4" />
                         Créer un achat groupé
@@ -546,13 +622,13 @@ export default function GroupOrdersPage() {
                     <div className="text-xs text-gray-500">Filtrer</div>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-emerald-700">{stats.totalOpen}</div>
-                      <div className="text-[10px] font-semibold text-emerald-700/80">Ouverts</div>
+                    <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-center">
+                      <div className="text-lg font-extrabold text-green-700">{stats.totalOpen}</div>
+                      <div className="text-[10px] font-semibold text-green-700/80">Ouverts</div>
                     </div>
-                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-blue-700">{stats.totalFilled}</div>
-                      <div className="text-[10px] font-semibold text-blue-700/80">Atteints</div>
+                    <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 text-center">
+                      <div className="text-lg font-extrabold text-violet-700">{stats.totalFilled}</div>
+                      <div className="text-[10px] font-semibold text-violet-700/80">Atteints</div>
                     </div>
                     <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
                       <div className="text-lg font-extrabold text-gray-800">{stats.totalParticipants}</div>
@@ -577,7 +653,7 @@ export default function GroupOrdersPage() {
                       onClick={() => setStatusFilter('open')}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
                         statusFilter === 'open'
-                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          ? 'bg-green-600 text-white border-green-600'
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -588,7 +664,7 @@ export default function GroupOrdersPage() {
                       onClick={() => setStatusFilter('filled')}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
                         statusFilter === 'filled'
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-violet-600 text-white border-violet-600'
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                       }`}
                     >
@@ -604,7 +680,7 @@ export default function GroupOrdersPage() {
                       <button
                         type="button"
                         onClick={resetFilters}
-                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                        className="text-xs font-semibold text-green-700 hover:text-green-800"
                       >
                         Réinitialiser
                       </button>
@@ -613,10 +689,10 @@ export default function GroupOrdersPage() {
                 </div>
 
                 {productIdParam && (
-                  <div className="bg-white border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="bg-white border border-green-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                        <Filter className="w-5 h-5 text-emerald-600" />
+                      <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
+                        <Filter className="w-5 h-5 text-green-600" />
                       </div>
                       <div>
                         <div className="text-sm font-bold text-gray-900">Filtré pour un produit</div>
@@ -626,7 +702,7 @@ export default function GroupOrdersPage() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
                       >
                         <ShoppingCart className="w-4 h-4" />
                         Créer
@@ -650,7 +726,7 @@ export default function GroupOrdersPage() {
                       placeholder="Rechercher un produit ou ID..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                   <div className="mt-3 flex items-center gap-2">
@@ -658,7 +734,7 @@ export default function GroupOrdersPage() {
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as any)}
-                      className="flex-1 px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="flex-1 px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       <option value="recommended">Recommandé</option>
                       <option value="progress">Proche de l'objectif</option>
@@ -671,7 +747,7 @@ export default function GroupOrdersPage() {
 
               {loading ? (
                 <div className="flex items-center justify-center py-20 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                  <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                  <Loader2 className="w-8 h-8 animate-spin text-green-600" />
                   <span className="ml-3 text-gray-600">Chargement des achats groupés...</span>
                 </div>
               ) : sortedGroups.length === 0 ? (
@@ -685,7 +761,7 @@ export default function GroupOrdersPage() {
                   <p className="text-gray-500 mb-6">Revenez bientôt ou créez le premier !</p>
                   <Link
                     href="/produits"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     Voir les produits
@@ -697,7 +773,7 @@ export default function GroupOrdersPage() {
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mb-6 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-3xl overflow-hidden shadow-xl"
+                      className="mb-6 bg-gradient-to-r from-green-600 to-violet-600 text-white rounded-3xl overflow-hidden shadow-xl"
                     >
                       <div className="p-6 md:p-7 grid md:grid-cols-[140px_1fr] gap-5 items-center">
                         <div className="relative w-32 h-32 md:w-[140px] md:h-[140px] rounded-2xl overflow-hidden bg-white/10 border border-white/15">
@@ -729,7 +805,7 @@ export default function GroupOrdersPage() {
                           <div className="mt-4">
                             <div className="h-3 bg-white/15 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-emerald-300"
+                                className="h-full bg-green-300"
                                 style={{
                                   width: `${recommendedGroup.targetQty > 0 ? Math.min(100, Math.round((recommendedGroup.currentQty / recommendedGroup.targetQty) * 100)) : 0}%`
                                 }}
@@ -749,7 +825,7 @@ export default function GroupOrdersPage() {
                           <div className="mt-5 flex flex-col sm:flex-row gap-3">
                             <Link
                               href={`/achats-groupes/${recommendedGroup.groupId}`}
-                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-emerald-700 font-bold hover:bg-white/90 transition"
+                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-green-700 font-bold hover:bg-white/90 transition"
                             >
                               <Zap className="w-5 h-5" />
                               Rejoindre maintenant
@@ -805,7 +881,7 @@ export default function GroupOrdersPage() {
                       </span>
 
                       {isRecommended && (
-                        <span className="absolute top-12 left-3 px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow">
+                        <span className="absolute top-12 left-3 px-3 py-1 rounded-full text-xs font-bold bg-green-600 text-white shadow">
                           Recommandé
                         </span>
                       )}
@@ -835,7 +911,7 @@ export default function GroupOrdersPage() {
                       
                       {/* Prix */}
                       <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-2xl font-bold text-emerald-600">
+                        <span className="text-2xl font-bold text-green-600">
                           {formatCurrency(group.currentUnitPrice)}
                         </span>
                         {savings > 0 && (
@@ -863,12 +939,30 @@ export default function GroupOrdersPage() {
                             animate={{ width: `${progress}%` }}
                             transition={{ duration: 0.5, delay: idx * 0.05 }}
                             className={`h-full rounded-full ${
-                              progress >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-400 to-blue-500'
+                              progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-green-400 to-violet-500'
                             }`}
                           />
                         </div>
                       </div>
                       
+                      {/* Badges urgence */}
+                      {(progress >= 80 || daysLeft <= 3) && group.status === 'open' && (
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {progress >= 80 && progress < 100 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[11px] font-bold">
+                              <Flame className="w-3 h-3" />
+                              Presque complet
+                            </span>
+                          )}
+                          {daysLeft <= 3 && daysLeft > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[11px] font-bold animate-pulse">
+                              <Clock className="w-3 h-3" />
+                              {daysLeft === 1 ? 'Dernier jour !' : `${daysLeft}j restants`}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Deadline */}
                       <div className="flex items-center justify-between text-sm mb-4">
                         <span className="flex items-center gap-1 text-gray-600">
@@ -883,8 +977,8 @@ export default function GroupOrdersPage() {
                       
                       {/* Paliers de prix */}
                       {group.priceTiers.length > 0 && (
-                        <div className="mb-4 p-3 bg-emerald-50 rounded-lg">
-                          <p className="text-xs font-semibold text-emerald-800 mb-2 flex items-center gap-1">
+                        <div className="mb-4 p-3 bg-green-50 rounded-lg">
+                          <p className="text-xs font-semibold text-green-800 mb-2 flex items-center gap-1">
                             <TrendingDown className="w-4 h-4" />
                             Prix dégressifs pensés pour la revente
                           </p>
@@ -894,7 +988,7 @@ export default function GroupOrdersPage() {
                                 <span className="text-gray-600">
                                   {tier.minQty}+ unités
                                 </span>
-                                <span className="font-semibold text-emerald-700">
+                                <span className="font-semibold text-green-700">
                                   {formatCurrency(tier.price)}
                                 </span>
                               </div>
@@ -908,7 +1002,7 @@ export default function GroupOrdersPage() {
                         href={`/achats-groupes/${group.groupId}`}
                         className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition ${
                           group.status === 'open'
-                            ? 'bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700'
+                            ? 'bg-gradient-to-r from-green-500 to-violet-500 text-white hover:from-green-600 hover:to-violet-600'
                             : 'bg-gray-100 text-gray-600'
                         }`}
                       >
@@ -956,7 +1050,7 @@ export default function GroupOrdersPage() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
             >
-              <div className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white p-6">
+              <div className="bg-gradient-to-r from-green-600 to-violet-600 text-white p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-bold">Créer un achat groupé</h2>
@@ -1058,7 +1152,7 @@ export default function GroupOrdersPage() {
                       min={1}
                       value={createForm.qty}
                       onChange={(e) => setCreateForm((p) => ({ ...p, qty: Math.max(1, parseInt(e.target.value) || 1) }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                   <div>
@@ -1067,7 +1161,7 @@ export default function GroupOrdersPage() {
                       type="date"
                       value={createForm.deadline}
                       onChange={(e) => setCreateForm((p) => ({ ...p, deadline: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                 </div>
@@ -1077,7 +1171,7 @@ export default function GroupOrdersPage() {
                   <select
                     value={createForm.shippingMethod}
                     onChange={(e) => setCreateForm((p) => ({ ...p, shippingMethod: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                   >
                     {Object.entries(shippingLabels).map(([k, label]) => (
                       <option key={k} value={k}>{label}</option>
@@ -1091,7 +1185,7 @@ export default function GroupOrdersPage() {
                     <input
                       value={createForm.name}
                       onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="Nom et prénom"
                     />
                   </div>
@@ -1100,7 +1194,7 @@ export default function GroupOrdersPage() {
                     <input
                       value={createForm.phone}
                       onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="+221 77 000 00 00"
                     />
                   </div>
@@ -1112,7 +1206,7 @@ export default function GroupOrdersPage() {
                     type="email"
                     value={createForm.email}
                     onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     placeholder="vous@email.com"
                   />
                 </div>
@@ -1122,7 +1216,7 @@ export default function GroupOrdersPage() {
                   <textarea
                     value={createForm.description}
                     onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     rows={3}
                     placeholder="Ex: Couleur souhaitée, détails de livraison..."
                   />
@@ -1131,7 +1225,7 @@ export default function GroupOrdersPage() {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-green-500 to-violet-500 text-white font-bold hover:from-green-600 hover:to-violet-600 disabled:opacity-60"
                 >
                   {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
                   Créer le groupe

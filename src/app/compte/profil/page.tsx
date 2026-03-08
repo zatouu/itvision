@@ -108,7 +108,7 @@ export default function CompteProfilPage() {
   }
 
   return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-black dark:via-black dark:to-black">
+    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-black dark:via-black dark:to-black">
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -134,7 +134,7 @@ export default function CompteProfilPage() {
           ) : (
             <div className="space-y-6">
               {success && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200">
                   {success}
                 </div>
               )}
@@ -145,7 +145,7 @@ export default function CompteProfilPage() {
                   <input
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-emerald-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-100"
+                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-100"
                     placeholder="Votre nom"
                   />
                 </div>
@@ -155,7 +155,7 @@ export default function CompteProfilPage() {
                   <input
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-emerald-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-100"
+                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-100"
                     placeholder="Ex: 77 123 45 67"
                   />
                 </div>
@@ -179,7 +179,7 @@ export default function CompteProfilPage() {
                       type="password"
                       value={currentPassword}
                       onChange={e => setCurrentPassword(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-emerald-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-950 dark:text-gray-100"
+                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-950 dark:text-gray-100"
                     />
                   </div>
                   <div>
@@ -188,7 +188,7 @@ export default function CompteProfilPage() {
                       type="password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-emerald-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-950 dark:text-gray-100"
+                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-950 dark:text-gray-100"
                     />
                     <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">Minimum 6 caractères.</div>
                   </div>
@@ -200,7 +200,7 @@ export default function CompteProfilPage() {
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:from-emerald-700 hover:to-blue-700 disabled:opacity-60"
+                  className="rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-5 py-3 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600 disabled:opacity-60"
                 >
                   {saving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>

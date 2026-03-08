@@ -74,8 +74,8 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', 
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: 'Brouillon', color: 'bg-gray-100 text-gray-800' },
-  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800' },
-  filled: { label: 'Objectif atteint', color: 'bg-blue-100 text-blue-800' },
+  open: { label: 'Ouvert', color: 'bg-green-100 text-green-800' },
+  filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800' },
   ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800' },
   ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800' },
   shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800' },
@@ -363,7 +363,7 @@ export default function AdminGroupOrdersPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
-              notification.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+              notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
             }`}
           >
             {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
@@ -400,7 +400,7 @@ export default function AdminGroupOrdersPage() {
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Ouverts</p>
-              <p className="text-2xl font-bold text-emerald-200">{stats.open}</p>
+              <p className="text-2xl font-bold text-green-200">{stats.open}</p>
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Objectif atteint</p>
@@ -412,7 +412,7 @@ export default function AdminGroupOrdersPage() {
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Encaissé</p>
-              <p className="text-lg font-bold text-emerald-200">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-lg font-bold text-green-200">{formatCurrency(stats.totalRevenue)}</p>
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">En attente</p>
@@ -533,7 +533,7 @@ export default function AdminGroupOrdersPage() {
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${progress >= 100 ? 'bg-emerald-500' : 'bg-purple-500'}`}
+                                className={`h-full rounded-full ${progress >= 100 ? 'bg-green-500' : 'bg-purple-500'}`}
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
@@ -727,7 +727,7 @@ export default function AdminGroupOrdersPage() {
                             </td>
                             <td className="px-4 py-3 text-center font-bold">{p.qty}</td>
                             <td className="px-4 py-3 text-right">{formatCurrency(p.totalAmount)}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-emerald-600">{formatCurrency(p.paidAmount)}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(p.paidAmount)}</td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2 py-1 rounded text-xs font-bold ${paymentStatusConfig[p.paymentStatus]?.color}`}>
                                 {paymentStatusConfig[p.paymentStatus]?.label}
@@ -746,7 +746,7 @@ export default function AdminGroupOrdersPage() {
                                 {p.paymentStatus !== 'paid' && (
                                   <button
                                     onClick={() => updatePaymentStatus(selectedGroup.groupId, p.phone, 'paid', p.totalAmount)}
-                                    className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold hover:bg-emerald-200"
+                                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold hover:bg-green-200"
                                   >
                                     Marquer payé
                                   </button>
@@ -789,7 +789,7 @@ export default function AdminGroupOrdersPage() {
                         <tr>
                           <td colSpan={3} className="px-4 py-3">TOTAL</td>
                           <td className="px-4 py-3 text-right">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.totalAmount, 0))}</td>
-                          <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.paidAmount, 0))}</td>
+                          <td className="px-4 py-3 text-right text-green-600">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.paidAmount, 0))}</td>
                           <td colSpan={2}></td>
                         </tr>
                       </tfoot>
@@ -801,7 +801,7 @@ export default function AdminGroupOrdersPage() {
                 {selectedGroup.priceTiers.length > 0 && (
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-emerald-600" />
+                      <TrendingDown className="w-5 h-5 text-green-600" />
                       Paliers de prix
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -809,7 +809,7 @@ export default function AdminGroupOrdersPage() {
                         <div
                           key={i}
                           className={`p-3 rounded-lg border ${
-                            selectedGroup.currentQty >= tier.minQty ? 'bg-emerald-50 border-emerald-300' : 'bg-gray-50'
+                            selectedGroup.currentQty >= tier.minQty ? 'bg-green-50 border-green-300' : 'bg-gray-50'
                           }`}
                         >
                           <p className="text-sm text-gray-600">{tier.minQty}+ unités</p>
@@ -857,7 +857,7 @@ export default function AdminGroupOrdersPage() {
                 </div>
                 <div className="text-sm">
                   <span className="text-gray-600">Montant:</span>{' '}
-                  <span className="font-semibold text-emerald-700">{formatCurrency(paymentLinksModal.amount)}</span>
+                  <span className="font-semibold text-green-700">{formatCurrency(paymentLinksModal.amount)}</span>
                 </div>
 
                 <div className="mt-3 space-y-2">

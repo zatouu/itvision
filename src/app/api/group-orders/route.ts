@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
     if (priceTiers.length > 0) {
       const sortedTiers = [...priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
       for (const tier of sortedTiers) {
-        if (qty >= tier.minQty && (!tier.maxQty || qty <= tier.maxQty)) {
+        if (qty >= tier.minQty) {
           currentUnitPrice = tier.price
           break
         }
