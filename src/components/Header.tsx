@@ -133,9 +133,9 @@ const Header = () => {
   // Supprimé - remplacé par UnifiedLoginButton
 
   return (
-    <header ref={headerRef} className="bg-white/98 dark:bg-slate-950/95 backdrop-blur-md shadow-lg fixed w-full top-0 z-50 border-b border-emerald-100 dark:border-slate-800">
+    <header ref={headerRef} className="bg-white/98 dark:bg-slate-950/95 backdrop-blur-md shadow-lg fixed w-full top-0 z-50 border-b border-green-100 dark:border-slate-800">
       {/* Barre de contact - réduite */}
-      <div className="bg-gradient-to-r from-emerald-600 to-purple-600 text-white py-1.5">
+      <div className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-1.5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center text-sm">
             <div className="flex items-center space-x-6">
@@ -187,11 +187,11 @@ const Header = () => {
                     <div className="relative group flex-1" key={item.name}>
                       <Link
                         href={item.href}
-                        className="flex items-center gap-3 text-gray-700 dark:text-gray-200 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl w-full justify-start group"
+                        className="flex items-center gap-3 text-gray-700 dark:text-gray-200 hover:text-green-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-green-50/50 dark:hover:bg-green-900/20 rounded-xl w-full justify-start group"
                       >
-                        <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 transition-colors" />
+                        <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-green-500 transition-colors" />
                         <span className="whitespace-nowrap">{item.name}</span>
-                        <ChevronDown className="ml-auto h-4 w-4 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 transition-colors" />
+                        <ChevronDown className="ml-auto h-4 w-4 text-gray-400 dark:text-gray-500 group-hover:text-green-500 transition-colors" />
                       </Link>
                       <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-300 absolute left-0 mt-2 w-[900px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 z-50 overflow-hidden">
                         <div className="p-8">
@@ -205,7 +205,7 @@ const Header = () => {
                           <div className="grid grid-cols-3 gap-8">
                             {/* Colonne SÉCURITÉ */}
                             <div>
-                              <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-5 flex items-center gap-2">
+                              <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider mb-5 flex items-center gap-2">
                                 <Shield className="h-4 w-4" />
                                 SÉCURITÉ
                               </h4>
@@ -216,14 +216,14 @@ const Header = () => {
                                     <Link
                                       key={s.name}
                                       href={s.href}
-                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-purple-50 dark:hover:from-emerald-900/30 dark:hover:to-purple-900/20 transition-all duration-200 group/item border border-transparent hover:border-emerald-100 dark:hover:border-emerald-800"
+                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-green-50 hover:to-violet-50 dark:hover:from-green-900/30 dark:hover:to-violet-900/20 transition-all duration-200 group/item border border-transparent hover:border-green-100 dark:hover:border-green-800"
                                     >
                                       <div className="flex items-start gap-4">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-100 to-purple-100 dark:from-emerald-900/40 dark:to-purple-900/40 rounded-xl flex items-center justify-center group-hover/item:from-emerald-500 group-hover/item:to-purple-500 transition-all duration-300 shadow-sm">
-                                          <SIcon className="h-5 w-5 text-emerald-600 group-hover/item:text-white transition-colors" />
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-100 to-violet-100 dark:from-green-900/40 dark:to-violet-900/40 rounded-xl flex items-center justify-center group-hover/item:from-green-500 group-hover/item:to-violet-500 transition-all duration-300 shadow-sm">
+                                          <SIcon className="h-5 w-5 text-green-600 group-hover/item:text-white transition-colors" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h5 className="font-semibold text-gray-900 dark:text-white text-sm mb-1 group-hover/item:text-emerald-600 transition-colors">{s.name}</h5>
+                                          <h5 className="font-semibold text-gray-900 dark:text-white text-sm mb-1 group-hover/item:text-green-600 transition-colors">{s.name}</h5>
                                           <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">{s.description}</p>
                                         </div>
                                       </div>
@@ -246,10 +246,10 @@ const Header = () => {
                                     <Link
                                       key={s.name}
                                       href={s.href}
-                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-purple-50 dark:hover:from-emerald-900/30 dark:hover:to-purple-900/20 transition-all duration-200 group/item border border-transparent hover:border-purple-100 dark:hover:border-purple-800"
+                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-green-50 hover:to-violet-50 dark:hover:from-green-900/30 dark:hover:to-violet-900/20 transition-all duration-200 group/item border border-transparent hover:border-violet-100 dark:hover:border-violet-800"
                                     >
                                       <div className="flex items-start gap-4">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-100 to-purple-100 dark:from-emerald-900/40 dark:to-purple-900/40 rounded-xl flex items-center justify-center group-hover/item:from-emerald-500 group-hover/item:to-purple-500 transition-all duration-300 shadow-sm">
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-100 to-violet-100 dark:from-green-900/40 dark:to-violet-900/40 rounded-xl flex items-center justify-center group-hover/item:from-green-500 group-hover/item:to-violet-500 transition-all duration-300 shadow-sm">
                                           <SIcon className="h-5 w-5 text-purple-600 group-hover/item:text-white transition-colors" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -265,7 +265,7 @@ const Header = () => {
 
                             {/* Colonne SUPPORT */}
                             <div>
-                              <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-5 flex items-center gap-2">
+                              <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider mb-5 flex items-center gap-2">
                                 <Wrench className="h-4 w-4" />
                                 SUPPORT
                               </h4>
@@ -276,14 +276,14 @@ const Header = () => {
                                     <Link
                                       key={s.name}
                                       href={s.href}
-                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-purple-50 dark:hover:from-emerald-900/30 dark:hover:to-purple-900/20 transition-all duration-200 group/item border border-transparent hover:border-emerald-100 dark:hover:border-emerald-800"
+                                      className="block p-4 rounded-xl hover:bg-gradient-to-r hover:from-green-50 hover:to-violet-50 dark:hover:from-green-900/30 dark:hover:to-violet-900/20 transition-all duration-200 group/item border border-transparent hover:border-green-100 dark:hover:border-green-800"
                                     >
                                       <div className="flex items-start gap-4">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-100 to-purple-100 dark:from-emerald-900/40 dark:to-purple-900/40 rounded-xl flex items-center justify-center group-hover/item:from-emerald-500 group-hover/item:to-purple-500 transition-all duration-300 shadow-sm">
-                                          <SIcon className="h-5 w-5 text-emerald-600 group-hover/item:text-white transition-colors" />
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-100 to-violet-100 dark:from-green-900/40 dark:to-violet-900/40 rounded-xl flex items-center justify-center group-hover/item:from-green-500 group-hover/item:to-violet-500 transition-all duration-300 shadow-sm">
+                                          <SIcon className="h-5 w-5 text-green-600 group-hover/item:text-white transition-colors" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h5 className="font-semibold text-gray-900 dark:text-white text-sm mb-1 group-hover/item:text-emerald-600 transition-colors">{s.name}</h5>
+                                          <h5 className="font-semibold text-gray-900 dark:text-white text-sm mb-1 group-hover/item:text-green-600 transition-colors">{s.name}</h5>
                                           <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">{s.description}</p>
                                         </div>
                                       </div>
@@ -297,12 +297,12 @@ const Header = () => {
                           {/* Footer du menu */}
                           <div className="border-t border-gray-100 dark:border-slate-800 mt-8 pt-6 flex justify-between items-center">
                             <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                               Expertise IT Vision depuis 2019
                             </div>
                             <Link
                               href="/services"
-                              className="flex items-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-purple-600 px-6 py-2.5 rounded-xl hover:from-emerald-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                              className="flex items-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-violet-600 px-6 py-2.5 rounded-xl hover:from-green-600 hover:to-violet-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                             >
                               Voir tous nos services
                               <ArrowRight className="h-4 w-4" />
@@ -317,9 +317,9 @@ const Header = () => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="flex items-center gap-3 text-gray-700 dark:text-gray-200 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl flex-1 justify-start group"
+                    className="flex items-center gap-3 text-gray-700 dark:text-gray-200 hover:text-green-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-green-50/50 dark:hover:bg-green-900/20 rounded-xl flex-1 justify-start group"
                   >
-                    <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 transition-colors" />
+                    <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-green-500 transition-colors" />
                     <span className="whitespace-nowrap">{item.name}</span>
                   </Link>
                 )
@@ -354,7 +354,7 @@ const Header = () => {
             <button
               ref={buttonRef}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-700 dark:text-gray-200 hover:text-emerald-600 transition-colors duration-300 p-2"
+              className="text-gray-700 dark:text-gray-200 hover:text-green-600 transition-colors duration-300 p-2"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>

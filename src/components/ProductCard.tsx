@@ -345,7 +345,7 @@ export default function ProductCard({
   return (
     <div 
       onClick={handleCardClick}
-      className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden group hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-500/60 transition-all duration-200 h-full flex flex-col cursor-pointer"
+      className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden group hover:shadow-lg hover:border-green-300 dark:hover:border-green-500/60 transition-all duration-200 h-full flex flex-col cursor-pointer"
     >
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 dark:bg-gray-800">
@@ -395,7 +395,7 @@ export default function ProductCard({
               </span>
             )}
             {groupBuyEnabled && activeGroupCount > 0 && (
-              <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none tabular-nums">
+              <span className="bg-green-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none tabular-nums">
                 {groupProgressPercent !== null ? `${groupProgressPercent}%` : `${activeGroupCount} grp`}
               </span>
             )}
@@ -403,7 +403,7 @@ export default function ProductCard({
               <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Import</span>
             )}
             {isInStock && (
-              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Stock DK</span>
+              <span className="bg-green-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Stock DK</span>
             )}
             {!isInStock && !showNewBadge && !isImported && !isPopular && !groupBuyEnabled && (
               <span className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Sur cmd</span>
@@ -435,7 +435,7 @@ export default function ProductCard({
 
         {/* Prix avec variation selon transport */}
         <div className="mb-3">
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+          <div className="text-xl font-bold text-green-600 dark:text-green-400">
             {computedPriceLabel}
           </div>
           {groupBuyEnabled && (bestActiveGroup || typeof groupBuyBestPrice === 'number') && (
@@ -502,8 +502,8 @@ export default function ProductCard({
               onClick={(e) => { e.stopPropagation() }}
               className={
                 joinHref && (canJoin || isFilledGroup)
-                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/40 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
-                  : 'w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700/40 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+                  : 'w-full inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
               }
             >
               <span>Voir détails</span>

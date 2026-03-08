@@ -459,11 +459,11 @@ export default function PanierPage() {
         const ref = data.orderId || data.reference;
         router.push(`/paiement/checkout/${ref}`)
       } else {
-        alert('Erreur: ' + (data.error || 'erreur inconnue'))
+        addToast('Erreur: ' + (data.error || 'erreur inconnue'), 'error')
       }
     } catch (e) {
       console.error(e)
-      alert('Erreur lors de l envoi')
+      addToast('Erreur lors de l\'envoi de la commande', 'error')
     } finally {
       setSending(false)
     }
@@ -487,18 +487,52 @@ export default function PanierPage() {
           >
             <ShoppingBag className="w-24 h-24 mx-auto text-gray-300 mb-6" />
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Panier vide</h1>
-            <p className="text-gray-600 mb-8">Explorez nos produits et ajoutez-les à votre panier pour commencer!</p>
-            <motion.a
-              href="/"
-              whileHover={{ scale: 1.05 }}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg"
+            <p className="text-gray-600 mb-6">Explorez nos produits et ajoutez-les à votre panier pour commencer!</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <motion.a
+                href="/produits"
+                whileHover={{ scale: 1.05 }}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg"
+              >
+                <Package className="w-5 h-5" />
+                Voir le catalogue
+              </motion.a>
+              <motion.a
+                href="/achats-groupes"
+                whileHover={{ scale: 1.05 }}
+                className="inline-flex items-center gap-2 bg-white border-2 border-violet-200 text-violet-700 px-8 py-4 rounded-xl font-bold transition hover:bg-violet-50 shadow-sm"
+              >
+                <Users className="w-5 h-5" />
+                Achats groupés
+              </motion.a>
+            </div>
+          </motion.div>
+
+          {/* Incitation achats groupés */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-8 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-green-50 p-6 text-center"
+          >
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <h3 className="font-bold text-gray-900 mb-1">Payez moins cher avec les achats groupés</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Rejoignez un groupe d&apos;achat et bénéficiez de tarifs dégressifs — import direct Chine, livraison Sénégal.
+            </p>
+            <Link
+              href="/achats-groupes"
+              className="inline-flex items-center gap-2 text-sm font-bold text-violet-700 hover:text-violet-800 hover:underline"
             >
-              <Home className="w-5 h-5" />
-              Retour à l'accueil
-            </motion.a>
+              Découvrir les groupes en cours
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </motion.div>
         </div>
-
       </div>
     )
   }
