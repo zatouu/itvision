@@ -185,6 +185,8 @@ export default function ProduitsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [comparingProducts, setComparingProducts] = useState<Set<string>>(new Set())
   const [showCompareBar, setShowCompareBar] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
   const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null)
   const [deliveryRange, setDeliveryRange] = useState<{ min: number; max: number } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -793,7 +795,7 @@ export default function ProduitsPage() {
       const newSet = new Set(prev)
       if (isSelected) {
         if (newSet.size >= 3) {
-          alert('Vous ne pouvez comparer que 3 produits maximum')
+          showToast('Vous ne pouvez comparer que 3 produits maximum')
           return prev
         }
         newSet.add(productId)
@@ -807,7 +809,7 @@ export default function ProduitsPage() {
 
   const handleCompare = () => {
     if (comparingProducts.size < 2) {
-      alert('Sélectionnez au moins 2 produits à comparer')
+      showToast('Sélectionnez au moins 2 produits à comparer')
       return
     }
     const ids = Array.from(comparingProducts).join(',')
@@ -1286,10 +1288,10 @@ export default function ProduitsPage() {
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
       {/* Hero Section avec Cartes de Fonctionnalités */}
-      <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-gray-950 dark:via-gray-950 dark:to-emerald-950/20 page-content pt-24 pb-12 mt-16 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-slate-50 via-white to-green-50/30 dark:from-gray-950 dark:via-gray-950 dark:to-green-950/20 page-content pt-24 pb-12 mt-16 overflow-hidden">
         {/* Effets de fond subtils */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-emerald-100/40 rounded-full blur-3xl"></div>
+          <div className="absolute top-20 right-20 w-72 h-72 bg-green-100/40 rounded-full blur-3xl"></div>
           <div className="absolute bottom-10 left-10 w-72 h-72 bg-blue-100/30 rounded-full blur-3xl"></div>
         </div>
         
@@ -1297,21 +1299,19 @@ export default function ProduitsPage() {
           {/* Header minimaliste */}
           <div className="text-center mb-10">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3">
-              Catalogue <span className="text-emerald-600">Pro</span>
+              Catalogue <span className="bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">Pro</span>
             </h1>
             <p className="text-lg text-gray-500 dark:text-gray-300 max-w-xl mx-auto">
               Equipement • Import direct • Prix compétitifs
-              description: 'pour tout type de produit',
-              description: 'pour tout type de produit',
             </p>
           </div>
           
           {/* Cartes de fonctionnalités épurées */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {/* Carte 1 - Import Direct */}
-            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-emerald-200 dark:hover:border-emerald-500/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Package className="h-6 w-6 text-emerald-600" />
+            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-green-200 dark:hover:border-green-500/50 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Package className="h-6 w-6 text-green-600" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Import Direct</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Chine → Dakar sans intermédiaire</p>
@@ -1347,7 +1347,7 @@ export default function ProduitsPage() {
           
           {/* Bannière Achat Groupé - Attractive */}
           <Link href="/achats-groupes" className="block mt-8">
-            <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-2xl p-6 md:p-8 text-white shadow-xl hover:shadow-2xl transition-all group">
+            <div className="relative overflow-hidden bg-gradient-to-r from-green-600 via-violet-600 to-violet-700 rounded-2xl p-6 md:p-8 text-white shadow-xl hover:shadow-2xl transition-all group">
               {/* Effet de brillance animé */}
               <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               
@@ -1365,14 +1365,14 @@ export default function ProduitsPage() {
                 <div className="flex items-center gap-3">
                   <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur rounded-xl px-4 py-2">
                     <div className="flex -space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-emerald-400 flex items-center justify-center text-xs font-bold">JD</div>
-                      <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-xs font-bold">AM</div>
-                      <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center text-xs font-bold">SK</div>
+                      <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center text-xs font-bold">JD</div>
+                      <div className="w-8 h-8 rounded-full bg-violet-400 flex items-center justify-center text-xs font-bold">AM</div>
+                      <div className="w-8 h-8 rounded-full bg-green-300 flex items-center justify-center text-xs font-bold">SK</div>
                     </div>
                     <span className="text-sm">+12 participants</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 bg-white text-indigo-700 font-bold px-6 py-3 rounded-xl group-hover:bg-yellow-300 transition-colors">
+                  <div className="flex items-center gap-2 bg-white text-green-700 font-bold px-6 py-3 rounded-xl group-hover:bg-green-100 transition-colors">
                     <Sparkles className="w-5 h-5" />
                     Découvrir
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -1425,7 +1425,7 @@ export default function ProduitsPage() {
               <div className="sticky top-24 space-y-4">
                 <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
                   <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
-                    <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     Recherche
@@ -1434,19 +1434,19 @@ export default function ProduitsPage() {
                     value={search}
                     onChange={(e)=>setSearch(e.target.value)}
                     placeholder="Rechercher un produit..."
-                    className="w-full border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-xl px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all mb-3"
+                    className="w-full border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-xl px-4 py-2.5 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all mb-3"
                   />
                   {/* Bouton recherche par image */}
                   <ImageSearchButton onClick={() => setShowImageSearch(true)} />
                   {/* Badge résultats recherche image */}
                   {imageSearchResults.length > 0 && (
-                    <div className="mt-3 flex items-center justify-between p-2 bg-emerald-50 rounded-lg border border-emerald-200">
-                      <span className="text-xs text-emerald-700 font-medium">
+                    <div className="mt-3 flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
+                      <span className="text-xs text-green-700 font-medium">
                         {imageSearchResults.length} produit{imageSearchResults.length > 1 ? 's' : ''} similaire{imageSearchResults.length > 1 ? 's' : ''}
                       </span>
                       <button
                         onClick={() => setImageSearchResults([])}
-                        className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
+                        className="text-xs text-green-600 hover:text-green-800 font-medium"
                       >
                         Effacer
                       </button>
@@ -1457,7 +1457,7 @@ export default function ProduitsPage() {
                 {/* Filtres avancés */}
                 <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
                   <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg flex items-center gap-2">
-                    <ArrowUpDown className="h-5 w-5 text-emerald-600" />
+                    <ArrowUpDown className="h-5 w-5 text-green-600" />
                     Filtres avancés
                   </h3>
                   
@@ -1489,7 +1489,7 @@ export default function ProduitsPage() {
                     {priceRange && (
                       <button
                         onClick={() => setPriceRange(null)}
-                        className="mt-2 text-xs text-emerald-600 hover:text-emerald-700"
+                        className="mt-2 text-xs text-green-600 hover:text-green-700"
                       >
                         Effacer
                       </button>
@@ -1524,7 +1524,7 @@ export default function ProduitsPage() {
                     {deliveryRange && (
                       <button
                         onClick={() => setDeliveryRange(null)}
-                        className="mt-2 text-xs text-emerald-600 hover:text-emerald-700"
+                        className="mt-2 text-xs text-green-600 hover:text-green-700"
                       >
                         Effacer
                       </button>
@@ -1533,19 +1533,19 @@ export default function ProduitsPage() {
                 </div>
                 <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm flex items-center gap-2">
-                    <Package className="h-4 w-4 text-emerald-600" />
+                    <Package className="h-4 w-4 text-green-600" />
                     Catégories
                   </h3>
                   <div className="space-y-1 text-xs max-h-48 overflow-y-auto scrollbar-hide">
                     {Array.from(new Set(products.map(p => p.category || 'Catalogue import Chine'))).map((category) => (
-                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
+                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={selected.includes(category)}
                           onChange={(e)=>{
                             setSelected((prev)=> e.target.checked ? [...prev, category] : prev.filter(id=>id!==category))
                           }}
-                          className="w-3.5 h-3.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                          className="w-3.5 h-3.5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                         />
                         <span className="text-gray-700 dark:text-gray-200">{category}</span>
                       </label>
@@ -1554,40 +1554,40 @@ export default function ProduitsPage() {
                 </div>
                 <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
                   <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
-                    <Star className="h-5 w-5 text-emerald-600" />
+                    <Star className="h-5 w-5 text-green-600" />
                     Tarif
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
                       <span className="font-medium text-gray-700 dark:text-gray-200">Avec prix</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
                       <span className="font-medium text-gray-700 dark:text-gray-200">Sur devis</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
                       <span className="font-medium text-gray-700 dark:text-gray-200">Achat groupé uniquement</span>
                     </label>
                   </div>
                 </div>
                 <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
                   <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-emerald-600" />
+                    <CheckCircle className="h-5 w-5 text-green-600" />
                     Disponibilité
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500" />
                       <span className="font-medium text-gray-700 dark:text-gray-200">Tous</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500" />
                       <span className="font-medium text-gray-700 dark:text-gray-200">En stock</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500" />
+                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
+                      <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500" />
                       <span className="font-medium text-gray-700 dark:text-gray-200">Sur commande</span>
                     </label>
                   </div>
@@ -1658,7 +1658,7 @@ export default function ProduitsPage() {
                         localStorage.setItem('savedFilters', JSON.stringify(updated))
                       }
                     }}
-                    className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50"
+                    className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-green-600 border border-green-200 rounded-lg hover:bg-green-50"
                   >
                     Sauvegarder les filtres actuels
                   </button>
@@ -1671,7 +1671,7 @@ export default function ProduitsPage() {
                       {segment !== 'all' && (
                         <button
                           onClick={() => setSegment('all')}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           {segment === 'import' ? 'Import' : segment === 'in_stock' ? 'Stock Dakar' : 'Achats groupés'}
                           <X className="h-3 w-3" />
@@ -1681,7 +1681,7 @@ export default function ProduitsPage() {
                         <button
                           key={cat}
                           onClick={() => setSelected(selected.filter(c => c !== cat))}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           {cat}
                           <X className="h-3 w-3" />
@@ -1690,7 +1690,7 @@ export default function ProduitsPage() {
                       {onlyPrice && (
                         <button
                           onClick={() => setOnlyPrice(false)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           Avec prix
                           <X className="h-3 w-3" />
@@ -1699,7 +1699,7 @@ export default function ProduitsPage() {
                       {onlyQuote && (
                         <button
                           onClick={() => setOnlyQuote(false)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           Sur devis
                           <X className="h-3 w-3" />
@@ -1708,7 +1708,7 @@ export default function ProduitsPage() {
                       {onlyGroupBuy && (
                         <button
                           onClick={() => setOnlyGroupBuy(false)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           Achat groupé
                           <X className="h-3 w-3" />
@@ -1717,7 +1717,7 @@ export default function ProduitsPage() {
                       {availabilityFilter !== 'all' && (
                         <button
                           onClick={() => setAvailabilityFilter('all')}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           {availabilityFilter === 'in_stock' ? 'En stock' : 'Sur commande'}
                           <X className="h-3 w-3" />
@@ -1726,7 +1726,7 @@ export default function ProduitsPage() {
                       {sortBy !== 'default' && (
                         <button
                           onClick={() => setSortBy('default')}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           Tri actif
                           <X className="h-3 w-3" />
@@ -1735,7 +1735,7 @@ export default function ProduitsPage() {
                       {priceRange && (
                         <button
                           onClick={() => setPriceRange(null)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           Prix: {priceRange.min.toLocaleString('fr-FR')} - {priceRange.max.toLocaleString('fr-FR')} FCFA
                           <X className="h-3 w-3" />
@@ -1744,7 +1744,7 @@ export default function ProduitsPage() {
                       {deliveryRange && (
                         <button
                           onClick={() => setDeliveryRange(null)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
                         >
                           Délai: {deliveryRange.min} - {deliveryRange.max} jours
                           <X className="h-3 w-3" />
@@ -1776,7 +1776,7 @@ export default function ProduitsPage() {
             <div className="flex-1">
               {loading ? (
                 <div className="flex items-center justify-center py-16">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
                   <span className="ml-2 text-gray-600">Chargement des produits...</span>
                 </div>
               ) : error ? (
@@ -1784,7 +1784,7 @@ export default function ProduitsPage() {
                   <p className="text-red-600 mb-4">{error}</p>
                   <button 
                     onClick={() => window.location.reload()} 
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
                     Réessayer
                   </button>
@@ -1795,25 +1795,25 @@ export default function ProduitsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => setSegment('all')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'all' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'all' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                       >
                         Tous
                       </button>
                       <button
                         onClick={() => setSegment('import')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'import' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'import' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                       >
                         Import
                       </button>
                       <button
                         onClick={() => setSegment('in_stock')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'in_stock' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'in_stock' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                       >
                         Stock Dakar
                       </button>
                       <button
                         onClick={() => setSegment('group_buy')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'group_buy' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'group_buy' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                       >
                         Achats groupés
                       </button>
@@ -1821,7 +1821,7 @@ export default function ProduitsPage() {
                     {/* Contrôles tri et vue en haut */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
                       <div className="flex items-center gap-3">
-                        <Package className="h-5 w-5 text-emerald-600" />
+                        <Package className="h-5 w-5 text-green-600" />
                         <div>
                           <h2 className="text-lg font-bold text-gray-900">
                             {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
@@ -1834,14 +1834,14 @@ export default function ProduitsPage() {
                         <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
                           <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                             aria-label="Vue grille"
                           >
                             <Grid className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => setViewMode('list')}
-                            className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                             aria-label="Vue liste"
                           >
                             <List className="h-4 w-4" />
@@ -1853,7 +1853,7 @@ export default function ProduitsPage() {
                           <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as any)}
-                            className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                            className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                           >
                             <option value="default">Trier par</option>
                             <option value="groupbuy-discount-desc">Meilleure économie (achats groupés)</option>
@@ -1920,7 +1920,7 @@ export default function ProduitsPage() {
                                 <Link
                                   key={product.id || product._id}
                                   href={`/produits/${product.id || product._id}`}
-                                  className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-emerald-300 transition-all"
+                                  className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-green-300 transition-all"
                                 >
                                   <div className="flex flex-col sm:flex-row gap-4">
                                     <div className="relative w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
@@ -1933,7 +1933,7 @@ export default function ProduitsPage() {
                                       />
 
                                       {product.availabilityStatus === 'in_stock' && (
-                                        <div className="absolute top-2 left-2 bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                                        <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
                                           EN STOCK
                                         </div>
                                       )}
@@ -1973,7 +1973,7 @@ export default function ProduitsPage() {
                                               </button>
                                             </div>
                                           )}
-                                          <div className="text-2xl font-bold text-emerald-600">
+                                          <div className="text-2xl font-bold text-green-600">
                                             {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
                                           </div>
                                           {(product.deliveryDays || 0) > 0 && (
@@ -1988,7 +1988,7 @@ export default function ProduitsPage() {
                                         <ul className="flex flex-wrap gap-2 mb-3">
                                           {product.features.slice(0, 3).map((f, i) => (
                                             <li key={i} className="flex items-center gap-1 text-xs text-gray-600">
-                                              <CheckCircle className="h-3 w-3 text-emerald-500" />
+                                              <CheckCircle className="h-3 w-3 text-green-500" />
                                               <span className="line-clamp-1">{f}</span>
                                             </li>
                                           ))}
@@ -1996,12 +1996,12 @@ export default function ProduitsPage() {
                                       )}
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1 text-sm">
-                                          <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
+                                          <Star className="h-4 w-4 text-green-500 fill-green-500" />
                                           <span className="font-semibold text-gray-700">{(product.rating || 4.7).toFixed(1)}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                          <span className="text-sm text-emerald-600 font-medium">Voir détails</span>
-                                          <ArrowRight className="h-4 w-4 text-emerald-600" />
+                                          <span className="text-sm text-green-600 font-medium">Voir détails</span>
+                                          <ArrowRight className="h-4 w-4 text-green-600" />
                                         </div>
                                       </div>
                                     </div>
@@ -2022,7 +2022,7 @@ export default function ProduitsPage() {
                     <div ref={observerTarget} className="mt-12 flex items-center justify-center py-8">
                       {loadingMore ? (
                         <div className="flex flex-col items-center gap-3">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600"></div>
                           <p className="text-sm text-gray-600 font-medium">Chargement de plus de produits...</p>
                         </div>
                       ) : (
@@ -2091,25 +2091,25 @@ export default function ProduitsPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSegment('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'all' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'all' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                 >
                   Tous
                 </button>
                 <button
                   onClick={() => setSegment('import')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'import' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'import' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                 >
                   Import
                 </button>
                 <button
                   onClick={() => setSegment('in_stock')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'in_stock' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'in_stock' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                 >
                   Stock Dakar
                 </button>
                 <button
                   onClick={() => setSegment('group_buy')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'group_buy' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'group_buy' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
                 >
                   Achats groupés
                 </button>
@@ -2132,7 +2132,7 @@ export default function ProduitsPage() {
                 </label>
               </div>
             </div>
-            <button onClick={()=>setShowFilters(false)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2 font-semibold">Appliquer</button>
+            <button onClick={()=>setShowFilters(false)} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg py-2 font-semibold">Appliquer</button>
           </div>
         </div>
       )}
@@ -2140,7 +2140,7 @@ export default function ProduitsPage() {
       {/* Section Explicative déplacée vers /domotique (supprimée ici) */}
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-emerald-600 via-teal-600 to-purple-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-green-600 via-green-700 to-violet-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-5xl font-bold mb-6">
             Besoin d'aide pour choisir ?
@@ -2162,14 +2162,14 @@ export default function ProduitsPage() {
             </a>
             <Link
               href="/contact"
-              className="bg-white text-emerald-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+              className="bg-white text-green-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               Conseil personnalisé
               <ArrowRight className="h-5 w-5 ml-2" />
             </Link>
             <a
               href="tel:+221774133440"
-              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-emerald-600 transition-all duration-300 inline-flex items-center justify-center"
+              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition-all duration-300 inline-flex items-center justify-center"
             >
               📞 +221 77 413 34 40
             </a>
@@ -2179,9 +2179,9 @@ export default function ProduitsPage() {
 
       {/* Barre de comparaison */}
       {showCompareBar && comparingProducts.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-emerald-300 rounded-xl shadow-2xl px-6 py-4 flex items-center gap-4 max-w-2xl">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-green-300 rounded-xl shadow-2xl px-6 py-4 flex items-center gap-4 max-w-2xl">
           <div className="flex items-center gap-2">
-            <GitCompare className="h-5 w-5 text-emerald-600" />
+            <GitCompare className="h-5 w-5 text-green-600" />
             <span className="text-sm font-semibold text-gray-900">
               {comparingProducts.size} produit{comparingProducts.size > 1 ? 's' : ''} sélectionné{comparingProducts.size > 1 ? 's' : ''}
             </span>
@@ -2200,7 +2200,7 @@ export default function ProduitsPage() {
             <button
               onClick={handleCompare}
               disabled={comparingProducts.size < 2}
-              className="px-4 py-1.5 text-sm font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="px-4 py-1.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               Comparer ({comparingProducts.size})
             </button>
@@ -2220,6 +2220,13 @@ export default function ProduitsPage() {
           setShowImageSearch(false)
         }}
       />
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-medium animate-fade-in">
+          {toast}
+        </div>
+      )}
 
       <Footer />
     </main>

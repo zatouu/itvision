@@ -55,6 +55,8 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
   )
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 4000) }
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -85,7 +87,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
       window.location.href = data.url
     } catch (error) {
       console.error(error)
-      alert("Une erreur est survenue lors de l'initialisation du paiement.")
+      showToast("Une erreur est survenue lors de l'initialisation du paiement.")
       setLoading(false)
     }
   }
@@ -147,7 +149,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
               <span>{formatCurrency(participant.fees.serviceFeeAmount)}</span>
             </div>
             {participant.fees.serviceFeeSavings > 0 && (
-              <div className="flex justify-between text-emerald-600 text-xs">
+              <div className="flex justify-between text-green-600 text-xs">
                 <span>Économie B2B</span>
                 <span>-{formatCurrency(participant.fees.serviceFeeSavings)}</span>
               </div>
@@ -157,7 +159,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
               <span>{formatCurrency(participant.fees.insuranceAmount)}</span>
             </div>
             {participant.fees.quantityDiscount && participant.fees.quantityDiscount.amount > 0 && (
-              <div className="flex justify-between text-emerald-600">
+              <div className="flex justify-between text-green-600">
                 <span>Réduction volume</span>
                 <span>-{formatCurrency(participant.fees.quantityDiscount.amount)}</span>
               </div>
@@ -178,14 +180,14 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
 
         <div className="mb-6">
           <p className="text-slate-600 text-sm mb-1">Montant à payer</p>
-          <p className="text-3xl font-bold text-indigo-600">{formatCurrency(participant.amount)}</p>
+          <p className="text-3xl font-bold text-violet-600">{formatCurrency(participant.amount)}</p>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
           <p className="text-xs text-slate-500 mb-1">Référence transaction</p>
           <div className="flex items-center justify-between">
             <code className="font-mono font-bold text-slate-700">{participant.reference}</code>
-            <button onClick={() => copyToClipboard(participant.reference)} className="text-indigo-500 hover:text-indigo-700">
+            <button onClick={() => copyToClipboard(participant.reference)} className="text-violet-500 hover:text-violet-700">
                 {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
           </div>
@@ -206,7 +208,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
             <button
               onClick={() => setActiveTab('gateway')}
               className={`pb-3 px-4 text-sm font-medium transition-colors relative ${
-                activeTab === 'gateway' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+                activeTab === 'gateway' ? 'text-violet-600' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -214,7 +216,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
                 <span>Paiement en ligne</span>
               </div>
               {activeTab === 'gateway' && (
-                <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600" />
+                <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
               )}
             </button>
           )}
@@ -222,7 +224,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
           <button
             onClick={() => setActiveTab('manual')}
             className={`pb-3 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'manual' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+              activeTab === 'manual' ? 'text-violet-600' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -230,7 +232,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
               <span>Wave / Orange Money</span>
             </div>
             {activeTab === 'manual' && (
-              <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600" />
+              <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
             )}
           </button>
         </div>
@@ -239,13 +241,13 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
         <div className="min-h-[300px]">
           {activeTab === 'gateway' && settings.providers.gateway.active && (
             <div className="space-y-6">
-                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex items-start gap-3">
-                    <div className="bg-indigo-100 p-2 rounded-full text-indigo-600">
+                <div className="bg-violet-50 p-4 rounded-lg border border-violet-100 flex items-start gap-3">
+                    <div className="bg-violet-100 p-2 rounded-full text-violet-600">
                         <CreditCard size={20} />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-indigo-900">Paiement sécurisé</h4>
-                        <p className="text-sm text-indigo-700 mt-1">
+                        <h4 className="font-semibold text-violet-900">Paiement sécurisé</h4>
+                        <p className="text-sm text-violet-700 mt-1">
                             Vous allez être redirigé vers la plateforme sécurisée de notre partenaire 
                             <span className="capitalize font-bold"> {settings.providers.gateway.provider}</span>.
                         </p>
@@ -269,7 +271,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
                 <button 
                     onClick={handleGatewayPayment}
                     disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-3"
+                    className="w-full bg-gradient-to-r from-green-600 to-violet-600 hover:from-green-700 hover:to-violet-700 disabled:opacity-60 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-3"
                 >
                     {loading ? (
                         <span>Initialisation...</span>
@@ -354,6 +356,13 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
           )}
         </div>
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-medium animate-pulse">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }
