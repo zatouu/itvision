@@ -102,7 +102,7 @@ export default function PanierPage() {
       setEmail(prev => prev || session.user?.email || '')
       
       // Récupérer le profil complet pour le téléphone
-      fetch('/api/client/profile')
+      fetch('/api/client/profile', { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
             if (data?.profile?.phone) setPhone((prev: string) => prev || data.profile.phone)

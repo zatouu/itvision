@@ -33,7 +33,7 @@ export default function CompteProfilPage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch('/api/client/profile', { method: 'GET' })
+        const res = await fetch('/api/client/profile', { method: 'GET', credentials: 'include' })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) {
           throw new Error(data?.error || 'Impossible de charger le profil')
@@ -87,6 +87,7 @@ export default function CompteProfilPage() {
       const res = await fetch('/api/client/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload)
       })
 
