@@ -69,6 +69,16 @@ export default function CompteProfilPage() {
 
     setSaving(true)
     try {
+      // Récupérer le token CSRF pour les requêtes authentifiées
+      let csrfToken: string | null = null
+      try {
+        const csrfRes = await fetch('/api/csrf', { method: 'GET', credentials: 'include' })
+        const csrfData = await csrfRes.json().catch(() => ({}))
+        csrfToken = csrfData?.csrfToken || null
+      } catch {
+        csrfToken = null
+      }
+
       const payload: any = {
         name: name.trim(),
         phone: phone.trim() || undefined
@@ -86,7 +96,10 @@ export default function CompteProfilPage() {
 
       const res = await fetch('/api/client/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+        },
         credentials: 'include',
         body: JSON.stringify(payload)
       })
