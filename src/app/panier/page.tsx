@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
+  ArrowLeft,
   Trash2,
   Minus,
   Plus,
@@ -349,22 +350,33 @@ export default function PanierPage() {
 
   const breakdown = useMemo(() => {
     let products = 0
+    let retailProducts = 0
     let totalQuantity = 0
 
+    // Premier passage: calculer la quantité totale
+    for (const it of items) totalQuantity += it.qty || 1
+
+    // Second passage: appliquer b2bPrice si total cart >= 5 OU item qty >= 5
     for (const it of items) {
       const qty = it.qty || 1
       const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price
-      const effectivePrice = hasWholesale && qty >= 5 ? it.b2bPrice : (typeof it.price === 'number' ? it.price : 0)
+      const usesWholesale = hasWholesale && (qty >= 5 || totalQuantity >= 5)
+      const retailPrice = typeof it.price === 'number' ? it.price : 0
+      const effectivePrice = usesWholesale ? it.b2bPrice : retailPrice
       products += effectivePrice * qty
-      totalQuantity += qty
+      retailProducts += retailPrice * qty
     }
 
     // Appliquer les tarifs progressifs
     const pricingTier = applyTierDiscount(products, totalQuantity)
 
     const total = pricingTier.finalPrice + transportGlobal
+    const wholesaleDiscount = retailProducts > products ? retailProducts - products : 0
+
     return {
       products: products,
+      retailProducts,
+      wholesaleDiscount,
       discountAmount: pricingTier.discountAmount,
       discountPercent: pricingTier.discountPercent,
       finalProducts: pricingTier.finalPrice,
@@ -446,9 +458,12 @@ export default function PanierPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        localStorage.removeItem('cart:items')
-        setItems([])
+        // Ne PAS vider le panier ici — le conserver jusqu'à confirmation paiement
+        // L'utilisateur peut revenir en arrière sans tout perdre
         const ref = data.orderId || data.reference;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('cart:pending_order', ref)
+        }
         router.push(`/paiement/checkout/${ref}`)
       } else {
         addToast('Erreur: ' + (data.error || 'erreur inconnue'), 'error')
@@ -539,9 +554,24 @@ export default function PanierPage() {
         className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-8 px-4 md:px-8 shadow-xl"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-6">
-            <ShoppingBag className="w-8 h-8" />
-            <h1 className="text-3xl font-bold">Votre Panier</h1>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              {step > 1 && (
+                <button
+                  onClick={() => setStep(step === 3 ? 2 : 1)}
+                  className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Retour
+                </button>
+              )}
+              <ShoppingBag className="w-8 h-8" />
+              <h1 className="text-3xl font-bold">Votre Panier</h1>
+            </div>
+            <a href="/produits" className="text-white/70 hover:text-white text-xs flex items-center gap-1 transition">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Catalogue
+            </a>
           </div>
 
           {/* Progression steps */}
@@ -620,8 +650,9 @@ export default function PanierPage() {
                           {(() => {
                             const qty = it.qty || 1
                             const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price
-                            const usesWholesale = hasWholesale && qty >= 5
+                            const usesWholesale = hasWholesale && (qty >= 5 || breakdown.totalQuantity >= 5)
                             const effectivePrice = usesWholesale ? it.b2bPrice : it.price
+                            const discountPct = hasWholesale ? Math.round((1 - it.b2bPrice / it.price) * 100) : 0
                             return (
                               <>
                                 <div className="flex items-center gap-2 mt-1">
@@ -631,15 +662,15 @@ export default function PanierPage() {
                                   {usesWholesale && (
                                     <span className="text-xs line-through text-gray-400">{formatCurrency(it.price)}</span>
                                   )}
-                                  {usesWholesale && (
+                                  {usesWholesale && discountPct > 0 && (
                                     <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                      Prix gros
+                                      -{discountPct}%
                                     </span>
                                   )}
                                 </div>
-                                {hasWholesale && !usesWholesale && (
+                                {hasWholesale && !usesWholesale && breakdown.totalQuantity < 5 && (
                                   <p className="text-[11px] text-violet-500 mt-0.5">
-                                    {formatCurrency(it.b2bPrice)} des 5 pcs (-{Math.round((1 - it.b2bPrice / it.price) * 100)}%)
+                                    Prix volume dès 5 pcs : {formatCurrency(it.b2bPrice)} (-{discountPct}%)
                                   </p>
                                 )}
                               </>
@@ -667,7 +698,7 @@ export default function PanierPage() {
                               <Plus className="w-4 h-4 text-green-600" />
                             </button>
                           </motion.div>
-                          <p className="text-sm font-bold text-gray-900">{formatCurrency(((typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price && (it.qty || 1) >= 5) ? it.b2bPrice : (it.price || 0)) * (it.qty || 1))}</p>
+                          <p className="text-sm font-bold text-gray-900">{formatCurrency(((typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price && ((it.qty || 1) >= 5 || breakdown.totalQuantity >= 5)) ? it.b2bPrice : (it.price || 0)) * (it.qty || 1))}</p>
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
@@ -773,17 +804,31 @@ export default function PanierPage() {
                   </p>
                 </div>
 
-                {/* Avertissement quantité minimale */}
-                {breakdown.totalQuantity < 5 && (
+                {/* Bandeau prix volume actif */}
+                {breakdown.totalQuantity >= 5 && breakdown.wholesaleDiscount > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3"
+                    className="mb-6 bg-violet-50 border border-violet-200 rounded-lg p-4 flex gap-3"
                   >
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <TrendingDown className="w-5 h-5 text-violet-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <p className="text-red-700 font-semibold">Quantité minimale: 5 produits</p>
-                      <p className="text-red-600 text-xs mt-1">Actuellement: {breakdown.totalQuantity} produits ({5 - breakdown.totalQuantity} manquant(s))</p>
+                      <p className="text-violet-700 font-semibold">Prix volume appliqué ✅</p>
+                      <p className="text-violet-600 text-xs mt-1">Vous économisez {formatCurrency(breakdown.wholesaleDiscount)} sur ce panier</p>
+                    </div>
+                  </motion.div>
+                )}
+                {/* Incitation prix volume si < 5 pcs et au moins un produit avec b2bPrice */}
+                {breakdown.totalQuantity < 5 && items.some(i => typeof i.b2bPrice === 'number' && i.b2bPrice > 0 && i.b2bPrice < i.price) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 bg-violet-50 border border-violet-200 rounded-lg p-4 flex gap-3"
+                  >
+                    <TrendingDown className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-violet-700 font-semibold">Prix volume disponible</p>
+                      <p className="text-violet-600 text-xs mt-1">Ajoutez {5 - breakdown.totalQuantity} produit(s) de plus pour débloquer les prix volume (jusqu’à -20%)</p>
                     </div>
                   </motion.div>
                 )}
@@ -846,9 +891,18 @@ export default function PanierPage() {
                     }
                     return null
                   })()}
+                  {breakdown.wholesaleDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-violet-700 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <span className="text-[10px] bg-violet-100 px-1.5 py-0.5 rounded-full">VOLUME</span>
+                        Prix volume (-{Math.round(breakdown.wholesaleDiscount / breakdown.retailProducts * 100)}%)
+                      </span>
+                      <span>-{formatCurrency(breakdown.wholesaleDiscount)}</span>
+                    </div>
+                  )}
                   {breakdown.discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-green-700 font-semibold">
-                      <span>Réduction volume ({breakdown.discountPercent}%)</span>
+                      <span>Réduction quantité ({breakdown.discountPercent}%)</span>
                       <span>-{formatCurrency(breakdown.discountAmount)}</span>
                     </div>
                   )}
@@ -882,8 +936,7 @@ export default function PanierPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setStep(2)}
-                  disabled={breakdown.totalQuantity < 5}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition shadow-lg"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white py-4 rounded-xl font-bold transition shadow-lg"
                 >
                   Continuer vers l'adresse
                   <ArrowRight className="w-5 h-5" />
@@ -1135,16 +1188,40 @@ export default function PanierPage() {
                   animate={{ opacity: 1, x: 0 }}
                   className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 p-6 shadow-lg sticky top-6 h-fit"
                 >
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setStep(2)}
+                    className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-xl font-bold transition mb-4"
+                  >
+                    Retour
+                  </motion.button>
                   <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-amber-600" />
                     Récapitulatif
                   </h3>
 
                   <div className="space-y-4 mb-6">
-                    <div className="flex justify-between text-sm text-gray-700">
-                      <span>Produits</span>
-                      <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
-                    </div>
+                    {breakdown.wholesaleDiscount > 0 ? (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm text-gray-400">
+                          <span>Produits (prix normal)</span>
+                          <span className="line-through">{formatCurrency(breakdown.retailProducts)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-violet-700 font-semibold">
+                          <span className="flex items-center gap-1">
+                            <span className="text-[10px] bg-violet-100 px-1.5 py-0.5 rounded-full">VOLUME</span>
+                            Produits (prix volume)
+                          </span>
+                          <span>{formatCurrency(breakdown.products)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-sm text-gray-700">
+                        <span>Produits</span>
+                        <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm text-gray-700 pb-4 border-b">
                       <span className="flex items-center gap-2">
                         <Truck className="w-4 h-4 text-orange-600" />

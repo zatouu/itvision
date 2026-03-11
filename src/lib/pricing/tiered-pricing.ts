@@ -38,8 +38,6 @@ export const QUANTITY_TIERS: TierPricing[] = [
  * Trouve le tier de tarification applicable pour une quantité donnée
  */
 export function getTierForQuantity(quantity: number): TierPricing | null {
-  if (quantity < 5) return null // Quantité minimale non atteinte
-
   const tier = QUANTITY_TIERS.find(t => {
     if (t.maxQuantity === undefined) {
       return quantity >= t.minQuantity

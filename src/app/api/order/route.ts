@@ -115,14 +115,6 @@ export async function POST(req: NextRequest) {
       }
     )
 
-    // Vérification quantité minimale
-    if (calculation.totalQuantity < 5) {
-      return NextResponse.json(
-        { success: false, error: `Quantité minimale: 5 produits (actuellement ${calculation.totalQuantity})` },
-        { status: 400 }
-      )
-    }
-
     // Extraire les valeurs calculées
     const {
       fees,
@@ -155,7 +147,8 @@ export async function POST(req: NextRequest) {
           price: item.price,
           b2bPrice: item.b2bPrice,
           qty,
-          marketplaceTier: userMarketplaceTier
+          marketplaceTier: userMarketplaceTier,
+          totalCartQty: totalQuantity
         })
         return {
           id: item.id,

@@ -56,19 +56,21 @@ export default function AddressPickerSenegal({
     return deptData?.neighborhoods || []
   }, [region, department])
 
-  const isValid = region && department && neighborhood && street.trim().length > 0
+  const isValid = !!(region && department && neighborhood && street.trim().length > 0)
 
-  const handleAddressChange = () => {
-    const newAddress: AddressData = {
-      region,
-      department,
-      neighborhood,
-      street: street.trim(),
-      additionalInfo: additionalInfo.trim() || undefined
+  // Synchroniser validation + onChange dès que l'un des champs change
+  useEffect(() => {
+    onValidation?.(isValid)
+    if (region || department || neighborhood || street) {
+      onChange({
+        region,
+        department,
+        neighborhood,
+        street: street.trim(),
+        additionalInfo: additionalInfo.trim() || undefined
+      })
     }
-    onChange(newAddress)
-    onValidation?.(!!isValid)
-  }
+  }, [region, department, neighborhood, street, additionalInfo])
 
   const handleRegionChange = (newRegion: string) => {
     setRegion(newRegion)
@@ -90,6 +92,11 @@ export default function AddressPickerSenegal({
 
   const handleStreetChange = (newStreet: string) => {
     setStreet(newStreet)
+  }
+
+  const handleAddressChange = () => {
+    // Kept for backward-compat (onBlur), but main logic is in the useEffect above
+    onValidation?.(isValid)
   }
 
   return (

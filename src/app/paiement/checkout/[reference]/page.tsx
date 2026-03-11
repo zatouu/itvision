@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { Order } from '@/lib/models/Order'
 import CheckoutInterface from '@/components/payment/CheckoutInterface'
+import CheckoutRelatedProducts from '@/components/payment/CheckoutRelatedProducts'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import Link from 'next/link'
 
@@ -165,12 +166,17 @@ export default async function CheckoutPage({ params }: PageProps) {
       </div>
 
       {/* Contenu principal */}
-      <div className="max-w-5xl mx-auto px-4 pb-12">
+      <div className="max-w-5xl mx-auto px-4 pb-4">
         <CheckoutInterface 
           participant={participantData} 
           group={groupData}
           settings={settings}
         />
+        <CheckoutRelatedProducts productIds={
+          orderType === 'standard' && (participantData as any)._productIds
+            ? (participantData as any)._productIds
+            : undefined
+        } />
       </div>
 
       {/* Footer marketplace */}

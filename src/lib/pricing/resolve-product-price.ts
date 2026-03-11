@@ -4,8 +4,8 @@
  *
  * Règles métier :
  * - Pro / Reseller / Partner → b2bPrice dès 1 pièce (si disponible)
- * - Standard + qty >= 5    → b2bPrice (si disponible)
- * - Standard + qty < 5     → price (prix retail)
+ * - Standard + qty >= 5 OU totalCartQty >= 5 → b2bPrice (si disponible)
+ * - Standard + qty < 5 + totalCartQty < 5   → price (prix retail)
  * - Si b2bPrice absent ou >= price → price retail dans tous les cas
  */
 
@@ -23,11 +23,12 @@ export function resolveProductPrice(params: {
   b2bPrice?: number
   qty: number
   marketplaceTier?: MarketplaceTier
+  totalCartQty?: number
 }): ResolvedPrice {
-  const { price, b2bPrice, qty, marketplaceTier = 'standard' } = params
+  const { price, b2bPrice, qty, marketplaceTier = 'standard', totalCartQty } = params
 
   const isProAccount = marketplaceTier !== 'standard'
-  const isWholesaleQty = qty >= 5
+  const isWholesaleQty = qty >= 5 || (typeof totalCartQty === 'number' && totalCartQty >= 5)
   const hasWholesalePrice =
     typeof b2bPrice === 'number' && b2bPrice > 0 && b2bPrice < price
 
