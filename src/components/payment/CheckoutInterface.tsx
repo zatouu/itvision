@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { CreditCard, Phone, Smartphone, Copy, Check, Info } from 'lucide-react'
+import { CreditCard, Smartphone, Copy, Check, Info, ExternalLink, Package } from 'lucide-react'
+import Link from 'next/link'
 import type { PaymentSettings } from '@/lib/payments/settings'
 
 interface CheckoutInterfaceProps {
@@ -126,38 +127,47 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
     )
   }
 
+  const isRetailFallback = participant.fees?.serviceFeeRate === 0 && (participant.fees?.supplierCost ?? 0) > 0
+
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex flex-col md:flex-row">
       {/* Sidebar Recap */}
-      <div className="md:w-1/3 bg-slate-50 p-6 border-b md:border-b-0 md:border-r border-slate-200">
-        <h3 className="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-4">Récapitulatif</h3>
+      <div className="md:w-5/12 lg:w-2/5 bg-gradient-to-br from-gray-50 to-violet-50/30 p-6 border-b md:border-b-0 md:border-r border-gray-100">
+        <div className="flex items-center gap-2 mb-5">
+          <Package className="w-4 h-4 text-violet-500" />
+          <h3 className="text-sm uppercase tracking-wider text-gray-500 font-semibold">Récapitulatif</h3>
+        </div>
         
-        <div className="mb-6">
-          <p className="text-slate-600 text-sm mb-1">Produit</p>
-          <p className="font-medium text-slate-800">{group.productName}</p>
+        <div className="mb-5 pb-4 border-b border-gray-100">
+          <p className="text-gray-400 text-xs mb-1">Commande</p>
+          <p className="font-semibold text-gray-800 text-sm leading-snug">{group.productName}</p>
         </div>
 
         {/* Décomposition des prix si disponible */}
         {participant.fees && (
-          <div className="mb-6 space-y-2 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Fournisseur</span>
-              <span>{formatCurrency(participant.fees.supplierCost)}</span>
+          <div className="mb-5 space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span className="text-gray-500">{isRetailFallback ? 'Produits' : 'Coût fournisseur'}</span>
+              <span className="font-medium">{formatCurrency(participant.fees.supplierCost)}</span>
             </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Frais ({participant.fees.serviceFeeRate}%)</span>
-              <span>{formatCurrency(participant.fees.serviceFeeAmount)}</span>
-            </div>
-            {participant.fees.serviceFeeSavings > 0 && (
-              <div className="flex justify-between text-green-600 text-xs">
-                <span>Économie B2B</span>
-                <span>-{formatCurrency(participant.fees.serviceFeeSavings)}</span>
-              </div>
+            {!isRetailFallback && (
+              <>
+                <div className="flex justify-between text-gray-600">
+                  <span className="text-gray-500">Frais service ({participant.fees.serviceFeeRate}%)</span>
+                  <span className="font-medium">{formatCurrency(participant.fees.serviceFeeAmount)}</span>
+                </div>
+                {participant.fees.serviceFeeSavings > 0 && (
+                  <div className="flex justify-between text-green-600 text-xs">
+                    <span>Économie B2B</span>
+                    <span>-{formatCurrency(participant.fees.serviceFeeSavings)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-600">
+                  <span className="text-gray-500">Assurance ({participant.fees.insuranceRate}%)</span>
+                  <span className="font-medium">{formatCurrency(participant.fees.insuranceAmount)}</span>
+                </div>
+              </>
             )}
-            <div className="flex justify-between text-slate-600">
-              <span>Assurance ({participant.fees.insuranceRate}%)</span>
-              <span>{formatCurrency(participant.fees.insuranceAmount)}</span>
-            </div>
             {participant.fees.quantityDiscount && participant.fees.quantityDiscount.amount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Réduction volume</span>
@@ -165,37 +175,42 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
               </div>
             )}
             {participant.shipping && (
-              <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
-                <span className="flex items-center gap-1">
+              <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-100">
+                <span className="flex items-center gap-1 text-gray-500">
                   Transport
                   {participant.shipping.weightDetails?.billingMethod === 'volumetric' && (
                     <span className="text-xs text-amber-600">(volumétrique)</span>
                   )}
                 </span>
-                <span>{formatCurrency(participant.shipping.totalCost)}</span>
+                <span className="font-medium">{formatCurrency(participant.shipping.totalCost)}</span>
               </div>
             )}
           </div>
         )}
 
-        <div className="mb-6">
-          <p className="text-slate-600 text-sm mb-1">Montant à payer</p>
-          <p className="text-3xl font-bold text-violet-600">{formatCurrency(participant.amount)}</p>
+        <div className="mb-5 pt-4 border-t border-gray-100">
+          <p className="text-gray-400 text-xs mb-1">Montant total à payer</p>
+          <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">{formatCurrency(participant.amount)}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-          <p className="text-xs text-slate-500 mb-1">Référence transaction</p>
-          <div className="flex items-center justify-between">
-            <code className="font-mono font-bold text-slate-700">{participant.reference}</code>
-            <button onClick={() => copyToClipboard(participant.reference)} className="text-violet-500 hover:text-violet-700">
-                {copied ? <Check size={16} /> : <Copy size={16} />}
+        <div className="bg-white p-4 rounded-xl border border-violet-100 shadow-sm">
+          <p className="text-xs text-gray-400 mb-1.5">Référence de paiement</p>
+          <div className="flex items-center justify-between gap-2">
+            <code className="font-mono font-bold text-gray-800 text-sm truncate">{participant.reference}</code>
+            <button onClick={() => copyToClipboard(participant.reference)} className="text-violet-400 hover:text-violet-600 flex-shrink-0 p-1 hover:bg-violet-50 rounded transition">
+                {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
           </div>
-          <p className="text-xs text-orange-600 mt-2 flex items-start gap-1">
+          <p className="text-xs text-amber-600 mt-2 flex items-start gap-1">
             <Info size={12} className="mt-0.5 shrink-0" />
-            <span>Important: Mettez cette référence dans le motif du paiement.</span>
+            <span>Notez cette référence dans le motif du transfert.</span>
           </p>
         </div>
+
+        <Link href="/compte/commandes" className="mt-4 flex items-center gap-1.5 text-xs text-gray-400 hover:text-violet-600 transition">
+          <ExternalLink size={12} />
+          Voir mes commandes
+        </Link>
       </div>
 
       {/* Main Content */}

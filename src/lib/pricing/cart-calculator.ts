@@ -162,14 +162,38 @@ export async function calculateCartTotal(
   }
   
   supplierCost = Math.round(supplierCost)
+
+  // Fallback critique: si aucun price1688 disponible, utiliser la somme des prix retail
+  // pour que le total de commande ne soit jamais 0 (uniquement transport)
+  let retailFallbackTotal = 0
+  const usingRetailFallback = supplierCost === 0
+  if (usingRetailFallback) {
+    for (const item of items) {
+      const qty = item.qty || 1
+      const resolved = resolveProductPrice({
+        price: item.price,
+        b2bPrice: item.b2bPrice,
+        qty,
+        marketplaceTier: item.marketplaceTier
+      })
+      retailFallbackTotal += resolved.appliedPrice * qty
+    }
+    retailFallbackTotal = Math.round(retailFallbackTotal)
+  }
   
   // 3. Déterminer le palier B2B et calculer les frais
-  const b2bTier = getServiceFeeTier(supplierCost)
+  const effectiveBase = usingRetailFallback ? retailFallbackTotal : supplierCost
+  const b2bTier = getServiceFeeTier(effectiveBase)
   const insuranceRate = options.insuranceRate ?? 2.5
   
-  const feesBreakdown = calculateCompleteFees(supplierCost, supplierCost, {
-    insuranceRate
-  })
+  const feesBreakdown = usingRetailFallback
+    ? {
+        finalPrice: retailFallbackTotal,
+        serviceFee: { rate: 0, amount: 0, savingsVsStandard: 0 },
+        insuranceFee: { rate: 0, amount: 0 },
+        totalFees: 0
+      }
+    : calculateCompleteFees(supplierCost, supplierCost, { insuranceRate })
   
   // 4. Calculer le sous-total avant réduction quantité
   const subtotalBeforeDiscounts = feesBreakdown.finalPrice
@@ -235,7 +259,7 @@ export async function calculateCartTotal(
     totalQuantity,
     totalItems: items.length,
     fees: {
-      supplierCost,
+      supplierCost: usingRetailFallback ? retailFallbackTotal : supplierCost,
       serviceFeeRate: feesBreakdown.serviceFee.rate,
       serviceFeeStandardRate: 10,
       serviceFeeAmount: feesBreakdown.serviceFee.amount,

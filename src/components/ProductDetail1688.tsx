@@ -371,7 +371,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
           const existsIndex = items.findIndex((item: any) => item.id === id)
           if (existsIndex >= 0) { items[existsIndex].qty += qty; items[existsIndex].price = price; items[existsIndex].currency = currency }
           else {
-            const newItem: any = { id, name: `${product.name} — ${variant.name}`, qty, price, currency, requiresQuote: !!product.requiresQuote, variantId: variant.id, unitWeightKg: unitWeightKg ?? undefined, unitVolumeM3: unitVolumeM3 ?? undefined }
+            const newItem: any = { id, name: `${product.name} — ${variant.name}`, qty, price, b2bPrice: product.b2bPrice ?? undefined, price1688: product.pricing1688?.price1688 ?? undefined, currency, requiresQuote: !!product.requiresQuote, variantId: variant.id, unitWeightKg: unitWeightKg ?? undefined, unitVolumeM3: unitVolumeM3 ?? undefined }
             if (activeShipping) newItem.shipping = { id: activeShipping.id, label: activeShipping.label, durationDays: activeShipping.durationDays, rate: activeShipping.rate }
             if (product.pricing.fees) { newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate; newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount; newItem.insuranceRate = product.pricing.fees.insuranceRate; newItem.insuranceAmount = product.pricing.fees.insuranceAmount }
             items.push(newItem)
@@ -382,7 +382,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
         const existsIndex = items.findIndex((item: any) => item.id === id)
         if (existsIndex >= 0) { items[existsIndex].qty += quantity; items[existsIndex].price = baseUnitPrice; items[existsIndex].currency = currency }
         else {
-          const newItem: any = { id, name: product.name, qty: quantity, price: baseUnitPrice, b2bPrice: product.b2bPrice ?? undefined, currency, requiresQuote: !!product.requiresQuote, unitWeightKg: unitWeightKg ?? undefined, unitVolumeM3: unitVolumeM3 ?? undefined }
+          const newItem: any = { id, name: product.name, qty: quantity, price: baseUnitPrice, b2bPrice: product.b2bPrice ?? undefined, price1688: product.pricing1688?.price1688 ?? undefined, currency, requiresQuote: !!product.requiresQuote, unitWeightKg: unitWeightKg ?? undefined, unitVolumeM3: unitVolumeM3 ?? undefined }
           if (activeShipping) newItem.shipping = { id: activeShipping.id, label: activeShipping.label, durationDays: activeShipping.durationDays, rate: activeShipping.rate }
           if (product.pricing.fees) { newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate; newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount; newItem.insuranceRate = product.pricing.fees.insuranceRate; newItem.insuranceAmount = product.pricing.fees.insuranceAmount }
           items.push(newItem)

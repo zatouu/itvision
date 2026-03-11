@@ -3,7 +3,6 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react' // Ajout de useSession
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
@@ -48,9 +47,9 @@ import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 
 export default function PanierPage() {
-    const sessionObj = useSession() // Utilisation de la session
-    const session = sessionObj?.data
-    const [orderInfo, setOrderInfo] = useState<any>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authUser, setAuthUser] = useState<{ name?: string; email?: string; phone?: string } | null>(null)
+  const [orderInfo, setOrderInfo] = useState<any>(null)
   const router = useRouter()
   const { addToast } = useToast()
   const [items, setItems] = useState<any[]>([])
@@ -69,6 +68,25 @@ export default function PanierPage() {
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [activeGroups, setActiveGroups] = useState<any[]>([])
+
+  // 0. Vérifier l'authentification JWT custom au montage
+  useEffect(() => {
+    fetch('/api/client/profile', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.profile) {
+          setIsAuthenticated(true)
+          setAuthUser({ name: data.profile.name, email: data.profile.email, phone: data.profile.phone })
+          setName((prev: string) => prev || data.profile.name || '')
+          setEmail((prev: string) => prev || data.profile.email || '')
+          setPhone((prev: string) => prev || data.profile.phone || '')
+          if (data.lastAddress) {
+            setAddress((prev: any) => (!prev || Object.keys(prev).length === 0 ? data.lastAddress : prev))
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // 1. Restaurer depuis sessionStorage au montage (pour conserver les infos si redirection login)
   useEffect(() => {
@@ -94,33 +112,6 @@ export default function PanierPage() {
      }
   }, [name, phone, email, address])
 
-  // 3. Pré-remplir les données si l'utilisateur est connecté (Session + Profil API)
-  useEffect(() => {
-    if (session?.user) {
-      // Priorité à la session pour name/email si vides
-      setName(prev => prev || session.user?.name || '')
-      setEmail(prev => prev || session.user?.email || '')
-      
-      // Récupérer le profil complet pour le téléphone
-      fetch('/api/client/profile', { credentials: 'include' })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-            if (data?.profile?.phone) setPhone((prev: string) => prev || data.profile.phone)
-            
-            // Si l'utilisateur n'a pas encore rempli d'adresse et qu'on en trouve une de sa dernière commande
-            if (data?.lastAddress) {
-                setAddress((prev: any) => {
-                    // Si l'adresse locale est vide ou presque, on utilise celle du serveur
-                    if (!prev || Object.keys(prev).length === 0) {
-                        return data.lastAddress
-                    }
-                    return prev
-                })
-            }
-        })
-        .catch(() => {})
-    }
-  }, [session])
 
   const highlightError = (field: string) => {
     setErrors(prev => ({ ...prev, [field]: true }))
@@ -939,13 +930,20 @@ export default function PanierPage() {
                         </p>
                       </div>
                       <div className="flex w-full flex-col gap-2 md:w-auto">
-                        <a
-                          href="/login?redirect=/panier"
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800"
-                        >
-                          <LogIn className="w-4 h-4" />
-                          Se connecter
-                        </a>
+                        {isAuthenticated ? (
+                          <div className="inline-flex items-center gap-2 rounded-xl bg-green-100 px-4 py-2.5 text-sm font-bold text-green-800">
+                            <CheckCircle className="w-4 h-4" />
+                            {authUser?.name ? `Connecté · ${authUser.name.split(' ')[0]}` : 'Connecté'}
+                          </div>
+                        ) : (
+                          <a
+                            href="/login?redirect=/panier"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800"
+                          >
+                            <LogIn className="w-4 h-4" />
+                            Se connecter
+                          </a>
+                        )}
                         <a
                           href="/market/creer-compte?redirect=/panier"
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 ring-1 ring-gray-200 transition hover:bg-gray-50"
