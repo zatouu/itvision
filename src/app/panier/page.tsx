@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
+import CartEngagementSidebar from '@/components/CartEngagementSidebar'
 import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
 import { getServiceFeeTier, calculateCompleteFees } from '@/lib/pricing/tiered-service-fees'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
@@ -610,6 +611,10 @@ export default function PanierPage() {
       </motion.div>
 
       {/* Contenu */}
+      <div className="relative">
+      <div className="hidden 2xl:block absolute right-4 top-8 w-60 z-10">
+        <CartEngagementSidebar cartProductIds={items.map(i => i.id)} />
+      </div>
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         <AnimatePresence mode="wait">
           {step === 1 && (
@@ -1282,6 +1287,7 @@ export default function PanierPage() {
           )}
         </AnimatePresence>
       </div>
+      </div>{/* /relative */}
 
       {/* Section Produits Suggérés - Visible uniquement à l'étape 1 */}
       {step === 1 && suggestedProducts.length > 0 && (

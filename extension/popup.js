@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Transformer les données scrapées au format attendu par /api/products/import
+  // Format standard /api/products/import (fallback)
   const transformProductForApi = (p) => {
     if (p.platform === '1688') {
       return {
@@ -163,7 +163,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         specifications: p.specifications
       };
     }
-    // AliExpress
     return {
       name: p.name || 'Produit AliExpress',
       productUrl: p.url,
@@ -178,9 +177,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       availabilityNote: p.availabilityNote || 'Import AliExpress — freight 3j/15j/60j',
       features: p.features || [],
       weightKg: p.weightKg || undefined,
-      lengthCm: p.lengthCm || undefined,
-      widthCm: p.widthCm || undefined,
-      heightCm: p.heightCm || undefined,
       variantGroups: p.variantGroups || [],
       shopName: p.shopName,
       orders: p.orders,
@@ -190,94 +186,99 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   };
 
-  // Exporter vers API IT Vision
-  btnExport.addEventListener('click', async () => {
-    const apiUrl = apiUrlInput.value.trim();
+  // Format smart-import /api/admin/products/smart-import (enrichi IA + pricing auto)
+  const transformProductForSmartApi = (p) => ({
+    name: p.name || 'Produit',
+    description: p.description || Object.entries(p.specifications || {}).map(([k,v]) => `${k}: ${v}`).join('\n') || '',
+    images: [p.image, ...(p.gallery || []), ...(p.descriptionImages || [])].filter(Boolean),
+    price1688: p.price1688 || undefined,
+    price: p.price || undefined,
+    category: p.category || 'Catalogue import Chine',
+    features: p.features || [],
+    variants: (p.variantGroups || []).flatMap(g =>
+      (g.variants || []).map(v => ({ name: v.name, image: v.image, price1688: v.price1688 }))
+    ),
+    weightKg: p.weightKg || undefined,
+    sourceUrl: p.url,
+    sourcePlatform: p.platform === '1688' ? '1688' : 'aliexpress',
+    supplierName: p.shopName || undefined,
+  });
 
-    if (!apiUrl) {
-      showNotification('Veuillez configurer l\'URL API', 'error');
+  // Exporter vers API IT Vision (Smart Import par défaut)
+  const doExport = async (useSmart) => {
+    const apiUrl = apiUrlInput.value.trim();
+    if (!apiUrl) { showNotification('Veuillez configurer l\'URL API', 'error'); return; }
+
+    const { products = [] } = await chrome.storage.local.get('products');
+    if (products.length === 0) { showNotification('Aucun produit à exporter', 'error'); return; }
+
+    const cookieUrl = apiUrl.replace(/\/$/, '');
+    let authCookie = null;
+    try { authCookie = await chrome.cookies.get({ url: cookieUrl, name: 'auth-token' }); } catch {}
+    if (!authCookie?.value) {
+      showNotification('Connectez-vous d\'abord sur ' + cookieUrl, 'error');
       return;
     }
 
-    btnExport.disabled = true;
-    btnExport.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-      </svg>
-      Export...
-    `;
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authCookie.value}` };
 
     try {
-      const { products = [] } = await chrome.storage.local.get('products');
-      
-      // Récupérer le cookie d'authentification depuis le site IT Vision
-      const cookieUrl = apiUrl.replace(/\/$/, '');
-      let authCookie = null;
-      try {
-        authCookie = await chrome.cookies.get({ url: cookieUrl, name: 'auth-token' });
-      } catch (e) {
-        console.warn('[IT Vision] Impossible de lire le cookie auth:', e);
-      }
-      
-      if (!authCookie?.value) {
-        showNotification('Connectez-vous d\'abord sur ' + cookieUrl + ' puis réessayez.', 'error');
-        btnExport.disabled = false;
-        btnExport.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-          </svg>
-          Exporter vers IT Vision
-        `;
-        return;
-      }
+      let response, result;
 
-      // Envoyer les données scrapées (pas les URLs) au bon endpoint
-      const payload = {
-        items: products.map(transformProductForApi)
-      };
-
-      const response = await fetch(`${apiUrl}/api/products/import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authCookie.value}`
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        if (result.success) {
-          // Vider la liste
+      if (useSmart) {
+        // Smart Import — pricing auto + enrichissement IA
+        const payload = {
+          products: products.map(transformProductForSmartApi),
+          options: { exchangeRate: 85, b2bDiscountPercent: 15, reformatDescriptions: false }
+        };
+        response = await fetch(`${cookieUrl}/api/admin/products/smart-import`, {
+          method: 'POST', headers, credentials: 'include', body: JSON.stringify(payload)
+        });
+        result = await response.json();
+        if (response.ok && result.success !== false) {
           await chrome.storage.local.set({ products: [] });
           loadProducts();
-          
-          const { created, updated, failed } = result.summary;
-          showNotification(
-            `Exporté! ${created} créés, ${updated} mis à jour${failed > 0 ? ', ' + failed + ' échoués' : ''}`,
-            'success'
-          );
+          showNotification(`Smart Import: ${result.imported || 0} créé(s)${result.failed > 0 ? ', ' + result.failed + ' échoué(s)' : ''}`, 'success');
         } else {
-          showNotification('Erreur API: ' + result.error, 'error');
+          // Fallback sur import standard si 403 (pas ADMIN)
+          if (response.status === 403) {
+            showNotification('Smart Import nécessite le rôle ADMIN. Tentative import standard...', 'error');
+            setTimeout(() => doExport(false), 1000);
+            return;
+          }
+          showNotification('Erreur: ' + (result.error || result.errors || 'Erreur inconnue'), 'error');
         }
-      } else if (response.status === 401 || response.status === 403) {
-        showNotification('Non authentifié. Connectez-vous sur ' + apiUrl + ' d\'abord.', 'error');
       } else {
-        const error = await response.text();
-        showNotification('Erreur HTTP ' + response.status + ': ' + error.slice(0, 100), 'error');
+        // Import standard
+        const payload = { items: products.map(transformProductForApi) };
+        response = await fetch(`${cookieUrl}/api/products/import`, {
+          method: 'POST', headers, credentials: 'include', body: JSON.stringify(payload)
+        });
+        result = await response.json();
+        if (response.ok && result.success) {
+          await chrome.storage.local.set({ products: [] });
+          loadProducts();
+          const s = result.summary || {};
+          showNotification(`Exporté: ${s.created || 0} créé(s), ${s.updated || 0} mis à jour`, 'success');
+        } else {
+          showNotification('Erreur: ' + (result.error || 'Erreur inconnue'), 'error');
+        }
       }
     } catch (err) {
       showNotification('Erreur export: ' + err.message, 'error');
+    }
+  };
+
+  btnExport.addEventListener('click', async () => {
+    btnExport.disabled = true;
+    const label = btnExport.textContent.trim();
+    btnExport.textContent = 'Export...';
+    try {
+      // Smart Import par défaut (pricing + IA)
+      await doExport(true);
     } finally {
       btnExport.disabled = false;
-      btnExport.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-        </svg>
-        Exporter vers IT Vision
-      `;
+      btnExport.textContent = label;
     }
   });
 

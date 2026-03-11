@@ -144,6 +144,12 @@ const menuItems: MenuItem[] = [
         label: 'Gestion des prix',
         icon: Tags,
         href: '/admin/prices'
+      },
+      {
+        id: 'produits-b2b-pricing',
+        label: 'Pricing B2B en masse',
+        icon: Tags,
+        href: '/admin/produits/b2b-pricing'
       }
     ]
   },

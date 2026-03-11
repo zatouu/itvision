@@ -33,6 +33,13 @@ export default function MarketAuthButton({
 
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [marketplaceTier, setMarketplaceTier] = useState<string>('standard')
+
+  const TIER_BADGE: Record<string, { label: string; className: string }> = {
+    pro: { label: 'Pro', className: 'bg-green-100 text-green-700 border border-green-200' },
+    reseller: { label: 'Revendeur', className: 'bg-violet-100 text-violet-700 border border-violet-200' },
+    partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -47,6 +54,10 @@ export default function MarketAuthButton({
         })
         if (cancelled) return
         setIsAuthenticated(res.ok)
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setMarketplaceTier(data.user?.marketplaceTier || 'standard')
+        }
       } catch {
         if (cancelled) return
         setIsAuthenticated(false)
@@ -93,10 +104,15 @@ export default function MarketAuthButton({
         <Link
           href={accountHref}
           onClick={() => onDone?.()}
-          className={`${baseClassName} border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-300 dark:hover:bg-emerald-900/20`}
+          className={`${baseClassName} border-green-200 bg-white text-green-700 hover:bg-green-50 dark:border-green-900/60 dark:bg-slate-950 dark:text-green-300 dark:hover:bg-green-900/20`}
         >
           <User className="h-4 w-4" />
           Mon compte
+          {TIER_BADGE[marketplaceTier] && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${TIER_BADGE[marketplaceTier].className}`}>
+              {TIER_BADGE[marketplaceTier].label}
+            </span>
+          )}
         </Link>
 
         {showLogout ? (
