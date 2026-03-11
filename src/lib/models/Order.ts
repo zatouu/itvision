@@ -6,6 +6,7 @@ export interface IOrderItem {
   name: string
   qty: number
   price: number // Prix avec frais inclus
+  priceType?: 'retail' | 'wholesale'
   currency: string
   requiresQuote?: boolean
   shipping?: {
@@ -102,6 +103,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   name: { type: String, required: true },
   qty: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true },
+  priceType: { type: String, enum: ['retail', 'wholesale'] },
   currency: { type: String, default: 'FCFA' },
   requiresQuote: { type: Boolean, default: false },
   shipping: {

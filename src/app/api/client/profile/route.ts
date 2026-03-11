@@ -97,7 +97,12 @@ export async function GET(request: NextRequest) {
         role: profileData.role,
         avatar: profileData.avatar || profileData.avatarUrl,
         preferences: profileData.preferences || {},
-        createdAt: profileData.createdAt
+        createdAt: profileData.createdAt,
+        marketplaceTier: profileData.marketplaceTier || 'standard',
+        totalMarketplacePurchases: profileData.totalMarketplacePurchases || 0,
+        marketplaceOrderCount: profileData.marketplaceOrderCount || 0,
+        proRequestedAt: profileData.proRequestedAt || null,
+        proValidatedAt: profileData.proValidatedAt || null
       }
     })
   } catch (error) {

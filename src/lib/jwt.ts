@@ -7,6 +7,7 @@ export type JwtUser = {
   role: string
   email?: string
   username?: string
+  marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
 }
 
 export function extractAuthToken(request: NextRequest): string | null {
@@ -32,7 +33,8 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
     userId,
     role,
     email: typeof payload.email === 'string' ? payload.email : undefined,
-    username: typeof payload.username === 'string' ? payload.username : undefined
+    username: typeof payload.username === 'string' ? payload.username : undefined,
+    marketplaceTier: (payload as any).marketplaceTier || 'standard'
   }
 }
 

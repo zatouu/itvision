@@ -16,6 +16,11 @@ export interface IUser extends Document {
   companyClientId?: mongoose.Types.ObjectId
   favoriteProductIds?: string[]
   role: 'CLIENT' | 'TECHNICIAN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'ADMIN' | 'SUPER_ADMIN'
+  marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
+  proRequestedAt?: Date
+  proValidatedAt?: Date
+  totalMarketplacePurchases?: number
+  marketplaceOrderCount?: number
   isActive: boolean
   loginAttempts: number
   lockedUntil?: Date
@@ -43,6 +48,11 @@ const UserSchema = new Schema<IUser>({
   companyClientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   favoriteProductIds: { type: [String], default: [] },
   role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN'], default: 'CLIENT', index: true },
+  marketplaceTier: { type: String, enum: ['standard', 'pro', 'reseller', 'partner'], default: 'standard', index: true },
+  proRequestedAt: { type: Date },
+  proValidatedAt: { type: Date },
+  totalMarketplacePurchases: { type: Number, default: 0 },
+  marketplaceOrderCount: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true, index: true },
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date },

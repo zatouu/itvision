@@ -49,6 +49,8 @@ interface ApiProduct {
   grossWeightKg?: number
   netWeightKg?: number
   volumeM3?: number
+  // Prix wholesale B2B
+  b2bPrice?: number
   // Achat groupé
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number
@@ -1904,6 +1906,7 @@ export default function ProduitsPage() {
                                 isImported={product.isImported}
                                 unitWeightKg={product.weightKg ?? product.grossWeightKg ?? product.netWeightKg}
                                 unitVolumeM3={product.volumeM3}
+                                b2bPrice={product.b2bPrice}
                                 groupBuyEnabled={product.groupBuyEnabled}
                                 groupBuyBestPrice={product.groupBuyBestPrice}
                                 groupBuyDiscount={product.groupBuyDiscount}

@@ -7,6 +7,7 @@ import { calculateBilledWeight } from './volumetric-weight'
 import { calculateCompleteFees, getServiceFeeTier, type CompleteFeesBreakdown } from './tiered-service-fees'
 import { applyTierDiscount, type TierPricing } from './tiered-pricing'
 import { getCNYToXOFRate, DEFAULT_EXCHANGE_RATE } from './exchange-rate'
+import { resolveProductPrice, type MarketplaceTier } from './resolve-product-price'
 
 export interface CartItem {
   id: string
@@ -19,10 +20,13 @@ export interface CartItem {
   widthCm?: number
   heightCm?: number
   volumeM3?: number
+  b2bPrice?: number // Prix wholesale en FCFA (5+ pcs ou compte Pro)
   // Frais spécifiques au produit
   exchangeRate?: number
   serviceFeeRate?: number
   insuranceRate?: number
+  // Tier marketplace de l'acheteur (passé depuis le JWT)
+  marketplaceTier?: MarketplaceTier
 }
 
 export interface ShippingCalculation {
@@ -81,6 +85,12 @@ export interface CompleteCartCalculation {
     amountNeeded?: number
     progressPercent: number
   }
+  // Pricing retail/wholesale appliqué
+  appliedPricing: {
+    hasWholesaleItems: boolean
+    wholesaleItemCount: number
+    retailItemCount: number
+  }
 }
 
 /**
@@ -103,10 +113,25 @@ export async function calculateCartTotal(
   let totalWeight = 0
   let totalVolumetricWeight = 0
   let totalVolume = 0
+  let wholesaleItemCount = 0
+  let retailItemCount = 0
   
   for (const item of items) {
     const qty = item.qty || 1
     totalQuantity += qty
+    
+    // Résoudre le prix applicable (retail vs wholesale)
+    const resolved = resolveProductPrice({
+      price: item.price,
+      b2bPrice: item.b2bPrice,
+      qty,
+      marketplaceTier: item.marketplaceTier
+    })
+    if (resolved.priceType === 'wholesale') {
+      wholesaleItemCount += qty
+    } else {
+      retailItemCount += qty
+    }
     
     // Coût fournisseur
     if (item.price1688 && item.price1688 > 0) {
@@ -237,6 +262,11 @@ export async function calculateCartTotal(
     nextTierProgress: {
       hasNextTier: false, // Sera calculé côté client avec ServiceFeeTierProgress
       progressPercent: 0
+    },
+    appliedPricing: {
+      hasWholesaleItems: wholesaleItemCount > 0,
+      wholesaleItemCount,
+      retailItemCount
     }
   }
 }
@@ -287,6 +317,11 @@ export function calculateCartTotalSync(
     nextTierProgress: {
       hasNextTier: false,
       progressPercent: 0
+    },
+    appliedPricing: {
+      hasWholesaleItems: false,
+      wholesaleItemCount: 0,
+      retailItemCount: 0
     }
   }
   

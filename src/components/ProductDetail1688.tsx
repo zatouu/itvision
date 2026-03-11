@@ -42,6 +42,7 @@ import {
   Target,
 } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
+import ProductReviews from '@/components/ProductReviews'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
 const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
@@ -175,6 +176,7 @@ interface ProductDetailData {
   }
   weights?: ProductWeights
   isImported?: boolean
+  b2bPrice?: number | null
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number | null
   groupBuyDiscount?: number | null
@@ -380,7 +382,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
         const existsIndex = items.findIndex((item: any) => item.id === id)
         if (existsIndex >= 0) { items[existsIndex].qty += quantity; items[existsIndex].price = baseUnitPrice; items[existsIndex].currency = currency }
         else {
-          const newItem: any = { id, name: product.name, qty: quantity, price: baseUnitPrice, currency, requiresQuote: !!product.requiresQuote, unitWeightKg: unitWeightKg ?? undefined, unitVolumeM3: unitVolumeM3 ?? undefined }
+          const newItem: any = { id, name: product.name, qty: quantity, price: baseUnitPrice, b2bPrice: product.b2bPrice ?? undefined, currency, requiresQuote: !!product.requiresQuote, unitWeightKg: unitWeightKg ?? undefined, unitVolumeM3: unitVolumeM3 ?? undefined }
           if (activeShipping) newItem.shipping = { id: activeShipping.id, label: activeShipping.label, durationDays: activeShipping.durationDays, rate: activeShipping.rate }
           if (product.pricing.fees) { newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate; newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount; newItem.insuranceRate = product.pricing.fees.insuranceRate; newItem.insuranceAmount = product.pricing.fees.insuranceAmount }
           items.push(newItem)
@@ -855,6 +857,18 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                     </span>
                     <span className="text-sm text-gray-500">/unité</span>
                   </div>
+                  {/* Prix wholesale si disponible et inférieur au prix retail */}
+                  {product.b2bPrice && product.b2bPrice > 0 && product.b2bPrice < baseUnitPrice && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-gray-500">Dès 5 pcs :</span>
+                      <span className="text-lg font-bold text-violet-600">
+                        {formatCurrency(product.b2bPrice)}
+                      </span>
+                      <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">
+                        -{Math.round((1 - product.b2bPrice / baseUnitPrice) * 100)}%
+                      </span>
+                    </div>
+                  )}
 
                   {/* Détail prix — transparence */}
                   {(product.pricing.baseCost || product.pricing.fees) && (
@@ -1122,6 +1136,11 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ═══ Avis clients ═══ */}
+      <div className="max-w-7xl mx-auto px-4 pb-8">
+        <ProductReviews productId={product.id} />
       </div>
 
       {/* ═══ Modal image plein écran ═══ */}

@@ -10,7 +10,21 @@ type Profile = {
   phone?: string
   role?: string
   createdAt?: string
+  marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
+  totalMarketplacePurchases?: number
+  marketplaceOrderCount?: number
+  proRequestedAt?: string | null
+  proValidatedAt?: string | null
 }
+
+const TIER_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  standard: { label: 'Standard', color: 'text-gray-700', bg: 'bg-gray-100', border: 'border-gray-200' },
+  pro: { label: 'Pro', color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-200' },
+  reseller: { label: 'Revendeur', color: 'text-violet-700', bg: 'bg-violet-100', border: 'border-violet-200' },
+  partner: { label: 'Partenaire', color: 'text-yellow-700', bg: 'bg-yellow-100', border: 'border-yellow-200' },
+}
+
+const PRO_THRESHOLDS = { minOrders: 3, minPurchases: 150_000 }
 
 export default function CompteProfilPage() {
   const [loading, setLoading] = useState(true)
@@ -25,6 +39,8 @@ export default function CompteProfilPage() {
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [requestingPro, setRequestingPro] = useState(false)
+  const [proMessage, setProMessage] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -226,6 +242,113 @@ export default function CompteProfilPage() {
                   Se déconnecter
                 </Link>
               </div>
+
+              {/* ══ Section Statut Marketplace ══ */}
+              {profile && (() => {
+                const tier = profile.marketplaceTier || 'standard'
+                const cfg = TIER_CONFIG[tier] || TIER_CONFIG.standard
+                const orders = profile.marketplaceOrderCount || 0
+                const purchases = profile.totalMarketplacePurchases || 0
+                const isStandard = tier === 'standard'
+                const isEligible = orders >= PRO_THRESHOLDS.minOrders || purchases >= PRO_THRESHOLDS.minPurchases
+                const alreadyRequested = !!profile.proRequestedAt
+                const orderProgress = Math.min(100, Math.round((orders / PRO_THRESHOLDS.minOrders) * 100))
+                const purchaseProgress = Math.min(100, Math.round((purchases / PRO_THRESHOLDS.minPurchases) * 100))
+
+                async function handleRequestPro() {
+                  setRequestingPro(true)
+                  setProMessage(null)
+                  try {
+                    let csrfToken: string | null = null
+                    try {
+                      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+                      const csrfData = await csrfRes.json().catch(() => ({}))
+                      csrfToken = csrfData?.csrfToken || null
+                    } catch {}
+                    const res = await fetch('/api/client/request-pro', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+                      credentials: 'include',
+                    })
+                    const data = await res.json().catch(() => ({}))
+                    if (!res.ok) throw new Error(data?.error || 'Erreur')
+                    setProMessage(data.message || 'Demande envoyee')
+                    setProfile(prev => prev ? { ...prev, proRequestedAt: new Date().toISOString() } : prev)
+                  } catch (e) {
+                    setProMessage(e instanceof Error ? e.message : 'Erreur')
+                  } finally {
+                    setRequestingPro(false)
+                  }
+                }
+
+                return (
+                  <div className={`mt-2 rounded-2xl border ${cfg.border} ${cfg.bg} p-5 shadow-sm`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Statut Marketplace</h3>
+                      <span className={`${cfg.color} ${cfg.bg} px-3 py-1 rounded-full text-xs font-bold border ${cfg.border}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+
+                    {!isStandard ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-700 dark:text-gray-200">
+                          Vous beneficiez des prix wholesale automatiquement.
+                        </p>
+                        <div className="text-xs text-gray-500">
+                          <span className="font-medium">{orders}</span> commandes | <span className="font-medium">{purchases.toLocaleString('fr-FR')} FCFA</span> cumul
+                        </div>
+                        {profile.proValidatedAt && (
+                          <p className="text-xs text-gray-400">Valide depuis le {new Date(profile.proValidatedAt).toLocaleDateString('fr-FR')}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          Passez au compte Pro pour acceder aux prix wholesale des la premiere piece.
+                        </p>
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>Commandes ({orders}/{PRO_THRESHOLDS.minOrders})</span>
+                              <span>{orderProgress}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${orderProgress}%` }} />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>Achats ({purchases.toLocaleString('fr-FR')}/{PRO_THRESHOLDS.minPurchases.toLocaleString('fr-FR')} FCFA)</span>
+                              <span>{purchaseProgress}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${purchaseProgress}%` }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {proMessage && (
+                          <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{proMessage}</p>
+                        )}
+
+                        {isEligible && !alreadyRequested && (
+                          <button
+                            onClick={handleRequestPro}
+                            disabled={requestingPro}
+                            className="w-full rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-4 py-2.5 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600 disabled:opacity-60"
+                          >
+                            {requestingPro ? 'Envoi...' : 'Demander le passage Pro'}
+                          </button>
+                        )}
+                        {alreadyRequested && !profile.proValidatedAt && (
+                          <p className="text-xs text-violet-600 font-medium">Demande en cours de validation par notre equipe.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>

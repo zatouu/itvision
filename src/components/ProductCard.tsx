@@ -40,6 +40,8 @@ export interface ProductCardProps {
   // Données physiques pour le calcul transport
   unitWeightKg?: number
   unitVolumeM3?: number
+  // Prix wholesale B2B (5+ pcs ou compte Pro)
+  b2bPrice?: number
   // Achat groupé
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number // Meilleur prix possible en achat groupé
@@ -91,6 +93,7 @@ export default function ProductCard({
   condition = 'new',
   unitWeightKg,
   unitVolumeM3,
+  b2bPrice,
   groupBuyEnabled = false,
   groupBuyBestPrice,
   groupBuyDiscount,
@@ -285,6 +288,7 @@ export default function ProductCard({
           qty: 1,
           // Prix principal = prix sourcing (basePrice). Les frais et le transport sont ajoutés au checkout.
           price: basePrice,
+          b2bPrice: typeof b2bPrice === 'number' && b2bPrice > 0 ? b2bPrice : undefined,
           currency: effectiveCurrency,
           requiresQuote: !!requiresQuote,
           unitWeightKg: typeof unitWeightKg === 'number' ? unitWeightKg : undefined,
@@ -438,6 +442,11 @@ export default function ProductCard({
           <div className="text-xl font-bold text-green-600 dark:text-green-400">
             {computedPriceLabel}
           </div>
+          {typeof b2bPrice === 'number' && b2bPrice > 0 && basePrice > 0 && b2bPrice < basePrice && (
+            <p className="text-xs text-violet-600 font-semibold mt-0.5 truncate">
+              5 pcs+ : {b2bPrice.toLocaleString('fr-FR')} {effectiveCurrency} ({-Math.round((1 - b2bPrice / basePrice) * 100)}%)
+            </p>
+          )}
           {groupBuyEnabled && (bestActiveGroup || typeof groupBuyBestPrice === 'number') && (
             <div className="mt-1 space-y-1">
               {bestActiveGroup && currentGroupPriceLabel && (

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
+import User from '@/lib/models/User'
 import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { connectDB } from '@/lib/db'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
+import { resolveProductPrice } from '@/lib/pricing/resolve-product-price'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
@@ -83,18 +85,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Préparer les items pour le calculateur
+    // Récupérer le tier marketplace de l'utilisateur authentifié
+    const userMarketplaceTier = auth?.marketplaceTier || 'standard'
+
+    // Préparer les items pour le calculateur (avec b2bPrice et tier)
     const calculatorItems = cart.map((item: any) => ({
       id: item.id,
       name: item.name,
       price: item.price,
+      b2bPrice: item.b2bPrice,
       price1688: item.price1688,
       qty: item.qty || 1,
       weightKg: item.unitWeightKg || item.weightKg,
       lengthCm: item.lengthCm,
       widthCm: item.widthCm,
       heightCm: item.heightCm,
-      volumeM3: item.unitVolumeM3 || item.volumeM3
+      volumeM3: item.unitVolumeM3 || item.volumeM3,
+      marketplaceTier: userMarketplaceTier
     }))
 
     // Calcul complet
@@ -142,16 +149,26 @@ export async function POST(req: NextRequest) {
       trackingAccessTokenHash,
       trackingAccessTokenCreatedAt: new Date(),
       
-      items: cart.map((item: any) => ({
-        id: item.id,
-        variantId: item.variantId,
-        name: item.name,
-        qty: item.qty || 1,
-        price: item.price,
-        currency: item.currency || 'FCFA',
-        requiresQuote: item.requiresQuote,
-        shipping: item.shipping
-      })),
+      items: cart.map((item: any) => {
+        const qty = item.qty || 1
+        const resolved = resolveProductPrice({
+          price: item.price,
+          b2bPrice: item.b2bPrice,
+          qty,
+          marketplaceTier: userMarketplaceTier
+        })
+        return {
+          id: item.id,
+          variantId: item.variantId,
+          name: item.name,
+          qty,
+          price: resolved.appliedPrice,
+          priceType: resolved.priceType,
+          currency: item.currency || 'FCFA',
+          requiresQuote: item.requiresQuote,
+          shipping: item.shipping
+        }
+      }),
       
       // Nouvelle décomposition des frais
       fees: {
@@ -201,6 +218,45 @@ export async function POST(req: NextRequest) {
     })
 
     await orderDoc.save()
+
+    // Incrémenter les stats marketplace de l'utilisateur authentifié
+    if (auth?.userId) {
+      try {
+        const updatedUser = await User.findByIdAndUpdate(
+          auth.userId,
+          {
+            $inc: {
+              totalMarketplacePurchases: total,
+              marketplaceOrderCount: 1
+            }
+          },
+          { new: true }
+        ).lean() as any
+
+        // Vérifier éligibilité Pro si encore standard
+        if (updatedUser && updatedUser.marketplaceTier === 'standard') {
+          const isEligible =
+            (updatedUser.totalMarketplacePurchases || 0) >= 150_000 ||
+            (updatedUser.marketplaceOrderCount || 0) >= 3
+          if (isEligible && !updatedUser.proRequestedAt) {
+            // Créer une notification in-app (best effort)
+            try {
+              const InAppNotification = (await import('@/lib/models/InAppNotification')).default
+              await InAppNotification.create({
+                userId: auth.userId,
+                type: 'info',
+                title: 'Compte Pro disponible',
+                message: 'Vous êtes éligible au compte Pro ! Accédez aux prix wholesale dès 1 pièce.',
+                actionUrl: '/compte/profil',
+                metadata: { proEligible: true }
+              })
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error('Erreur mise à jour stats marketplace user:', err)
+      }
+    }
 
     // Envoyer le lien de suivi par email si fourni (best effort)
     if (email && typeof email === 'string' && email.includes('@')) {

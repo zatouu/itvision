@@ -10,14 +10,10 @@ export interface TierPricing {
   label: string
 }
 
-// Tarifs progressifs: plus la quantité est élevée, plus la réduction est importante
+// Tarifs progressifs: réductions sur le subtotal selon la quantité totale commandée.
+// Note: la logique retail vs wholesale (5+ pièces) est gérée par b2bPrice sur le produit,
+// pas par ces paliers de réduction.
 export const QUANTITY_TIERS: TierPricing[] = [
-  {
-    minQuantity: 5,
-    maxQuantity: 19,
-    discountPercent: 0,
-    label: '5-19 produits'
-  },
   {
     minQuantity: 20,
     maxQuantity: 49,

@@ -121,7 +121,8 @@ export async function POST(request: NextRequest) {
         userId: String(user._id),
         email: user.email,
         role: normalizedRole,
-        username: user.username
+        username: user.username,
+        marketplaceTier: user.marketplaceTier || 'standard'
       },
       remember ? '30d' : '7d'
     )
@@ -136,7 +137,8 @@ export async function POST(request: NextRequest) {
       username: user.username,
       name: user.name,
       phone: user.phone,
-      role: user.role
+      role: user.role,
+      marketplaceTier: user.marketplaceTier || 'standard'
     }
 
     // Réinitialiser tentatives en cas de succès
@@ -201,14 +203,16 @@ export async function GET(request: NextRequest) {
     // Enrichir avec les données utilisateur depuis la DB si possible
     let name: string | undefined
     let username: string | undefined
+    let dbUser: any = null
     try {
       await connectMongoose()
       const userId = String(decoded.userId || decoded.id || decoded.sub || '')
       if (userId) {
-        const user = await User.findById(userId).select('name username').lean() as any
+        const user = await User.findById(userId).select('name username marketplaceTier marketplaceOrderCount totalMarketplacePurchases proRequestedAt proValidatedAt').lean() as any
         if (user) {
           name = user.name
           username = user.username
+          dbUser = user
         }
       }
     } catch {}
@@ -220,7 +224,12 @@ export async function GET(request: NextRequest) {
         name: name || (decoded as any).name || (decoded as any).username,
         username: username || (decoded as any).username,
         role: String(decoded.role || ''),
-        permissions: (decoded as any).permissions
+        permissions: (decoded as any).permissions,
+        marketplaceTier: dbUser?.marketplaceTier || (decoded as any).marketplaceTier || 'standard',
+        marketplaceOrderCount: dbUser?.marketplaceOrderCount ?? 0,
+        totalMarketplacePurchases: dbUser?.totalMarketplacePurchases ?? 0,
+        proRequestedAt: dbUser?.proRequestedAt || null,
+        proValidatedAt: dbUser?.proValidatedAt || null
       }
     })
 

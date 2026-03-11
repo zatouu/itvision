@@ -362,8 +362,9 @@ export default function PanierPage() {
 
     for (const it of items) {
       const qty = it.qty || 1
-      const price = typeof it.price === 'number' ? it.price : 0
-      products += price * qty
+      const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price
+      const effectivePrice = hasWholesale && qty >= 5 ? it.b2bPrice : (typeof it.price === 'number' ? it.price : 0)
+      products += effectivePrice * qty
       totalQuantity += qty
     }
 
@@ -625,7 +626,34 @@ export default function PanierPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 truncate">{it.name}</h3>
                           {it.variantId && <p className="text-xs text-gray-500">Variante: {it.variantId}</p>}
-                          <p className="text-sm text-green-600 font-bold mt-1">{formatCurrency(it.price)}</p>
+                          {(() => {
+                            const qty = it.qty || 1
+                            const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price
+                            const usesWholesale = hasWholesale && qty >= 5
+                            const effectivePrice = usesWholesale ? it.b2bPrice : it.price
+                            return (
+                              <>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`text-sm font-bold ${usesWholesale ? 'text-violet-600' : 'text-green-600'}`}>
+                                    {formatCurrency(effectivePrice)}
+                                  </span>
+                                  {usesWholesale && (
+                                    <span className="text-xs line-through text-gray-400">{formatCurrency(it.price)}</span>
+                                  )}
+                                  {usesWholesale && (
+                                    <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                      Prix gros
+                                    </span>
+                                  )}
+                                </div>
+                                {hasWholesale && !usesWholesale && (
+                                  <p className="text-[11px] text-violet-500 mt-0.5">
+                                    {formatCurrency(it.b2bPrice)} des 5 pcs (-{Math.round((1 - it.b2bPrice / it.price) * 100)}%)
+                                  </p>
+                                )}
+                              </>
+                            )
+                          })()}
                           {recentViewed && recentViewed.some(rv => it.id.startsWith(rv.id)) && (
                             <span className="inline-block text-xs text-green-600 font-semibold mt-1">⭐ Vu récemment</span>
                           )}
@@ -648,7 +676,7 @@ export default function PanierPage() {
                               <Plus className="w-4 h-4 text-green-600" />
                             </button>
                           </motion.div>
-                          <p className="text-sm font-bold text-gray-900">{formatCurrency((it.price || 0) * (it.qty || 1))}</p>
+                          <p className="text-sm font-bold text-gray-900">{formatCurrency(((typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price && (it.qty || 1) >= 5) ? it.b2bPrice : (it.price || 0)) * (it.qty || 1))}</p>
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
