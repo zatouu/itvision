@@ -1,88 +1,227 @@
 /**
  * Content Script - Extraction données produit depuis 1688 et AliExpress
- * Injecté automatiquement sur les pages produits
+ * v2.0 — Images classées, vidéos, description structurée, variantes enrichies
  */
 
 (function() {
   'use strict';
 
-  // Éviter double injection
   if (window.itVisionScraperInjected) return;
   window.itVisionScraperInjected = true;
 
-  console.log('[IT Vision] Scraper actif sur', window.location.hostname);
+  console.log('[IT Vision v2] Scraper actif sur', window.location.hostname);
 
   // ==========================================
-  // UTILITAIRES
+  // UTILITAIRES PARTAGÉS
   // ==========================================
-  
+
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
-  
+
   const trySelectors = (selectors) => {
-    for (const selector of selectors) {
-      const el = document.querySelector(selector);
-      if (el?.textContent?.trim()) {
-        return el.textContent.trim();
-      }
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el?.textContent?.trim()) return el.textContent.trim();
     }
     return null;
   };
 
-  const extractImages = (selectors) => {
-    const images = new Set();
-    for (const selector of selectors) {
-      document.querySelectorAll(selector).forEach(img => {
-        const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original');
-        if (src && !src.includes('lazy') && !src.includes('blank')) {
-          images.add(src.replace(/_\d+x\d+/, ''));
-        }
-      });
-    }
-    return Array.from(images);
-  };
-
-  // ==========================================
-  // EXTRACTEUR 1688
-  // ==========================================
-  
-  const scrape1688 = async () => {
-    console.log('[IT Vision] Extraction 1688...');
-    
-    // Attendre chargement complet (1688 charge en plusieurs étapes)
-    await wait(2000);
-    
-    // Scroll progressif pour charger images et contenu lazy-loaded
-    for (let y = 0; y <= 2000; y += 400) {
+  /** Scroll progressif pour déclencher le lazy-load */
+  const deepScroll = async (maxY = 6000, step = 400, delay = 250) => {
+    for (let y = 0; y <= maxY; y += step) {
       window.scrollTo(0, y);
-      await wait(300);
+      await wait(delay);
     }
     window.scrollTo(0, 0);
     await wait(300);
+  };
+
+  /** Nettoyer une URL d'image : enlever suffixes thumbnail, ajouter https */
+  const cleanImageUrl = (src) => {
+    if (!src) return '';
+    let clean = src
+      .replace(/_\d+x\d+[^.]*/, '')       // Thumbnails AliExpress/1688
+      .replace(/\.\d+x\d+\./, '.')         // Autre format
+      .replace(/\.summ\..*$/, '')           // Résumé 1688
+      .replace(/_Q\d+\.jpg/, '.jpg')       // Qualité faible
+      .replace(/\.search\..*$/, '');        // Version recherche
+    if (clean.startsWith('//')) clean = 'https:' + clean;
+    return clean;
+  };
+
+  /** Filtrer les images de bruit (logos, icônes, paiement, etc.) */
+  const isNoiseImage = (url) => {
+    if (!url) return true;
+    const lower = url.toLowerCase();
+    if (lower.startsWith('data:')) return true;
+    if (/1x1|pixel|tracker|beacon/i.test(lower)) return true;
+    if (lower.endsWith('.svg')) return true;
+    if (/paypal\.com|klarna\.com|afterpay\.com|stripe\.com|alipay/i.test(lower)) return true;
+    const filename = lower.split('/').pop()?.split('?')[0] || '';
+    if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner)[_\-.]/.test(filename)) return true;
+    if (/\/icon[s]?\//i.test(lower) || /\/ui\//i.test(lower)) return true;
+    // GIF animés = souvent promos
+    if (lower.endsWith('.gif')) return true;
+    return false;
+  };
+
+  /** Extraire toutes les vidéos d'une zone DOM */
+  const extractVideos = (root) => {
+    const videos = new Set();
+    if (!root) root = document;
+
+    // <video> tags
+    root.querySelectorAll('video').forEach(v => {
+      const src = v.getAttribute('src') || v.querySelector('source')?.getAttribute('src');
+      if (src && src.startsWith('http')) videos.add(src);
+      // poster = image de preview vidéo
+      const poster = v.getAttribute('poster');
+      if (poster) videos.add('poster:' + poster);
+    });
+
+    // data-video-url (fréquent sur 1688 et AliExpress)
+    root.querySelectorAll('[data-video-url], [data-video-src], [data-video]').forEach(el => {
+      const url = el.getAttribute('data-video-url') || el.getAttribute('data-video-src') || el.getAttribute('data-video');
+      if (url && url.startsWith('http')) videos.add(url);
+    });
+
+    // Scripts JSON contenant des URLs vidéo
+    root.querySelectorAll('script:not([src])').forEach(s => {
+      const txt = s.textContent || '';
+      // Pattern: "videoUrl":"https://..."
+      const matches = txt.matchAll(/"(?:video[Uu]rl|videoSrc|videoPath|video_url)"\s*:\s*"(https?:\/\/[^"]+)"/g);
+      for (const m of matches) {
+        if (m[1] && !m[1].includes('thumbnail')) videos.add(m[1]);
+      }
+    });
+
+    // Éléments avec background vidéo ou liens .mp4
+    root.querySelectorAll('a[href$=".mp4"], a[href*="video"]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && href.startsWith('http')) videos.add(href);
+    });
+
+    return Array.from(videos).filter(v => !v.startsWith('poster:'));
+  };
+
+  /** Extraire posters de vidéos */
+  const extractVideoPosters = (root) => {
+    const posters = [];
+    if (!root) root = document;
+    root.querySelectorAll('video[poster]').forEach(v => {
+      const p = v.getAttribute('poster');
+      if (p && p.startsWith('http')) posters.push(cleanImageUrl(p));
+    });
+    return posters;
+  };
+
+  /** Déduplication d'images par nom de fichier */
+  const deduplicateImages = (urls) => {
+    const seen = new Set();
+    return urls.filter(url => {
+      if (isNoiseImage(url)) return false;
+      const fname = url.split('/').pop()?.split('?')[0]?.replace(/_\d+x\d+/, '') || url;
+      if (seen.has(fname)) return false;
+      seen.add(fname);
+      return true;
+    });
+  };
+
+  /** Extraire texte propre d'un élément DOM, sans HTML */
+  const cleanTextFromElement = (el) => {
+    if (!el) return '';
+    const clone = el.cloneNode(true);
+    // Supprimer les scripts et styles
+    clone.querySelectorAll('script, style, noscript, iframe').forEach(n => n.remove());
+    return (clone.innerText || clone.textContent || '').trim();
+  };
+
+  /** Structurer une description en sections markdown propres */
+  const buildStructuredDescription = ({ title, specs, presentationText, shopName, rating, orders }) => {
+    const parts = [];
+
+    if (title) parts.push(`# ${title}`);
+
+    const specEntries = Object.entries(specs || {}).filter(([k, v]) =>
+      k && v && k.length >= 2 && k.length <= 60 && v.length <= 200 &&
+      !/^\d+([.,]\d+)?$/.test(k.trim()) &&
+      !['n/a', 'non spécifié', 'none'].includes(v.toLowerCase())
+    );
+
+    if (specEntries.length > 0) {
+      parts.push('\n## Caractéristiques techniques');
+      specEntries.slice(0, 25).forEach(([k, v]) => parts.push(`- **${k}**: ${v}`));
+    }
+
+    if (presentationText && presentationText.length > 30) {
+      const paragraphs = presentationText
+        .replace(/\n{3,}/g, '\n\n').replace(/\t/g, ' ')
+        .split('\n\n')
+        .map(p => p.trim())
+        .filter(p => p.length > 15)
+        .slice(0, 8);
+      if (paragraphs.length > 0) {
+        parts.push('\n## Description');
+        paragraphs.forEach(p => parts.push(p));
+      }
+    }
+
+    const meta = [
+      shopName && `Boutique: ${shopName}`,
+      rating && `Note: ${rating}/5`,
+      orders && `${orders} commandes`
+    ].filter(Boolean);
+    if (meta.length > 0) {
+      parts.push('\n## Informations');
+      meta.forEach(m => parts.push(`- ${m}`));
+    }
+
+    let desc = parts.join('\n\n');
+    if (desc.length > 5000) desc = desc.slice(0, 5000) + '...';
+    return desc.trim();
+  };
+
+  // ==========================================
+  // EXTRACTEUR 1688 (v2)
+  // ==========================================
+
+  const scrape1688 = async () => {
+    console.log('[IT Vision] Extraction 1688 v2...');
+    await wait(2000);
+
+    // Scroll profond (1688 charge description et images en lazy-load très loin)
+    await deepScroll(8000, 400, 300);
+
+    // Cliquer sur onglets "详情" (détails) / "商品描述" pour charger la description
+    try {
+      document.querySelectorAll('[role="tab"], [class*="tab" i] li, [class*="Tab" i] a, [class*="tab-item" i]').forEach(tab => {
+        const t = (tab.textContent || '').trim();
+        if (t.includes('详情') || t.includes('描述') || t.includes('详细') || t.includes('detail')) {
+          tab.click();
+          console.log('[IT Vision] Onglet 1688 cliqué:', t);
+        }
+      });
+      await wait(2000);
+      // Re-scroll après clic onglet
+      await deepScroll(6000, 500, 200);
+    } catch (e) { console.warn('[IT Vision] Onglets 1688:', e); }
 
     const data = {
       platform: '1688',
-      url: window.location.href.split('?')[0], // URL propre sans tracking params
+      url: window.location.href.split('?')[0],
       timestamp: new Date().toISOString()
     };
 
-    // Titre (nombreux fallbacks car 1688 change souvent le DOM)
+    // ── TITRE ──
     try {
       data.name = trySelectors([
-        '.offer-title',
-        '.detail-title',
-        'h1[data-spm="title"]',
-        'h1.title',
-        '.title-text',
-        '.mod-detail-title h1',
-        '[class*="offerTitle"]',
-        '[class*="DetailTitle"]',
-        'h1'
+        '.offer-title', '.detail-title', 'h1[data-spm="title"]',
+        'h1.title', '.title-text', '.mod-detail-title h1',
+        '[class*="offerTitle"]', '[class*="DetailTitle"]',
+        '[class*="title-text" i]', '[class*="offer-title" i]', 'h1'
       ]) || document.title.replace(/[-|].*$/, '').trim() || 'Produit 1688';
-    } catch (e) {
-      data.name = document.title.replace(/[-|].*$/, '').trim() || 'Produit 1688';
-    }
+    } catch { data.name = document.title.replace(/[-|].*$/, '').trim() || 'Produit 1688'; }
 
-    // Prix (extraction plus robuste avec regex sur tout le contenu visible)
+    // ── PRIX + PALIERS ──
     try {
       const priceEl = document.querySelector(
         '.price-now .price-num, .price .price-num, .offer-price, ' +
@@ -91,12 +230,15 @@
       );
       const priceMatch = priceEl?.textContent?.match(/(\d+(?:\.\d+)?)/);
       data.price1688 = priceMatch ? parseFloat(priceMatch[1]) : null;
-      // Essayer aussi d'extraire les prix par paliers
+
       const priceTiers = [];
-      document.querySelectorAll('[class*="price"] tr, [class*="Price"] tr, .price-range-item, .batch-price-item').forEach(row => {
+      document.querySelectorAll(
+        '[class*="price"] tr, [class*="Price"] tr, .price-range-item, .batch-price-item, ' +
+        '[class*="batchPrice" i] [class*="item" i], [class*="step-price" i] [class*="item" i]'
+      ).forEach(row => {
         const texts = row.textContent || '';
-        const qtyMatch = texts.match(/(\d+)\s*[-~≥]\s*(\d+)?/);
-        const prMatch = texts.match(/¥?\s*(\d+(?:\.\d+)?)/);
+        const qtyMatch = texts.match(/(\d+)\s*[-~≥>=]\s*(\d+)?/);
+        const prMatch = texts.match(/[¥￥]?\s*(\d+(?:\.\d+)?)/);
         if (qtyMatch && prMatch) {
           priceTiers.push({
             minQty: parseInt(qtyMatch[1]),
@@ -106,78 +248,145 @@
         }
       });
       if (priceTiers.length > 0) data.priceTiers = priceTiers;
-    } catch (e) {
-      console.warn('[IT Vision] Erreur extraction prix:', e);
-    }
 
-    // Images (plus de sélecteurs)
-    try {
-      data.gallery = extractImages([
-        '.detail-gallery img',
-        '.offer-img img',
-        '.main-image img',
-        '.tab-content img',
-        '[class*="gallery"] img',
-        '[class*="slider"] img',
-        '[class*="thumb"] img',
-        '.detail-desc img'
-      ]);
-      // Fallback: og:image
-      if (data.gallery.length === 0) {
-        const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
-        if (ogImg) data.gallery = [ogImg];
+      // Prix promo si visible
+      const promoPriceEl = document.querySelector('[class*="promotion" i] [class*="price" i], [class*="sale" i] [class*="price" i]');
+      if (promoPriceEl) {
+        const pm = promoPriceEl.textContent?.match(/(\d+(?:\.\d+)?)/);
+        if (pm) data.promoPrice1688 = parseFloat(pm[1]);
       }
-      data.image = data.gallery[0];
-    } catch (e) {
-      data.gallery = [];
-      console.warn('[IT Vision] Erreur extraction images:', e);
-    }
+    } catch (e) { console.warn('[IT Vision] Prix 1688:', e); }
 
-    // Variantes (extraction enrichie avec prix et images)
+    // ── IMAGES — classées par catégorie ──
+    const imageCategories = { main: [], gallery: [], variant: [], description: [], packaging: [] };
+    try {
+      const is1688ProductImage = (src) => /cbu\d*\.alicdn\.com|img\.alicdn\.com|sc\d+\.alicdn/i.test(src);
+
+      // Images galerie principale
+      const gallerySelectors = [
+        '.detail-gallery img', '.offer-img img', '.main-image img',
+        '[class*="gallery" i] img', '[class*="slider" i] img',
+        '[class*="image-view" i] img', '[class*="thumb" i] img',
+        '[class*="detail-image" i] img', '[class*="mainImg" i] img'
+      ];
+      for (const sel of gallerySelectors) {
+        document.querySelectorAll(sel).forEach(img => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
+          if (!src || isNoiseImage(src)) return;
+          const clean = cleanImageUrl(src);
+          if (clean && !imageCategories.gallery.includes(clean)) imageCategories.gallery.push(clean);
+        });
+      }
+
+      // og:image fallback
+      if (imageCategories.gallery.length === 0) {
+        const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
+        if (ogImg) imageCategories.gallery.push(cleanImageUrl(ogImg));
+      }
+
+      // Première image = main
+      if (imageCategories.gallery.length > 0) {
+        imageCategories.main = [imageCategories.gallery[0]];
+      }
+
+      // Images de description (dans la section détails en bas de page)
+      const descContainers = document.querySelectorAll(
+        '.detail-desc, [class*="offerDesc" i], [class*="offer-desc" i], [class*="detail-desc" i], ' +
+        '#desc-lazyload-container, [class*="descV8" i], [id*="desc" i], ' +
+        '[class*="description" i] img, [class*="tab-content" i]'
+      );
+      descContainers.forEach(container => {
+        container.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
+          if (!src || isNoiseImage(src)) return;
+          const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
+          const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
+          if (w > 0 && w < 100) return; // trop petit
+          if (h > 0 && h < 100) return;
+          const clean = cleanImageUrl(src);
+          if (clean && !imageCategories.description.includes(clean) && !imageCategories.gallery.includes(clean)) {
+            imageCategories.description.push(clean);
+          }
+        });
+      });
+
+      // Packaging detection: images contenant "packaging", "包装", "box"
+      const allDescImgs = [...imageCategories.description];
+      imageCategories.description = allDescImgs.filter(url => {
+        const lower = url.toLowerCase();
+        if (/packag|包装|box|carton|emball/i.test(lower)) {
+          imageCategories.packaging.push(url);
+          return false;
+        }
+        return true;
+      });
+
+      data.gallery = deduplicateImages(imageCategories.gallery).slice(0, 20);
+      data.descriptionImages = deduplicateImages(imageCategories.description).slice(0, 30);
+      data.image = data.gallery[0] || imageCategories.main[0];
+      data.imageCategories = {
+        main: imageCategories.main.slice(0, 1),
+        gallery: data.gallery,
+        variant: [],
+        description: data.descriptionImages,
+        packaging: deduplicateImages(imageCategories.packaging).slice(0, 5)
+      };
+      console.log('[IT Vision] 1688 Images:', data.gallery.length, 'galerie,', data.descriptionImages.length, 'description');
+    } catch (e) { data.gallery = []; console.warn('[IT Vision] Images 1688:', e); }
+
+    // ── VIDÉOS ──
+    try {
+      data.videos = extractVideos(document);
+      console.log('[IT Vision] 1688 Vidéos:', data.videos.length);
+    } catch { data.videos = []; }
+
+    // ── VARIANTES ──
     try {
       data.variantGroups = [];
       const processedGroups = new Set();
 
-      // Méthode 1: Conteneurs SKU structurés (1688 moderne)
       document.querySelectorAll('[class*="sku" i], [class*="Sku" i], [class*="prop" i], [class*="variant" i]').forEach(container => {
         const labelEl = container.querySelector('[class*="title" i], [class*="label" i], [class*="name" i], dt, h4, h5, strong');
         let groupName = labelEl?.textContent?.trim()?.replace(/[:\s：]+$/, '')?.trim() || '';
         groupName = groupName.replace(/\s*[:\s：].*$/, '').trim();
         if (!groupName || groupName.length > 40 || groupName.length < 1 || processedGroups.has(groupName)) return;
-        
+
+        // Normaliser nom de groupe
+        const gl = groupName.toLowerCase();
+        if (gl.includes('颜色') || gl.includes('色')) groupName = 'Couleur';
+        else if (gl.includes('尺') || gl.includes('码') || gl.includes('规格')) groupName = 'Taille';
+        else if (gl.includes('款') || gl.includes('型号')) groupName = 'Modèle';
+
         const variants = [];
-        // Chercher les items individuels
         container.querySelectorAll('li, [class*="item" i], [class*="option" i], [class*="prop-value" i]').forEach((item, idx) => {
           const text = item.textContent?.trim();
           if (!text || text.length > 80 || text.length < 1 || text === groupName) return;
-          // Ignorer si c'est le label du groupe lui-même
           if (item === labelEl || item.contains(labelEl)) return;
 
           const img = item.querySelector('img');
           let imgUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || undefined;
           if (imgUrl) {
-            imgUrl = imgUrl.replace(/_\d+x\d+[^.]*/, '');
-            if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+            imgUrl = cleanImageUrl(imgUrl);
+            // Ajouter aux images de variante
+            if (imgUrl && !imageCategories.variant.includes(imgUrl)) imageCategories.variant.push(imgUrl);
           }
 
-          // Essayer d'extraire un prix de la variante
           const priceMatch = text.match(/[¥￥]\s*(\d+(?:\.\d+)?)/);
           const variantPrice = priceMatch ? parseFloat(priceMatch[1]) : undefined;
-          // Nom nettoyé (sans le prix)
           const cleanName = text.replace(/[¥￥]\s*\d+(?:\.\d+)?/, '').trim() || text;
 
           if (!variants.find(v => v.name === cleanName)) {
             variants.push({
               id: `sku-${idx}`,
               name: cleanName,
-              image: imgUrl,
+              image: imgUrl || undefined,
               price1688: variantPrice || data.price1688,
               stock: 1000,
               isDefault: idx === 0
             });
           }
         });
-        
+
         if (variants.length > 1) {
           processedGroups.add(groupName);
           data.variantGroups.push({ name: groupName, variants });
@@ -185,45 +394,42 @@
         }
       });
 
-      // Méthode 2: Fallback items plats
+      // Fallback items plats
       if (data.variantGroups.length === 0) {
         const variants = [];
         document.querySelectorAll('.sku-item, .offer-sku, .prop-item').forEach((item, idx) => {
           const name = item.textContent?.trim();
-          const img = item.querySelector('img')?.getAttribute('src') || item.querySelector('img')?.getAttribute('data-src');
-          let imgUrl = img || undefined;
-          if (imgUrl?.startsWith('//')) imgUrl = 'https:' + imgUrl;
+          const img = item.querySelector('img');
+          let imgUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || undefined;
+          if (imgUrl) imgUrl = cleanImageUrl(imgUrl);
           if (name && name.length > 0 && name.length < 80 && !variants.find(v => v.name === name)) {
             variants.push({ id: `sku-${idx}`, name, image: imgUrl, price1688: data.price1688, stock: 1000, isDefault: idx === 0 });
           }
         });
-        if (variants.length > 1) {
-          data.variantGroups.push({ name: 'Modèle', variants });
-        }
+        if (variants.length > 1) data.variantGroups.push({ name: 'Modèle', variants });
       }
-    } catch (e) {
-      console.warn('[IT Vision] Erreur extraction variantes:', e);
-    }
 
-    // MOQ (extraction robuste)
+      // Mettre à jour les images de variante
+      if (data.imageCategories) {
+        data.imageCategories.variant = deduplicateImages(imageCategories.variant).slice(0, 20);
+      }
+    } catch (e) { console.warn('[IT Vision] Variantes 1688:', e); }
+
+    // ── MOQ ──
     try {
-      const moqSelectors = '.moq-info, [class*="moq"], .min-order, [class*="MinOrder"], [class*="minOrder"]';
-      const moqEl = document.querySelector(moqSelectors);
+      const moqEl = document.querySelector('.moq-info, [class*="moq"], .min-order, [class*="MinOrder"], [class*="minOrder"]');
       if (moqEl) {
         const moqMatch = moqEl.textContent.match(/(\d+)\s*(?:件|个|pcs|pi[eè]ces?|unit)/i);
         data.moq = moqMatch ? parseInt(moqMatch[1]) : null;
       }
-      // Fallback: chercher dans le texte général
       if (!data.moq) {
         const bodyText = document.body.innerText.slice(0, 5000);
         const moqFallback = bodyText.match(/(?:起订|最少|minimum)[^\d]*(\d+)/i);
         if (moqFallback) data.moq = parseInt(moqFallback[1]);
       }
-    } catch (e) {
-      console.warn('[IT Vision] Erreur extraction MOQ:', e);
-    }
+    } catch (e) { console.warn('[IT Vision] MOQ 1688:', e); }
 
-    // Fournisseur
+    // ── FOURNISSEUR ──
     try {
       const supplierName = document.querySelector(
         '.company-name, .supplier-name, [class*="company"], [class*="Company"], [class*="shopName"], [class*="StoreName"]'
@@ -232,75 +438,129 @@
         data.supplier = {
           name: supplierName,
           location: document.querySelector('.company-location, [class*="location"], [class*="Location"]')?.textContent?.trim() || 'Chine',
-          verified: document.querySelector('[class*="verified"], [class*="Verified"], [class*="trust"]') !== null
+          verified: !!document.querySelector('[class*="verified"], [class*="Verified"], [class*="trust"]')
         };
       }
-    } catch (e) {
-      console.warn('[IT Vision] Erreur extraction fournisseur:', e);
-    }
+    } catch (e) { console.warn('[IT Vision] Fournisseur 1688:', e); }
 
-    // Spécifications
+    // ── SPÉCIFICATIONS ──
+    const specs = {};
     try {
-      data.specifications = {};
-      document.querySelectorAll('.offer-attr-row, .parameter-row, [class*="attr"] tr, [class*="Attr"] tr, [class*="param"] tr').forEach(row => {
-        const cells = row.querySelectorAll('td, .attr-name, .attr-value, th');
+      document.querySelectorAll(
+        '.offer-attr-row, .parameter-row, [class*="attr"] tr, [class*="Attr"] tr, ' +
+        '[class*="param"] tr, [class*="detail-attr" i] li, [class*="attribute" i] li'
+      ).forEach(row => {
+        const cells = row.querySelectorAll('td, .attr-name, .attr-value, th, span');
         if (cells.length >= 2) {
           const key = cells[0].textContent?.trim();
           const value = cells[1].textContent?.trim();
-          if (key && value && key.length < 50 && value.length < 200) {
-            data.specifications[key] = value;
-          }
+          if (key && value && key.length < 50 && value.length < 200) specs[key] = value;
         }
       });
-    } catch (e) {
-      data.specifications = {};
-      console.warn('[IT Vision] Erreur extraction spécifications:', e);
-    }
+      data.specifications = specs;
+    } catch (e) { data.specifications = {}; }
 
-    // Extraire poids/dimensions depuis les spécifications
-    let weightKg = 1, lengthCm = 10, widthCm = 10, heightCm = 10;
+    // ── POIDS / DIMENSIONS ──
+    let weightKg = 0, lengthCm = 0, widthCm = 0, heightCm = 0;
     try {
-      const specs = Object.entries(data.specifications || {});
-      for (const [key, value] of specs) {
+      for (const [key, value] of Object.entries(specs)) {
         const k = key.toLowerCase();
-        if (k.includes('重量') || k.includes('weight')) {
+        if (k.includes('重量') || k.includes('weight') || k.includes('净重') || k.includes('毛重')) {
           const wm = String(value).match(/(\d+(?:\.\d+)?)\s*(?:kg|千克)/i);
           if (wm) weightKg = parseFloat(wm[1]);
-          const wg = String(value).match(/(\d+(?:\.\d+)?)\s*(?:g|克)/i);
-          if (wg && !wm) weightKg = parseFloat(wg[1]) / 1000;
+          if (!wm) {
+            const wg = String(value).match(/(\d+(?:\.\d+)?)\s*(?:g|克)/i);
+            if (wg) weightKg = parseFloat(wg[1]) / 1000;
+          }
         }
-        if (k.includes('尺寸') || k.includes('dimension') || k.includes('size')) {
+        if (k.includes('尺寸') || k.includes('dimension') || k.includes('size') || k.includes('规格') || k.includes('大小')) {
           const dims = String(value).match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
           if (dims) {
             lengthCm = parseFloat(dims[1]);
             widthCm = parseFloat(dims[2]);
             heightCm = parseFloat(dims[3]);
+            // Si les valeurs sont en mm (< 1), convertir
+            if (lengthCm > 0 && lengthCm < 1) { lengthCm *= 10; widthCm *= 10; heightCm *= 10; }
           }
         }
       }
-    } catch (e) {
-      console.warn('[IT Vision] Erreur extraction poids/dimensions:', e);
-    }
+    } catch (e) { console.warn('[IT Vision] Poids/dim 1688:', e); }
 
-    // Valeurs par défaut
+    // ── DESCRIPTION STRUCTURÉE (NOUVEAU) ──
+    let presentationText = '';
+    try {
+      // Extraire le texte de la section description
+      const descContainers = document.querySelectorAll(
+        '.detail-desc, [class*="offerDesc" i], [class*="offer-desc" i], ' +
+        '#desc-lazyload-container, [class*="descV8" i], [id*="desc" i]'
+      );
+      for (const container of descContainers) {
+        const text = cleanTextFromElement(container);
+        if (text.length > presentationText.length) presentationText = text;
+      }
+
+      // Nettoyer le texte brut chinois : supprimer les lignes inutiles
+      if (presentationText) {
+        presentationText = presentationText
+          .split('\n')
+          .map(l => l.trim())
+          .filter(l => {
+            if (l.length < 3) return false;
+            // Supprimer lignes "en savoir plus", pubs, liens
+            if (/^(查看|了解|点击|联系|more|click|contact)/i.test(l)) return false;
+            if (/^\d+$/.test(l)) return false;
+            return true;
+          })
+          .join('\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .slice(0, 5000);
+      }
+    } catch (e) { console.warn('[IT Vision] Description 1688:', e); }
+
+    // Construire la description structurée
+    data.description = buildStructuredDescription({
+      title: data.name,
+      specs,
+      presentationText,
+      shopName: data.supplier?.name,
+      rating: null,
+      orders: null
+    });
+
+    // ── VALEURS PAR DÉFAUT ──
     data.category = 'Catalogue import Chine';
     data.tagline = 'Import 1688';
     data.availabilityNote = 'Import 1688 - vérifier poids/dimensions';
     data.currency = 'FCFA';
     data.price1688Currency = 'CNY';
     data.exchangeRate = 100;
-    data.weightKg = weightKg;
-    data.lengthCm = lengthCm;
-    data.widthCm = widthCm;
-    data.heightCm = heightCm;
+    data.weightKg = weightKg > 0 ? weightKg : undefined;
+    data.lengthCm = lengthCm > 0 ? lengthCm : undefined;
+    data.widthCm = widthCm > 0 ? widthCm : undefined;
+    data.heightCm = heightCm > 0 ? heightCm : undefined;
     data.features = [
       data.moq && `MOQ: ${data.moq} unités`,
       data.supplier?.name && `Fournisseur: ${data.supplier.name}`,
+      data.supplier?.verified && 'Fournisseur vérifié',
       data.priceTiers?.length && `${data.priceTiers.length} paliers de prix`,
-      Object.keys(data.specifications || {}).length > 0 && `${Object.keys(data.specifications).length} spécifications`
+      Object.keys(specs).length > 0 && `${Object.keys(specs).length} spécifications`,
+      data.videos?.length > 0 && `${data.videos.length} vidéo(s)`,
+      data.gallery?.length > 0 && `${data.gallery.length} images galerie`,
+      data.descriptionImages?.length > 0 && `${data.descriptionImages.length} images description`,
+      weightKg > 0 && `Poids: ${weightKg} kg`,
+      lengthCm > 0 && `Dimensions: ${lengthCm}×${widthCm}×${heightCm} cm`
     ].filter(Boolean);
 
-    console.log('[IT Vision] 1688 extrait:', data);
+    console.log('[IT Vision] 1688 extrait:', {
+      name: data.name,
+      price: data.price1688,
+      gallery: data.gallery?.length,
+      descImages: data.descriptionImages?.length,
+      videos: data.videos?.length,
+      variants: data.variantGroups?.length,
+      specs: Object.keys(specs).length,
+      weight: weightKg
+    });
     return data;
   };
 
@@ -309,17 +569,12 @@
   // ==========================================
   
   const scrapeAliExpress = async () => {
-    console.log('[IT Vision] Extraction AliExpress...');
-    
-    // Attendre chargement dynamique (React hydration)
+    console.log('[IT Vision] Extraction AliExpress v2...');
+
     await wait(3000);
-    
     // Scroll profond pour déclencher lazy load (description est en bas)
-    const docHeight = Math.max(document.body.scrollHeight, 5000);
-    for (let y = 0; y <= docHeight; y += 400) {
-      window.scrollTo(0, y);
-      await wait(200);
-    }
+    const docHeight = Math.max(document.body.scrollHeight, 6000);
+    await deepScroll(docHeight, 400, 200);
     await wait(1000);
 
     // Cliquer sur les onglets Description / Détails / Spécifications
@@ -547,16 +802,22 @@
     }
 
     // Dédouper par nom de fichier (même image, résolutions différentes)
-    const seen = new Set();
-    data.gallery = Array.from(imageSet).filter(url => {
-      if (isNoiseImage(url)) return false;
-      const fname = url.split('/').pop()?.split('?')[0]?.replace(/_\d+x\d+/, '') || url;
-      if (seen.has(fname)) return false;
-      seen.add(fname);
-      return true;
-    }).slice(0, 15);
+    data.gallery = deduplicateImages(Array.from(imageSet)).slice(0, 20);
     data.image = data.gallery[0];
     console.log('[IT Vision] Images galerie trouvées:', data.gallery.length);
+
+    // ===== VIDÉOS =====
+    try {
+      data.videos = extractVideos(document);
+      // Aussi chercher dans les JSON embarqués AliExpress
+      document.querySelectorAll('script:not([src])').forEach(s => {
+        const txt = s.textContent || '';
+        // AliExpress stocke souvent la vidéo dans "videoId" + "videoUrl"
+        const m = txt.match(/"videoUrl"\s*:\s*"(https?:\/\/[^"]+\.mp4[^"]*)"/);
+        if (m && m[1] && !data.videos.includes(m[1])) data.videos.push(m[1]);
+      });
+      console.log('[IT Vision] AliExpress Vidéos:', data.videos.length);
+    } catch { data.videos = []; }
 
     // ===== BOUTIQUE =====
     try {
@@ -1133,24 +1394,57 @@
       console.warn('[IT Vision] Erreur extraction variantes:', e);
     }
 
-    // descriptionImages sont maintenant un champ séparé, ne plus enrichir la galerie
-    // La galerie ne contient que les images produit du carousel principal
-    console.log('[IT Vision] Galerie:', data.gallery.length, 'images | Description:', descriptionImages.length, 'images');
+    // ===== CLASSIFICATION DES IMAGES =====
+    // Collecter les images de variantes depuis les variantGroups
+    const variantImages = [];
+    (data.variantGroups || []).forEach(g => {
+      (g.variants || []).forEach(v => {
+        if (v.image && !variantImages.includes(v.image)) variantImages.push(v.image);
+      });
+    });
+
+    // Séparer packaging des images de description
+    const cleanDescImages = [];
+    const packagingImages = [];
+    descriptionImages.forEach(url => {
+      const lower = url.toLowerCase();
+      if (/packag|box|carton|emball|colis/i.test(lower)) {
+        packagingImages.push(url);
+      } else {
+        cleanDescImages.push(url);
+      }
+    });
+
+    data.descriptionImages = deduplicateImages(cleanDescImages).slice(0, 30);
+
+    data.imageCategories = {
+      main: data.gallery.slice(0, 1),
+      gallery: data.gallery,
+      variant: deduplicateImages(variantImages).slice(0, 20),
+      description: data.descriptionImages,
+      packaging: deduplicateImages(packagingImages).slice(0, 5)
+    };
+
+    console.log('[IT Vision] Images classées:', {
+      galerie: data.gallery.length,
+      variantes: variantImages.length,
+      description: data.descriptionImages.length,
+      packaging: packagingImages.length
+    });
 
     // Features (résumé compact)
     data.features = [
       data.rating && `Note: ${data.rating}/5`,
       data.orders && `${data.orders} commandes`,
       data.shopName && `Boutique: ${data.shopName}`,
-      data.gallery.length > 0 && `${data.gallery.length} images`,
+      data.gallery.length > 0 && `${data.gallery.length} images galerie`,
+      data.descriptionImages.length > 0 && `${data.descriptionImages.length} images description`,
+      data.videos?.length > 0 && `${data.videos.length} vidéo(s)`,
       weightKg > 0 && `Poids: ${weightKg} kg`,
       (lengthCm > 0) && `Dimensions: ${lengthCm}×${widthCm}×${heightCm} cm`,
       Object.keys(specs).length > 0 && `${Object.keys(specs).length} spécifications`,
       data.variantGroups?.length > 0 && `${data.variantGroups.length} types de variantes`
     ].filter(Boolean);
-
-    // Images de description séparées (grandes images de présentation)
-    data.descriptionImages = descriptionImages.slice(0, 30);
 
     // Données logistiques
     data.specifications = specs;
@@ -1165,7 +1459,16 @@
     data.availabilityNote = 'Import AliExpress - freight 3j/15j/60j';
     data.currency = 'FCFA';
 
-    console.log('[IT Vision] AliExpress extrait:', data);
+    console.log('[IT Vision] AliExpress extrait:', {
+      name: data.name,
+      price: data.price,
+      gallery: data.gallery?.length,
+      descImages: data.descriptionImages?.length,
+      videos: data.videos?.length,
+      variants: data.variantGroups?.length,
+      specs: Object.keys(specs).length,
+      weight: weightKg
+    });
     return data;
   };
 

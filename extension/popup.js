@@ -44,16 +44,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Render liste produits
   const renderProducts = (products) => {
-    productsList.innerHTML = products.map((p, idx) => `
+    productsList.innerHTML = products.map((p, idx) => {
+      const imgCount = (p.gallery?.length || 0) + (p.descriptionImages?.length || 0);
+      const varCount = (p.variantGroups || []).reduce((acc, g) => acc + (g.variants?.length || 0), 0);
+      const videoCount = p.videos?.length || 0;
+      const stats = [
+        imgCount > 0 && `${imgCount} img`,
+        varCount > 0 && `${varCount} var`,
+        videoCount > 0 && `${videoCount} vid`,
+        p.weightKg && `${p.weightKg}kg`
+      ].filter(Boolean).join(' · ');
+      return `
       <div class="product-item" data-idx="${idx}">
         <img src="${p.image || 'icons/icon48.png'}" onerror="this.src='icons/icon48.png'" alt="">
         <div class="product-info">
           <div class="product-name">${p.name || 'Produit sans nom'}</div>
           <div class="product-price">${p.price1688 ? '¥' + p.price1688 : (p.price ? p.price + ' FCFA' : 'Prix non disponible')}</div>
+          ${stats ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">${stats}</div>` : ''}
         </div>
         <button class="product-remove" data-idx="${idx}" title="Supprimer">×</button>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
     // Listeners suppression
     document.querySelectorAll('.product-remove').forEach(btn => {
@@ -139,70 +150,97 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Format standard /api/products/import (fallback)
   const transformProductForApi = (p) => {
+    const common = {
+      productUrl: p.url,
+      image: p.image,
+      gallery: p.gallery || [],
+      descriptionImages: p.descriptionImages || [],
+      videos: p.videos || [],
+      imageCategories: p.imageCategories || undefined,
+      features: p.features || [],
+      variantGroups: p.variantGroups || [],
+      description: p.description || undefined,
+      specifications: p.specifications || {},
+      weightKg: p.weightKg || undefined,
+      lengthCm: p.lengthCm || undefined,
+      widthCm: p.widthCm || undefined,
+      heightCm: p.heightCm || undefined,
+    };
     if (p.platform === '1688') {
       return {
+        ...common,
         name: p.name || 'Produit 1688',
-        productUrl: p.url,
-        image: p.image,
-        gallery: p.gallery || [],
         price1688: p.price1688,
+        promoPrice1688: p.promoPrice1688 || undefined,
         price1688Currency: 'CNY',
         exchangeRate: p.exchangeRate || 100,
         currency: 'FCFA',
         category: p.category || 'Catalogue import Chine',
         tagline: p.tagline || 'Import 1688',
         availabilityNote: p.availabilityNote || 'Import 1688 — vérifier poids/dimensions',
-        features: p.features || [],
-        weightKg: p.weightKg || 1,
-        lengthCm: p.lengthCm || 10,
-        widthCm: p.widthCm || 10,
-        heightCm: p.heightCm || 10,
-        variantGroups: p.variantGroups || [],
-        descriptionImages: p.descriptionImages || [],
         moq: p.moq,
-        specifications: p.specifications
+        priceTiers: p.priceTiers || [],
+        supplier: p.supplier || undefined,
       };
     }
     return {
+      ...common,
       name: p.name || 'Produit AliExpress',
-      productUrl: p.url,
-      image: p.image,
-      gallery: p.gallery || [],
-      descriptionImages: p.descriptionImages || [],
       price: p.price,
+      priceUSD: p.priceUSD || undefined,
       baseCost: p.price,
       currency: 'FCFA',
       category: p.category || 'Catalogue import Chine',
       tagline: p.tagline || 'Import AliExpress',
       availabilityNote: p.availabilityNote || 'Import AliExpress — freight 3j/15j/60j',
-      features: p.features || [],
-      weightKg: p.weightKg || undefined,
-      variantGroups: p.variantGroups || [],
       shopName: p.shopName,
       orders: p.orders,
       totalRated: p.rating,
-      description: p.description,
-      specifications: p.specifications
     };
   };
 
   // Format smart-import /api/admin/products/smart-import (enrichi IA + pricing auto)
-  const transformProductForSmartApi = (p) => ({
-    name: p.name || 'Produit',
-    description: p.description || Object.entries(p.specifications || {}).map(([k,v]) => `${k}: ${v}`).join('\n') || '',
-    images: [p.image, ...(p.gallery || []), ...(p.descriptionImages || [])].filter(Boolean),
-    price1688: p.price1688 || undefined,
-    price: p.price || undefined,
-    category: p.category || 'Catalogue import Chine',
-    features: p.features || [],
-    variants: (p.variantGroups || []).flatMap(g =>
-      (g.variants || []).map(v => ({ name: v.name, image: v.image, price1688: v.price1688 }))
-    ),
-    weightKg: p.weightKg || undefined,
-    sourceUrl: p.url,
-    sourcePlatform: p.platform === '1688' ? '1688' : 'aliexpress',
-    supplierName: p.shopName || undefined,
-  });
+  const transformProductForSmartApi = (p) => {
+    // Toutes les images : galerie + description + variantes (classées)
+    const allImages = [
+      ...(p.gallery || []),
+      ...(p.descriptionImages || []),
+      ...((p.imageCategories?.variant || []))
+    ].filter(Boolean);
+    // Dédupliquer
+    const uniqueImages = [...new Set(allImages)];
+
+    return {
+      name: p.name || 'Produit',
+      description: p.description || Object.entries(p.specifications || {}).map(([k,v]) => `${k}: ${v}`).join('\n') || '',
+      images: uniqueImages,
+      imageCategories: p.imageCategories || undefined,
+      videos: p.videos || [],
+      price1688: p.price1688 || undefined,
+      promoPrice1688: p.promoPrice1688 || undefined,
+      price: p.price || undefined,
+      priceTiers: p.priceTiers || [],
+      category: p.category || 'Catalogue import Chine',
+      features: p.features || [],
+      variants: (p.variantGroups || []).flatMap(g =>
+        (g.variants || []).map(v => ({
+          name: v.name,
+          image: v.image,
+          price1688: v.price1688,
+          groupName: g.name
+        }))
+      ),
+      weightKg: p.weightKg || undefined,
+      lengthCm: p.lengthCm || undefined,
+      widthCm: p.widthCm || undefined,
+      heightCm: p.heightCm || undefined,
+      sourceUrl: p.url,
+      sourcePlatform: p.platform === '1688' ? '1688' : 'aliexpress',
+      supplierName: p.shopName || p.supplier?.name || undefined,
+      moq: p.moq || undefined,
+      specifications: p.specifications || {},
+    };
+  };
 
   // Exporter vers API IT Vision (Smart Import par défaut)
   const doExport = async (useSmart) => {

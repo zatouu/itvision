@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "IT Vision - Import 1688/AliExpress",
-  "version": "1.0.0",
-  "description": "Scrape et importe des produits depuis 1688 et AliExpress vers IT Vision",
+  "version": "2.0.0",
+  "description": "Import produits 1688/AliExpress : images classées, vidéos, variantes, description structurée, smart-import",
   "permissions": [
     "activeTab",
     "storage",
