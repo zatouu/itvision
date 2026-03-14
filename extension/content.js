@@ -55,12 +55,36 @@
     if (lower.startsWith('data:')) return true;
     if (/1x1|pixel|tracker|beacon/i.test(lower)) return true;
     if (lower.endsWith('.svg')) return true;
-    if (/paypal\.com|klarna\.com|afterpay\.com|stripe\.com|alipay/i.test(lower)) return true;
+    // Domaines paiement / pub
+    if (/paypal\.com|klarna\.com|afterpay\.com|stripe\.com|alipay|clearpay|laybuy|zip\.co|sezzle/i.test(lower)) return true;
+    // Mots-clés paiement/logo/badge dans le chemin ou nom de fichier (même sur CDN aliexpress)
     const filename = lower.split('/').pop()?.split('?')[0] || '';
-    if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner)[_\-.]/.test(filename)) return true;
-    if (/\/icon[s]?\//i.test(lower) || /\/ui\//i.test(lower)) return true;
+    if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner|afterpay|clearpay|payment|checkout|trust|secure|guarantee)[_\-.]/.test(filename)) return true;
+    if (/(klarna|afterpay|clearpay|paypal|payment[_\-]method|payment[_\-]icon|trust[_\-]badge|secure[_\-]checkout|buyer[_\-]protection)/i.test(lower)) return true;
+    // Chemins UI / icônes
+    if (/\/icon[s]?\//i.test(lower) || /\/ui\//i.test(lower) || /\/assets\/payment/i.test(lower)) return true;
+    // Logos de marque dans les descriptions (souvent petits)
+    if (/(brand[_\-]?logo|shop[_\-]?logo|store[_\-]?logo|seller[_\-]?logo|watermark)/i.test(lower)) return true;
     // GIF animés = souvent promos
     if (lower.endsWith('.gif')) return true;
+    return false;
+  };
+
+  /** Filtrer une image par ses attributs DOM (alt, class, taille) */
+  const isNoiseImageElement = (img) => {
+    if (!img) return true;
+    const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+    if (isNoiseImage(src)) return true;
+    // Alt text contenant des mots de paiement/logo
+    const alt = (img.getAttribute('alt') || '').toLowerCase();
+    if (/(klarna|afterpay|paypal|visa|mastercard|payment|logo|badge|icon|trust|secure|guarantee|buyer.?protection)/i.test(alt)) return true;
+    // Class contenant des indicateurs
+    const cls = (img.className || '').toLowerCase();
+    if (/(payment|logo|badge|icon|trust|secure)/i.test(cls)) return true;
+    // Trop petite (< 80px) = probablement icône
+    const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
+    const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
+    if ((w > 0 && w < 80) || (h > 0 && h < 80)) return true;
     return false;
   };
 
@@ -788,14 +812,10 @@
       const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
       if (mainArea) {
         mainArea.querySelectorAll('img').forEach(img => {
+          if (isNoiseImageElement(img)) return;
           const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-          if (!src || isNoiseImage(src)) return;
+          if (!src) return;
           if (!isAliProductImage(src)) return;
-          // Vérifier que l'image est assez grande (pas un petit icône)
-          const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
-          const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
-          if (w > 0 && w < 50) return; // Trop petite = icône
-          if (h > 0 && h < 50) return;
           imageSet.add(cleanImageUrl(src));
         });
       }
@@ -950,14 +970,10 @@
 
         // Extraire les images descriptives (souvent des infographies produit)
         presSection.querySelectorAll('img').forEach(img => {
+          if (isNoiseImageElement(img)) return;
           const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-          if (!src || isNoiseImage(src)) return;
+          if (!src) return;
           if (!isAliProductImage(src)) return;
-          // Exclure les petites images (icônes paiement, badges)
-          const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
-          const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
-          if (w > 0 && w < 80) return;
-          if (h > 0 && h < 80) return;
           descriptionImages.push(cleanImageUrl(src));
         });
 

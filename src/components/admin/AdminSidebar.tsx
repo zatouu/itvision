@@ -182,7 +182,20 @@ const menuItems: MenuItem[] = [
     id: 'marketplace',
     label: 'Marketplace',
     icon: Briefcase,
-    href: '/admin/marketplace'
+    children: [
+      {
+        id: 'marketplace-dashboard',
+        label: 'Dashboard Marketplace',
+        icon: Briefcase,
+        href: '/admin/marketplace'
+      },
+      {
+        id: 'marketplace-comptes-pro',
+        label: 'Comptes Pro',
+        icon: UsersRound,
+        href: '/admin/marketplace/comptes-pro'
+      }
+    ]
   },
   {
     id: 'garanties',
@@ -261,7 +274,7 @@ export default function AdminSidebar() {
             title={isCollapsed ? item.label : undefined}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
-                ? 'bg-emerald-50 text-emerald-700'
+                ? 'bg-green-50 text-green-700'
                 : 'text-gray-700 hover:bg-gray-50'
             } ${isCollapsed ? 'justify-center' : ''}`}
           >
@@ -293,7 +306,7 @@ export default function AdminSidebar() {
         title={isCollapsed ? item.label : undefined}
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
-            ? 'bg-emerald-50 text-emerald-700 font-medium'
+            ? 'bg-green-50 text-green-700 font-medium'
             : 'text-gray-700 hover:bg-gray-50'
         }`}
         style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
@@ -313,7 +326,7 @@ export default function AdminSidebar() {
         {!isCollapsed ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
               </div>
               <div>

@@ -483,56 +483,11 @@ const extractFeatures = (item: AliExpressItem): string[] => {
   return [...features].slice(0, 6)
 }
 
-const fetchAliExpress = async (keyword: string, limit: number, sourceOverride?: 'apify' | 'rapidapi') => {
-  // Détecter la source d'import (Apify ou RapidAPI)
-  const importSource = (sourceOverride || process.env.IMPORT_SOURCE || 'rapidapi').toLowerCase()
-  const apifyKey = process.env.APIFY_API_KEY || process.env.APIFY_TOKEN
+const fetchAliExpress = async (keyword: string, limit: number) => {
   const rapidApiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
 
-  // Essayer Apify si configuré, sinon RapidAPI
-  if (importSource === 'apify') {
-    if (!apifyKey) {
-      throw new Error('APIFY_API_KEY (ou APIFY_TOKEN) est requis pour utiliser Apify')
-    }
-    try {
-      const { importFromApify } = await import('@/lib/import-sources')
-      const result = await importFromApify(keyword, limit, {
-        source: 'apify',
-        apiKey: apifyKey,
-        options: {}
-      })
-      // Convertir les résultats au format attendu
-      return result.items.map(item => ({
-        product_id: item.productId,
-        product_title: item.name,
-        product_detail_url: item.productUrl,
-        image_url: item.image,
-        sale_price: item.baseCost ? String(item.baseCost / 620) : undefined, // Convertir FCFA -> USD pour compatibilité
-        original_price: item.baseCost ? String(item.baseCost / 620) : undefined,
-        shop_name: item.shopName,
-        orders: item.orders,
-        total_rated: item.totalRated,
-        item_weight: item.weightKg,
-        first_level_category_name: item.category,
-        second_level_category_name: item.tagline,
-        product_properties: item.features.map(f => ({
-          attr_name: f.split(':')[0] || 'Feature',
-          attr_value: f.split(':').slice(1).join(':') || f
-        }))
-      }))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erreur Apify'
-      console.error('Apify import error, falling back to RapidAPI:', message)
-      // Fallback sur RapidAPI si Apify échoue
-      if (!rapidApiKey) {
-        throw new Error(`Apify a échoué et aucune clé RapidAPI disponible: ${message}`)
-      }
-    }
-  }
-
-  // Utiliser RapidAPI (par défaut ou fallback)
   if (!rapidApiKey) {
-    throw new Error('ALIEXPRESS_RAPIDAPI_KEY ou APIFY_API_KEY est requis pour l\'import AliExpress')
+    throw new Error('ALIEXPRESS_RAPIDAPI_KEY est requis pour la recherche AliExpress. Utilisez l\'extension Chrome pour l\'import par URL.')
   }
 
   const pageSize = Math.min(Math.max(limit, 1), 20)
@@ -641,14 +596,12 @@ export async function GET(request: NextRequest) {
 
   const keyword = (searchParams.get('keyword') || '').trim()
   const limit = Math.min(parseInt(searchParams.get('limit') || '6', 10), 12)
-  const sourceParam = (searchParams.get('source') || '').toLowerCase()
-  const sourceOverride = sourceParam === 'apify' || sourceParam === 'rapidapi' ? (sourceParam as 'apify' | 'rapidapi') : undefined
   if (!keyword) {
     return NextResponse.json({ success: false, error: 'Mot-clé requis' }, { status: 400 })
   }
 
   try {
-    const items = await fetchAliExpress(keyword, limit, sourceOverride)
+    const items = await fetchAliExpress(keyword, limit)
     const normalized = items
       .map(normalizeAliExpressItem)
       .filter((item): item is NormalizedAliExpressItem => Boolean(item))

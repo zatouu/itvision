@@ -11,17 +11,13 @@ type Props = {
 
 const tabsByContext: Record<Props['context'], Tab[]> = {
   services: [
-    { label: 'Catalogue', href: '/admin/catalog' },
     { label: 'Produits', href: '/admin/produits' },
-    { label: 'Import (AliExpress/1688)', href: '/admin/import-produits' },
-    { label: 'Ingestion', href: '/admin/ingestion' },
     { label: 'Prix', href: '/admin/prices' },
-    { label: 'Variantes', href: '/admin/prices' }
+    { label: 'Pricing B2B', href: '/admin/produits/b2b-pricing' }
   ],
   devis: [
-    { label: 'Générateur', href: '/admin/quotes' },
-    { label: 'Projets', href: '/admin/planning' },
-    { label: 'Historique', href: '/admin/admin-reports' }
+    { label: 'Devis', href: '/admin/devis' },
+    { label: 'Projets', href: '/admin/planning' }
   ],
   team: [
     { label: 'Planning', href: '/admin/planning' },
@@ -31,9 +27,6 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
   admin: [
     { label: 'Clients boutique', href: '/admin/users?role=CLIENT' },
     { label: 'Utilisateurs', href: '/admin/users' },
-    { label: 'Services', href: '/admin/catalog' },
-    { label: 'Import (AliExpress/1688)', href: '/admin/import-produits' },
-    { label: 'Ingestion', href: '/admin/ingestion' },
     { label: 'Paramètres', href: '/admin/migration' }
   ]
 }
