@@ -160,7 +160,7 @@
   };
 
   /** Structurer une description en sections markdown propres */
-  const buildStructuredDescription = ({ title, specs, presentationText, shopName, rating, orders }) => {
+  const buildStructuredDescription = ({ title, specs, presentationText }) => {
     const parts = [];
 
     if (title) parts.push(`# ${title}`);
@@ -189,16 +189,6 @@
       }
     }
 
-    const meta = [
-      shopName && `Boutique: ${shopName}`,
-      rating && `Note: ${rating}/5`,
-      orders && `${orders} commandes`
-    ].filter(Boolean);
-    if (meta.length > 0) {
-      parts.push('\n## Informations');
-      meta.forEach(m => parts.push(`- ${m}`));
-    }
-
     let desc = parts.join('\n\n');
     if (desc.length > 5000) desc = desc.slice(0, 5000) + '...';
     return desc.trim();
@@ -210,30 +200,39 @@
 
   const scrape1688 = async () => {
     console.log('[IT Vision] Extraction 1688 v2...');
-    await wait(2000);
-
-    // Scroll profond (1688 charge description et images en lazy-load très loin)
-    await deepScroll(8000, 400, 300);
-
-    // Cliquer sur onglets "详情" (détails) / "商品描述" pour charger la description
-    try {
-      document.querySelectorAll('[role="tab"], [class*="tab" i] li, [class*="Tab" i] a, [class*="tab-item" i]').forEach(tab => {
-        const t = (tab.textContent || '').trim();
-        if (t.includes('详情') || t.includes('描述') || t.includes('详细') || t.includes('detail')) {
-          tab.click();
-          console.log('[IT Vision] Onglet 1688 cliqué:', t);
-        }
-      });
-      await wait(2000);
-      // Re-scroll après clic onglet
-      await deepScroll(6000, 500, 200);
-    } catch (e) { console.warn('[IT Vision] Onglets 1688:', e); }
-
+    
     const data = {
       platform: '1688',
       url: window.location.href.split('?')[0],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      gallery: [],
+      descriptionImages: [],
+      videos: [],
+      variantGroups: [],
+      features: [],
+      specifications: {}
     };
+
+    try {
+      await wait(2000);
+
+      // Scroll profond (1688 charge description et images en lazy-load très loin)
+      await deepScroll(8000, 400, 300);
+
+      // Cliquer sur onglets "详情" (détails) / "商品描述" pour charger la description
+      try {
+        document.querySelectorAll('[role="tab"], [class*="tab" i] li, [class*="Tab" i] a, [class*="tab-item" i], [class*="detail" i] [class*="tab" i]').forEach(tab => {
+          const t = (tab.textContent || '').trim();
+          if (t.includes('详情') || t.includes('描述') || t.includes('详细') || t.includes('detail')) {
+            tab.click();
+            console.log('[IT Vision] Onglet 1688 cliqué:', t);
+          }
+        });
+        await wait(2000);
+        // Re-scroll après clic onglet
+        await deepScroll(6000, 500, 200);
+      } catch (e) { console.warn('[IT Vision] Onglets 1688:', e); }
+    } catch (e) { console.warn('[IT Vision] Scroll 1688:', e); }
 
     // ── TITRE ──
     try {
@@ -284,19 +283,40 @@
     // ── IMAGES — classées par catégorie ──
     const imageCategories = { main: [], gallery: [], variant: [], description: [], packaging: [] };
     try {
-      const is1688ProductImage = (src) => /cbu\d*\.alicdn\.com|img\.alicdn\.com|sc\d+\.alicdn/i.test(src);
+      const is1688ProductImage = (src) => /cbu\d*\.alicdn\.com|img\.alicdn\.com|sc\d+\.alicdn|imgextra/i.test(src);
 
-      // Images galerie principale
+      // Images galerie principale — sélecteurs larges pour couvrir 1688 classique + React
       const gallerySelectors = [
         '.detail-gallery img', '.offer-img img', '.main-image img',
         '[class*="gallery" i] img', '[class*="slider" i] img',
         '[class*="image-view" i] img', '[class*="thumb" i] img',
-        '[class*="detail-image" i] img', '[class*="mainImg" i] img'
+        '[class*="detail-image" i] img', '[class*="mainImg" i] img',
+        // 1688 React / moderne
+        '[class*="image--item" i] img', '[class*="ImageView" i] img',
+        '[class*="carousel" i] img', '[class*="swiper" i] img',
+        'picture img', '[class*="pic" i][class*="wrap" i] img',
+        '[class*="sku" i] img', '[data-role="img"] img',
+        // Fallback large : toute image sur CDN alicdn dans la zone produit
+        '[class*="detail" i] img', '[class*="offer" i] img'
       ];
       for (const sel of gallerySelectors) {
         document.querySelectorAll(sel).forEach(img => {
+          if (isNoiseImageElement(img)) return;
           const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
           if (!src || isNoiseImage(src)) return;
+          if (!is1688ProductImage(src)) return;
+          const clean = cleanImageUrl(src);
+          if (clean && !imageCategories.gallery.includes(clean)) imageCategories.gallery.push(clean);
+        });
+      }
+
+      // Recherche élargie : toutes les images CDN 1688 dans le body
+      if (imageCategories.gallery.length < 3) {
+        console.log('[IT Vision] 1688 recherche élargie images...');
+        document.querySelectorAll('img').forEach(img => {
+          if (isNoiseImageElement(img)) return;
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
+          if (!src || isNoiseImage(src) || !is1688ProductImage(src)) return;
           const clean = cleanImageUrl(src);
           if (clean && !imageCategories.gallery.includes(clean)) imageCategories.gallery.push(clean);
         });
@@ -453,20 +473,6 @@
       }
     } catch (e) { console.warn('[IT Vision] MOQ 1688:', e); }
 
-    // ── FOURNISSEUR ──
-    try {
-      const supplierName = document.querySelector(
-        '.company-name, .supplier-name, [class*="company"], [class*="Company"], [class*="shopName"], [class*="StoreName"]'
-      )?.textContent?.trim();
-      if (supplierName && supplierName.length < 100) {
-        data.supplier = {
-          name: supplierName,
-          location: document.querySelector('.company-location, [class*="location"], [class*="Location"]')?.textContent?.trim() || 'Chine',
-          verified: !!document.querySelector('[class*="verified"], [class*="Verified"], [class*="trust"]')
-        };
-      }
-    } catch (e) { console.warn('[IT Vision] Fournisseur 1688:', e); }
-
     // ── SPÉCIFICATIONS ──
     const specs = {};
     try {
@@ -545,35 +551,34 @@
     data.description = buildStructuredDescription({
       title: data.name,
       specs,
-      presentationText,
-      shopName: data.supplier?.name,
-      rating: null,
-      orders: null
+      presentationText
     });
 
     // ── VALEURS PAR DÉFAUT ──
-    data.category = 'Catalogue import Chine';
-    data.tagline = 'Import 1688';
-    data.availabilityNote = 'Import 1688 - vérifier poids/dimensions';
-    data.currency = 'FCFA';
-    data.price1688Currency = 'CNY';
-    data.exchangeRate = 100;
-    data.weightKg = weightKg > 0 ? weightKg : undefined;
-    data.lengthCm = lengthCm > 0 ? lengthCm : undefined;
-    data.widthCm = widthCm > 0 ? widthCm : undefined;
-    data.heightCm = heightCm > 0 ? heightCm : undefined;
-    data.features = [
-      data.moq && `MOQ: ${data.moq} unités`,
-      data.supplier?.name && `Fournisseur: ${data.supplier.name}`,
-      data.supplier?.verified && 'Fournisseur vérifié',
-      data.priceTiers?.length && `${data.priceTiers.length} paliers de prix`,
-      Object.keys(specs).length > 0 && `${Object.keys(specs).length} spécifications`,
-      data.videos?.length > 0 && `${data.videos.length} vidéo(s)`,
-      data.gallery?.length > 0 && `${data.gallery.length} images galerie`,
-      data.descriptionImages?.length > 0 && `${data.descriptionImages.length} images description`,
-      weightKg > 0 && `Poids: ${weightKg} kg`,
-      lengthCm > 0 && `Dimensions: ${lengthCm}×${widthCm}×${heightCm} cm`
-    ].filter(Boolean);
+    try {
+      data.category = data.category || 'Catalogue import Chine';
+      data.tagline = 'Import 1688';
+      data.availabilityNote = 'Import 1688 - vérifier poids/dimensions';
+      data.currency = 'FCFA';
+      data.price1688Currency = 'CNY';
+      data.exchangeRate = 100;
+      if (typeof weightKg !== 'undefined' && weightKg > 0) data.weightKg = weightKg;
+      if (typeof lengthCm !== 'undefined' && lengthCm > 0) data.lengthCm = lengthCm;
+      if (typeof widthCm !== 'undefined' && widthCm > 0) data.widthCm = widthCm;
+      if (typeof heightCm !== 'undefined' && heightCm > 0) data.heightCm = heightCm;
+      data.features = [
+        data.moq && `MOQ: ${data.moq} unités`,
+        data.priceTiers?.length && `${data.priceTiers.length} paliers de prix`,
+        Object.keys(data.specifications || {}).length > 0 && `${Object.keys(data.specifications).length} spécifications`,
+        data.videos?.length > 0 && `${data.videos.length} vidéo(s)`,
+        data.gallery?.length > 0 && `${data.gallery.length} images galerie`,
+        data.descriptionImages?.length > 0 && `${data.descriptionImages.length} images description`,
+        data.weightKg && `Poids: ${data.weightKg} kg`
+      ].filter(Boolean);
+    } catch (e) { console.warn('[IT Vision] Défaut 1688:', e); }
+
+    if (!data.name) data.name = document.title.replace(/[-|].*$/, '').trim() || 'Produit 1688';
+    if (!data.image && data.gallery?.length) data.image = data.gallery[0];
 
     console.log('[IT Vision] 1688 extrait:', {
       name: data.name,
@@ -581,9 +586,7 @@
       gallery: data.gallery?.length,
       descImages: data.descriptionImages?.length,
       videos: data.videos?.length,
-      variants: data.variantGroups?.length,
-      specs: Object.keys(specs).length,
-      weight: weightKg
+      variants: data.variantGroups?.length
     });
     return data;
   };
@@ -725,43 +728,18 @@
     // ===== IMAGES (approche ciblée — uniquement galerie produit) =====
     const imageSet = new Set();
 
-    // Filtre anti-bruit : exclure logos paiement, icônes UI — PAS les CDN produit
-    const isNoiseImage = (url) => {
-      if (!url) return true;
-      const lower = url.toLowerCase();
-      // Images trop petites (data URI, 1x1 pixels)
-      if (lower.startsWith('data:')) return true;
-      if (/1x1|pixel|tracker|beacon/i.test(lower)) return true;
-      // SVG = icônes UI
-      if (lower.endsWith('.svg')) return true;
-      // Domaines connus de logos paiement / fintech (pas alicdn!)
-      if (/paypal\.com|klarna\.com|afterpay\.com|clearpay\.com|stripe\.com/i.test(lower)) return true;
-      // Fichiers nommés explicitement comme logos/icônes dans le chemin
-      const filename = lower.split('/').pop()?.split('?')[0] || '';
-      if (/^(paypal|klarna|afterpay|visa|mastercard|amex|jcb|diners|unionpay|discover)[_\-.]/.test(filename)) return true;
-      if (/^(icon|logo|badge|banner)[_\-.]/.test(filename)) return true;
-      // Chemins UI AliExpress connus (pas imgextra qui contient les vrais produits)
-      if (/\/icon[s]?\//i.test(lower)) return true;
-      if (/\/ui\//i.test(lower)) return true;
-      return false;
-    };
-
+    // Utilise les fonctions globales isNoiseImage, isNoiseImageElement, cleanImageUrl
     // Vérifier qu'une URL est une image produit AliExpress (CDN alicdn ou aliexpress)
     const isAliProductImage = (src) => {
-      return /ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn|assets\.alicdn\.com\/imgextra/i.test(src);
-    };
-
-    const cleanImageUrl = (src) => {
-      let clean = src.replace(/_\d+x\d+[^.]*/, '').replace(/\.\d+x\d+\./, '.');
-      if (clean.startsWith('//')) clean = 'https:' + clean;
-      return clean;
+      return /ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn|assets\.alicdn\.com\/imgextra|img\.alicdn\.com|imgextra/i.test(src);
     };
     
     // Source 1: JSON-LD images (le plus fiable)
     if (jsonLdProduct?.image) {
       const imgs = Array.isArray(jsonLdProduct.image) ? jsonLdProduct.image : [jsonLdProduct.image];
       imgs.forEach(img => {
-        if (typeof img === 'string' && img.startsWith('http') && !isNoiseImage(img)) imageSet.add(img);
+        const url = typeof img === 'string' ? img : img?.url || img?.contentUrl || '';
+        if (url && url.startsWith('http') && !isNoiseImage(url)) imageSet.add(cleanImageUrl(url));
       });
     }
 
@@ -783,7 +761,13 @@
       '[class*="thumb" i]:not([class*="review" i]):not([class*="payment" i]) img',
       // AliExpress moderne: les images dans la section principale produit
       '[class*="pdp-info" i] img', '[class*="product-main" i] img',
-      '[class*="detail-gallery" i] img', '[class*="DetailGallery" i] img'
+      '[class*="detail-gallery" i] img', '[class*="DetailGallery" i] img',
+      // Sélecteurs supplémentaires AliExpress 2024-2026
+      '[class*="image--item"] img', '[class*="Image--item"] img',
+      'picture img', '[class*="pic" i][class*="wrap" i] img',
+      '[class*="main-image" i] img', '[class*="MainImage" i] img',
+      '[class*="image--container"] img', '[class*="Image--container"] img',
+      '[class*="carousel" i] img', '[class*="swiper" i] img'
     ];
     for (const sel of gallerySelectors) {
       document.querySelectorAll(sel).forEach(img => {
@@ -804,22 +788,27 @@
       }
     });
 
-    // Source 5: Fallback — images assez grandes dans la zone produit principale
-    // Si on n'a trouvé que 0-2 images, chercher plus largement
-    if (imageSet.size <= 2) {
-      console.log('[IT Vision] Peu d\'images trouvées, recherche élargie...');
-      // Chercher dans tout le haut de page (section produit, pas footer/sidebar)
-      const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
-      if (mainArea) {
-        mainArea.querySelectorAll('img').forEach(img => {
-          if (isNoiseImageElement(img)) return;
-          const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-          if (!src) return;
-          if (!isAliProductImage(src)) return;
-          imageSet.add(cleanImageUrl(src));
-        });
-      }
+    // Source 5: Chercher TOUTES les images produit dans le haut de page
+    // Toujours exécuté (pas seulement si <= 2) car les sélecteurs spécifiques peuvent rater des images
+    console.log('[IT Vision] Recherche élargie d\'images produit...');
+    const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
+    if (mainArea) {
+      mainArea.querySelectorAll('img').forEach(img => {
+        if (isNoiseImageElement(img)) return;
+        const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+        if (!src) return;
+        if (!isAliProductImage(src)) return;
+        imageSet.add(cleanImageUrl(src));
+      });
     }
+
+    // Source 6: Images dans les attributs data-src des divs (lazy-load moderne)
+    document.querySelectorAll('[data-src*="alicdn"], [data-original*="alicdn"]').forEach(el => {
+      const src = el.getAttribute('data-src') || el.getAttribute('data-original') || '';
+      if (src && !isNoiseImage(src) && isAliProductImage(src)) {
+        imageSet.add(cleanImageUrl(src));
+      }
+    });
 
     // Dédouper par nom de fichier (même image, résolutions différentes)
     data.gallery = deduplicateImages(Array.from(imageSet)).slice(0, 20);
@@ -838,22 +827,6 @@
       });
       console.log('[IT Vision] AliExpress Vidéos:', data.videos.length);
     } catch { data.videos = []; }
-
-    // ===== BOUTIQUE =====
-    try {
-      // AliExpress met le nom de la boutique dans des liens vers le store
-      const storeLinks = document.querySelectorAll('a[href*="/store/"], a[href*="seller/"]');
-      for (const link of storeLinks) {
-        const text = link.textContent?.trim();
-        if (text && text.length > 1 && text.length < 50 && !/visit|view|see/i.test(text)) {
-          data.shopName = text;
-          break;
-        }
-      }
-      if (!data.shopName) {
-        data.shopName = document.querySelector('[class*="shop" i] a, [class*="store" i] a, [data-pl*="store"]')?.textContent?.trim();
-      }
-    } catch {}
 
     // ===== RATING & COMMANDES =====
     try {
@@ -1188,16 +1161,9 @@
         }
       }
 
-      // Partie 4: Infos boutique et notes
-      const metaParts = [
-        data.shopName && `Boutique: ${data.shopName}`,
-        data.rating && `Note: ${data.rating}/5`,
-        data.orders && `${data.orders} commandes`
-      ].filter(Boolean);
-
-      if (metaParts.length > 0) {
-        descParts.push('\n## Informations');
-        metaParts.forEach(p => descParts.push(`- ${p}`));
+      // Partie 4: Notes compactes (pas d'infos boutique)
+      if (data.rating) {
+        descParts.push(`\n> Note: ${data.rating}/5${data.orders ? ` — ${data.orders} commandes` : ''}`);
       }
 
       // Assembler la description finale
@@ -1452,7 +1418,6 @@
     data.features = [
       data.rating && `Note: ${data.rating}/5`,
       data.orders && `${data.orders} commandes`,
-      data.shopName && `Boutique: ${data.shopName}`,
       data.gallery.length > 0 && `${data.gallery.length} images galerie`,
       data.descriptionImages.length > 0 && `${data.descriptionImages.length} images description`,
       data.videos?.length > 0 && `${data.videos.length} vidéo(s)`,
@@ -1526,17 +1491,23 @@
       btn.style.transform = 'scale(0.95)';
       setTimeout(() => btn.style.transform = 'scale(1)', 150);
       
-      const is1688 = window.location.hostname.includes('1688.com');
-      const data = is1688 ? await scrape1688() : await scrapeAliExpress();
-      
-      // Envoyer au background script
-      chrome.runtime.sendMessage({
-        action: 'PRODUCT_EXTRACTED',
-        data: data
-      });
-      
-      // Feedback visuel
-      showNotification(`${data.name.substring(0, 30)}... extrait!`);
+      try {
+        const is1688 = window.location.hostname.includes('1688.com');
+        const data = is1688 ? await scrape1688() : await scrapeAliExpress();
+        
+        // Envoyer au background script
+        chrome.runtime.sendMessage({
+          action: 'PRODUCT_EXTRACTED',
+          data: data
+        });
+        
+        // Feedback visuel
+        const name = (data.name || 'Produit').substring(0, 30);
+        showNotification(`${name}... extrait! (${data.gallery?.length || 0} img)`);
+      } catch (err) {
+        console.error('[IT Vision] Erreur extraction:', err);
+        showNotification(`❌ Erreur: ${err.message || 'extraction échouée'}`);
+      }
     };
     
     document.body.appendChild(btn);
