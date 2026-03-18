@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, Wrench, FolderKanban,
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
-  Building2, ChevronRight, Settings, BarChart2
+  Building2, ChevronRight, Settings, BarChart2, Activity
 } from 'lucide-react'
 
 const navItems = [
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/portail-entreprise/documents', label: 'Devis & Factures', icon: Receipt },
   { href: '/portail-entreprise/finances', label: 'Finances', icon: BarChart2 },
   { href: '/portail-entreprise/support', label: 'Support', icon: LifeBuoy },
+  { href: '/portail-entreprise/activite', label: 'Activité', icon: Activity },
 ]
 
 function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
