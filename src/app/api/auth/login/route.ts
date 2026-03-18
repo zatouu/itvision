@@ -116,13 +116,15 @@ export async function POST(request: NextRequest) {
 
     // Génération du token JWT (rôle normalisé en majuscules)
     const normalizedRole = String(user.role || '').toUpperCase()
+    const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
         email: user.email,
         role: normalizedRole,
         username: user.username,
-        marketplaceTier: user.marketplaceTier || 'standard'
+        marketplaceTier: user.marketplaceTier || 'standard',
+        ...(companyClientId ? { companyClientId } : {})
       },
       remember ? '30d' : '7d'
     )
@@ -131,6 +133,7 @@ export async function POST(request: NextRequest) {
     logLoginAttempt(true, request, user.id, { role: user.role })
 
     // Données utilisateur à retourner (sans mot de passe)
+    const isEnterpriseClient = normalizedRole === 'CLIENT' && !!companyClientId
     const userData = {
       id: String(user._id),
       email: user.email,
@@ -138,7 +141,9 @@ export async function POST(request: NextRequest) {
       name: user.name,
       phone: user.phone,
       role: user.role,
-      marketplaceTier: user.marketplaceTier || 'standard'
+      marketplaceTier: user.marketplaceTier || 'standard',
+      companyClientId: companyClientId || undefined,
+      clientType: isEnterpriseClient ? 'enterprise' : 'marketplace'
     }
 
     // Réinitialiser tentatives en cas de succès
@@ -148,7 +153,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: userData,
-      redirectUrl: getRedirectUrl(user.role)
+      redirectUrl: getRedirectUrl(user.role, companyClientId)
     })
 
     response.cookies.set('auth-token', token, {
@@ -171,7 +176,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Fonction pour déterminer l'URL de redirection selon le rôle
-function getRedirectUrl(role: string): string {
+function getRedirectUrl(role: string, companyClientId?: string): string {
   const normalized = String(role).toUpperCase()
   switch (normalized) {
     case 'PRODUCT_MANAGER':
@@ -181,6 +186,7 @@ function getRedirectUrl(role: string): string {
     case 'TECHNICIAN':
       return '/tech-interface'
     case 'CLIENT':
+      return companyClientId ? '/portail-entreprise' : '/compte'
     default:
       return '/compte'
   }
