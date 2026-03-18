@@ -73,7 +73,8 @@ function buildClientConfirmHtml(quote: any, action: string, clientName: string) 
   </div></body></html>`
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const auth = await verifyAuthServer(request)
   if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
 
   const quote = await AdminQuote.findOne({
-    _id: params.id,
+    _id: id,
     $or: [{ clientUserId: userId }, { clientCompanyId: companyId }]
   })
 
