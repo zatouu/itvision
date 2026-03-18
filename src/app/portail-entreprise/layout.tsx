@@ -1,12 +1,12 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, Wrench, FolderKanban,
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
-  Building2, Bell, ChevronRight, Settings
+  Building2, ChevronRight, Settings, BarChart2
 } from 'lucide-react'
 
 const navItems = [
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/portail-entreprise/interventions', label: 'Interventions', icon: Wrench },
   { href: '/portail-entreprise/projets', label: 'Projets', icon: FolderKanban },
   { href: '/portail-entreprise/documents', label: 'Devis & Factures', icon: Receipt },
+  { href: '/portail-entreprise/finances', label: 'Finances', icon: BarChart2 },
   { href: '/portail-entreprise/support', label: 'Support', icon: LifeBuoy },
 ]
 

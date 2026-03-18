@@ -46,6 +46,18 @@ export interface IAdminQuote extends Document {
   createdBy?: string
   createdAt: Date
   updatedAt: Date
+  // Interactions client portail
+  clientResponse?: 'pending' | 'accepted' | 'rejected' | 'counter_proposed'
+  clientRespondedAt?: Date
+  clientCounterAmount?: number
+  clientComments?: Array<{
+    _id?: mongoose.Types.ObjectId
+    authorId: mongoose.Types.ObjectId
+    authorRole: 'CLIENT' | 'ADMIN'
+    message: string
+    createdAt: Date
+    readByOther?: boolean
+  }>
 }
 
 const AdminQuoteProductSchema = new Schema<IAdminQuoteProduct>({
@@ -90,7 +102,17 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   dateLivraison: { type: String },
   pointExpedition: { type: String },
   conditions: { type: String },
-  createdBy: { type: String }
+  createdBy: { type: String },
+  clientResponse: { type: String, enum: ['pending', 'accepted', 'rejected', 'counter_proposed'], default: 'pending' },
+  clientRespondedAt: { type: Date },
+  clientCounterAmount: { type: Number },
+  clientComments: { type: [{
+    authorId: { type: Schema.Types.ObjectId, required: true },
+    authorRole: { type: String, enum: ['CLIENT', 'ADMIN'], required: true },
+    message: { type: String, required: true },
+    createdAt: { type: Date, default: () => new Date() },
+    readByOther: { type: Boolean, default: false }
+  }], default: [] }
 }, { timestamps: true })
 
 AdminQuoteSchema.index({ createdAt: -1 })
