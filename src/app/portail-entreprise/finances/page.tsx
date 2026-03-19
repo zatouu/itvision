@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
-import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
-import mongoose from 'mongoose'
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
+import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { connectDB } from '@/lib/db'
 import {
   DollarSign, TrendingUp, AlertTriangle, CheckCircle,
   Clock, Calendar, FileText, Receipt, BarChart2, ArrowUpRight, ArrowDownRight
@@ -22,13 +22,7 @@ function getMonthLabel(d: Date) {
 }
 
 export default async function FinancesPage() {
-  const auth = await verifyAuthServer()
-  if (!auth.isAuthenticated || !auth.user) redirect('/login?redirect=/portail-entreprise/finances')
-  if (auth.user.role !== 'CLIENT' || !auth.user.companyClientId) redirect('/compte')
-
-  await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/finances')
   const filter = { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] }
 
   const [invoices, quotes, contracts] = await Promise.all([

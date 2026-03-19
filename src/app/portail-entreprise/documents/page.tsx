@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Receipt, FileText, CheckCircle, Clock, AlertTriangle, Ban,
   X, Send, MessageSquare, ThumbsUp, ThumbsDown, RefreshCw,
-  Loader2, Calendar, Package, ChevronDown, ChevronRight
+  Loader2, Calendar, Package, ChevronDown, ChevronRight, ShoppingCart
 } from 'lucide-react'
 
 const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
@@ -516,7 +516,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: any; onClose: () => void 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
-  const [tab, setTab] = useState<'quotes' | 'invoices'>('quotes')
+  const [tab, setTab] = useState<'quotes' | 'invoices' | 'bons'>('quotes')
   const [quotes, setQuotes] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -545,6 +545,11 @@ export default function DocumentsPage() {
   const quotesPending = quotes.filter(q => q.status === 'sent' && (!q.clientResponse || q.clientResponse === 'pending')).length
   const totalQuotesPending = quotes.filter(q => q.status === 'sent').reduce((s, q) => s + (q.total || 0), 0)
 
+  // Bons de commande = devis acceptés OU avec référence BC
+  const bonsDeCommande = quotes.filter(q =>
+    q.clientResponse === 'accepted' || q.status === 'accepted' || !!q.bonCommande
+  )
+
   const filteredQuotes = quotes.filter(q => {
     if (quoteFilter === 'all') return true
     if (quoteFilter === 'pending') return q.status === 'sent' && (!q.clientResponse || q.clientResponse === 'pending')
@@ -563,7 +568,7 @@ export default function DocumentsPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Receipt className="w-5 h-5 text-orange-600" /> Documents financiers
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">{quotes.length} devis · {invoices.length} factures</p>
+          <p className="text-sm text-gray-500 mt-0.5">{quotes.length} devis · {invoices.length} factures · {bonsDeCommande.length} bons de commande</p>
         </div>
         <Link href="/portail-entreprise" className="text-sm text-gray-400 hover:text-gray-600">← Dashboard</Link>
       </div>
@@ -591,6 +596,7 @@ export default function DocumentsPage() {
         {[
           { id: 'quotes',   label: `Devis (${quotes.length})` },
           { id: 'invoices', label: `Factures (${invoices.length})` },
+          { id: 'bons',     label: `Bons de commande (${bonsDeCommande.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -745,6 +751,71 @@ export default function DocumentsPage() {
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total affiché</span>
               <span className="text-base font-bold text-gray-900 dark:text-white">
                 {fmt(filteredInvoices.reduce((s, i) => s + (i.total || 0), 0))} FCFA
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BONS DE COMMANDE ── */}
+      {!loading && tab === 'bons' && (
+        <div className="space-y-3">
+          {bonsDeCommande.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 p-12 text-center">
+              <ShoppingCart className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Aucun bon de commande</p>
+              <p className="text-xs text-gray-300 mt-1">Les devis acceptés apparaîtront ici</p>
+            </div>
+          ) : (
+            bonsDeCommande.map(q => (
+              <div key={q._id}
+                className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => setSelectedQuote(q)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                      <ShoppingCart className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        BC lié au devis #{q.numero}
+                        {q.bonCommande && <span className="ml-2 font-mono text-xs bg-gray-100 dark:bg-slate-700 text-gray-500 px-1.5 py-0.5 rounded">{q.bonCommande}</span>}
+                      </p>
+                      {q.title && <p className="text-xs text-gray-400 mt-0.5">{q.title}</p>}
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {fmtDate(q.clientRespondedAt || q.acceptedAt || q.updatedAt)}
+                        </span>
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          {q.status === 'accepted' ? 'Confirmé' : 'Votre accord'}
+                        </span>
+                        {q.dateLivraison && (
+                          <span className="text-xs text-gray-400">Livraison : {q.dateLivraison}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-base font-bold text-gray-900 dark:text-white">
+                      {fmt(q.clientCounterAmount || q.total || 0)} FCFA
+                    </p>
+                    {q.clientCounterAmount && q.clientCounterAmount !== q.total && (
+                      <p className="text-[10px] text-gray-400 line-through">{fmt(q.total)} FCFA</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          {bonsDeCommande.length > 0 && (
+            <div className="rounded-xl border border-green-100 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 p-4 flex justify-between items-center">
+              <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                {bonsDeCommande.length} bon{bonsDeCommande.length > 1 ? 's' : ''} de commande
+              </span>
+              <span className="text-base font-bold text-green-700 dark:text-green-400">
+                {fmt(bonsDeCommande.reduce((s, q) => s + (q.clientCounterAmount || q.total || 0), 0))} FCFA
               </span>
             </div>
           )}

@@ -8,6 +8,7 @@ import {
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
   Building2, ChevronRight, Settings, BarChart2, Activity
 } from 'lucide-react'
+import NotificationBell from '@/components/portal/NotificationBell'
 
 const navItems = [
   { href: '/portail-entreprise', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
@@ -20,7 +21,7 @@ const navItems = [
   { href: '/portail-entreprise/activite', label: 'Activité', icon: Activity },
 ]
 
-function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+function Sidebar({ collapsed, onToggle, companyName, companyCity }: { collapsed: boolean; onToggle: () => void; companyName: string; companyCity?: string }) {
   const pathname = usePathname()
   const isActive = (item: typeof navItems[0]) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href)
@@ -35,8 +36,8 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
               <Building2 className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Portail Entreprise</p>
-              <p className="text-[10px] text-gray-400 truncate">IT Vision</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{companyName}</p>
+              <p className="text-[10px] text-gray-400 truncate">{companyCity ? `${companyCity} · ` : ''}IT Vision</p>
             </div>
           </div>
         )}
@@ -101,15 +102,29 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
 export default function EnterprisePortalLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [companyName, setCompanyName] = useState('Portail Entreprise')
+  const [companyCity, setCompanyCity] = useState<string | undefined>(undefined)
+  const [userId, setUserId] = useState<string | undefined>(undefined)
   const pathname = usePathname()
 
   useEffect(() => { setMobileSidebarOpen(false) }, [pathname])
+
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.companyName) setCompanyName(d.companyName)
+        if (d?.companyCity) setCompanyCity(d.companyCity)
+        if (d?.userId) setUserId(d.userId)
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden">
       {/* Sidebar desktop */}
       <div className="hidden lg:flex flex-col flex-shrink-0">
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(v => !v)} />
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(v => !v)} companyName={companyName} companyCity={companyCity} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -123,7 +138,7 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <Sidebar collapsed={false} onToggle={() => setMobileSidebarOpen(false)} />
+            <Sidebar collapsed={false} onToggle={() => setMobileSidebarOpen(false)} companyName={companyName} companyCity={companyCity} />
           </div>
         </div>
       )}
@@ -140,11 +155,14 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-green-500 to-violet-600 flex items-center justify-center">
               <Building2 className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="text-sm font-semibold text-gray-900 dark:text-white">Portail Entreprise</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[140px]">{companyName}</span>
           </div>
-          <Link href="/api/auth/logout" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100">
-            <LogOut className="w-5 h-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <NotificationBell userId={userId} />
+            <Link href="/api/auth/logout" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100">
+              <LogOut className="w-5 h-5" />
+            </Link>
+          </div>
         </header>
 
         {/* Page content */}

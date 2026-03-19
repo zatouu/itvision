@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
-import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
-import mongoose from 'mongoose'
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
+import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { connectDB } from '@/lib/db'
 import { FolderKanban, Calendar, CheckCircle, Clock, AlertTriangle, Package } from 'lucide-react'
 import Project from '@/lib/models/Project'
 
@@ -32,13 +32,7 @@ function fmtDate(d: any) {
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
 
 export default async function ProjetsPage() {
-  const auth = await verifyAuthServer()
-  if (!auth.isAuthenticated || !auth.user) redirect('/login?redirect=/portail-entreprise/projets')
-  if (auth.user.role !== 'CLIENT' || !auth.user.companyClientId) redirect('/compte')
-
-  await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/projets')
 
   const projects = await Project.find({
     $or: [{ clientId: userId }, { clientCompanyId: companyId }]

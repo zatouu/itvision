@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
-import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
-import mongoose from 'mongoose'
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
+import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { connectDB } from '@/lib/db'
 import { FileText, CheckCircle, AlertTriangle, Clock, Shield, Wrench, ChevronRight, Calendar } from 'lucide-react'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 
@@ -28,12 +28,8 @@ function daysLeft(d: any) {
 }
 
 export default async function ContratsPage() {
-  const auth = await verifyAuthServer()
-  if (!auth.isAuthenticated || !auth.user) redirect('/login?redirect=/portail-entreprise/contrats')
-  if (auth.user.role !== 'CLIENT' || !auth.user.companyClientId) redirect('/compte')
+  const { userId } = await getEnterpriseSession('/portail-entreprise/contrats')
 
-  await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
   const contracts = await MaintenanceContract.find({ clientId: userId }).sort({ status: 1, endDate: 1 }).lean() as any[]
 
   const active = contracts.filter(c => c.status === 'active')

@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
-import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
-import mongoose from 'mongoose'
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
+import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { connectDB } from '@/lib/db'
 import { Wrench, Calendar, MapPin, AlertTriangle, CheckCircle, Clock, Shield } from 'lucide-react'
 import Intervention from '@/lib/models/Intervention'
 
@@ -31,12 +31,7 @@ function fmtDate(d: any) {
 }
 
 export default async function InterventionsPage() {
-  const auth = await verifyAuthServer()
-  if (!auth.isAuthenticated || !auth.user) redirect('/login?redirect=/portail-entreprise/interventions')
-  if (auth.user.role !== 'CLIENT' || !auth.user.companyClientId) redirect('/compte')
-
-  await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
+  const { userId } = await getEnterpriseSession('/portail-entreprise/interventions')
 
   const interventions = await Intervention.find({ clientId: userId })
     .sort({ date: -1, createdAt: -1 })

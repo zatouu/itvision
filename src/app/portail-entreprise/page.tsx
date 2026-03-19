@@ -1,20 +1,19 @@
-import { redirect } from 'next/navigation'
-import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
-import mongoose from 'mongoose'
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import {
   FileText, Wrench, FolderKanban, Receipt, LifeBuoy,
   AlertTriangle, CheckCircle, Clock, TrendingUp, Building2,
   ChevronRight, Calendar, ArrowUpRight, Shield, Zap
 } from 'lucide-react'
+import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { connectDB } from '@/lib/db'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
 import Project from '@/lib/models/Project'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import Ticket from '@/lib/models/Ticket'
-import Client from '@/lib/models/Client'
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-700',
@@ -57,16 +56,10 @@ function daysLeft(d: any) {
 }
 
 export default async function EnterprisePortalDashboard() {
-  const auth = await verifyAuthServer()
-  if (!auth.isAuthenticated || !auth.user) redirect('/login?redirect=/portail-entreprise')
-  if (auth.user.role !== 'CLIENT' || !auth.user.companyClientId) redirect('/compte')
-
-  await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const session = await getEnterpriseSession('/portail-entreprise')
+  const { userId, companyId, companyName, companyCity, userName, email } = session
 
   const [
-    company,
     contractsData,
     interventionsData,
     projectsData,
@@ -79,7 +72,6 @@ export default async function EnterprisePortalDashboard() {
     kpiInvoiceAgg,
     kpiTickets,
   ] = await Promise.all([
-    Client.findById(companyId).select('name company city country').lean() as any,
     MaintenanceContract.find({ clientId: userId })
       .sort({ endDate: 1 }).limit(3)
       .select('contractNumber name type status endDate annualPrice coverage stats').lean(),
@@ -109,8 +101,7 @@ export default async function EnterprisePortalDashboard() {
   ])
 
   const amountDue = (kpiInvoiceAgg as any[])[0]?.total ?? 0
-  const companyName = (company as any)?.company || (company as any)?.name || auth.user.name || 'Votre entreprise'
-  const city = (company as any)?.city || ''
+  const city = companyCity || ''
 
   const expiringContract = (contractsData as any[]).find(c => {
     const days = daysLeft(c.endDate)
@@ -174,9 +165,10 @@ export default async function EnterprisePortalDashboard() {
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="w-5 h-5 text-white/80" />
               <span className="text-sm font-medium text-white/80">{city || 'Portail Entreprise'}</span>
+
             </div>
             <h1 className="text-2xl font-bold text-white lg:text-3xl">{companyName}</h1>
-            <p className="mt-1 text-sm text-white/70">Bienvenue, {auth.user.name || auth.user.email}</p>
+            <p className="mt-1 text-sm text-white/70">Bienvenue, {userName || email || 'Client'}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Link href="/portail-entreprise/support"

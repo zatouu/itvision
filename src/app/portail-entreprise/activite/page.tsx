@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
-import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
-import mongoose from 'mongoose'
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
+import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { connectDB } from '@/lib/db'
 import {
   Activity, FileText, Wrench, FolderKanban, Receipt,
   LifeBuoy, Shield, MessageSquare, CheckCircle, Clock,
@@ -53,13 +53,7 @@ const ICON_CONFIG = {
 }
 
 export default async function ActivitePage() {
-  const auth = await verifyAuthServer()
-  if (!auth.isAuthenticated || !auth.user) redirect('/login?redirect=/portail-entreprise/activite')
-  if (auth.user.role !== 'CLIENT' || !auth.user.companyClientId) redirect('/compte')
-
-  await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/activite')
 
   const [contracts, interventions, projects, quotes, invoices, tickets] = await Promise.all([
     MaintenanceContract.find({ clientId: userId })
