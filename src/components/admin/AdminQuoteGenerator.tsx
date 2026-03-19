@@ -118,7 +118,11 @@ export default function AdminQuoteGenerator() {
       bonCommande: q?.bonCommande,
       dateLivraison: q?.dateLivraison,
       pointExpedition: q?.pointExpedition,
-      conditions: q?.conditions
+      conditions: q?.conditions,
+      clientResponse: q?.clientResponse,
+      clientRespondedAt: q?.clientRespondedAt,
+      clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
+      clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined
     }
   }
 
