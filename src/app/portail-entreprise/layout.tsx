@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, Wrench, FolderKanban,
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
-  Building2, ChevronRight, Settings, BarChart2, Activity
+  Building2, ChevronRight, Settings, BarChart2, Activity, ClipboardList
 } from 'lucide-react'
 import NotificationBell from '@/components/portal/NotificationBell'
 
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/portail-entreprise/projets', label: 'Projets', icon: FolderKanban },
   { href: '/portail-entreprise/documents', label: 'Devis & Factures', icon: Receipt },
   { href: '/portail-entreprise/finances', label: 'Finances', icon: BarChart2 },
+  { href: '/portail-entreprise/rapports', label: 'Rapports', icon: ClipboardList },
   { href: '/portail-entreprise/support', label: 'Support', icon: LifeBuoy },
   { href: '/portail-entreprise/activite', label: 'Activité', icon: Activity },
 ]
