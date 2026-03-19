@@ -49,6 +49,10 @@ interface Quote {
   dateLivraison?: string
   pointExpedition?: string
   conditions?: string
+  clientResponse?: 'pending' | 'accepted' | 'rejected' | 'counter_proposed'
+  clientRespondedAt?: string
+  clientCounterAmount?: number
+  clientComments?: Array<{ authorId: string; authorRole: string; message: string; createdAt: string; readByOther: boolean }>
 }
 
 interface Product {
@@ -616,6 +620,23 @@ export default function AdminQuoteGenerator() {
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quote.status)}`}>
                             {getStatusLabel(quote.status)}
                           </span>
+                          {quote.clientResponse && quote.clientResponse !== 'pending' && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              quote.clientResponse === 'accepted' ? 'bg-green-100 text-green-700' :
+                              quote.clientResponse === 'rejected' ? 'bg-red-100 text-red-700' :
+                              'bg-violet-100 text-violet-700'
+                            }`}>
+                              Client : {quote.clientResponse === 'accepted' ? '✓ Accepté' : quote.clientResponse === 'rejected' ? '✗ Refusé' : '↔ Contre-proposition'}
+                            </span>
+                          )}
+                          {quote.clientResponse === 'pending' && quote.status === 'sent' && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">En attente réponse</span>
+                          )}
+                          {(quote.clientComments?.length ?? 0) > 0 && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
+                              💬 {quote.clientComments!.length} message{(quote.clientComments!.length ?? 0) > 1 ? 's' : ''}
+                            </span>
+                          )}
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
