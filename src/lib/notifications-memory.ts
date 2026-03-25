@@ -93,3 +93,9 @@ export function deleteById(id: string, targets: Set<string>): boolean {
   notifications = notifications.filter(n => !(n.id === id && targets.has(n.userId)))
   return notifications.length < lengthBefore
 }
+
+export function deleteAllFor(targets: Set<string>): number {
+  const lengthBefore = notifications.length
+  notifications = notifications.filter(n => !targets.has(n.userId))
+  return lengthBefore - notifications.length
+}

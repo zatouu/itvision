@@ -17,12 +17,24 @@ export async function GET(request: NextRequest) {
 
   const [quotes, invoices] = await Promise.all([
     AdminQuote.find(userFilter).sort({ date: -1 }).limit(50)
-      .select('numero title date status total client projectId createdAt')
+      .select('numero title date status subtotal brsAmount taxAmount other total client projectId createdAt updatedAt products notes bonCommande dateLivraison pointExpedition conditions clientResponse clientRespondedAt clientCounterAmount clientComments sentAt acceptedAt rejectedAt')
       .lean(),
     AdminInvoice.find(userFilter).sort({ date: -1 }).limit(50)
       .select('numero date dueDate status total client quoteId paidAt projectId createdAt')
       .lean()
   ])
 
-  return NextResponse.json({ quotes, invoices })
+  const normalizedQuotes = (quotes as any[]).map((q) => ({
+    ...q,
+    products: Array.isArray(q.products) ? q.products : [],
+    clientComments: Array.isArray(q.clientComments)
+      ? [...q.clientComments].sort((a: any, b: any) => {
+          const at = new Date(a?.createdAt || 0).getTime()
+          const bt = new Date(b?.createdAt || 0).getTime()
+          return at - bt
+        })
+      : []
+  }))
+
+  return NextResponse.json({ quotes: normalizedQuotes, invoices })
 }

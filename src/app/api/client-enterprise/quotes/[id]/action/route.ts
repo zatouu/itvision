@@ -4,14 +4,30 @@ import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
 import emailService from '@/lib/email-service'
+import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
 
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
 
+function normalizeQuoteForResponse(quote: any) {
+  if (!quote) return quote
+  return {
+    ...quote,
+    products: Array.isArray(quote.products) ? quote.products : [],
+    clientComments: Array.isArray(quote.clientComments)
+      ? [...quote.clientComments].sort((a: any, b: any) => {
+          const at = new Date(a?.createdAt || 0).getTime()
+          const bt = new Date(b?.createdAt || 0).getTime()
+          return at - bt
+        })
+      : []
+  }
+}
+
 function buildAdminNotificationHtml(quote: any, action: string, message: string, counterAmount?: number, clientName?: string) {
-  const actionLabel = action === 'accepted' ? '✅ Accepté' : action === 'rejected' ? '❌ Refusé' : action === 'counter_proposed' ? '🔄 Contre-proposition' : '💬 Commentaire'
+  const actionLabel = action === 'accepted' ? 'Accepté' : action === 'rejected' ? 'Refusé' : action === 'counter_proposed' ? 'Contre-proposition' : 'Commentaire'
   const color = action === 'accepted' ? '#16a34a' : action === 'rejected' ? '#dc2626' : '#7c3aed'
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0}
@@ -93,41 +109,62 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const body = await request.json()
   const { action, message, counterAmount } = body
+  const trimmedMessage = typeof message === 'string' ? message.trim() : ''
 
   if (!['accepted', 'rejected', 'counter_proposed', 'comment'].includes(action)) {
     return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
   }
 
+  if (action === 'comment' && !trimmedMessage) {
+    return NextResponse.json({ error: 'Le commentaire est requis' }, { status: 400 })
+  }
+
+  if (action === 'counter_proposed' && (!counterAmount || Number(counterAmount) <= 0)) {
+    return NextResponse.json({ error: 'Le montant de contre-proposition est requis' }, { status: 400 })
+  }
+
   const now = new Date()
 
   // Mettre à jour le statut du devis
-  const update: any = { clientRespondedAt: now }
+  const setUpdate: any = { clientRespondedAt: now }
   if (action !== 'comment') {
-    update.clientResponse = action
+    setUpdate.clientResponse = action
     if (action === 'accepted') {
-      update.status = 'accepted'
-      update.acceptedAt = now
+      setUpdate.status = 'accepted'
+      setUpdate.acceptedAt = now
     } else if (action === 'rejected') {
-      update.status = 'rejected'
-      update.rejectedAt = now
+      setUpdate.status = 'rejected'
+      setUpdate.rejectedAt = now
     } else if (action === 'counter_proposed') {
-      update.clientCounterAmount = counterAmount
+      setUpdate.clientCounterAmount = counterAmount
     }
   }
 
-  if (message) {
-    update.$push = {
-      clientComments: {
-        authorId: userId,
-        authorRole: 'CLIENT',
-        message,
-        createdAt: now,
-        readByOther: false
+  const pushUpdate = trimmedMessage
+    ? {
+        clientComments: {
+          authorId: userId,
+          authorRole: 'CLIENT',
+          message: trimmedMessage,
+          createdAt: now,
+          readByOther: false
+        }
       }
-    }
+    : undefined
+
+  if (trimmedMessage) {
+    setUpdate.clientRespondedAt = now
   }
 
-  await AdminQuote.updateOne({ _id: quote._id }, { $set: update, ...(update.$push ? { $push: update.$push } : {}) })
+  const mongoUpdate: any = { $set: setUpdate }
+  if (pushUpdate) {
+    mongoUpdate.$push = pushUpdate
+  }
+
+  await AdminQuote.updateOne({ _id: quote._id }, mongoUpdate)
+
+  const updatedQuote = await AdminQuote.findById(quote._id).lean()
+  const normalizedQuote = normalizeQuoteForResponse(updatedQuote)
 
   // Emails
   const clientName = auth.user.name || auth.user.email || 'Client'
@@ -138,7 +175,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     emailService.sendEmail({
       to: ADMIN_EMAIL,
       subject: `[Portail Client] Devis ${quote.numero} — ${action === 'accepted' ? 'Accepté' : action === 'rejected' ? 'Refusé' : action === 'counter_proposed' ? 'Contre-proposition' : 'Commentaire'} par ${clientName}`,
-      html: buildAdminNotificationHtml(quote, action, message || '', counterAmount, clientName)
+      html: buildAdminNotificationHtml(quote, action, trimmedMessage, counterAmount, clientName)
     }),
     // Confirmer au client
     clientEmail && action !== 'comment' ? emailService.sendEmail({
@@ -148,5 +185,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }) : Promise.resolve()
   ])
 
-  return NextResponse.json({ success: true, action })
+  const eventType =
+    action === 'accepted'
+      ? 'client_accepted'
+      : action === 'rejected'
+      ? 'client_rejected'
+      : action === 'counter_proposed'
+      ? 'client_counter_proposed'
+      : 'client_comment'
+
+  await notifyQuoteWorkflowEvent({
+    eventType,
+    quote: normalizedQuote || quote,
+    actorName: clientName,
+    message: trimmedMessage,
+    counterAmount: Number(counterAmount || 0) || undefined,
+    clientUserId: auth.user.id,
+    clientCompanyId: auth.user.companyClientId
+  })
+
+  return NextResponse.json({ success: true, action, quote: normalizedQuote })
 }

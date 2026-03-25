@@ -5,6 +5,7 @@ import AdminQuote from '@/lib/models/AdminQuote'
 import { generateITVisionQuotePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
 import { getClientEmailRecipients } from '@/lib/client-contacts'
+import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
 import fs from 'fs'
 import path from 'path'
 
@@ -113,6 +114,14 @@ export async function POST(request: NextRequest) {
           }
         }
       )
+
+      await notifyQuoteWorkflowEvent({
+        eventType: 'quote_sent',
+        quote,
+        actorName: auth.user.name || auth.user.email || 'Administrateur',
+        clientUserId: quote.clientUserId ? String(quote.clientUserId) : undefined,
+        clientCompanyId: quote.clientCompanyId ? String(quote.clientCompanyId) : undefined
+      })
     }
 
     return NextResponse.json({ success: ok })

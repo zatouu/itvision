@@ -1,66 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { addNotification } from '@/lib/notifications-memory'
+import {
+  addNotification,
+  getNotifications,
+  markAllAsReadFor,
+  markAsRead,
+  deleteById,
+  deleteAllFor
+} from '@/lib/notifications-memory'
 import { requireAuth } from '@/lib/jwt'
-
-interface Notification {
-  id: string
-  userId: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  title: string
-  message: string
-  read: boolean
-  createdAt: string
-  actionUrl?: string
-  metadata?: any
-}
-
-// Stockage temporaire en mémoire (en production, utiliser Redis ou base de données)
-let notifications: Notification[] = [
-  {
-    id: 'notif-1',
-    userId: 'admin', // notification dédiée aux admins
-    type: 'warning',
-    title: 'Maintenance programmée',
-    message: '3 équipements nécessitent une maintenance cette semaine',
-    read: false,
-    createdAt: new Date().toISOString(),
-    actionUrl: '/admin-reports',
-    metadata: { count: 3, type: 'maintenance' }
-  },
-  {
-    id: 'notif-2',
-    userId: 'admin',
-    type: 'info',
-    title: 'Nouveau rapport',
-    message: 'Un nouveau rapport d\'intervention a été soumis par Moussa Diop',
-    read: false,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    actionUrl: '/validation-rapports',
-    metadata: { technicianId: 'TECH-001', reportId: 'RPT-001' }
-  },
-  {
-    id: 'notif-3',
-    userId: 'admin',
-    type: 'success',
-    title: 'Projet terminé',
-    message: 'Le projet "Vidéosurveillance Siège" a été marqué comme terminé',
-    read: false,
-    createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    actionUrl: '/gestion-projets',
-    metadata: { projectId: 'PRJ-001', status: 'completed' }
-  },
-  {
-    id: 'notif-4',
-    userId: 'admin',
-    type: 'error',
-    title: 'Problème technique',
-    message: 'Problème détecté sur le projet "Domotique Hôtel" - intervention requise',
-    read: false,
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    actionUrl: '/gestion-projets',
-    metadata: { projectId: 'PRJ-005', severity: 'high' }
-  }
-]
 
 async function requireAuthUser(request: NextRequest) {
   return await requireAuth(request)
@@ -78,6 +25,7 @@ export async function GET(request: NextRequest) {
     const targets = new Set<string>([String(user.userId)])
     if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
 
+    const notifications = getNotifications()
     let userNotifications = notifications.filter(n => targets.has(n.userId))
 
     if (unreadOnly) {
@@ -122,24 +70,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type, titre et message requis' }, { status: 400 })
     }
 
-    const notification: Notification = {
-      id: `notif-${Date.now()}`,
+    const notification = addNotification({
       userId: userId || 'all',
       type,
       title,
       message,
-      read: false,
-      createdAt: new Date().toISOString(),
       actionUrl,
       metadata
-    }
-
-    notifications.unshift(notification)
-
-    // Garder seulement les 100 dernières notifications
-    if (notifications.length > 100) {
-      notifications = notifications.slice(0, 100)
-    }
+    })
 
     return NextResponse.json({
       success: true,
@@ -164,19 +102,19 @@ export async function PATCH(request: NextRequest) {
       // Marquer toutes les notifications de l'utilisateur comme lues
       const targets = new Set<string>([String(user.userId)])
       if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
-      notifications = notifications.map(n => (targets.has(n.userId) ? { ...n, read: true } : n))
+      markAllAsReadFor(targets)
     } else if (notificationIds && Array.isArray(notificationIds)) {
       // Marquer les notifications spécifiées comme lues
       const targets = new Set<string>([String(user.userId)])
       if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
-      notifications = notifications.map(n => (notificationIds.includes(n.id) && targets.has(n.userId)) ? { ...n, read: true } : n)
+      markAsRead(notificationIds, targets)
     } else {
       return NextResponse.json({ error: 'IDs de notifications ou markAllAsRead requis' }, { status: 400 })
     }
 
     const targets = new Set<string>([String(user.userId)])
     if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
-    const unreadCount = notifications.filter(n => targets.has(n.userId) && !n.read).length
+    const unreadCount = getNotifications().filter(n => targets.has(n.userId) && !n.read).length
 
     return NextResponse.json({
       success: true,
@@ -200,11 +138,9 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteAll) {
       // Supprimer toutes les notifications de l'utilisateur
-      const initialLength = notifications.length
       const targets = new Set<string>([String(user.userId)])
       if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
-      notifications = notifications.filter(n => !targets.has(n.userId))
-      const deletedCount = initialLength - notifications.length
+      const deletedCount = deleteAllFor(targets)
 
       return NextResponse.json({
         success: true,
@@ -213,12 +149,11 @@ export async function DELETE(request: NextRequest) {
       })
     } else if (notificationId) {
       // Supprimer une notification spécifique
-      const initialLength = notifications.length
       const targets = new Set<string>([String(user.userId)])
       if (String(user.role).toUpperCase() === 'ADMIN') targets.add('admin')
-      notifications = notifications.filter(n => !(n.id === notificationId && targets.has(n.userId)))
+      const deleted = deleteById(notificationId, targets)
 
-      if (notifications.length < initialLength) {
+      if (deleted) {
         return NextResponse.json({
           success: true,
           message: 'Notification supprimée'

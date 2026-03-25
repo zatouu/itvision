@@ -65,7 +65,7 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur')
       setSuccess('Votre réponse a été envoyée. Un email de confirmation a été transmis.')
-      onAction({ ...quote, clientResponse: action, status: action === 'accepted' ? 'accepted' : action === 'rejected' ? 'rejected' : quote.status })
+      onAction(data?.quote || { ...quote, clientResponse: action, status: action === 'accepted' ? 'accepted' : action === 'rejected' ? 'rejected' : quote.status })
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -77,13 +77,20 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
     e.preventDefault()
     if (!newComment.trim()) return
     setSendingComment(true)
+    setError('')
     try {
-      await fetch(`/api/client-enterprise/quotes/${quote._id}/action`, {
+      const res = await fetch(`/api/client-enterprise/quotes/${quote._id}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'comment', message: newComment })
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur')
+      if (data?.quote) onAction(data.quote)
       setNewComment('')
+      setTab('comments')
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'envoi du commentaire')
     } finally {
       setSendingComment(false)
     }
@@ -533,8 +540,14 @@ export default function DocumentsPage() {
   }, [])
 
   const handleQuoteAction = useCallback((updated: any) => {
-    setQuotes(prev => prev.map(q => q._id === updated._id ? { ...q, ...updated } : q))
-    setSelectedQuote((prev: any) => prev?._id === updated._id ? { ...prev, ...updated } : prev)
+    const normalized = {
+      ...updated,
+      clientComments: Array.isArray(updated?.clientComments)
+        ? [...updated.clientComments].sort((a: any, b: any) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime())
+        : updated?.clientComments
+    }
+    setQuotes(prev => prev.map(q => q._id === normalized._id ? { ...q, ...normalized } : q))
+    setSelectedQuote((prev: any) => prev?._id === normalized._id ? { ...prev, ...normalized } : prev)
   }, [])
 
   // KPIs financiers

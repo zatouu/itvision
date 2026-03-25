@@ -11,13 +11,19 @@ export async function GET(request: NextRequest) {
   await connectDB()
 
   const userId = auth.user.id
-  const notifs = await InAppNotification.find({
-    deletedBy: { $ne: userId },
+  const companyClientId = auth.user.companyClientId
+  const visibilityFilter = {
     $or: [
       { userId },
       { roles: auth.user.role },
-      { roles: { $exists: false }, userId: { $exists: false } }
+      ...(companyClientId ? [{ teamId: companyClientId }] : []),
+      { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
     ]
+  }
+
+  const notifs = await InAppNotification.find({
+    deletedBy: { $ne: userId },
+    ...visibilityFilter
   })
     .sort({ createdAt: -1 })
     .limit(30)
@@ -36,23 +42,32 @@ export async function PATCH(request: NextRequest) {
   await connectDB()
 
   const userId = auth.user.id
+  const companyClientId = auth.user.companyClientId
+  const visibilityFilter = {
+    $or: [
+      { userId },
+      { roles: auth.user.role },
+      ...(companyClientId ? [{ teamId: companyClientId }] : []),
+      { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
+    ]
+  }
 
   if (body.all) {
     await InAppNotification.updateMany(
       {
         deletedBy: { $ne: userId },
         readBy: { $ne: userId },
-        $or: [
-          { userId },
-          { roles: auth.user.role },
-          { roles: { $exists: false }, userId: { $exists: false } }
-        ]
+        ...visibilityFilter
       },
       { $addToSet: { readBy: userId } }
     )
   } else if (body.id) {
     await InAppNotification.updateOne(
-      { _id: body.id },
+      {
+        _id: body.id,
+        deletedBy: { $ne: userId },
+        ...visibilityFilter
+      },
       { $addToSet: { readBy: userId } }
     )
   }
@@ -70,8 +85,21 @@ export async function DELETE(request: NextRequest) {
   if (!body.id) return NextResponse.json({ error: 'id requis' }, { status: 400 })
 
   await connectDB()
+  const companyClientId = auth.user.companyClientId
+  const visibilityFilter = {
+    $or: [
+      { userId: auth.user.id },
+      { roles: auth.user.role },
+      ...(companyClientId ? [{ teamId: companyClientId }] : []),
+      { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
+    ]
+  }
+
   await InAppNotification.updateOne(
-    { _id: body.id },
+    {
+      _id: body.id,
+      ...visibilityFilter
+    },
     { $addToSet: { deletedBy: auth.user.id } }
   )
 
