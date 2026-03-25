@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import {
@@ -22,7 +22,19 @@ const navItems = [
   { href: '/portail-entreprise/activite', label: 'Activité', icon: Activity },
 ]
 
-function Sidebar({ collapsed, onToggle, companyName, companyCity }: { collapsed: boolean; onToggle: () => void; companyName: string; companyCity?: string }) {
+function Sidebar({
+  collapsed,
+  onToggle,
+  onLogout,
+  companyName,
+  companyCity
+}: {
+  collapsed: boolean
+  onToggle: () => void
+  onLogout: () => void
+  companyName: string
+  companyCity?: string
+}) {
   const pathname = usePathname()
   const isActive = (item: typeof navItems[0]) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href)
@@ -90,17 +102,22 @@ function Sidebar({ collapsed, onToggle, companyName, companyCity }: { collapsed:
           <Settings className="flex-shrink-0 w-4 h-4" />
           {!collapsed && <span>Paramètres</span>}
         </Link>
-        <Link href="/api/auth/logout" title={collapsed ? 'Déconnexion' : undefined}
-          className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+        <button
+          type="button"
+          onClick={onLogout}
+          title={collapsed ? 'Déconnexion' : undefined}
+          className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
           <LogOut className="flex-shrink-0 w-4 h-4" />
           {!collapsed && <span>Déconnexion</span>}
-        </Link>
+        </button>
       </div>
     </aside>
   )
 }
 
 export default function EnterprisePortalLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [companyName, setCompanyName] = useState('Portail Entreprise')
@@ -121,11 +138,31 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
       .catch(() => {})
   }, [])
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { accept: 'application/json' },
+        credentials: 'include'
+      })
+    } catch {
+      // ignore network errors and force redirect anyway
+    } finally {
+      router.replace('/login')
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden">
       {/* Sidebar desktop */}
       <div className="hidden lg:flex flex-col flex-shrink-0">
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(v => !v)} companyName={companyName} companyCity={companyCity} />
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(v => !v)}
+          onLogout={handleLogout}
+          companyName={companyName}
+          companyCity={companyCity}
+        />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -139,7 +176,13 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <Sidebar collapsed={false} onToggle={() => setMobileSidebarOpen(false)} companyName={companyName} companyCity={companyCity} />
+            <Sidebar
+              collapsed={false}
+              onToggle={() => setMobileSidebarOpen(false)}
+              onLogout={handleLogout}
+              companyName={companyName}
+              companyCity={companyCity}
+            />
           </div>
         </div>
       )}
@@ -160,9 +203,13 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
           </div>
           <div className="flex items-center gap-1">
             <NotificationBell userId={userId} />
-            <Link href="/api/auth/logout" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+            >
               <LogOut className="w-5 h-5" />
-            </Link>
+            </button>
           </div>
         </header>
 
