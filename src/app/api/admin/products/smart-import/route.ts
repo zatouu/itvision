@@ -44,38 +44,59 @@ const IMAGE_BLACKLIST_PATTERNS = [
   /\.gif$/i, // GIFs animees = presque toujours promo
 ]
 
-// Dimensions minimum pour les images produit valides (heuristique URL)
-const IMAGE_MIN_DIMENSION_PATTERNS = [
-  // AliExpress/1688 thumbnails trop petites
-  /\d+x\d+/,
-]
+function normalizeImageUrl(url: string): string {
+  if (!url || typeof url !== 'string') return ''
+  let clean = url.trim()
+  if (!clean) return ''
+  if (clean.startsWith('//')) clean = `https:${clean}`
+  if (!/^https?:\/\//i.test(clean)) return ''
+  clean = clean
+    .replace(/_\d+x\d+[^.]*/i, '')
+    .replace(/\.\d+x\d+\./i, '.')
+    .replace(/\.search\..*$/i, '')
+    .replace(/_q\d+\.jpg$/i, '.jpg')
+  return clean
+}
 
 function filterProductImages(images: string[]): string[] {
   if (!Array.isArray(images)) return []
 
-  return images.filter(url => {
-    if (typeof url !== 'string' || !url.startsWith('http')) return false
+  const seen = new Set<string>()
+  const out: string[] = []
+
+  for (const source of images) {
+    const url = normalizeImageUrl(source)
+    if (!url) continue
 
     // Exclure les patterns blacklistes
     const urlLower = url.toLowerCase()
+    let blacklisted = false
     for (const pattern of IMAGE_BLACKLIST_PATTERNS) {
-      if (pattern.test(urlLower)) return false
+      if (pattern.test(urlLower)) {
+        blacklisted = true
+        break
+      }
     }
+    if (blacklisted) continue
 
-    // Exclure les images trop petites (thumbnails)
-    // Heuristique : si l'URL contient des dimensions comme 50x50, 100x100, etc.
+    // Exclure seulement les miniatures explicites très petites
     const dimMatch = urlLower.match(/(\d+)x(\d+)/)
     if (dimMatch) {
       const w = parseInt(dimMatch[1])
       const h = parseInt(dimMatch[2])
-      if (w < 200 || h < 200) return false
+      if (w < 80 && h < 80) continue
     }
 
     // Exclure les favicons et petites icones
-    if (urlLower.includes('favicon') || urlLower.includes('.ico')) return false
+    if (urlLower.includes('favicon') || urlLower.includes('.ico')) continue
 
-    return true
-  })
+    const key = url.split('?')[0]
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(url)
+  }
+
+  return out
 }
 
 async function reformatDescription(
@@ -187,6 +208,58 @@ export async function POST(req: NextRequest) {
       error?: string
     }> = []
 
+    const toPositiveNumber = (value: unknown): number | undefined => {
+      const n = typeof value === 'number' ? value : Number(value)
+      return Number.isFinite(n) && n > 0 ? n : undefined
+    }
+
+    const normalizeVariantGroups = (
+      rawVariantGroups: unknown,
+      rawVariants: unknown
+    ): Array<{ name: string; variants: Array<{ name: string; image?: string; price1688?: number; stock: number }> }> => {
+      if (Array.isArray(rawVariantGroups) && rawVariantGroups.length > 0) {
+        return rawVariantGroups
+          .map((group: any) => {
+            const groupName = String(group?.name || '').trim()
+            if (!groupName) return null
+            const variants = (Array.isArray(group?.variants) ? group.variants : [])
+              .map((variant: any) => {
+                const name = String(variant?.name || '').trim()
+                if (!name) return null
+                return {
+                  name,
+                  image: normalizeImageUrl(String(variant?.image || '')) || undefined,
+                  price1688: toPositiveNumber(variant?.price1688),
+                  stock: Math.max(0, Number(variant?.stock) || 0),
+                }
+              })
+              .filter(Boolean) as Array<{ name: string; image?: string; price1688?: number; stock: number }>
+            if (variants.length === 0) return null
+            return { name: groupName, variants }
+          })
+          .filter(Boolean) as Array<{ name: string; variants: Array<{ name: string; image?: string; price1688?: number; stock: number }> }>
+      }
+
+      if (!Array.isArray(rawVariants) || rawVariants.length === 0) return []
+
+      const grouped = new Map<string, Array<{ name: string; image?: string; price1688?: number; stock: number }>>()
+      for (const variant of rawVariants as any[]) {
+        const name = String(variant?.name || '').trim()
+        if (!name) continue
+        const groupName = String(variant?.groupName || 'Options').trim() || 'Options'
+        const list = grouped.get(groupName) || []
+        list.push({
+          name,
+          image: normalizeImageUrl(String(variant?.image || '')) || undefined,
+          price1688: toPositiveNumber(variant?.price1688),
+          stock: Math.max(0, Number(variant?.stock) || 0),
+        })
+        grouped.set(groupName, list)
+      }
+
+      return Array.from(grouped.entries()).map(([name, variants]) => ({ name, variants }))
+    }
+
     for (let i = 0; i < rawProducts.length; i++) {
       const raw = rawProducts[i]
 
@@ -197,10 +270,24 @@ export async function POST(req: NextRequest) {
         }
 
         // 1. Filtrer les images
-        const rawImages = Array.isArray(raw.images) ? raw.images : []
-        const cleanImages = shouldFilterImages ? filterProductImages(rawImages) : rawImages
+        const variantGroups = normalizeVariantGroups(raw.variantGroups, raw.variants)
+        const variantImages = variantGroups.flatMap(group => group.variants.map(v => v.image).filter(Boolean))
+        const mergedRawImages = [
+          ...(Array.isArray(raw.images) ? raw.images : []),
+          ...(Array.isArray(raw.gallery) ? raw.gallery : []),
+          ...(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []),
+          ...(Array.isArray(raw.imageCategories?.gallery) ? raw.imageCategories.gallery : []),
+          ...(Array.isArray(raw.imageCategories?.description) ? raw.imageCategories.description : []),
+          ...(Array.isArray(raw.imageCategories?.variant) ? raw.imageCategories.variant : []),
+          ...variantImages,
+        ]
+        const rawImages = mergedRawImages.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+        const cleanImages = shouldFilterImages
+          ? filterProductImages(rawImages)
+          : rawImages.map(normalizeImageUrl).filter(Boolean)
         // Limiter a 10 images max
         const finalImages = cleanImages.slice(0, 10)
+        const cleanDescriptionImages = filterProductImages(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []).slice(0, 30)
 
         // 2. Reformater la description
         let description = raw.description || ''
@@ -217,7 +304,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Calculer le pricing
-        const price1688 = typeof raw.price1688 === 'number' ? raw.price1688 : 0
+        const price1688 = toPositiveNumber(raw.price1688) || 0
         let baseCost: number | undefined
         let price: number = 0
         let b2bPrice: number = 0
@@ -229,10 +316,27 @@ export async function POST(req: NextRequest) {
           const insurance = Math.round(baseCost * 0.025) // 2.5% assurance
           price = baseCost + serviceFee + insurance
           b2bPrice = Math.round(price * (1 - b2bDiscountPercent / 100))
-        } else if (typeof raw.price === 'number' && raw.price > 0) {
-          price = raw.price
-          b2bPrice = Math.round(price * (1 - b2bDiscountPercent / 100))
+        } else {
+          const parsedPrice = toPositiveNumber(raw.price)
+          if (parsedPrice) {
+            price = parsedPrice
+            b2bPrice = Math.round(price * (1 - b2bDiscountPercent / 100))
+          }
         }
+
+        const weightKg = toPositiveNumber(raw.weightKg)
+        const lengthCm = toPositiveNumber(raw.lengthCm)
+        const widthCm = toPositiveNumber(raw.widthCm)
+        const heightCm = toPositiveNumber(raw.heightCm)
+        const hasCompleteDimensions = Boolean(lengthCm && widthCm && heightCm)
+        const explicitVolume = toPositiveNumber(raw.volumeM3)
+        const computedVolume = hasCompleteDimensions
+          ? Number((((lengthCm as number) * (widthCm as number) * (heightCm as number)) / 1_000_000).toFixed(3))
+          : undefined
+        const volumeM3 = explicitVolume || computedVolume
+        const hasImportLogistics = Boolean(weightKg && (volumeM3 || hasCompleteDimensions))
+        const sourcePlatform = typeof raw.sourcePlatform === 'string' ? raw.sourcePlatform.toLowerCase() : '1688'
+        const requiresQuote = Boolean(raw.requiresQuote) || !hasImportLogistics || price <= 0
 
         // 4. Creer le produit
         const productData: any = {
@@ -243,6 +347,7 @@ export async function POST(req: NextRequest) {
           tags: raw.tags || ['import-chine'],
           image: finalImages[0] || '/file.svg',
           gallery: finalImages,
+          descriptionImages: cleanDescriptionImages,
           price,
           baseCost,
           b2bPrice,
@@ -254,28 +359,24 @@ export async function POST(req: NextRequest) {
           currency: 'FCFA',
           condition: 'new',
           stockStatus: 'preorder',
+          requiresQuote,
           isPublished: autoPublish,
-          weightKg: raw.weightKg || undefined,
+          weightKg,
+          lengthCm: hasCompleteDimensions ? lengthCm : undefined,
+          widthCm: hasCompleteDimensions ? widthCm : undefined,
+          heightCm: hasCompleteDimensions ? heightCm : undefined,
+          volumeM3,
+          specifications: (raw.specifications && typeof raw.specifications === 'object') ? raw.specifications : undefined,
           sourcing: {
-            platform: raw.sourcePlatform || '1688',
+            platform: sourcePlatform,
             productUrl: raw.sourceUrl || undefined,
             supplierName: raw.supplierName || undefined,
           },
         }
 
         // Variantes si presentes
-        if (Array.isArray(raw.variants) && raw.variants.length > 0) {
-          productData.variantGroups = [
-            {
-              name: 'Options',
-              variants: raw.variants.map((v: any) => ({
-                name: v.name || 'Variante',
-                image: v.image || undefined,
-                price1688: v.price1688 || undefined,
-                stock: 0,
-              })),
-            },
-          ]
+        if (variantGroups.length > 0) {
+          productData.variantGroups = variantGroups
         }
 
         const created = await Product.create(productData)

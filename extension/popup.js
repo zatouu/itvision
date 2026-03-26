@@ -199,21 +199,91 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   };
 
+  const toPositiveNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
+  const isLikelyValidImageUrl = (url) => {
+    if (typeof url !== 'string') return false;
+    const value = url.trim();
+    if (!value || !/^https?:\/\//i.test(value)) return false;
+    const lower = value.toLowerCase();
+    if (/paypal|klarna|afterpay|clearpay|payment|badge|banner|coupon|promo|logo|watermark|qrcode|icon|avatar|review|feedback|recommend/i.test(lower)) return false;
+    if (/\.svg($|\?)/i.test(lower)) return false;
+    return /\.(jpe?g|png|webp)(\?|$)/i.test(lower) || /alicdn|aliexpress|1688|imgextra/i.test(lower);
+  };
+
+  const dedupeImages = (images) => {
+    const out = [];
+    const seen = new Set();
+    (images || []).forEach((url) => {
+      if (!isLikelyValidImageUrl(url)) return;
+      const normalized = String(url).replace(/_\d+x\d+[^.]*/i, '').trim();
+      if (!normalized) return;
+      const key = normalized.split('?')[0];
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(normalized);
+    });
+    return out;
+  };
+
+  const normalizeVariantGroups = (groups) => {
+    if (!Array.isArray(groups)) return [];
+    return groups
+      .map((g, gi) => {
+        const groupName = String(g?.name || '').trim();
+        if (!groupName) return null;
+        const variants = (Array.isArray(g?.variants) ? g.variants : [])
+          .map((v, vi) => {
+            const name = String(v?.name || '').trim();
+            if (!name) return null;
+            return {
+              id: String(v?.id || `g${gi}-v${vi}`),
+              name,
+              image: isLikelyValidImageUrl(v?.image) ? v.image : undefined,
+              price1688: toPositiveNumber(v?.price1688),
+              stock: Number.isFinite(Number(v?.stock)) ? Math.max(0, Number(v.stock)) : 0,
+              isDefault: Boolean(v?.isDefault) || vi === 0
+            };
+          })
+          .filter(Boolean);
+        if (variants.length === 0) return null;
+        return { name: groupName, variants };
+      })
+      .filter(Boolean);
+  };
+
   // Format smart-import /api/admin/products/smart-import (enrichi IA + pricing auto)
   const transformProductForSmartApi = (p) => {
-    // Toutes les images : galerie + description + variantes (classées)
-    const allImages = [
-      ...(p.gallery || []),
-      ...(p.descriptionImages || []),
+    const normalizedVariantGroups = normalizeVariantGroups(p.variantGroups || []);
+    const variantImages = normalizedVariantGroups.flatMap(g =>
+      (g.variants || []).map(v => v.image).filter(Boolean)
+    );
+    const gallery = dedupeImages(p.gallery || []).slice(0, 20);
+    const descriptionImages = dedupeImages(p.descriptionImages || []).slice(0, 30);
+    const images = dedupeImages([
+      ...gallery,
+      ...descriptionImages,
+      ...variantImages,
+      ...((p.imageCategories?.description || [])),
+      ...((p.imageCategories?.gallery || [])),
       ...((p.imageCategories?.variant || []))
-    ].filter(Boolean);
-    // Dédupliquer
-    const uniqueImages = [...new Set(allImages)];
+    ]).slice(0, 20);
+
+    const lengthCm = toPositiveNumber(p.lengthCm);
+    const widthCm = toPositiveNumber(p.widthCm);
+    const heightCm = toPositiveNumber(p.heightCm);
+    const hasDimensions = Boolean(lengthCm && widthCm && heightCm);
+    const volumeM3 = hasDimensions ? Number(((lengthCm * widthCm * heightCm) / 1000000).toFixed(4)) : undefined;
 
     return {
       name: p.name || 'Produit',
       description: p.description || Object.entries(p.specifications || {}).map(([k,v]) => `${k}: ${v}`).join('\n') || '',
-      images: uniqueImages,
+      images,
+      gallery,
+      descriptionImages,
       imageCategories: p.imageCategories || undefined,
       videos: p.videos || [],
       price1688: p.price1688 || undefined,
@@ -222,18 +292,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       priceTiers: p.priceTiers || [],
       category: p.category || 'Catalogue import Chine',
       features: p.features || [],
-      variants: (p.variantGroups || []).flatMap(g =>
+      variants: normalizedVariantGroups.flatMap(g =>
         (g.variants || []).map(v => ({
+          id: v.id,
           name: v.name,
           image: v.image,
           price1688: v.price1688,
           groupName: g.name
         }))
       ),
+      variantGroups: normalizedVariantGroups,
       weightKg: p.weightKg || undefined,
-      lengthCm: p.lengthCm || undefined,
-      widthCm: p.widthCm || undefined,
-      heightCm: p.heightCm || undefined,
+      lengthCm: hasDimensions ? lengthCm : undefined,
+      widthCm: hasDimensions ? widthCm : undefined,
+      heightCm: hasDimensions ? heightCm : undefined,
+      volumeM3,
       sourceUrl: p.url,
       sourcePlatform: p.platform === '1688' ? '1688' : 'aliexpress',
       supplierName: p.shopName || p.supplier?.name || undefined,
@@ -274,9 +347,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         result = await response.json();
         if (response.ok && result.success !== false) {
-          await chrome.storage.local.set({ products: [] });
+          const failedIndexes = new Set(
+            Array.isArray(result.results)
+              ? result.results.filter(r => !r?.success && Number.isFinite(r?.index)).map(r => Number(r.index))
+              : []
+          );
+          const remainingProducts = failedIndexes.size > 0
+            ? products.filter((_, idx) => failedIndexes.has(idx))
+            : [];
+          await chrome.storage.local.set({ products: remainingProducts });
           loadProducts();
-          showNotification(`Smart Import: ${result.imported || 0} créé(s)${result.failed > 0 ? ', ' + result.failed + ' échoué(s)' : ''}`, 'success');
+          showNotification(`Smart Import: ${result.imported || 0} créé(s)${result.failed > 0 ? ', ' + result.failed + ' échoué(s)' : ''}`, result.failed > 0 ? 'error' : 'success');
         } else {
           // Fallback sur import standard si 403 (pas ADMIN)
           if (response.status === 403) {

@@ -60,7 +60,7 @@
     // Mots-clés paiement/logo/badge dans le chemin ou nom de fichier (même sur CDN aliexpress)
     const filename = lower.split('/').pop()?.split('?')[0] || '';
     if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner|afterpay|clearpay|payment|checkout|trust|secure|guarantee)[_\-.]/.test(filename)) return true;
-    if (/(klarna|afterpay|clearpay|paypal|payment[_\-]method|payment[_\-]icon|trust[_\-]badge|secure[_\-]checkout|buyer[_\-]protection)/i.test(lower)) return true;
+    if (/(klarna|afterpay|clearpay|paypal|payment[_\-]method|payment[_\-]icon|trust[_\-]badge|secure[_\-]checkout|buyer[_\-]protection|bnpl|installment|pay[_\-]?later)/i.test(lower)) return true;
     // Chemins UI / icônes
     if (/\/icon[s]?\//i.test(lower) || /\/ui\//i.test(lower) || /\/assets\/payment/i.test(lower)) return true;
     // Logos de marque dans les descriptions (souvent petits)
@@ -138,14 +138,22 @@
     return posters;
   };
 
-  /** Déduplication d'images par nom de fichier */
+  /** Déduplication d'images par URL normalisée */
   const deduplicateImages = (urls) => {
     const seen = new Set();
     return urls.filter(url => {
       if (isNoiseImage(url)) return false;
-      const fname = url.split('/').pop()?.split('?')[0]?.replace(/_\d+x\d+/, '') || url;
-      if (seen.has(fname)) return false;
-      seen.add(fname);
+      const clean = cleanImageUrl(url);
+      if (!clean) return false;
+      let key = clean;
+      try {
+        const parsed = new URL(clean);
+        key = `${parsed.hostname}${parsed.pathname}`.replace(/_\d+x\d+[^.]*/i, '');
+      } catch {
+        key = clean.split('?')[0];
+      }
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
   };
@@ -791,15 +799,50 @@
     // Source 5: Chercher TOUTES les images produit dans le haut de page
     // Toujours exécuté (pas seulement si <= 2) car les sélecteurs spécifiques peuvent rater des images
     console.log('[IT Vision] Recherche élargie d\'images produit...');
-    const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
-    if (mainArea) {
-      mainArea.querySelectorAll('img').forEach(img => {
-        if (isNoiseImageElement(img)) return;
-        const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
-        if (!src) return;
-        if (!isAliProductImage(src)) return;
-        imageSet.add(cleanImageUrl(src));
+    const aliMainZones = [
+      '[class*="gallery" i]',
+      '[class*="image-view" i]',
+      '[class*="main-image" i]',
+      '[class*="pdp-main" i]',
+      '[class*="product-main" i]',
+      '[class*="detail-gallery" i]'
+    ];
+    const noiseContainerSelector = [
+      '[class*="review" i]',
+      '[class*="feedback" i]',
+      '[class*="recommend" i]',
+      '[class*="seller" i]',
+      '[class*="store" i]',
+      '[class*="payment" i]',
+      '[class*="coupon" i]',
+      '[class*="promo" i]'
+    ].join(', ');
+
+    let scannedAliZone = false;
+    for (const zoneSelector of aliMainZones) {
+      document.querySelectorAll(zoneSelector).forEach(zone => {
+        scannedAliZone = true;
+        zone.querySelectorAll('img').forEach(img => {
+          if (img.closest(noiseContainerSelector)) return;
+          if (isNoiseImageElement(img)) return;
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+          if (!src || !isAliProductImage(src)) return;
+          imageSet.add(cleanImageUrl(src));
+        });
       });
+    }
+
+    if (!scannedAliZone || imageSet.size < 5) {
+      const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
+      if (mainArea) {
+        mainArea.querySelectorAll('img').forEach(img => {
+          if (img.closest(noiseContainerSelector)) return;
+          if (isNoiseImageElement(img)) return;
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+          if (!src || !isAliProductImage(src)) return;
+          imageSet.add(cleanImageUrl(src));
+        });
+      }
     }
 
     // Source 6: Images dans les attributs data-src des divs (lazy-load moderne)
