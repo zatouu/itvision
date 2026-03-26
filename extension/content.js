@@ -61,6 +61,7 @@
     const filename = lower.split('/').pop()?.split('?')[0] || '';
     if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner|afterpay|clearpay|payment|checkout|trust|secure|guarantee)[_\-.]/.test(filename)) return true;
     if (/(klarna|afterpay|clearpay|paypal|payment[_\-]method|payment[_\-]icon|trust[_\-]badge|secure[_\-]checkout|buyer[_\-]protection|bnpl|installment|pay[_\-]?later)/i.test(lower)) return true;
+    if (/(choice|coupon|new[_\-]?user|welcome[_\-]?deal|promo[_\-]?banner|local[_\-]?(deal|warehouse|shipping))/i.test(lower)) return true;
     // Chemins UI / icônes
     if (/\/icon[s]?\//i.test(lower) || /\/ui\//i.test(lower) || /\/assets\/payment/i.test(lower)) return true;
     // Logos de marque dans les descriptions (souvent petits)
@@ -78,6 +79,7 @@
     // Alt text contenant des mots de paiement/logo
     const alt = (img.getAttribute('alt') || '').toLowerCase();
     if (/(klarna|afterpay|paypal|visa|mastercard|payment|logo|badge|icon|trust|secure|guarantee|buyer.?protection)/i.test(alt)) return true;
+    if (/(choice|promo|coupon|local delivery|new user|welcome deal)/i.test(alt)) return true;
     // Class contenant des indicateurs
     const cls = (img.className || '').toLowerCase();
     if (/(payment|logo|badge|icon|trust|secure)/i.test(cls)) return true;
@@ -208,6 +210,14 @@
 
   const scrape1688 = async () => {
     console.log('[IT Vision] Extraction 1688 v2...');
+
+    const bodyText = (document.body?.innerText || '').slice(0, 5000);
+    if (
+      /login\.1688\.com|member\/signin|_____tmd_____/.test(window.location.href) ||
+      /(member\s*signin|请登录|登录|账户登录|taobao\s*login)/i.test(bodyText)
+    ) {
+      throw new Error('1688 nécessite une session connectée. Connectez-vous sur 1688, rechargez la page produit puis relancez l’extraction.');
+    }
     
     const data = {
       platform: '1688',
@@ -815,7 +825,9 @@
       '[class*="store" i]',
       '[class*="payment" i]',
       '[class*="coupon" i]',
-      '[class*="promo" i]'
+      '[class*="promo" i]',
+      '[class*="banner" i]',
+      '[class*="choice" i]'
     ].join(', ');
 
     let scannedAliZone = false;
@@ -832,7 +844,7 @@
       });
     }
 
-    if (!scannedAliZone || imageSet.size < 5) {
+    if (!scannedAliZone || imageSet.size < 3) {
       const mainArea = document.querySelector('main, [id*="root"], [class*="product" i], [class*="detail" i], body');
       if (mainArea) {
         mainArea.querySelectorAll('img').forEach(img => {
