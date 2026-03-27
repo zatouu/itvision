@@ -259,6 +259,22 @@ export default function AdminPaymentsPage() {
                     compact
                   />
               </div>
+
+              {/* Info env vars */}
+              <div className="bg-violet-50 text-violet-800 p-4 rounded-lg text-sm border border-violet-200">
+                <p className="font-semibold mb-1">Variables d&apos;environnement (recommandé)</p>
+                <p className="text-xs text-violet-700 mb-2">
+                  Pour la sécurité en production, définissez les clés via des variables d&apos;environnement. Elles priment sur les valeurs ci-dessous.
+                </p>
+                <div className="bg-violet-100/60 rounded p-2 font-mono text-[11px] space-y-0.5">
+                  <p>PAYDUNYA_MASTER_KEY=votre_master_key</p>
+                  <p>PAYDUNYA_PRIVATE_KEY=votre_private_key</p>
+                  <p>PAYDUNYA_TOKEN=votre_token</p>
+                  <p className="text-violet-500">PAYDUNYA_MODE=test  <span className="font-sans"># optionnel (test ou live)</span></p>
+                  <p className="text-violet-500">WAVE_MERCHANT_PHONE=+221770000000  <span className="font-sans"># optionnel</span></p>
+                  <p className="text-violet-500">ORANGE_MERCHANT_PHONE=+221770000000  <span className="font-sans"># optionnel</span></p>
+                </div>
+              </div>
               
               <div className={`space-y-6 ${!settings.providers.gateway.active ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                 <div>
@@ -280,16 +296,40 @@ export default function AdminPaymentsPage() {
                   </div>
                 </div>
 
+                {/* Canaux supportés */}
+                {settings.providers.gateway.provider === 'paydunya' && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-green-900 mb-2">Canaux de paiement activés</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                        💳 Visa / Mastercard
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                        📱 Wave Sénégal
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                        📱 Orange Money Sénégal
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                        📱 Free Money Sénégal
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-green-600 mt-2">Tous ces canaux sont disponibles automatiquement via PayDunya.</p>
+                  </div>
+                )}
+
                 <div className="grid gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Clé API (Master Key / Public)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {settings.providers.gateway.provider === 'paydunya' ? 'Master Key' : 'Clé API (Public)'}
+                    </label>
                     <div className="relative">
                       <input 
                         type={showSecrets ? "text" : "password"}
                         value={settings.providers.gateway.apiKey}
                         onChange={e => setSettings({ ...settings, providers: { ...settings.providers, gateway: { ...settings.providers.gateway, apiKey: e.target.value } } })}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
-                        placeholder="Ex: sk_live_..."
+                        placeholder={settings.providers.gateway.provider === 'paydunya' ? 'Ex: wQzk9ZwR-Ucjy-Qvvs-...' : 'Ex: sk_live_...'}
                       />
                        <button onClick={() => setShowSecrets(!showSecrets)} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
                         {showSecrets ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -298,26 +338,30 @@ export default function AdminPaymentsPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Token Secret (Private Token)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {settings.providers.gateway.provider === 'paydunya' ? 'Private Key' : 'Token Secret'}
+                    </label>
                     <div className="relative">
                       <input 
                         type={showSecrets ? "text" : "password"}
                         value={settings.providers.gateway.apiSecret}
                         onChange={e => setSettings({ ...settings, providers: { ...settings.providers, gateway: { ...settings.providers.gateway, apiSecret: e.target.value } } })}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
-                        placeholder="Ex: tk_..."
+                        placeholder={settings.providers.gateway.provider === 'paydunya' ? 'Ex: test_private_...' : 'Ex: tk_...'}
                       />
                     </div>
                   </div>
 
                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Identifiant Marchand / Service ID</label>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                       {settings.providers.gateway.provider === 'paydunya' ? 'Token' : 'Identifiant Marchand'}
+                     </label>
                      <input 
-                        type="text"
+                        type={showSecrets ? "text" : "password"}
                         value={settings.providers.gateway.merchantId}
                         onChange={e => setSettings({ ...settings, providers: { ...settings.providers, gateway: { ...settings.providers.gateway, merchantId: e.target.value } } })}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                        placeholder="Optionnel selon fournisseur"
+                        placeholder={settings.providers.gateway.provider === 'paydunya' ? 'Ex: rMbaQMvo...' : 'Optionnel selon fournisseur'}
                       />
                   </div>
                 </div>
@@ -325,8 +369,8 @@ export default function AdminPaymentsPage() {
                 <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm flex gap-3">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <div>
-                    L'activation remplacera l'affichage des instructions manuelles par un bouton de paiement redirigeant vers {settings.providers.gateway.provider}.
-                    Assurez-vous que les clés sont valides en production.
+                    <p>L&apos;activation ajoute un onglet <strong>Carte bancaire</strong> et un paiement <strong>Mobile Money intégré</strong> sur la page de checkout.</p>
+                    <p className="mt-1 text-xs text-blue-600">Les méthodes manuelles (transfert Wave/Orange Money) restent disponibles en parallèle.</p>
                   </div>
                 </div>
               </div>

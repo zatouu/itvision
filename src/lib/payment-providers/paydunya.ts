@@ -7,7 +7,7 @@ interface PayDunyaConfig {
   mode: 'test' | 'live'
 }
 
-interface PayDunyaInvoice {
+export interface PayDunyaInvoice {
   amount: number
   reference: string
   description: string
@@ -19,38 +19,72 @@ interface PayDunyaInvoice {
   callbackUrl: string
 }
 
+export interface PayDunyaCreateResult {
+  token: string
+  url: string
+}
+
+export type PayDunyaTransactionStatus = 'completed' | 'pending' | 'cancelled'
+
+export interface PayDunyaVerifyResult {
+  status: PayDunyaTransactionStatus
+  amount: number
+  reference: string
+  paymentMethod?: string
+  receiptUrl?: string
+}
+
 export class PayDunyaService {
   private config: PayDunyaConfig
-  // PayDunya ne distingue pas vraiment l'URL de base test/live pour l'API checkout standard, 
-  // c'est les clés qui définissent le mode, mais on garde l'URL standard.
-  private baseUrl = 'https://app.paydunya.com/api/v1'
+  private baseUrl: string
 
   constructor(settings: PaymentSettings['providers']['gateway']) {
+    const mode = (process.env.PAYDUNYA_MODE as 'test' | 'live') || 'live'
     this.config = {
       masterKey: settings.apiKey,
       privateKey: settings.apiSecret,
       token: settings.merchantId,
-      mode: 'live' // Idéalement, on ajouterait un flag 'mode' dans les settings, on assume live ou test selon les clés
+      mode
+    }
+    // PayDunya utilise le même endpoint, le mode dépend des clés
+    this.baseUrl = 'https://app.paydunya.com/api/v1'
+  }
+
+  private headers() {
+    return {
+      'Content-Type': 'application/json',
+      'PAYDUNYA-MASTER-KEY': this.config.masterKey,
+      'PAYDUNYA-PRIVATE-KEY': this.config.privateKey,
+      'PAYDUNYA-TOKEN': this.config.token
     }
   }
 
-  async createInvoice(invoice: PayDunyaInvoice) {
+  async createInvoice(invoice: PayDunyaInvoice): Promise<PayDunyaCreateResult> {
+    const storeName = process.env.PAYDUNYA_STORE_NAME || 'IT Vision Plus'
+
     const payload = {
       invoice: {
         total_amount: invoice.amount,
         description: invoice.description,
-        channels: ['card', 'orange-money-senegal', 'wave-senegal', 'free-money-senegal'] // Canaux activés
+        // Canaux de paiement activés pour le Sénégal
+        channels: [
+          'card',                   // Visa / Mastercard
+          'orange-money-senegal',   // Orange Money SN
+          'wave-senegal',           // Wave SN
+          'free-money-senegal'      // Free Money SN
+        ]
       },
       store: {
-        name: 'IT Vision Plus',
-        tagline: 'Sécurité Électronique & Solutions IT',
-        phone: invoice.customerPhone, // Optionnel mais utile pour le reçu
+        name: storeName,
+        tagline: 'Marketplace - Import Chine & Solutions IT',
+        phone: invoice.customerPhone || '',
         postal_address: 'Dakar, Sénégal'
       },
       custom_data: {
         reference: invoice.reference,
-        customer_name: invoice.customerName,
-        customer_phone: invoice.customerPhone
+        customer_name: invoice.customerName || '',
+        customer_phone: invoice.customerPhone || '',
+        customer_email: invoice.customerEmail || ''
       },
       actions: {
         return_url: invoice.returnUrl,
@@ -60,96 +94,94 @@ export class PayDunyaService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/checkout-invoice`, {
+      const response = await fetch(`${this.baseUrl}/checkout-invoice/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'PAYDUNYA-MASTER-KEY': this.config.masterKey,
-          'PAYDUNYA-PRIVATE-KEY': this.config.privateKey,
-          'PAYDUNYA-TOKEN': this.config.token
-        },
+        headers: this.headers(),
         body: JSON.stringify(payload)
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        console.error('PayDunya Error:', data)
-        throw new Error(data.response_text || 'Erreur lors de l\'initialisation PayDunya')
+        console.error('[PayDunya] Create Invoice Error:', { status: response.status, data })
+        throw new Error(data.response_text || `PayDunya HTTP ${response.status}`)
       }
 
       if (data.response_code !== '00') {
-         throw new Error(data.response_text || 'PayDunya a refusé la transaction')
+        console.error('[PayDunya] Create Invoice Rejected:', data)
+        throw new Error(data.response_text || 'PayDunya a refusé la transaction')
+      }
+
+      // PayDunya retourne le token et l'URL de checkout
+      const checkoutUrl = data.response_text || data.checkout_url || data.invoice_url
+      if (!checkoutUrl) {
+        console.error('[PayDunya] No checkout URL in response:', data)
+        throw new Error('URL de paiement non reçue de PayDunya')
       }
 
       return {
-         token: data.token,
-         url: data.response_text // PayDunya retourne l'URL de redirection dans response_text lors du succès (checkout-invoice)
+        token: data.token,
+        url: checkoutUrl
       }
 
     } catch (error: any) {
-      console.error('PayDunya Exception:', error)
-      throw new Error(error.message || 'Erreur de communication avec PayDunya')
+      if (error.message?.includes('PayDunya') || error.message?.includes('HTTP')) throw error
+      console.error('[PayDunya] Network Exception:', error)
+      throw new Error('Impossible de contacter le serveur de paiement. Réessayez dans quelques instants.')
     }
   }
 
   /**
-   * Vérifie l'intégrité d'une notification IPN (Callback)
-   * PayDunya envoie un hash SHA512 des données reçues + la clé privée.
-   * Note: Pour simplifier ici, on va souvent faire un appel 'confirm' status check server-to-server
-   * si le hash n'est pas fiable ou difficile à calculer sans raw body.
-   * 
-   * Alternative plus robuste: Faire un "Confirm" sur l'API avec le token reçu.
+   * Vérifie le statut d'une transaction via le token PayDunya.
+   * Appel server-to-server plus fiable que le hash IPN.
    */
-  async verifyTransaction(token: string): Promise<{ status: 'completed' | 'pending' | 'cancelled', amount: number, reference: string }> {
-      try {
-        const response = await fetch(`${this.baseUrl}/checkout-invoice/confirm/${token}`, {
-            method: 'GET',
-            headers: {
-              'PAYDUNYA-MASTER-KEY': this.config.masterKey,
-              'PAYDUNYA-PRIVATE-KEY': this.config.privateKey,
-              'PAYDUNYA-TOKEN': this.config.token
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Impossible de vérifier la transaction PayDunya')
-        }
+  async verifyTransaction(token: string): Promise<PayDunyaVerifyResult> {
+    try {
+      const response = await fetch(`${this.baseUrl}/checkout-invoice/confirm/${token}`, {
+        method: 'GET',
+        headers: this.headers()
+      })
 
-        const data = await response.json()
-        
-        // Mapping status
-        // PayDunya status: 'completed', 'pending', 'cancelled'
-        const statusMap: Record<string, 'completed' | 'pending' | 'cancelled'> = {
-            'completed': 'completed',
-            'pending': 'pending',
-            'cancelled': 'cancelled',
-            'failed': 'cancelled'
-        }
-        
-        return { 
-            status: statusMap[data.status] || 'pending', 
-            amount: data.invoice.total_amount,
-            reference: data.custom_data.reference
-        }
-      } catch (error) {
-          console.error('PayDunya Verify Error:', error)
-          // Fallback safe
-          return { status: 'pending', amount: 0, reference: '' }
+      if (!response.ok) {
+        console.error(`[PayDunya] Verify HTTP ${response.status} for token ${token}`)
+        throw new Error('Impossible de vérifier la transaction PayDunya')
       }
+
+      const data = await response.json()
+
+      const statusMap: Record<string, PayDunyaTransactionStatus> = {
+        'completed': 'completed',
+        'pending': 'pending',
+        'cancelled': 'cancelled',
+        'failed': 'cancelled'
+      }
+
+      return {
+        status: statusMap[data.status] || 'pending',
+        amount: data.invoice?.total_amount ?? 0,
+        reference: data.custom_data?.reference ?? '',
+        paymentMethod: data.customer?.payment_type || data.payment_method || undefined,
+        receiptUrl: data.receipt_url || undefined
+      }
+    } catch (error) {
+      console.error('[PayDunya] Verify Error:', error)
+      return { status: 'pending', amount: 0, reference: '' }
+    }
   }
-  
+
   /**
-   * Calcule le hash attendu pour valider l'IPN
-   * (Requiert 'crypto' natif Node.js)
+   * Vérifie la signature IPN PayDunya
    */
-  computeHash(data: any): string {
-    const crypto = require('crypto')
-    // Le hash PayDunya est sha512(data.token + privateKey) souvent? 
-    // Vérifier la doc: hash = sha512(master_key + params_stringify_sorted + private_key)... complexe.
-    // Plus simple: PayDunya envoie son propre hash dans les headers ou body.
-    
-    // Pour ce prototype, on va se concentrer sur l'initialisation.
-    return '' 
+  verifyIpnHash(receivedHash: string, transactionData: string): boolean {
+    try {
+      const crypto = require('crypto')
+      const computed = crypto
+        .createHash('sha512')
+        .update(this.config.masterKey + transactionData + this.config.privateKey)
+        .digest('hex')
+      return computed === receivedHash
+    } catch {
+      return false
+    }
   }
 }

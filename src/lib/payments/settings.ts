@@ -65,6 +65,37 @@ function ensureFile() {
   if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2))
 }
 
+/**
+ * Résout les clés PayDunya depuis les variables d'environnement (prioritaire) ou le fichier JSON.
+ * Variables d'environnement supportées:
+ *   PAYDUNYA_MASTER_KEY, PAYDUNYA_PRIVATE_KEY, PAYDUNYA_TOKEN
+ *   PAYDUNYA_MODE ('test' | 'live', défaut: 'live')
+ * Si les 3 clés env sont présentes, la gateway s'active automatiquement.
+ */
+function resolveGatewayConfig(parsed: any): PaymentSettings['providers']['gateway'] {
+  const envMaster  = process.env.PAYDUNYA_MASTER_KEY  || ''
+  const envPrivate = process.env.PAYDUNYA_PRIVATE_KEY || ''
+  const envToken   = process.env.PAYDUNYA_TOKEN       || ''
+  const hasEnvKeys = !!(envMaster && envPrivate && envToken)
+
+  const apiKey     = envMaster  || parsed?.providers?.gateway?.apiKey     || DEFAULT_SETTINGS.providers.gateway.apiKey
+  const apiSecret  = envPrivate || parsed?.providers?.gateway?.apiSecret  || DEFAULT_SETTINGS.providers.gateway.apiSecret
+  const merchantId = envToken   || parsed?.providers?.gateway?.merchantId || DEFAULT_SETTINGS.providers.gateway.merchantId
+
+  // Auto-activation si les 3 clés sont présentes (env ou fichier)
+  const keysPresent = !!(apiKey && apiSecret && merchantId)
+  const explicitActive = parsed?.providers?.gateway?.active
+  const active = typeof explicitActive === 'boolean' ? explicitActive : (hasEnvKeys || keysPresent)
+
+  return {
+    active,
+    provider: parsed?.providers?.gateway?.provider ?? DEFAULT_SETTINGS.providers.gateway.provider,
+    apiKey,
+    apiSecret,
+    merchantId
+  }
+}
+
 export function readPaymentSettings(): PaymentSettings {
   try {
     ensureFile()
@@ -80,17 +111,11 @@ export function readPaymentSettings(): PaymentSettings {
       },
       providers: {
         manual: {
-          waveMerchantPhone: parsed?.providers?.manual?.waveMerchantPhone ?? DEFAULT_SETTINGS.providers.manual.waveMerchantPhone,
-          orangeMerchantPhone: parsed?.providers?.manual?.orangeMerchantPhone ?? DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
+          waveMerchantPhone: process.env.WAVE_MERCHANT_PHONE || parsed?.providers?.manual?.waveMerchantPhone || DEFAULT_SETTINGS.providers.manual.waveMerchantPhone,
+          orangeMerchantPhone: process.env.ORANGE_MERCHANT_PHONE || parsed?.providers?.manual?.orangeMerchantPhone || DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
           instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions
         },
-        gateway: {
-          active: Boolean(parsed?.providers?.gateway?.active ?? DEFAULT_SETTINGS.providers.gateway.active),
-          provider: parsed?.providers?.gateway?.provider ?? DEFAULT_SETTINGS.providers.gateway.provider,
-          apiKey: parsed?.providers?.gateway?.apiKey ?? DEFAULT_SETTINGS.providers.gateway.apiKey,
-          apiSecret: parsed?.providers?.gateway?.apiSecret ?? DEFAULT_SETTINGS.providers.gateway.apiSecret,
-          merchantId: parsed?.providers?.gateway?.merchantId ?? DEFAULT_SETTINGS.providers.gateway.merchantId
-        },
+        gateway: resolveGatewayConfig(parsed),
         escrow: {
           enabled: Boolean(parsed?.providers?.escrow?.enabled ?? DEFAULT_SETTINGS.providers.escrow.enabled),
           holdPercentage: Number(parsed?.providers?.escrow?.holdPercentage ?? DEFAULT_SETTINGS.providers.escrow.holdPercentage)
