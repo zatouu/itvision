@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -231,7 +231,7 @@ const menuItems: MenuItem[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const [search, setSearch] = useState('')
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -242,6 +242,12 @@ export default function AdminSidebar() {
       setIsCollapsed(saved === 'true')
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearch(window.location.search)
+    }
+  }, [pathname])
 
   // Sauvegarder l'état de collapse
   const toggleCollapse = () => {
@@ -272,7 +278,8 @@ export default function AdminSidebar() {
     if (!targetQuery) return true
 
     const expectedParams = new URLSearchParams(targetQuery)
-    return Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value)
+    const currentParams = new URLSearchParams(search)
+    return Array.from(expectedParams.entries()).every(([key, value]) => currentParams.get(key) === value)
   }
 
   const hasActiveChild = (item: MenuItem): boolean => {

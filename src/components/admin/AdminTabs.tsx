@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 type Tab = { label: string; href: string }
 
@@ -34,8 +35,14 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
 
 export default function AdminTabs({ context }: Props) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const [search, setSearch] = useState('')
   const tabs = tabsByContext[context]
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearch(window.location.search)
+    }
+  }, [pathname])
 
   if (!Array.isArray(tabs) || tabs.length === 0) {
     return null
@@ -50,7 +57,8 @@ export default function AdminTabs({ context }: Props) {
 
           if (active && tabQuery) {
             const expectedParams = new URLSearchParams(tabQuery)
-            active = Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value)
+            const currentParams = new URLSearchParams(search)
+            active = Array.from(expectedParams.entries()).every(([key, value]) => currentParams.get(key) === value)
           }
 
           return (
