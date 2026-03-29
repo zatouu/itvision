@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Client from '@/lib/models/Client'
 import Contact from '@/lib/models/Contact'
+import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 
 function requireAdmin(request: NextRequest) {
@@ -149,6 +150,15 @@ export async function DELETE(
         error: 'Client non trouvé' 
       }, { status: 404 })
     }
+
+    // Nettoyer les données liées
+    await Contact.deleteMany({ clientId: id })
+
+    // Dissocier les utilisateurs liés à ce client entreprise
+    await User.updateMany(
+      { companyClientId: id },
+      { $unset: { companyClientId: 1 } }
+    )
 
     // Supprimer le client
     await Client.findByIdAndDelete(id)

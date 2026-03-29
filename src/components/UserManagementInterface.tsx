@@ -32,7 +32,8 @@ import {
   Package,
   Calculator,
   Crown,
-  Briefcase
+  Briefcase,
+  Trash2
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { useCsrf } from '@/hooks/useCsrf'
@@ -782,6 +783,32 @@ export default function UserManagementInterface() {
     setShowPasswordModal(true)
   }
 
+  const handleDeleteUser = async (user: UserData) => {
+    const confirmed = window.confirm(
+      `Supprimer définitivement l'utilisateur ${user.name} (${user.email}) ?\n\nCette action est irréversible.`
+    )
+    if (!confirmed) return
+
+    setError('')
+    try {
+      const response = await fetchWithCsrf('/api/admin/users', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: user._id, action: 'delete' })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setSuccess('Utilisateur supprimé avec succès')
+        fetchUsers()
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        setError(data.error || 'Erreur lors de la suppression')
+      }
+    } catch {
+      setError('Erreur de connexion')
+    }
+  }
+
   const getRoleBadge = (role: string) => {
     const roleConfig = ROLES.find(r => r.value === role)
     if (!roleConfig) {
@@ -1121,6 +1148,14 @@ export default function UserManagementInterface() {
                               <Lock className="h-4 w-4" />
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-2 text-gray-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer définitivement"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>

@@ -8,8 +8,13 @@ import { requireAuth } from '@/lib/jwt'
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
 
 function requireAdmin(request: NextRequest) {
-  return requireAuth(request).then(({ role }) => {
-    if (!ADMIN_ROLES.includes(String(role).toUpperCase())) throw new Error('Accès non autorisé')
+  return requireAuth(request).then(({ role, userId }) => {
+    const normalizedRole = String(role).toUpperCase()
+    if (!ADMIN_ROLES.includes(normalizedRole)) throw new Error('Accès non autorisé')
+    return {
+      role: normalizedRole,
+      userId: String(userId || '')
+    }
   })
 }
 
@@ -113,7 +118,7 @@ export async function PUT(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     await connectMongoose()
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
     const body = await request.json()
 
     const { id, action, newPassword } = body
@@ -135,6 +140,34 @@ export async function PATCH(request: NextRequest) {
       await User.updateOne({ _id: id }, { $set: { twoFactorEnabled: true }, $unset: { twoFactorCode: 1, twoFactorExpires: 1 } })
     } else if (action === 'disable_2fa') {
       await User.updateOne({ _id: id }, { $set: { twoFactorEnabled: false }, $unset: { twoFactorCode: 1, twoFactorExpires: 1 } })
+    } else if (action === 'delete') {
+      const targetUser = await User.findById(id).lean() as { _id: unknown; role?: string; name?: string } | null
+      if (!targetUser) {
+        return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
+      }
+
+      if (String(targetUser._id) === admin.userId) {
+        return NextResponse.json({ error: 'Vous ne pouvez pas supprimer votre propre compte' }, { status: 400 })
+      }
+
+      const targetRole = String(targetUser.role || '').toUpperCase()
+      if (targetRole === 'SUPER_ADMIN' && admin.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Seul un Super Admin peut supprimer un Super Admin' }, { status: 403 })
+      }
+
+      if (ADMIN_ROLES.includes(targetRole)) {
+        const remainingAdmins = await User.countDocuments({
+          _id: { $ne: id },
+          role: { $in: ADMIN_ROLES },
+          isActive: true
+        })
+        if (remainingAdmins === 0) {
+          return NextResponse.json({ error: 'Impossible de supprimer le dernier administrateur actif' }, { status: 400 })
+        }
+      }
+
+      await User.deleteOne({ _id: id })
+      return NextResponse.json({ success: true, message: 'Utilisateur supprimé avec succès' })
     } else {
       return NextResponse.json({ error: 'Action inconnue' }, { status: 400 })
     }
