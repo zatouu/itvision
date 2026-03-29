@@ -4,7 +4,7 @@
  */
 
 import { calculateBilledWeight } from './volumetric-weight'
-import { calculateCompleteFees, getServiceFeeTier, type CompleteFeesBreakdown } from './tiered-service-fees'
+import { calculateCompleteFees, getServiceFeeTier, type ServiceFeeTier } from './tiered-service-fees'
 import { applyTierDiscount, type TierPricing } from './tiered-pricing'
 import { getCNYToXOFRate, DEFAULT_EXCHANGE_RATE } from './exchange-rate'
 import { resolveProductPrice, type MarketplaceTier } from './resolve-product-price'
@@ -102,6 +102,7 @@ export async function calculateCartTotal(
   shippingRate: { rate: number; minimumCharge?: number; label: string },
   options: {
     insuranceRate?: number
+    serviceFeeTiers?: ServiceFeeTier[]
   } = {}
 ): Promise<CompleteCartCalculation> {
   // 1. Récupérer le taux de change actuel
@@ -183,7 +184,8 @@ export async function calculateCartTotal(
   
   // 3. Déterminer le palier B2B et calculer les frais
   const effectiveBase = usingRetailFallback ? retailFallbackTotal : supplierCost
-  const b2bTier = getServiceFeeTier(effectiveBase)
+  const b2bTier = getServiceFeeTier(effectiveBase, options.serviceFeeTiers)
+  const standardServiceFeeRate = options.serviceFeeTiers?.[0]?.feeRate ?? 10
   const insuranceRate = options.insuranceRate ?? 2.5
   
   const feesBreakdown = usingRetailFallback
@@ -193,7 +195,10 @@ export async function calculateCartTotal(
         insuranceFee: { rate: 0, amount: 0 },
         totalFees: 0
       }
-    : calculateCompleteFees(supplierCost, supplierCost, { insuranceRate })
+    : calculateCompleteFees(supplierCost, supplierCost, {
+        insuranceRate,
+        serviceFeeTiers: options.serviceFeeTiers
+      })
   
   // 4. Calculer le sous-total avant réduction quantité
   const subtotalBeforeDiscounts = feesBreakdown.finalPrice
@@ -225,13 +230,6 @@ export async function calculateCartTotal(
     }
   } else {
     // Aérien: prendre le max entre poids réel et volumétrique
-    const weightInfo = calculateBilledWeight({
-      actualWeightKg: totalWeight || 0.1,
-      lengthCm: undefined, // On utilise déjà les totaux calculés
-      widthCm: undefined,
-      heightCm: undefined
-    })
-    
     // Recalculer le vrai poids facturable (max réel vs volumétrique)
     const billedWeight = Math.max(totalWeight, totalVolumetricWeight) || 0.1
     
@@ -261,7 +259,7 @@ export async function calculateCartTotal(
     fees: {
       supplierCost: usingRetailFallback ? retailFallbackTotal : supplierCost,
       serviceFeeRate: feesBreakdown.serviceFee.rate,
-      serviceFeeStandardRate: 10,
+      serviceFeeStandardRate: standardServiceFeeRate,
       serviceFeeAmount: feesBreakdown.serviceFee.amount,
       serviceFeeSavings: feesBreakdown.serviceFee.savingsVsStandard,
       insuranceRate: feesBreakdown.insuranceFee.rate,
@@ -306,9 +304,11 @@ export function calculateCartTotalSync(
   options: {
     insuranceRate?: number
     exchangeRate?: number // Taux fixe pour calcul synchrone
+    serviceFeeTiers?: ServiceFeeTier[]
   } = {}
 ): CompleteCartCalculation {
   const exchangeRate = options.exchangeRate || DEFAULT_EXCHANGE_RATE
+  const standardServiceFeeRate = options.serviceFeeTiers?.[0]?.feeRate ?? 10
   
   // Simuler un appel async synchrone
   const syncResult: CompleteCartCalculation = {
@@ -316,8 +316,8 @@ export function calculateCartTotalSync(
     totalItems: items.length,
     fees: {
       supplierCost: 0,
-      serviceFeeRate: 10,
-      serviceFeeStandardRate: 10,
+      serviceFeeRate: standardServiceFeeRate,
+      serviceFeeStandardRate: standardServiceFeeRate,
       serviceFeeAmount: 0,
       serviceFeeSavings: 0,
       insuranceRate: options.insuranceRate ?? 2.5,
@@ -336,7 +336,7 @@ export function calculateCartTotalSync(
     b2bTier: {
       label: 'Standard',
       minAmount: 0,
-      feeRate: 10
+      feeRate: standardServiceFeeRate
     },
     nextTierProgress: {
       hasNextTier: false,
@@ -370,7 +370,8 @@ export function calculateCartTotalSync(
   supplierCost = Math.round(supplierCost)
   
   // Frais
-  const serviceFeeRate = 10
+  const serviceFeeTier = getServiceFeeTier(supplierCost, options.serviceFeeTiers)
+  const serviceFeeRate = serviceFeeTier.feeRate
   const insuranceRate = options.insuranceRate ?? 2.5
   const serviceFeeAmount = Math.round(supplierCost * (serviceFeeRate / 100))
   const insuranceAmount = Math.round(supplierCost * (insuranceRate / 100))
@@ -379,12 +380,19 @@ export function calculateCartTotalSync(
   syncResult.fees = {
     supplierCost,
     serviceFeeRate,
-    serviceFeeStandardRate: 10,
+    serviceFeeStandardRate: standardServiceFeeRate,
     serviceFeeAmount,
-    serviceFeeSavings: 0,
+    serviceFeeSavings: Math.max(0, Math.round(supplierCost * ((standardServiceFeeRate - serviceFeeRate) / 100))),
     insuranceRate,
     insuranceAmount,
     totalFees: serviceFeeAmount + insuranceAmount
+  }
+
+  syncResult.b2bTier = {
+    label: serviceFeeTier.label,
+    minAmount: serviceFeeTier.minAmount,
+    maxAmount: serviceFeeTier.maxAmount,
+    feeRate: serviceFeeTier.feeRate
   }
   
   // Réduction quantité

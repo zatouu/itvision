@@ -2,12 +2,14 @@
 
 import React from 'react'
 import { TrendingDown, Package, Award, Building2, ChevronRight } from 'lucide-react'
-import { getNextTierProgress, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
+import { getNextTierProgress, getServiceFeeTier, getTiersInfo, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
 
 interface ServiceFeeTierProgressProps {
   currentAmount: number // Montant de commande actuel en FCFA
   currentFeeRate: number // Taux actuel appliqué
   variant?: 'compact' | 'full'
+  tiers?: ServiceFeeTier[]
+  standardFeeRate?: number
 }
 
 const formatCurrency = (v?: number) =>
@@ -20,10 +22,16 @@ const formatCurrency = (v?: number) =>
 export function ServiceFeeTierProgress({
   currentAmount,
   currentFeeRate,
-  variant = 'full'
+  variant = 'full',
+  tiers,
+  standardFeeRate
 }: ServiceFeeTierProgressProps) {
-  const progress = getNextTierProgress(currentAmount)
-  const savingsVsStandard = Math.round(currentAmount * (10 - currentFeeRate) / 100)
+  const effectiveTiers = Array.isArray(tiers) && tiers.length > 0 ? tiers : undefined
+  const tiersInfo = getTiersInfo(effectiveTiers)
+  const progress = getNextTierProgress(currentAmount, effectiveTiers)
+  const activeTier = getServiceFeeTier(currentAmount, effectiveTiers)
+  const baseFeeRate = typeof standardFeeRate === 'number' ? standardFeeRate : tiersInfo[0]?.feeRate ?? 10
+  const savingsVsStandard = Math.round(currentAmount * (baseFeeRate - currentFeeRate) / 100)
 
   // Icônes par palier
   const tierIcons = [Package, Award, Building2, Building2]
@@ -33,7 +41,10 @@ export function ServiceFeeTierProgress({
       return (
         <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full">
           <Award className="w-3.5 h-3.5" />
-          <span>Tarif entreprise actif (-{10 - currentFeeRate}%)</span>
+          <span>
+            Tarif {activeTier.label} actif
+            {baseFeeRate > currentFeeRate ? ` (-${Math.round(baseFeeRate - currentFeeRate)}%)` : ''}
+          </span>
         </div>
       )
     }
@@ -103,40 +114,36 @@ export function ServiceFeeTierProgress({
       {/* Liste des paliers */}
       <div className="space-y-2 pt-2 border-t border-gray-200">
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tous les paliers</p>
-        {[
-          { min: 0, max: 500000, rate: 10, label: 'Standard', current: currentAmount < 500000 },
-          { min: 500000, max: 2000000, rate: 8, label: 'Volume', current: currentAmount >= 500000 && currentAmount < 2000000 },
-          { min: 2000000, max: 5000000, rate: 6, label: 'Pro', current: currentAmount >= 2000000 && currentAmount < 5000000 },
-          { min: 5000000, rate: 5, label: 'Entreprise', current: currentAmount >= 5000000 },
-        ].map((tier, idx) => {
+        {tiersInfo.map((tier, idx) => {
+          const isCurrent = currentAmount >= tier.minAmount && (tier.maxAmount === undefined || currentAmount < tier.maxAmount)
           const Icon = tierIcons[idx] || Package
           return (
             <div
-              key={tier.label}
+              key={`${tier.label}-${tier.minAmount}`}
               className={`flex items-center gap-3 p-2 rounded-lg text-sm transition-colors ${
-                tier.current
+                isCurrent
                   ? 'bg-emerald-100 text-emerald-900'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <Icon className={`w-4 h-4 ${tier.current ? 'text-emerald-600' : 'text-gray-400'}`} />
+              <Icon className={`w-4 h-4 ${isCurrent ? 'text-emerald-600' : 'text-gray-400'}`} />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className={tier.current ? 'font-semibold' : ''}>{tier.label}</span>
-                  {tier.current && (
+                  <span className={isCurrent ? 'font-semibold' : ''}>{tier.label}</span>
+                  {isCurrent && (
                     <span className="text-xs bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded">
                       Actif
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-gray-500">
-                  {formatCurrency(tier.min)} {tier.max ? `- ${formatCurrency(tier.max)}` : 'et plus'}
+                  {formatCurrency(tier.minAmount)} {tier.maxAmount ? `- ${formatCurrency(tier.maxAmount)}` : 'et plus'}
                 </p>
               </div>
-              <span className={`font-semibold ${tier.current ? 'text-emerald-700' : ''}`}>
-                {tier.rate}%
+              <span className={`font-semibold ${isCurrent ? 'text-emerald-700' : ''}`}>
+                {tier.feeRate}%
               </span>
-              {idx < 3 && !tier.current && (
+              {idx < tiersInfo.length - 1 && !isCurrent && (
                 <ChevronRight className="w-4 h-4 text-gray-300" />
               )}
             </div>

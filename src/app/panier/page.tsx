@@ -38,7 +38,7 @@ import Link from 'next/link'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import CartEngagementSidebar from '@/components/CartEngagementSidebar'
 import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
-import { getServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
+import { getServiceFeeTier, SERVICE_FEE_TIERS, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { resolveProductPrice, type MarketplaceTier } from '@/lib/pricing/resolve-product-price'
 import { ServiceFeeTierProgress } from '@/components/ServiceFeeTierProgress'
@@ -72,6 +72,7 @@ export default function PanierPage() {
   const [addressValid, setAddressValid] = useState(false)
   const [suggestionScroll, setSuggestionScroll] = useState(0)
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+  const [serviceFeeTiers, setServiceFeeTiers] = useState<ServiceFeeTier[]>(SERVICE_FEE_TIERS)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [activeGroups, setActiveGroups] = useState<any[]>([])
 
@@ -109,7 +110,7 @@ export default function PanierPage() {
             setPhone(prev => prev || data.phone || '')
             setEmail(prev => prev || data.email || '')
             setAddress((prev: any) => (Object.keys(prev || {}).length === 0 ? data.address : prev))
-          } catch (e) {}
+          } catch {}
         }
     }
   }, [])
@@ -138,6 +139,19 @@ export default function PanierPage() {
       })
       .catch(() => {
         // fallback: BASE_SHIPPING_RATES
+      })
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/pricing/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && Array.isArray(d?.defaults?.serviceFeeTiers) && d.defaults.serviceFeeTiers.length > 0) {
+          setServiceFeeTiers(d.defaults.serviceFeeTiers)
+        }
+      })
+      .catch(() => {
+        // fallback: SERVICE_FEE_TIERS
       })
   }, [])
 
@@ -390,6 +404,8 @@ export default function PanierPage() {
       total
     }
   }, [items, marketplaceTier, transportGlobal])
+
+  const standardServiceFeeRate = serviceFeeTiers[0]?.feeRate ?? 10
 
   const removeItem = (id: string) => {
     const next = items.filter(i => i.id !== id)
@@ -883,12 +899,14 @@ export default function PanierPage() {
                 {/* Progression B2B - Réduction sur frais de service */}
                 {(() => {
                   const currentAmount = breakdown.products
-                  const b2bTier = getServiceFeeTier(currentAmount)
+                  const b2bTier = getServiceFeeTier(currentAmount, serviceFeeTiers)
                   return (
                     <div className="mb-6">
                       <ServiceFeeTierProgress
                         currentAmount={currentAmount}
                         currentFeeRate={b2bTier.feeRate}
+                        tiers={serviceFeeTiers}
+                        standardFeeRate={standardServiceFeeRate}
                         variant="compact"
                       />
                     </div>
@@ -903,8 +921,8 @@ export default function PanierPage() {
                   </div>
                   {(() => {
                     const currentAmount = breakdown.products
-                    const b2bTier = getServiceFeeTier(currentAmount)
-                    const standardFee = Math.round(currentAmount * 0.10)
+                    const b2bTier = getServiceFeeTier(currentAmount, serviceFeeTiers)
+                    const standardFee = Math.round(currentAmount * (standardServiceFeeRate / 100))
                     const actualFee = Math.round(currentAmount * (b2bTier.feeRate / 100))
                     const savings = standardFee - actualFee
                     

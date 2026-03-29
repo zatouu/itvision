@@ -6,6 +6,7 @@ import { connectDB } from '@/lib/db'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
 import { resolveProductPrice } from '@/lib/pricing/resolve-product-price'
+import { readPricingDefaults } from '@/lib/pricing/settings'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
     const method = shippingMethod || 'air_15j'
     const internalMethod = methodMap[method as string] || 'air_15'
     const shippingRates = getConfiguredShippingRates()
+    const pricingDefaults = readPricingDefaults()
     const rate: ShippingRate | undefined = shippingRates[internalMethod]
 
     if (!rate) {
@@ -112,6 +114,9 @@ export async function POST(req: NextRequest) {
         rate: rate.rate,
         minimumCharge: rate.minimumCharge,
         label: rate.label
+      },
+      {
+        serviceFeeTiers: pricingDefaults.serviceFeeTiers
       }
     )
 

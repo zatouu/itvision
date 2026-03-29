@@ -90,6 +90,19 @@ Ce dossier contient la documentation complète du système de gestion des prix d
 
 ---
 
+### 7. Paramétrage Pricing B2B (Paliers)
+**Fichier** : `CONFIG_PRICING_B2B_TIERS.md`  
+**Pour qui** : Admins, Product Ops, Développeurs  
+**Contenu** :
+- Paliers de frais de service B2B configurables
+- Mapping admin settings / API publique / panier / commande
+- Règles de normalisation des paliers (tri, cohérence, fallback)
+- Vérification de cohérence front/backend
+
+👉 **Pour piloter les taux B2B sans hardcode**
+
+---
+
 ## 🔄 Changements Récents (v2.0.0)
 
 ### ⚡ Marge Commerciale

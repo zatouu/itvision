@@ -42,21 +42,37 @@ export const SERVICE_FEE_TIERS: ServiceFeeTier[] = [
   }
 ]
 
+function resolveServiceFeeTiers(tiers?: ServiceFeeTier[]): ServiceFeeTier[] {
+  if (!Array.isArray(tiers) || tiers.length === 0) return SERVICE_FEE_TIERS
+  const normalized = tiers
+    .filter((t) => Number.isFinite(t.minAmount) && t.minAmount >= 0 && Number.isFinite(t.feeRate))
+    .sort((a, b) => a.minAmount - b.minAmount)
+
+  if (normalized.length === 0) return SERVICE_FEE_TIERS
+
+  return normalized.map((tier, index) => ({
+    ...tier,
+    minAmount: Math.round(tier.minAmount),
+    maxAmount: index < normalized.length - 1 ? normalized[index + 1].minAmount : undefined
+  }))
+}
+
 /**
  * Détermine le palier applicable pour un montant de commande donné
  */
-export function getServiceFeeTier(orderAmount: number): ServiceFeeTier {
-  const tier = SERVICE_FEE_TIERS.find(
+export function getServiceFeeTier(orderAmount: number, tiers?: ServiceFeeTier[]): ServiceFeeTier {
+  const sourceTiers = resolveServiceFeeTiers(tiers)
+  const tier = sourceTiers.find(
     t => orderAmount >= t.minAmount && (t.maxAmount === undefined || orderAmount < t.maxAmount)
   )
-  return tier ?? SERVICE_FEE_TIERS[0]
+  return tier ?? sourceTiers[0]
 }
 
 /**
  * Calcule le taux de frais de service applicable
  */
-export function calculateServiceFeeRate(orderAmount: number): number {
-  return getServiceFeeTier(orderAmount).feeRate
+export function calculateServiceFeeRate(orderAmount: number, tiers?: ServiceFeeTier[]): number {
+  return getServiceFeeTier(orderAmount, tiers).feeRate
 }
 
 /**
@@ -65,7 +81,8 @@ export function calculateServiceFeeRate(orderAmount: number): number {
 export function calculateServiceFee(
   productCost: number,
   orderAmount: number,
-  customRate?: number
+  customRate?: number,
+  tiers?: ServiceFeeTier[]
 ): {
   baseAmount: number
   feeRate: number
@@ -73,12 +90,14 @@ export function calculateServiceFee(
   tier: ServiceFeeTier
   savingsVsStandard: number // Économie par rapport au taux standard (10%)
 } {
-  const tier = getServiceFeeTier(orderAmount)
+  const resolvedTiers = resolveServiceFeeTiers(tiers)
+  const tier = getServiceFeeTier(orderAmount, resolvedTiers)
   const feeRate = customRate ?? tier.feeRate
   const feeAmount = Math.round(productCost * (feeRate / 100))
   
-  // Calcul de l'économie vs taux standard (10%)
-  const standardFee = Math.round(productCost * 0.10)
+  // Calcul de l'économie vs taux standard (premier palier)
+  const standardRate = resolvedTiers[0]?.feeRate ?? 10
+  const standardFee = Math.round(productCost * (standardRate / 100))
   const savingsVsStandard = standardFee - feeAmount
 
   return {
@@ -119,6 +138,7 @@ export function calculateCompleteFees(
   options: {
     serviceFeeRate?: number // Force un taux personnalisé
     insuranceRate?: number
+    serviceFeeTiers?: ServiceFeeTier[]
   } = {}
 ): CompleteFeesBreakdown {
   const insuranceRate = options.insuranceRate ?? 2.5
@@ -126,7 +146,8 @@ export function calculateCompleteFees(
   const serviceFeeCalc = calculateServiceFee(
     productCost,
     orderAmount,
-    options.serviceFeeRate
+    options.serviceFeeRate,
+    options.serviceFeeTiers
   )
   
   const insuranceFeeAmount = Math.round(productCost * (insuranceRate / 100))
@@ -152,7 +173,7 @@ export function calculateCompleteFees(
 /**
  * Informations sur les paliers pour affichage client
  */
-export function getTiersInfo(): Array<{
+export function getTiersInfo(tiers?: ServiceFeeTier[]): Array<{
   minAmount: number
   maxAmount?: number
   feeRate: number
@@ -160,7 +181,7 @@ export function getTiersInfo(): Array<{
   description: string
   current: boolean
 }> {
-  return SERVICE_FEE_TIERS.map(t => ({
+  return resolveServiceFeeTiers(tiers).map(t => ({
     minAmount: t.minAmount,
     maxAmount: t.maxAmount,
     feeRate: t.feeRate,
@@ -174,7 +195,8 @@ export function getTiersInfo(): Array<{
  * Calcule le montant restant pour atteindre le prochain palier
  */
 export function getNextTierProgress(
-  currentAmount: number
+  currentAmount: number,
+  tiers?: ServiceFeeTier[]
 ): {
   hasNextTier: boolean
   nextTier?: ServiceFeeTier
@@ -182,7 +204,7 @@ export function getNextTierProgress(
   progressPercent: number
 } {
   // Trier les paliers par minAmount croissant
-  const sortedTiers = [...SERVICE_FEE_TIERS].sort((a, b) => a.minAmount - b.minAmount)
+  const sortedTiers = [...resolveServiceFeeTiers(tiers)].sort((a, b) => a.minAmount - b.minAmount)
   
   // Trouver le palier actuel
   const currentTierIndex = sortedTiers.findIndex(
