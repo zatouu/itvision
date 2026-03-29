@@ -4,6 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { User, Eye, EyeOff, UserPlus, AlertCircle, CheckCircle, ArrowLeft, Phone, Mail } from 'lucide-react'
 import Link from 'next/link'
+import Script from 'next/script'
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: Record<string, unknown>) => string | number
+      reset: (widgetId?: string | number) => void
+      remove: (widgetId?: string | number) => void
+    }
+  }
+}
 
 interface FormData {
   name: string
@@ -16,6 +27,8 @@ interface FormData {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const captchaContainerId = 'turnstile-register-form'
   const [returnTo, setReturnTo] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -32,6 +45,10 @@ export default function RegisterPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
   const [checkingEmail, setCheckingEmail] = useState(false)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<string | number | null>(null)
+  const [captchaError, setCaptchaError] = useState('')
 
   useEffect(() => {
     try {
@@ -60,6 +77,35 @@ export default function RegisterPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!turnstileSiteKey || !captchaReady || captchaWidgetId !== null) return
+    if (typeof window === 'undefined' || !window.turnstile) return
+
+    const widgetId = window.turnstile.render(`#${captchaContainerId}`, {
+      sitekey: turnstileSiteKey,
+      theme: 'light',
+      callback: (token: string) => {
+        setCaptchaToken(token)
+        setCaptchaError('')
+      },
+      'expired-callback': () => setCaptchaToken(''),
+      'error-callback': () => {
+        setCaptchaToken('')
+        setCaptchaError('Captcha indisponible, veuillez réessayer.')
+      }
+    })
+
+    setCaptchaWidgetId(widgetId)
+  }, [turnstileSiteKey, captchaReady, captchaWidgetId, captchaContainerId])
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.turnstile && captchaWidgetId !== null) {
+        window.turnstile.remove(captchaWidgetId)
+      }
+    }
+  }, [captchaWidgetId])
 
   const validatePassword = (password: string) => {
     const minLength = 8
@@ -129,6 +175,11 @@ export default function RegisterPage() {
       return
     }
 
+    if (turnstileSiteKey && !captchaToken) {
+      setError('Veuillez valider le captcha')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -142,7 +193,8 @@ export default function RegisterPage() {
           email: formData.email.toLowerCase().trim(),
           phone: formData.phone.trim() || undefined,
           password: formData.password,
-          role: formData.role
+          role: formData.role,
+          captchaToken
         }),
       })
 
@@ -157,6 +209,10 @@ export default function RegisterPage() {
         }, 900)
       } else {
         setError(data.error || 'Une erreur est survenue lors de la création du compte')
+        if (turnstileSiteKey && typeof window !== 'undefined' && window.turnstile && captchaWidgetId !== null) {
+          window.turnstile.reset(captchaWidgetId)
+          setCaptchaToken('')
+        }
       }
     } catch (error) {
       setError('Erreur de connexion au serveur')
@@ -193,6 +249,15 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {turnstileSiteKey && (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+          onLoad={() => setCaptchaReady(true)}
+          onError={() => setCaptchaError('Impossible de charger le captcha. Rafraîchissez la page.')}
+        />
+      )}
+
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
@@ -388,6 +453,16 @@ export default function RegisterPage() {
                     Un caractère spécial
                   </li>
                 </ul>
+              </div>
+            )}
+
+            {turnstileSiteKey && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Vérification anti-bot *
+                </label>
+                <div id={captchaContainerId} className="min-h-[66px]" />
+                {captchaError && <p className="text-sm text-red-600 mt-1">{captchaError}</p>}
               </div>
             )}
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { LifeBuoy, Plus, X, Send, AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   urgent: { label: 'Urgent',  color: 'bg-red-100 text-red-700' },
@@ -48,14 +49,24 @@ export default function SupportPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Fetch tickets on first render
-  if (tickets === null && !loading) {
+  const loadTickets = useCallback(async () => {
     setLoading(true)
-    fetch('/api/client-enterprise/tickets')
-      .then(r => r.json())
-      .then(d => { setTickets(d.tickets || []); setLoading(false) })
-      .catch(() => { setTickets([]); setLoading(false) })
-  }
+    try {
+      const response = await fetch('/api/client-enterprise/tickets')
+      const data = await response.json().catch(() => ({}))
+      setTickets(Array.isArray(data?.tickets) ? data.tickets : [])
+    } catch {
+      setTickets([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (tickets === null) {
+      loadTickets()
+    }
+  }, [tickets, loadTickets])
 
   const filteredTickets = (tickets || []).filter(t => {
     if (filter === 'open') return !['resolved', 'closed'].includes(t.status)
@@ -110,9 +121,12 @@ export default function SupportPage() {
 
       {/* Succès */}
       {success && (
-        <div className="flex items-center gap-2 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/40 px-4 py-3 text-sm text-green-700 dark:text-green-300">
-          <CheckCircle className="w-4 h-4" /> {success}
-        </div>
+        <SoftMessage
+          variant="success"
+          title="Ticket envoyé"
+          message={success}
+          onClose={() => setSuccess('')}
+        />
       )}
 
       {/* Formulaire nouveau ticket */}
@@ -168,9 +182,12 @@ export default function SupportPage() {
               />
             </div>
             {error && (
-              <p className="flex items-center gap-1.5 text-sm text-red-600">
-                <AlertTriangle className="w-3.5 h-3.5" /> {error}
-              </p>
+              <SoftMessage
+                variant="error"
+                title="Échec de la création"
+                message={error}
+                onClose={() => setError('')}
+              />
             )}
             <div className="flex items-center justify-end gap-2">
               <button type="button" onClick={() => setShowForm(false)}

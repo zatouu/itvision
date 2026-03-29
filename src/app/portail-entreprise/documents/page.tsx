@@ -7,6 +7,7 @@ import {
   X, Send, MessageSquare, ThumbsUp, ThumbsDown, RefreshCw,
   Loader2, Calendar, Package, ChevronDown, ChevronRight, ShoppingCart
 } from 'lucide-react'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
   draft:    { label: 'Brouillon', color: 'bg-gray-100 text-gray-500' },
@@ -254,10 +255,12 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
           {tab === 'action' && (
             <div className="space-y-4">
               {success ? (
-                <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/40 p-6 text-center">
-                  <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
-                  <p className="font-semibold text-green-700 dark:text-green-300">{success}</p>
-                </div>
+                <SoftMessage
+                  variant="success"
+                  title="Réponse enregistrée"
+                  message={success}
+                  onClose={() => setSuccess('')}
+                />
               ) : !canRespond ? (
                 <div className="rounded-xl bg-gray-50 dark:bg-slate-800 p-6 text-center">
                   <p className="text-gray-500">
@@ -329,7 +332,14 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
                     />
                   </div>
 
-                  {error && <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" />{error}</p>}
+                  {error && (
+                    <SoftMessage
+                      variant="error"
+                      title="Action non envoyée"
+                      message={error}
+                      onClose={() => setError('')}
+                    />
+                  )}
 
                   <button type="submit" disabled={loading}
                     className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-600 px-5 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity">

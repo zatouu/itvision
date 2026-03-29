@@ -5,6 +5,7 @@ import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { connectDB } from '@/lib/db'
 import { FileText, CheckCircle, AlertTriangle, Clock, Shield, Wrench, ChevronRight, Calendar } from 'lucide-react'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 const TYPE_LABELS: Record<string, string> = {
   preventive: 'Préventif', curative: 'Curatif', full: 'Complet', basic: 'Basique'
@@ -51,9 +52,12 @@ export default async function ContratsPage() {
 
       {contracts.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center">
-          <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Aucun contrat de maintenance</p>
-          <p className="text-sm text-gray-400 mt-1">Contactez-nous pour souscrire à un contrat</p>
+          <SoftMessage
+            variant="info"
+            title="Aucun contrat de maintenance"
+            message="Aucun contrat n'est disponible pour votre compte. Contactez IT Vision pour souscrire à une offre adaptée."
+            className="mx-auto max-w-xl text-left"
+          />
         </div>
       )}
 

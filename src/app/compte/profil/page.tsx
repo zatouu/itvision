@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 type Profile = {
   _id: string
@@ -158,15 +159,21 @@ export default function CompteProfilPage() {
           {loading ? (
             <div className="py-10 text-center text-sm text-gray-600 dark:text-gray-300">Chargement…</div>
           ) : error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-              {error}
-            </div>
+            <SoftMessage
+              variant="error"
+              title="Impossible de charger votre profil"
+              message={error}
+              onClose={() => setError(null)}
+            />
           ) : (
             <div className="space-y-6">
               {success && (
-                <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200">
-                  {success}
-                </div>
+                <SoftMessage
+                  variant="success"
+                  title="Modification enregistrée"
+                  message={success}
+                  onClose={() => setSuccess(null)}
+                />
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -329,7 +336,12 @@ export default function CompteProfilPage() {
                         </div>
 
                         {proMessage && (
-                          <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{proMessage}</p>
+                          <SoftMessage
+                            variant={proMessage.toLowerCase().includes('erreur') ? 'error' : 'success'}
+                            message={proMessage}
+                            className="py-3"
+                            onClose={() => setProMessage(null)}
+                          />
                         )}
 
                         {isEligible && !alreadyRequested && (

@@ -36,6 +36,8 @@ import NotificationCenter from './NotificationCenter'
 import AuthPortal from './AuthPortal'
 import EnhancedMaintenanceForm from './EnhancedMaintenanceForm'
 import TechnicianMarketplace from './TechnicianMarketplace'
+import SoftMessage from '@/components/ui/SoftMessage'
+import ModernModal, { ModalActions, ModalPrimaryButton, ModalSecondaryButton } from '@/components/ui/ModernModal'
 
 interface TechnicianSession {
   id: string
@@ -66,6 +68,12 @@ interface TechnicianPortalProps {
   initialSession?: TechnicianSession | null
 }
 
+type UiNotice = {
+  variant: 'success' | 'error' | 'warning' | 'info'
+  title?: string
+  message: string
+}
+
 export default function TechnicianPortal({ initialSession = null }: TechnicianPortalProps) {
   const router = useRouter()
   const [session, setSession] = useState<TechnicianSession | null>(initialSession)
@@ -80,6 +88,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   const [reportSearch, setReportSearch] = useState('')
   const [reportStatusFilter, setReportStatusFilter] = useState<string>('all')
   const [submittingReportId, setSubmittingReportId] = useState<string | null>(null)
+  const [draftToSubmit, setDraftToSubmit] = useState<any | null>(null)
+  const [uiNotice, setUiNotice] = useState<UiNotice | null>(null)
   const [stats, setStats] = useState({
     todayReports: 0,
     pendingReports: 0,
@@ -318,11 +328,11 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     setCurrentView('edit-report')
   }
 
-  const handleSubmitDraft = async (report: any) => {
+  const submitDraft = async (report: any) => {
     if (!report?._id) return
-    if (!confirm('Soumettre ce brouillon pour validation ?')) return
 
     setSubmittingReportId(report._id)
+    setUiNotice(null)
     try {
       const res = await fetch('/api/maintenance/reports/submit', {
         method: 'POST',
@@ -332,15 +342,40 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
-        alert(j?.error || 'Erreur lors de la soumission')
+        setUiNotice({
+          variant: 'error',
+          title: 'Soumission impossible',
+          message: j?.error || 'Erreur lors de la soumission'
+        })
         return
       }
+      setUiNotice({
+        variant: 'success',
+        title: 'Rapport envoyé',
+        message: 'Le brouillon a été soumis pour validation.'
+      })
       await loadTechnicianData()
     } catch (err) {
-      alert('Erreur réseau lors de la soumission')
+      setUiNotice({
+        variant: 'error',
+        title: 'Erreur réseau',
+        message: 'Veuillez vérifier votre connexion et réessayer.'
+      })
     } finally {
       setSubmittingReportId(null)
     }
+  }
+
+  const handleSubmitDraft = (report: any) => {
+    if (!report?._id) return
+    setDraftToSubmit(report)
+  }
+
+  const confirmSubmitDraft = async () => {
+    if (!draftToSubmit) return
+    const report = draftToSubmit
+    setDraftToSubmit(null)
+    await submitDraft(report)
   }
 
   const handlePlanFromClient = (client: ClientSummary) => {
@@ -1146,6 +1181,25 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
       {/* Contenu principal */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {!isOnline && (
+            <SoftMessage
+              variant="warning"
+              title="Mode hors ligne"
+              message="Certaines actions (soumission, synchronisation) peuvent échouer tant que la connexion n'est pas rétablie."
+              className="mb-5"
+            />
+          )}
+
+          {uiNotice && (
+            <SoftMessage
+              variant={uiNotice.variant}
+              title={uiNotice.title}
+              message={uiNotice.message}
+              className="mb-5"
+              onClose={() => setUiNotice(null)}
+            />
+          )}
+
           {currentView === 'dashboard' && renderDashboard()}
           {currentView === 'marketplace' && <TechnicianMarketplace technicianId={session?.id} />}
           {currentView === 'reports' && renderReports()}
@@ -1154,6 +1208,36 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           {currentView === 'view-report' && renderReportDetail()}
           {currentView === 'edit-report' && renderEditReport()}
         </main>
+
+      <ModernModal
+        isOpen={!!draftToSubmit}
+        onClose={() => setDraftToSubmit(null)}
+        title="Confirmer la soumission"
+        subtitle="Le brouillon sera envoyé pour validation"
+        icon={<AlertTriangle className="h-5 w-5 text-white" />}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Voulez-vous soumettre ce brouillon maintenant ? Vous pourrez encore le consulter ensuite depuis vos rapports.
+          </p>
+          <ModalActions>
+            <ModalSecondaryButton
+              onClick={() => setDraftToSubmit(null)}
+              disabled={!!submittingReportId}
+            >
+              Annuler
+            </ModalSecondaryButton>
+            <ModalPrimaryButton
+              onClick={confirmSubmitDraft}
+              loading={!!submittingReportId}
+              icon={<Send className="h-4 w-4" />}
+            >
+              Soumettre
+            </ModalPrimaryButton>
+          </ModalActions>
+        </div>
+      </ModernModal>
     </div>
   )
 }

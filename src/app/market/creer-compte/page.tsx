@@ -3,7 +3,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Script from 'next/script'
 import { AlertCircle, BadgeCheck, CheckCircle, Eye, EyeOff, Lock, Mail, Phone, ShieldCheck, Sparkles, User, UserPlus } from 'lucide-react'
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: Record<string, unknown>) => string | number
+      reset: (widgetId?: string | number) => void
+      remove: (widgetId?: string | number) => void
+    }
+  }
+}
 
 interface FormData {
   name: string
@@ -48,6 +59,8 @@ function getPasswordStrength(v: ReturnType<typeof validatePassword>) {
 
 export default function MarketCreateAccountPage() {
   const router = useRouter()
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const captchaContainerId = 'turnstile-market-register-form'
 
   const [returnTo, setReturnTo] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>({
@@ -66,6 +79,10 @@ export default function MarketCreateAccountPage() {
 
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
   const [checkingEmail, setCheckingEmail] = useState(false)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<string | number | null>(null)
+  const [captchaError, setCaptchaError] = useState('')
 
   useEffect(() => {
     try {
@@ -92,6 +109,35 @@ export default function MarketCreateAccountPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!turnstileSiteKey || !captchaReady || captchaWidgetId !== null) return
+    if (typeof window === 'undefined' || !window.turnstile) return
+
+    const widgetId = window.turnstile.render(`#${captchaContainerId}`, {
+      sitekey: turnstileSiteKey,
+      theme: 'light',
+      callback: (token: string) => {
+        setCaptchaToken(token)
+        setCaptchaError('')
+      },
+      'expired-callback': () => setCaptchaToken(''),
+      'error-callback': () => {
+        setCaptchaToken('')
+        setCaptchaError('Captcha indisponible, veuillez réessayer.')
+      }
+    })
+
+    setCaptchaWidgetId(widgetId)
+  }, [turnstileSiteKey, captchaReady, captchaWidgetId, captchaContainerId])
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.turnstile && captchaWidgetId !== null) {
+        window.turnstile.remove(captchaWidgetId)
+      }
+    }
+  }, [captchaWidgetId])
 
   const passwordValidation = useMemo(() => validatePassword(formData.password), [formData.password])
   const strength = useMemo(() => getPasswordStrength(passwordValidation), [passwordValidation])
@@ -147,6 +193,11 @@ export default function MarketCreateAccountPage() {
       return
     }
 
+    if (turnstileSiteKey && !captchaToken) {
+      setError('Veuillez valider le captcha')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -159,7 +210,8 @@ export default function MarketCreateAccountPage() {
           email: formData.email.toLowerCase().trim(),
           phone: formData.phone.trim() || undefined,
           password: formData.password,
-          role: 'CLIENT'
+          role: 'CLIENT',
+          captchaToken
         })
       })
 
@@ -167,6 +219,10 @@ export default function MarketCreateAccountPage() {
 
       if (!registerRes.ok) {
         setError(registerData.error || 'Une erreur est survenue lors de la création du compte')
+        if (turnstileSiteKey && typeof window !== 'undefined' && window.turnstile && captchaWidgetId !== null) {
+          window.turnstile.reset(captchaWidgetId)
+          setCaptchaToken('')
+        }
         return
       }
 
@@ -229,6 +285,15 @@ export default function MarketCreateAccountPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
+      {turnstileSiteKey && (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+          onLoad={() => setCaptchaReady(true)}
+          onError={() => setCaptchaError('Impossible de charger le captcha. Rafraîchissez la page.')}
+        />
+      )}
+
       <div className="mx-auto flex min-h-screen max-w-6xl items-center px-4 py-10">
         <div className="grid w-full gap-6 lg:grid-cols-2">
           {/* Side panel */}
@@ -433,6 +498,14 @@ export default function MarketCreateAccountPage() {
                 </button>
               </div>
             </div>
+
+            {turnstileSiteKey && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Vérification anti-bot *</label>
+                <div id={captchaContainerId} className="min-h-[66px]" />
+                {captchaError && <p className="mt-1 text-xs text-red-600">{captchaError}</p>}
+              </div>
+            )}
 
             <button
               type="submit"

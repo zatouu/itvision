@@ -5,6 +5,7 @@ import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { connectDB } from '@/lib/db'
 import { Wrench, Calendar, MapPin, AlertTriangle, CheckCircle, Clock, Shield } from 'lucide-react'
 import Intervention from '@/lib/models/Intervention'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   critical: { label: 'Critique',  color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -57,8 +58,12 @@ export default async function InterventionsPage() {
 
       {interventions.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center">
-          <Wrench className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Aucune intervention enregistrée</p>
+          <SoftMessage
+            variant="info"
+            title="Aucune intervention enregistrée"
+            message="Les interventions planifiées et terminées apparaîtront ici dès qu'elles seront créées."
+            className="mx-auto max-w-xl text-left"
+          />
         </div>
       )}
 

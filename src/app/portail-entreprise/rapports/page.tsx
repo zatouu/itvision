@@ -9,6 +9,7 @@ import {
   ThumbsUp, Package, Shield
 } from 'lucide-react'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   maintenance:  { label: 'Maintenance',   color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -88,9 +89,12 @@ export default async function RapportsPage() {
       {/* Liste */}
       {reports.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 p-14 text-center">
-          <ClipboardList className="w-10 h-10 text-gray-200 dark:text-slate-700 mx-auto mb-3" />
-          <p className="text-gray-500">Aucun rapport transmis pour l&apos;instant</p>
-          <p className="text-xs text-gray-400 mt-1">Les rapports validés par l&apos;admin apparaîtront ici</p>
+          <SoftMessage
+            variant="info"
+            title="Aucun rapport transmis"
+            message="Les rapports validés par l'équipe IT Vision apparaîtront ici dès leur publication."
+            className="mx-auto max-w-xl text-left"
+          />
         </div>
       ) : (
         <div className="space-y-4">

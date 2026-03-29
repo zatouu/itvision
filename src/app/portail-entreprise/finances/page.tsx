@@ -10,6 +10,7 @@ import {
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
 function fmtDate(d: any) {
@@ -263,8 +264,12 @@ export default async function FinancesPage() {
             <Link href="/portail-entreprise/contrats" className="text-xs text-gray-400 hover:text-green-600">Voir contrats</Link>
           </div>
           {contracts.length === 0 ? (
-            <div className="py-8 text-center">
-              <p className="text-sm text-gray-400">Aucun contrat actif</p>
+            <div className="p-4">
+              <SoftMessage
+                variant="info"
+                title="Aucun contrat actif"
+                message="Aucun engagement contractuel actif n'est enregistré pour le moment."
+              />
             </div>
           ) : (
             <ul className="divide-y divide-gray-50 dark:divide-slate-800">
@@ -313,26 +318,21 @@ export default async function FinancesPage() {
 
       {/* Alerte retard */}
       {totalOverdue > 0 && (
-        <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20 p-5">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-700 dark:text-red-300">Paiement(s) en retard — {fmt(totalOverdue)} FCFA</p>
-              <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                Certaines factures dépassent leur date d&apos;échéance. Pour éviter toute interruption de service,
-                merci de régulariser ou de nous contacter.
-              </p>
-              <div className="flex gap-3 mt-3">
-                <a href="mailto:contact@itvisionplus.sn"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700 transition-colors">
-                  📧 Contacter IT Vision
-                </a>
-                <a href="https://wa.me/221774133440" target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-green-700 transition-colors">
-                  📱 WhatsApp
-                </a>
-              </div>
-            </div>
+        <div className="space-y-3">
+          <SoftMessage
+            variant="warning"
+            title={`Paiements en retard — ${fmt(totalOverdue)} FCFA`}
+            message="Certaines factures dépassent leur date d'échéance. Merci de régulariser rapidement ou de contacter IT Vision."
+          />
+          <div className="flex gap-3">
+            <a href="mailto:contact@itvisionplus.sn"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700 transition-colors">
+              📧 Contacter IT Vision
+            </a>
+            <a href="https://wa.me/221774133440" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-green-700 transition-colors">
+              📱 WhatsApp
+            </a>
           </div>
         </div>
       )}

@@ -14,6 +14,7 @@ import Project from '@/lib/models/Project'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import Ticket from '@/lib/models/Ticket'
+import SoftMessage from '@/components/ui/SoftMessage'
 
 function fmtDate(d: any) {
   if (!d) return '—'
@@ -251,8 +252,12 @@ export default async function ActivitePage() {
 
       {events.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-16 text-center">
-          <Activity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Aucune activité pour l&apos;instant</p>
+          <SoftMessage
+            variant="info"
+            title="Aucune activité pour l'instant"
+            message="Les nouveaux événements (tickets, devis, factures, interventions) apparaîtront ici automatiquement."
+            className="mx-auto max-w-xl text-left"
+          />
         </div>
       ) : (
         <div className="space-y-6">
