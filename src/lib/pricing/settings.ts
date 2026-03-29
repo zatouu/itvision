@@ -9,12 +9,14 @@ export interface PricingDefaults {
   defaultExchangeRate: number
   defaultServiceFeeRate: number
   defaultInsuranceRate: number
+  defaultB2BDiscountPercent: number
 }
 
 const DEFAULTS: PricingDefaults = {
   defaultExchangeRate: 100,
   defaultServiceFeeRate: 10,
-  defaultInsuranceRate: 2.5
+  defaultInsuranceRate: 2.5,
+  defaultB2BDiscountPercent: 15
 }
 
 function ensureFile() {

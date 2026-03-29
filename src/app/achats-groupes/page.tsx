@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -49,6 +49,13 @@ interface GroupOrder {
   description?: string
 }
 
+interface GroupOrdersPublicConfig {
+  minJoinQty: number
+  maxJoinQtyPerParticipant: number
+  defaultDeadlineDays: number
+  allowedShippingMethods: string[]
+}
+
 const formatCurrency = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
 const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', { 
   day: 'numeric', month: 'long', year: 'numeric' 
@@ -70,11 +77,15 @@ const shippingLabels: Record<string, string> = {
   express_3j: 'Express ~3 j • à partir de 8 000 F/kg'
 }
 
+const buildDefaultDeadline = (days: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function GroupOrdersPage() {
   const router = useRouter()
   const [productIdParam, setProductIdParam] = useState<string | null>(null)
-  const [createParam, setCreateParam] = useState<'0' | '1'>('0')
-  const [qtyParam, setQtyParam] = useState<string | null>(null)
 
   const [groups, setGroups] = useState<GroupOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,13 +98,15 @@ export default function GroupOrdersPage() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [productPreview, setProductPreview] = useState<{ id: string; name: string; image?: string | null } | null>(null)
+  const [groupConfig, setGroupConfig] = useState<GroupOrdersPublicConfig>({
+    minJoinQty: 1,
+    maxJoinQtyPerParticipant: 50,
+    defaultDeadlineDays: 14,
+    allowedShippingMethods: Object.keys(shippingLabels)
+  })
   const [createForm, setCreateForm] = useState({
     qty: 1,
-    deadline: (() => {
-      const d = new Date()
-      d.setDate(d.getDate() + 14)
-      return d.toISOString().slice(0, 10)
-    })(),
+    deadline: buildDefaultDeadline(14),
     shippingMethod: 'maritime_60j',
     description: '',
     name: '',
@@ -110,8 +123,6 @@ export default function GroupOrdersPage() {
       const qty = params.get('qty')
 
       setProductIdParam(pid)
-      setCreateParam(create)
-      setQtyParam(qty)
 
       if (qty) {
         const parsed = Math.max(1, parseInt(qty) || 1)
@@ -125,15 +136,75 @@ export default function GroupOrdersPage() {
     }
   }, [])
 
+  const fetchGroups = useCallback(async () => {
+    try {
+      const url = productIdParam
+        ? `/api/group-orders?productId=${encodeURIComponent(productIdParam)}`
+        : '/api/group-orders'
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success) {
+        setGroups(data.groups)
+        setStats(data.stats)
+        if (data.config) {
+          const minJoinQty = Number(data.config.minJoinQty)
+          const maxJoinQtyPerParticipant = Number(data.config.maxJoinQtyPerParticipant)
+          const defaultDeadlineDays = Number(data.config.defaultDeadlineDays)
+          const allowedShippingMethods = Array.isArray(data.config.allowedShippingMethods)
+            ? data.config.allowedShippingMethods.filter((m: string) => typeof m === 'string' && shippingLabels[m])
+            : []
+
+          setGroupConfig({
+            minJoinQty: Number.isFinite(minJoinQty) && minJoinQty > 0 ? minJoinQty : 1,
+            maxJoinQtyPerParticipant:
+              Number.isFinite(maxJoinQtyPerParticipant) && maxJoinQtyPerParticipant > 0
+                ? maxJoinQtyPerParticipant
+                : 50,
+            defaultDeadlineDays:
+              Number.isFinite(defaultDeadlineDays) && defaultDeadlineDays > 0 ? defaultDeadlineDays : 14,
+            allowedShippingMethods:
+              allowedShippingMethods.length > 0 ? allowedShippingMethods : Object.keys(shippingLabels)
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [productIdParam])
+
   useEffect(() => {
     fetchGroups()
-  }, [productIdParam])
+  }, [fetchGroups])
 
   useEffect(() => {
     // UX: si on arrive depuis une fiche produit (productId), on pousse "Recommandé".
     // Sinon, tri par deadline (pragmatique pour la découverte).
     setSortBy(productIdParam ? 'recommended' : 'deadline')
   }, [productIdParam])
+
+  useEffect(() => {
+    setCreateForm((prev) => {
+      const availableShipping =
+        groupConfig.allowedShippingMethods.length > 0 ? groupConfig.allowedShippingMethods : Object.keys(shippingLabels)
+      const shippingMethod = availableShipping.includes(prev.shippingMethod)
+        ? prev.shippingMethod
+        : availableShipping[0] || 'maritime_60j'
+
+      const qty = Math.min(
+        Math.max(groupConfig.minJoinQty, prev.qty),
+        Math.max(groupConfig.minJoinQty, groupConfig.maxJoinQtyPerParticipant)
+      )
+
+      return {
+        ...prev,
+        qty,
+        shippingMethod,
+        deadline: buildDefaultDeadline(groupConfig.defaultDeadlineDays)
+      }
+    })
+  }, [groupConfig])
 
   const resetFilters = () => {
     setSearchTerm('')
@@ -163,24 +234,6 @@ export default function GroupOrdersPage() {
     }
     loadProductPreview()
   }, [productIdParam])
-
-  const fetchGroups = async () => {
-    try {
-      const url = productIdParam
-        ? `/api/group-orders?productId=${encodeURIComponent(productIdParam)}`
-        : '/api/group-orders'
-      const res = await fetch(url)
-      const data = await res.json()
-      if (data.success) {
-        setGroups(data.groups)
-        setStats(data.stats)
-      }
-    } catch (error) {
-      console.error('Erreur:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filteredGroups = groups.filter(g => {
     const matchesSearch =
@@ -548,7 +601,7 @@ export default function GroupOrdersPage() {
                     className="w-full px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="recommended">Recommandé</option>
-                    <option value="progress">Proche de l'objectif</option>
+                    <option value="progress">Proche de l&apos;objectif</option>
                     <option value="deadline">Date limite proche</option>
                     <option value="savings">Meilleure économie</option>
                   </select>
@@ -597,7 +650,7 @@ export default function GroupOrdersPage() {
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                    <div className="text-sm font-bold text-gray-900 mb-1">Besoin d'un produit précis ?</div>
+                    <div className="text-sm font-bold text-gray-900 mb-1">Besoin d&apos;un produit précis ?</div>
                     <div className="text-xs text-gray-600 mb-3">Ouvrez une fiche produit puis “Créer un achat groupé”.</div>
                     <Link
                       href="/produits"
@@ -737,7 +790,7 @@ export default function GroupOrdersPage() {
                       className="flex-1 px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       <option value="recommended">Recommandé</option>
-                      <option value="progress">Proche de l'objectif</option>
+                      <option value="progress">Proche de l&apos;objectif</option>
                       <option value="deadline">Date limite proche</option>
                       <option value="savings">Meilleure économie</option>
                     </select>
@@ -849,7 +902,10 @@ export default function GroupOrdersPage() {
                 const daysLeft = getDaysLeft(group.deadline)
                 const status = statusConfig[group.status] || statusConfig.open
                 const savings = group.product.basePrice - group.currentUnitPrice
-                const savingsPercent = Math.round((savings / group.product.basePrice) * 100)
+                const savingsPercent =
+                  group.product.basePrice > 0
+                    ? Math.max(0, Math.round((savings / group.product.basePrice) * 100))
+                    : 0
                 const isRecommended = !!productIdParam && sortBy === 'recommended' && idx === 0 && group.status === 'open'
                 
                 return (
@@ -1054,7 +1110,7 @@ export default function GroupOrdersPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-bold">Créer un achat groupé</h2>
-                    <p className="text-white/85 text-sm">Lancez un groupe et invitez d'autres personnes à vous rejoindre.</p>
+                    <p className="text-white/85 text-sm">Lancez un groupe et invitez d&apos;autres personnes à vous rejoindre.</p>
                   </div>
                   <button
                     onClick={() => {
@@ -1078,8 +1134,15 @@ export default function GroupOrdersPage() {
                     setCreateError('Veuillez ouvrir la création depuis une fiche produit (productId manquant).')
                     return
                   }
-                  if (!createForm.name || !createForm.phone || createForm.qty < 1) {
-                    setCreateError('Nom, téléphone et quantité sont requis.')
+                  if (
+                    !createForm.name ||
+                    !createForm.phone ||
+                    createForm.qty < groupConfig.minJoinQty ||
+                    createForm.qty > groupConfig.maxJoinQtyPerParticipant
+                  ) {
+                    setCreateError(
+                      `Nom, téléphone et quantité sont requis (quantité entre ${groupConfig.minJoinQty} et ${groupConfig.maxJoinQtyPerParticipant}).`
+                    )
                     return
                   }
                   setCreating(true)
@@ -1149,11 +1212,25 @@ export default function GroupOrdersPage() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Quantité initiale</label>
                     <input
                       type="number"
-                      min={1}
+                      min={groupConfig.minJoinQty}
+                      max={groupConfig.maxJoinQtyPerParticipant}
                       value={createForm.qty}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, qty: Math.max(1, parseInt(e.target.value) || 1) }))}
+                      onChange={(e) =>
+                        setCreateForm((p) => {
+                          const parsed = parseInt(e.target.value || String(groupConfig.minJoinQty), 10)
+                          const safe = Number.isFinite(parsed) ? parsed : groupConfig.minJoinQty
+                          const bounded = Math.min(
+                            groupConfig.maxJoinQtyPerParticipant,
+                            Math.max(groupConfig.minJoinQty, safe)
+                          )
+                          return { ...p, qty: bounded }
+                        })
+                      }
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      Min {groupConfig.minJoinQty} • Max {groupConfig.maxJoinQtyPerParticipant}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Date limite</label>
@@ -1173,8 +1250,11 @@ export default function GroupOrdersPage() {
                     onChange={(e) => setCreateForm((p) => ({ ...p, shippingMethod: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                   >
-                    {Object.entries(shippingLabels).map(([k, label]) => (
-                      <option key={k} value={k}>{label}</option>
+                    {(groupConfig.allowedShippingMethods.length > 0
+                      ? groupConfig.allowedShippingMethods
+                      : Object.keys(shippingLabels)
+                    ).map((k) => (
+                      <option key={k} value={k}>{shippingLabels[k] || k}</option>
                     ))}
                   </select>
                 </div>

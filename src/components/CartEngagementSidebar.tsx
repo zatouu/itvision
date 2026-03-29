@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Plus, Users, ShoppingBag, TrendingUp, Sparkles } from 'lucide-react'
+import type { MarketplaceTier } from '@/lib/pricing/resolve-product-price'
 
 interface Product {
   _id: string
@@ -25,10 +26,17 @@ interface GroupOrder {
 const formatCurrency = (v?: number) =>
   typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : ''
 
-export default function CartEngagementSidebar({ cartProductIds = [] }: { cartProductIds?: string[] }) {
+export default function CartEngagementSidebar({
+  cartProductIds = [],
+  marketplaceTier = 'standard',
+}: {
+  cartProductIds?: string[]
+  marketplaceTier?: MarketplaceTier
+}) {
   const [products, setProducts] = useState<Product[]>([])
   const [groups, setGroups] = useState<GroupOrder[]>([])
   const [added, setAdded] = useState<Set<string>>(new Set())
+  const isWholesaleAccount = marketplaceTier !== 'standard'
 
   useEffect(() => {
     fetch('/api/catalog/products?limit=5&sort=popular')
@@ -161,10 +169,18 @@ export default function CartEngagementSidebar({ cartProductIds = [] }: { cartPro
       <div className="bg-gradient-to-br from-green-50 to-violet-50 rounded-2xl border border-green-100 p-4">
         <div className="flex items-center gap-2 mb-2">
           <TrendingUp className="w-4 h-4 text-green-600" />
-          <span className="text-xs font-bold text-gray-700">Prix volume</span>
+          <span className="text-xs font-bold text-gray-700">Prix B2B</span>
         </div>
         <p className="text-xs text-gray-600 leading-relaxed">
-          Ajoutez <span className="font-bold text-violet-700">5+ produits</span> pour débloquer les prix B2B jusqu'à <span className="font-bold text-green-700">-20%</span>.
+          {isWholesaleAccount ? (
+            <>
+              Votre compte bénéficie déjà des <span className="font-bold text-violet-700">prix B2B dès 1 unité</span> (si disponibles).
+            </>
+          ) : (
+            <>
+              Ajoutez <span className="font-bold text-violet-700">5+ produits</span> pour débloquer les prix B2B selon les offres produit.
+            </>
+          )}
         </p>
       </div>
     </motion.aside>

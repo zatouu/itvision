@@ -5,12 +5,27 @@ const path: any = _req('path')
 
 const FILE_PATH = path.resolve(process.cwd(), 'data', 'payment-settings.json')
 
+type GroupOrderShippingMethod = 'maritime_60j' | 'air_15j' | 'express_3j'
+
+type GroupOrderRules = {
+  defaultMinQty: number
+  defaultTargetQty: number
+  defaultMaxQty: number
+  defaultDeadlineDays: number
+  minJoinQty: number
+  maxJoinQtyPerParticipant: number
+  maxParticipantsPerGroup: number
+  autoFillOnTargetReached: boolean
+  allowedShippingMethods: Record<GroupOrderShippingMethod, boolean>
+}
+
 export type PaymentSettings = {
   groupOrders: {
     enabled: boolean
     chatEnabled: boolean
     paymentLinksEnabled: boolean
     paymentManagementEnabled: boolean
+    rules: GroupOrderRules
   },
   providers: {
     manual: {
@@ -32,12 +47,100 @@ export type PaymentSettings = {
   }
 }
 
+const DEFAULT_GROUP_ORDER_RULES: GroupOrderRules = {
+  defaultMinQty: 10,
+  defaultTargetQty: 50,
+  defaultMaxQty: 100,
+  defaultDeadlineDays: 14,
+  minJoinQty: 1,
+  maxJoinQtyPerParticipant: 50,
+  maxParticipantsPerGroup: 100,
+  autoFillOnTargetReached: true,
+  allowedShippingMethods: {
+    maritime_60j: true,
+    air_15j: true,
+    express_3j: true
+  }
+}
+
+function toBoundedInteger(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(max, Math.max(min, Math.round(parsed)))
+}
+
+function sanitizeAllowedShippingMethods(
+  raw: any,
+  fallback: Record<GroupOrderShippingMethod, boolean>
+): Record<GroupOrderShippingMethod, boolean> {
+  const next: Record<GroupOrderShippingMethod, boolean> = {
+    maritime_60j: typeof raw?.maritime_60j === 'boolean' ? raw.maritime_60j : fallback.maritime_60j,
+    air_15j: typeof raw?.air_15j === 'boolean' ? raw.air_15j : fallback.air_15j,
+    express_3j: typeof raw?.express_3j === 'boolean' ? raw.express_3j : fallback.express_3j
+  }
+
+  if (!Object.values(next).some(Boolean)) {
+    next.maritime_60j = true
+  }
+
+  return next
+}
+
+function sanitizeGroupOrderRules(raw: any, fallback: GroupOrderRules): GroupOrderRules {
+  const defaultMinQty = toBoundedInteger(raw?.defaultMinQty, fallback.defaultMinQty, 1, 10_000)
+  const defaultTargetQtyBase = toBoundedInteger(raw?.defaultTargetQty, fallback.defaultTargetQty, 1, 50_000)
+  const defaultTargetQty = Math.max(defaultMinQty, defaultTargetQtyBase)
+  const defaultMaxQtyBase = toBoundedInteger(raw?.defaultMaxQty, fallback.defaultMaxQty, 1, 100_000)
+  const defaultMaxQty = Math.max(defaultTargetQty, defaultMaxQtyBase)
+
+  const minJoinQty = toBoundedInteger(raw?.minJoinQty, fallback.minJoinQty, 1, 1_000)
+  const maxJoinQtyPerParticipantBase = toBoundedInteger(
+    raw?.maxJoinQtyPerParticipant,
+    fallback.maxJoinQtyPerParticipant,
+    1,
+    10_000
+  )
+  const maxJoinQtyPerParticipant = Math.max(minJoinQty, maxJoinQtyPerParticipantBase)
+
+  const maxParticipantsPerGroup = toBoundedInteger(
+    raw?.maxParticipantsPerGroup,
+    fallback.maxParticipantsPerGroup,
+    1,
+    2_000
+  )
+
+  const defaultDeadlineDays = toBoundedInteger(raw?.defaultDeadlineDays, fallback.defaultDeadlineDays, 1, 120)
+
+  const autoFillOnTargetReached =
+    typeof raw?.autoFillOnTargetReached === 'boolean'
+      ? raw.autoFillOnTargetReached
+      : fallback.autoFillOnTargetReached
+
+  const allowedShippingMethods = sanitizeAllowedShippingMethods(
+    raw?.allowedShippingMethods,
+    fallback.allowedShippingMethods
+  )
+
+  return {
+    defaultMinQty,
+    defaultTargetQty,
+    defaultMaxQty,
+    defaultDeadlineDays,
+    minJoinQty,
+    maxJoinQtyPerParticipant,
+    maxParticipantsPerGroup,
+    autoFillOnTargetReached,
+    allowedShippingMethods
+  }
+}
+
 const DEFAULT_SETTINGS: PaymentSettings = {
   groupOrders: {
     enabled: true,
     chatEnabled: true,
     paymentLinksEnabled: true,
-    paymentManagementEnabled: true
+    paymentManagementEnabled: true,
+    rules: DEFAULT_GROUP_ORDER_RULES
   },
   providers: {
     manual: {
@@ -107,7 +210,8 @@ export function readPaymentSettings(): PaymentSettings {
         enabled: Boolean(parsed?.groupOrders?.enabled ?? DEFAULT_SETTINGS.groupOrders.enabled),
         chatEnabled: Boolean(parsed?.groupOrders?.chatEnabled ?? DEFAULT_SETTINGS.groupOrders.chatEnabled),
         paymentLinksEnabled: Boolean(parsed?.groupOrders?.paymentLinksEnabled ?? DEFAULT_SETTINGS.groupOrders.paymentLinksEnabled),
-        paymentManagementEnabled: Boolean(parsed?.groupOrders?.paymentManagementEnabled ?? DEFAULT_SETTINGS.groupOrders.paymentManagementEnabled)
+        paymentManagementEnabled: Boolean(parsed?.groupOrders?.paymentManagementEnabled ?? DEFAULT_SETTINGS.groupOrders.paymentManagementEnabled),
+        rules: sanitizeGroupOrderRules(parsed?.groupOrders?.rules, DEFAULT_GROUP_ORDER_RULES)
       },
       providers: {
         manual: {
@@ -144,7 +248,8 @@ export function writePaymentSettings(payload: Partial<PaymentSettings>): Payment
       paymentManagementEnabled:
         typeof payload?.groupOrders?.paymentManagementEnabled === 'boolean'
           ? payload.groupOrders.paymentManagementEnabled
-          : current.groupOrders.paymentManagementEnabled
+          : current.groupOrders.paymentManagementEnabled,
+      rules: sanitizeGroupOrderRules(payload?.groupOrders?.rules, current.groupOrders.rules)
     },
     providers: {
       manual: {

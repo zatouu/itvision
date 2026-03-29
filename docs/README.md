@@ -77,6 +77,19 @@ Ce dossier contient la documentation complète du système de gestion des prix d
 
 ---
 
+### 6. Paramétrage Admin Achats Groupés
+**Fichier** : `CONFIG_ACHATS_GROUPES_ADMIN.md`  
+**Pour qui** : Admins, Product Ops, Développeurs  
+**Contenu** :
+- Variables métier achats groupés maintenant paramétrables
+- Mapping UI admin / API / stockage JSON
+- Règles de validation (bornes, cohérence min/target/max)
+- Impact sur la création/rejoindre groupe et le front public
+
+👉 **Pour piloter les seuils sans hardcode**
+
+---
+
 ## 🔄 Changements Récents (v2.0.0)
 
 ### ⚡ Marge Commerciale

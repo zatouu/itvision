@@ -40,26 +40,58 @@ function B2bPricingContent() {
   const [summary, setSummary] = useState<{ total: number; withB2bPrice: number; withoutB2bPrice: number } | null>(null)
 
   const [discountPercent, setDiscountPercent] = useState(15)
+  const [defaultDiscountPercent, setDefaultDiscountPercent] = useState<number | null>(null)
   const [force, setForce] = useState(false)
   const [dryRun, setDryRun] = useState(true)
   const [applying, setApplying] = useState(false)
+  const [savingDefault, setSavingDefault] = useState(false)
   const [batchResult, setBatchResult] = useState<{ preview: BatchResult[]; updatedCount: number; previewCount: number; dryRun: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'missing' | 'has'>('all')
 
   useEffect(() => {
-    fetch('/api/admin/products/batch-b2b-pricing', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          setProducts(data.products || [])
-          setSummary({ total: data.total, withB2bPrice: data.withB2bPrice, withoutB2bPrice: data.withoutB2bPrice })
+    Promise.all([
+      fetch('/api/admin/products/batch-b2b-pricing', { credentials: 'include' }).then(r => r.json()).catch(() => null),
+      fetch('/api/admin/settings', { credentials: 'include' }).then(r => r.json()).catch(() => null)
+    ])
+      .then(([pricingData, settingsData]) => {
+        if (pricingData?.success) {
+          setProducts(pricingData.products || [])
+          setSummary({ total: pricingData.total, withB2bPrice: pricingData.withB2bPrice, withoutB2bPrice: pricingData.withoutB2bPrice })
+        }
+
+        const configuredDefault = Number(settingsData?.defaults?.defaultB2BDiscountPercent)
+        if (Number.isFinite(configuredDefault) && configuredDefault > 0) {
+          setDiscountPercent(configuredDefault)
+          setDefaultDiscountPercent(configuredDefault)
         }
       })
-      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  const handleSaveDefaultDiscount = async () => {
+    setError(null)
+    setSuccess(null)
+    setSavingDefault(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ defaultB2BDiscountPercent: discountPercent })
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Erreur mise à jour taux par défaut')
+
+      setDefaultDiscountPercent(discountPercent)
+      setSuccess(`Taux B2B par défaut enregistré à -${discountPercent}%`) 
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+    } finally {
+      setSavingDefault(false)
+    }
+  }
 
   const handleRun = async () => {
     setError(null)
@@ -135,6 +167,12 @@ function B2bPricingContent() {
           <Zap className="w-4 h-4 text-violet-600" />
           Paramètres du calcul
         </h2>
+        <div className="text-xs text-gray-600 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+          Prix volume appliqué à partir de <strong>5 unités</strong> (ou dès 1 unité pour comptes Pro/Revendeur/Partenaire).
+          {typeof defaultDiscountPercent === 'number' && (
+            <span className="ml-1">Taux par défaut actuel: <strong>-{defaultDiscountPercent}%</strong>.</span>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -150,11 +188,20 @@ function B2bPricingContent() {
               className="w-full accent-violet-600"
             />
             <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>-5%</span><span>-20% (défaut)</span><span>-40%</span>
+              <span>-5%</span>
+              <span>{typeof defaultDiscountPercent === 'number' ? `-${defaultDiscountPercent}% (défaut)` : 'Défaut système'}</span>
+              <span>-40%</span>
             </div>
             <p className="text-xs text-gray-500 mt-2">
               Ex: produit à 10 000 FCFA → b2bPrice = {Math.round(10000 * (1 - discountPercent / 100)).toLocaleString('fr-FR')} FCFA
             </p>
+            <button
+              onClick={handleSaveDefaultDiscount}
+              disabled={savingDefault}
+              className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 disabled:opacity-60"
+            >
+              {savingDefault ? 'Enregistrement…' : 'Définir comme taux par défaut'}
+            </button>
           </div>
           <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">

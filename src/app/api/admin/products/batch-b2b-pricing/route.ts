@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 import { requireAuth } from '@/lib/jwt'
+import { readPricingDefaults } from '@/lib/pricing/settings'
 
 /**
  * POST /api/admin/products/batch-b2b-pricing
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const discountPercent = typeof body.discountPercent === 'number' ? body.discountPercent : 15
+    const defaults = readPricingDefaults()
+    const defaultDiscount = typeof defaults.defaultB2BDiscountPercent === 'number' ? defaults.defaultB2BDiscountPercent : 15
+    const discountPercent = typeof body.discountPercent === 'number' ? body.discountPercent : defaultDiscount
     const force = body.force === true
     const dryRun = body.dryRun === true
     const minPrice = typeof body.minPrice === 'number' ? body.minPrice : 0
@@ -107,6 +110,7 @@ export async function POST(req: NextRequest) {
       success: true,
       dryRun,
       discountPercent,
+      defaultDiscount,
       force,
       totalProducts: products.length,
       updatedCount: dryRun ? 0 : (writeResult?.modifiedCount ?? 0),

@@ -16,6 +16,12 @@ function generateGroupId(): string {
 // GET - Liste des achats groupés
 export async function GET(req: NextRequest) {
   try {
+    const settings = readPaymentSettings()
+    const groupRules = settings.groupOrders.rules
+    const allowedShippingMethods = Object.entries(groupRules.allowedShippingMethods)
+      .filter(([, enabled]) => enabled)
+      .map(([method]) => method)
+
     await connectDB()
     
     const { searchParams } = new URL(req.url)
@@ -60,7 +66,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       groups,
-      stats
+      stats,
+      config: {
+        minJoinQty: groupRules.minJoinQty,
+        maxJoinQtyPerParticipant: groupRules.maxJoinQtyPerParticipant,
+        defaultDeadlineDays: groupRules.defaultDeadlineDays,
+        allowedShippingMethods
+      }
     })
     
   } catch (error) {
@@ -89,22 +101,71 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       )
     }
+    const groupRules = settings.groupOrders.rules
+    const enabledShippingMethods = Object.entries(groupRules.allowedShippingMethods)
+      .filter(([, enabled]) => enabled)
+      .map(([method]) => method)
+    const defaultShippingMethod = enabledShippingMethods[0] || 'maritime_60j'
 
     await connectDB()
     
     const body = await req.json()
     const {
       productId,
-      qty,
+      qty: qtyRaw,
       deadline,
       shippingMethod,
       description,
       creator // { name, phone, email }
     } = body
+
+    const qty = Number(qtyRaw)
+    const deadlineDate = deadline
+      ? new Date(deadline)
+      : new Date(Date.now() + groupRules.defaultDeadlineDays * 24 * 60 * 60 * 1000)
+    const allowedShippingMethods = enabledShippingMethods.length > 0
+      ? enabledShippingMethods
+      : [defaultShippingMethod]
+    const normalizedShippingMethod =
+      typeof shippingMethod === 'string' && allowedShippingMethods.includes(shippingMethod)
+        ? shippingMethod
+        : defaultShippingMethod
+
+    const creatorName = typeof creator?.name === 'string' ? creator.name.trim() : ''
+    const creatorPhone = typeof creator?.phone === 'string' ? creator.phone.trim() : ''
+    const creatorEmail = typeof creator?.email === 'string' ? creator.email.trim() : undefined
     
-    if (!productId || !qty || !deadline || !creator?.name || !creator?.phone) {
+    if (!productId || !creatorName || !creatorPhone) {
       return NextResponse.json(
-        { success: false, error: 'Données manquantes: productId, qty, deadline, creator (name, phone) requis' },
+        { success: false, error: 'Données manquantes: productId, qty, creator (name, phone) requis' },
+        { status: 400 }
+      )
+    }
+
+    if (!Number.isFinite(qty) || !Number.isInteger(qty)) {
+      return NextResponse.json(
+        { success: false, error: 'Quantité invalide (entier requis)' },
+        { status: 400 }
+      )
+    }
+
+    if (qty < groupRules.minJoinQty) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: minimum ${groupRules.minJoinQty}` },
+        { status: 400 }
+      )
+    }
+
+    if (qty > groupRules.maxJoinQtyPerParticipant) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: maximum ${groupRules.maxJoinQtyPerParticipant}` },
+        { status: 400 }
+      )
+    }
+
+    if (Number.isNaN(deadlineDate.getTime()) || deadlineDate <= new Date()) {
+      return NextResponse.json(
+        { success: false, error: 'Date limite invalide (doit être dans le futur)' },
         { status: 400 }
       )
     }
@@ -126,6 +187,23 @@ export async function POST(req: NextRequest) {
       )
     }
     
+    const minQty = Number(product.groupBuyMinQty) > 0 ? Number(product.groupBuyMinQty) : groupRules.defaultMinQty
+    const targetQty =
+      Number(product.groupBuyTargetQty) >= minQty
+        ? Number(product.groupBuyTargetQty)
+        : Math.max(minQty, groupRules.defaultTargetQty)
+    const maxQty =
+      Number(product.groupBuyMaxQty) >= targetQty
+        ? Number(product.groupBuyMaxQty)
+        : Math.max(targetQty, groupRules.defaultMaxQty)
+
+    if (typeof maxQty === 'number' && qty > maxQty) {
+      return NextResponse.json(
+        { success: false, error: `Quantité initiale invalide: maximum autorisé ${maxQty}` },
+        { status: 400 }
+      )
+    }
+
     // Calculer le prix unitaire initial
     let currentUnitPrice = product.price || 0
     const priceTiers = product.priceTiers || []
@@ -139,11 +217,14 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    const reachedObjective = qty >= targetQty || (typeof maxQty === 'number' && qty >= maxQty)
+    const initialStatus = groupRules.autoFillOnTargetReached && reachedObjective ? 'filled' : 'open'
     
     // Créer l'achat groupé
     const groupOrder = new GroupOrder({
       groupId: generateGroupId(),
-      status: 'open',
+      status: initialStatus,
       product: {
         productId: product._id,
         name: product.name,
@@ -151,16 +232,18 @@ export async function POST(req: NextRequest) {
         basePrice: product.price || 0,
         currency: product.currency || 'FCFA'
       },
-      minQty: product.groupBuyMinQty || 10,
-      targetQty: product.groupBuyTargetQty || 50,
+      minQty,
+      targetQty,
       currentQty: qty,
+      maxQty,
+      maxParticipants: groupRules.maxParticipantsPerGroup,
       priceTiers,
       currentUnitPrice,
       participants: [{
         userId: auth.userId as any,
-        name: creator.name,
-        phone: creator.phone,
-        email: creator.email,
+        name: creatorName,
+        phone: creatorPhone,
+        email: creatorEmail,
         qty,
         unitPrice: currentUnitPrice,
         totalAmount: qty * currentUnitPrice,
@@ -168,13 +251,13 @@ export async function POST(req: NextRequest) {
         paymentStatus: 'pending',
         joinedAt: new Date()
       }],
-      deadline: new Date(deadline),
-      shippingMethod: shippingMethod || 'maritime_60j',
+      deadline: deadlineDate,
+      shippingMethod: normalizedShippingMethod,
       createdBy: {
         userId: auth.userId as any,
-        name: creator.name,
-        phone: creator.phone,
-        email: creator.email
+        name: creatorName,
+        phone: creatorPhone,
+        email: creatorEmail
       },
       description
     })
@@ -185,9 +268,9 @@ export async function POST(req: NextRequest) {
     try {
       await notifyGroupJoinConfirmation(
         { 
-          name: creator.name, 
-          email: creator.email, 
-          phone: creator.phone, 
+          name: creatorName, 
+          email: creatorEmail, 
+          phone: creatorPhone, 
           qty, 
           unitPrice: currentUnitPrice, 
           totalAmount: qty * currentUnitPrice 

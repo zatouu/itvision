@@ -81,15 +81,33 @@ export async function POST(
         { status: 503 }
       )
     }
+    const groupRules = settings.groupOrders.rules
 
     await connectDB()
     
     const body = await req.json()
-    const { name, phone, email, qty } = body
+    const qty = Number(body?.qty)
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    const phone = typeof body?.phone === 'string' ? body.phone.trim() : ''
+    const email = typeof body?.email === 'string' ? body.email.trim() : undefined
 
-    if (!name || !phone || !qty || qty < 1) {
+    if (!name || !phone || !Number.isFinite(qty) || !Number.isInteger(qty)) {
       return NextResponse.json(
         { success: false, error: 'Données manquantes: name, phone, qty requis' },
+        { status: 400 }
+      )
+    }
+
+    if (qty < groupRules.minJoinQty) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: minimum ${groupRules.minJoinQty}` },
+        { status: 400 }
+      )
+    }
+
+    if (qty > groupRules.maxJoinQtyPerParticipant) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: maximum ${groupRules.maxJoinQtyPerParticipant}` },
         { status: 400 }
       )
     }
@@ -149,8 +167,12 @@ export async function POST(
       )
     }
 
-    // Vérifier max participants
-    if (group.maxParticipants && group.participants.length >= group.maxParticipants) {
+    // Vérifier max participants (groupe ou règle globale admin)
+    const participantLimit =
+      typeof group.maxParticipants === 'number' && group.maxParticipants > 0
+        ? group.maxParticipants
+        : groupRules.maxParticipantsPerGroup
+    if (participantLimit > 0 && group.participants.length >= participantLimit) {
       return NextResponse.json(
         { success: false, error: 'Nombre maximum de participants atteint' },
         { status: 400 }
@@ -212,8 +234,13 @@ export async function POST(
       })
     }
     
-    // Vérifier si quantité min atteinte
-    const objectiveJustReached = group.currentQty >= group.minQty && group.status === 'open'
+    // Le groupe passe en "filled" quand l'objectif cible est atteint (ou quantité max)
+    const reachedTarget = group.currentQty >= group.targetQty
+    const reachedMaxQty = typeof group.maxQty === 'number' && group.currentQty >= group.maxQty
+    const objectiveJustReached =
+      groupRules.autoFillOnTargetReached &&
+      group.status === 'open' &&
+      (reachedTarget || reachedMaxQty)
     if (objectiveJustReached) {
       group.status = 'filled'
     }
@@ -330,7 +357,16 @@ export async function PATCH(
     const updateData: any = {}
     
     // Champs modifiables
-    if (body.status) updateData.status = body.status
+    if (body.status) {
+      const allowedStatuses = ['draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled']
+      if (!allowedStatuses.includes(body.status)) {
+        return NextResponse.json(
+          { success: false, error: 'status invalide' },
+          { status: 400 }
+        )
+      }
+      updateData.status = body.status
+    }
     if (body.deadline) updateData.deadline = new Date(body.deadline)
     if (body.shippingMethod) updateData.shippingMethod = body.shippingMethod
     if (body.shippingCostPerUnit !== undefined) updateData.shippingCostPerUnit = body.shippingCostPerUnit

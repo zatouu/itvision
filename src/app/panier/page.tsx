@@ -21,7 +21,6 @@ import {
   CheckCircle,
   Loader2,
   Package,
-  Home,
   TrendingDown,
   ChevronLeft,
   ChevronRight,
@@ -29,7 +28,6 @@ import {
   Clock,
   Star,
   ShoppingCart,
-  Heart,
   Eye,
   Zap,
   LogIn,
@@ -39,25 +37,31 @@ import {
 import Link from 'next/link'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import CartEngagementSidebar from '@/components/CartEngagementSidebar'
-import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
-import { getServiceFeeTier, calculateCompleteFees } from '@/lib/pricing/tiered-service-fees'
+import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
+import { getServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { resolveProductPrice, type MarketplaceTier } from '@/lib/pricing/resolve-product-price'
 import { ServiceFeeTierProgress } from '@/components/ServiceFeeTierProgress'
 import { useToast } from '@/components/ui/Toaster'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
+const MARKETPLACE_TIER_LABEL: Record<MarketplaceTier, string> = {
+  standard: 'Standard',
+  pro: 'Pro',
+  reseller: 'Revendeur',
+  partner: 'Partenaire',
+}
 
 export default function PanierPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authUser, setAuthUser] = useState<{ name?: string; email?: string; phone?: string } | null>(null)
-  const [orderInfo, setOrderInfo] = useState<any>(null)
+  const [marketplaceTier, setMarketplaceTier] = useState<MarketplaceTier>('standard')
   const router = useRouter()
   const { addToast } = useToast()
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
   const [suggestedProducts, setSuggestedProducts] = useState<any[]>([])
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true)
   const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -79,6 +83,10 @@ export default function PanierPage() {
         if (data?.profile) {
           setIsAuthenticated(true)
           setAuthUser({ name: data.profile.name, email: data.profile.email, phone: data.profile.phone })
+          const tier = data.profile.marketplaceTier
+          if (tier === 'standard' || tier === 'pro' || tier === 'reseller' || tier === 'partner') {
+            setMarketplaceTier(tier)
+          }
           setName((prev: string) => prev || data.profile.name || '')
           setEmail((prev: string) => prev || data.profile.email || '')
           setPhone((prev: string) => prev || data.profile.phone || '')
@@ -122,12 +130,6 @@ export default function PanierPage() {
     }, 2000)
   }
 
-  const handleClosePayment = useCallback(() => {
-    const url = orderInfo?.confirmationUrl || (orderInfo?.orderId ? `/commandes/${orderInfo.orderId}` : null)
-    if (url) router.push(url)
-    setOrderInfo(null)
-  }, [orderInfo, router])
-
   useEffect(() => {
     fetch('/api/shipping-rates')
       .then(r => r.json())
@@ -153,7 +155,6 @@ export default function PanierPage() {
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
-        setLoadingSuggestions(true)
         // Récupérer des produits populaires/récents
         const res = await fetch('/api/catalog/products?limit=12&sort=popular')
         const data = await res.json()
@@ -165,8 +166,6 @@ export default function PanierPage() {
         }
       } catch (e) {
         console.error('Erreur chargement suggestions:', e)
-      } finally {
-        setLoadingSuggestions(false)
       }
     }
     fetchSuggestions()
@@ -227,11 +226,11 @@ export default function PanierPage() {
     setSuggestionScroll(newScroll)
   }
 
-  const SHIPPING_CHOICES = {
+  const SHIPPING_CHOICES = useMemo(() => ({
     express: { label: shippingRates.air_express?.label || 'Express 3j', methodId: 'air_express' as const },
     air: { label: shippingRates.air_15?.label || 'Fret aérien 10–15j', methodId: 'air_15' as const },
     sea: { label: shippingRates.sea_freight?.label || 'Maritime 60j', methodId: 'sea_freight' as const }
-  }
+  }), [shippingRates])
 
   const transportGlobal = useMemo(() => {
     let totalWeight = 0
@@ -276,7 +275,7 @@ export default function PanierPage() {
 
     const withMinCharge = typeof rate.minimumCharge === 'number' ? Math.max(billed, rate.minimumCharge) : billed
     return Math.round(withMinCharge)
-  }, [items, shippingMethod, shippingRates])
+  }, [items, shippingMethod, shippingRates, SHIPPING_CHOICES])
 
   const weightSummary = useMemo(() => {
     let totalWeight = 0
@@ -326,7 +325,7 @@ export default function PanierPage() {
     }
     
     return 'Transport'
-  }, [shippingMethod, shippingRates])
+  }, [shippingMethod, shippingRates, SHIPPING_CHOICES])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -334,7 +333,7 @@ export default function PanierPage() {
       try {
         const raw = localStorage.getItem('recent:viewed')
         setRecentViewed(raw ? JSON.parse(raw) : [])
-      } catch (e) {
+      } catch {
         setRecentViewed([])
       }
     }
@@ -357,13 +356,18 @@ export default function PanierPage() {
     // Premier passage: calculer la quantité totale
     for (const it of items) totalQuantity += it.qty || 1
 
-    // Second passage: appliquer b2bPrice si total cart >= 5 OU item qty >= 5
+    // Second passage: appliquer le prix selon la logique tier + quantité
     for (const it of items) {
       const qty = it.qty || 1
-      const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price
-      const usesWholesale = hasWholesale && (qty >= 5 || totalQuantity >= 5)
       const retailPrice = typeof it.price === 'number' ? it.price : 0
-      const effectivePrice = usesWholesale ? it.b2bPrice : retailPrice
+      const resolved = resolveProductPrice({
+        price: retailPrice,
+        b2bPrice: it.b2bPrice,
+        qty,
+        totalCartQty: totalQuantity,
+        marketplaceTier,
+      })
+      const effectivePrice = resolved.appliedPrice
       products += effectivePrice * qty
       retailProducts += retailPrice * qty
     }
@@ -385,7 +389,7 @@ export default function PanierPage() {
       tier: pricingTier.tier,
       total
     }
-  }, [items, transportGlobal])
+  }, [items, marketplaceTier, transportGlobal])
 
   const removeItem = (id: string) => {
     const next = items.filter(i => i.id !== id)
@@ -569,10 +573,10 @@ export default function PanierPage() {
               <ShoppingBag className="w-8 h-8" />
               <h1 className="text-3xl font-bold">Votre Panier</h1>
             </div>
-            <a href="/produits" className="text-white/70 hover:text-white text-xs flex items-center gap-1 transition">
+            <Link href="/produits" className="text-white/70 hover:text-white text-xs flex items-center gap-1 transition">
               <ArrowLeft className="w-3.5 h-3.5" />
               Catalogue
-            </a>
+            </Link>
           </div>
 
           {/* Progression steps */}
@@ -613,7 +617,7 @@ export default function PanierPage() {
       {/* Contenu */}
       <div className="relative">
       <div className="hidden 2xl:block absolute right-4 top-8 w-60 z-10">
-        <CartEngagementSidebar cartProductIds={items.map(i => i.id)} />
+        <CartEngagementSidebar cartProductIds={items.map(i => i.id)} marketplaceTier={marketplaceTier} />
       </div>
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         <AnimatePresence mode="wait">
@@ -654,10 +658,18 @@ export default function PanierPage() {
                           {it.variantId && <p className="text-xs text-gray-500">Variante: {it.variantId}</p>}
                           {(() => {
                             const qty = it.qty || 1
-                            const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price
-                            const usesWholesale = hasWholesale && (qty >= 5 || breakdown.totalQuantity >= 5)
-                            const effectivePrice = usesWholesale ? it.b2bPrice : it.price
-                            const discountPct = hasWholesale ? Math.round((1 - it.b2bPrice / it.price) * 100) : 0
+                            const retailPrice = typeof it.price === 'number' ? it.price : 0
+                            const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < retailPrice
+                            const resolved = resolveProductPrice({
+                              price: retailPrice,
+                              b2bPrice: it.b2bPrice,
+                              qty,
+                              totalCartQty: breakdown.totalQuantity,
+                              marketplaceTier,
+                            })
+                            const usesWholesale = resolved.priceType === 'wholesale'
+                            const effectivePrice = resolved.appliedPrice
+                            const discountPct = resolved.savingsPercent
                             return (
                               <>
                                 <div className="flex items-center gap-2 mt-1">
@@ -703,7 +715,18 @@ export default function PanierPage() {
                               <Plus className="w-4 h-4 text-green-600" />
                             </button>
                           </motion.div>
-                          <p className="text-sm font-bold text-gray-900">{formatCurrency(((typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < it.price && ((it.qty || 1) >= 5 || breakdown.totalQuantity >= 5)) ? it.b2bPrice : (it.price || 0)) * (it.qty || 1))}</p>
+                          <p className="text-sm font-bold text-gray-900">{(() => {
+                            const qty = it.qty || 1
+                            const retailPrice = typeof it.price === 'number' ? it.price : 0
+                            const resolved = resolveProductPrice({
+                              price: retailPrice,
+                              b2bPrice: it.b2bPrice,
+                              qty,
+                              totalCartQty: breakdown.totalQuantity,
+                              marketplaceTier,
+                            })
+                            return formatCurrency(resolved.appliedPrice * qty)
+                          })()}</p>
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
@@ -810,7 +833,7 @@ export default function PanierPage() {
                 </div>
 
                 {/* Bandeau prix volume actif */}
-                {breakdown.totalQuantity >= 5 && breakdown.wholesaleDiscount > 0 && (
+                {breakdown.wholesaleDiscount > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -818,13 +841,17 @@ export default function PanierPage() {
                   >
                     <TrendingDown className="w-5 h-5 text-violet-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <p className="text-violet-700 font-semibold">Prix volume appliqué ✅</p>
-                      <p className="text-violet-600 text-xs mt-1">Vous économisez {formatCurrency(breakdown.wholesaleDiscount)} sur ce panier</p>
+                      <p className="text-violet-700 font-semibold">
+                        {marketplaceTier === 'standard' ? 'Prix volume appliqué ✅' : `Prix B2B ${MARKETPLACE_TIER_LABEL[marketplaceTier]} appliqué ✅`}
+                      </p>
+                      <p className="text-violet-600 text-xs mt-1">
+                        Vous économisez {formatCurrency(breakdown.wholesaleDiscount)} sur ce panier
+                      </p>
                     </div>
                   </motion.div>
                 )}
                 {/* Incitation prix volume si < 5 pcs et au moins un produit avec b2bPrice */}
-                {breakdown.totalQuantity < 5 && items.some(i => typeof i.b2bPrice === 'number' && i.b2bPrice > 0 && i.b2bPrice < i.price) && (
+                {marketplaceTier === 'standard' && breakdown.totalQuantity < 5 && items.some(i => typeof i.b2bPrice === 'number' && i.b2bPrice > 0 && i.b2bPrice < i.price) && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -833,7 +860,7 @@ export default function PanierPage() {
                     <TrendingDown className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
                       <p className="text-violet-700 font-semibold">Prix volume disponible</p>
-                      <p className="text-violet-600 text-xs mt-1">Ajoutez {5 - breakdown.totalQuantity} produit(s) de plus pour débloquer les prix volume (jusqu’à -20%)</p>
+                      <p className="text-violet-600 text-xs mt-1">Ajoutez {5 - breakdown.totalQuantity} produit(s) de plus pour débloquer les prix volume selon les offres produit</p>
                     </div>
                   </motion.div>
                 )}

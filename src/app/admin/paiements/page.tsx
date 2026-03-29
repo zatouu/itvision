@@ -21,6 +21,21 @@ type PaymentSettings = {
     chatEnabled: boolean
     paymentLinksEnabled: boolean
     paymentManagementEnabled: boolean
+    rules: {
+      defaultMinQty: number
+      defaultTargetQty: number
+      defaultMaxQty: number
+      defaultDeadlineDays: number
+      minJoinQty: number
+      maxJoinQtyPerParticipant: number
+      maxParticipantsPerGroup: number
+      autoFillOnTargetReached: boolean
+      allowedShippingMethods: {
+        maritime_60j: boolean
+        air_15j: boolean
+        express_3j: boolean
+      }
+    }
   },
   providers: {
     manual: {
@@ -41,6 +56,12 @@ type PaymentSettings = {
     }
   }
 }
+
+const groupShippingLabels = {
+  maritime_60j: 'Maritime ~60 jours',
+  air_15j: 'Fret aérien ~15 jours',
+  express_3j: 'Express ~3 jours'
+} as const
 
 export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true)
@@ -195,6 +216,207 @@ export default function AdminPaymentsPage() {
                   checked={settings.groupOrders.paymentManagementEnabled} 
                   onChange={v => setSettings({ ...settings, groupOrders: { ...settings.groupOrders, paymentManagementEnabled: v } })} 
                 />
+              </div>
+
+              <div className="border-t pt-6 space-y-4">
+                <h3 className="text-base font-semibold text-gray-900">Règles métiers paramétrables</h3>
+                <p className="text-xs text-gray-500">
+                  Ces valeurs pilotent les seuils et comportements par défaut des achats groupés.
+                </p>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <NumberField
+                    label="Quantité min par groupe"
+                    value={settings.groupOrders.rules.defaultMinQty}
+                    min={1}
+                    onChange={(next) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            defaultMinQty: next,
+                            defaultTargetQty: Math.max(next, settings.groupOrders.rules.defaultTargetQty),
+                            defaultMaxQty: Math.max(next, settings.groupOrders.rules.defaultMaxQty)
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <NumberField
+                    label="Quantité cible par défaut"
+                    value={settings.groupOrders.rules.defaultTargetQty}
+                    min={settings.groupOrders.rules.defaultMinQty}
+                    onChange={(next) => {
+                      const bounded = Math.max(settings.groupOrders.rules.defaultMinQty, next)
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            defaultTargetQty: bounded,
+                            defaultMaxQty: Math.max(bounded, settings.groupOrders.rules.defaultMaxQty)
+                          }
+                        }
+                      })
+                    }}
+                  />
+                  <NumberField
+                    label="Quantité max par défaut"
+                    value={settings.groupOrders.rules.defaultMaxQty}
+                    min={settings.groupOrders.rules.defaultTargetQty}
+                    onChange={(next) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            defaultMaxQty: Math.max(settings.groupOrders.rules.defaultTargetQty, next)
+                          }
+                        }
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <NumberField
+                    label="Délai par défaut (jours)"
+                    value={settings.groupOrders.rules.defaultDeadlineDays}
+                    min={1}
+                    max={120}
+                    onChange={(next) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            defaultDeadlineDays: Math.min(120, Math.max(1, next))
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <NumberField
+                    label="Quantité min par participant"
+                    value={settings.groupOrders.rules.minJoinQty}
+                    min={1}
+                    onChange={(next) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            minJoinQty: next,
+                            maxJoinQtyPerParticipant: Math.max(next, settings.groupOrders.rules.maxJoinQtyPerParticipant)
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <NumberField
+                    label="Quantité max par participant"
+                    value={settings.groupOrders.rules.maxJoinQtyPerParticipant}
+                    min={settings.groupOrders.rules.minJoinQty}
+                    onChange={(next) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            maxJoinQtyPerParticipant: Math.max(settings.groupOrders.rules.minJoinQty, next)
+                          }
+                        }
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <NumberField
+                    label="Participants max par groupe"
+                    value={settings.groupOrders.rules.maxParticipantsPerGroup}
+                    min={1}
+                    onChange={(next) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            maxParticipantsPerGroup: next
+                          }
+                        }
+                      })
+                    }
+                  />
+                  <Toggle
+                    label="Passage auto en “objectif atteint”"
+                    description="Quand activé, le statut passe automatiquement à “filled” quand la cible est atteinte."
+                    checked={settings.groupOrders.rules.autoFillOnTargetReached}
+                    onChange={(v) =>
+                      setSettings({
+                        ...settings,
+                        groupOrders: {
+                          ...settings.groupOrders,
+                          rules: {
+                            ...settings.groupOrders.rules,
+                            autoFillOnTargetReached: v
+                          }
+                        }
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">Méthodes de transport autorisées</div>
+                  <div className="grid md:grid-cols-3 gap-3">
+                    {(Object.keys(groupShippingLabels) as Array<keyof typeof groupShippingLabels>).map((method) => {
+                      const enabled = settings.groupOrders.rules.allowedShippingMethods[method]
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => {
+                            const currentAllowed = settings.groupOrders.rules.allowedShippingMethods
+                            const enabledCount = Object.values(currentAllowed).filter(Boolean).length
+                            if (enabled && enabledCount <= 1) return
+
+                            setSettings({
+                              ...settings,
+                              groupOrders: {
+                                ...settings.groupOrders,
+                                rules: {
+                                  ...settings.groupOrders.rules,
+                                  allowedShippingMethods: {
+                                    ...currentAllowed,
+                                    [method]: !enabled
+                                  }
+                                }
+                              }
+                            })
+                          }}
+                          className={`px-3 py-2 rounded-lg border text-sm text-left transition ${
+                            enabled
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="font-semibold">{groupShippingLabels[method]}</div>
+                          <div className="text-xs mt-1">{enabled ? 'Activé' : 'Désactivé'}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500">Au moins une méthode doit rester activée.</p>
+                </div>
               </div>
             </div>
           )}
@@ -403,7 +625,7 @@ export default function AdminPaymentsPage() {
                       />
                       <span className="font-bold text-gray-900 w-16 text-right">{settings.providers.escrow.holdPercentage}%</span>
                    </div>
-                   <p className="text-xs text-gray-500 mt-1">Indique au client quel pourcentage de son paiement est "sécurisé" avant livraison.</p>
+                   <p className="text-xs text-gray-500 mt-1">Indique au client quel pourcentage de son paiement est &quot;sécurisé&quot; avant livraison.</p>
                 </div>
               </div>
             </div>
@@ -411,6 +633,40 @@ export default function AdminPaymentsPage() {
 
         </div>
       </div>
+    </div>
+  )
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => {
+          const parsed = parseInt(e.target.value || String(min), 10)
+          if (!Number.isFinite(parsed)) return
+          const boundedMin = Math.max(min, parsed)
+          const bounded = typeof max === 'number' ? Math.min(max, boundedMin) : boundedMin
+          onChange(bounded)
+        }}
+        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+      />
     </div>
   )
 }

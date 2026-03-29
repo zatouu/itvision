@@ -163,7 +163,9 @@ export async function POST(
         productName: (group as any).product?.name,
         status: group.status,
         deadline: group.deadline,
-        progress: Math.round(((group as any).currentQty / (group as any).minQty) * 100)
+        progress: Math.round(
+          ((group as any).currentQty / Math.max(1, Number((group as any).targetQty) || 1)) * 100
+        )
       }
     })
 
