@@ -156,12 +156,25 @@ export default function PanierPage() {
   }, [])
 
   useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return
-      const raw = localStorage.getItem('cart:items')
-      setItems(raw ? JSON.parse(raw) : [])
-    } catch (e) {
-      console.error(e)
+    if (typeof window === 'undefined') return
+
+    const syncCartItems = () => {
+      try {
+        const raw = localStorage.getItem('cart:items')
+        setItems(raw ? JSON.parse(raw) : [])
+      } catch (e) {
+        console.error(e)
+        setItems([])
+      }
+    }
+
+    syncCartItems()
+    window.addEventListener('storage', syncCartItems)
+    window.addEventListener('cart:updated', syncCartItems as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', syncCartItems)
+      window.removeEventListener('cart:updated', syncCartItems as EventListener)
     }
   }, [])
 
@@ -213,16 +226,22 @@ export default function PanierPage() {
 
   // Ajouter un produit suggéré au panier
   const addSuggestedToCart = useCallback((product: any) => {
-    const newItem = {
-      id: product._id,
-      name: product.name,
-      image: product.image,
-      price: product.price || 0,
-      qty: 1,
-      weightKg: product.weightKg,
-      volumeM3: product.volumeM3
-    }
-    const updated = [...items, newItem]
+    const existing = items.find((item) => item.id === product._id)
+    const updated = existing
+      ? items.map((item) => item.id === product._id ? { ...item, qty: (item.qty || 1) + 1 } : item)
+      : [
+          ...items,
+          {
+            id: product._id,
+            name: product.name,
+            image: product.image,
+            price: product.price || 0,
+            qty: 1,
+            weightKg: product.weightKg,
+            volumeM3: product.volumeM3
+          }
+        ]
+
     setItems(updated)
     localStorage.setItem('cart:items', JSON.stringify(updated))
     window.dispatchEvent(new CustomEvent('cart:updated'))
@@ -411,6 +430,7 @@ export default function PanierPage() {
     const next = items.filter(i => i.id !== id)
     setItems(next)
     localStorage.setItem('cart:items', JSON.stringify(next))
+    window.dispatchEvent(new CustomEvent('cart:updated'))
   }
 
   const updateQty = (id: string, qty: number) => {
@@ -421,6 +441,7 @@ export default function PanierPage() {
     const next = items.map(i => i.id === id ? { ...i, qty } : i)
     setItems(next)
     localStorage.setItem('cart:items', JSON.stringify(next))
+    window.dispatchEvent(new CustomEvent('cart:updated'))
   }
 
   const handleCheckout = async () => {
