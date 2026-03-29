@@ -122,6 +122,8 @@ jobs:
             NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
             IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}
             # Lien Mongo pour l'app (utilisateur applicatif)
             MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
             EOF
