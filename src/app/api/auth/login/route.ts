@@ -6,6 +6,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { signAuthTokenWithExpiry, verifyJwtPayload } from '@/lib/jwt'
+import { resolveUserCategory } from '@/lib/user-segmentation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (user.isActive === false) {
+      return NextResponse.json(
+        { error: 'Compte désactivé. Contactez un administrateur.' },
+        { status: 403 }
+      )
+    }
+
     // Vérification du mot de passe avec bcrypt
     let isValidPassword = await bcrypt.compare(password, user.passwordHash)
 
@@ -117,6 +125,7 @@ export async function POST(request: NextRequest) {
     // Génération du token JWT (rôle normalisé en majuscules)
     const normalizedRole = String(user.role || '').toUpperCase()
     const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
+    const userCategory = resolveUserCategory({ role: normalizedRole, companyClientId })
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
@@ -124,6 +133,7 @@ export async function POST(request: NextRequest) {
         role: normalizedRole,
         username: user.username,
         marketplaceTier: user.marketplaceTier || 'standard',
+        userCategory,
         ...(companyClientId ? { companyClientId } : {})
       },
       remember ? '30d' : '7d'
@@ -143,7 +153,8 @@ export async function POST(request: NextRequest) {
       role: user.role,
       marketplaceTier: user.marketplaceTier || 'standard',
       companyClientId: companyClientId || undefined,
-      clientType: isEnterpriseClient ? 'enterprise' : 'marketplace'
+      clientType: isEnterpriseClient ? 'enterprise' : 'marketplace',
+      userCategory
     }
 
     // Réinitialiser tentatives en cas de succès

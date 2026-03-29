@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { name, email, phone, company, address, city, country, canAccessPortal, notes, tags, category, rating, contacts, contactPrincipal } = body
+    const normalizedEmail = String(email || '').toLowerCase().trim()
 
     // Validation
     if (!name || !email || !phone) {
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si l'email existe déjà
-    const existingClient = await Client.findOne({ email })
+    const existingClient = await Client.findOne({ email: normalizedEmail })
     if (existingClient) {
       return NextResponse.json({ 
         success: false, 
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
     const client = await Client.create({
       clientId,
       name,
-      email,
+      email: normalizedEmail,
       phone,
       company: company || '',
       address: address || '',
@@ -160,52 +161,60 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Création automatique du compte utilisateur si l'accès portail est activé
-    if (canAccessPortal) {
-      try {
-        const userExists = await User.findOne({ email })
-        if (!userExists) {
-          // Générer un token de réinitialisation de mot de passe
-          const resetToken = crypto.randomBytes(32).toString('hex')
-          const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 heures
-          
-          // Créer l'utilisateur avec un mot de passe invalide (force reset)
-          const tempPassword = crypto.randomBytes(32).toString('hex')
-          const passwordHash = await bcrypt.hash(tempPassword, 10)
-          
-          const user = await User.create({
-            username: email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
-            email,
-            passwordHash,
-            name,
-            role: 'CLIENT',
-            company: company || name,
-            companyClientId: client._id,
-            isActive: true,
-            forcePasswordReset: true,
-            passwordResetToken: resetToken,
-            passwordResetExpires: tokenExpires,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
+    // Unification: chaque fiche client entreprise doit avoir un compte utilisateur CLIENT lié
+    try {
+      const userExists = await User.findOne({ email: normalizedEmail })
+      const shouldEnablePortal = Boolean(canAccessPortal)
 
-          // Envoyer l'email d'invitation avec le lien de réinitialisation
-          const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`
+      if (!userExists) {
+        const resetToken = crypto.randomBytes(32).toString('hex')
+        const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+        const tempPassword = crypto.randomBytes(32).toString('hex')
+        const passwordHash = await bcrypt.hash(tempPassword, 10)
+
+        await User.create({
+          username: normalizedEmail.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+          email: normalizedEmail,
+          passwordHash,
+          name,
+          role: 'CLIENT',
+          company: company || name,
+          companyClientId: client._id,
+          isActive: shouldEnablePortal,
+          forcePasswordReset: true,
+          ...(shouldEnablePortal ? {
+            passwordResetToken: resetToken,
+            passwordResetExpires: tokenExpires
+          } : {})
+        })
+
+        if (shouldEnablePortal) {
+          const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
           const emailContent = getClientInvitationEmail(name, resetUrl)
-          
           await emailService.sendEmail({
-            to: email,
+            to: normalizedEmail,
             subject: emailContent.subject,
             html: emailContent.html,
             text: emailContent.text
           })
-          
-          console.log(`[CLIENT_CREATED] Email d'invitation envoyé à ${email} avec token de réinitialisation`)
+          console.log(`[CLIENT_CREATED] Email d'invitation envoyé à ${normalizedEmail} avec token de réinitialisation`)
         }
-      } catch (err) {
-        console.error('Erreur lors de la création du compte utilisateur:', err)
-        // On ne bloque pas la réponse si le user fail, mais on log
+      } else if (String(userExists.role || '').toUpperCase() === 'CLIENT') {
+        await User.updateOne(
+          { _id: userExists._id },
+          {
+            $set: {
+              name,
+              company: company || name,
+              companyClientId: client._id,
+              ...(shouldEnablePortal ? { isActive: true } : {})
+            }
+          }
+        )
       }
+    } catch (err) {
+      console.error('Erreur lors de la synchronisation du compte utilisateur client:', err)
+      // On ne bloque pas la création client si la synchro utilisateur échoue
     }
 
     return NextResponse.json({ 

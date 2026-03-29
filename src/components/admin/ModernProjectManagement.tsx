@@ -159,7 +159,7 @@ export default function ModernProjectManagement() {
   const fetchClients = async () => {
     setClientsLoading(true)
     try {
-      const res = await fetch('/api/admin/users?role=CLIENT&limit=200', { credentials: 'include' })
+      const res = await fetch('/api/admin/users?userCategory=ENTERPRISE_CLIENT&limit=200', { credentials: 'include' })
       if (!res.ok) throw new Error('Erreur lors du chargement des clients')
       const data = await res.json()
       const formatted = Array.isArray(data?.users)

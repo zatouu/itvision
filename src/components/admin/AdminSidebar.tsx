@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -111,10 +111,22 @@ const menuItems: MenuItem[] = [
     href: '/admin/clients'
   },
   {
-    id: 'clients-boutique',
-    label: 'Clients boutique',
+    id: 'clients-marketplace',
+    label: 'Clients marketplace',
     icon: Users,
-    href: '/admin/users?role=CLIENT'
+    href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
+  },
+  {
+    id: 'clients-entreprise-comptes',
+    label: 'Clients entreprise (comptes)',
+    icon: UsersRound,
+    href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
+  },
+  {
+    id: 'utilisateurs-plateforme',
+    label: 'Utilisateurs plateforme',
+    icon: Shield,
+    href: '/admin/users?userCategory=PLATFORM_USER'
   },
   {
     id: 'commandes',
@@ -219,6 +231,7 @@ const menuItems: MenuItem[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -247,10 +260,19 @@ export default function AdminSidebar() {
 
   const isActive = (href?: string) => {
     if (!href) return false
-    if (href === '/admin') {
+    const [targetPath, targetQuery = ''] = href.split('?')
+
+    if (targetPath === '/admin') {
       return pathname === '/admin'
     }
-    return pathname.startsWith(href)
+
+    let active = pathname.startsWith(targetPath)
+    if (!active) return false
+
+    if (!targetQuery) return true
+
+    const expectedParams = new URLSearchParams(targetQuery)
+    return Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value)
   }
 
   const hasActiveChild = (item: MenuItem): boolean => {

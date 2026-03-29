@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 type Tab = { label: string; href: string }
 
@@ -25,14 +25,16 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
     { label: 'Affectations', href: '/admin/planning/assignations' }
   ],
   admin: [
-    { label: 'Clients boutique', href: '/admin/users?role=CLIENT' },
-    { label: 'Utilisateurs', href: '/admin/users' },
+    { label: 'Clients marketplace', href: '/admin/users?userCategory=MARKETPLACE_CLIENT' },
+    { label: 'Clients entreprise', href: '/admin/users?userCategory=ENTERPRISE_CLIENT' },
+    { label: 'Utilisateurs plateforme', href: '/admin/users?userCategory=PLATFORM_USER' },
     { label: 'Paramètres', href: '/admin/migration' }
   ]
 }
 
 export default function AdminTabs({ context }: Props) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const tabs = tabsByContext[context]
 
   if (!Array.isArray(tabs) || tabs.length === 0) {
@@ -43,7 +45,14 @@ export default function AdminTabs({ context }: Props) {
     <div className="border-b border-gray-200 mb-6">
       <div className="flex items-center gap-2">
         {tabs.map((tab, index) => {
-          const active = pathname === tab.href || pathname.startsWith(tab.href)
+          const [tabPath, tabQuery = ''] = tab.href.split('?')
+          let active = pathname === tabPath || pathname.startsWith(tabPath)
+
+          if (active && tabQuery) {
+            const expectedParams = new URLSearchParams(tabQuery)
+            active = Array.from(expectedParams.entries()).every(([key, value]) => searchParams.get(key) === value)
+          }
+
           return (
             <Link
               key={`${tab.href}-${tab.label}-${index}`}

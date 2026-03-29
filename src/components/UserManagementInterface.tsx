@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { useCsrf } from '@/hooks/useCsrf'
+import { getUserCategoryLabel, type UserCategory } from '@/lib/user-segmentation'
 
 // Types
 interface UserData {
@@ -52,6 +53,7 @@ interface UserData {
   city?: string
   country?: string
   companyClientId?: any
+  userCategory?: UserCategory
   isActive: boolean
   loginAttempts: number
   lockedUntil?: string
@@ -537,6 +539,7 @@ export default function UserManagementInterface() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [userCategoryFilter, setUserCategoryFilter] = useState<'all' | UserCategory>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -549,19 +552,23 @@ export default function UserManagementInterface() {
   const [totalUsers, setTotalUsers] = useState(0)
   const usersPerPage = 10
 
-  // Init filters from URL query once (e.g. /admin/users?role=CLIENT)
+  // Init filters from URL query once (e.g. /admin/users?userCategory=MARKETPLACE_CLIENT)
   useEffect(() => {
     if (didInitFromQuery.current) return
     didInitFromQuery.current = true
 
     const role = (searchParams?.get('role') || '').trim()
+    const userCategory = (searchParams?.get('userCategory') || '').trim().toUpperCase()
     const q = (searchParams?.get('q') || '').trim()
     const isActive = (searchParams?.get('isActive') || '').trim()
 
     if (q) setSearchTerm(q)
     if (role) setRoleFilter(role)
+    if (['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(userCategory)) {
+      setUserCategoryFilter(userCategory as UserCategory)
+    }
     if (isActive) setStatusFilter(isActive)
-    if (q || role || isActive) setCurrentPage(1)
+    if (q || role || userCategory || isActive) setCurrentPage(1)
   }, [searchParams])
 
   // Stats calculées
@@ -582,6 +589,7 @@ export default function UserManagementInterface() {
         limit: usersPerPage.toString(),
         q: searchTerm,
         ...(roleFilter !== 'all' && { role: roleFilter }),
+        ...(userCategoryFilter !== 'all' && { userCategory: userCategoryFilter }),
         ...(statusFilter !== 'all' && { isActive: statusFilter })
       })
 
@@ -603,7 +611,7 @@ export default function UserManagementInterface() {
 
   useEffect(() => {
     fetchUsers()
-  }, [currentPage, searchTerm, roleFilter, statusFilter])
+  }, [currentPage, searchTerm, roleFilter, userCategoryFilter, statusFilter])
 
   const fetchCompanyOptions = useCallback(async () => {
     if (companyOptionsLoading) return
@@ -841,6 +849,18 @@ export default function UserManagementInterface() {
     return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-100 text-green-700">Actif</span>
   }
 
+  const getUserCategoryBadge = (user: UserData) => {
+    const category = user.userCategory || (user.role === 'CLIENT' ? (user.companyClientId ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT') : 'PLATFORM_USER')
+
+    if (category === 'ENTERPRISE_CLIENT') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">{getUserCategoryLabel(category)}</span>
+    }
+    if (category === 'MARKETPLACE_CLIENT') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700">{getUserCategoryLabel(category)}</span>
+    }
+    return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">{getUserCategoryLabel(category)}</span>
+  }
+
   const totalPages = Math.ceil(totalUsers / usersPerPage)
 
   const emptyFormData: UserFormData = {
@@ -867,10 +887,10 @@ export default function UserManagementInterface() {
               <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
                 <Users className="h-7 w-7 text-white" />
               </div>
-              Gestion des Utilisateurs
+              Gestion des Comptes Utilisateurs
             </h1>
             <p className="text-gray-600 mt-2">
-              Gérez les comptes, rôles et permissions de votre équipe
+              Segmentation unifiée : clients marketplace, clients entreprise et utilisateurs plateforme
             </p>
           </div>
           
@@ -955,7 +975,7 @@ export default function UserManagementInterface() {
 
         {/* Filtres */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Recherche</label>
               <div className="relative">
@@ -980,6 +1000,19 @@ export default function UserManagementInterface() {
                 {ROLES.map(role => (
                   <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+              <select
+                value={userCategoryFilter}
+                onChange={(e) => setUserCategoryFilter(e.target.value as 'all' | UserCategory)}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+              >
+                <option value="all">Toutes</option>
+                <option value="MARKETPLACE_CLIENT">Clients marketplace</option>
+                <option value="ENTERPRISE_CLIENT">Clients entreprise</option>
+                <option value="PLATFORM_USER">Utilisateurs plateforme</option>
               </select>
             </div>
             <div>
@@ -1031,7 +1064,7 @@ export default function UserManagementInterface() {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Utilisateur</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Rôle</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Rôle / Catégorie</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sécurité</th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
@@ -1077,7 +1110,12 @@ export default function UserManagementInterface() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1.5">
+                          {getRoleBadge(user.role)}
+                          {getUserCategoryBadge(user)}
+                        </div>
+                      </td>
                       <td className="px-6 py-4">{getStatusBadge(user)}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

@@ -53,6 +53,7 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const { name, email, phone, company, address, city, country, canAccessPortal, notes, isActive, tags, category, rating, contacts, contactPrincipal } = body
+    const normalizedEmail = email !== undefined ? String(email).toLowerCase().trim() : undefined
 
     // Vérifier si le client existe
     const existingClient = await Client.findById(id)
@@ -64,8 +65,8 @@ export async function PUT(
     }
 
     // Si l'email change, vérifier qu'il n'existe pas déjà
-    if (email && email !== existingClient.email) {
-      const emailExists = await Client.findOne({ email, _id: { $ne: id } })
+    if (normalizedEmail && normalizedEmail !== existingClient.email) {
+      const emailExists = await Client.findOne({ email: normalizedEmail, _id: { $ne: id } })
       if (emailExists) {
         return NextResponse.json({ 
           success: false, 
@@ -74,10 +75,31 @@ export async function PUT(
       }
     }
 
+    // Synchroniser le compte utilisateur CLIENT lié à cette entreprise
+    const linkedUser = await User.findOne({ companyClientId: id, role: 'CLIENT' })
+    if (linkedUser) {
+      const userSetData: any = {
+        ...(name !== undefined ? { name } : {}),
+        ...(phone !== undefined ? { phone } : {}),
+        ...(company !== undefined ? { company: company || name || linkedUser.name } : {}),
+        ...(canAccessPortal !== undefined ? { isActive: Boolean(canAccessPortal) } : {}),
+        companyClientId: id
+      }
+
+      if (normalizedEmail && normalizedEmail !== linkedUser.email) {
+        const existingUserWithEmail = await User.findOne({ email: normalizedEmail, _id: { $ne: linkedUser._id } })
+        if (!existingUserWithEmail) {
+          userSetData.email = normalizedEmail
+        }
+      }
+
+      await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+    }
+
     // Mettre à jour le client
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
-    if (email !== undefined) updateData.email = email
+    if (normalizedEmail !== undefined) updateData.email = normalizedEmail
     if (phone !== undefined) updateData.phone = phone
     if (company !== undefined) updateData.company = company
     if (address !== undefined) updateData.address = address
@@ -154,10 +176,10 @@ export async function DELETE(
     // Nettoyer les données liées
     await Contact.deleteMany({ clientId: id })
 
-    // Dissocier les utilisateurs liés à ce client entreprise
+    // Dissocier et désactiver les utilisateurs liés à ce client entreprise
     await User.updateMany(
       { companyClientId: id },
-      { $unset: { companyClientId: 1 } }
+      { $set: { isActive: false }, $unset: { companyClientId: 1 } }
     )
 
     // Supprimer le client
