@@ -17,7 +17,12 @@ interface DiagnosticAnswers {
   objectives: string[]
   companySize: string
   maturity: string
+  digitalToolsUsage: 'yes' | 'no' | ''
+  toolsUsed: string
+  painPoints: string[]
+  timeline: string
   budget: string
+  consentToContact: boolean
   contact: {
     name: string
     email: string
@@ -41,13 +46,21 @@ export default function DigitalisationPage() {
     objectives: [],
     companySize: '',
     maturity: '',
+    digitalToolsUsage: '',
+    toolsUsed: '',
+    painPoints: [],
+    timeline: '',
     budget: '',
+    consentToContact: false,
     contact: { name: '', email: '', phone: '' }
   })
   const [showWizard, setShowWizard] = useState(false)
   const [diagnosticScore, setDiagnosticScore] = useState(0)
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [stepError, setStepError] = useState('')
+  const [isSubmittingDiagnostic, setIsSubmittingDiagnostic] = useState(false)
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'sent' | 'error'>('idle')
 
   // Fonction pour lancer le diagnostic et scroller vers le wizard
   const startDiagnostic = () => {
@@ -69,7 +82,18 @@ export default function DigitalisationPage() {
     const savedAnswers = localStorage.getItem('digitalization-diagnostic')
     const savedResult = localStorage.getItem('digitalization-result')
     if (savedAnswers) {
-      setAnswers(JSON.parse(savedAnswers))
+      const parsed = JSON.parse(savedAnswers)
+      setAnswers(prev => ({
+        ...prev,
+        ...parsed,
+        contact: { ...prev.contact, ...(parsed?.contact || {}) },
+        objectives: Array.isArray(parsed?.objectives) ? parsed.objectives : prev.objectives,
+        painPoints: Array.isArray(parsed?.painPoints) ? parsed.painPoints : prev.painPoints,
+        digitalToolsUsage: parsed?.digitalToolsUsage || '',
+        toolsUsed: parsed?.toolsUsed || '',
+        timeline: parsed?.timeline || '',
+        consentToContact: Boolean(parsed?.consentToContact)
+      }))
     }
     if (savedResult) {
       setDiagnosticResult(JSON.parse(savedResult))
@@ -93,6 +117,7 @@ export default function DigitalisationPage() {
   // Calculer le score de maturité digitale (sur 10)
   const calculateScore = (answers: DiagnosticAnswers): DiagnosticResult => {
     let totalScore = 0
+    const maxRawScore = 16
     
     // Secteur d'activité (1 point)
     if (answers.sector) {
@@ -129,9 +154,24 @@ export default function DigitalisationPage() {
       'expert': 4
     }
     totalScore += maturityScores[answers.maturity] || 0
+
+    if (answers.digitalToolsUsage === 'yes') {
+      totalScore += answers.toolsUsed.trim().length > 2 ? 2 : 1
+    }
+
+    if (answers.painPoints.length > 0) {
+      totalScore += Math.min(answers.painPoints.length * 0.5, 2)
+    }
+
+    const timelineScores: Record<string, number> = {
+      'immediat': 2,
+      '3mois': 1,
+      '6mois+': 0
+    }
+    totalScore += timelineScores[answers.timeline] || 0
     
     // Normaliser sur 10
-    const normalizedScore = Math.min(Math.round((totalScore / 10) * 10), 10)
+    const normalizedScore = Math.max(1, Math.min(Math.round((totalScore / maxRawScore) * 10), 10))
     
     // Déterminer le niveau
     let level: 'debutant' | 'intermediaire' | 'avance' | 'expert'
@@ -179,6 +219,7 @@ export default function DigitalisationPage() {
 
   const wizardSteps = [
     {
+      id: 'sector',
       title: "Secteur d'activité",
       question: "Dans quel secteur évolue votre entreprise ?",
       options: [
@@ -192,6 +233,7 @@ export default function DigitalisationPage() {
       type: "radio"
     },
     {
+      id: 'objectives',
       title: "Objectifs prioritaires",
       question: "Quels sont vos objectifs principaux ? (plusieurs choix possibles)",
       options: [
@@ -205,6 +247,7 @@ export default function DigitalisationPage() {
       type: "checkbox"
     },
     {
+      id: 'companySize',
       title: "Taille de l'entreprise",
       question: "Combien d'employés avez-vous ?",
       options: [
@@ -216,6 +259,7 @@ export default function DigitalisationPage() {
       type: "radio"
     },
     {
+      id: 'maturity',
       title: "Maturité digitale",
       question: "Comment évaluez-vous votre niveau de digitalisation actuel ?",
       options: [
@@ -227,6 +271,42 @@ export default function DigitalisationPage() {
       type: "radio"
     },
     {
+      id: 'digitalToolsUsage',
+      title: 'Outils digitaux actuels',
+      question: 'Utilisez-vous déjà des outils digitaux dans vos opérations ?',
+      options: [
+        { value: 'yes', label: 'Oui, nous utilisons déjà des outils digitaux' },
+        { value: 'no', label: 'Non, nous fonctionnons surtout de façon manuelle' }
+      ],
+      type: 'radio'
+    },
+    {
+      id: 'painPoints',
+      title: 'Principales difficultés',
+      question: 'Quels sont vos principaux points de friction actuels ? (plusieurs choix possibles)',
+      options: [
+        { value: 'double-saisie', label: 'Double saisie entre plusieurs outils' },
+        { value: 'retards', label: 'Retards de traitement / validation' },
+        { value: 'manque-visibilite', label: 'Manque de visibilité sur les activités' },
+        { value: 'erreurs-frequentes', label: 'Erreurs fréquentes et perte de qualité' },
+        { value: 'reporting', label: 'Reporting manuel trop long' },
+        { value: 'collaboration', label: 'Mauvaise circulation de l’information' }
+      ],
+      type: 'checkbox'
+    },
+    {
+      id: 'timeline',
+      title: 'Horizon de lancement',
+      question: 'Quand souhaitez-vous démarrer votre projet de digitalisation ?',
+      options: [
+        { value: 'immediat', label: 'Immédiatement (0-1 mois)' },
+        { value: '3mois', label: 'Sous 2 à 3 mois' },
+        { value: '6mois+', label: 'Sous 6 mois ou plus' }
+      ],
+      type: 'radio'
+    },
+    {
+      id: 'budget',
       title: "Budget envisagé",
       question: "Quel budget pouvez-vous consacrer à votre transformation digitale ?",
       options: [
@@ -238,6 +318,7 @@ export default function DigitalisationPage() {
       type: "radio"
     },
     {
+      id: 'contact',
       title: "Contact",
       question: "Vos coordonnées pour recevoir votre diagnostic personnalisé",
       type: "contact"
@@ -376,19 +457,75 @@ export default function DigitalisationPage() {
     }
   ]
 
-  const handleWizardNext = () => {
+  const validateCurrentStep = () => {
+    const currentStepId = wizardSteps[currentStep]?.id
+    setStepError('')
+
+    if (currentStepId === 'sector' && !answers.sector) return setStepError('Veuillez sélectionner votre secteur.'), false
+    if (currentStepId === 'objectives' && answers.objectives.length === 0) return setStepError('Veuillez choisir au moins un objectif prioritaire.'), false
+    if (currentStepId === 'companySize' && !answers.companySize) return setStepError('Veuillez renseigner la taille de votre entreprise.'), false
+    if (currentStepId === 'maturity' && !answers.maturity) return setStepError('Veuillez évaluer votre maturité digitale actuelle.'), false
+    if (currentStepId === 'digitalToolsUsage' && !answers.digitalToolsUsage) return setStepError('Veuillez indiquer si vous utilisez déjà des outils digitaux.'), false
+    if (currentStepId === 'digitalToolsUsage' && answers.digitalToolsUsage === 'yes' && answers.toolsUsed.trim().length < 2) {
+      return setStepError('Merci de préciser le nom des outils que vous utilisez.'), false
+    }
+    if (currentStepId === 'painPoints' && answers.painPoints.length === 0) return setStepError('Veuillez sélectionner au moins une difficulté principale.'), false
+    if (currentStepId === 'timeline' && !answers.timeline) return setStepError('Veuillez choisir votre horizon de lancement.'), false
+    if (currentStepId === 'budget' && !answers.budget) return setStepError('Veuillez choisir une fourchette budgétaire.'), false
+
+    if (currentStepId === 'contact') {
+      if (!answers.contact.name.trim() || !answers.contact.email.trim() || !answers.contact.phone.trim()) {
+        return setStepError('Veuillez renseigner vos coordonnées complètes.'), false
+      }
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.contact.email)
+      if (!emailOk) return setStepError('Veuillez saisir une adresse email valide.'), false
+      if (!answers.consentToContact) return setStepError('Veuillez accepter d’être recontacté pour finaliser votre diagnostic.'), false
+    }
+
+    return true
+  }
+
+  const submitDiagnostic = async () => {
+    const result = calculateScore(answers)
+    setDiagnosticResult(result)
+    setDiagnosticScore(result.score)
+    localStorage.setItem('digitalization-result', JSON.stringify(result))
+
+    setIsSubmittingDiagnostic(true)
+    setSubmissionStatus('idle')
+    try {
+      const response = await fetch('/api/diagnostic/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...answers,
+          scoring: result,
+          source: 'digitalisation-page',
+          submittedAt: new Date().toISOString()
+        })
+      })
+
+      if (!response.ok) throw new Error('Erreur soumission')
+      setSubmissionStatus('sent')
+      setShowResults(true)
+    } catch (error) {
+      console.error('Erreur soumission diagnostic:', error)
+      setSubmissionStatus('error')
+      setShowResults(true)
+    } finally {
+      setIsSubmittingDiagnostic(false)
+    }
+  }
+
+  const handleWizardNext = async () => {
+    if (!validateCurrentStep()) return
+
     if (currentStep < wizardSteps.length - 1) {
       setCurrentStep(currentStep + 1)
-    } else {
-      // Calculer le résultat final
-      const result = calculateScore(answers)
-      setDiagnosticResult(result)
-      setDiagnosticScore(result.score)
-      localStorage.setItem('digitalization-result', JSON.stringify(result))
-      
-      // Afficher les résultats
-      setShowResults(true)
+      return
     }
+
+    await submitDiagnostic()
   }
 
   const handleWizardPrev = () => {
@@ -564,6 +701,17 @@ export default function DigitalisationPage() {
                         placeholder="+221 XX XXX XX XX"
                       />
                     </div>
+                    <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={answers.consentToContact}
+                        onChange={(e) => saveAnswers({ consentToContact: e.target.checked })}
+                        className="mt-1"
+                      />
+                      <span className="text-sm text-gray-700">
+                        J'accepte d'être recontacté par IT Vision Plus pour la restitution de ce diagnostic.
+                      </span>
+                    </label>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -575,20 +723,39 @@ export default function DigitalisationPage() {
                           value={option.value}
                           checked={
                             wizardSteps[currentStep].type === 'checkbox'
-                              ? answers.objectives.includes(option.value)
-                              : answers.sector === option.value || answers.companySize === option.value || answers.maturity === option.value || answers.budget === option.value
+                              ? (wizardSteps[currentStep].id === 'painPoints'
+                                  ? answers.painPoints.includes(option.value)
+                                  : answers.objectives.includes(option.value))
+                              : (
+                                answers.sector === option.value ||
+                                answers.companySize === option.value ||
+                                answers.maturity === option.value ||
+                                answers.digitalToolsUsage === option.value ||
+                                answers.timeline === option.value ||
+                                answers.budget === option.value
+                              )
                           }
                           onChange={(e) => {
                             if (wizardSteps[currentStep].type === 'checkbox') {
-                              const newObjectives = e.target.checked
-                                ? [...answers.objectives, option.value]
-                                : answers.objectives.filter(obj => obj !== option.value)
-                              saveAnswers({ objectives: newObjectives })
+                              if (wizardSteps[currentStep].id === 'painPoints') {
+                                const newPainPoints = e.target.checked
+                                  ? [...answers.painPoints, option.value]
+                                  : answers.painPoints.filter(point => point !== option.value)
+                                saveAnswers({ painPoints: newPainPoints })
+                              } else {
+                                const newObjectives = e.target.checked
+                                  ? [...answers.objectives, option.value]
+                                  : answers.objectives.filter(obj => obj !== option.value)
+                                saveAnswers({ objectives: newObjectives })
+                              }
                             } else {
-                              const field = currentStep === 0 ? 'sector' : 
-                                          currentStep === 2 ? 'companySize' : 
-                                          currentStep === 3 ? 'maturity' : 'budget'
-                              saveAnswers({ [field]: option.value })
+                              const stepId = wizardSteps[currentStep].id
+                              if (stepId === 'sector') saveAnswers({ sector: option.value })
+                              else if (stepId === 'companySize') saveAnswers({ companySize: option.value })
+                              else if (stepId === 'maturity') saveAnswers({ maturity: option.value })
+                              else if (stepId === 'digitalToolsUsage') saveAnswers({ digitalToolsUsage: option.value as 'yes' | 'no' | '', ...(option.value === 'no' ? { toolsUsed: '' } : {}) })
+                              else if (stepId === 'timeline') saveAnswers({ timeline: option.value })
+                              else if (stepId === 'budget') saveAnswers({ budget: option.value })
                             }
                           }}
                           className="mr-3"
@@ -596,6 +763,25 @@ export default function DigitalisationPage() {
                         <span className="text-gray-700">{option.label}</span>
                       </label>
                     ))}
+
+                    {wizardSteps[currentStep].id === 'digitalToolsUsage' && answers.digitalToolsUsage === 'yes' && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Quels outils utilisez-vous actuellement ?</label>
+                        <input
+                          type="text"
+                          value={answers.toolsUsed}
+                          onChange={(e) => saveAnswers({ toolsUsed: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Ex: Odoo, Excel, Google Sheets, Sage, Zoho CRM..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {stepError && (
+                  <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                    {stepError}
                   </div>
                 )}
               </div>
@@ -610,9 +796,10 @@ export default function DigitalisationPage() {
                 </button>
                 <button
                   onClick={handleWizardNext}
-                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-purple-600 text-white rounded-lg hover:from-emerald-600 hover:to-purple-700"
+                  disabled={isSubmittingDiagnostic}
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-purple-600 text-white rounded-lg hover:from-emerald-600 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {currentStep === wizardSteps.length - 1 ? 'Voir mes résultats' : 'Suivant'}
+                  {currentStep === wizardSteps.length - 1 ? (isSubmittingDiagnostic ? 'Envoi en cours...' : 'Recevoir mon diagnostic') : 'Suivant'}
                 </button>
               </div>
             </div>
@@ -630,6 +817,16 @@ export default function DigitalisationPage() {
                   🎯 Votre Diagnostic Digital
                 </h2>
                 <p className="text-gray-600">Analyse personnalisée de votre maturité digitale</p>
+                {submissionStatus === 'sent' && (
+                  <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
+                    ✅ Diagnostic envoyé à notre équipe. Vous serez recontacté rapidement.
+                  </div>
+                )}
+                {submissionStatus === 'error' && (
+                  <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-amber-100 text-amber-700 text-sm font-medium">
+                    ⚠️ Résultats calculés, mais l'envoi mail a rencontré une erreur temporaire.
+                  </div>
+                )}
               </div>
 
               {/* Score et Jauge */}
@@ -739,9 +936,16 @@ export default function DigitalisationPage() {
                       objectives: [],
                       companySize: '',
                       maturity: '',
+                      digitalToolsUsage: '',
+                      toolsUsed: '',
+                      painPoints: [],
+                      timeline: '',
                       budget: '',
+                      consentToContact: false,
                       contact: { name: '', email: '', phone: '' }
                     })
+                    setStepError('')
+                    setSubmissionStatus('idle')
                   }}
                   className="border border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center"
                 >
