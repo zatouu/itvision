@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle, Clock, Loader2 } from 'lucide-react'
@@ -12,7 +12,7 @@ type PaymentLookup = {
   orderId?: string
 }
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const reference = searchParams.get('ref') || ''
   const [payment, setPayment] = useState<PaymentLookup | null>(null)
@@ -117,5 +117,23 @@ export default function PaymentSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+          <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 bg-amber-100 text-amber-600">
+            <Loader2 size={40} className="animate-spin" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Vérification du paiement...</h1>
+          <p className="text-slate-600">Chargement des informations de transaction...</p>
+        </div>
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   )
 }

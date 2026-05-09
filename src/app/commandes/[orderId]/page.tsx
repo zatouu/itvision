@@ -1,5 +1,5 @@
 "use client"
-import { useCallback } from 'react'
+import { useCallback, Suspense } from 'react'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -58,7 +58,7 @@ interface OrderDetails {
   }
 }
 
-export default function OrderConfirmationPage() {
+function OrderConfirmationContent() {
     const [groupBuyProducts, setGroupBuyProducts] = useState<any[]>([])
     const [similarProducts, setSimilarProducts] = useState<any[]>([])
     const [loadingSuggestions, setLoadingSuggestions] = useState(true)
@@ -984,5 +984,20 @@ export default function OrderConfirmationPage() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-emerald-600 mx-auto mb-4" />
+          <p className="text-gray-600">Chargement de la commande...</p>
+        </div>
+      </div>
+    }>
+      <OrderConfirmationContent />
+    </Suspense>
   )
 }
