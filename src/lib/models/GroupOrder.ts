@@ -72,6 +72,16 @@ export interface IGroupOrder extends Document {
   
   // Commande finale liée
   linkedOrderId?: string
+  chinaPurchase?: {
+    purchaseId: string
+    status: 'to_purchase' | 'purchased_1688' | 'paid_alipay' | 'seller_shipped' | 'received_guangzhou' | 'quality_check_pending' | 'quality_check_passed' | 'quality_check_failed' | 'quality_check_partial' | 'handed_to_freight' | 'cancelled'
+    platform: '1688' | 'taobao' | 'alibaba' | 'manual'
+    expectedAmount: number
+    collectedAmount: number
+    outstandingAmount: number
+    paymentCoverageRatio: number
+    updatedAt?: Date
+  }
   
   // Métadonnées
   description?: string
@@ -160,6 +170,19 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
   },
   
   linkedOrderId: { type: String, sparse: true },
+  chinaPurchase: {
+    purchaseId: { type: String, sparse: true, index: true },
+    status: {
+      type: String,
+      enum: ['to_purchase', 'purchased_1688', 'paid_alipay', 'seller_shipped', 'received_guangzhou', 'quality_check_pending', 'quality_check_passed', 'quality_check_failed', 'quality_check_partial', 'handed_to_freight', 'cancelled']
+    },
+    platform: { type: String, enum: ['1688', 'taobao', 'alibaba', 'manual'] },
+    expectedAmount: { type: Number, default: 0 },
+    collectedAmount: { type: Number, default: 0 },
+    outstandingAmount: { type: Number, default: 0 },
+    paymentCoverageRatio: { type: Number, default: 0 },
+    updatedAt: { type: Date }
+  },
   
   description: { type: String },
   internalNotes: { type: String },

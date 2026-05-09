@@ -6,12 +6,14 @@ import { requireAdminApi } from '@/lib/api-auth'
 import { 
   notifyGroupJoinConfirmation, 
   notifyNewParticipant, 
-  notifyObjectiveReached,
   notifyStatusUpdate 
 } from '@/lib/group-order-notifications'
+import { assignPaymentRefsAndNotify } from '@/lib/group-order-helpers'
 import crypto from 'crypto'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { requireAuth } from '@/lib/jwt'
+import { buildGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
+import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -275,12 +277,9 @@ export async function POST(
         await notifyNewParticipant(otherParticipants, newParticipantData, groupData)
       }
       
-      // 3. Si objectif atteint, notifier tout le monde
+      // 3. Si objectif atteint : générer les refs de paiement + envoyer liens à tous
       if (objectiveJustReached) {
-        const allParticipants = group.participants.map((p: any) => ({
-          name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount
-        }))
-        await notifyObjectiveReached(allParticipants, groupData)
+        await assignPaymentRefsAndNotify(group)
       }
     } catch (notifError) {
       console.error('Erreur notifications:', notifError)
@@ -427,7 +426,50 @@ export async function PATCH(
     
     // Récupérer le groupe avant mise à jour pour comparer le statut
     const previousGroup = await GroupOrder.findOne({ groupId }).lean() as any
+    if (!previousGroup) {
+      return NextResponse.json(
+        { success: false, error: 'Achat groupé non trouvé' },
+        { status: 404 }
+      )
+    }
     const previousStatus = previousGroup?.status
+
+    if (
+      ['ordering', 'ordered'].includes(body.status) &&
+      previousStatus !== body.status
+    ) {
+      const participants = Array.isArray(previousGroup?.participants) ? previousGroup.participants : []
+      const unpaidParticipants = participants
+        .filter((p: any) => p.paymentStatus !== 'paid')
+        .map((p: any) => ({
+          name: p.name,
+          phone: p.phone,
+          paymentStatus: p.paymentStatus,
+          totalAmount: Number(p.totalAmount) || 0,
+          paidAmount: Number(p.paidAmount) || 0,
+          remainingAmount: Math.max(0, (Number(p.totalAmount) || 0) - (Number(p.paidAmount) || 0))
+        }))
+
+      if (unpaidParticipants.length > 0 && body.forceOrderingWithUnpaid !== true) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Des participants n’ont pas encore payé',
+            requiresConfirmation: true,
+            paymentSummary: buildGroupOrderPaymentSummary(previousGroup),
+            unpaidParticipants
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    if (body.status && ['ordering', 'ordered', 'shipped', 'delivered', 'cancelled'].includes(body.status)) {
+      const chinaPurchase = await syncChinaPurchaseFromGroupOrder(previousGroup, body.status)
+      if (chinaPurchase) {
+        updateData.chinaPurchase = chinaPurchase
+      }
+    }
     
     const group = await GroupOrder.findOneAndUpdate(
       { groupId },
@@ -457,6 +499,14 @@ export async function PATCH(
           deadline: group.deadline
         }
         await notifyStatusUpdate(participants, groupData, body.status, body.statusMessage)
+
+        // Si passage à 'filled' → générer refs paiement + envoyer liens checkout
+        if (body.status === 'filled') {
+          const groupDoc = await GroupOrder.findOne({ groupId })
+          if (groupDoc) {
+            await assignPaymentRefsAndNotify(groupDoc)
+          }
+        }
       } catch (notifError) {
         console.error('Erreur notification statut:', notifError)
       }

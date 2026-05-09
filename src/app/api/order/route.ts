@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import User from '@/lib/models/User'
+import Product from '@/lib/models/Product'
 import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { connectDB } from '@/lib/db'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
@@ -90,21 +91,59 @@ export async function POST(req: NextRequest) {
     // Récupérer le tier marketplace de l'utilisateur authentifié
     const userMarketplaceTier = auth?.marketplaceTier || 'standard'
 
-    // Préparer les items pour le calculateur (avec b2bPrice et tier)
-    const calculatorItems = cart.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      b2bPrice: item.b2bPrice,
-      price1688: item.price1688,
-      qty: item.qty || 1,
-      weightKg: item.unitWeightKg || item.weightKg,
-      lengthCm: item.lengthCm,
-      widthCm: item.widthCm,
-      heightCm: item.heightCm,
-      volumeM3: item.unitVolumeM3 || item.volumeM3,
-      marketplaceTier: userMarketplaceTier
-    }))
+    // ─── Validation sécurité : re-vérifier les prix depuis la DB ──────────────
+    // Le panier est stocké côté client (localStorage). Les prix ne doivent JAMAIS
+    // être utilisés tels quels — on charge les vrais prix depuis MongoDB.
+    await connectDB()
+    mongoConnected = true
+
+    const cartProductIds = cart.map((item: any) => String(item.id)).filter(Boolean)
+    const dbProductMap = new Map<string, any>()
+    if (cartProductIds.length > 0) {
+      const dbProducts = await Product.find({
+        _id: { $in: cartProductIds },
+        isPublished: { $ne: false }
+      }).select('_id name price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg stockStatus stockQuantity baseCost marginRate requiresQuote').lean()
+      for (const p of dbProducts as any[]) {
+        dbProductMap.set(String(p._id), p)
+      }
+    }
+
+    for (const item of cart) {
+      const dbProduct = dbProductMap.get(String(item.id))
+      if (!dbProduct) {
+        return NextResponse.json(
+          { success: false, error: `Produit introuvable ou non disponible: ${item.name || item.id}` },
+          { status: 400 }
+        )
+      }
+      if (dbProduct.stockStatus === 'out_of_stock') {
+        return NextResponse.json(
+          { success: false, error: `Le produit "${dbProduct.name}" est actuellement en rupture de stock` },
+          { status: 400 }
+        )
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // Préparer les items pour le calculateur (prix issus de la DB, jamais du client)
+    const calculatorItems = cart.map((item: any) => {
+      const db = dbProductMap.get(String(item.id))
+      return {
+        id: String(item.id),
+        name: db?.name || item.name,
+        price: db?.price ?? db?.baseCost ?? 0,
+        b2bPrice: db?.b2bPrice,
+        price1688: db?.price1688,
+        qty: item.qty || 1,
+        weightKg: db?.weightKg ?? db?.grossWeightKg ?? db?.netWeightKg,
+        lengthCm: db?.lengthCm,
+        widthCm: db?.widthCm,
+        heightCm: db?.heightCm,
+        volumeM3: db?.volumeM3,
+        marketplaceTier: userMarketplaceTier
+      }
+    })
 
     // Calcul complet
     const calculation = await calculateCartTotal(
@@ -131,9 +170,7 @@ export async function POST(req: NextRequest) {
       totalQuantity
     } = calculation
 
-    // Se connecter à MongoDB et sauvegarder la commande
-    await connectDB()
-    mongoConnected = true
+    // Sauvegarder la commande (connexion DB déjà établie ci-dessus)
 
     const orderDoc = new Order({
       orderId,
@@ -148,22 +185,23 @@ export async function POST(req: NextRequest) {
       
       items: cart.map((item: any) => {
         const qty = item.qty || 1
+        const db = dbProductMap.get(String(item.id))
         const resolved = resolveProductPrice({
-          price: item.price,
-          b2bPrice: item.b2bPrice,
+          price: db?.price ?? db?.baseCost ?? 0,
+          b2bPrice: db?.b2bPrice,
           qty,
           marketplaceTier: userMarketplaceTier,
           totalCartQty: totalQuantity
         })
         return {
-          id: item.id,
+          id: String(item.id),
           variantId: item.variantId,
-          name: item.name,
+          name: db?.name || item.name,
           qty,
           price: resolved.appliedPrice,
           priceType: resolved.priceType,
-          currency: item.currency || 'FCFA',
-          requiresQuote: item.requiresQuote,
+          currency: 'FCFA',
+          requiresQuote: db?.requiresQuote ?? item.requiresQuote,
           shipping: item.shipping
         }
       }),
@@ -357,7 +395,9 @@ export async function POST(req: NextRequest) {
     const accountingEntries: any[] = []
     Promise.all(
       cart.map(async (item: any) => {
-        if (!item.id || !item.price) return
+        if (!item.id) return
+        const dbItem = dbProductMap.get(String(item.id))
+        if (!dbItem) return
         try {
           const baseUrl = req.nextUrl.origin
           const accountingResponse = await fetch(
@@ -367,11 +407,11 @@ export async function POST(req: NextRequest) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 productId: item.id,
-                productName: item.name,
+                productName: dbItem.name || item.name,
                 orderId,
                 clientName: name,
                 quantity: item.qty || 1,
-                unitPrice: item.price, // Prix avec frais inclus
+                unitPrice: dbItem.price ?? dbItem.baseCost ?? 0, // Prix vérifié DB
                 shippingMethod: method,
                 shippingCost: transportCost,
                 transactionDate: new Date().toISOString()

@@ -4,7 +4,30 @@ import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import type { ShippingMethodId } from '@/lib/logistics'
 import { requireAuth } from '@/lib/jwt'
+
+const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
+  maritime_60j: 'sea_freight',
+  air_15j: 'air_15',
+  express_3j: 'air_express'
+}
+
+function calcShippingCostPerUnit(
+  shippingMethod: string,
+  weightKg: number,
+  targetQty: number
+): number {
+  if (!weightKg || !targetQty || targetQty <= 0) return 0
+  const rates = getConfiguredShippingRates()
+  const internalMethod = SHIPPING_METHOD_MAP[shippingMethod] || 'sea_freight'
+  const rate = rates[internalMethod]
+  if (!rate) return 0
+  const totalWeight = weightKg * targetQty
+  const totalCost = Math.max(rate.minimumCharge || 0, totalWeight * (rate.rate || 0))
+  return Math.round(totalCost / targetQty)
+}
 
 // Générer un ID unique pour le groupe
 function generateGroupId(): string {
@@ -218,6 +241,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Calcul automatique du coût de transport par unité (basé sur targetQty)
+    const productWeightKg = product.weightKg || product.grossWeightKg || product.netWeightKg || 0
+    const shippingCostPerUnit = calcShippingCostPerUnit(
+      normalizedShippingMethod,
+      productWeightKg,
+      targetQty
+    )
+
     const reachedObjective = qty >= targetQty || (typeof maxQty === 'number' && qty >= maxQty)
     const initialStatus = groupRules.autoFillOnTargetReached && reachedObjective ? 'filled' : 'open'
     
@@ -253,6 +284,7 @@ export async function POST(req: NextRequest) {
       }],
       deadline: deadlineDate,
       shippingMethod: normalizedShippingMethod,
+      shippingCostPerUnit: shippingCostPerUnit > 0 ? shippingCostPerUnit : undefined,
       createdBy: {
         userId: auth.userId as any,
         name: creatorName,

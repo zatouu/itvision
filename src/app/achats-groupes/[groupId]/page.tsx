@@ -36,7 +36,8 @@ import {
   Calculator,
   Flame,
   Eye,
-  BarChart3
+  BarChart3,
+  CreditCard
 } from 'lucide-react'
 import GroupOrderChat, { saveGroupChatAccess } from '@/components/group-orders/GroupOrderChat'
 
@@ -110,6 +111,8 @@ export default function GroupOrderDetailPage() {
   const [copied, setCopied] = useState(false)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
   const [resalePrice, setResalePrice] = useState(0)
+  const [paymentLookupPhone, setPaymentLookupPhone] = useState('')
+  const [paymentLookupLoading, setPaymentLookupLoading] = useState(false)
   
   // Form state
   const [joinForm, setJoinForm] = useState({
@@ -231,6 +234,39 @@ export default function GroupOrderDetailPage() {
       setNotification({ type: 'error', message: 'Erreur de connexion' })
     } finally {
       setLeaving(false)
+    }
+  }
+
+  const handlePaymentLookup = async () => {
+    if (!paymentLookupPhone.trim()) {
+      setNotification({ type: 'error', message: 'Saisissez votre numéro de téléphone' })
+      return
+    }
+
+    setPaymentLookupLoading(true)
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}/my-payment?phone=${encodeURIComponent(paymentLookupPhone.trim())}`)
+      const data = await res.json()
+
+      if (!res.ok || !data?.success) {
+        setNotification({ type: 'error', message: data?.error || 'Lien de paiement introuvable' })
+        return
+      }
+
+      if (data.alreadyPaid) {
+        setNotification({ type: 'success', message: 'Votre paiement est déjà validé' })
+        return
+      }
+
+      if (data.checkoutUrl) {
+        router.push(data.checkoutUrl)
+      } else {
+        setNotification({ type: 'error', message: 'Lien de paiement indisponible' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'Erreur de récupération du lien de paiement' })
+    } finally {
+      setPaymentLookupLoading(false)
     }
   }
 
@@ -748,6 +784,29 @@ export default function GroupOrderDetailPage() {
                   <MessageCircle className="w-4 h-4" />
                   Partager
                 </button>
+              </div>
+
+              <div className="mt-4 p-4 bg-violet-50 rounded-xl border border-violet-200">
+                <p className="text-sm font-bold text-violet-900 mb-1">Déjà inscrit ?</p>
+                <p className="text-xs text-violet-700/80 mb-3">
+                  Retrouvez votre lien de paiement avec le numéro utilisé à l'inscription.
+                </p>
+                <div className="space-y-2">
+                  <input
+                    value={paymentLookupPhone}
+                    onChange={(e) => setPaymentLookupPhone(e.target.value)}
+                    placeholder="+221 77 000 00 00"
+                    className="w-full px-3 py-2.5 border border-violet-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                  />
+                  <button
+                    onClick={handlePaymentLookup}
+                    disabled={paymentLookupLoading}
+                    className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {paymentLookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                    Retrouver mon lien de paiement
+                  </button>
+                </div>
               </div>
               
               {/* Partage amélioré — multi-plateforme */}

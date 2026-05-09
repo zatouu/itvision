@@ -117,7 +117,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
     setLoading(true)
 
     try {
-      const response = await fetch('/api/payment/paydunya/init', {
+      const response = await fetch('/api/payment/checkout/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reference: participant.reference })

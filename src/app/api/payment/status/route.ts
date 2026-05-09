@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
       if (participant) {
         return NextResponse.json({
           status: participant.paymentStatus || 'pending',
-          reference
+          reference,
+          type: 'group',
+          groupId: groupOrder.groupId
         })
       }
     }
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
           ? 'paid'
           : standardOrder.paymentStatus || 'pending'
 
-      return NextResponse.json({ status, reference })
+      return NextResponse.json({ status, reference, type: 'order', orderId: standardOrder.orderId })
     }
 
     return NextResponse.json({ status: 'not_found', reference }, { status: 404 })

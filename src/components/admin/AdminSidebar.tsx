@@ -141,6 +141,12 @@ const menuItems: MenuItem[] = [
     href: '/admin/achats-groupes'
   },
   {
+    id: 'achats-chine',
+    label: 'Achats Chine',
+    icon: Package,
+    href: '/admin/achats-chine'
+  },
+  {
     id: 'produits',
     label: 'Produits',
     icon: Package,

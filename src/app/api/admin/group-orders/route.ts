@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import Product from '@/lib/models/Product'
 import mongoose from 'mongoose'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { withGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
 
 function generateGroupId(): string {
   const timestamp = Date.now().toString(36).toUpperCase()
@@ -35,11 +36,13 @@ export async function GET(request: NextRequest) {
       query.deadline = { $gte: new Date() }
     }
 
-    const groups = await GroupOrder.find(query)
+    const rawGroups = await GroupOrder.find(query)
       .select('-participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt')
       .sort({ createdAt: -1 })
       .limit(500)
       .lean()
+
+    const groups = rawGroups.map(withGroupOrderPaymentSummary)
 
     return NextResponse.json({ success: true, groups })
   } catch (error) {
