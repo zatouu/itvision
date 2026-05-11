@@ -171,7 +171,12 @@ function InterventionCard({ i }: { i: any }) {
         </div>
       )}
 
-      <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2 flex items-center gap-4 text-xs text-gray-400">
+      <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2 flex items-center justify-between">
+        <Link href={`/portail-entreprise/interventions/${String(i._id)}`}
+          className="text-xs font-semibold text-green-600 hover:text-green-700 flex items-center gap-1">
+          Voir le détail →
+        </Link>
+        <div className="flex items-center gap-4 text-xs text-gray-400">
         {i.isCoveredByContract && (
           <span className="flex items-center gap-1 text-green-600">
             <Shield className="w-3 h-3" /> Couvert contrat
@@ -186,6 +191,7 @@ function InterventionCard({ i }: { i: any }) {
           <span>{photoCount} photo{photoCount > 1 ? 's' : ''}</span>
         )}
         {i.duree && <span><Clock className="w-3 h-3 inline mr-0.5" />{i.duree}min</span>}
+      </div>
       </div>
     </div>
   )

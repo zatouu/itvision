@@ -72,8 +72,8 @@ export default async function ContratsPage() {
               : 0
 
             return (
-              <div key={String(c._id)}
-                className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+              <Link key={String(c._id)} href={`/portail-entreprise/contrats/${String(c._id)}`}
+                className="block rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 {/* Header contrat */}
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-gray-50 dark:border-slate-800">
                   <div className="flex items-start gap-3 min-w-0">
@@ -176,7 +176,7 @@ export default async function ContratsPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </Link>
             )
           })}
         </div>
