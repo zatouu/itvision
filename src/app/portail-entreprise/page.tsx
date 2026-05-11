@@ -4,7 +4,7 @@ import Link from 'next/link'
 import {
   FileText, Wrench, FolderKanban, Receipt, LifeBuoy,
   AlertTriangle, CheckCircle, Clock, TrendingUp, Building2,
-  ChevronRight, Calendar, ArrowUpRight, Shield, Zap
+  ChevronRight, Calendar, ArrowUpRight, Shield, Zap, Eye
 } from 'lucide-react'
 import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { connectDB } from '@/lib/db'
@@ -247,9 +247,12 @@ export default async function EnterprisePortalDashboard() {
         >
           <ul className="divide-y divide-gray-50 dark:divide-slate-800">
             {(contractsData as any[]).map(c => (
-              <li key={String(c._id)} className="py-2.5 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
+              <li key={String(c._id)} className="py-2.5 flex items-center justify-between gap-2 group">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/portail-entreprise/contrats/${String(c._id)}`} className="flex items-center gap-1.5 group/link">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover/link:text-green-700 transition-colors">{c.name}</p>
+                    <Eye className="w-3 h-3 text-gray-300 group-hover/link:text-green-600 opacity-0 group-hover/link:opacity-100 transition-all" />
+                  </Link>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {STATUS_LABELS[c.type] || c.type} · Expire le {fmtDate(c.endDate)}
                     {daysLeft(c.endDate) !== null && daysLeft(c.endDate)! <= 60 && daysLeft(c.endDate)! > 0 && (
@@ -280,10 +283,13 @@ export default async function EnterprisePortalDashboard() {
               const total = milestones.length
               const pct = p.progress ?? (total > 0 ? Math.round((done / total) * 100) : 0)
               return (
-                <li key={String(p._id)} className="py-2.5">
+                <li key={String(p._id)} className="py-2.5 group">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{p.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/portail-entreprise/projets/${String(p._id)}`} className="flex items-center gap-1.5 group/link">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover/link:text-green-700 transition-colors">{p.name}</p>
+                        <Eye className="w-3 h-3 text-gray-300 group-hover/link:text-green-600 opacity-0 group-hover/link:opacity-100 transition-all" />
+                      </Link>
                       <p className="text-xs text-gray-400 mt-0.5">{p.serviceType || p.currentPhase || ''}</p>
                     </div>
                     <Badge status={p.status} />
@@ -310,9 +316,12 @@ export default async function EnterprisePortalDashboard() {
         >
           <ul className="divide-y divide-gray-50 dark:divide-slate-800">
             {(interventionsData as any[]).map(i => (
-              <li key={String(i._id)} className="py-2.5 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{i.title}</p>
+              <li key={String(i._id)} className="py-2.5 flex items-center justify-between gap-2 group">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/portail-entreprise/interventions/${String(i._id)}`} className="flex items-center gap-1.5 group/link">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover/link:text-green-700 transition-colors">{i.title}</p>
+                    <Eye className="w-3 h-3 text-gray-300 group-hover/link:text-green-600 opacity-0 group-hover/link:opacity-100 transition-all" />
+                  </Link>
                   <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
                     <Calendar className="w-3 h-3" /> {fmtDate(i.date)}
                     {i.site && <span>· {i.site}</span>}
@@ -338,9 +347,12 @@ export default async function EnterprisePortalDashboard() {
           >
             <ul className="divide-y divide-gray-50 dark:divide-slate-800">
               {(ticketsData as any[]).map(t => (
-                <li key={String(t._id)} className="py-2 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{t.title}</p>
+                <li key={String(t._id)} className="py-2 flex items-center justify-between gap-2 group">
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/portail-entreprise/support?ticket=${String(t._id)}`} className="flex items-center gap-1.5 group/link">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover/link:text-green-700 transition-colors">{t.title}</p>
+                      <Eye className="w-3 h-3 text-gray-300 group-hover/link:text-green-600 opacity-0 group-hover/link:opacity-100 transition-all" />
+                    </Link>
                     <p className="text-xs text-gray-400">{t.category}</p>
                   </div>
                   <Badge status={t.priority} />
@@ -359,9 +371,12 @@ export default async function EnterprisePortalDashboard() {
           >
             <ul className="divide-y divide-gray-50 dark:divide-slate-800">
               {(invoicesData as any[]).map(inv => (
-                <li key={String(inv._id)} className="py-2 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">#{inv.numero}</p>
+                <li key={String(inv._id)} className="py-2 flex items-center justify-between gap-2 group">
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/portail-entreprise/documents?invoice=${String(inv._id)}`} className="flex items-center gap-1.5 group/link">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white group-hover/link:text-green-700 transition-colors">#{inv.numero}</p>
+                      <Eye className="w-3 h-3 text-gray-300 group-hover/link:text-green-600 opacity-0 group-hover/link:opacity-100 transition-all" />
+                    </Link>
                     <p className="text-xs text-gray-400">Échéance : {fmtDate(inv.dueDate)}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
@@ -387,15 +402,16 @@ export default async function EnterprisePortalDashboard() {
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {(quotesData as any[]).map(q => (
-              <div key={String(q._id)} className="rounded-lg border border-gray-100 dark:border-slate-700 p-3">
+              <Link key={String(q._id)} href={`/portail-entreprise/documents?quote=${String(q._id)}`}
+                className="rounded-lg border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 hover:border-green-200 dark:hover:border-green-900/40 hover:shadow-sm transition-all group block">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-mono text-gray-400">#{q.numero}</span>
                   <Badge status={q.status} />
                 </div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{q.title || 'Devis'}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-green-700 transition-colors">{q.title || 'Devis'}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{fmtDate(q.date)}</p>
                 <p className="text-sm font-bold text-violet-600 mt-1">{fmt(q.total)} FCFA</p>
-              </div>
+              </Link>
             ))}
           </div>
         </SectionCard>

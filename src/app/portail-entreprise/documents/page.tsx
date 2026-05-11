@@ -667,18 +667,17 @@ export default function DocumentsPage() {
               const needsAction = q.status === 'sent' && (!q.clientResponse || q.clientResponse === 'pending')
               return (
                 <div key={q._id}
-                  className={`rounded-xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all ${
+                  className={`rounded-xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-all ${
                     needsAction ? 'border-orange-200 dark:border-orange-900/40' : 'border-gray-100 dark:border-slate-800'
-                  }`}
-                  onClick={() => setSelectedQuote(q)}>
-                  <div className="flex items-center justify-between gap-3 p-4">
+                  }`}>
+                  <Link href={`/portail-entreprise/documents/devis/${String(q._id)}`} className="flex items-center justify-between gap-3 p-4 group">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${needsAction ? 'bg-orange-50 dark:bg-orange-900/20' : 'bg-gray-50 dark:bg-slate-800'}`}>
                         <FileText className={`w-4 h-4 ${needsAction ? 'text-orange-600' : 'text-gray-400'}`} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-900 dark:text-white">{q.title || 'Devis'}</span>
+                          <span className="font-medium text-gray-900 dark:text-white group-hover:text-green-700 transition-colors">{q.title || 'Devis'}</span>
                           <span className="font-mono text-xs text-gray-400">#{q.numero}</span>
                           {needsAction && <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-bold">Action requise</span>}
                         </div>
@@ -692,9 +691,9 @@ export default function DocumentsPage() {
                       {cr && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cr.color}`}>{cr.label}</span>}
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.color}`}>{cfg.label}</span>
                       <span className="text-sm font-bold text-violet-600">{fmt(q.total)} FCFA</span>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-green-600 transition-colors" />
                     </div>
-                  </div>
+                  </Link>
                 </div>
               )
             })
@@ -733,18 +732,17 @@ export default function DocumentsPage() {
               const isOverdue = inv.status === 'overdue'
               return (
                 <div key={inv._id}
-                  className={`rounded-xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all ${
+                  className={`rounded-xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-all ${
                     isOverdue ? 'border-red-200 dark:border-red-900/40' : 'border-gray-100 dark:border-slate-800'
-                  }`}
-                  onClick={() => setSelectedInvoice(inv)}>
-                  <div className="flex items-center justify-between gap-3 p-4">
+                  }`}>
+                  <Link href={`/portail-entreprise/documents/factures/${String(inv._id)}`} className="flex items-center justify-between gap-3 p-4 group">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${isOverdue ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-slate-800'}`}>
                         <Receipt className={`w-4 h-4 ${isOverdue ? 'text-red-600' : 'text-gray-400'}`} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-900 dark:text-white">Facture #{inv.numero}</span>
+                          <span className="font-medium text-gray-900 dark:text-white group-hover:text-green-700 transition-colors">Facture #{inv.numero}</span>
                           {isOverdue && <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold">En retard</span>}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
@@ -760,9 +758,9 @@ export default function DocumentsPage() {
                       <span className={`text-sm font-bold ${isOverdue ? 'text-red-600' : inv.status === 'paid' ? 'text-green-600' : 'text-violet-600'}`}>
                         {fmt(inv.total)} FCFA
                       </span>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-green-600 transition-colors" />
                     </div>
-                  </div>
+                  </Link>
                 </div>
               )
             })
