@@ -6,6 +6,8 @@ import { connectDB } from '@/lib/db'
 import { Wrench, Calendar, MapPin, AlertTriangle, CheckCircle, Clock, Shield } from 'lucide-react'
 import Intervention from '@/lib/models/Intervention'
 import SoftMessage from '@/components/ui/SoftMessage'
+import RequestInterventionButton from '@/components/client/RequestInterventionButton'
+import InterventionFeedback from '@/components/client/InterventionFeedback'
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   critical: { label: 'Critique',  color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -15,7 +17,7 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   low:      { label: 'Basse',    color: 'bg-gray-100 text-gray-500' },
 }
 const TYPE_LABELS: Record<string, string> = {
-  urgence: 'Urgence', maintenance: 'Maintenance', installation: 'Installation', autre: 'Autre'
+  emergency: 'Urgence', maintenance: 'Maintenance', installation: 'Installation', repair: 'Réparation', inspection: 'Inspection'
 }
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending:      { label: 'Planifiée',  color: 'bg-blue-100 text-blue-700' },
@@ -53,7 +55,10 @@ export default async function InterventionsPage() {
             {upcoming.length > 0 && ` · ${upcoming.length} à venir`}
           </p>
         </div>
-        <Link href="/portail-entreprise" className="text-sm text-gray-400 hover:text-gray-600">← Tableau de bord</Link>
+        <div className="flex items-center gap-3">
+          <RequestInterventionButton />
+          <Link href="/portail-entreprise" className="text-sm text-gray-400 hover:text-gray-600">← Tableau de bord</Link>
+        </div>
       </div>
 
       {interventions.length === 0 && (
@@ -93,6 +98,7 @@ function InterventionCard({ i }: { i: any }) {
   const status = STATUS_CONFIG[i.status] || { label: i.status || '—', color: 'bg-gray-100 text-gray-400' }
   const hasSignature = !!i.signatures?.client?.signature
   const photoCount = ((i.photosAvant || []).length + (i.photosApres || []).length)
+  const isCompleted = i.status === 'completed'
 
   return (
     <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
@@ -141,6 +147,27 @@ function InterventionCard({ i }: { i: any }) {
               <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">{i.observations}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Feedback client */}
+      {i.clientFeedback?.rating && (
+        <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2 flex items-center gap-2 text-xs">
+          <span className="text-yellow-500">{'★'.repeat(i.clientFeedback.rating)}{'☆'.repeat(5 - i.clientFeedback.rating)}</span>
+          {i.clientFeedback.comment && (
+            <span className="text-gray-500 truncate">{i.clientFeedback.comment}</span>
+          )}
+        </div>
+      )}
+
+      {/* Actions client post-intervention */}
+      {isCompleted && (
+        <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2">
+          <InterventionFeedback
+            interventionId={String(i._id)}
+            existingFeedback={i.clientFeedback}
+            hasSignature={hasSignature}
+          />
         </div>
       )}
 

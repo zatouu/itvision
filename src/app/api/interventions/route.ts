@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
+import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
+import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
+import { logAuditEvent } from '@/lib/audit'
 
-async function requireInterventionAccess(request: NextRequest) {
+export async function requireInterventionAccess(request: NextRequest) {
   try {
     const { role } = await requireAuth(request)
     const allowed = ['ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
@@ -80,6 +84,31 @@ export async function POST(request: NextRequest) {
       return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
     }
 
+    // Auto-détection contrat de maintenance actif
+    let maintenanceContractId = undefined
+    let isCoveredByContract = false
+    let overageAlert = false
+    if (body.clientId) {
+      const now = new Date()
+      const activeContract = await MaintenanceContract.findOne({
+        clientId: body.clientId,
+        status: 'active',
+        startDate: { $lte: now },
+        endDate: { $gte: now }
+      }).lean() as any
+      if (activeContract) {
+        const used = activeContract.coverage?.interventionsUsed || 0
+        const included = activeContract.coverage?.interventionsIncluded || 0
+        if (included > 0 && used >= included) {
+          isCoveredByContract = false
+          overageAlert = true
+        } else {
+          maintenanceContractId = activeContract._id
+          isCoveredByContract = true
+        }
+      }
+    }
+
     const created = await Intervention.create({
       title: body.title,
       description: body.description || '',
@@ -95,10 +124,40 @@ export async function POST(request: NextRequest) {
       heureDebut: startTime,
       heureFin: computeEndTime(startTime, durationHours),
       clientId: body.clientId || undefined,
-      technicienId: body.technicienId || undefined
+      technicienId: body.technicienId || undefined,
+      maintenanceContractId,
+      isCoveredByContract
     })
 
-    return NextResponse.json({ success: true, intervention: created }, { status: 201 })
+    // Temps réel + audit
+    try {
+      const auth = await requireAuth(request).catch(() => null)
+      await logAuditEvent({
+        entityType: 'Intervention',
+        entityId: String(created._id),
+        action: 'created',
+        newState: created.toObject ? created.toObject() : created,
+        userId: (auth as any)?.userId,
+        userRole: (auth as any)?.role,
+        ip: request.headers.get('x-forwarded-for') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      })
+      emitInterventionUpdate(String(created._id), { id: String(created._id), status: 'pending' })
+      if (body.clientId) {
+        emitUserNotification(body.clientId, {
+          type: 'info',
+          title: 'Nouvelle intervention créée',
+          message: created.title,
+          data: { interventionId: String(created._id) }
+        })
+      }
+    } catch (e) { console.error('[Intervention] Realtime/audit error:', e) }
+
+    return NextResponse.json({
+      success: true,
+      intervention: created,
+      ...(overageAlert && { warning: 'Plafond interventions du contrat atteint. Intervention hors contrat.' })
+    }, { status: 201 })
 
   } catch (error) {
     console.error('Erreur création intervention:', error)
@@ -109,15 +168,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Mettre à jour une intervention (affectation)
+// PUT - Mettre à jour une intervention (affectation + statut)
 export async function PUT(request: NextRequest) {
   try {
     await connectMongoose()
     const auth = await requireInterventionAccess(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-    
+
     const body = await request.json()
-    const { interventionId, technicianId, scheduledDate, scheduledTime } = body
+    const { interventionId, technicianId, scheduledDate, scheduledTime, status } = body
 
     if (!interventionId) {
       return NextResponse.json(
@@ -126,13 +185,112 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    await Intervention.updateOne({ _id: interventionId }, { $set: {
-      assignedTechnician: technicianId || undefined,
-      scheduledDate,
-      scheduledTime,
-      status: technicianId ? 'scheduled' : 'pending'
-    } })
+    const intervention = await Intervention.findById(interventionId)
+    if (!intervention) {
+      return NextResponse.json({ error: 'Intervention introuvable' }, { status: 404 })
+    }
+
+    const updatePayload: any = {}
+
+    // Validation et assignation technicien
+    if (technicianId !== undefined) {
+      if (technicianId) {
+        const tech = await Technician.findById(technicianId).lean() as any
+        if (!tech) {
+          return NextResponse.json({ error: 'Technicien introuvable' }, { status: 400 })
+        }
+        if (!tech.isActive) {
+          return NextResponse.json({ error: 'Technicien inactif' }, { status: 400 })
+        }
+        if (!tech.isAvailable) {
+          return NextResponse.json(
+            { error: 'Technicien indisponible', code: 'TECH_UNAVAILABLE' },
+            { status: 409 }
+          )
+        }
+        // Vérification compétences requises
+        const requiredSkills = (intervention.requiredSkills || []) as string[]
+        const specialties = (tech.specialties || []) as string[]
+        if (requiredSkills.length > 0) {
+          const hasRequiredSkills = requiredSkills.every((skill: string) =>
+            specialties.some((s: string) => s.toLowerCase() === skill.toLowerCase())
+          )
+          if (!hasRequiredSkills) {
+            return NextResponse.json(
+              {
+                error: 'Compétences insuffisantes',
+                code: 'SKILL_MISMATCH',
+                requiredSkills,
+                technicianSkills: specialties
+              },
+              { status: 409 }
+            )
+          }
+        }
+        updatePayload.assignedTechnician = technicianId
+        updatePayload.technicienId = technicianId
+        updatePayload.status = 'scheduled'
+      } else {
+        // Désassignation
+        updatePayload.assignedTechnician = undefined
+        updatePayload.technicienId = undefined
+        updatePayload.status = 'pending'
+      }
+    }
+
+    if (scheduledDate !== undefined) updatePayload.scheduledDate = scheduledDate
+    if (scheduledTime !== undefined) updatePayload.scheduledTime = scheduledTime
+
+    // Transition de statut explicite
+    if (status && ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+      updatePayload.status = status
+
+      // Décrémentation compteur contrat lors du passage à completed
+      if (status === 'completed' && intervention.isCoveredByContract && intervention.maintenanceContractId) {
+        const contract = await MaintenanceContract.findById(intervention.maintenanceContractId)
+        if (contract) {
+          const used = (contract.coverage?.interventionsUsed || 0)
+          const included = (contract.coverage?.interventionsIncluded || 0)
+          if (included > 0 && used < included) {
+            contract.coverage.interventionsUsed = used + 1
+            await contract.save()
+          }
+        }
+      }
+    }
+
+    const previousState = intervention.toObject ? intervention.toObject() : intervention
+    await Intervention.updateOne({ _id: interventionId }, { $set: updatePayload })
     const updated = await Intervention.findById(interventionId).lean()
+
+    // Temps réel + audit
+    try {
+      const auth = await requireAuth(request).catch(() => null)
+      await logAuditEvent({
+        entityType: 'Intervention',
+        entityId: interventionId,
+        action: 'updated',
+        previousState,
+        newState: updated as any,
+        changedFields: Object.keys(updatePayload),
+        userId: (auth as any)?.userId,
+        userRole: (auth as any)?.role,
+        ip: request.headers.get('x-forwarded-for') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined,
+        metadata: { statusChanged: !!status, technicianAssigned: !!technicianId }
+      })
+      const updatedAny = updated as any
+      emitInterventionUpdate(interventionId, { id: interventionId, status: updatedAny?.status as string })
+      if (updatedAny?.clientId) {
+        emitUserNotification(String(updatedAny.clientId), {
+          type: 'info',
+          title: 'Intervention mise à jour',
+          message: `${updatedAny.title} — ${status || 'modifiée'}`,
+          data: { interventionId }
+        })
+      }
+    } catch (e) { console.error('[Intervention] Realtime/audit error:', e) }
+
     return NextResponse.json({ success: true, intervention: updated })
 
   } catch (error) {

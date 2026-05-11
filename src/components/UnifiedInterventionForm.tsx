@@ -61,7 +61,7 @@ export default function UnifiedInterventionForm({ onSuccess, projectId }: Unifie
     interventionDate: new Date().toISOString().split('T')[0],
     startTime: new Date().toTimeString().slice(0, 5),
     endTime: '',
-    typeIntervention: 'maintenance' as 'urgence' | 'maintenance' | 'installation' | 'autre',
+    typeIntervention: 'maintenance' as 'maintenance' | 'installation' | 'repair' | 'inspection' | 'emergency',
     initialObservations: '',
     problemDescription: '',
     problemSeverity: 'medium' as 'low' | 'medium' | 'high' | 'critical',
@@ -749,9 +749,10 @@ export default function UnifiedInterventionForm({ onSuccess, projectId }: Unifie
               required
             >
               <option value="maintenance">Maintenance</option>
-              <option value="urgence">Urgence</option>
+              <option value="emergency">Urgence</option>
               <option value="installation">Installation</option>
-              <option value="autre">Autre</option>
+              <option value="repair">Réparation</option>
+              <option value="inspection">Inspection</option>
             </select>
           </div>
           

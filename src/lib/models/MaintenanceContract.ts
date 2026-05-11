@@ -82,6 +82,7 @@ export interface IMaintenanceContract extends Document {
   // Renouvellement
   autoRenewal: boolean
   renewalNotificationSent: boolean
+  renewalNotifications?: number[] // Seuils déjà notifiés (60, 30, 7)
   renewalProposalId?: Types.ObjectId
   
   // Performance
@@ -92,7 +93,15 @@ export interface IMaintenanceContract extends Document {
     averageResponseTime?: number
     clientSatisfaction?: number
   }
-  
+
+  // Snapshots immuables à chaque modification majeure
+  snapshots?: Array<{
+    snapshotAt: Date
+    snapshotBy?: Types.ObjectId
+    reason?: string
+    data: Record<string, any>
+  }>
+
   createdAt: Date
   updatedAt: Date
 }
@@ -218,6 +227,10 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
     type: Boolean,
     default: false
   },
+  renewalNotifications: {
+    type: [Number],
+    default: []
+  },
   renewalProposalId: {
     type: Schema.Types.ObjectId,
     ref: 'Quote'
@@ -237,7 +250,13 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
     },
     averageResponseTime: Number,
     clientSatisfaction: Number
-  }
+  },
+  snapshots: [{
+    snapshotAt: { type: Date, default: Date.now },
+    snapshotBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reason: { type: String },
+    data: { type: Schema.Types.Mixed, required: true }
+  }]
 }, {
   timestamps: true
 })

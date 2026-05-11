@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, Wrench, FolderKanban,
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
-  Building2, ChevronRight, Settings, BarChart2, Activity, ClipboardList
+  Building2, ChevronRight, Settings, BarChart2, Activity, ClipboardList,
+  User
 } from 'lucide-react'
 import NotificationBell from '@/components/portal/NotificationBell'
 
@@ -123,6 +124,7 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
   const [companyName, setCompanyName] = useState('Portail Entreprise')
   const [companyCity, setCompanyCity] = useState<string | undefined>(undefined)
   const [userId, setUserId] = useState<string | undefined>(undefined)
+  const [userName, setUserName] = useState<string | undefined>(undefined)
   const pathname = usePathname()
 
   useEffect(() => { setMobileSidebarOpen(false) }, [pathname])
@@ -134,6 +136,7 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
         if (d?.companyName) setCompanyName(d.companyName)
         if (d?.companyCity) setCompanyCity(d.companyCity)
         if (d?.userId) setUserId(d.userId)
+        if (d?.userName) setUserName(d.userName)
       })
       .catch(() => {})
   }, [])
@@ -210,6 +213,30 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
             >
               <LogOut className="w-5 h-5" />
             </button>
+          </div>
+        </header>
+
+        {/* Top bar desktop */}
+        <header className="hidden lg:flex items-center justify-between px-6 py-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-sm flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-sm font-semibold text-gray-800 dark:text-white truncate">
+              {navItems.find(n => n.exact ? pathname === n.href : pathname.startsWith(n.href))?.label || 'Portail Entreprise'}
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationBell userId={userId} />
+            <Link
+              href="/compte/profil"
+              className="flex items-center gap-2 pl-1 pr-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+              title="Mon profil"
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold">
+                {userName ? userName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+              </div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[140px] truncate">
+                {userName || 'Mon compte'}
+              </span>
+            </Link>
           </div>
         </header>
 

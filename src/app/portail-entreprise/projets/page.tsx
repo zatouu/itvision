@@ -90,7 +90,7 @@ function ProjectCard({ p }: { p: any }) {
   const timeline = ((p.timeline || []) as any[]).filter((t: any) => t.clientVisible !== false).slice(-3)
 
   return (
-    <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <Link href={`/portail-entreprise/projets/${p._id}`} className="block rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 p-5">
         <div className="flex items-start gap-3 min-w-0">
@@ -187,6 +187,6 @@ function ProjectCard({ p }: { p: any }) {
           </div>
         </div>
       )}
-    </div>
+    </Link>
   )
 }

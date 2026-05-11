@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
+import Intervention from '@/lib/models/Intervention'
 import { addNotification } from '@/lib/notifications-memory'
 import { verifyJwtPayload } from '@/lib/jwt'
 import { emailService } from '@/lib/email-service'
 import { getClientContactEmails } from '@/lib/client-contacts'
+import { emitInterventionUpdate, emitGroupNotification } from '@/lib/socket-emit'
+import { logAuditEvent } from '@/lib/audit'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
@@ -113,7 +116,35 @@ export async function POST(request: NextRequest) {
       })
     
     await report.save()
-    
+
+    // Temps réel + audit + liaison intervention
+    try {
+      await logAuditEvent({
+        entityType: 'MaintenanceReport',
+        entityId: String(report._id),
+        action: 'submitted_for_validation',
+        previousState: { status: 'draft' },
+        newState: { status: 'pending_validation' },
+        userId: technicianId,
+        userRole: 'TECHNICIAN',
+        ip: request.headers.get('x-forwarded-for') || undefined,
+        metadata: { needsQuote, followUpCount: followUps.length }
+      })
+      emitGroupNotification('admins', {
+        type: 'info',
+        title: 'Nouveau rapport à valider',
+        message: `Rapport ${report.reportId} soumis par ${tokenData.name || 'technicien'}`,
+        data: { reportId: String(report._id), reportNumber: report.reportId }
+      })
+      if (report.interventionId) {
+        await Intervention.updateOne(
+          { _id: report.interventionId },
+          { $set: { status: 'completed' } }
+        )
+        emitInterventionUpdate(String(report.interventionId), { id: String(report.interventionId), status: 'completed' })
+      }
+    } catch (e) { console.error('[Report] Realtime/audit error:', e) }
+
     // Notification admin
     try {
       await notifyAdminNewReport(report)
