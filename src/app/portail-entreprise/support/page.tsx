@@ -250,11 +250,11 @@ export default function SupportPage() {
             const slaBreached = t.sla?.breached || (slaDeadline && slaDeadline < new Date() && !['resolved', 'closed'].includes(t.status))
 
             return (
-              <div key={String(t._id)}
-                className={`rounded-xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors ${
-                  slaBreached ? 'border-red-200 dark:border-red-900/40' : 'border-gray-100 dark:border-slate-800'
+              <Link key={String(t._id)} href={`/portail-entreprise/support/${String(t._id)}`}
+                className={`block rounded-xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-all hover:shadow-md ${
+                  slaBreached ? 'border-red-200 dark:border-red-900/40 hover:border-red-300' : 'border-gray-100 dark:border-slate-800 hover:border-green-200 dark:hover:border-green-900/40'
                 }`}>
-                <div className="flex items-start justify-between gap-3 p-4">
+                <div className="flex items-start justify-between gap-3 p-4 group">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className={`flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center ${
                       t.priority === 'urgent' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-slate-800'
@@ -266,7 +266,7 @@ export default function SupportPage() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-white text-sm">{t.title}</p>
+                      <p className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-green-700 transition-colors">{t.title}</p>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
                         <span>{t.category}</span>
                         <span>·</span>
@@ -289,7 +289,7 @@ export default function SupportPage() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>

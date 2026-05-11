@@ -234,6 +234,9 @@ export async function GET(request: NextRequest) {
       }
     } catch {}
 
+    const companyClientId = (decoded as any).companyClientId || undefined
+    const clientType = companyClientId ? 'enterprise' : 'marketplace'
+
     return NextResponse.json({
       user: {
         id: String(decoded.userId || decoded.id || decoded.sub || ''),
@@ -246,7 +249,9 @@ export async function GET(request: NextRequest) {
         marketplaceOrderCount: dbUser?.marketplaceOrderCount ?? 0,
         totalMarketplacePurchases: dbUser?.totalMarketplacePurchases ?? 0,
         proRequestedAt: dbUser?.proRequestedAt || null,
-        proValidatedAt: dbUser?.proValidatedAt || null
+        proValidatedAt: dbUser?.proValidatedAt || null,
+        companyClientId,
+        clientType
       }
     })
 

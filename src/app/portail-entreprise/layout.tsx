@@ -98,7 +98,7 @@ function Sidebar({
             <Menu className="w-4 h-4" />
           </button>
         )}
-        <Link href="/compte/profil" title={collapsed ? 'Paramètres' : undefined}
+        <Link href="/portail-entreprise/profil" title={collapsed ? 'Paramètres' : undefined}
           className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
           <Settings className="flex-shrink-0 w-4 h-4" />
           {!collapsed && <span>Paramètres</span>}
@@ -226,7 +226,7 @@ export default function EnterprisePortalLayout({ children }: { children: React.R
           <div className="flex items-center gap-3">
             <NotificationBell userId={userId} />
             <Link
-              href="/compte/profil"
+              href="/portail-entreprise/profil"
               className="flex items-center gap-2 pl-1 pr-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
               title="Mon profil"
             >

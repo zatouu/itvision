@@ -33,6 +33,11 @@ export default async function ComptePage() {
     redirect('/login?redirect=/compte')
   }
 
+  // Client entreprise : rediriger vers le portail entreprise
+  if (auth.user.role === 'CLIENT' && auth.user.companyClientId) {
+    redirect('/portail-entreprise')
+  }
+
   await connectDB()
   const userObjectId = new mongoose.Types.ObjectId(auth.user.id)
 

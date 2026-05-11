@@ -118,10 +118,12 @@ export default function UnifiedLoginPage() {
           }
           
           // Utiliser l'URL de redirection de l'API si disponible
+          const isEnterpriseClient = role === 'CLIENT' && (data.user?.companyClientId || data.user?.clientType === 'enterprise')
           const redirectUrl = data.redirectUrl || (
             role === 'PRODUCT_MANAGER' ? '/admin/produits' :
             role === 'ADMIN' ? '/admin' :
             role === 'TECHNICIAN' ? '/tech-interface' :
+            isEnterpriseClient ? '/portail-entreprise' :
             '/compte'
           )
           

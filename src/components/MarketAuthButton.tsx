@@ -34,6 +34,7 @@ export default function MarketAuthButton({
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [marketplaceTier, setMarketplaceTier] = useState<string>('standard')
+  const [resolvedAccountHref, setResolvedAccountHref] = useState<string>(accountHref)
 
   const TIER_BADGE: Record<string, { label: string; className: string }> = {
     pro: { label: 'Pro', className: 'bg-green-100 text-green-700 border border-green-200' },
@@ -56,7 +57,12 @@ export default function MarketAuthButton({
         setIsAuthenticated(res.ok)
         if (res.ok) {
           const data = await res.json().catch(() => ({}))
+          setIsAuthenticated(res.ok)
           setMarketplaceTier(data.user?.marketplaceTier || 'standard')
+          // Client entreprise : pointer vers le portail entreprise
+          if (data.user?.clientType === 'enterprise' || data.user?.companyClientId) {
+            setResolvedAccountHref('/portail-entreprise')
+          }
         }
       } catch {
         if (cancelled) return
@@ -102,7 +108,7 @@ export default function MarketAuthButton({
     return (
       <div className={`inline-flex items-center gap-2 ${className}`}>
         <Link
-          href={accountHref}
+          href={resolvedAccountHref}
           onClick={() => onDone?.()}
           className={`${baseClassName} border-green-200 bg-white text-green-700 hover:bg-green-50 dark:border-green-900/60 dark:bg-slate-950 dark:text-green-300 dark:hover:bg-green-900/20`}
         >

@@ -152,6 +152,13 @@ export async function middleware(request: NextRequest) {
       return response
     }
 
+    // Compte marketplace : rediriger les clients entreprise vers leur portail
+    if (requiredRole === 'AUTH' && (pathname === '/compte' || pathname.startsWith('/compte/'))) {
+      if (role === 'CLIENT' && companyClientId) {
+        return NextResponse.redirect(new URL('/portail-entreprise', request.url))
+      }
+    }
+
     // Messagerie: tout utilisateur authentifié
     if (requiredRole === 'AUTH') {
       const response = NextResponse.next()
