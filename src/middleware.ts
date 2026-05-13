@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = [
   '/about',
   '/services',
   '/produits',
+  '/corporate-produits',
   '/contact',
   '/realisations',
   '/cgv',
@@ -91,9 +92,37 @@ function getRequiredRole(pathname: string): string | null {
   return null
 }
 
+// Routes propres à la marketplace (accessible uniquement sur market.itvisionplus.sn)
+const MARKETPLACE_ROUTES = [
+  '/panier',
+  '/commandes',
+  '/achats-groupes',
+  '/retrouver-ma-commande',
+  '/market',
+  '/payment',
+  '/paiement',
+]
+
+function isMarketplaceRoute(pathname: string): boolean {
+  return MARKETPLACE_ROUTES.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  )
+}
+
+function getHost(request: NextRequest): string {
+  return request.headers.get('host') || request.nextUrl.host || ''
+}
+
+function isMarketDomain(request: NextRequest): boolean {
+  const host = getHost(request)
+  return host.startsWith('market.')
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
+  const host = getHost(request)
+  const onMarketDomain = isMarketDomain(request)
+
   // Ignorer les fichiers statiques et les assets
   if (
     pathname.startsWith('/_next') ||
@@ -105,7 +134,7 @@ export async function middleware(request: NextRequest) {
       const response = NextResponse.next()
       const csrfResult = csrfProtection.middleware(request)
       if (csrfResult) return csrfResult
-      
+
       // Headers de sécurité pour API
       response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
       response.headers.set('Pragma', 'no-cache')
@@ -113,6 +142,43 @@ export async function middleware(request: NextRequest) {
       return response
     }
     return NextResponse.next()
+  }
+
+  // ─── ROUTAGE PAR SOUS-DOMAINE ───
+
+  // Sur market.itvisionplus.sn : rediriger les routes non-marketplace vers le site principal
+  if (onMarketDomain) {
+    const isAllowedOnMarket =
+      isPublicRoute(pathname) ||
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/register') ||
+      pathname.startsWith('/forgot-password') ||
+      pathname.startsWith('/reset-password') ||
+      pathname.startsWith('/api/') ||
+      pathname.startsWith('/produits') ||
+      pathname.startsWith('/compte') ||
+      pathname.startsWith('/messages') ||
+      isMarketplaceRoute(pathname)
+
+    if (!isAllowedOnMarket) {
+      const mainUrl = new URL(pathname, request.url)
+      mainUrl.host = host.replace(/^market\./, '')
+      return NextResponse.redirect(mainUrl)
+    }
+  }
+
+  // Sur itvisionplus.sn : rediriger les routes marketplace vers market.itvisionplus.sn
+  if (!onMarketDomain) {
+    if (isMarketplaceRoute(pathname)) {
+      const marketUrl = new URL(pathname, request.url)
+      marketUrl.host = `market.${host}`
+      return NextResponse.redirect(marketUrl)
+    }
+    // /produits sur le site principal → vitrine corporate B2B/B2C
+    if (pathname === '/produits' || pathname.startsWith('/produits/')) {
+      const corporateUrl = new URL(pathname.replace('/produits', '/corporate-produits'), request.url)
+      return NextResponse.rewrite(corporateUrl)
+    }
   }
 
   // Routes publiques - pas de vérification
