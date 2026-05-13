@@ -18,6 +18,9 @@ interface CorporateProduct {
   features: string[]
 }
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const CATEGORY_ICONS: Record<string, any> = {
   'Vidéosurveillance': Camera,
   "Contrôle d'Accès": Lock,
@@ -42,25 +45,84 @@ export const metadata = {
     'Équipements professionnels de sécurité électronique : vidéosurveillance, contrôle d\'accès, alarme, réseau. Devis personnalisé, installation et maintenance au Sénégal.',
 }
 
+const FALLBACK_PRODUCTS: CorporateProduct[] = [
+  {
+    id: 'camera-ip',
+    name: 'Caméras IP professionnelles',
+    category: 'Vidéosurveillance',
+    description: 'Solutions de surveillance HD pour bureaux, commerces, entrepôts et résidences.',
+    currency: 'FCFA',
+    features: ['Vision nocturne', 'Accès mobile', 'Installation incluse'],
+  },
+  {
+    id: 'controle-acces',
+    name: 'Contrôle d’accès biométrique',
+    category: "Contrôle d'Accès",
+    description: 'Gestion sécurisée des accès par empreinte, badge, code ou reconnaissance faciale.',
+    currency: 'FCFA',
+    features: ['Gestion utilisateurs', 'Historique passages', 'Multi-sites'],
+  },
+  {
+    id: 'alarme-intrusion',
+    name: 'Système d’alarme intrusion',
+    category: 'Alarme',
+    description: 'Protection périmétrique et volumétrique avec alertes en temps réel.',
+    currency: 'FCFA',
+    features: ['Détecteurs mouvement', 'Sirène', 'Notifications'],
+  },
+  {
+    id: 'reseau-poe',
+    name: 'Réseau & switches PoE',
+    category: 'Réseau',
+    description: 'Infrastructure réseau fiable pour caméras IP, Wi-Fi, postes et équipements connectés.',
+    currency: 'FCFA',
+    features: ['Switches PoE', 'Câblage structuré', 'Baie réseau'],
+  },
+  {
+    id: 'domotique',
+    name: 'Domotique résidentielle',
+    category: 'Domotique',
+    description: 'Automatisation des éclairages, accès, capteurs et scénarios intelligents.',
+    currency: 'FCFA',
+    features: ['Scénarios', 'Pilotage mobile', 'Capteurs'],
+  },
+  {
+    id: 'detection-incendie',
+    name: 'Détection incendie',
+    category: 'Sécurité incendie',
+    description: 'Détecteurs fumée, signalisation et dispositifs d’alerte pour sites professionnels.',
+    currency: 'FCFA',
+    features: ['Détection fumée', 'Signalisation', 'Maintenance'],
+  },
+]
+
+async function getCorporateProducts(): Promise<CorporateProduct[]> {
+  try {
+    await connectDB()
+
+    const docs = await ProductValidated.find({ isActive: { $ne: false } })
+      .select('name category description image price currency features')
+      .sort({ createdAt: -1 })
+      .limit(60)
+      .lean()
+
+    return docs.map((p: any) => ({
+      id: String(p._id),
+      name: p.name || 'Produit',
+      category: p.category || 'Autre',
+      description: p.description || '',
+      image: p.image || undefined,
+      priceAmount: typeof p.price === 'number' ? p.price : undefined,
+      currency: p.currency || 'FCFA',
+      features: Array.isArray(p.features) ? p.features.slice(0, 3) : [],
+    }))
+  } catch {
+    return FALLBACK_PRODUCTS
+  }
+}
+
 export default async function CorporateProduitsPage() {
-  await connectDB()
-
-  const docs = await ProductValidated.find({ isActive: { $ne: false } })
-    .select('name category description image price currency features')
-    .sort({ createdAt: -1 })
-    .limit(60)
-    .lean()
-
-  const products: CorporateProduct[] = docs.map((p: any) => ({
-    id: String(p._id),
-    name: p.name || 'Produit',
-    category: p.category || 'Autre',
-    description: p.description || '',
-    image: p.image || undefined,
-    priceAmount: typeof p.price === 'number' ? p.price : undefined,
-    currency: p.currency || 'FCFA',
-    features: Array.isArray(p.features) ? p.features.slice(0, 3) : [],
-  }))
+  const products = await getCorporateProducts()
 
   const grouped = new Map<string, CorporateProduct[]>()
   for (const p of products) {
