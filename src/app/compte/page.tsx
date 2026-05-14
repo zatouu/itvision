@@ -9,6 +9,8 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import ProductValidated from '@/lib/models/Product.validated'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
 import {
   Users,
   Heart,
@@ -96,7 +98,8 @@ export default async function ComptePage() {
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-slate-950 dark:via-slate-900 dark:to-black">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-slate-950 dark:via-slate-900 dark:to-black">
+      <MarketHeader />
       <div className="mx-auto max-w-7xl px-4 py-8">
         {/* Header utilisateur premium */}
         <div className="relative overflow-hidden rounded-3xl border border-green-100 bg-gradient-to-br from-green-600 via-green-700 to-violet-700 p-8 shadow-2xl dark:border-green-900/30">
@@ -430,6 +433,7 @@ export default async function ComptePage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">IT Vision+ — Marketplace import Chine &amp; produits tech</p>
         </div>
       </div>
+      <MarketFooter />
     </div>
   )
 }

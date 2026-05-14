@@ -1,6 +1,6 @@
 "use client"
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
 import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users, Heart } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import CartIcon from '@/components/CartIcon'
@@ -1282,7 +1282,7 @@ export default function ProduitsPage() {
   return (
     <ErrorBoundary>
       <main className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <Header />
+        <MarketHeader />
         {/* Local cart icon for produits page */}
         <div className="fixed right-4 bottom-4 z-40">
           <CartIcon count={cartCount} onClick={() => setCartOpen(true)} />
@@ -2231,7 +2231,7 @@ export default function ProduitsPage() {
         </div>
       )}
 
-      <Footer />
+      <MarketFooter />
     </main>
     </ErrorBoundary>
   )

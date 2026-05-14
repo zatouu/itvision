@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
 import ProductDetail1688 from '@/components/ProductDetail1688'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
@@ -66,11 +66,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      <main className="pt-[120px]">
+      <MarketHeader />
+      <main>
         <ProductDetail1688 product={detail} similar={similar} />
       </main>
-      <Footer />
+      <MarketFooter />
     </div>
   )
 }

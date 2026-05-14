@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
 import {
   Users,
   Package,
@@ -326,6 +328,7 @@ export default function GroupOrdersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
+      <MarketHeader />
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-16 px-4">
         <div className="max-w-6xl mx-auto">
@@ -1315,6 +1318,7 @@ export default function GroupOrdersPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <MarketFooter />
     </div>
   )
 }

@@ -24,12 +24,14 @@ export const metadata: Metadata = {
 }
 
 import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MarketHeader />
       {children}
+      <MarketFooter />
     </>
   )
 }
