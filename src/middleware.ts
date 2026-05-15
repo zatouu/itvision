@@ -148,8 +148,12 @@ export async function middleware(request: NextRequest) {
 
   // Sur market.itvisionplus.sn : rediriger les routes non-marketplace vers le site principal
   if (onMarketDomain) {
+    if (pathname === '/') {
+      const marketHomeUrl = new URL('/market', request.url)
+      return NextResponse.rewrite(marketHomeUrl)
+    }
+
     const isAllowedOnMarket =
-      isPublicRoute(pathname) ||
       pathname.startsWith('/login') ||
       pathname.startsWith('/register') ||
       pathname.startsWith('/forgot-password') ||
@@ -161,9 +165,8 @@ export async function middleware(request: NextRequest) {
       isMarketplaceRoute(pathname)
 
     if (!isAllowedOnMarket) {
-      const mainUrl = new URL(pathname, request.url)
-      mainUrl.host = host.replace(/^market\./, '')
-      return NextResponse.redirect(mainUrl)
+      const marketHomeUrl = new URL('/market', request.url)
+      return NextResponse.redirect(marketHomeUrl)
     }
   }
 

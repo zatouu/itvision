@@ -238,6 +238,7 @@ export interface ProductCreateInput {
   condition?: 'new' | 'used' | 'refurbished'
   tags?: string[]
   price?: number
+  b2bPrice?: number
   baseCost?: number
   marginRate?: number
   currency?: Currency

@@ -41,6 +41,7 @@ type Product = {
   condition?: 'new' | 'used' | 'refurbished'
   tags?: string[]
   price?: number
+  b2bPrice?: number
   baseCost?: number
   marginRate?: number
   currency?: string
@@ -50,7 +51,7 @@ type Product = {
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
-  stockStatus?: 'in_stock' | 'preorder'
+  stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   stockQuantity?: number
   leadTimeDays?: number
   // Poids
@@ -428,6 +429,7 @@ export default function AdminProductManager() {
     condition: 'new',
     tags: [],
     price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
+    b2bPrice: undefined,
     baseCost: undefined, // Coût d'achat fournisseur
     marginRate: 30, // Marge par défaut 30%
     currency: 'FCFA',
@@ -804,6 +806,7 @@ export default function AdminProductManager() {
 
   const computedDisplayPrice = (product: Product) => {
     if (typeof product.price === 'number') return formatCurrency(product.price, product.currency)
+    if (typeof product.b2bPrice === 'number') return formatCurrency(product.b2bPrice, product.currency)
     if (typeof product.baseCost === 'number') {
       const margin = typeof product.marginRate === 'number' ? product.marginRate : 25
       const sale = Math.round(product.baseCost * (1 + margin / 100))
@@ -1294,6 +1297,7 @@ export default function AdminProductManager() {
               >
                 <option value="in_stock">Disponible à Dakar</option>
                 <option value="preorder">Commande Chine</option>
+                <option value="out_of_stock">Rupture temporaire</option>
               </select>
             </label>
             <label className="space-y-1">
@@ -1691,6 +1695,15 @@ export default function AdminProductManager() {
               />
             </label>
             <label className="space-y-1">
+              <span>Prix corporate (FCFA)</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                type="number"
+                value={editing.b2bPrice ?? ''}
+                onChange={e => setEditing({ ...editing, b2bPrice: e.target.value ? Number(e.target.value) : undefined })}
+              />
+            </label>
+            <label className="space-y-1">
               <span>Coût fournisseur (FCFA)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
@@ -1742,20 +1755,20 @@ export default function AdminProductManager() {
             )}
           </div>
           {/* Indicateur de validation du prix */}
-          {!editing.requiresQuote && !editing.price && !editing.baseCost && !editing.price1688 && (
+          {!editing.requiresQuote && !editing.price && !editing.b2bPrice && !editing.baseCost && !editing.price1688 && (
             <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
               <svg className="h-5 w-5 flex-shrink-0 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div>
                 <div className="font-medium">Prix requis</div>
-                <div className="text-xs">Renseignez un prix (prix public, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
+                <div className="text-xs">Renseignez un prix (prix public, prix corporate, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
               </div>
             </div>
           )}
           
           {/* Indicateur de prix valide */}
-          {!editing.requiresQuote && (editing.price || editing.baseCost || editing.price1688) && (
+          {!editing.requiresQuote && (editing.price || editing.b2bPrice || editing.baseCost || editing.price1688) && (
             <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-center gap-2">
               <svg className="h-5 w-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1764,7 +1777,9 @@ export default function AdminProductManager() {
                 <strong>Prix affiché:</strong> {
                   editing.price 
                     ? formatCurrency(editing.price, editing.currency)
-                    : editing.baseCost && editing.marginRate
+                    : editing.b2bPrice
+                      ? formatCurrency(editing.b2bPrice, editing.currency)
+                      : editing.baseCost && editing.marginRate
                       ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
                       : editing.price1688 && editing.exchangeRate
                         ? `Calculé depuis prix source: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
@@ -2682,7 +2697,7 @@ export default function AdminProductManager() {
         </div>
         <div className="bg-white rounded-xl border p-4">
           <div className="text-2xl font-bold text-red-600">
-            {items.filter(p => !p.requiresQuote && !p.price && !p.baseCost && !p.price1688).length}
+            {items.filter(p => !p.requiresQuote && !p.price && !p.b2bPrice && !p.baseCost && !p.price1688).length}
           </div>
           <div className="text-xs text-gray-500">Prix manquants</div>
         </div>
@@ -2856,7 +2871,7 @@ export default function AdminProductManager() {
                       <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-orange-100 text-orange-700 text-xs font-medium">
                         Sur devis
                       </div>
-                    ) : !product.price && !product.baseCost && !product.price1688 ? (
+                    ) : !product.price && !product.b2bPrice && !product.baseCost && !product.price1688 ? (
                       <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-medium">
                         ⚠️ Prix manquant
                       </div>
@@ -2866,6 +2881,9 @@ export default function AdminProductManager() {
                     {typeof product.baseCost === 'number' && (
                       <div className="text-xs text-gray-500">Coût: {formatCurrency(product.baseCost, product.currency)}</div>
                     )}
+                    {typeof product.b2bPrice === 'number' && (
+                      <div className="text-xs text-green-700">Corporate: {formatCurrency(product.b2bPrice, product.currency)}</div>
+                    )}
                     {typeof product.price1688 === 'number' && (
                       <div className="text-xs text-blue-600">Source: ¥{product.price1688}</div>
                     )}
@@ -2874,8 +2892,8 @@ export default function AdminProductManager() {
                     )}
                   </td>
                   <td className="p-3">
-                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${product.stockStatus === 'in_stock' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                      <Package className="h-3.5 w-3.5" /> {product.stockStatus === 'in_stock' ? 'Stock Dakar' : 'Commande Chine'}
+                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${product.stockStatus === 'in_stock' ? 'bg-emerald-100 text-emerald-700' : product.stockStatus === 'out_of_stock' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <Package className="h-3.5 w-3.5" /> {product.stockStatus === 'in_stock' ? 'Stock Dakar' : product.stockStatus === 'out_of_stock' ? 'Rupture' : 'Commande Chine'}
                     </div>
                     {typeof product.leadTimeDays === 'number' && (
                       <div className="text-xs text-gray-500 mt-1">{product.leadTimeDays} jours estimés</div>

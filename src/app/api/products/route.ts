@@ -109,6 +109,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     condition,
     tags,
     price,
+    b2bPrice,
     baseCost,
     marginRate,
     currency,
@@ -167,6 +168,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   }
 
   normalized.price = parseNumber(price)
+  normalized.b2bPrice = parseNumber(b2bPrice)
   normalized.baseCost = parseNumber(baseCost)
   normalized.marginRate = parseNumber(marginRate)
   normalized.deliveryDays = parseNumber(deliveryDays)
@@ -355,10 +357,10 @@ export async function POST(request: NextRequest) {
     if (!payload.name) return NextResponse.json({ success: false, error: 'Le nom du produit est requis' }, { status: 400 })
 
     // Validation des prix - par défaut, un prix doit être défini sauf si explicitement sur devis
-    if (!payload.requiresQuote && !payload.price && !payload.baseCost && !payload.price1688) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+    if (!payload.requiresQuote && !payload.price && !payload.b2bPrice && !payload.baseCost && !payload.price1688) {
+      return NextResponse.json({
+        success: false,
+        error: 'Un prix doit être défini (prix public, prix corporate, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.'
       }, { status: 400 })
     }
 
@@ -398,13 +400,14 @@ export async function PATCH(request: NextRequest) {
     // Validation des prix - un prix doit être défini sauf si explicitement sur devis
     const finalRequiresQuote = payload.requiresQuote ?? (existing as any).requiresQuote
     const finalPrice = payload.price ?? (existing as any).price
+    const finalB2bPrice = payload.b2bPrice ?? (existing as any).b2bPrice
     const finalBaseCost = payload.baseCost ?? (existing as any).baseCost
     const finalPrice1688 = payload.price1688 ?? (existing as any).price1688
     
-    if (!finalRequiresQuote && !finalPrice && !finalBaseCost && !finalPrice1688) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+    if (!finalRequiresQuote && !finalPrice && !finalB2bPrice && !finalBaseCost && !finalPrice1688) {
+      return NextResponse.json({
+        success: false,
+        error: 'Un prix doit être défini (prix public, prix corporate, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.'
       }, { status: 400 })
     }
     
