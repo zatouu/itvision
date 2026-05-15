@@ -4,7 +4,7 @@ import { connectDB } from '@/lib/db'
 import ProductValidated from '@/lib/models/Product.validated'
 import {
   Camera, Shield, Lock, Wifi, Bell, Cpu, Sparkles, PackageCheck,
-  ArrowRight, Phone, Mail, CheckCircle, BadgeCheck
+  ArrowRight, Phone, Mail, CheckCircle, BadgeCheck, Clock3, MapPin, Wrench
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -12,14 +12,19 @@ interface CorporateProduct {
   id: string
   name: string
   category: string
+  tagline?: string
   description: string
   image?: string
   priceAmount?: number
   currency: string
   features: string[]
+  detailPoints: string[]
+  serviceInclusions: string[]
+  useCases: string[]
   stockStatus: 'in_stock' | 'preorder' | 'out_of_stock'
   stockQuantity: number
   availabilityLabel: string
+  deliveryLabel: string
 }
 
 export const dynamic = 'force-dynamic'
@@ -83,6 +88,56 @@ const CORPORATE_SEARCH_TERMS = Array.from(
   new Set(CATEGORY_DEFINITIONS.flatMap((category) => [...category.aliases, ...category.keywords]))
 )
 
+const CATEGORY_DETAILS: Record<string, {
+  summary: string
+  defaultDetails: string[]
+  serviceInclusions: string[]
+  useCases: string[]
+}> = {
+  'Vidéosurveillance': {
+    summary: 'Caméras IP, enregistreurs, stockage, vision nocturne et accès distant pour sécuriser vos locaux.',
+    defaultDetails: ['Caméras HD/IP', 'Enregistrement local ou cloud', 'Accès mobile sécurisé', 'Vision nocturne'],
+    serviceInclusions: ['Étude des angles morts', 'Pose et câblage', 'Configuration mobile', 'Formation utilisateur'],
+    useCases: ['Bureaux', 'Commerces', 'Entrepôts', 'Résidences']
+  },
+  "Contrôle d'accès": {
+    summary: 'Gestion des entrées par badge, empreinte, code ou reconnaissance faciale avec historique de passage.',
+    defaultDetails: ['Badge/RFID', 'Biométrie', 'Gestion utilisateurs', 'Journal des accès'],
+    serviceInclusions: ['Paramétrage des droits', 'Pose lecteurs et serrures', 'Tests de sécurité', 'Formation admin'],
+    useCases: ['Bureaux', 'Écoles', 'Immeubles', 'Zones sensibles']
+  },
+  'Alarme & détection': {
+    summary: 'Protection intrusion avec capteurs, sirènes, notifications et scénarios d’alerte adaptés au site.',
+    defaultDetails: ['Détecteurs mouvement', 'Contacteurs portes', 'Sirène intérieure/extérieure', 'Alertes téléphone'],
+    serviceInclusions: ['Étude périmétrique', 'Pose capteurs', 'Configuration alertes', 'Tests de déclenchement'],
+    useCases: ['Maisons', 'Boutiques', 'Dépôts', 'Bureaux']
+  },
+  'Réseau & connectivité': {
+    summary: 'Infrastructure réseau stable pour caméras, Wi-Fi, postes, serveurs et équipements connectés.',
+    defaultDetails: ['Switch PoE', 'Routeurs', 'Câblage structuré', 'Baie réseau'],
+    serviceInclusions: ['Audit réseau', 'Tirage câble', 'Configuration équipements', 'Tests débit et stabilité'],
+    useCases: ['PME', 'Villas', 'Plateaux bureaux', 'Sites multi-équipements']
+  },
+  'Domotique': {
+    summary: 'Automatisation des éclairages, accès, capteurs et appareils connectés avec pilotage mobile.',
+    defaultDetails: ['Scénarios intelligents', 'Pilotage mobile', 'Capteurs connectés', 'Automatisation éclairage'],
+    serviceInclusions: ['Conception scénarios', 'Installation modules', 'Configuration application', 'Prise en main'],
+    useCases: ['Maisons', 'Appartements', 'Bureaux premium', 'Locations meublées']
+  },
+  'Gadgets & accessoires': {
+    summary: 'Accessoires connectés et compléments techniques pour améliorer l’installation et le confort d’usage.',
+    defaultDetails: ['Objets connectés', 'Accessoires réseau', 'Supports et alimentations', 'Modules complémentaires'],
+    serviceInclusions: ['Conseil compatibilité', 'Installation rapide', 'Paramétrage', 'Assistance usage'],
+    useCases: ['Complément installation', 'Confort connecté', 'Maintenance', 'Extension système']
+  },
+  'Sécurité incendie': {
+    summary: 'Détection fumée, signalisation et dispositifs d’alerte pour renforcer la sécurité des bâtiments.',
+    defaultDetails: ['Détecteurs fumée', 'Signalisation', 'Centrale alerte', 'Maintenance périodique'],
+    serviceInclusions: ['Repérage zones à risque', 'Pose détecteurs', 'Tests alarme', 'Plan de maintenance'],
+    useCases: ['ERP', 'Bureaux', 'Entrepôts', 'Habitations']
+  }
+}
+
 export const metadata = {
   title: 'Solutions & Équipements | IT Vision — Sécurité Électronique',
   description:
@@ -94,67 +149,103 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
     id: 'camera-ip',
     name: 'Caméras IP professionnelles',
     category: 'Vidéosurveillance',
+    tagline: 'Surveillance HD pour sites professionnels et résidentiels',
     description: 'Solutions de surveillance HD pour bureaux, commerces, entrepôts et résidences.',
+    priceAmount: 85000,
     currency: 'FCFA',
-    features: ['Vision nocturne', 'Accès mobile', 'Installation incluse'],
+    features: ['Vision nocturne', 'Accès mobile', 'Installation incluse', 'Enregistrement sécurisé'],
+    detailPoints: ['Caméra IP HD', 'NVR/DVR selon besoin', 'Application mobile', 'Pose mur/plafond'],
+    serviceInclusions: ['Étude des zones', 'Installation complète', 'Configuration smartphone', 'Maintenance disponible'],
+    useCases: ['Boutiques', 'Bureaux', 'Entrepôts', 'Résidences'],
     stockStatus: 'preorder',
     stockQuantity: 0,
     availabilityLabel: 'Sur commande avec installation',
+    deliveryLabel: 'Installation planifiée après validation',
   },
   {
     id: 'controle-acces',
     name: 'Contrôle d’accès biométrique',
     category: "Contrôle d'accès",
+    tagline: 'Accès sécurisé par badge, empreinte ou code',
     description: 'Gestion sécurisée des accès par empreinte, badge, code ou reconnaissance faciale.',
+    priceAmount: 120000,
     currency: 'FCFA',
-    features: ['Gestion utilisateurs', 'Historique passages', 'Multi-sites'],
+    features: ['Gestion utilisateurs', 'Historique passages', 'Multi-sites', 'Badge ou biométrie'],
+    detailPoints: ['Lecteur biométrique', 'Badges RFID', 'Gâche ou serrure', 'Journal des passages'],
+    serviceInclusions: ['Pose lecteur', 'Création utilisateurs', 'Test accès', 'Formation administrateur'],
+    useCases: ['Bureaux', 'Écoles', 'Immeubles', 'Zones privées'],
     stockStatus: 'preorder',
     stockQuantity: 0,
     availabilityLabel: 'Sur commande avec installation',
+    deliveryLabel: 'Installation sur rendez-vous',
   },
   {
     id: 'alarme-intrusion',
     name: 'Système d’alarme intrusion',
     category: 'Alarme & détection',
+    tagline: 'Protection intrusion avec alertes instantanées',
     description: 'Protection périmétrique et volumétrique avec alertes en temps réel.',
+    priceAmount: 95000,
     currency: 'FCFA',
-    features: ['Détecteurs mouvement', 'Sirène', 'Notifications'],
+    features: ['Détecteurs mouvement', 'Sirène', 'Notifications', 'Capteurs portes'],
+    detailPoints: ['Détecteurs PIR', 'Contacteurs ouverture', 'Sirène', 'Application d’alerte'],
+    serviceInclusions: ['Étude du périmètre', 'Pose capteurs', 'Configuration alertes', 'Tests de déclenchement'],
+    useCases: ['Maisons', 'Dépôts', 'Commerces', 'Bureaux'],
     stockStatus: 'in_stock',
     stockQuantity: 3,
     availabilityLabel: 'Stock limité à Dakar',
+    deliveryLabel: 'Installation rapide selon disponibilité',
   },
   {
     id: 'reseau-poe',
     name: 'Réseau & switches PoE',
     category: 'Réseau & connectivité',
+    tagline: 'Infrastructure fiable pour caméras, Wi‑Fi et postes',
     description: 'Infrastructure réseau fiable pour caméras IP, Wi-Fi, postes et équipements connectés.',
+    priceAmount: 65000,
     currency: 'FCFA',
-    features: ['Switches PoE', 'Câblage structuré', 'Baie réseau'],
+    features: ['Switches PoE', 'Câblage structuré', 'Baie réseau', 'Tests débit'],
+    detailPoints: ['Switch PoE', 'Routeur', 'Câble réseau', 'Organisation baie'],
+    serviceInclusions: ['Audit réseau', 'Tirage câble', 'Configuration', 'Tests de stabilité'],
+    useCases: ['PME', 'Plateaux bureaux', 'Villas', 'Sites caméras'],
     stockStatus: 'preorder',
     stockQuantity: 0,
     availabilityLabel: 'Sur commande',
+    deliveryLabel: 'Déploiement selon taille du site',
   },
   {
     id: 'domotique',
     name: 'Domotique résidentielle',
     category: 'Domotique',
+    tagline: 'Automatisation et pilotage intelligent du bâtiment',
     description: 'Automatisation des éclairages, accès, capteurs et scénarios intelligents.',
+    priceAmount: 75000,
     currency: 'FCFA',
-    features: ['Scénarios', 'Pilotage mobile', 'Capteurs'],
+    features: ['Scénarios', 'Pilotage mobile', 'Capteurs', 'Automatisation'],
+    detailPoints: ['Modules connectés', 'Capteurs', 'Application mobile', 'Scénarios personnalisés'],
+    serviceInclusions: ['Conception scénarios', 'Pose modules', 'Configuration appli', 'Prise en main'],
+    useCases: ['Villas', 'Appartements', 'Bureaux premium', 'Locations'],
     stockStatus: 'preorder',
     stockQuantity: 0,
     availabilityLabel: 'Sur commande',
+    deliveryLabel: 'Étude préalable recommandée',
   },
   {
     id: 'detection-incendie',
     name: 'Détection incendie',
     category: 'Sécurité incendie',
+    tagline: 'Alerte fumée et sécurité bâtiment',
     description: 'Détecteurs fumée, signalisation et dispositifs d’alerte pour sites professionnels.',
+    priceAmount: 55000,
     currency: 'FCFA',
-    features: ['Détection fumée', 'Signalisation', 'Maintenance'],
+    features: ['Détection fumée', 'Signalisation', 'Maintenance', 'Tests périodiques'],
+    detailPoints: ['Détecteurs fumée', 'Signalisation sonore', 'Centrale selon besoin', 'Plan maintenance'],
+    serviceInclusions: ['Repérage zones', 'Pose détecteurs', 'Tests alarme', 'Maintenance'],
+    useCases: ['Bureaux', 'Entrepôts', 'Commerces', 'Habitations'],
     stockStatus: 'preorder',
     stockQuantity: 0,
     availabilityLabel: 'Sur commande',
+    deliveryLabel: 'Déploiement après diagnostic',
   },
 ]
 
@@ -171,6 +262,10 @@ function escapeRegex(value: string): string {
 
 function stripHtml(value: string): string {
   return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function uniqueList(values: Array<string | undefined | null>, limit: number): string[] {
+  return Array.from(new Set(values.map((value) => value?.trim()).filter(Boolean) as string[])).slice(0, limit)
 }
 
 function resolveCorporateCategory(product: any): string | null {
@@ -195,6 +290,13 @@ function getAvailabilityLabel(status: CorporateProduct['stockStatus'], quantity:
   return leadTimeDays ? `Sur commande · ${leadTimeDays} jours` : 'Sur commande'
 }
 
+function getDeliveryLabel(status: CorporateProduct['stockStatus'], leadTimeDays?: number, deliveryDays?: number): string {
+  if (status === 'in_stock') return deliveryDays ? `Pose possible sous ${deliveryDays} jours` : 'Pose rapide selon planning'
+  if (status === 'out_of_stock') return 'Délai à confirmer'
+  const days = leadTimeDays || deliveryDays
+  return days ? `Approvisionnement estimé ${days} jours` : 'Délai confirmé au devis'
+}
+
 async function getCorporateProducts(): Promise<CorporateProduct[]> {
   try {
     await connectDB()
@@ -209,7 +311,7 @@ async function getCorporateProducts(): Promise<CorporateProduct[]> {
         { tags: { $in: termRegexes } }
       ]
     })
-      .select('name category description tagline tags image price b2bPrice currency features stockStatus stockQuantity leadTimeDays isFeatured createdAt')
+      .select('name category description tagline tags image price b2bPrice currency features stockStatus stockQuantity leadTimeDays deliveryDays availabilityNote isFeatured createdAt')
       .sort({ isFeatured: -1, category: 1, name: 1, createdAt: -1 })
       .limit(80)
       .lean()
@@ -220,6 +322,10 @@ async function getCorporateProducts(): Promise<CorporateProduct[]> {
         if (!category) return null
         const stockStatus = ['in_stock', 'preorder', 'out_of_stock'].includes(p.stockStatus) ? p.stockStatus : 'preorder'
         const stockQuantity = typeof p.stockQuantity === 'number' ? p.stockQuantity : 0
+        const categoryDetails = CATEGORY_DETAILS[category]
+        const cleanDescription = stripHtml(p.description || p.tagline || categoryDetails?.summary || '')
+        const dbFeatures = Array.isArray(p.features) ? p.features.filter(Boolean) : []
+        const tags = Array.isArray(p.tags) ? p.tags.filter(Boolean) : []
         const priceAmount = typeof p.b2bPrice === 'number' && p.b2bPrice > 0
           ? p.b2bPrice
           : typeof p.price === 'number'
@@ -230,14 +336,19 @@ async function getCorporateProducts(): Promise<CorporateProduct[]> {
           id: String(p._id),
           name: p.name || 'Produit',
           category,
-          description: stripHtml(p.description || p.tagline || ''),
+          tagline: p.tagline || categoryDetails?.summary,
+          description: cleanDescription,
           image: p.image || undefined,
           priceAmount,
           currency: p.currency || 'FCFA',
-          features: Array.isArray(p.features) ? p.features.filter(Boolean).slice(0, 3) : [],
+          features: uniqueList([...dbFeatures, ...(categoryDetails?.defaultDetails || [])], 4),
+          detailPoints: uniqueList([...dbFeatures, ...tags, ...(categoryDetails?.defaultDetails || [])], 6),
+          serviceInclusions: categoryDetails?.serviceInclusions || ['Conseil technique', 'Installation', 'Configuration', 'Assistance'],
+          useCases: categoryDetails?.useCases || ['Entreprise', 'Résidentiel', 'Commerce'],
           stockStatus,
           stockQuantity,
           availabilityLabel: getAvailabilityLabel(stockStatus, stockQuantity, p.leadTimeDays),
+          deliveryLabel: getDeliveryLabel(stockStatus, p.leadTimeDays, p.deliveryDays),
         } as CorporateProduct
       })
       .filter((product): product is CorporateProduct => Boolean(product))
@@ -375,11 +486,14 @@ export default async function CorporateProduitsPage() {
                         </div>
                       </div>
 
-                      <div className="flex min-h-[260px] flex-col p-5">
+                      <div className="flex min-h-[420px] flex-col p-5">
                         <div className="flex-1">
                           <h3 className="text-base font-extrabold text-gray-900 line-clamp-2 dark:text-white">{p.name}</h3>
-                          <p className="mt-2 text-sm leading-6 text-gray-500 line-clamp-3 dark:text-gray-400">
-                            {p.description || 'Équipement professionnel sélectionné pour les installations IT Vision.'}
+                          {p.tagline && (
+                            <p className="mt-1 text-sm font-semibold text-green-700 dark:text-green-300">{p.tagline}</p>
+                          )}
+                          <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                            {p.description || 'Équipement professionnel sélectionné pour les installations IT Vision avec accompagnement technique complet.'}
                           </p>
 
                           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -397,15 +511,58 @@ export default async function CorporateProduitsPage() {
                             </div>
                           </div>
 
-                          {p.features.length > 0 && (
-                            <ul className="mt-4 space-y-2">
-                              {p.features.map((f, i) => (
-                                <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                  <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
-                                  <span>{f}</span>
-                                </li>
-                              ))}
-                            </ul>
+                          <div className="mt-3 grid gap-2 text-xs text-gray-600 dark:text-gray-300 sm:grid-cols-2">
+                            <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+                              <Clock3 className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                              <span>{p.deliveryLabel}</span>
+                            </div>
+                            <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+                              <MapPin className="h-4 w-4 flex-shrink-0 text-green-500" />
+                              <span>Dakar et intervention sur site</span>
+                            </div>
+                          </div>
+
+                          {p.detailPoints.length > 0 && (
+                            <div className="mt-4">
+                              <div className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Détails produit</div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {p.detailPoints.map((detail) => (
+                                  <span key={detail} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                    {detail}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {p.useCases.length > 0 && (
+                            <div className="mt-4">
+                              <div className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Adapté pour</div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {p.useCases.map((useCase) => (
+                                  <span key={useCase} className="rounded-full border border-green-100 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300">
+                                    {useCase}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {p.serviceInclusions.length > 0 && (
+                            <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                              <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                <Wrench className="h-4 w-4 text-green-600" />
+                                Prestation IT Vision incluse
+                              </div>
+                              <ul className="grid gap-2 sm:grid-cols-2">
+                                {p.serviceInclusions.map((service) => (
+                                  <li key={service} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                    <CheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
+                                    <span>{service}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           )}
                         </div>
 
