@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/db'
 import ProductValidated from '@/lib/models/Product.validated'
 import {
   Camera, Shield, Lock, Wifi, Bell, Cpu, Sparkles,
-  Phone, Mail, CheckCircle, ArrowRight, PackageCheck,
+  Phone, Mail, CheckCircle, ArrowRight, PackageCheck, MessageCircle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -74,6 +74,9 @@ const CATEGORIES: Array<{ label: string; icon: LucideIcon; aliases: string[]; ke
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.label)
 const CATEGORY_ICONS = Object.fromEntries(CATEGORIES.map((c) => [c.label, c.icon])) as Record<string, LucideIcon>
 const SEARCH_TERMS = Array.from(new Set(CATEGORIES.flatMap((c) => [...c.aliases, ...c.keywords])))
+
+const WA_NUMBER = '221781234567'
+const WA_BASE = `https://wa.me/${WA_NUMBER}?text=`
 
 export const metadata = {
   title: 'Solutions & Équipements | IT Vision — Sécurité Électronique',
@@ -254,46 +257,42 @@ export default async function CorporateProduitsPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
 
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-white px-4 py-14 shadow-sm dark:bg-slate-900">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-green-300 blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-blue-300 blur-3xl" />
-        </div>
-        <div className="relative mx-auto max-w-4xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-900/30 dark:text-green-300">
-            <Shield className="h-3 w-3" />
-            Catalogue corporate IT Vision
-          </span>
-          <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-            Équipements &amp; solutions sécurité
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-base text-gray-500 dark:text-gray-400">
-            Vidéosurveillance, contrôle d&apos;accès, alarmes, domotique, réseau — des équipements
-            sélectionnés pour les projets IT Vision avec accompagnement technique complet.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+      {/* ── Header compact ── */}
+      <header className="border-b border-gray-100 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-extrabold text-gray-900 dark:text-white">Catalogue IT Vision</h1>
+              <p className="text-xs text-gray-400">{products.length} équipements · Dakar &amp; sur commande</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
             <a
-              href="/contact"
-              className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors"
+              href={`${WA_BASE}${encodeURIComponent('Bonjour IT Vision, je souhaite des informations sur vos équipements.')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-sm font-bold text-white hover:bg-[#1ebe5d] transition-colors"
             >
-              <Phone className="h-4 w-4" />
-              Demander un devis
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
             </a>
             <a
-              href="mailto:contact@itvision.sn"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 transition-colors"
+              href="/contact"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 transition-colors"
             >
               <Mail className="h-4 w-4" />
-              contact@itvision.sn
+              Devis entreprise
             </a>
           </div>
         </div>
-      </section>
+      </header>
 
       {/* ── Nav catégories ── */}
-      <nav className="sticky top-0 z-20 overflow-x-auto border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="mx-auto flex max-w-7xl gap-2">
+      <nav className="sticky top-0 z-20 overflow-x-auto border-b border-gray-100 bg-white/95 px-4 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+        <div className="mx-auto flex max-w-7xl gap-1.5">
           {allCategories.map((cat) => {
             const Icon = CATEGORY_ICONS[cat] ?? Shield
             const count = grouped.get(cat)?.length ?? 0
@@ -301,11 +300,11 @@ export default async function CorporateProduitsPage() {
               <a
                 key={cat}
                 href={`#cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
-                className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-green-300 hover:bg-green-50 hover:text-green-700 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300"
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-green-300 hover:bg-green-50 hover:text-green-700 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300"
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3 w-3" />
                 {cat}
-                <span className="ml-0.5 rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold text-gray-600 dark:bg-slate-700 dark:text-gray-300">
+                <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold text-gray-500 dark:bg-slate-700 dark:text-gray-400">
                   {count}
                 </span>
               </a>
@@ -315,114 +314,114 @@ export default async function CorporateProduitsPage() {
       </nav>
 
       {/* ── Produits par catégorie ── */}
-      <main className="mx-auto max-w-7xl space-y-14 px-4 py-10">
+      <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
         {allCategories.map((cat) => {
           const items = grouped.get(cat) ?? []
           const Icon = CATEGORY_ICONS[cat] ?? Shield
           const anchorId = `cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
           return (
-            <section key={cat} id={anchorId} className="scroll-mt-20">
+            <section key={cat} id={anchorId} className="scroll-mt-16">
               {/* En-tête catégorie */}
-              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-green-50 ring-1 ring-green-100 dark:bg-green-900/20 dark:ring-green-900/40">
-                    <Icon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{cat}</h2>
-                    <p className="text-xs text-gray-400">{items.length} équipement{items.length > 1 ? 's' : ''}</p>
-                  </div>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">{cat}</h2>
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-500 dark:bg-slate-800 dark:text-gray-400">
+                    {items.length}
+                  </span>
                 </div>
                 <a
                   href={`/contact?categorie=${encodeURIComponent(cat)}`}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 hover:text-green-800 dark:text-green-300"
+                  className="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
                 >
-                  Devis pour cette catégorie
-                  <ArrowRight className="h-4 w-4" />
+                  Devis lot →
                 </a>
               </div>
 
-              {/* Grille produits */}
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {/* Grille compacte */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {items.map((p) => {
                   const inStock = p.stockStatus === 'in_stock'
                   const outOfStock = p.stockStatus === 'out_of_stock'
+                  const waText = encodeURIComponent(`Bonjour IT Vision, je suis intéressé par : ${p.name}`)
                   return (
                     <article
                       key={p.id}
-                      className="flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                      className="group flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
                     >
                       {/* Image */}
-                      <div className="relative h-44 bg-slate-100 dark:bg-slate-800">
+                      <a href={`/corporate-produits/${p.id}`} className="relative block h-36 flex-shrink-0 bg-slate-100 dark:bg-slate-800">
                         {p.image ? (
                           <Image
                             src={p.image}
                             alt={p.name}
                             fill
-                            className="object-cover"
-                            sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center">
-                            <Icon className="h-14 w-14 text-slate-300 dark:text-slate-700" />
+                            <Icon className="h-10 w-10 text-slate-300 dark:text-slate-700" />
                           </div>
                         )}
-                        {/* Badge stock */}
-                        <span className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        <span className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                           inStock
                             ? 'bg-emerald-100 text-emerald-700'
                             : outOfStock
                               ? 'bg-red-100 text-red-700'
                               : 'bg-blue-100 text-blue-700'
                         }`}>
-                          <PackageCheck className="h-3 w-3" />
-                          {inStock ? 'En stock' : outOfStock ? 'Rupture' : 'Sur commande'}
+                          <PackageCheck className="h-2.5 w-2.5" />
+                          {inStock ? 'En stock' : outOfStock ? 'Rupture' : 'Commande'}
                         </span>
-                      </div>
+                      </a>
 
-                      {/* Corps */}
-                      <div className="flex flex-1 flex-col p-5">
-                        <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">{p.name}</h3>
-                        {p.description ? (
-                          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{p.description}</p>
-                        ) : null}
-
-                        {/* Prix + disponibilité */}
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/60">
-                            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Prix</div>
-                            <div className="mt-0.5 text-sm font-extrabold text-green-600 dark:text-green-400">
-                              {p.priceAmount !== undefined
-                                ? `${Math.round(p.priceAmount).toLocaleString('fr-FR')} ${p.currency}`
-                                : 'Sur devis'}
-                            </div>
-                          </div>
-                          <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/60">
-                            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Dispo</div>
-                            <div className="mt-0.5 text-xs font-bold text-gray-800 dark:text-white">{p.availabilityLabel}</div>
+                      {/* Info */}
+                      <div className="flex flex-1 flex-col gap-3 p-3">
+                        <div>
+                          <a
+                            href={`/corporate-produits/${p.id}`}
+                            className="block text-sm font-bold leading-snug text-gray-900 hover:text-green-700 dark:text-white dark:hover:text-green-400 line-clamp-2"
+                          >
+                            {p.name}
+                          </a>
+                          {/* Prix */}
+                          <div className="mt-1 text-sm font-extrabold text-green-600 dark:text-green-400">
+                            {p.priceAmount !== undefined
+                              ? `${Math.round(p.priceAmount).toLocaleString('fr-FR')} ${p.currency}`
+                              : <span className="text-gray-400 font-semibold text-xs">Prix sur devis</span>}
                           </div>
                         </div>
 
-                        {/* Features */}
+                        {/* Feature pills */}
                         {p.features.length > 0 && (
-                          <ul className="mt-4 space-y-1.5">
-                            {p.features.map((f) => (
-                              <li key={f} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                                <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-500" />
+                          <div className="flex flex-wrap gap-1">
+                            {p.features.slice(0, 3).map((f) => (
+                              <span key={f} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                <CheckCircle className="h-2.5 w-2.5 text-green-500" />
                                 {f}
-                              </li>
+                              </span>
                             ))}
-                          </ul>
+                          </div>
                         )}
 
-                        {/* CTA */}
-                        <div className="mt-5">
+                        {/* CTAs */}
+                        <div className="mt-auto flex gap-1.5">
+                          <a
+                            href={`${WA_BASE}${waText}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] py-2 text-xs font-bold text-white hover:bg-[#1ebe5d] transition-colors"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            Acheter
+                          </a>
                           <a
                             href={`/contact?produit=${encodeURIComponent(p.name)}`}
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors"
+                            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800 transition-colors"
                           >
-                            Demander un devis
-                            <ArrowRight className="h-4 w-4" />
+                            <Phone className="h-3.5 w-3.5" />
+                            Devis
                           </a>
                         </div>
                       </div>
@@ -436,25 +435,28 @@ export default async function CorporateProduitsPage() {
       </main>
 
       {/* ── CTA final ── */}
-      <section className="px-4 py-12">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-gradient-to-r from-green-600 to-blue-600 p-8 text-center text-white shadow-xl">
-          <h2 className="text-xl font-bold sm:text-2xl">Un projet à sécuriser ?</h2>
-          <p className="mt-2 text-sm text-white/85">
+      <section className="px-4 py-10">
+        <div className="mx-auto max-w-3xl rounded-2xl bg-gradient-to-r from-green-600 to-blue-600 p-7 text-center text-white shadow-lg">
+          <h2 className="text-lg font-bold sm:text-xl">Un projet à sécuriser ?</h2>
+          <p className="mt-1.5 text-sm text-white/80">
             Nos équipes vous accompagnent de l&apos;étude à l&apos;installation, maintenance incluse.
           </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href={`${WA_BASE}${encodeURIComponent('Bonjour IT Vision, je souhaite discuter d\'un projet de sécurisation.')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1ebe5d] transition-colors"
+            >
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
+            </a>
             <a
               href="/contact"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-green-700 hover:bg-green-50 transition-colors"
             >
-              Demander un devis
+              Devis entreprise
               <ArrowRight className="h-4 w-4" />
-            </a>
-            <a
-              href="/services"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/30 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
-            >
-              Nos services
             </a>
           </div>
         </div>
