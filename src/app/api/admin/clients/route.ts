@@ -213,8 +213,14 @@ export async function POST(request: NextRequest) {
         )
       }
     } catch (err) {
+      const syncWarning = err instanceof Error ? err.message : 'Synchronisation compte portail échouée'
       console.error('Erreur lors de la synchronisation du compte utilisateur client:', err)
-      // On ne bloque pas la création client si la synchro utilisateur échoue
+      return NextResponse.json({
+        success: true,
+        client,
+        message: 'Client créé avec succès',
+        warning: `Client enregistré, mais la création du compte portail a échoué : ${syncWarning}`
+      })
     }
 
     return NextResponse.json({ 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/Toaster'
 import { 
   FileText, Download, Save, Plus, Trash2, Eye, Send, 
   Building, User, Phone, Mail, MapPin, Calendar, Hash,
@@ -53,6 +54,7 @@ interface Quote {
   clientRespondedAt?: string
   clientCounterAmount?: number
   clientComments?: Array<{ authorId: string; authorRole: string; message: string; createdAt: string; readByOther: boolean }>
+  clientCompanyId?: string
 }
 
 interface Product {
@@ -67,6 +69,7 @@ interface Product {
 }
 
 export default function AdminQuoteGenerator() {
+  const { addToast } = useToast()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -76,6 +79,10 @@ export default function AdminQuoteGenerator() {
   const [isSaving, setIsSaving] = useState(false)
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
   const [convertingId, setConvertingId] = useState<string | null>(null)
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<any[]>([])
+  const [clientSearching, setClientSearching] = useState(false)
+  const [showClientDrop, setShowClientDrop] = useState(false)
   const router = useRouter()
 
   const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
@@ -122,8 +129,42 @@ export default function AdminQuoteGenerator() {
       clientResponse: q?.clientResponse,
       clientRespondedAt: q?.clientRespondedAt,
       clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
-      clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined
+      clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined,
+      clientCompanyId: q?.clientCompanyId ? String(q.clientCompanyId) : undefined,
     }
+  }
+
+  const searchClients = async (q: string) => {
+    if (!q.trim()) { setClientResults([]); setShowClientDrop(false); return }
+    setClientSearching(true)
+    try {
+      const res = await fetch(`/api/admin/clients?q=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setClientResults(data.clients || [])
+        setShowClientDrop(true)
+      }
+    } catch { setClientResults([]) }
+    finally { setClientSearching(false) }
+  }
+
+  const selectClient = (c: any) => {
+    if (!currentQuote) return
+    setCurrentQuote({
+      ...currentQuote,
+      clientCompanyId: String(c._id || c.id || ''),
+      client: {
+        name: c.company || c.name || '',
+        address: c.address || '',
+        phone: c.phone || '',
+        email: c.email || '',
+        rcn: c.rcn,
+        ninea: c.ninea,
+      }
+    })
+    setClientQuery(c.company || c.name || '')
+    setShowClientDrop(false)
+    setClientResults([])
   }
 
   useEffect(() => {
@@ -192,6 +233,7 @@ export default function AdminQuoteGenerator() {
       status: 'draft'
     }
     setCurrentQuote(newQuote)
+    setClientQuery('')
     setActiveTab('create')
   }
 
@@ -363,7 +405,7 @@ export default function AdminQuoteGenerator() {
         // Sauvegarder localement aussi
         localStorage.setItem('itvision-admin-quotes', JSON.stringify(updatedQuotes))
         
-        alert('Devis sauvegardé avec succès !')
+        addToast('Devis sauvegardé avec succès', 'success')
         setActiveTab('list')
         setCurrentQuote(null)
       } else {
@@ -384,7 +426,7 @@ export default function AdminQuoteGenerator() {
       setQuotes(updatedQuotes)
       localStorage.setItem('itvision-admin-quotes', JSON.stringify(updatedQuotes))
       
-      alert('Devis sauvegardé localement')
+      addToast('Devis sauvegardé localement (hors ligne)', 'warning')
       setActiveTab('list')
       setCurrentQuote(null)
     } finally {
@@ -413,12 +455,13 @@ export default function AdminQuoteGenerator() {
       }
     } catch (error) {
       console.error('Erreur génération PDF:', error)
-      alert('Erreur lors de la génération du PDF')
+      addToast('Erreur lors de la génération du PDF', 'error')
     }
   }
 
   const editQuote = (quote: Quote) => {
     setCurrentQuote(quote)
+    setClientQuery(quote.client?.name || '')
     setActiveTab('create')
   }
 
@@ -436,7 +479,7 @@ export default function AdminQuoteGenerator() {
 
   const sendQuoteByEmail = async (quote: Quote) => {
     if (!quote?.id || !isObjectId(quote.id)) {
-      alert('Veuillez d\'abord sauvegarder le devis avant envoi.')
+      addToast('Veuillez d\'abord sauvegarder le devis avant envoi', 'warning')
       return
     }
     try {
@@ -452,9 +495,9 @@ export default function AdminQuoteGenerator() {
         throw new Error(data?.error || 'Envoi impossible')
       }
       await loadQuotes()
-      alert('Devis envoyé par email')
+      addToast('Devis envoyé par email', 'success')
     } catch (e: any) {
-      alert(e?.message || 'Erreur lors de l\'envoi')
+      addToast(e?.message || 'Erreur lors de l\'envoi du devis', 'error')
     } finally {
       setSendingQuoteId(null)
     }
@@ -503,15 +546,15 @@ export default function AdminQuoteGenerator() {
       })
 
       if (res.ok) {
-        alert('Facture créée avec succès !')
+        addToast('Facture créée avec succès', 'success')
         router.push('/admin/factures')
       } else {
         const error = await res.json()
-        alert('Erreur lors de la conversion: ' + (error.error || 'Erreur inconnue'))
+        addToast('Erreur lors de la conversion : ' + (error.error || 'Erreur inconnue'), 'error')
       }
     } catch (e) {
       console.error(e)
-      alert('Erreur lors de la conversion')
+      addToast('Erreur lors de la conversion en facture', 'error')
     } finally {
       setConvertingId(null)
     }
@@ -759,6 +802,48 @@ export default function AdminQuoteGenerator() {
                   <option value="accepted">Accepté</option>
                   <option value="rejected">Rejeté</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Recherche client portail */}
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-blue-800 flex items-center gap-2 mb-3">
+                <Search className="h-4 w-4" />
+                Lier un client portail (optionnel)
+              </h3>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={clientQuery}
+                  onChange={(e) => { setClientQuery(e.target.value); searchClients(e.target.value) }}
+                  onBlur={() => setTimeout(() => setShowClientDrop(false), 200)}
+                  placeholder="Rechercher : TEYLIOMS, Coralia…"
+                  className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 bg-white"
+                />
+                {clientSearching && <span className="absolute right-3 top-2.5 text-xs text-gray-400">…</span>}
+                {currentQuote?.clientCompanyId && !showClientDrop && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-blue-700">
+                    <CheckCircle className="h-3.5 w-3.5 text-blue-600" />
+                    Lié au portail <span className="font-mono text-[10px] text-gray-400 ml-1">{currentQuote.clientCompanyId.slice(-6)}</span>
+                    <button onClick={() => setCurrentQuote({ ...currentQuote, clientCompanyId: undefined })} className="ml-auto text-gray-400 hover:text-red-500"><X className="h-3 w-3" /></button>
+                  </div>
+                )}
+                {showClientDrop && clientResults.length > 0 && (
+                  <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    {clientResults.map((c) => (
+                      <li key={String(c._id || c.id)}
+                        onMouseDown={() => selectClient(c)}
+                        className="flex items-start gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer">
+                        <Building className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{c.company || c.name}</div>
+                          <div className="text-xs text-gray-400 truncate">{c.email} · {c.phone}</div>
+                        </div>
+                        {c.isActive && <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full flex-shrink-0">Actif</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
