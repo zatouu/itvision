@@ -1,13 +1,20 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import {
   ShoppingBag, Package, Users, TrendingDown, ArrowRight,
   Shield, Truck, Clock, Headphones, Sparkles, Star,
   Camera, Lock, Wifi, Bell, Cpu
 } from 'lucide-react'
+import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
 
 export default function MarketHomePage() {
+  const router = useRouter()
+  const [showImageSearch, setShowImageSearch] = useState(false)
+  const [imageSearchIds, setImageSearchIds] = useState<string[]>([])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Hero */}
@@ -42,7 +49,20 @@ export default function MarketHomePage() {
               <Users className="h-4 w-4" />
               Achats groupés
             </Link>
+            <ImageSearchButton onClick={() => setShowImageSearch(true)} />
           </div>
+          {imageSearchIds.length > 0 && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg text-xs text-green-700 dark:text-green-300">
+              <Sparkles className="h-3 w-3" />
+              {imageSearchIds.length} produit similaire trouvé
+              <button
+                onClick={() => setImageSearchIds([])}
+                className="ml-1 text-green-600 dark:text-green-400 hover:text-green-800"
+              >
+                Effacer
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -201,6 +221,20 @@ export default function MarketHomePage() {
           </div>
         </div>
       </section>
+
+      {/* Recherche visuelle par image */}
+      <ImageSearchModal
+        isOpen={showImageSearch}
+        onClose={() => setShowImageSearch(false)}
+        onResultsFound={(results) => {
+          const ids = results.map((r) => r.id)
+          if (ids.length > 0) {
+            setImageSearchIds(ids)
+            router.push(`/produits?imageIds=${ids.join(',')}`)
+          }
+          setShowImageSearch(false)
+        }}
+      />
     </div>
   )
 }

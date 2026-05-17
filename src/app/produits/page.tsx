@@ -323,6 +323,11 @@ export default function ProduitsPage() {
     const pageParam = parseIntSafe(urlParams.get('page'))
     const nextPage = pageParam && pageParam > 0 ? pageParam : 1
 
+    const imageIds = urlParams.get('imageIds')
+    const nextImageSearchResults = imageIds
+      ? imageIds.split(',').map((s) => s.trim()).filter(Boolean)
+      : []
+
     isRestoringRef.current = true
     setSearch(q)
     setDebouncedSearch(q)
@@ -337,6 +342,7 @@ export default function ProduitsPage() {
     setDeliveryRange(nextDeliveryRange)
     if (nextViewMode) setViewMode(nextViewMode)
     setCurrentPage(nextPage)
+    setImageSearchResults(nextImageSearchResults)
     setTimeout(() => {
       isRestoringRef.current = false
     }, 0)
@@ -394,6 +400,7 @@ export default function ProduitsPage() {
     }
 
     if (currentPage > 1) params.set('page', String(currentPage))
+    if (imageSearchResults.length > 0) params.set('imageIds', imageSearchResults.join(','))
 
     const basePath = window.location.pathname
     const hash = window.location.hash || ''
@@ -417,7 +424,8 @@ export default function ProduitsPage() {
       sortBy,
       viewMode,
       priceRange ? `${priceRange.min}-${priceRange.max}` : '',
-      deliveryRange ? `${deliveryRange.min}-${deliveryRange.max}` : ''
+      deliveryRange ? `${deliveryRange.min}-${deliveryRange.max}` : '',
+      imageSearchResults.join(',')
     ].join('|')
 
     const shouldPush = urlSyncRef.current.filterKey === filterKey && urlSyncRef.current.page !== currentPage
@@ -441,7 +449,8 @@ export default function ProduitsPage() {
     priceRange,
     deliveryRange,
     viewMode,
-    currentPage
+    currentPage,
+    imageSearchResults
   ])
 
   useEffect(() => {
@@ -1447,7 +1456,14 @@ export default function ProduitsPage() {
                         {imageSearchResults.length} produit{imageSearchResults.length > 1 ? 's' : ''} similaire{imageSearchResults.length > 1 ? 's' : ''}
                       </span>
                       <button
-                        onClick={() => setImageSearchResults([])}
+                        onClick={() => {
+                          setImageSearchResults([])
+                          if (typeof window !== 'undefined') {
+                            const url = new URL(window.location.href)
+                            url.searchParams.delete('imageIds')
+                            window.history.replaceState({}, '', url.toString())
+                          }
+                        }}
                         className="text-xs text-green-600 hover:text-green-800 font-medium"
                       >
                         Effacer
