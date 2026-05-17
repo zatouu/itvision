@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toaster'
 import { 
-  FileText, Download, Save, Plus, Trash2, Eye, Send, 
+  FileText, Download, Save, Plus, Trash2, Eye, Send,
   Building, User, Phone, Mail, MapPin, Calendar, Hash,
   Package, DollarSign, Calculator, Edit3, X, Search, CheckCircle,
-  Receipt
+  Receipt, Upload, FileUp
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -80,6 +80,8 @@ export default function AdminQuoteGenerator() {
   const [isSaving, setIsSaving] = useState(false)
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
   const [convertingId, setConvertingId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [clientQuery, setClientQuery] = useState('')
   const [clientResults, setClientResults] = useState<any[]>([])
   const [clientSearching, setClientSearching] = useState(false)
@@ -209,6 +211,68 @@ export default function AdminQuoteGenerator() {
       // Fallback localStorage
       const stored = localStorage.getItem('itvision-admin-quotes')
       if (stored) setQuotes(JSON.parse(stored))
+    }
+  }
+
+  const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/admin/quotes/extract', {
+        method: 'POST',
+        body: form,
+        credentials: 'include'
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Échec de l\'extraction')
+      }
+      const data = json.data
+      const importedQuote: Quote = {
+        id: `TEMP-${Date.now()}`,
+        numero: data.numero || `2026-${String(quotes.length + 1).padStart(3, '0')}`,
+        title: data.title || '',
+        cci: data.cci || '',
+        companyAddress: data.companyAddress || '11 Cité Lessine, Nord Foire',
+        date: data.date || new Date().toISOString().split('T')[0],
+        client: {
+          name: data.client?.name || '',
+          address: data.client?.address || '',
+          phone: data.client?.phone || '',
+          email: data.client?.email || '',
+          rcn: data.client?.rcn,
+          ninea: data.client?.ninea
+        },
+        products: (data.products || []).map((p: any, idx: number) => ({
+          id: `item-${Date.now()}-${idx}`,
+          description: p.description || '',
+          quantity: Number(p.quantity) || 1,
+          unitPrice: Number(p.unitPrice) || 0,
+          taxable: true,
+          isLabor: Boolean(p.isLabor),
+          total: Number(p.total) || 0
+        })),
+        subtotal: Number(data.subtotal) || 0,
+        brsAmount: Number(data.brsAmount) || 0,
+        taxAmount: Number(data.taxAmount) || 0,
+        other: Number(data.other) || 0,
+        total: Number(data.total) || 0,
+        status: 'draft',
+        notes: data.notes || '',
+        clientCompanyId: undefined
+      }
+      setCurrentQuote(importedQuote)
+      setClientQuery(importedQuote.client.name)
+      setActiveTab('create')
+      addToast(`Devis importé : ${importedQuote.products.length} article(s)`, 'success')
+    } catch (err: any) {
+      addToast(err?.message || 'Erreur lors de l\'import', 'error')
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -624,6 +688,21 @@ export default function AdminQuoteGenerator() {
           >
             <Plus className="h-5 w-5" />
             Nouveau Devis
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.xlsx,.xls,.csv"
+            onChange={importFromFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2 disabled:opacity-60"
+          >
+            <Upload className="h-5 w-5" />
+            {importing ? 'Analyse…' : 'Importer PDF / Excel'}
           </button>
         </div>
       </div>
