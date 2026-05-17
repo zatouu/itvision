@@ -19,6 +19,7 @@ interface QuoteProduct {
   unitPrice: number
   taxable: boolean
   total: number
+  isLabor?: boolean
 }
 
 interface QuoteClient {
@@ -112,6 +113,7 @@ export default function AdminQuoteGenerator() {
             quantity: Number(p?.quantity || 0),
             unitPrice: Number(p?.unitPrice || 0),
             taxable: Boolean(p?.taxable),
+            isLabor: Boolean(p?.isLabor),
             total: Number(p?.total || 0)
           }))
         : [],
@@ -249,6 +251,7 @@ export default function AdminQuoteGenerator() {
       quantity: 1,
       unitPrice: effectivePrice,
       taxable: true,
+      isLabor: false,
       total: effectivePrice
     }
 
@@ -262,6 +265,22 @@ export default function AdminQuoteGenerator() {
     setSearchProduct('')
   }
 
+  const LABOR_KEYWORDS = [
+    'installation', 'main-d\u0153uvre', 'main-d\u2019\u0153uvre', 'main d\u0153uvre', 'main d\u2019\u0153uvre',
+    'main-doeuvre', 'main-d\u2019oeuvre', 'main doeuvre', 'main d\u2019oeuvre',
+    'pose', 'c\u00e2blage', 'cablage', 'montage', 'configuration', 'mise en place',
+    'raccordement', 'maintenance', 'd\u00e9pannage', 'depannage', 'intervention',
+    'forfait', 'service', 'prestation', 'heure', 'heures', 'journ\u00e9e', 'jour',
+    'technicien', 'ing\u00e9nieur', '\u00e9tude', 'etude', 'visite', 'd\u00e9placement',
+    'deplacement', 'd\u00e9montage', 'demontage', 'r\u00e9glage', 'reglage',
+    'programmation', 'formation', 'support', 'assistance', 'audit', 'conseil'
+  ]
+
+  const detectLabor = (text: string): boolean => {
+    const t = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    return LABOR_KEYWORDS.some(k => t.includes(k))
+  }
+
   const addCustomProduct = () => {
     if (!currentQuote) return
 
@@ -271,6 +290,7 @@ export default function AdminQuoteGenerator() {
       quantity: 1,
       unitPrice: 0,
       taxable: true,
+      isLabor: true,
       total: 0
     }
 
@@ -290,6 +310,9 @@ export default function AdminQuoteGenerator() {
         const updated = { ...p, [field]: value }
         if (field === 'quantity' || field === 'unitPrice') {
           updated.total = updated.quantity * updated.unitPrice
+        }
+        if (field === 'description' && typeof value === 'string') {
+          updated.isLabor = detectLabor(value)
         }
         return updated
       }
@@ -319,8 +342,9 @@ export default function AdminQuoteGenerator() {
     // Sous-total
     const subtotal = quote.products.reduce((sum, p) => sum + p.total, 0)
 
-    // BRS (Bordereau de Réduction Sénégalaise) = 5% de déduction
-    const brsAmount = subtotal * 0.05
+    // BRS (Bordereau de Réduction Sénégalaise) = 5% sur la main-d'œuvre uniquement
+    const laborTotal = quote.products.filter(p => p.isLabor).reduce((sum, p) => sum + p.total, 0)
+    const brsAmount = laborTotal * 0.05
 
     // Sous-total après BRS
     const subtotalApresBRS = subtotal - brsAmount
@@ -974,6 +998,7 @@ export default function AdminQuoteGenerator() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Description</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Prix unitaire</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase">Imposable?</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase">Main-d'œuvre?</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase">Montant</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase"></th>
                       </tr>
@@ -1019,6 +1044,14 @@ export default function AdminQuoteGenerator() {
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={product.isLabor}
+                              onChange={(e) => updateProduct(product.id, 'isLabor', e.target.checked)}
+                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                          </td>
                           <td className="px-4 py-3 text-right font-medium text-gray-900">
                             {product.total.toLocaleString('fr-FR')} CFA
                           </td>
@@ -1051,7 +1084,7 @@ export default function AdminQuoteGenerator() {
                 
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 flex items-center gap-2">
-                    BRS
+                    BRS (main-d'œuvre)
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">5.00%</span>
                   </span>
                   <span className="font-medium text-orange-700">
