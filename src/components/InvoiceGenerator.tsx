@@ -112,6 +112,7 @@ interface Invoice {
     name: string
     phase: string
   }
+  clientCompanyId?: string
 }
 
 interface QuoteReference {
@@ -135,6 +136,11 @@ export default function InvoiceGenerator() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
+  const [sendModalOpen, setSendModalOpen] = useState(false)
+  const [sendModalInvoice, setSendModalInvoice] = useState<Invoice | null>(null)
+  const [sendContacts, setSendContacts] = useState<Array<{ id: string; nom: string; email: string; isPrimary: boolean }>>([])
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
   const [importing, setImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -426,15 +432,45 @@ export default function InvoiceGenerator() {
     }
   }
 
-  const sendInvoiceByEmail = async (invoice: Invoice) => {
+  const openSendModal = async (invoice: Invoice) => {
     if (!invoice?.id) return
+    setSendModalInvoice(invoice)
+    setSendModalOpen(true)
+    setLoadingContacts(true)
+    setSelectedRecipients([])
+    try {
+      if (invoice.clientCompanyId) {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(invoice.clientCompanyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        setSendContacts(contacts.map((c: any) => ({ id: String(c._id || c.id), nom: c.nom || '', email: c.email || '', isPrimary: Boolean(c.isPrimary) })))
+        const primary = contacts.find((c: any) => c.isPrimary && c.email)
+        const preselected: string[] = []
+        if (primary?.email) preselected.push(primary.email)
+        else if (invoice.client?.email) preselected.push(invoice.client.email)
+        setSelectedRecipients(preselected)
+      } else {
+        setSendContacts([])
+        if (invoice.client?.email) setSelectedRecipients([invoice.client.email])
+      }
+    } catch {
+      setSendContacts([])
+      if (invoice.client?.email) setSelectedRecipients([invoice.client.email])
+    } finally {
+      setLoadingContacts(false)
+    }
+  }
+
+  const confirmSendInvoice = async () => {
+    if (!sendModalInvoice) return
+    const invoice = sendModalInvoice
     try {
       setSendingInvoiceId(invoice.id)
       const res = await fetch('/api/admin/invoices/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: invoice.id })
+        body: JSON.stringify({ id: invoice.id, recipients: selectedRecipients })
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.success) {
@@ -442,6 +478,8 @@ export default function InvoiceGenerator() {
       }
       await loadInvoices()
       alert('Facture envoyée par email')
+      setSendModalOpen(false)
+      setSendModalInvoice(null)
     } catch (e: any) {
       alert(e?.message || 'Erreur lors de l\'envoi')
     } finally {
@@ -973,7 +1011,7 @@ export default function InvoiceGenerator() {
                           </button>
 
                           <button
-                            onClick={() => sendInvoiceByEmail(invoice)}
+                            onClick={() => openSendModal(invoice)}
                             disabled={sendingInvoiceId === invoice.id}
                             className="text-indigo-600 hover:text-indigo-800 p-1 disabled:opacity-60"
                             title="Envoyer par email"
@@ -1102,6 +1140,69 @@ export default function InvoiceGenerator() {
           </div>
         </div>
       )}
+
+      {/* Modale sélection destinataires */}
+      {sendModalOpen && sendModalInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Envoyer la facture {sendModalInvoice.number}</h3>
+              <button onClick={() => setSendModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {loadingContacts ? (
+              <p className="text-gray-500 text-sm">Chargement des contacts…</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">Sélectionnez les destinataires :</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+                  {sendContacts.length === 0 && sendModalInvoice.client?.email && (
+                    <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(sendModalInvoice.client.email)}
+                        onChange={(e) => {
+                          const email = sendModalInvoice.client.email
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, email] : prev.filter(r => r !== email))
+                        }}
+                        className="h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <span className="text-sm">{sendModalInvoice.client.email} (client)</span>
+                    </label>
+                  )}
+                  {sendContacts.map(contact => (
+                    <label key={contact.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(contact.email)}
+                        onChange={(e) => {
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, contact.email] : prev.filter(r => r !== contact.email))
+                        }}
+                        className="h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <div className="text-sm">
+                        <div className="font-medium">{contact.nom} {contact.isPrimary && <span className="text-xs text-indigo-600">(principal)</span>}</div>
+                        <div className="text-gray-500">{contact.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
+                  <button
+                    onClick={confirmSendInvoice}
+                    disabled={selectedRecipients.length === 0 || sendingInvoiceId === sendModalInvoice.id}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {sendingInvoiceId === sendModalInvoice.id ? 'Envoi…' : 'Envoyer'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1214,6 +1315,58 @@ function InvoiceForm({
     }
   }
 
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<any[]>([])
+  const [showClientDrop, setShowClientDrop] = useState(false)
+  const [clientSearching, setClientSearching] = useState(false)
+  const [clientEmails, setClientEmails] = useState<string[]>([])
+
+  const searchClients = async (q: string) => {
+    if (!q.trim()) { setClientResults([]); setShowClientDrop(false); return }
+    setClientSearching(true)
+    try {
+      const res = await fetch(`/api/admin/clients?q=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setClientResults(data.clients || [])
+        setShowClientDrop(true)
+      }
+    } catch { setClientResults([]) }
+    finally { setClientSearching(false) }
+  }
+
+  const selectClient = async (c: any) => {
+    const companyId = String(c._id || c.id || '')
+    const emails: string[] = [c.email || ''].filter(Boolean)
+    if (companyId) {
+      try {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(companyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        contacts.forEach((contact: any) => {
+          if (contact.email && !emails.includes(contact.email)) emails.push(contact.email)
+        })
+      } catch { /* ignore */ }
+    }
+    setClientEmails(emails)
+    setFormData(prev => ({
+      ...prev,
+      clientCompanyId: companyId,
+      client: {
+        ...prev.client,
+        name: c.company || c.name || '',
+        company: c.company || c.name || '',
+        address: c.address || '',
+        phone: c.phone || '',
+        email: emails[0] || c.email || '',
+        taxId: c.ninea || c.taxId || prev.client.taxId
+      }
+    }))
+    setClientQuery(c.company || c.name || '')
+    setShowClientDrop(false)
+    setClientResults([])
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
   }
@@ -1274,6 +1427,37 @@ function InvoiceForm({
         {/* Informations client */}
         <div className="bg-gray-50 rounded-lg p-6">
           <h4 className="text-lg font-semibold text-gray-900 mb-4">👤 Informations Client</h4>
+
+          {/* Recherche client */}
+          <div className="mb-4 relative">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Rechercher un client entreprise</label>
+            <input
+              type="text"
+              value={clientQuery}
+              onChange={(e) => {
+                setClientQuery(e.target.value)
+                searchClients(e.target.value)
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Saisir le nom de l'entreprise..."
+            />
+            {clientSearching && <p className="text-xs text-gray-500 mt-1">Recherche…</p>}
+            {showClientDrop && clientResults.length > 0 && (
+              <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
+                {clientResults.map((c: any) => (
+                  <button
+                    key={c._id || c.id}
+                    type="button"
+                    onClick={() => selectClient(c)}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                  >
+                    <div className="font-medium">{c.company || c.name}</div>
+                    <div className="text-sm text-gray-500">{c.email} · {c.phone}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1304,15 +1488,43 @@ function InvoiceForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={formData.client.email}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  client: { ...prev.client, email: e.target.value }
-                }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              {clientEmails.length > 1 ? (
+                <select
+                  value={formData.client.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    client: { ...prev.client, email: e.target.value }
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {clientEmails.map(email => (
+                    <option key={email} value={email}>{email}</option>
+                  ))}
+                  <option value="">Autre email…</option>
+                </select>
+              ) : (
+                <input
+                  type="email"
+                  value={formData.client.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    client: { ...prev.client, email: e.target.value }
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+              {clientEmails.length > 1 && !clientEmails.includes(formData.client.email) && (
+                <input
+                  type="email"
+                  value={formData.client.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    client: { ...prev.client, email: e.target.value }
+                  }))}
+                  className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Saisir un autre email"
+                />
+              )}
             </div>
 
             <div>

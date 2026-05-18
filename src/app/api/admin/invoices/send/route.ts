@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null) as any
     const id = String(body?.id || body?._id || '').trim()
     const to = String(body?.to || '').trim()
+    const recipients = Array.isArray(body?.recipients)
+      ? body.recipients.filter((r: string) => r && r.includes('@'))
+      : []
 
     if (!id) return NextResponse.json({ error: 'ID requis' }, { status: 400 })
 
@@ -37,9 +40,11 @@ export async function POST(request: NextRequest) {
     const invoice = await AdminInvoice.findById(id).lean() as any
     if (!invoice) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 })
 
-    // Résoudre tous les emails contacts du client (email principal + contacts supplémentaires)
+    // Résoudre les emails contacts du client
     let recipient = to
-    if (!recipient && invoice.clientCompanyId) {
+    if (recipients.length > 0) {
+      recipient = recipients.join(', ')
+    } else if (!recipient && invoice.clientCompanyId) {
       recipient = await getClientEmailRecipients(String(invoice.clientCompanyId), String(invoice?.client?.email || ''))
     }
     if (!recipient) {

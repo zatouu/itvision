@@ -33,18 +33,41 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   return data.text || ''
 }
 
+function parseQty(str: string): number {
+  if (!str) return 0
+  const cleaned = String(str).trim().replace(/\s/g, '').replace(',', '.')
+  const val = parseFloat(cleaned)
+  return isNaN(val) || val < 0 ? 0 : val
+}
+
 function parseAmount(str: string): number {
   if (!str) return 0
-  const cleaned = String(str)
-    .replace(/\s/g, '')
-    .replace(/,/g, '.')
-    .replace(/[^\d.]/g, '')
-  const val = parseFloat(cleaned)
+  const cleaned = String(str).replace(/[^\d.,]/g, '')
+  if (!cleaned) return 0
+
+  const lastComma = cleaned.lastIndexOf(',')
+  const lastDot = cleaned.lastIndexOf('.')
+  const lastSep = Math.max(lastComma, lastDot)
+
+  if (lastSep > 0) {
+    const afterSep = cleaned.length - lastSep - 1
+    // Si 1 ou 2 chiffres après le dernier séparateur → décimal
+    if (afterSep > 0 && afterSep <= 2) {
+      const intPart = cleaned.slice(0, lastSep).replace(/[.,]/g, '')
+      const decPart = cleaned.slice(lastSep + 1)
+      const val = parseFloat(intPart + '.' + decPart)
+      return isNaN(val) ? 0 : val
+    }
+  }
+
+  // Tous les séparateurs sont des milliers
+  const val = parseInt(cleaned.replace(/[.,]/g, ''), 10)
   return isNaN(val) ? 0 : val
 }
 
 function extractAmount(line: string): number | undefined {
-  const match = line.match(/(\d[\d\s.,]+)(?:\s*(?:CFA|fcfa|XOF|€|\$))?/)
+  // Match montants avec espaces, points, virgules, optionnellement suivi de devise
+  const match = line.match(/(\d[\d\s.,]*\d)(?:\s*(?:CFA|fcfa|XOF|F\s*CFA|€|\$|USD|EURO|euro)?)/i)
   if (match) return parseAmount(match[1])
   return undefined
 }
@@ -381,16 +404,17 @@ function extractItemsFromLines(lines: string[]): ExtractedInvoice['items'] {
     }
 
     if (inTable) {
-      const productMatch = line.match(
-        /^(?:\d+\.?\s*)?(.+?)\s+(\d+(?:[\s.,]\d{3})*)\s+(\d+(?:[\s.,]\d{3})*)\s+(\d+(?:[\s.,]\d{3})*)\s*$/
+      // --- Pattern 1 : numéro + description + 3 colonnes (qty, pu, total) ---
+      const productMatch3 = line.match(
+        /^(?:\d+\.?\s*)?(.+?)\s+(\d[\d\s.,]*)\s+(\d[\d\s.,]*)\s+(\d[\d\s.,]*)\s*(?:CFA|fcfa|XOF|F\s*CFA)?\s*$/i
       )
 
-      if (productMatch) {
-        const desc = productMatch[1].trim()
-        const qty = parseInt(productMatch[2].replace(/[\s.,]/g, '')) || 1
-        const pu = parseInt(productMatch[3].replace(/[\s.,]/g, '')) || 0
-        const total = parseInt(productMatch[4].replace(/[\s.,]/g, '')) || 0
-        if (desc.length > 2) {
+      if (productMatch3) {
+        const desc = productMatch3[1].trim()
+        const qty = parseQty(productMatch3[2])
+        const pu = parseAmount(productMatch3[3])
+        const total = parseAmount(productMatch3[4])
+        if (desc.length > 2 && qty > 0) {
           items.push({
             description: desc,
             quantity: qty,
@@ -402,26 +426,52 @@ function extractItemsFromLines(lines: string[]): ExtractedInvoice['items'] {
         continue
       }
 
+      // --- Pattern 2 : numéro + description + 2 colonnes (qty, total) ---
+      const productMatch2 = line.match(
+        /^(?:\d+\.?\s*)?(.+?)\s+(\d[\d\s.,]*)\s+(\d[\d\s.,]*)\s*(?:CFA|fcfa|XOF|F\s*CFA)?\s*$/i
+      )
+
+      if (productMatch2) {
+        const desc = productMatch2[1].trim()
+        const qty = parseQty(productMatch2[2])
+        const total = parseAmount(productMatch2[3])
+        if (desc.length > 2 && qty > 0 && total > 0) {
+          items.push({
+            description: desc,
+            quantity: qty,
+            unitPrice: total / qty,
+            totalPrice: total,
+            category: detectCategory(desc)
+          })
+        }
+        continue
+      }
+
+      // --- Pattern 3 : "2 x Caméra IP @ 45 000 = 90 000 CFA" ---
       const simpleMatch = line.match(
-        /(\d+)\s*[x×]\s*(.+?)\s*[@à]\s*(\d[\d\s.,]+)\s*(?:CFA|fcfa|=)\s*(\d[\d\s.,]+)?/
+        /(\d[\d\s.,]*)\s*[x×]\s*(.+?)\s*[@à]\s*(\d[\d\s.,]+)\s*(?:CFA|fcfa|XOF|F\s*CFA|=)\s*(\d[\d\s.,]+)?/i
       )
       if (simpleMatch) {
+        const qty = parseQty(simpleMatch[1])
         items.push({
           description: simpleMatch[2].trim(),
-          quantity: parseInt(simpleMatch[1]) || 1,
+          quantity: qty || 1,
           unitPrice: parseAmount(simpleMatch[3]),
-          totalPrice: parseAmount(simpleMatch[4] || '0') || parseAmount(simpleMatch[3]) * (parseInt(simpleMatch[1]) || 1),
+          totalPrice: parseAmount(simpleMatch[4] || '0') || parseAmount(simpleMatch[3]) * (qty || 1),
           category: detectCategory(simpleMatch[2])
         })
         continue
       }
 
-      const parts = line.split(/\s{3,}/).map(s => s.trim()).filter(Boolean)
+      // --- Pattern 4 : split par espaces multiples / tabulations ---
+      const parts = line.split(/\s{2,}/).map(s => s.trim()).filter(Boolean)
       if (parts.length >= 3) {
         const last = parts[parts.length - 1]
         const prev = parts[parts.length - 2]
-        const qty = parseInt(parts[0])
-        if (!isNaN(qty) && qty > 0 && qty < 10000) {
+        const first = parts[0]
+        const qty = parseQty(first)
+        if (!isNaN(qty) && qty > 0 && qty < 50000) {
+          // Cas 3 colonnes : qty | desc... | pu | total
           const desc = parts.slice(1, parts.length - 2).join(' ') || parts[1]
           const puVal = parseAmount(prev)
           const totalVal = parseAmount(last)
@@ -435,6 +485,37 @@ function extractItemsFromLines(lines: string[]): ExtractedInvoice['items'] {
             })
             continue
           }
+          // Cas 2 colonnes : qty | desc... | total
+          const desc2 = parts.slice(1, parts.length - 1).join(' ') || parts[1]
+          const totalVal2 = parseAmount(last)
+          if (desc2 && desc2.length > 2 && totalVal2 > 0) {
+            items.push({
+              description: desc2,
+              quantity: qty,
+              unitPrice: totalVal2 / qty,
+              totalPrice: totalVal2,
+              category: detectCategory(desc2)
+            })
+            continue
+          }
+        }
+      }
+
+      // --- Pattern 5 : ligne avec description et montant total seul ---
+      const descAmountMatch = line.match(/^(.{3,}?)\s+(\d[\d\s.,]+)\s*(?:CFA|fcfa|XOF|F\s*CFA)?\s*$/i)
+      if (descAmountMatch) {
+        const desc = descAmountMatch[1].trim()
+        const total = parseAmount(descAmountMatch[2])
+        // Vérifier que ce n'est pas une ligne de total globale
+        if (desc.length > 3 && total > 1000 && !/^(sous.?total|total|tva|taxe|montant)/i.test(desc)) {
+          items.push({
+            description: desc,
+            quantity: 1,
+            unitPrice: total,
+            totalPrice: total,
+            category: detectCategory(desc)
+          })
+          continue
         }
       }
 

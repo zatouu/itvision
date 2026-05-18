@@ -79,6 +79,11 @@ export default function AdminQuoteGenerator() {
   const [activeTab, setActiveTab] = useState<'create' | 'list'>('list')
   const [isSaving, setIsSaving] = useState(false)
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
+  const [sendModalOpen, setSendModalOpen] = useState(false)
+  const [sendModalQuote, setSendModalQuote] = useState<Quote | null>(null)
+  const [sendContacts, setSendContacts] = useState<Array<{ id: string; nom: string; email: string; isPrimary: boolean }>>([])
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
   const [convertingId, setConvertingId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -86,6 +91,7 @@ export default function AdminQuoteGenerator() {
   const [clientResults, setClientResults] = useState<any[]>([])
   const [clientSearching, setClientSearching] = useState(false)
   const [showClientDrop, setShowClientDrop] = useState(false)
+  const [clientEmails, setClientEmails] = useState<string[]>([])
   const router = useRouter()
 
   const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
@@ -152,16 +158,29 @@ export default function AdminQuoteGenerator() {
     finally { setClientSearching(false) }
   }
 
-  const selectClient = (c: any) => {
+  const selectClient = async (c: any) => {
     if (!currentQuote) return
+    const companyId = String(c._id || c.id || '')
+    const emails: string[] = [c.email || ''].filter(Boolean)
+    if (companyId) {
+      try {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(companyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        contacts.forEach((contact: any) => {
+          if (contact.email && !emails.includes(contact.email)) emails.push(contact.email)
+        })
+      } catch { /* ignore */ }
+    }
+    setClientEmails(emails)
     setCurrentQuote({
       ...currentQuote,
-      clientCompanyId: String(c._id || c.id || ''),
+      clientCompanyId: companyId,
       client: {
         name: c.company || c.name || '',
         address: c.address || '',
         phone: c.phone || '',
-        email: c.email || '',
+        email: emails[0] || c.email || '',
         rcn: c.rcn,
         ninea: c.ninea,
       }
@@ -565,18 +584,49 @@ export default function AdminQuoteGenerator() {
     }
   }
 
-  const sendQuoteByEmail = async (quote: Quote) => {
+  const openSendModal = async (quote: Quote) => {
     if (!quote?.id || !isObjectId(quote.id)) {
       addToast('Veuillez d\'abord sauvegarder le devis avant envoi', 'warning')
       return
     }
+    setSendModalQuote(quote)
+    setSendModalOpen(true)
+    setLoadingContacts(true)
+    setSelectedRecipients([])
+    try {
+      if (quote.clientCompanyId) {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(quote.clientCompanyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        setSendContacts(contacts.map((c: any) => ({ id: String(c._id || c.id), nom: c.nom || '', email: c.email || '', isPrimary: Boolean(c.isPrimary) })))
+        // Pré-sélectionner le contact principal + l'email du client
+        const primary = contacts.find((c: any) => c.isPrimary && c.email)
+        const preselected: string[] = []
+        if (primary?.email) preselected.push(primary.email)
+        else if (quote.client?.email) preselected.push(quote.client.email)
+        setSelectedRecipients(preselected)
+      } else {
+        setSendContacts([])
+        if (quote.client?.email) setSelectedRecipients([quote.client.email])
+      }
+    } catch {
+      setSendContacts([])
+      if (quote.client?.email) setSelectedRecipients([quote.client.email])
+    } finally {
+      setLoadingContacts(false)
+    }
+  }
+
+  const confirmSendQuote = async () => {
+    if (!sendModalQuote) return
+    const quote = sendModalQuote
     try {
       setSendingQuoteId(quote.id)
       const res = await fetch('/api/admin/quotes/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: quote.id })
+        body: JSON.stringify({ id: quote.id, recipients: selectedRecipients })
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.success) {
@@ -584,6 +634,8 @@ export default function AdminQuoteGenerator() {
       }
       await loadQuotes()
       addToast('Devis envoyé par email', 'success')
+      setSendModalOpen(false)
+      setSendModalQuote(null)
     } catch (e: any) {
       addToast(e?.message || 'Erreur lors de l\'envoi du devis', 'error')
     } finally {
@@ -820,7 +872,7 @@ export default function AdminQuoteGenerator() {
                           <Edit3 className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => sendQuoteByEmail(quote)}
+                          onClick={() => openSendModal(quote)}
                           disabled={sendingQuoteId === quote.id}
                           className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-60"
                           title="Envoyer par email"
@@ -1001,13 +1053,35 @@ export default function AdminQuoteGenerator() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
                   </label>
-                  <input
-                    type="email"
-                    value={currentQuote.client.email}
-                    onChange={(e) => updateClientInfo('email', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="contact@client.sn"
-                  />
+                  {clientEmails.length > 1 ? (
+                    <select
+                      value={currentQuote.client.email}
+                      onChange={(e) => updateClientInfo('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {clientEmails.map(email => (
+                        <option key={email} value={email}>{email}</option>
+                      ))}
+                      <option value="">Autre email...</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="email"
+                      value={currentQuote.client.email}
+                      onChange={(e) => updateClientInfo('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="contact@client.sn"
+                    />
+                  )}
+                  {clientEmails.length > 1 && !clientEmails.includes(currentQuote.client.email) && (
+                    <input
+                      type="email"
+                      value={currentQuote.client.email}
+                      onChange={(e) => updateClientInfo('email', e.target.value)}
+                      className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Saisir un autre email"
+                    />
+                  )}
                 </div>
                 
                 <div>
@@ -1237,7 +1311,7 @@ export default function AdminQuoteGenerator() {
                 {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
               </button>
               <button
-                onClick={() => sendQuoteByEmail(currentQuote)}
+                onClick={() => openSendModal(currentQuote)}
                 disabled={sendingQuoteId === currentQuote.id || !currentQuote.client.email}
                 className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={!isObjectId(currentQuote.id) ? 'Sauvegardez d\'abord le devis' : ''}
@@ -1350,6 +1424,69 @@ export default function AdminQuoteGenerator() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale sélection destinataires */}
+      {sendModalOpen && sendModalQuote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Envoyer le devis {sendModalQuote.numero}</h3>
+              <button onClick={() => setSendModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {loadingContacts ? (
+              <p className="text-gray-500 text-sm">Chargement des contacts…</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">Sélectionnez les destinataires :</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+                  {sendContacts.length === 0 && sendModalQuote.client?.email && (
+                    <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(sendModalQuote.client.email)}
+                        onChange={(e) => {
+                          const email = sendModalQuote.client.email
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, email] : prev.filter(r => r !== email))
+                        }}
+                        className="h-4 w-4 text-purple-600 rounded"
+                      />
+                      <span className="text-sm">{sendModalQuote.client.email} (client)</span>
+                    </label>
+                  )}
+                  {sendContacts.map(contact => (
+                    <label key={contact.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(contact.email)}
+                        onChange={(e) => {
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, contact.email] : prev.filter(r => r !== contact.email))
+                        }}
+                        className="h-4 w-4 text-purple-600 rounded"
+                      />
+                      <div className="text-sm">
+                        <div className="font-medium">{contact.nom} {contact.isPrimary && <span className="text-xs text-purple-600">(principal)</span>}</div>
+                        <div className="text-gray-500">{contact.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
+                  <button
+                    onClick={confirmSendQuote}
+                    disabled={selectedRecipients.length === 0 || sendingQuoteId === sendModalQuote.id}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {sendingQuoteId === sendModalQuote.id ? 'Envoi…' : 'Envoyer'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
