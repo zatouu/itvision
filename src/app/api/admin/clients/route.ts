@@ -112,7 +112,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Générer un clientId unique basé sur le max des IDs existants
-    const lastClient = await Client.findOne().sort({ clientId: -1 }).select('clientId').lean() as { clientId: string } | null
+    const lastClient = await Client.findOne({ clientId: { $exists: true, $ne: null, $regex: /^CL\d+$/ } })
+      .sort({ clientId: -1 })
+      .select('clientId')
+      .lean() as { clientId: string } | null
     let nextNumber = 1
     if (lastClient?.clientId) {
       const match = lastClient.clientId.match(/CL(\d+)/)
@@ -120,7 +123,15 @@ export async function POST(request: NextRequest) {
         nextNumber = parseInt(match[1], 10) + 1
       }
     }
-    const clientId = `CL${String(nextNumber).padStart(4, '0')}`
+    let clientId = `CL${String(nextNumber).padStart(4, '0')}`
+
+    // Vérifier que l'ID n'existe pas déjà (sécurité)
+    let existing = await Client.findOne({ clientId }).select('_id').lean()
+    while (existing) {
+      nextNumber++
+      clientId = `CL${String(nextNumber).padStart(4, '0')}`
+      existing = await Client.findOne({ clientId }).select('_id').lean()
+    }
 
     // Créer le client
     const client = await Client.create({
