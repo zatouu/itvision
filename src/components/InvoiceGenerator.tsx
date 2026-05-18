@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   FileText, 
   Download, 
@@ -61,7 +61,8 @@ import {
   ChevronDown,
   ChevronRight,
   X,
-  Check
+  Check,
+  Upload
 } from 'lucide-react'
 
 interface InvoiceItem {
@@ -134,6 +135,8 @@ export default function InvoiceGenerator() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Charger les données
   useEffect(() => {
@@ -248,6 +251,69 @@ export default function InvoiceGenerator() {
     setEditingInvoice(null)
     setShowNewInvoiceModal(false)
     setShowQuoteImportModal(false)
+  }
+
+  const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/admin/invoices/extract', {
+        method: 'POST',
+        body: form,
+        credentials: 'include'
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Échec de l\'extraction')
+      }
+      const data = json.data
+      const imported: Invoice = {
+        id: `inv-temp-${Date.now()}`,
+        number: data.numero || generateInvoiceNumber(),
+        date: data.date || new Date().toISOString().split('T')[0],
+        dueDate: data.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'draft',
+        client: {
+          id: 'imported',
+          name: data.client?.name || '',
+          company: data.client?.company || '',
+          email: data.client?.email || '',
+          phone: data.client?.phone || '',
+          address: data.client?.address || '',
+          city: 'Dakar',
+          postalCode: '',
+          taxId: data.client?.taxId
+        },
+        items: (data.items || []).map((it: any, idx: number) => ({
+          id: `item-${Date.now()}-${idx}`,
+          description: it.description || '',
+          quantity: Number(it.quantity) || 1,
+          unitPrice: Number(it.unitPrice) || 0,
+          totalPrice: Number(it.totalPrice) || 0,
+          category: it.category || 'products'
+        })),
+        subtotal: Number(data.subtotal) || 0,
+        taxRate: Number(data.taxRate) || 18,
+        taxAmount: Number(data.taxAmount) || 0,
+        total: Number(data.total) || 0,
+        notes: data.notes || '',
+        terms: data.terms || 'Paiement à 30 jours selon conditions générales.',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'Admin'
+      }
+      setEditingInvoice(imported)
+      setShowNewInvoiceModal(true)
+      alert(`Facture importée : ${imported.items.length} article(s)`)
+    } catch (err: any) {
+      alert(err?.message || 'Erreur lors de l\'import')
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const createInvoiceFromQuote = (quoteId: string) => {
@@ -633,7 +699,23 @@ export default function InvoiceGenerator() {
               <ArrowRight className="h-4 w-4" />
               <span>Devis → Facture</span>
             </button>
-            
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv"
+              onChange={importFromFile}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2 disabled:opacity-60"
+            >
+              <Upload className="h-4 w-4" />
+              <span>{importing ? 'Analyse…' : 'Importer PDF / Excel'}</span>
+            </button>
+
             <button
               onClick={() => setShowNewInvoiceModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
