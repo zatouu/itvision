@@ -192,10 +192,12 @@ export async function POST(request: NextRequest) {
       message: 'Projet créé avec succès'
     }, { status: 201 })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur création projet:', error)
+    console.error('errInfo details:', JSON.stringify(error?.errInfo || {}, null, 2))
+    console.error('errorResponse:', JSON.stringify(error?.errorResponse || {}, null, 2))
     return NextResponse.json(
-      { error: 'Erreur lors de la création du projet' },
+      { error: 'Erreur lors de la création du projet', details: error?.errInfo || error?.message },
       { status: 500 }
     )
   }
