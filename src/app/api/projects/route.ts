@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Création du projet
+    // Création du projet — initialiser tous les champs complexes pour conformité validator
     const created = await Project.create({
       name: projectData.name,
       description: projectData.description || '',
@@ -154,12 +154,12 @@ export async function POST(request: NextRequest) {
       clientCompanyId: resolvedCompanyId || undefined,
       status: (projectData.status || 'lead').toLowerCase(),
       startDate: new Date(projectData.startDate),
-      endDate: projectData.endDate ? new Date(projectData.endDate) : undefined,
+      endDate: projectData.endDate ? new Date(projectData.endDate) : null,
       currentPhase: projectData.currentPhase || '',
       progress: projectData.progress || 0,
       serviceType: projectData.serviceType || '',
-      clientSnapshot: projectData.clientSnapshot,
-      site: projectData.site,
+      clientSnapshot: projectData.clientSnapshot || { company: '', contact: '', phone: '', email: '' },
+      site: projectData.site || { name: '', address: '', access: '', constraints: [], contacts: [] },
       assignedTo: projectData.assignedTo || [],
       value: projectData.value || 0,
       margin: projectData.margin || 0,

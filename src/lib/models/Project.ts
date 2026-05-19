@@ -137,23 +137,29 @@ const ProjectSchema = new Schema<IProject>({
   progress: { type: Number, default: 0 },
   serviceType: { type: String, default: '' },
   clientSnapshot: {
-    company: String,
-    contact: String,
-    phone: String,
-    email: String
+    type: {
+      company: String,
+      contact: String,
+      phone: String,
+      email: String
+    },
+    default: () => ({ company: '', contact: '', phone: '', email: '' })
   },
   site: {
-    name: String,
-    address: String,
-    access: String,
-    constraints: [String],
-    contacts: [{
+    type: {
       name: String,
-      role: String,
-      phone: String,
-      email: String,
-      availability: String
-    }]
+      address: String,
+      access: String,
+      constraints: [String],
+      contacts: [{
+        name: String,
+        role: String,
+        phone: String,
+        email: String,
+        availability: String
+      }]
+    },
+    default: () => ({ name: '', address: '', access: '', constraints: [], contacts: [] })
   },
   assignedTo: [String],
   value: { type: Number, default: 0 },
