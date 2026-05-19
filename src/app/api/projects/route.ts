@@ -110,18 +110,36 @@ export async function POST(request: NextRequest) {
     }
     
     // Vérification que le client existe
-    const client = await User.findOne({ _id: projectData.clientId, role: 'CLIENT' }).lean()
-    
-    if (!client) {
+    // clientId peut être un User._id (compte client) ou un Client._id (entreprise)
+    let resolvedClientId = asObjectIdString(projectData.clientId)
+    let resolvedClient: any = null
+    let resolvedCompanyId = asObjectIdString(projectData.clientCompanyId)
+
+    if (resolvedClientId) {
+      // Essayer d'abord comme User._id avec role CLIENT
+      resolvedClient = await User.findOne({ _id: resolvedClientId, role: 'CLIENT' }).lean()
+
+      // Si non trouvé, essayer comme Client._id (entreprise) et chercher le User lié
+      if (!resolvedClient) {
+        const company = await Client.findById(resolvedClientId).lean() as any
+        if (company?._id) {
+          resolvedCompanyId = String(company._id)
+          resolvedClient = await User.findOne({ companyClientId: resolvedCompanyId, role: 'CLIENT' }).lean()
+        }
+      }
+    }
+
+    if (!resolvedClient) {
       return NextResponse.json(
-        { error: 'Client non trouvé' },
+        { error: 'Client non trouvé. Assurez-vous que le client a un compte utilisateur actif.' },
         { status: 404 }
       )
     }
 
-    const clientCompanyId = asObjectIdString(projectData.clientCompanyId)
-    if (clientCompanyId) {
-      const company = await Client.findById(clientCompanyId).select({ _id: 1 }).lean() as any
+    const finalClientId = String(resolvedClient._id)
+
+    if (resolvedCompanyId) {
+      const company = await Client.findById(resolvedCompanyId).select({ _id: 1 }).lean() as any
       if (!company?._id) {
         return NextResponse.json({ error: 'Entreprise introuvable' }, { status: 404 })
       }
@@ -132,8 +150,8 @@ export async function POST(request: NextRequest) {
       name: projectData.name,
       description: projectData.description || '',
       address: projectData.address,
-      clientId: projectData.clientId,
-      clientCompanyId: clientCompanyId || undefined,
+      clientId: finalClientId,
+      clientCompanyId: resolvedCompanyId || undefined,
       status: (projectData.status || 'lead').toLowerCase(),
       startDate: new Date(projectData.startDate),
       endDate: projectData.endDate ? new Date(projectData.endDate) : undefined,
