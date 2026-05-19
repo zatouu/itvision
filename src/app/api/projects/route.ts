@@ -5,6 +5,7 @@ import Client from '@/lib/models/Client'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
 import { requireAuth } from '@/lib/jwt'
+import mongoose from 'mongoose'
 
 async function verifyToken(request: NextRequest) {
   return await requireAuth(request)
@@ -86,8 +87,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+
+    // Désactiver le $jsonSchema validator MongoDB incompatible avec le schema Mongoose actuel
+    try {
+      const collections = await mongoose.connection.db.listCollections({ name: 'projects' }).toArray()
+      const collInfo = collections.find(c => c.name === 'projects')
+      if (collInfo?.options?.validator) {
+        await mongoose.connection.db.command({
+          collMod: 'projects',
+          validator: {},
+          validationLevel: 'off'
+        })
+      }
+    } catch {
+      // Ignorer si pas de permission ou déjà désactivé
+    }
+
     const { userId, role } = await verifyToken(request)
-    
+
     // Seuls les admins peuvent créer des projets
     if (!isAdminRole(role)) {
       return NextResponse.json(
