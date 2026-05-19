@@ -4,6 +4,7 @@ export interface IProject extends Document {
   name: string
   description?: string
   address: string
+  projectId?: string
   clientId: mongoose.Types.ObjectId
   // Optionnel: rattacher un projet à une entreprise (Client) pour visibilité multi-utilisateurs
   clientCompanyId?: mongoose.Types.ObjectId
