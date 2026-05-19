@@ -128,6 +128,7 @@ const ProjectSchema = new Schema<IProject>({
   name: { type: String, required: true },
   description: { type: String },
   address: { type: String, required: true },
+  projectId: { type: String, index: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'], default: 'lead', index: true },

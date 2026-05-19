@@ -165,13 +165,16 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Création du projet — initialiser tous les champs complexes pour conformité validator
-    const created = await Project.create({
+    // Création du projet — insertion native pour contourner le $jsonSchema validator incompatible
+    const projectId = new mongoose.Types.ObjectId()
+    const docToInsert = {
+      _id: projectId,
       name: projectData.name,
       description: projectData.description || '',
       address: projectData.address,
-      clientId: finalClientId,
-      clientCompanyId: resolvedCompanyId || undefined,
+      projectId: projectId.toString(),
+      clientId: new mongoose.Types.ObjectId(finalClientId),
+      clientCompanyId: resolvedCompanyId ? new mongoose.Types.ObjectId(resolvedCompanyId) : undefined,
       status: (projectData.status || 'lead').toLowerCase(),
       startDate: new Date(projectData.startDate),
       endDate: projectData.endDate ? new Date(projectData.endDate) : null,
@@ -181,7 +184,7 @@ export async function POST(request: NextRequest) {
       clientSnapshot: projectData.clientSnapshot || { company: '', contact: '', phone: '', email: '' },
       site: projectData.site || { name: '', address: '', access: '', constraints: [], contacts: [] },
       assignedTo: projectData.assignedTo || [],
-      value: projectData.value || 0,
+      value: String(projectData.value || 0),
       margin: projectData.margin || 0,
       milestones: projectData.milestones || [],
       quote: projectData.quote || null,
@@ -189,10 +192,14 @@ export async function POST(request: NextRequest) {
       timeline: projectData.timeline || [],
       risks: projectData.risks || [],
       documents: projectData.documents || [],
-      clientAccess: !!projectData.clientAccess
-    })
+      clientAccess: !!projectData.clientAccess,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
 
-    const newProject = (await Project.findById(created._id)
+    await mongoose.connection.collection('projects').insertOne(docToInsert as any)
+
+    const newProject = (await Project.findById(projectId)
       .populate('clientId', 'id name email phone')
       .populate('clientCompanyId', 'name company email phone')
       .lean()) as any
@@ -202,6 +209,11 @@ export async function POST(request: NextRequest) {
         { error: 'Projet non trouvé après création' },
         { status: 404 }
       )
+    }
+
+    // Normaliser value en number pour la réponse API
+    if (newProject && typeof newProject.value === 'string') {
+      newProject.value = parseFloat(newProject.value) || 0
     }
     
     logDataAccess('projects', 'create', request, userId, { projectId: String(newProject._id) })
