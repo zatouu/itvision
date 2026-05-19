@@ -79,6 +79,7 @@ export default function AdminQuoteGenerator() {
   const [showProductModal, setShowProductModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'create' | 'list'>('list')
   const [isSaving, setIsSaving] = useState(false)
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
   const [sendModalOpen, setSendModalOpen] = useState(false)
   const [sendModalQuote, setSendModalQuote] = useState<Quote | null>(null)
@@ -883,6 +884,13 @@ export default function AdminQuoteGenerator() {
                       
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => setSelectedQuote(quote)}
+                          className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                          title="Voir détail"
+                        >
+                          <Eye className="h-5 w-5" />
+                        </button>
+                        <button
                           onClick={() => editQuote(quote)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Éditer"
@@ -1563,6 +1571,182 @@ export default function AdminQuoteGenerator() {
           </div>
         </div>
       )}
+
+      {/* Modal détail devis */}
+      {selectedQuote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <QuoteDetailView
+              quote={selectedQuote}
+              onClose={() => setSelectedQuote(null)}
+              onEdit={() => {
+                editQuote(selectedQuote)
+                setSelectedQuote(null)
+              }}
+              onExport={() => {
+                setCurrentQuote(selectedQuote)
+                exportPDF()
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuoteDetailView({
+  quote,
+  onClose,
+  onEdit,
+  onExport
+}: {
+  quote: Quote
+  onClose: () => void
+  onEdit: () => void
+  onExport: () => void
+}) {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+  }
+
+  const getStatusColor = (status: Quote['status']) => {
+    switch (status) {
+      case 'draft': return '#6b7280'
+      case 'sent': return '#3b82f6'
+      case 'accepted': return '#10b981'
+      case 'rejected': return '#ef4444'
+      default: return '#6b7280'
+    }
+  }
+
+  const getStatusLabel = (status: Quote['status']) => {
+    switch (status) {
+      case 'draft': return 'Brouillon'
+      case 'sent': return 'Envoyé'
+      case 'accepted': return 'Accepté'
+      case 'rejected': return 'Rejeté'
+      default: return status
+    }
+  }
+
+  return (
+    <div>
+      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <h3 className="text-xl font-bold text-gray-900">Devis {quote.numero}</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={onEdit} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+            <Edit3 className="h-4 w-4" /><span>Modifier</span>
+          </button>
+          <button onClick={onExport} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+            <Download className="h-4 w-4" /><span>PDF</span>
+          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">🔧 IT VISION</h2>
+              <p className="text-blue-100">Spécialiste Sécurité & Digitalisation</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold">{quote.numero}</div>
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2" style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }}>
+                {getStatusLabel(quote.status)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-3">📅 Dates</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-600">Date:</span><span className="font-medium">{new Date(quote.date).toLocaleDateString('fr-FR')}</span></div>
+              {quote.bonCommande && <div className="flex justify-between"><span className="text-gray-600">Bon de commande:</span><span className="font-medium">{quote.bonCommande}</span></div>}
+            </div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-3">👤 Client</h4>
+            <div className="space-y-1 text-sm">
+              <div className="font-medium">{quote.client.name}</div>
+              <div className="text-gray-600">{quote.client.address}</div>
+              <div className="text-gray-600">{quote.client.phone}</div>
+              <div className="text-gray-600">{quote.client.email}</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-4">📦 Produits</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full border border-gray-200 rounded-lg">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Description</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Qté</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Prix Unit.</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {quote.products.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(item.unitPrice)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{formatCurrency(item.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+          <div className="space-y-2">
+            <div className="flex justify-between"><span className="text-gray-700">Sous-total HT:</span><span className="font-medium">{formatCurrency(quote.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>
+            {quote.other > 0 && <div className="flex justify-between"><span className="text-gray-700">Autres:</span><span className="font-medium">{formatCurrency(quote.other)}</span></div>}
+            <div className="border-t border-green-300 pt-2">
+              <div className="flex justify-between text-lg font-bold text-green-800"><span>TOTAL TTC:</span><span>{formatCurrency(quote.total)}</span></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Documents joints */}
+        {(quote.attachments && quote.attachments.length > 0) && (
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3">📎 Documents joints</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {quote.attachments.map((att, i) => (
+                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{att.name}</div>
+                    <div className="text-xs text-gray-500">{att.category || 'Document'} — {(att.size / 1024).toFixed(1)} Ko</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {quote.notes && (
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-2">📝 Notes</h4>
+            <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg">{quote.notes}</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

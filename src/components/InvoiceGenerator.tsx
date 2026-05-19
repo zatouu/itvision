@@ -1979,6 +1979,26 @@ function InvoiceDetailView({
           </div>
         </div>
 
+        {/* Documents joints */}
+        {(invoice.attachments && invoice.attachments.length > 0) && (
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3">📎 Documents joints</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {invoice.attachments.map((att, i) => (
+                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{att.name}</div>
+                    <div className="text-xs text-gray-500">{att.category || 'Document'} — {(att.size / 1024).toFixed(1)} Ko</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Notes et conditions */}
         {(invoice.notes || invoice.terms) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
