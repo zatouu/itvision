@@ -90,14 +90,17 @@ export async function POST(request: NextRequest) {
 
     // Désactiver le $jsonSchema validator MongoDB incompatible avec le schema Mongoose actuel
     try {
-      const collections = await mongoose.connection.db.listCollections({ name: 'projects' }).toArray()
-      const collInfo = collections.find(c => c.name === 'projects')
-      if (collInfo?.options?.validator) {
-        await mongoose.connection.db.command({
-          collMod: 'projects',
-          validator: {},
-          validationLevel: 'off'
-        })
+      const db = (mongoose.connection as any).db
+      if (db) {
+        const collections = await db.listCollections({ name: 'projects' }).toArray()
+        const collInfo = collections.find((c: any) => c.name === 'projects')
+        if (collInfo?.options?.validator) {
+          await db.command({
+            collMod: 'projects',
+            validator: {},
+            validationLevel: 'off'
+          })
+        }
       }
     } catch {
       // Ignorer si pas de permission ou déjà désactivé
