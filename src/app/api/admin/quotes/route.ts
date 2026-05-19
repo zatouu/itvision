@@ -104,7 +104,8 @@ export async function POST(request: NextRequest) {
       createdBy: auth.user.id,
       projectId: projectId || undefined,
       clientUserId: links.clientUserId,
-      clientCompanyId: links.clientCompanyId
+      clientCompanyId: links.clientCompanyId,
+      attachments: Array.isArray(body.attachments) ? body.attachments : undefined
     }
 
     let quote: any

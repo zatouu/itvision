@@ -15,7 +15,12 @@ const MIME_TYPES: Record<string, string> = {
   '.webm': 'video/webm',
   '.ogg': 'video/ogg',
   '.mov': 'video/quicktime',
-  '.m4v': 'video/x-m4v'
+  '.m4v': 'video/x-m4v',
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 }
 
 /**

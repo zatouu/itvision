@@ -18,6 +18,16 @@ export interface IAdminQuoteClient {
   ninea?: string
 }
 
+export interface IAdminQuoteAttachment {
+  name: string
+  url: string
+  type: string
+  size: number
+  uploadedAt: Date
+  uploadedBy?: string
+  category?: string // 'bon_commande', 'recu', 'contrat', 'autre'
+}
+
 export interface IAdminQuote extends Document {
   numero: string
   title?: string
@@ -58,6 +68,7 @@ export interface IAdminQuote extends Document {
     createdAt: Date
     readByOther?: boolean
   }>
+  attachments?: IAdminQuoteAttachment[]
 }
 
 const AdminQuoteProductSchema = new Schema<IAdminQuoteProduct>({
@@ -76,6 +87,16 @@ const AdminQuoteClientSchema = new Schema<IAdminQuoteClient>({
   email: { type: String, default: '' },
   rcn: { type: String },
   ninea: { type: String }
+})
+
+const AdminQuoteAttachmentSchema = new Schema<IAdminQuoteAttachment>({
+  name: { type: String, required: true },
+  url: { type: String, required: true },
+  type: { type: String },
+  size: { type: Number, default: 0 },
+  uploadedAt: { type: Date, default: Date.now },
+  uploadedBy: { type: String },
+  category: { type: String }
 })
 
 const AdminQuoteSchema = new Schema<IAdminQuote>({
@@ -112,7 +133,8 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
     message: { type: String, required: true },
     createdAt: { type: Date, default: () => new Date() },
     readByOther: { type: Boolean, default: false }
-  }], default: [] }
+  }], default: [] },
+  attachments: { type: [AdminQuoteAttachmentSchema], default: [] }
 }, { timestamps: true })
 
 AdminQuoteSchema.index({ createdAt: -1 })

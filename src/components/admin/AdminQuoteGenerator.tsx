@@ -56,6 +56,7 @@ interface Quote {
   clientCounterAmount?: number
   clientComments?: Array<{ authorId: string; authorRole: string; message: string; createdAt: string; readByOther: boolean }>
   clientCompanyId?: string
+  attachments?: Array<{ name: string; url: string; type: string; size: number; uploadedAt?: string; category?: string }>
 }
 
 interface Product {
@@ -141,6 +142,7 @@ export default function AdminQuoteGenerator() {
       clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
       clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined,
       clientCompanyId: q?.clientCompanyId ? String(q.clientCompanyId) : undefined,
+      attachments: Array.isArray(q?.attachments) ? q.attachments : undefined,
     }
   }
 
@@ -539,6 +541,22 @@ export default function AdminQuoteGenerator() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const uploadAttachment = async (file: File, category: string = 'autre') => {
+    if (!currentQuote) return
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('category', category)
+    const res = await fetch('/api/admin/documents/upload', { method: 'POST', body: formData, credentials: 'include' })
+    if (!res.ok) throw new Error('Upload échoué')
+    const data = await res.json()
+    const att = { name: data.name, url: data.url || data.staticUrl, type: file.type || 'application/octet-stream', size: file.size, category: data.category }
+    setCurrentQuote(prev => prev ? { ...prev, attachments: [...(prev.attachments || []), att] } : prev)
+  }
+
+  const removeAttachment = (url: string) => {
+    setCurrentQuote(prev => prev ? { ...prev, attachments: (prev.attachments || []).filter(a => a.url !== url) } : prev)
   }
 
   const exportPDF = async () => {
@@ -1289,6 +1307,61 @@ export default function AdminQuoteGenerator() {
                 rows={3}
                 placeholder="Conditions de paiement: 80%"
               />
+            </div>
+
+            {/* Documents joints */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Documents joints</label>
+              <div className="space-y-2">
+                {(currentQuote.attachments || []).map(att => (
+                  <div key={att.url} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate max-w-[70%]">
+                      {att.name} {att.category ? `(${att.category})` : ''}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.url)}
+                      className="text-red-500 hover:text-red-700 text-sm px-2"
+                      title="Supprimer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <select
+                    id="quote-doc-category"
+                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    defaultValue="autre"
+                  >
+                    <option value="bon_commande">Bon de commande</option>
+                    <option value="recu">Reçu de versement</option>
+                    <option value="contrat">Contrat</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                  <label className="flex-1 cursor-pointer">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const cat = (document.getElementById('quote-doc-category') as HTMLSelectElement)?.value || 'autre'
+                        try {
+                          await uploadAttachment(file, cat)
+                        } catch (err: any) {
+                          alert(err.message || 'Erreur upload')
+                        }
+                        e.target.value = ''
+                      }}
+                    />
+                    <span className="block w-full text-center px-4 py-2 border border-dashed border-gray-400 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                      + Ajouter un document
+                    </span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             {/* Actions */}

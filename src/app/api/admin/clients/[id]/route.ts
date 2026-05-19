@@ -4,6 +4,8 @@ import Client from '@/lib/models/Client'
 import Contact from '@/lib/models/Contact'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
+import emailService from '@/lib/email-service'
+import crypto from 'crypto'
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
@@ -90,10 +92,25 @@ export async function PUT(
         const existingUserWithEmail = await User.findOne({ email: normalizedEmail, _id: { $ne: linkedUser._id } })
         if (!existingUserWithEmail) {
           userSetData.email = normalizedEmail
-        }
-      }
+          // Générer un token de réinitialisation et envoyer un email de notification
+          const resetToken = crypto.randomBytes(32).toString('hex')
+          const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+          userSetData.passwordResetToken = resetToken
+          userSetData.passwordResetExpires = tokenExpires
+          userSetData.forcePasswordReset = true
 
-      await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+          await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+
+          const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
+          const emailData = emailService.generateEmailChangedNotification(normalizedEmail, linkedUser.name || name || '', resetUrl)
+          await emailService.sendEmail(emailData)
+        } else {
+          // Email déjà utilisé par un autre utilisateur — ne pas modifier l'email du linkedUser
+          await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+        }
+      } else {
+        await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+      }
     }
 
     // Mettre à jour le client

@@ -20,6 +20,16 @@ export interface IAdminInvoiceClient {
   taxId?: string
 }
 
+export interface IAdminInvoiceAttachment {
+  name: string
+  url: string
+  type: string
+  size: number
+  uploadedAt: Date
+  uploadedBy?: string
+  category?: string // 'cheque', 'bon_commande', 'recu', 'contrat', 'autre'
+}
+
 export interface IAdminInvoice extends Document {
   numero: string
   date: Date
@@ -49,6 +59,8 @@ export interface IAdminInvoice extends Document {
   sentAt?: Date
   paidAt?: Date
 
+  attachments?: IAdminInvoiceAttachment[]
+
   createdBy?: string
   createdAt: Date
   updatedAt: Date
@@ -72,6 +84,16 @@ const AdminInvoiceClientSchema = new Schema<IAdminInvoiceClient>({
   city: { type: String },
   postalCode: { type: String },
   taxId: { type: String }
+})
+
+const AdminInvoiceAttachmentSchema = new Schema<IAdminInvoiceAttachment>({
+  name: { type: String, required: true },
+  url: { type: String, required: true },
+  type: { type: String },
+  size: { type: Number, default: 0 },
+  uploadedAt: { type: Date, default: Date.now },
+  uploadedBy: { type: String },
+  category: { type: String }
 })
 
 const AdminInvoiceSchema = new Schema<IAdminInvoice>({
@@ -101,6 +123,8 @@ const AdminInvoiceSchema = new Schema<IAdminInvoice>({
 
   sentAt: { type: Date },
   paidAt: { type: Date },
+
+  attachments: { type: [AdminInvoiceAttachmentSchema], default: [] },
 
   createdBy: { type: String }
 }, { timestamps: true })

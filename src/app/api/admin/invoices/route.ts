@@ -102,7 +102,8 @@ export async function GET(request: NextRequest) {
       clientUserId: inv.clientUserId,
       clientCompanyId: inv.clientCompanyId,
       sentAt: inv.sentAt,
-      paidAt: inv.paidAt
+      paidAt: inv.paidAt,
+      attachments: inv.attachments || []
     }))
 
     return NextResponse.json({ invoices: normalized })
@@ -150,7 +151,8 @@ export async function POST(request: NextRequest) {
       quoteId: body.quoteId,
       paymentMethod: body.paymentMethod,
       paymentDate: body.paymentDate,
-      createdBy: auth.user.id
+      createdBy: auth.user.id,
+      attachments: Array.isArray(body.attachments) ? body.attachments : undefined
     }
 
     let saved: any
