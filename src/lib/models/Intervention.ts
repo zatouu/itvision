@@ -22,7 +22,7 @@ export interface IIntervention extends Document {
   }
   
   // Type et planning
-  typeIntervention?: 'urgence' | 'maintenance' | 'installation' | 'autre'
+  typeIntervention?: 'maintenance' | 'installation' | 'repair' | 'inspection' | 'emergency'
   service: string
   priority: 'low' | 'medium' | 'high' | 'critical' | 'urgent'
   estimatedDuration?: number
@@ -83,13 +83,21 @@ export interface IIntervention extends Document {
   }
   
   // Statut et workflow
-  status: 'brouillon' | 'soumis' | 'valide' | 'en_cours' | 'termine' | 'annule' | 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
   assignedTechnician?: mongoose.Types.ObjectId
   
   // Devis lié
   quoteId?: mongoose.Types.ObjectId
   quoteGenerated?: boolean
   
+  // Feedback client post-intervention
+  clientFeedback?: {
+    rating: number
+    comment?: string
+    submittedAt: Date
+  }
+  clientAcknowledgedAt?: Date
+
   // Historique
   history?: Array<{
     action: string
@@ -97,7 +105,7 @@ export interface IIntervention extends Document {
     timestamp: Date
     details?: any
   }>
-  
+
   // Méthodes
   addHistoryEntry?: (action: string, userId: string, details?: any) => void
 }
@@ -124,11 +132,11 @@ const InterventionSchema = new Schema<IIntervention>({
   },
   
   // Type et planning
-  typeIntervention: { 
-    type: String, 
-    enum: ['urgence', 'maintenance', 'installation', 'autre'], 
+  typeIntervention: {
+    type: String,
+    enum: ['maintenance', 'installation', 'repair', 'inspection', 'emergency'],
     default: 'maintenance',
-    index: true 
+    index: true
   },
   service: { type: String, required: true, index: true },
   priority: { 
@@ -203,8 +211,8 @@ const InterventionSchema = new Schema<IIntervention>({
   // Statut et workflow
   status: { 
     type: String, 
-    enum: ['brouillon', 'soumis', 'valide', 'en_cours', 'termine', 'annule', 'pending', 'scheduled', 'in_progress', 'completed', 'cancelled'], 
-    default: 'brouillon', 
+    enum: ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'],
+    default: 'pending', 
     index: true 
   },
   assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician' },
@@ -213,6 +221,14 @@ const InterventionSchema = new Schema<IIntervention>({
   quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
   quoteGenerated: { type: Boolean, default: false },
   
+  // Feedback client post-intervention
+  clientFeedback: {
+    rating: { type: Number, min: 1, max: 5 },
+    comment: { type: String },
+    submittedAt: { type: Date }
+  },
+  clientAcknowledgedAt: { type: Date },
+
   // Historique
   history: [{
     action: { type: String, required: true },

@@ -64,6 +64,16 @@ interface GroupOrder {
   deadline: string
   shippingMethod?: string
   linkedOrderId?: string
+  chinaPurchase?: {
+    purchaseId: string
+    status: string
+    platform: string
+    expectedAmount: number
+    collectedAmount: number
+    outstandingAmount: number
+    paymentCoverageRatio: number
+    updatedAt?: string
+  }
   createdAt: string
 }
 
@@ -74,8 +84,8 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', 
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: 'Brouillon', color: 'bg-gray-100 text-gray-800' },
-  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800' },
-  filled: { label: 'Objectif atteint', color: 'bg-blue-100 text-blue-800' },
+  open: { label: 'Ouvert', color: 'bg-green-100 text-green-800' },
+  filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800' },
   ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800' },
   ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800' },
   shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800' },
@@ -90,11 +100,26 @@ const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   refunded: { label: 'Remboursé', color: 'bg-red-100 text-red-800' }
 }
 
+const chinaPurchaseStatusConfig: Record<string, { label: string; color: string }> = {
+  to_purchase: { label: 'À acheter 1688', color: 'bg-purple-100 text-purple-800' },
+  purchased_1688: { label: 'Acheté 1688', color: 'bg-indigo-100 text-indigo-800' },
+  paid_alipay: { label: 'Payé Alipay', color: 'bg-blue-100 text-blue-800' },
+  seller_shipped: { label: 'Expédié vendeur', color: 'bg-orange-100 text-orange-800' },
+  received_guangzhou: { label: 'Reçu Guangzhou', color: 'bg-teal-100 text-teal-800' },
+  quality_check_pending: { label: 'Contrôle à faire', color: 'bg-yellow-100 text-yellow-800' },
+  quality_check_passed: { label: 'Contrôle OK', color: 'bg-green-100 text-green-800' },
+  quality_check_failed: { label: 'Contrôle échoué', color: 'bg-red-100 text-red-800' },
+  quality_check_partial: { label: 'Contrôle partiel', color: 'bg-orange-100 text-orange-800' },
+  handed_to_freight: { label: 'Remis au fret', color: 'bg-emerald-100 text-emerald-800' },
+  cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800' }
+}
+
 export default function AdminGroupOrdersPage() {
   const [groups, setGroups] = useState<GroupOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterPayment, setFilterPayment] = useState<string>('all')
   const [selectedGroup, setSelectedGroup] = useState<GroupOrder | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -166,14 +191,19 @@ export default function AdminGroupOrdersPage() {
     }
   }
 
-  const updateGroupStatus = async (groupId: string, newStatus: string) => {
+  const updateGroupStatus = async (
+    groupId: string,
+    newStatus: string,
+    options?: { forceOrderingWithUnpaid?: boolean }
+  ) => {
     setActionLoading(groupId)
     try {
       const res = await fetch(`/api/group-orders/${groupId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus, ...options })
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         showNotification('success', `Statut mis à jour: ${statusConfig[newStatus]?.label || newStatus}`)
         fetchGroups()
@@ -181,10 +211,23 @@ export default function AdminGroupOrdersPage() {
           refreshSelectedGroup(groupId)
         }
       } else {
-        throw new Error('Erreur')
+        if (res.status === 409 && data?.requiresConfirmation) {
+          const summary = data.paymentSummary
+          const unpaidNames = Array.isArray(data.unpaidParticipants)
+            ? data.unpaidParticipants.map((p: any) => p.name).join(', ')
+            : ''
+          const remaining = typeof summary?.remainingAmount === 'number'
+            ? `\nReste à encaisser: ${formatCurrency(summary.remainingAmount)}`
+            : ''
+          if (confirm(`${data.error || 'Des participants n’ont pas encore payé'}.\n${unpaidNames}${remaining}\nLancer quand même la commande fournisseur ?`)) {
+            await updateGroupStatus(groupId, newStatus, { forceOrderingWithUnpaid: true })
+          }
+          return
+        }
+        throw new Error(data?.error || 'Erreur')
       }
-    } catch (error) {
-      showNotification('error', 'Erreur lors de la mise à jour')
+    } catch (error: any) {
+      showNotification('error', error?.message || 'Erreur lors de la mise à jour')
     } finally {
       setActionLoading(null)
       setShowActionsMenu(null)
@@ -332,16 +375,32 @@ export default function AdminGroupOrdersPage() {
     if (filterStatus !== 'all') {
       result = result.filter(g => g.status === filterStatus)
     }
+
+    if (filterPayment !== 'all') {
+      result = result.filter(g => {
+        const participants = g.participants || []
+        const total = participants.length
+        const paidCount = participants.filter(p => p.paymentStatus === 'paid').length
+        const partialCount = participants.filter(p => p.paymentStatus === 'partial').length
+        const unpaidCount = participants.filter(p => p.paymentStatus !== 'paid').length
+
+        if (filterPayment === 'all_paid') return total > 0 && paidCount === total
+        if (filterPayment === 'unpaid') return unpaidCount > 0
+        if (filterPayment === 'partial') return partialCount > 0 || (paidCount > 0 && unpaidCount > 0)
+        if (filterPayment === 'none_paid') return total > 0 && paidCount === 0
+        return true
+      })
+    }
     
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [groups, searchTerm, filterStatus])
+  }, [groups, searchTerm, filterStatus, filterPayment])
 
   const stats = useMemo(() => {
     const totalRevenue = groups.reduce((sum, g) => 
       sum + g.participants.reduce((pSum, p) => pSum + p.paidAmount, 0), 0
     )
     const pendingRevenue = groups.reduce((sum, g) => 
-      sum + g.participants.reduce((pSum, p) => pSum + (p.totalAmount - p.paidAmount), 0), 0
+      sum + g.participants.reduce((pSum, p) => pSum + Math.max(0, p.totalAmount - p.paidAmount), 0), 0
     )
     return {
       total: groups.length,
@@ -363,7 +422,7 @@ export default function AdminGroupOrdersPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
-              notification.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+              notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
             }`}
           >
             {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
@@ -400,7 +459,7 @@ export default function AdminGroupOrdersPage() {
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Ouverts</p>
-              <p className="text-2xl font-bold text-emerald-200">{stats.open}</p>
+              <p className="text-2xl font-bold text-green-200">{stats.open}</p>
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Objectif atteint</p>
@@ -412,7 +471,7 @@ export default function AdminGroupOrdersPage() {
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Encaissé</p>
-              <p className="text-lg font-bold text-emerald-200">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-lg font-bold text-green-200">{formatCurrency(stats.totalRevenue)}</p>
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">En attente</p>
@@ -429,7 +488,7 @@ export default function AdminGroupOrdersPage() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl border p-6 shadow-lg mb-8"
         >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
               <input
@@ -454,6 +513,18 @@ export default function AdminGroupOrdersPage() {
               <option value="shipped">Expédiés</option>
               <option value="delivered">Livrés</option>
               <option value="cancelled">Annulés</option>
+            </select>
+
+            <select
+              value={filterPayment}
+              onChange={(e) => setFilterPayment(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">Tous les paiements</option>
+              <option value="unpaid">Avec impayés</option>
+              <option value="partial">Paiements partiels</option>
+              <option value="none_paid">Aucun paiement</option>
+              <option value="all_paid">Tous payés</option>
             </select>
             
             <button
@@ -496,6 +567,8 @@ export default function AdminGroupOrdersPage() {
                     <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">ID / Produit</th>
                     <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Statut</th>
                     <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Progression</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Paiements</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Fournisseur</th>
                     <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Prix</th>
                     <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Deadline</th>
                     <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">Actions</th>
@@ -533,11 +606,52 @@ export default function AdminGroupOrdersPage() {
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${progress >= 100 ? 'bg-emerald-500' : 'bg-purple-500'}`}
+                                className={`h-full rounded-full ${progress >= 100 ? 'bg-green-500' : 'bg-purple-500'}`}
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const paidCount = group.participants.filter(p => p.paymentStatus === 'paid').length
+                            const total = group.participants.length
+                            const pct = total > 0 ? Math.round((paidCount / total) * 100) : 0
+                            return (
+                              <div className="w-28">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className={paidCount === total && total > 0 ? 'text-green-700 font-bold' : 'text-gray-600'}>
+                                    {paidCount}/{total} payés
+                                  </span>
+                                  <span className="font-bold text-gray-500">{pct}%</span>
+                                </div>
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : pct > 0 ? 'bg-yellow-400' : 'bg-gray-300'}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatCurrency(group.participants.reduce((s, p) => s + p.paidAmount, 0))}
+                                </p>
+                              </div>
+                            )
+                          })()}
+                        </td>
+                        <td className="px-6 py-4">
+                          {group.chinaPurchase ? (
+                            <div className="w-36">
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${chinaPurchaseStatusConfig[group.chinaPurchase.status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                                {chinaPurchaseStatusConfig[group.chinaPurchase.status]?.label || group.chinaPurchase.status}
+                              </span>
+                              <p className="font-mono text-xs text-gray-500 mt-1">{group.chinaPurchase.purchaseId}</p>
+                              <p className={group.chinaPurchase.outstandingAmount > 0 ? 'text-xs text-red-600 mt-1' : 'text-xs text-green-700 mt-1'}>
+                                {group.chinaPurchase.paymentCoverageRatio}% couvert
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">Non lancé</span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className="font-bold text-gray-900">{formatCurrency(group.currentUnitPrice)}</span>
@@ -571,6 +685,16 @@ export default function AdminGroupOrdersPage() {
                               </button>
                             )}
                             
+                            {group.status === 'draft' && (
+                              <button
+                                onClick={() => updateGroupStatus(group.groupId, 'open')}
+                                disabled={actionLoading === group.groupId}
+                                className="p-2 hover:bg-green-100 text-green-600 rounded-lg disabled:opacity-50"
+                                title="Publier (ouvrir)"
+                              >
+                                {actionLoading === group.groupId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                              </button>
+                            )}
                             {group.status === 'filled' && (
                               <button
                                 onClick={() => updateGroupStatus(group.groupId, 'ordering')}
@@ -697,6 +821,44 @@ export default function AdminGroupOrdersPage() {
                     {detailError}
                   </div>
                 )}
+                {selectedGroup.chinaPurchase && (
+                  <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          <ShoppingCart className="w-5 h-5 text-purple-600" />
+                          Achat Chine
+                        </h3>
+                        <p className="font-mono text-sm text-purple-700 mt-1">{selectedGroup.chinaPurchase.purchaseId}</p>
+                        <p className="text-xs text-purple-700 mt-1">Plateforme : {selectedGroup.chinaPurchase.platform}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${chinaPurchaseStatusConfig[selectedGroup.chinaPurchase.status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                        {chinaPurchaseStatusConfig[selectedGroup.chinaPurchase.status]?.label || selectedGroup.chinaPurchase.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
+                      <div className="bg-white rounded-xl p-3">
+                        <p className="text-gray-500">Montant attendu</p>
+                        <p className="font-bold text-gray-900">{formatCurrency(selectedGroup.chinaPurchase.expectedAmount)}</p>
+                      </div>
+                      <div className="bg-white rounded-xl p-3">
+                        <p className="text-gray-500">Encaissé</p>
+                        <p className="font-bold text-green-700">{formatCurrency(selectedGroup.chinaPurchase.collectedAmount)}</p>
+                      </div>
+                      <div className="bg-white rounded-xl p-3">
+                        <p className="text-gray-500">Reste</p>
+                        <p className={selectedGroup.chinaPurchase.outstandingAmount > 0 ? 'font-bold text-red-700' : 'font-bold text-green-700'}>
+                          {formatCurrency(selectedGroup.chinaPurchase.outstandingAmount)}
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-xl p-3">
+                        <p className="text-gray-500">Couverture</p>
+                        <p className="font-bold text-purple-700">{selectedGroup.chinaPurchase.paymentCoverageRatio}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Participants */}
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -727,7 +889,7 @@ export default function AdminGroupOrdersPage() {
                             </td>
                             <td className="px-4 py-3 text-center font-bold">{p.qty}</td>
                             <td className="px-4 py-3 text-right">{formatCurrency(p.totalAmount)}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-emerald-600">{formatCurrency(p.paidAmount)}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(p.paidAmount)}</td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2 py-1 rounded text-xs font-bold ${paymentStatusConfig[p.paymentStatus]?.color}`}>
                                 {paymentStatusConfig[p.paymentStatus]?.label}
@@ -746,7 +908,7 @@ export default function AdminGroupOrdersPage() {
                                 {p.paymentStatus !== 'paid' && (
                                   <button
                                     onClick={() => updatePaymentStatus(selectedGroup.groupId, p.phone, 'paid', p.totalAmount)}
-                                    className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold hover:bg-emerald-200"
+                                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold hover:bg-green-200"
                                   >
                                     Marquer payé
                                   </button>
@@ -789,7 +951,7 @@ export default function AdminGroupOrdersPage() {
                         <tr>
                           <td colSpan={3} className="px-4 py-3">TOTAL</td>
                           <td className="px-4 py-3 text-right">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.totalAmount, 0))}</td>
-                          <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.paidAmount, 0))}</td>
+                          <td className="px-4 py-3 text-right text-green-600">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.paidAmount, 0))}</td>
                           <td colSpan={2}></td>
                         </tr>
                       </tfoot>
@@ -801,7 +963,7 @@ export default function AdminGroupOrdersPage() {
                 {selectedGroup.priceTiers.length > 0 && (
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-emerald-600" />
+                      <TrendingDown className="w-5 h-5 text-green-600" />
                       Paliers de prix
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -809,7 +971,7 @@ export default function AdminGroupOrdersPage() {
                         <div
                           key={i}
                           className={`p-3 rounded-lg border ${
-                            selectedGroup.currentQty >= tier.minQty ? 'bg-emerald-50 border-emerald-300' : 'bg-gray-50'
+                            selectedGroup.currentQty >= tier.minQty ? 'bg-green-50 border-green-300' : 'bg-gray-50'
                           }`}
                         >
                           <p className="text-sm text-gray-600">{tier.minQty}+ unités</p>
@@ -857,7 +1019,7 @@ export default function AdminGroupOrdersPage() {
                 </div>
                 <div className="text-sm">
                   <span className="text-gray-600">Montant:</span>{' '}
-                  <span className="font-semibold text-emerald-700">{formatCurrency(paymentLinksModal.amount)}</span>
+                  <span className="font-semibold text-green-700">{formatCurrency(paymentLinksModal.amount)}</span>
                 </div>
 
                 <div className="mt-3 space-y-2">

@@ -1,149 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronDown, MapPin, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// Données Sénégal: Régions → Départements → Quartiers
-const SENEGAL_REGIONS: Record<string, {
-  departments: Record<string, {
-    name: string
-    neighborhoods: string[]
-  }>
-}> = {
-  'Dakar': {
-    departments: {
-      'Dakar': {
-        name: 'Dakar',
-        neighborhoods: [
-          'Plateau',
-          'Médina',
-          'Rebeuss',
-          'Talibouya',
-          'Saint-Louis',
-          'Ngor',
-          'Almadies',
-          'Fann',
-          'Mermoz',
-          'Sacré-Cœur',
-          'Point E',
-          'Parcelles Assainies',
-          'Patte d\'Oie',
-          'Liberté',
-          'Camberène',
-          'Yarakh'
-        ]
-      },
-      'Pikine': {
-        name: 'Pikine',
-        neighborhoods: [
-          'Pikine',
-          'Yeumbeul',
-          'Malika',
-          'Diawara',
-          'Thiaroye',
-          'Keur Massar'
-        ]
-      },
-      'Rufisque': {
-        name: 'Rufisque',
-        neighborhoods: [
-          'Rufisque',
-          'Bargny',
-          'Diamniadio',
-          'Bambilor',
-          'Tivaoune Peulh'
-        ]
-      }
-    }
-  },
-  'Thiès': {
-    departments: {
-      'Thiès': {
-        name: 'Thiès',
-        neighborhoods: [
-          'Thiès Centre',
-          'Thiès Gare',
-          'Thiès Nones',
-          'Gueule Tapée',
-          'Ndondol',
-          'Keur Issa'
-        ]
-      },
-      'Tivaouane': {
-        name: 'Tivaouane',
-        neighborhoods: ['Tivaouane', 'Méouane', 'Ourakh', 'Khombole']
-      },
-      'Mbour': {
-        name: 'Mbour',
-        neighborhoods: ['Mbour', 'Joal', 'Sindia', 'Pout', 'Malicounda']
-      }
-    }
-  },
-  'Kaolack': {
-    departments: {
-      'Kaolack': {
-        name: 'Kaolack',
-        neighborhoods: ['Kaolack Centre', 'Ndiaffate', 'Aïoun', 'Ndiassane', 'Kanène']
-      },
-      'Nioro du Rip': {
-        name: 'Nioro du Rip',
-        neighborhoods: ['Nioro du Rip', 'Paoskoto', 'Bourém', 'Gankette']
-      },
-      'Guinguinéo': {
-        name: 'Guinguinéo',
-        neighborhoods: ['Guinguinéo', 'Tambacounda du Sénégal', 'Sonfara', 'Bibasidi']
-      }
-    }
-  },
-  'Saint-Louis': {
-    departments: {
-      'Saint-Louis': {
-        name: 'Saint-Louis',
-        neighborhoods: [
-          'Centre-Ville',
-          'Sor',
-          'Ndar Toute',
-          'Khat',
-          'Goxu Mbacc',
-          'Pointe aux Almadies'
-        ]
-      },
-      'Dagana': {
-        name: 'Dagana',
-        neighborhoods: ['Dagana', 'Guédé', 'Melea', 'Podor']
-      }
-    }
-  },
-  'Kolda': {
-    departments: {
-      'Kolda': {
-        name: 'Kolda',
-        neighborhoods: ['Kolda Centre', 'Mampatim', 'Médina El Hadj']
-      },
-      'Vélingara': {
-        name: 'Vélingara',
-        neighborhoods: ['Vélingara', 'Dialacoto', 'Gaoual']
-      }
-    }
-  },
-  'Ziguinchor': {
-    departments: {
-      'Ziguinchor': {
-        name: 'Ziguinchor',
-        neighborhoods: ['Ziguinchor Centre', 'Birkélane', 'Diabir']
-      },
-      'Bignona': {
-        name: 'Bignona',
-        neighborhoods: ['Bignona', 'Diattacounda', 'Samec']
-      },
-      'Oussouye': {
-        name: 'Oussouye',
-        neighborhoods: ['Oussouye', 'Enampore']
-      }
-    }
-  }
-}
+import { SENEGAL_REGIONS } from '@/lib/senegal-address'
 
 interface AddressData {
   region: string
@@ -171,6 +32,15 @@ export default function AddressPickerSenegal({
   const [additionalInfo, setAdditionalInfo] = useState<string>(value.additionalInfo || '')
   const [openDropdown, setOpenDropdown] = useState<'region' | 'department' | 'neighborhood' | null>(null)
 
+  // Sync state with props when value changes (e.g. prefill from session)
+  useEffect(() => {
+    if (value.region !== undefined && value.region !== region) setRegion(value.region)
+    if (value.department !== undefined && value.department !== department) setDepartment(value.department)
+    if (value.neighborhood !== undefined && value.neighborhood !== neighborhood) setNeighborhood(value.neighborhood)
+    if (value.street !== undefined && value.street !== street) setStreet(value.street)
+    if (value.additionalInfo !== undefined && value.additionalInfo !== additionalInfo) setAdditionalInfo(value.additionalInfo)
+  }, [value])
+
   // Listes déroulantes filtrées
   const regionList = Object.keys(SENEGAL_REGIONS)
   const departmentList = useMemo(() => {
@@ -186,19 +56,21 @@ export default function AddressPickerSenegal({
     return deptData?.neighborhoods || []
   }, [region, department])
 
-  const isValid = region && department && neighborhood && street.trim().length > 0
+  const isValid = !!(region && department && neighborhood && street.trim().length > 0)
 
-  const handleAddressChange = () => {
-    const newAddress: AddressData = {
-      region,
-      department,
-      neighborhood,
-      street: street.trim(),
-      additionalInfo: additionalInfo.trim() || undefined
+  // Synchroniser validation + onChange dès que l'un des champs change
+  useEffect(() => {
+    onValidation?.(isValid)
+    if (region || department || neighborhood || street) {
+      onChange({
+        region,
+        department,
+        neighborhood,
+        street: street.trim(),
+        additionalInfo: additionalInfo.trim() || undefined
+      })
     }
-    onChange(newAddress)
-    onValidation?.(!!isValid)
-  }
+  }, [region, department, neighborhood, street, additionalInfo])
 
   const handleRegionChange = (newRegion: string) => {
     setRegion(newRegion)
@@ -220,6 +92,11 @@ export default function AddressPickerSenegal({
 
   const handleStreetChange = (newStreet: string) => {
     setStreet(newStreet)
+  }
+
+  const handleAddressChange = () => {
+    // Kept for backward-compat (onBlur), but main logic is in the useEffect above
+    onValidation?.(isValid)
   }
 
   return (

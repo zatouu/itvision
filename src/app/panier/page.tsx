@@ -1,13 +1,12 @@
 
 "use client"
-import dynamic from 'next/dynamic'
-const GroupBuyPaymentModal = dynamic(() => import('@/components/GroupBuyPaymentModal'), { ssr: false })
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
+  ArrowLeft,
   Trash2,
   Minus,
   Plus,
@@ -22,7 +21,6 @@ import {
   CheckCircle,
   Loader2,
   Package,
-  Home,
   TrendingDown,
   ChevronLeft,
   ChevronRight,
@@ -30,24 +28,42 @@ import {
   Clock,
   Star,
   ShoppingCart,
-  Heart,
   Eye,
-  Zap
+  Zap,
+  LogIn,
+  UserPlus,
+  Users
 } from 'lucide-react'
+import Link from 'next/link'
 import AddressPickerSenegal from '@/components/AddressPickerSenegal'
-import { getTierForQuantity, applyTierDiscount, QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing'
+import CartEngagementSidebar from '@/components/CartEngagementSidebar'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
+import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
+import { getServiceFeeTier, SERVICE_FEE_TIERS, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
+import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { resolveProductPrice, type MarketplaceTier } from '@/lib/pricing/resolve-product-price'
+import { ServiceFeeTierProgress } from '@/components/ServiceFeeTierProgress'
+import { useToast } from '@/components/ui/Toaster'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
+const MARKETPLACE_TIER_LABEL: Record<MarketplaceTier, string> = {
+  standard: 'Standard',
+  pro: 'Pro',
+  reseller: 'Revendeur',
+  partner: 'Partenaire',
+}
 
 export default function PanierPage() {
-    const [showPayment, setShowPayment] = useState(false)
-    const [orderInfo, setOrderInfo] = useState<any>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authUser, setAuthUser] = useState<{ name?: string; email?: string; phone?: string } | null>(null)
+  const [marketplaceTier, setMarketplaceTier] = useState<MarketplaceTier>('standard')
   const router = useRouter()
+  const { addToast } = useToast()
   const [items, setItems] = useState<any[]>([])
   const [recentViewed, setRecentViewed] = useState<any[]>([])
   const [suggestedProducts, setSuggestedProducts] = useState<any[]>([])
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true)
   const [shippingMethod, setShippingMethod] = useState<'express' | 'air' | 'sea'>('air')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -58,6 +74,64 @@ export default function PanierPage() {
   const [addressValid, setAddressValid] = useState(false)
   const [suggestionScroll, setSuggestionScroll] = useState(0)
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+  const [serviceFeeTiers, setServiceFeeTiers] = useState<ServiceFeeTier[]>(SERVICE_FEE_TIERS)
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [activeGroups, setActiveGroups] = useState<any[]>([])
+
+  // 0. Vérifier l'authentification JWT custom au montage
+  useEffect(() => {
+    fetch('/api/client/profile', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.profile) {
+          setIsAuthenticated(true)
+          setAuthUser({ name: data.profile.name, email: data.profile.email, phone: data.profile.phone })
+          const tier = data.profile.marketplaceTier
+          if (tier === 'standard' || tier === 'pro' || tier === 'reseller' || tier === 'partner') {
+            setMarketplaceTier(tier)
+          }
+          setName((prev: string) => prev || data.profile.name || '')
+          setEmail((prev: string) => prev || data.profile.email || '')
+          setPhone((prev: string) => prev || data.profile.phone || '')
+          if (data.lastAddress) {
+            setAddress((prev: any) => (!prev || Object.keys(prev).length === 0 ? data.lastAddress : prev))
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // 1. Restaurer depuis sessionStorage au montage (pour conserver les infos si redirection login)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const saved = sessionStorage.getItem('cart_checkout_form')
+        if (saved) {
+          try {
+            const data = JSON.parse(saved)
+            setName(prev => prev || data.name || '')
+            setPhone(prev => prev || data.phone || '')
+            setEmail(prev => prev || data.email || '')
+            setAddress((prev: any) => (Object.keys(prev || {}).length === 0 ? data.address : prev))
+          } catch {}
+        }
+    }
+  }, [])
+
+  // 2. Sauvegarder les changements pour persistance
+  useEffect(() => {
+     const hasData = name || phone || email || (address && Object.keys(address).length > 0)
+     if (hasData && typeof window !== 'undefined') {
+        sessionStorage.setItem('cart_checkout_form', JSON.stringify({ name, phone, email, address }))
+     }
+  }, [name, phone, email, address])
+
+
+  const highlightError = (field: string) => {
+    setErrors(prev => ({ ...prev, [field]: true }))
+    setTimeout(() => {
+      setErrors(prev => ({ ...prev, [field]: false }))
+    }, 2000)
+  }
 
   useEffect(() => {
     fetch('/api/shipping-rates')
@@ -71,12 +145,38 @@ export default function PanierPage() {
   }, [])
 
   useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return
-      const raw = localStorage.getItem('cart:items')
-      setItems(raw ? JSON.parse(raw) : [])
-    } catch (e) {
-      console.error(e)
+    fetch('/api/pricing/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && Array.isArray(d?.defaults?.serviceFeeTiers) && d.defaults.serviceFeeTiers.length > 0) {
+          setServiceFeeTiers(d.defaults.serviceFeeTiers)
+        }
+      })
+      .catch(() => {
+        // fallback: SERVICE_FEE_TIERS
+      })
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const syncCartItems = () => {
+      try {
+        const raw = localStorage.getItem('cart:items')
+        setItems(raw ? JSON.parse(raw) : [])
+      } catch (e) {
+        console.error(e)
+        setItems([])
+      }
+    }
+
+    syncCartItems()
+    window.addEventListener('storage', syncCartItems)
+    window.addEventListener('cart:updated', syncCartItems as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', syncCartItems)
+      window.removeEventListener('cart:updated', syncCartItems as EventListener)
     }
   }, [])
 
@@ -84,7 +184,6 @@ export default function PanierPage() {
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
-        setLoadingSuggestions(true)
         // Récupérer des produits populaires/récents
         const res = await fetch('/api/catalog/products?limit=12&sort=popular')
         const data = await res.json()
@@ -96,25 +195,55 @@ export default function PanierPage() {
         }
       } catch (e) {
         console.error('Erreur chargement suggestions:', e)
-      } finally {
-        setLoadingSuggestions(false)
       }
     }
     fetchSuggestions()
   }, [items])
 
+  // Chercher les achats groupés actifs pour les produits du panier
+  useEffect(() => {
+    if (items.length === 0) { setActiveGroups([]); return }
+    const fetchGroups = async () => {
+      try {
+        const productIds = items.map(i => i.id?.split('-')[0] || i.id).filter(Boolean)
+        const unique = [...new Set(productIds)]
+        const results: any[] = []
+        for (const pid of unique.slice(0, 5)) {
+          try {
+            const res = await fetch(`/api/group-orders?productId=${encodeURIComponent(pid)}&limit=1`)
+            const data = await res.json()
+            if (data?.success && data.groups?.length > 0) {
+              const g = data.groups[0]
+              if (g.status === 'open') {
+                results.push({ ...g, cartProductId: pid, cartProductName: items.find(i => (i.id?.split('-')[0] || i.id) === pid)?.name })
+              }
+            }
+          } catch {}
+        }
+        setActiveGroups(results)
+      } catch {}
+    }
+    fetchGroups()
+  }, [items])
+
   // Ajouter un produit suggéré au panier
   const addSuggestedToCart = useCallback((product: any) => {
-    const newItem = {
-      id: product._id,
-      name: product.name,
-      image: product.image,
-      price: product.price || 0,
-      qty: 1,
-      weightKg: product.weightKg,
-      volumeM3: product.volumeM3
-    }
-    const updated = [...items, newItem]
+    const existing = items.find((item) => item.id === product._id)
+    const updated = existing
+      ? items.map((item) => item.id === product._id ? { ...item, qty: (item.qty || 1) + 1 } : item)
+      : [
+          ...items,
+          {
+            id: product._id,
+            name: product.name,
+            image: product.image,
+            price: product.price || 0,
+            qty: 1,
+            weightKg: product.weightKg,
+            volumeM3: product.volumeM3
+          }
+        ]
+
     setItems(updated)
     localStorage.setItem('cart:items', JSON.stringify(updated))
     window.dispatchEvent(new CustomEvent('cart:updated'))
@@ -132,61 +261,106 @@ export default function PanierPage() {
     setSuggestionScroll(newScroll)
   }
 
-  const SHIPPING_CHOICES = {
+  const SHIPPING_CHOICES = useMemo(() => ({
     express: { label: shippingRates.air_express?.label || 'Express 3j', methodId: 'air_express' as const },
     air: { label: shippingRates.air_15?.label || 'Fret aérien 10–15j', methodId: 'air_15' as const },
     sea: { label: shippingRates.sea_freight?.label || 'Maritime 60j', methodId: 'sea_freight' as const }
-  }
+  }), [shippingRates])
 
   const transportGlobal = useMemo(() => {
     let totalWeight = 0
     let totalVolume = 0
+    let totalVolumetricWeight = 0
+    
     for (const it of items) {
       const qty = it.qty || 1
       const w = typeof it.unitWeightKg === 'number' ? it.unitWeightKg : (typeof it.weightKg === 'number' ? it.weightKg : 0)
       const v = typeof it.unitVolumeM3 === 'number' ? it.unitVolumeM3 : (typeof it.volumeM3 === 'number' ? it.volumeM3 : 0)
       totalWeight += w * qty
       totalVolume += v * qty
+      
+      // Calcul du poids volumétrique
+      if (it.lengthCm && it.widthCm && it.heightCm && w > 0) {
+        const weightInfo = calculateBilledWeight({
+          actualWeightKg: w,
+          lengthCm: it.lengthCm,
+          widthCm: it.widthCm,
+          heightCm: it.heightCm
+        })
+        totalVolumetricWeight += weightInfo.volumetricWeight * qty
+      }
     }
 
     const selectedMethodId = SHIPPING_CHOICES[shippingMethod]?.methodId || 'air_15'
     const rate = shippingRates[selectedMethodId]
     if (!rate) return 0
 
-    // Minimums physiques (cohérents avec /api/order)
-    const effectiveWeight = Math.max(totalWeight || 0, 1)
-    const effectiveVolume = Math.max(totalVolume || 0, 0.001)
+    // Pour le fret aérien, utiliser le max entre poids réel et volumétrique
+    let billedWeight = totalWeight
+    if (rate.billing === 'per_kg') {
+      billedWeight = Math.max(totalWeight, totalVolumetricWeight)
+    }
 
     let billed = 0
     if (rate.billing === 'per_cubic_meter') {
-      billed = effectiveVolume * rate.rate
+      billed = Math.max(totalVolume || 0, 0) * rate.rate
     } else {
-      billed = effectiveWeight * rate.rate
+      billed = Math.max(billedWeight || 0.1, 0.1) * rate.rate
     }
 
     const withMinCharge = typeof rate.minimumCharge === 'number' ? Math.max(billed, rate.minimumCharge) : billed
     return Math.round(withMinCharge)
-  }, [items, shippingMethod, shippingRates])
+  }, [items, shippingMethod, shippingRates, SHIPPING_CHOICES])
 
   const weightSummary = useMemo(() => {
     let totalWeight = 0
     let totalVolume = 0
+    let totalVolumetricWeight = 0
+    let hasVolumetric = false
+    
     for (const it of items) {
       const qty = it.qty || 1
       const w = typeof it.unitWeightKg === 'number' ? it.unitWeightKg : (typeof it.weightKg === 'number' ? it.weightKg : 0)
       const v = typeof it.unitVolumeM3 === 'number' ? it.unitVolumeM3 : (typeof it.volumeM3 === 'number' ? it.volumeM3 : 0)
       totalWeight += w * qty
       totalVolume += v * qty
+      
+      // Calcul du poids volumétrique
+      if (it.lengthCm && it.widthCm && it.heightCm && w > 0) {
+        const weightInfo = calculateBilledWeight({
+          actualWeightKg: w,
+          lengthCm: it.lengthCm,
+          widthCm: it.widthCm,
+          heightCm: it.heightCm
+        })
+        totalVolumetricWeight += weightInfo.volumetricWeight * qty
+        if (weightInfo.billingMethod === 'volumetric') {
+          hasVolumetric = true
+        }
+      }
     }
-    return { totalWeight, totalVolume }
+    
+    return { 
+      totalWeight, 
+      totalVolume, 
+      totalVolumetricWeight,
+      billedWeight: Math.max(totalWeight, totalVolumetricWeight),
+      hasVolumetric 
+    }
   }, [items])
 
   const transportLabel = useMemo(() => {
     const selectedMethodId = SHIPPING_CHOICES[shippingMethod]?.methodId || 'air_15'
     const rate = shippingRates[selectedMethodId]
     if (!rate) return 'Transport'
-    return rate.billing === 'per_cubic_meter' ? 'Transport (min 0.001m³)' : 'Transport (min 1kg)'
-  }, [shippingMethod, shippingRates])
+    
+    // Si un minimum de facturation est défini qui correspond au prix unitaire (ex: 1kg), on l'indique
+    if (rate.minimumCharge && rate.rate && rate.minimumCharge === rate.rate) {
+       return `Transport (min 1${rate.billing === 'per_cubic_meter' ? 'm³' : 'kg'})`
+    }
+    
+    return 'Transport'
+  }, [shippingMethod, shippingRates, SHIPPING_CHOICES])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -194,7 +368,7 @@ export default function PanierPage() {
       try {
         const raw = localStorage.getItem('recent:viewed')
         setRecentViewed(raw ? JSON.parse(raw) : [])
-      } catch (e) {
+      } catch {
         setRecentViewed([])
       }
     }
@@ -211,21 +385,38 @@ export default function PanierPage() {
 
   const breakdown = useMemo(() => {
     let products = 0
+    let retailProducts = 0
     let totalQuantity = 0
 
+    // Premier passage: calculer la quantité totale
+    for (const it of items) totalQuantity += it.qty || 1
+
+    // Second passage: appliquer le prix selon la logique tier + quantité
     for (const it of items) {
       const qty = it.qty || 1
-      const price = typeof it.price === 'number' ? it.price : 0
-      products += price * qty
-      totalQuantity += qty
+      const retailPrice = typeof it.price === 'number' ? it.price : 0
+      const resolved = resolveProductPrice({
+        price: retailPrice,
+        b2bPrice: it.b2bPrice,
+        qty,
+        totalCartQty: totalQuantity,
+        marketplaceTier,
+      })
+      const effectivePrice = resolved.appliedPrice
+      products += effectivePrice * qty
+      retailProducts += retailPrice * qty
     }
 
     // Appliquer les tarifs progressifs
     const pricingTier = applyTierDiscount(products, totalQuantity)
 
     const total = pricingTier.finalPrice + transportGlobal
+    const wholesaleDiscount = retailProducts > products ? retailProducts - products : 0
+
     return {
       products: products,
+      retailProducts,
+      wholesaleDiscount,
       discountAmount: pricingTier.discountAmount,
       discountPercent: pricingTier.discountPercent,
       finalProducts: pricingTier.finalPrice,
@@ -233,12 +424,15 @@ export default function PanierPage() {
       tier: pricingTier.tier,
       total
     }
-  }, [items, transportGlobal])
+  }, [items, marketplaceTier, transportGlobal])
+
+  const standardServiceFeeRate = serviceFeeTiers[0]?.feeRate ?? 10
 
   const removeItem = (id: string) => {
     const next = items.filter(i => i.id !== id)
     setItems(next)
     localStorage.setItem('cart:items', JSON.stringify(next))
+    window.dispatchEvent(new CustomEvent('cart:updated'))
   }
 
   const updateQty = (id: string, qty: number) => {
@@ -249,13 +443,30 @@ export default function PanierPage() {
     const next = items.map(i => i.id === id ? { ...i, qty } : i)
     setItems(next)
     localStorage.setItem('cart:items', JSON.stringify(next))
+    window.dispatchEvent(new CustomEvent('cart:updated'))
   }
 
   const handleCheckout = async () => {
-    if (!name || !phone || !addressValid || !address) {
-      alert('Veuillez remplir tous les champs')
+    if (items.length === 0) {
+      addToast('Votre panier est vide', 'error')
       return
     }
+    if (!name || !phone || !addressValid || !address) {
+      if (!name) highlightError('name')
+      if (!phone) highlightError('phone')
+      if (!addressValid) highlightError('address')
+      addToast('Veuillez remplir les informations de livraison obligatoires', 'error')
+      return
+    }
+
+    // Validation téléphone Sénégal
+    const cleanedPhone = phone.replace(/\s+/g, '').replace(/^(\+|00)?221/, '')
+    if (!/^(77|78|76|70|75)\d{7}$/.test(cleanedPhone)) {
+      addToast('Numéro de téléphone invalide (Ex: 77 123 45 67)', 'error')
+      highlightError('phone')
+      return
+    }
+
     setSending(true)
     try {
       const shippingMap: Record<string, string> = {
@@ -291,44 +502,19 @@ export default function PanierPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        localStorage.removeItem('cart:items')
-        setItems([])
-        setOrderInfo({
-          orderId: data.orderId,
-          name,
-          phone,
-          email,
-          items,
-          total: breakdown.total
-        })
-        setShowPayment(true)
-      } else {
-        alert('Erreur: ' + (data.error || 'erreur inconnue'))
-      }
-      // Rendu du modal de paiement après commande
-      const handleClosePayment = () => {
-        setShowPayment(false)
-        if (orderInfo?.orderId) {
-          router.push(`/commandes/${orderInfo.orderId}`)
+        // Ne PAS vider le panier ici — le conserver jusqu'à confirmation paiement
+        // L'utilisateur peut revenir en arrière sans tout perdre
+        const ref = data.orderId || data.reference;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('cart:pending_order', ref)
         }
-        setOrderInfo(null)
+        router.push(`/paiement/checkout/${ref}`)
+      } else {
+        addToast('Erreur: ' + (data.error || 'erreur inconnue'), 'error')
       }
-      {/* Modal paiement */}
-      {showPayment && orderInfo && (
-        <GroupBuyPaymentModal
-          isOpen={showPayment}
-          onClose={handleClosePayment}
-          groupId={orderInfo.orderId}
-          productName={orderInfo.items.map((it:any)=>it.name).join(', ')}
-          quantity={orderInfo.items.reduce((acc:any,it:any)=>acc+(it.qty||1),0)}
-          unitPrice={Math.round(orderInfo.total/orderInfo.items.reduce((acc:any,it:any)=>acc+(it.qty||1),0))}
-          phone={orderInfo.phone}
-          email={orderInfo.email}
-        />
-      )}
     } catch (e) {
       console.error(e)
-      alert('Erreur lors de l envoi')
+      addToast('Erreur lors de l\'envoi de la commande', 'error')
     } finally {
       setSending(false)
     }
@@ -343,8 +529,9 @@ export default function PanierPage() {
   // Panier vide
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-emerald-50 p-4 md:p-8">
-        <div className="max-w-3xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-violet-50">
+        <MarketHeader />
+        <div className="max-w-3xl mx-auto p-4 md:p-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -352,33 +539,86 @@ export default function PanierPage() {
           >
             <ShoppingBag className="w-24 h-24 mx-auto text-gray-300 mb-6" />
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Panier vide</h1>
-            <p className="text-gray-600 mb-8">Explorez nos produits et ajoutez-les à votre panier pour commencer!</p>
-            <motion.a
-              href="/"
-              whileHover={{ scale: 1.05 }}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg"
+            <p className="text-gray-600 mb-6">Explorez nos produits et ajoutez-les à votre panier pour commencer!</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <motion.a
+                href="/produits"
+                whileHover={{ scale: 1.05 }}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg"
+              >
+                <Package className="w-5 h-5" />
+                Voir le catalogue
+              </motion.a>
+              <motion.a
+                href="/achats-groupes"
+                whileHover={{ scale: 1.05 }}
+                className="inline-flex items-center gap-2 bg-white border-2 border-violet-200 text-violet-700 px-8 py-4 rounded-xl font-bold transition hover:bg-violet-50 shadow-sm"
+              >
+                <Users className="w-5 h-5" />
+                Achats groupés
+              </motion.a>
+            </div>
+          </motion.div>
+
+          {/* Incitation achats groupés */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-8 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-green-50 p-6 text-center"
+          >
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <h3 className="font-bold text-gray-900 mb-1">Payez moins cher avec les achats groupés</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Rejoignez un groupe d&apos;achat et bénéficiez de tarifs dégressifs — import direct Chine, livraison Sénégal.
+            </p>
+            <Link
+              href="/achats-groupes"
+              className="inline-flex items-center gap-2 text-sm font-bold text-violet-700 hover:text-violet-800 hover:underline"
             >
-              <Home className="w-5 h-5" />
-              Retour à l'accueil
-            </motion.a>
+              Découvrir les groupes en cours
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </motion.div>
         </div>
+        <MarketFooter />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
+      <MarketHeader />
+      
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white py-8 px-4 md:px-8 shadow-xl"
+        className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-8 px-4 md:px-8 shadow-xl"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-6">
-            <ShoppingBag className="w-8 h-8" />
-            <h1 className="text-3xl font-bold">Votre Panier</h1>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              {step > 1 && (
+                <button
+                  onClick={() => setStep(step === 3 ? 2 : 1)}
+                  className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Retour
+                </button>
+              )}
+              <ShoppingBag className="w-8 h-8" />
+              <h1 className="text-3xl font-bold">Votre Panier</h1>
+            </div>
+            <Link href="/produits" className="text-white/70 hover:text-white text-xs flex items-center gap-1 transition">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Catalogue
+            </Link>
           </div>
 
           {/* Progression steps */}
@@ -403,7 +643,7 @@ export default function PanierPage() {
                   whileHover={{ scale: 1.1 }}
                   className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-4 transition-all ${
                     s.active
-                      ? 'bg-white text-emerald-600 border-white'
+                      ? 'bg-white text-green-600 border-white'
                       : 'bg-white/30 text-white border-white/50'
                   }`}
                 >
@@ -417,6 +657,10 @@ export default function PanierPage() {
       </motion.div>
 
       {/* Contenu */}
+      <div className="relative">
+      <div className="hidden 2xl:block absolute right-4 top-8 w-60 z-10">
+        <CartEngagementSidebar cartProductIds={items.map(i => i.id)} marketplaceTier={marketplaceTier} />
+      </div>
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         <AnimatePresence mode="wait">
           {step === 1 && (
@@ -454,9 +698,45 @@ export default function PanierPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 truncate">{it.name}</h3>
                           {it.variantId && <p className="text-xs text-gray-500">Variante: {it.variantId}</p>}
-                          <p className="text-sm text-emerald-600 font-bold mt-1">{formatCurrency(it.price)}</p>
+                          {(() => {
+                            const qty = it.qty || 1
+                            const retailPrice = typeof it.price === 'number' ? it.price : 0
+                            const hasWholesale = typeof it.b2bPrice === 'number' && it.b2bPrice > 0 && it.b2bPrice < retailPrice
+                            const resolved = resolveProductPrice({
+                              price: retailPrice,
+                              b2bPrice: it.b2bPrice,
+                              qty,
+                              totalCartQty: breakdown.totalQuantity,
+                              marketplaceTier,
+                            })
+                            const usesWholesale = resolved.priceType === 'wholesale'
+                            const effectivePrice = resolved.appliedPrice
+                            const discountPct = resolved.savingsPercent
+                            return (
+                              <>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`text-sm font-bold ${usesWholesale ? 'text-violet-600' : 'text-green-600'}`}>
+                                    {formatCurrency(effectivePrice)}
+                                  </span>
+                                  {usesWholesale && (
+                                    <span className="text-xs line-through text-gray-400">{formatCurrency(it.price)}</span>
+                                  )}
+                                  {usesWholesale && discountPct > 0 && (
+                                    <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                      -{discountPct}%
+                                    </span>
+                                  )}
+                                </div>
+                                {hasWholesale && !usesWholesale && breakdown.totalQuantity < 5 && (
+                                  <p className="text-[11px] text-violet-500 mt-0.5">
+                                    Prix volume dès 5 pcs : {formatCurrency(it.b2bPrice)} (-{discountPct}%)
+                                  </p>
+                                )}
+                              </>
+                            )
+                          })()}
                           {recentViewed && recentViewed.some(rv => it.id.startsWith(rv.id)) && (
-                            <span className="inline-block text-xs text-emerald-600 font-semibold mt-1">⭐ Vu récemment</span>
+                            <span className="inline-block text-xs text-green-600 font-semibold mt-1">⭐ Vu récemment</span>
                           )}
                         </div>
 
@@ -472,12 +752,23 @@ export default function PanierPage() {
                             <div className="w-8 text-center font-semibold text-sm">{it.qty || 1}</div>
                             <button
                               onClick={() => updateQty(it.id, (it.qty || 1) + 1)}
-                              className="w-8 h-8 rounded flex items-center justify-center hover:bg-emerald-100 transition"
+                              className="w-8 h-8 rounded flex items-center justify-center hover:bg-green-100 transition"
                             >
-                              <Plus className="w-4 h-4 text-emerald-600" />
+                              <Plus className="w-4 h-4 text-green-600" />
                             </button>
                           </motion.div>
-                          <p className="text-sm font-bold text-gray-900">{formatCurrency((it.price || 0) * (it.qty || 1))}</p>
+                          <p className="text-sm font-bold text-gray-900">{(() => {
+                            const qty = it.qty || 1
+                            const retailPrice = typeof it.price === 'number' ? it.price : 0
+                            const resolved = resolveProductPrice({
+                              price: retailPrice,
+                              b2bPrice: it.b2bPrice,
+                              qty,
+                              totalCartQty: breakdown.totalQuantity,
+                              marketplaceTier,
+                            })
+                            return formatCurrency(resolved.appliedPrice * qty)
+                          })()}</p>
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
@@ -491,6 +782,56 @@ export default function PanierPage() {
                     </motion.div>
                   ))}
                 </div>
+
+                {/* Banner achats groupés */}
+                {activeGroups.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-green-50 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 text-sm">Achat groupé disponible !</p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {activeGroups.length === 1
+                            ? 'Un produit de votre panier est disponible en achat groupé pour moins cher.'
+                            : `${activeGroups.length} produits de votre panier sont disponibles en achat groupé.`}
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {activeGroups.map((g: any) => {
+                            const cartItem = items.find(i => (i.id?.split('-')[0] || i.id) === g.cartProductId)
+                            const cartPrice = cartItem?.price || 0
+                            const saving = cartPrice > 0 && g.currentUnitPrice < cartPrice ? cartPrice - g.currentUnitPrice : 0
+                            return (
+                              <Link
+                                key={g.groupId}
+                                href={`/achats-groupes/${g.groupId}`}
+                                className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-gray-200 hover:border-violet-300 hover:shadow-sm transition"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-gray-900 truncate">{g.cartProductName || g.product?.name}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    Groupe: {formatCurrency(g.currentUnitPrice)} / unité
+                                    {saving > 0 && (
+                                      <span className="ml-1 font-bold text-green-600">(-{formatCurrency(saving)})</span>
+                                    )}
+                                  </p>
+                                </div>
+                                <span className="ml-2 px-2.5 py-1 bg-gradient-to-r from-green-500 to-violet-500 text-white text-[11px] font-bold rounded-lg flex-shrink-0">
+                                  Rejoindre
+                                </span>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* Récap */}
@@ -522,49 +863,122 @@ export default function PanierPage() {
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-3">
-                    📦 Poids: {weightSummary.totalWeight.toFixed(2)}kg · 📊 Volume: {weightSummary.totalVolume.toFixed(3)}m³ · 📊 Quantité: {breakdown.totalQuantity}
+                    📦 Poids réel: {weightSummary.totalWeight.toFixed(2)}kg
+                    {weightSummary.hasVolumetric && (
+                      <span className="text-amber-600 ml-1">
+                        · 📊 Volumétrique: {weightSummary.totalVolumetricWeight.toFixed(2)}kg
+                        · ⚖️ Facturé: {weightSummary.billedWeight.toFixed(2)}kg
+                      </span>
+                    )}
+                    · � Quantité: {breakdown.totalQuantity}
                   </p>
                 </div>
 
-                {/* Avertissement quantité minimale */}
-                {breakdown.totalQuantity < 5 && (
+                {/* Bandeau prix volume actif */}
+                {breakdown.wholesaleDiscount > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3"
+                    className="mb-6 bg-violet-50 border border-violet-200 rounded-lg p-4 flex gap-3"
                   >
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <TrendingDown className="w-5 h-5 text-violet-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <p className="text-red-700 font-semibold">Quantité minimale: 5 produits</p>
-                      <p className="text-red-600 text-xs mt-1">Actuellement: {breakdown.totalQuantity} produits ({5 - breakdown.totalQuantity} manquant(s))</p>
+                      <p className="text-violet-700 font-semibold">
+                        {marketplaceTier === 'standard' ? 'Prix volume appliqué ✅' : `Prix B2B ${MARKETPLACE_TIER_LABEL[marketplaceTier]} appliqué ✅`}
+                      </p>
+                      <p className="text-violet-600 text-xs mt-1">
+                        Vous économisez {formatCurrency(breakdown.wholesaleDiscount)} sur ce panier
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+                {/* Incitation prix volume si < 5 pcs et au moins un produit avec b2bPrice */}
+                {marketplaceTier === 'standard' && breakdown.totalQuantity < 5 && items.some(i => typeof i.b2bPrice === 'number' && i.b2bPrice > 0 && i.b2bPrice < i.price) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 bg-violet-50 border border-violet-200 rounded-lg p-4 flex gap-3"
+                  >
+                    <TrendingDown className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-violet-700 font-semibold">Prix volume disponible</p>
+                      <p className="text-violet-600 text-xs mt-1">Ajoutez {5 - breakdown.totalQuantity} produit(s) de plus pour débloquer les prix volume selon les offres produit</p>
                     </div>
                   </motion.div>
                 )}
 
-                {/* Tarifs progressifs */}
+                {/* Tarifs progressifs - Réduction par quantité */}
                 {breakdown.tier && breakdown.discountAmount > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex gap-3"
+                    className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3"
                   >
-                    <TrendingDown className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <TrendingDown className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <p className="text-emerald-700 font-semibold">{breakdown.tier.label}</p>
-                      <p className="text-emerald-600 text-xs mt-1">Réduction appliquée: -{formatCurrency(breakdown.discountAmount)}</p>
+                      <p className="text-green-700 font-semibold">{breakdown.tier.label}</p>
+                      <p className="text-green-600 text-xs mt-1">Réduction volume: -{formatCurrency(breakdown.discountAmount)}</p>
                     </div>
                   </motion.div>
                 )}
 
-                {/* Prices */}
+                {/* Progression B2B - Réduction sur frais de service */}
+                {(() => {
+                  const currentAmount = breakdown.products
+                  const b2bTier = getServiceFeeTier(currentAmount, serviceFeeTiers)
+                  return (
+                    <div className="mb-6">
+                      <ServiceFeeTierProgress
+                        currentAmount={currentAmount}
+                        currentFeeRate={b2bTier.feeRate}
+                        tiers={serviceFeeTiers}
+                        standardFeeRate={standardServiceFeeRate}
+                        variant="compact"
+                      />
+                    </div>
+                  )
+                })()}
+
+                {/* Prices avec décomposition */}
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm text-gray-700">
                     <span>Produits (avec frais)</span>
                     <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
                   </div>
+                  {(() => {
+                    const currentAmount = breakdown.products
+                    const b2bTier = getServiceFeeTier(currentAmount, serviceFeeTiers)
+                    const standardFee = Math.round(currentAmount * (standardServiceFeeRate / 100))
+                    const actualFee = Math.round(currentAmount * (b2bTier.feeRate / 100))
+                    const savings = standardFee - actualFee
+                    
+                    if (savings > 0) {
+                      return (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-green-700 flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold">B2B</span>
+                            Frais de service réduits ({b2bTier.feeRate}%)
+                          </span>
+                          <span className="font-semibold text-green-700">
+                            Économie: {formatCurrency(savings)}
+                          </span>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+                  {breakdown.wholesaleDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-violet-700 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <span className="text-[10px] bg-violet-100 px-1.5 py-0.5 rounded-full">VOLUME</span>
+                        Prix volume (-{Math.round(breakdown.wholesaleDiscount / breakdown.retailProducts * 100)}%)
+                      </span>
+                      <span>-{formatCurrency(breakdown.wholesaleDiscount)}</span>
+                    </div>
+                  )}
                   {breakdown.discountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-emerald-700 font-semibold">
-                      <span>Réduction progressive ({breakdown.discountPercent}%)</span>
+                    <div className="flex justify-between text-sm text-green-700 font-semibold">
+                      <span>Réduction quantité ({breakdown.discountPercent}%)</span>
                       <span>-{formatCurrency(breakdown.discountAmount)}</span>
                     </div>
                   )}
@@ -576,16 +990,19 @@ export default function PanierPage() {
                     <span className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-orange-600" />
                       {transportLabel}
+                      {weightSummary.hasVolumetric && (
+                        <span className="text-xs text-amber-600">(poids volumétrique)</span>
+                      )}
                     </span>
                     <span className="font-semibold">{formatCurrency(transportGlobal)}</span>
                   </div>
                   <motion.div
                     initial={{ scale: 0.95 }}
                     animate={{ scale: 1 }}
-                    className="flex justify-between items-center pt-3 text-xl font-bold bg-gradient-to-r from-emerald-50 to-blue-50 rounded-lg p-4"
+                    className="flex justify-between items-center pt-3 text-xl font-bold bg-gradient-to-r from-green-50 to-violet-50 rounded-lg p-4"
                   >
                     <span className="text-gray-900">Total</span>
-                    <span className="text-transparent bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text">
+                    <span className="text-transparent bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text">
                       {formatCurrency(breakdown.total)}
                     </span>
                   </motion.div>
@@ -595,8 +1012,7 @@ export default function PanierPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setStep(2)}
-                  disabled={breakdown.totalQuantity < 5}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition shadow-lg"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 text-white py-4 rounded-xl font-bold transition shadow-lg"
                 >
                   Continuer vers l'adresse
                   <ArrowRight className="w-5 h-5" />
@@ -622,6 +1038,52 @@ export default function PanierPage() {
                 </div>
 
                 <div className="space-y-6">
+                  {/* Encart onboarding (compte optionnel) */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-violet-50 p-5"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-green-700" />
+                          <p className="text-sm font-semibold text-green-900">Commander sans compte (recommandé)</p>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-700">
+                          Vous pouvez finaliser en invité. Si vous ajoutez un email, vous recevez un lien de suivi.
+                        </p>
+                        <p className="mt-2 text-xs text-gray-600">
+                          Créer un compte reste optionnel, utile pour retrouver facilement vos commandes et participer aux achats groupés.
+                        </p>
+                      </div>
+                      <div className="flex w-full flex-col gap-2 md:w-auto">
+                        {isAuthenticated ? (
+                          <div className="inline-flex items-center gap-2 rounded-xl bg-green-100 px-4 py-2.5 text-sm font-bold text-green-800">
+                            <CheckCircle className="w-4 h-4" />
+                            {authUser?.name ? `Connecté · ${authUser.name.split(' ')[0]}` : 'Connecté'}
+                          </div>
+                        ) : (
+                          <a
+                            href="/login?redirect=/panier"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800"
+                          >
+                            <LogIn className="w-4 h-4" />
+                            Se connecter
+                          </a>
+                        )}
+                        <a
+                          href="/market/creer-compte?redirect=/panier"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 ring-1 ring-gray-200 transition hover:bg-gray-50"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Créer un compte
+                        </a>
+                      </div>
+                    </div>
+                  </motion.div>
+
                   {/* Nom */}
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
@@ -633,7 +1095,7 @@ export default function PanierPage() {
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder="Jean Dupont"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.name ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-green-500'}`}
                     />
                   </motion.div>
 
@@ -648,7 +1110,7 @@ export default function PanierPage() {
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="+221 77 123 45 67"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.phone ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300 focus:ring-green-500'}`}
                     />
                   </motion.div>
 
@@ -663,8 +1125,11 @@ export default function PanierPage() {
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="vous@exemple.com"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                     />
+                    <p className="mt-2 text-xs text-gray-500">
+                      Vous pouvez commander sans créer de compte. Si vous renseignez un email, vous recevrez un lien de suivi de commande.
+                    </p>
                   </motion.div>
 
                   {/* Composant AddressPickerSenegal */}
@@ -689,9 +1154,17 @@ export default function PanierPage() {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setStep(3)}
-                      disabled={!name || !phone || !addressValid}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition"
+                      onClick={() => {
+                        if (!name || !phone || !addressValid) {
+                          if (!name) highlightError('name')
+                          if (!phone) highlightError('phone')
+                          if (!addressValid) highlightError('address')
+                          addToast('Veuillez remplir les informations obligatoires', 'error')
+                          return
+                        }
+                        setStep(3)
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition"
                     >
                       Vérifier la commande
                       <ArrowRight className="w-5 h-5" />
@@ -740,7 +1213,7 @@ export default function PanierPage() {
                     className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg"
                   >
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-emerald-600" />
+                      <MapPin className="w-5 h-5 text-green-600" />
                       Adresse de livraison
                     </h3>
                     <div className="space-y-2 text-sm">
@@ -791,16 +1264,40 @@ export default function PanierPage() {
                   animate={{ opacity: 1, x: 0 }}
                   className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 p-6 shadow-lg sticky top-6 h-fit"
                 >
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setStep(2)}
+                    className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-xl font-bold transition mb-4"
+                  >
+                    Retour
+                  </motion.button>
                   <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-amber-600" />
                     Récapitulatif
                   </h3>
 
                   <div className="space-y-4 mb-6">
-                    <div className="flex justify-between text-sm text-gray-700">
-                      <span>Produits</span>
-                      <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
-                    </div>
+                    {breakdown.wholesaleDiscount > 0 ? (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm text-gray-400">
+                          <span>Produits (prix normal)</span>
+                          <span className="line-through">{formatCurrency(breakdown.retailProducts)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-violet-700 font-semibold">
+                          <span className="flex items-center gap-1">
+                            <span className="text-[10px] bg-violet-100 px-1.5 py-0.5 rounded-full">VOLUME</span>
+                            Produits (prix volume)
+                          </span>
+                          <span>{formatCurrency(breakdown.products)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-sm text-gray-700">
+                        <span>Produits</span>
+                        <span className="font-semibold">{formatCurrency(breakdown.products)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm text-gray-700 pb-4 border-b">
                       <span className="flex items-center gap-2">
                         <Truck className="w-4 h-4 text-orange-600" />
@@ -814,7 +1311,7 @@ export default function PanierPage() {
                       className="flex justify-between items-center p-4 bg-white rounded-xl border-2 border-amber-200"
                     >
                       <span className="text-lg font-bold text-gray-900">Total</span>
-                      <span className="text-2xl font-bold text-transparent bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text">
+                      <span className="text-2xl font-bold text-transparent bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text">
                         {formatCurrency(breakdown.total)}
                       </span>
                     </motion.div>
@@ -825,7 +1322,7 @@ export default function PanierPage() {
                     whileTap={{ scale: 0.98 }}
                     onClick={handleCheckout}
                     disabled={sending}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-50 text-white py-4 rounded-xl font-bold transition shadow-lg"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 hover:from-green-600 hover:to-violet-600 disabled:opacity-50 text-white py-4 rounded-xl font-bold transition shadow-lg"
                   >
                     {sending ? (
                       <>
@@ -861,6 +1358,7 @@ export default function PanierPage() {
           )}
         </AnimatePresence>
       </div>
+      </div>{/* /relative */}
 
       {/* Section Produits Suggérés - Visible uniquement à l'étape 1 */}
       {step === 1 && suggestedProducts.length > 0 && (
@@ -937,7 +1435,7 @@ export default function PanierPage() {
                         </span>
                       )}
                       {product.stockStatus === 'in_stock' && (
-                        <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
                           <Zap className="w-3 h-3" /> Stock
                         </span>
                       )}
@@ -966,7 +1464,7 @@ export default function PanierPage() {
                     
                     {/* Prix */}
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-lg font-bold text-emerald-600">
+                      <span className="text-lg font-bold text-green-600">
                         {formatCurrency(product.price)}
                       </span>
                       {product.weightKg && (
@@ -979,7 +1477,7 @@ export default function PanierPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => addSuggestedToCart(product)}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 rounded-lg text-sm font-semibold transition"
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-violet-600 hover:from-green-700 hover:to-violet-700 text-white py-2 rounded-lg text-sm font-semibold transition"
                     >
                       <ShoppingCart className="w-4 h-4" />
                       Ajouter
@@ -1018,16 +1516,16 @@ export default function PanierPage() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4"
+                className="mt-6 bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-xl p-4 flex items-center gap-4"
               >
-                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                  <TrendingDown className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <TrendingDown className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-emerald-800">
+                  <p className="font-semibold text-green-800">
                     🎉 Ajoutez {20 - breakdown.totalQuantity} produit(s) pour débloquer -5% supplémentaire !
                   </p>
-                  <p className="text-sm text-emerald-700">
+                  <p className="text-sm text-green-700">
                     Les tarifs dégressifs s&apos;appliquent automatiquement selon la quantité totale
                   </p>
                 </div>
@@ -1070,7 +1568,7 @@ export default function PanierPage() {
                     )}
                   </div>
                   <p className="text-sm font-medium text-gray-900 line-clamp-2">{product.name}</p>
-                  <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(product.price)}</p>
+                  <p className="text-sm font-bold text-green-600 mt-1">{formatCurrency(product.price)}</p>
                 </motion.div>
               ))}
             </div>
@@ -1088,6 +1586,7 @@ export default function PanierPage() {
           <p>En continuant, vous acceptez nos conditions de vente et la politique de retour.</p>
         </div>
       </motion.div>
+      <MarketFooter />
     </div>
   )
 }

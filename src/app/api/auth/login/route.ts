@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import User from '@/lib/models/User'
+import Technician from '@/lib/models/Technician'
 import { connectMongoose } from '@/lib/mongoose'
 import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { signAuthTokenWithExpiry, verifyJwtPayload } from '@/lib/jwt'
+import { resolveUserCategory } from '@/lib/user-segmentation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,14 +26,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Recherche de l'utilisateur dans la base de données
-    const user = (await User.findOne({ email: email.toLowerCase() }).lean()) as any
+    let user = (await User.findOne({ email: email.toLowerCase() }).lean()) as any
     
+    // Si pas trouvé dans User, chercher dans Technician et créer le User manquant
     if (!user) {
-      logLoginAttempt(false, request, undefined, { reason: 'user_not_found', email })
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 401 }
-      )
+      const tech = await Technician.findOne({ email: email.toLowerCase() }).lean() as any
+      if (tech && tech.passwordHash) {
+        const techPasswordValid = await bcrypt.compare(password, tech.passwordHash)
+        if (techPasswordValid) {
+          // Créer le User manquant à partir du Technician
+          const username = email.toLowerCase().split('@')[0] + '_tech_' + Date.now().toString(36)
+          const created = await User.create({
+            username,
+            email: email.toLowerCase(),
+            passwordHash: tech.passwordHash,
+            name: tech.name || email.split('@')[0],
+            phone: tech.phone || '',
+            role: 'TECHNICIAN',
+            isActive: true
+          })
+          user = await User.findById(created._id).lean() as any
+        }
+      }
+      if (!user) {
+        logLoginAttempt(false, request, undefined, { reason: 'user_not_found', email })
+        return NextResponse.json(
+          { error: 'Utilisateur non trouvé' },
+          { status: 401 }
+        )
+      }
     }
 
     // Vérification verrouillage
@@ -42,8 +65,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (user.isActive === false) {
+      return NextResponse.json(
+        { error: 'Compte désactivé. Contactez un administrateur.' },
+        { status: 403 }
+      )
+    }
+
     // Vérification du mot de passe avec bcrypt
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash)
+    let isValidPassword = await bcrypt.compare(password, user.passwordHash)
+
+    // Fallback: si le mot de passe échoue dans User, vérifier dans Technician
+    // (les hash peuvent différer si créés par deux routes séparées)
+    if (!isValidPassword && String(user.role).toUpperCase() === 'TECHNICIAN') {
+      const tech = await Technician.findOne({ email: email.toLowerCase() }).lean() as any
+      if (tech?.passwordHash) {
+        const techPasswordValid = await bcrypt.compare(password, tech.passwordHash)
+        if (techPasswordValid) {
+          // Synchroniser le hash du Technician vers le User
+          await User.updateOne({ _id: user._id }, { $set: { passwordHash: tech.passwordHash, loginAttempts: 0 } })
+          isValidPassword = true
+        }
+      }
+    }
 
     if (!isValidPassword) {
       logLoginAttempt(false, request, user.id, { reason: 'invalid_password' })
@@ -80,12 +124,17 @@ export async function POST(request: NextRequest) {
 
     // Génération du token JWT (rôle normalisé en majuscules)
     const normalizedRole = String(user.role || '').toUpperCase()
+    const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
+    const userCategory = resolveUserCategory({ role: normalizedRole, companyClientId })
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
         email: user.email,
         role: normalizedRole,
-        username: user.username
+        username: user.username,
+        marketplaceTier: user.marketplaceTier || 'standard',
+        userCategory,
+        ...(companyClientId ? { companyClientId } : {})
       },
       remember ? '30d' : '7d'
     )
@@ -94,13 +143,18 @@ export async function POST(request: NextRequest) {
     logLoginAttempt(true, request, user.id, { role: user.role })
 
     // Données utilisateur à retourner (sans mot de passe)
+    const isEnterpriseClient = normalizedRole === 'CLIENT' && !!companyClientId
     const userData = {
       id: String(user._id),
       email: user.email,
       username: user.username,
       name: user.name,
       phone: user.phone,
-      role: user.role
+      role: user.role,
+      marketplaceTier: user.marketplaceTier || 'standard',
+      companyClientId: companyClientId || undefined,
+      clientType: isEnterpriseClient ? 'enterprise' : 'marketplace',
+      userCategory
     }
 
     // Réinitialiser tentatives en cas de succès
@@ -110,7 +164,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: userData,
-      redirectUrl: getRedirectUrl(user.role)
+      redirectUrl: getRedirectUrl(user.role, companyClientId)
     })
 
     response.cookies.set('auth-token', token, {
@@ -133,7 +187,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Fonction pour déterminer l'URL de redirection selon le rôle
-function getRedirectUrl(role: string): string {
+function getRedirectUrl(role: string, companyClientId?: string): string {
   const normalized = String(role).toUpperCase()
   switch (normalized) {
     case 'PRODUCT_MANAGER':
@@ -143,8 +197,9 @@ function getRedirectUrl(role: string): string {
     case 'TECHNICIAN':
       return '/tech-interface'
     case 'CLIENT':
+      return companyClientId ? '/portail-entreprise' : '/compte'
     default:
-      return '/client-portal'
+      return '/compte'
   }
 }
 
@@ -162,12 +217,41 @@ export async function GET(request: NextRequest) {
 
     const decoded = await verifyJwtPayload(token)
     
+    // Enrichir avec les données utilisateur depuis la DB si possible
+    let name: string | undefined
+    let username: string | undefined
+    let dbUser: any = null
+    try {
+      await connectMongoose()
+      const userId = String(decoded.userId || decoded.id || decoded.sub || '')
+      if (userId) {
+        const user = await User.findById(userId).select('name username marketplaceTier marketplaceOrderCount totalMarketplacePurchases proRequestedAt proValidatedAt').lean() as any
+        if (user) {
+          name = user.name
+          username = user.username
+          dbUser = user
+        }
+      }
+    } catch {}
+
+    const companyClientId = (decoded as any).companyClientId || undefined
+    const clientType = companyClientId ? 'enterprise' : 'marketplace'
+
     return NextResponse.json({
       user: {
         id: String(decoded.userId || decoded.id || decoded.sub || ''),
         email: typeof decoded.email === 'string' ? decoded.email : undefined,
+        name: name || (decoded as any).name || (decoded as any).username,
+        username: username || (decoded as any).username,
         role: String(decoded.role || ''),
-        permissions: (decoded as any).permissions
+        permissions: (decoded as any).permissions,
+        marketplaceTier: dbUser?.marketplaceTier || (decoded as any).marketplaceTier || 'standard',
+        marketplaceOrderCount: dbUser?.marketplaceOrderCount ?? 0,
+        totalMarketplacePurchases: dbUser?.totalMarketplacePurchases ?? 0,
+        proRequestedAt: dbUser?.proRequestedAt || null,
+        proValidatedAt: dbUser?.proValidatedAt || null,
+        companyClientId,
+        clientType
       }
     })
 

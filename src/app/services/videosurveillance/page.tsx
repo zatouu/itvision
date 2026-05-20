@@ -9,11 +9,11 @@ export default function VideosurveillanceServicePage() {
   return (
     <main>
       <Header />
-      <section className="bg-gradient-to-br from-blue-50 via-white to-gray-50 pt-36 md:pt-40 pb-16">
+      <section className="bg-gradient-to-br from-blue-50 via-white to-gray-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Vidéosurveillance</h1>
-            <p className="text-gray-700 max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">Vidéosurveillance</h1>
+            <p className="text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
               Protégez vos actifs et réduisez les pertes avec des caméras IP 4K, des analyses<br className="hidden md:inline" />
               intelligentes et un enregistrement redondant. Accédez à vos sites <strong>en temps réel</strong>
               depuis mobile et centralisez les preuves <strong>conformes RGPD</strong> en quelques clics.
@@ -21,12 +21,12 @@ export default function VideosurveillanceServicePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
                 <Camera className="h-5 w-5 text-blue-600 mr-2" />
                 Ce que nous proposons
               </h2>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 {[
                   'Caméras HD/4K avec vision nocturne',
                   'Enregistrement cloud sécurisé',
@@ -42,7 +42,7 @@ export default function VideosurveillanceServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4">Demander un devis</h2>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -58,7 +58,7 @@ export default function VideosurveillanceServicePage() {
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
-                <a href="tel:+221774133440" className="border-2 border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 inline-flex items-center">
+                <a href="tel:+221774133440" className="border-2 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-900 inline-flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
                   +221 77 413 34 40
                 </a>
@@ -68,22 +68,22 @@ export default function VideosurveillanceServicePage() {
 
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Bénéfices business immédiats</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Bénéfices business immédiats</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Une solution conçue pour <strong>dissuader</strong>, <strong>détecter</strong> et <strong>documenter</strong> chaque incident.
                 Pilotez plusieurs sites depuis un seul tableau de bord et gagnez en réactivité.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Baisse des pertes et délais de résolution réduits</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Alertes temps réel et levée de doute à distance</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Archivage conforme et partage sécurisé des preuves</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Cas d’usage concrets</h3>
-              <ul className="space-y-2 text-gray-700 text-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Cas d’usage concrets</h3>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Retail: comptage, zones chaudes, files d’attente pour booster les ventes</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Résidentiel: périmétrie et levée de doute pour la sérénité des occupants</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Industriel: franchissement de ligne, EPI, zones sensibles pour réduire les risques</li>
@@ -91,13 +91,13 @@ export default function VideosurveillanceServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Notre apport IT Vision</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Notre apport IT Vision</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Conception <strong>PoE/VLAN</strong> robuste, stockage <strong>NVR/NAS/cloud</strong>, durcissement sécurité
                 (réseaux isolés, mises à jour, accès chiffrés) et transfert de compétences à vos équipes.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Audit de site et plan de couverture précis</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Sélection des caméras (dôme, bullet, PTZ) orientée résultats</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Documentation, formation et maintenance proactive (SLA)</li>

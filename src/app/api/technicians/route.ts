@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Technician from '@/lib/models/Technician'
+import User from '@/lib/models/User'
 import bcrypt from 'bcryptjs'
 import { requireAuth } from '@/lib/jwt'
 
@@ -66,19 +67,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const exists = await Technician.findOne({ email: email.toLowerCase() }).lean()
-    if (exists) return NextResponse.json({ error: 'Technicien déjà existant' }, { status: 409 })
+    const normalizedEmail = email.toLowerCase()
+    const existsTech = await Technician.findOne({ email: normalizedEmail }).lean()
+    if (existsTech) return NextResponse.json({ error: 'Technicien déjà existant' }, { status: 409 })
 
     const passwordHash = await bcrypt.hash(password, 12)
+
+    // Créer le technicien dans la collection Technician
     const created = await Technician.create({
       name,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       phone: phone || '',
       passwordHash,
       specialties: Array.isArray(specialties) ? specialties : [],
       experience: Number(experience) || 0,
       isAvailable: isAvailable !== false,
     })
+
+    // Créer un User TECHNICIAN si aucun n'existe déjà pour cet email
+    // (le User peut déjà exister s'il a été créé via /api/admin/users)
+    const existingUser = await User.findOne({ email: normalizedEmail }).lean() as any
+    if (!existingUser) {
+      const username = normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36)
+      await User.create({
+        username,
+        email: normalizedEmail,
+        passwordHash,
+        name,
+        phone: phone || '',
+        role: 'TECHNICIAN',
+        isActive: true
+      })
+    } else if (existingUser.role !== 'TECHNICIAN') {
+      // Si le User existe mais n'est pas TECHNICIAN, mettre à jour son rôle
+      await User.updateOne({ _id: existingUser._id }, { $set: { role: 'TECHNICIAN' } })
+    }
 
     return NextResponse.json({ success: true, technician: { id: String(created._id), name: created.name, email: created.email, phone: created.phone, isAvailable: created.isAvailable, specialties: created.specialties } }, { status: 201 })
 
@@ -107,6 +130,11 @@ export async function PATCH(request: NextRequest) {
     } else if (action === 'reset_password' && data.newPassword) {
       const passwordHash = await bcrypt.hash(String(data.newPassword), 12)
       await Technician.updateOne({ _id: id }, { $set: { passwordHash } })
+      // Synchroniser le mot de passe dans la collection User
+      const tech = await Technician.findById(id).select('email').lean() as any
+      if (tech?.email) {
+        await User.updateOne({ email: tech.email, role: 'TECHNICIAN' }, { $set: { passwordHash } })
+      }
     } else {
       await Technician.updateOne({ _id: id }, { $set: data })
     }
@@ -128,7 +156,12 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'ID requis' }, { status: 400 })
+    // Supprimer aussi le User associé
+    const tech = await Technician.findById(id).select('email').lean() as any
     await Technician.deleteOne({ _id: id })
+    if (tech?.email) {
+      await User.deleteOne({ email: tech.email, role: 'TECHNICIAN' })
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Erreur suppression' }, { status: 500 })

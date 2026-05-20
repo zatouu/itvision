@@ -1,3 +1,12 @@
+import withPWAInit from "@ducanh2912/next-pwa";
+
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  skipWaiting: true,
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -71,6 +80,31 @@ const nextConfig = {
     // Note: do NOT expose server secrets (JWT_SECRET / NEXTAUTH_SECRET) here.
   },
   
+  // Autoriser les images externes (CDN AliExpress / 1688 / Alibaba)
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.alicdn.com' },
+      { protocol: 'https', hostname: '**.aliexpress.com' },
+      { protocol: 'https', hostname: '**.1688.com' },
+      { protocol: 'https', hostname: '**.alibaba.com' },
+      { protocol: 'https', hostname: 'ae*.alicdn.com' },
+      { protocol: 'https', hostname: 'cbu*.alicdn.com' },
+      { protocol: 'https', hostname: 'img.alicdn.com' },
+      { protocol: 'https', hostname: 'gw.alicdn.com' },
+      { protocol: 'http', hostname: '**.alicdn.com' },
+    ],
+  },
+
+  // Augmenter la limite de taille du body pour les uploads vidéo (défaut ~4MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '150mb',
+    },
+  },
+
+  // Packages serveur exclus du bundling (binaires natifs)
+  serverExternalPackages: ['playwright', 'playwright-core'],
+  
   // Optimisations de sécurité
   poweredByHeader: false, // Masquer le header "Powered by Next.js"
   
@@ -82,4 +116,4 @@ const nextConfig = {
   })
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

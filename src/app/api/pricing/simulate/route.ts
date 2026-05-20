@@ -4,6 +4,7 @@ import type { Pricing1688Input } from '@/lib/types/product.types'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { IProduct } from '@/lib/models/Product.validated'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { readPricingDefaults } from '@/lib/pricing/settings'
 
 /**
  * POST /api/pricing/simulate
@@ -15,11 +16,11 @@ import { getConfiguredShippingRates } from '@/lib/shipping/settings'
  *   productId?: string, // ID produit existant (optionnel)
  *   price1688?: number, // Prix en Yuan (si pas de productId)
  *   baseCost?: number, // Prix en FCFA (alternative)
- *   exchangeRate?: number, // Taux de change (défaut: 100)
+ *   exchangeRate?: number, // Taux de change (défaut: Config Admin)
  *   shippingMethod: 'air_express' | 'air_15' | 'sea_freight',
  *   weightKg?: number,
  *   volumeM3?: number,
- *   serviceFeeRate?: 5 | 10 | 15, // Défaut: 10
+ *   serviceFeeRate?: 5 | 10 | 15, // Défaut: Config Admin
  *   insuranceRate?: number, // Pourcentage
  *   orderQuantity?: number, // Pour calcul marge cumulée
  *   monthlyVolume?: number // Pour estimation bénéfice mensuel
@@ -27,6 +28,7 @@ import { getConfiguredShippingRates } from '@/lib/shipping/settings'
  */
 export async function POST(request: NextRequest) {
   try {
+    const defaults = readPricingDefaults()
     const body = await request.json()
     const {
       productId,
@@ -78,12 +80,12 @@ export async function POST(request: NextRequest) {
     const simulationInput: Pricing1688Input = {
       price1688: price1688 ?? productData.price1688,
       baseCost: baseCost ?? productData.baseCost,
-      exchangeRate: exchangeRate ?? productData.exchangeRate,
+      exchangeRate: exchangeRate ?? productData.exchangeRate ?? defaults.defaultExchangeRate,
       shippingMethod,
       weightKg: weightKg ?? productData.weightKg,
       volumeM3: volumeM3 ?? productData.volumeM3,
-      serviceFeeRate: serviceFeeRate ?? productData.serviceFeeRate ?? 10,
-      insuranceRate: insuranceRate ?? productData.insuranceRate ?? 0,
+      serviceFeeRate: serviceFeeRate ?? productData.serviceFeeRate ?? defaults.defaultServiceFeeRate,
+      insuranceRate: insuranceRate ?? productData.insuranceRate ?? defaults.defaultInsuranceRate,
       orderQuantity,
       monthlyVolume
     }

@@ -4,6 +4,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import Project from '@/lib/models/Project'
 import Quote from '@/lib/models/Quote'
 import AdminQuote from '@/lib/models/AdminQuote'
+import AdminInvoice from '@/lib/models/AdminInvoice'
+import User from '@/lib/models/User'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 interface DecodedToken {
@@ -43,6 +45,9 @@ export async function GET(request: NextRequest) {
 
     await connectMongoose()
 
+    const user = await User.findById(userId).select({ companyClientId: 1 }).lean() as any
+    const companyClientId = user?.companyClientId ? String(user.companyClientId) : null
+
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') // 'quote', 'contract', 'invoice', 'report', 'all'
     const projectId = searchParams.get('projectId')
@@ -50,7 +55,12 @@ export async function GET(request: NextRequest) {
     const documents: any[] = []
 
     // Documents des projets
-    const projectQuery: any = { clientId: userId }
+    const projectQuery: any = {
+      $or: [
+        { clientId: userId },
+        ...(companyClientId ? [{ clientCompanyId: companyClientId }] : [])
+      ]
+    }
     if (projectId) projectQuery._id = projectId
 
     const projects = await Project.find(projectQuery).lean()
@@ -93,7 +103,15 @@ export async function GET(request: NextRequest) {
       })
 
       // Admin Quotes
-      const adminQuotes = await AdminQuote.find({ 'client.id': userId }).lean()
+      const adminQuoteQuery: any = {
+        $or: [
+          { clientUserId: userId },
+          ...(companyClientId ? [{ clientCompanyId: companyClientId }] : [])
+        ]
+      }
+      if (projectId) adminQuoteQuery.projectId = projectId
+
+      const adminQuotes = await AdminQuote.find(adminQuoteQuery).lean()
       adminQuotes.forEach((quote: any) => {
         documents.push({
           _id: quote._id.toString(),
@@ -103,6 +121,31 @@ export async function GET(request: NextRequest) {
           date: quote.date,
           amount: quote.total,
           category: 'admin_quote'
+        })
+      })
+    }
+
+    // Factures (Invoices)
+    if (!type || type === 'all' || type === 'invoice') {
+      const invoiceQuery: any = {
+        $or: [
+          { clientUserId: userId },
+          ...(companyClientId ? [{ clientCompanyId: companyClientId }] : [])
+        ]
+      }
+      if (projectId) invoiceQuery.projectId = projectId
+
+      const invoices = await AdminInvoice.find(invoiceQuery).lean()
+
+      invoices.forEach((inv: any) => {
+        documents.push({
+          _id: inv._id.toString(),
+          name: `Facture ${inv.numero}`,
+          type: 'invoice',
+          status: inv.status,
+          date: inv.date,
+          amount: inv.total,
+          category: 'admin_invoice'
         })
       })
     }

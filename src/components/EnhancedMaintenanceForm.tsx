@@ -123,20 +123,33 @@ interface MaintenanceFormData {
   billingNeedsQuote: boolean
 }
 
+interface ClientOption {
+  id: string
+  clientId: string
+  name: string
+  company?: string
+  contactPerson?: string
+  email: string
+  phone: string
+  address?: string
+}
+
 interface EnhancedMaintenanceFormProps {
   projectId?: string
   isReadOnly?: boolean
   existingReport?: Partial<MaintenanceFormData>
   onSave?: (data: MaintenanceFormData) => void
   onSubmit?: (data: MaintenanceFormData) => void
+  clients?: ClientOption[]
 }
 
 export default function EnhancedMaintenanceForm({ 
-  projectId = 'PRJ-001', 
+  projectId, 
   isReadOnly = false,
   existingReport = {},
   onSave,
-  onSubmit
+  onSubmit,
+  clients = []
 }: EnhancedMaintenanceFormProps) {
   
   const [formData, setFormData] = useState<MaintenanceFormData>({
@@ -149,9 +162,9 @@ export default function EnhancedMaintenanceForm({
     endTime: existingReport?.endTime || '',
     duration: existingReport?.duration || '',
     
-    // Intervenant
-    technician: existingReport?.technician || 'Moussa Diop',
-    technicianId: existingReport?.technicianId || 'TECH-001',
+    // Intervenant (sera mis à jour depuis la session)
+    technician: existingReport?.technician || '',
+    technicianId: existingReport?.technicianId || '',
     
     // Observations et problèmes
     initialObservations: existingReport?.initialObservations || '',
@@ -224,7 +237,28 @@ export default function EnhancedMaintenanceForm({
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [uploadedPhotosBefore, setUploadedPhotosBefore] = useState<string[]>([])
+  const [uploadedPhotosAfter, setUploadedPhotosAfter] = useState<string[]>([])
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [createdReportId, setCreatedReportId] = useState<string | null>(null)
+
+  // Charger les infos du technicien connecté
+  useEffect(() => {
+    if (!isReadOnly && !formData.technicianId) {
+      fetch('/api/auth/login', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.user) {
+            setFormData(prev => ({
+              ...prev,
+              technician: prev.technician || data.user.name || data.user.username || data.user.email || '',
+              technicianId: prev.technicianId || data.user.id || ''
+            }))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [isReadOnly, formData.technicianId])
 
   // Géolocalisation automatique
   useEffect(() => {
@@ -459,6 +493,14 @@ export default function EnhancedMaintenanceForm({
       }))
     }
 
+  const validateForSave = (): boolean => {
+    const errors: string[] = []
+    if (!formData.site.trim()) errors.push('Le nom du site est requis')
+    if (!formData.clientName.trim()) errors.push('Le nom du client est requis')
+    setValidationErrors(errors)
+    return errors.length === 0
+  }
+
   const validateForm = (): boolean => {
     const errors: string[] = []
 
@@ -492,12 +534,14 @@ export default function EnhancedMaintenanceForm({
   }
 
   const handleSave = async (): Promise<string | null> => {
-    if (!validateForm()) return null
+    if (!validateForSave()) return null
 
     setIsGenerating(true)
     try {
       const payload: any = {
         site: formData.site,
+        clientName: formData.clientName,
+        clientContact: formData.clientContact,
         interventionDate: formData.interventionDate,
         startTime: formData.startTime,
         endTime: formData.endTime,
@@ -557,7 +601,10 @@ export default function EnhancedMaintenanceForm({
         templateId: 'manual',
         templateVersion: '1.0',
         technician: formData.technician,
-        projectId,
+        technicianId: formData.technicianId,
+        projectId: projectId || undefined,
+        photosBefore: uploadedPhotosBefore.length > 0 ? uploadedPhotosBefore : undefined,
+        photosAfter: uploadedPhotosAfter.length > 0 ? uploadedPhotosAfter : undefined,
         technicianSignature: formData.technicianSignature,
         clientSignature: formData.clientSignature,
         clientTitle: formData.clientTitle,
@@ -585,7 +632,8 @@ export default function EnhancedMaintenanceForm({
 
       const dataToSave = { ...formData, status: 'draft' as const }
       onSave?.(dataToSave)
-      alert('Rapport sauvegardé avec succès!')
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
       return id || null
     } catch (error: any) {
       alert(error?.message || 'Erreur lors de la sauvegarde')
@@ -627,7 +675,6 @@ export default function EnhancedMaintenanceForm({
 
       const dataToSubmit = { ...formData, status: 'completed' as const }
       onSubmit?.(dataToSubmit)
-      alert('Rapport envoyé pour validation!')
     } catch (error: any) {
       alert(error?.message || 'Erreur lors de l\'envoi')
     } finally {
@@ -677,6 +724,14 @@ export default function EnhancedMaintenanceForm({
         </div>
       </div>
 
+      {/* Confirmation sauvegarde */}
+      {saveSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+          <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+          <span className="text-green-800 font-medium">Brouillon sauvegardé avec succès</span>
+        </div>
+      )}
+
       {/* Erreurs de validation */}
       {validationErrors.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -717,17 +772,52 @@ export default function EnhancedMaintenanceForm({
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nom du client *
+              Client *
             </label>
-            <input
-              type="text"
-              value={formData.clientName}
-              onChange={(e) => updateField('clientName', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Nom du client"
-              disabled={isReadOnly}
-              required
-            />
+            {clients.length > 0 && !isReadOnly ? (
+              <div className="space-y-2">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const c = clients.find(cl => cl.id === e.target.value)
+                    if (c) {
+                      setFormData(prev => ({
+                        ...prev,
+                        clientName: c.company || c.name,
+                        clientContact: c.contactPerson || '',
+                        site: prev.site || c.address || c.company || c.name
+                      }))
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                >
+                  <option value="">Sélectionner un client...</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.company || c.name}{c.contactPerson ? ` — ${c.contactPerson}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={formData.clientName}
+                  onChange={(e) => updateField('clientName', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ou saisir manuellement le nom du client"
+                  required
+                />
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={formData.clientName}
+                onChange={(e) => updateField('clientName', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Nom du client"
+                disabled={isReadOnly}
+                required
+              />
+            )}
           </div>
           
           <div>
@@ -912,7 +1002,7 @@ export default function EnhancedMaintenanceForm({
                 const files = Array.from(e.target.files || [])
                 const urls = await uploadPhotos(files as File[], 'before')
                 setFormData(prev=>({ ...prev, photosBefore: files as File[] }))
-                console.log('Uploaded before:', urls)
+                if (urls.length > 0) setUploadedPhotosBefore(prev => [...prev, ...urls])
               }}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
           </div>
@@ -923,7 +1013,7 @@ export default function EnhancedMaintenanceForm({
                 const files = Array.from(e.target.files || [])
                 const urls = await uploadPhotos(files as File[], 'after')
                 setFormData(prev=>({ ...prev, photosAfter: files as File[] }))
-                console.log('Uploaded after:', urls)
+                if (urls.length > 0) setUploadedPhotosAfter(prev => [...prev, ...urls])
               }}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
           </div>

@@ -77,6 +77,59 @@ Ce dossier contient la documentation complète du système de gestion des prix d
 
 ---
 
+### 6. Paramétrage Admin Achats Groupés
+**Fichier** : `CONFIG_ACHATS_GROUPES_ADMIN.md`  
+**Pour qui** : Admins, Product Ops, Développeurs  
+**Contenu** :
+- Variables métier achats groupés maintenant paramétrables
+- Mapping UI admin / API / stockage JSON
+- Règles de validation (bornes, cohérence min/target/max)
+- Impact sur la création/rejoindre groupe et le front public
+
+👉 **Pour piloter les seuils sans hardcode**
+
+---
+
+### 7. Paramétrage Pricing B2B (Paliers)
+**Fichier** : `CONFIG_PRICING_B2B_TIERS.md`  
+**Pour qui** : Admins, Product Ops, Développeurs  
+**Contenu** :
+- Paliers de frais de service B2B configurables
+- Mapping admin settings / API publique / panier / commande
+- Règles de normalisation des paliers (tri, cohérence, fallback)
+- Vérification de cohérence front/backend
+
+👉 **Pour piloter les taux B2B sans hardcode**
+
+---
+
+### 8. BullMQ + Redis (Feynman)
+**Fichier** : `BULLMQ_REDIS_FEYNMAN.md`  
+**Pour qui** : Développeurs backend, architectes, Ops  
+**Contenu** :
+- Explication simple de BullMQ + Redis (analogie/Feynman)
+- Positionnement vs Kafka (garanties, limites, usages)
+- Patterns de fiabilité (idempotence, retry, delayed jobs)
+- Recommandations d’intégration dans le projet
+
+👉 **Pour décider et implémenter la queue proprement**
+
+---
+
+### 9. Marketplace Sprint 1/2 — Commande, paiement, achats groupés
+**Fichier** : `MARKETPLACE_SPRINT_1_2_WORKFLOW.md`  
+**Pour qui** : Développeurs, Admins, Ops  
+**Contenu** :
+- Re-validation serveur des prix au checkout
+- Statuts PayDunya harmonisés
+- Endpoint self-service paiement participant
+- Cron rappels / expiration achats groupés
+- Workflow admin `draft → open`, stats paiement et notification `filled`
+
+👉 **Pour comprendre et vérifier le workflow marketplace consolidé**
+
+---
+
 ## 🔄 Changements Récents (v2.0.0)
 
 ### ⚡ Marge Commerciale

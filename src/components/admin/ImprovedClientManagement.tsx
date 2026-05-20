@@ -8,6 +8,7 @@ import {
   Activity, AlertCircle, CheckCircle2, Tag, Briefcase, Globe,
   Star, TrendingUp, MessageSquare, Settings, Archive, UserX
 } from 'lucide-react'
+import { useToast } from '@/components/ui/Toaster'
 
 interface Client {
   _id: string
@@ -49,6 +50,7 @@ interface ValidationErrors {
 }
 
 export default function ImprovedClientManagement() {
+  const { addToast } = useToast()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -231,7 +233,7 @@ export default function ImprovedClientManagement() {
     if (Object.keys(errors).length > 0) {
       console.log('Erreurs de validation:', errors)
       setValidationErrors(errors)
-      alert('Veuillez corriger les erreurs avant de soumettre')
+      addToast('Veuillez corriger les erreurs du formulaire', 'error')
       return
     }
 
@@ -255,15 +257,20 @@ export default function ImprovedClientManagement() {
       console.log('Réponse API:', data)
       
       if (data.success) {
-        alert(modalMode === 'edit' ? 'Client modifié avec succès !' : 'Client créé avec succès !')
+        addToast(modalMode === 'edit' ? 'Client modifié avec succès' : 'Client créé avec succès', 'success')
+        if (data.warning) addToast(data.warning, 'warning')
         closeModal()
+        if (modalMode === 'add') {
+          setCurrentPage(1)
+          setSearchTerm('')
+        }
         fetchClients()
       } else {
-        alert(data.error || 'Erreur lors de la sauvegarde')
+        addToast(data.error || 'Erreur lors de la sauvegarde', 'error')
       }
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Erreur de connexion: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
+      addToast('Erreur de connexion : ' + (error instanceof Error ? error.message : 'Erreur inconnue'), 'error')
     } finally {
       setSaving(false)
     }
@@ -280,18 +287,19 @@ export default function ImprovedClientManagement() {
       const data = await res.json()
       
       if (data.success) {
+        addToast('Client supprimé', 'success')
         fetchClients()
       } else {
-        alert(data.error || 'Erreur lors de la suppression')
+        addToast(data.error || 'Erreur lors de la suppression', 'error')
       }
     } catch (error) {
-      alert('Erreur de connexion')
+      addToast('Erreur de connexion', 'error')
     }
   }
 
   const handleImport = async () => {
     if (!importFile) {
-      alert('Veuillez sélectionner un fichier')
+      addToast('Veuillez sélectionner un fichier', 'warning')
       return
     }
 
@@ -348,12 +356,12 @@ export default function ImprovedClientManagement() {
         }
       }
 
-      alert(`Import terminé: ${imported} clients importés, ${errors} erreurs`)
+      addToast(`Import terminé : ${imported} importés, ${errors} erreur(s)`, errors > 0 ? 'warning' : 'success')
       setShowImportModal(false)
       setImportFile(null)
       fetchClients()
     } catch (error) {
-      alert('Erreur lors de l\'import')
+      addToast('Erreur lors de l\'import', 'error')
     } finally {
       setImporting(false)
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -15,6 +15,7 @@ import {
   Loader2,
   MessageCircle,
   Plane,
+  Play,
   Share2,
   ShieldCheck,
   Ship,
@@ -30,7 +31,9 @@ import {
   Info,
   Megaphone,
   Users,
-  TrendingDown
+  TrendingDown,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingOptionPricing } from '@/lib/logistics'
@@ -74,18 +77,28 @@ export interface ProductWeights {
 }
 
 export interface ProductDetailData {
+  tags?: string[]
   id: string
   name: string
   tagline?: string | null
   description?: string | null
   category?: string | null
   image?: string | null
+  condition?: 'new' | 'used' | 'refurbished'
   gallery: string[]
   features: string[]
   colorOptions: string[]
   variantOptions: string[]
   // Variantes avec prix et images (style 1688)
   variantGroups?: ProductVariantGroup[]
+  // Infos pour le simulateur 1688
+  pricing1688?: {
+    price1688: number
+    price1688Currency: string
+    exchangeRate: number
+    serviceFeeRate?: number | null
+    insuranceRate?: number | null
+  } | null
   requiresQuote: boolean
   currency?: string | null
   pricing: {
@@ -140,6 +153,7 @@ export interface SimilarProductSummary {
   tagline?: string | null
   category?: string | null
   image?: string | null
+  condition?: 'new' | 'used' | 'refurbished'
   priceAmount?: number | null
   currency?: string | null
   requiresQuote: boolean
@@ -154,6 +168,70 @@ interface ProductDetailExperienceProps {
   similar: SimilarProductSummary[]
 }
 
+// Markdown → HTML pour les descriptions produit (specs table + paragraphes)
+const parseMarkdown = (text: string): string => {
+  if (!text) return ''
+
+  // Séparer les sections par double saut de ligne
+  const sections = text.split(/\n\n+/)
+  const htmlParts: string[] = []
+
+  let inSpecsList = false
+  let specRows: string[] = []
+
+  const flushSpecs = () => {
+    if (specRows.length > 0) {
+      htmlParts.push(
+        '<table class="w-full text-sm border-collapse mb-4"><tbody>' +
+        specRows.join('') +
+        '</tbody></table>'
+      )
+      specRows = []
+    }
+    inSpecsList = false
+  }
+
+  for (const section of sections) {
+    const trimmed = section.trim()
+    if (!trimmed) continue
+
+    // Titre de section : **Texte**
+    if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+      flushSpecs()
+      const title = trimmed.replace(/\*\*/g, '')
+      htmlParts.push(`<h3 class="text-base font-semibold text-gray-900 mt-4 mb-2">${title}</h3>`)
+      continue
+    }
+
+    // Ligne spec : - **Clé**: Valeur
+    if (/^- \*\*/.test(trimmed)) {
+      inSpecsList = true
+      const lines = trimmed.split('\n')
+      for (const line of lines) {
+        const match = line.match(/^- \*\*(.+?)\*\*:\s*(.+)$/)
+        if (match) {
+          const even = specRows.length % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+          specRows.push(
+            `<tr class="${even}"><td class="py-2 px-3 text-gray-500 font-medium whitespace-nowrap border-b border-gray-100">${match[1]}</td>` +
+            `<td class="py-2 px-3 text-gray-900 border-b border-gray-100">${match[2]}</td></tr>`
+          )
+        }
+      }
+      continue
+    }
+
+    // Paragraphe normal
+    flushSpecs()
+    const html = trimmed
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br/>')
+    htmlParts.push(`<p class="text-sm text-gray-700 leading-relaxed mb-3">${html}</p>`)
+  }
+
+  flushSpecs()
+  return htmlParts.join('\n')
+}
+
 type InfoTab = 'description' | 'features' | 'logistics' | 'support' | 'reviews'
 
 const shippingIcon = (methodId?: string) => {
@@ -166,6 +244,33 @@ const shippingIcon = (methodId?: string) => {
 export default function ProductDetailExperience({ product, similar }: ProductDetailExperienceProps) {
   // Galerie : images produit + images variantes
   const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
+
+  const isVideoUrl = (url: string) => {
+    if (!url) return false
+    return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)
+  }
+
+  const getYouTubeId = (url: string) => {
+    try {
+      const u = new URL(url)
+      if (u.hostname.includes('youtu.be')) {
+        const id = u.pathname.replace('/', '').trim()
+        return id || null
+      }
+      if (u.hostname.includes('youtube.com')) {
+        const v = u.searchParams.get('v')
+        if (v) return v
+        const parts = u.pathname.split('/').filter(Boolean)
+        const embedIndex = parts.indexOf('embed')
+        if (embedIndex >= 0 && parts[embedIndex + 1]) return parts[embedIndex + 1]
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const isYouTubeUrl = (url: string) => !!getYouTubeId(url)
   
   // Fonction pour trouver l'option de 15 jours par défaut
   const getDefaultShippingOption = () => {
@@ -203,6 +308,29 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     }
     return baseGallery
   }, [selectedVariants, product.variantGroups, baseGallery])
+
+  type GalleryItem =
+    | { kind: 'image'; src: string }
+    | { kind: 'video'; src: string; poster: string }
+    | { kind: 'youtube'; src: string; embedUrl: string; poster: string }
+
+  const galleryItems = useMemo<GalleryItem[]>(() => {
+    const firstImage = gallery.find((u) => u && !isVideoUrl(u) && !isYouTubeUrl(u)) || product.image || '/file.svg'
+
+    return gallery.map((src) => {
+      const safeSrc = src || '/file.svg'
+      if (isYouTubeUrl(safeSrc)) {
+        const id = getYouTubeId(safeSrc)
+        const embedUrl = id ? `https://www.youtube.com/embed/${id}` : safeSrc
+        const poster = id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : firstImage
+        return { kind: 'youtube', src: safeSrc, embedUrl, poster }
+      }
+      if (isVideoUrl(safeSrc)) {
+        return { kind: 'video', src: safeSrc, poster: firstImage }
+      }
+      return { kind: 'image', src: safeSrc }
+    })
+  }, [gallery, product.image])
   const [quantity, setQuantity] = useState(1)
   const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>(() => {
     const map: Record<string, number> = {}
@@ -723,23 +851,49 @@ Merci de me recontacter.`
 
   const toggleFavorite = () => {
     if (typeof window === 'undefined') return
-    try {
-      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      if (isFavorite) {
-        const updated = favorites.filter((id: string) => id !== product.id)
-        localStorage.setItem('wishlist:items', JSON.stringify(updated))
-        setIsFavorite(false)
-        trackEvent('remove_from_wishlist', { productId: product.id })
-      } else {
-        favorites.push(product.id)
-        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
-        setIsFavorite(true)
-        trackEvent('add_to_wishlist', { productId: product.id })
+    ;(async () => {
+      try {
+        const raw = localStorage.getItem('wishlist:items')
+        const favorites: string[] = raw ? JSON.parse(raw) : []
+        const set = new Set(Array.isArray(favorites) ? favorites : [])
+
+        const nextIsFavorite = !isFavorite
+        if (nextIsFavorite) {
+          set.add(product.id)
+        } else {
+          set.delete(product.id)
+        }
+
+        const next = Array.from(set)
+        localStorage.setItem('wishlist:items', JSON.stringify(next))
+        setIsFavorite(nextIsFavorite)
+        window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+        // Persistance côté compte si connecté
+        if (nextIsFavorite) {
+          const res = await fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId: product.id })
+          })
+          if (!res.ok && res.status !== 401) {
+            // Si erreur serveur, on ne casse pas l'UI: on restera en local
+            console.warn('favorite persist failed', res.status)
+          }
+          trackEvent('add_to_wishlist', { productId: product.id })
+        } else {
+          const res = await fetch(`/api/favorites?productId=${encodeURIComponent(product.id)}`, {
+            method: 'DELETE'
+          })
+          if (!res.ok && res.status !== 401) {
+            console.warn('favorite remove persist failed', res.status)
+          }
+          trackEvent('remove_from_wishlist', { productId: product.id })
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error)
       }
-      window.dispatchEvent(new CustomEvent('wishlist:updated'))
-    } catch (error) {
-      console.error('Error toggling favorite:', error)
-    }
+    })()
   }
 
   const logisticsEntries = useMemo(() => {
@@ -755,7 +909,7 @@ Merci de me recontacter.`
       entries.push({ label: 'Poids net (produit)', value: `${weights.netWeightKg.toFixed(2)} kg` })
     }
     if (weights?.grossWeightKg) {
-      entries.push({ label: 'Poids brut (avec emballage)', value: `${weights.grossWeightKg.toFixed(2)} kg` })
+          entries.push({ label: 'Poids brut (avec emballage)', value: `${weights.grossWeightKg.toFixed(2)} kg` })
     } else if (product.logistics.weightKg && !weights?.netWeightKg) {
       // Fallback legacy
       entries.push({ label: 'Poids', value: `${product.logistics.weightKg.toFixed(2)} kg` })
@@ -819,6 +973,18 @@ Merci de me recontacter.`
     setSelectedVariants(prev => ({ ...prev, [groupName]: variantId }))
   }, [])
 
+  const thumbnailsRef = useRef<HTMLDivElement>(null)
+
+  const scrollThumbnails = (direction: 'up' | 'down') => {
+    if (thumbnailsRef.current) {
+      const scrollAmount = 120
+      thumbnailsRef.current.scrollBy({
+        top: direction === 'up' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+    }
+  }
+
   // Handler pour le changement d'image depuis le Sidebar (quand on sélectionne une variante)
   const handleImageChange = useCallback((imageUrl: string) => {
     const imgIndex = gallery.findIndex(img => img === imageUrl)
@@ -832,118 +998,203 @@ Merci de me recontacter.`
   }, [gallery])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header avec breadcrumb */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex items-center gap-2 text-sm text-gray-600">
-            <Link href="/" className="hover:text-emerald-600 transition-colors">Accueil</Link>
-            <span>/</span>
-            <Link href="/produits" className="hover:text-emerald-600 transition-colors">Produits</Link>
-            {product.category && (
-              <>
-                <span>/</span>
-                <span className="text-gray-900 font-medium">{product.category}</span>
-              </>
-            )}
-            <span>/</span>
-            <span className="text-gray-900 font-semibold line-clamp-1">{product.name}</span>
-          </nav>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header avec dégradé marque */}
+      <div className="bg-gradient-to-r from-violet-600 to-green-600 border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-start gap-4">
+            {/* Nom du produit */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-normal text-white leading-tight mb-1">{product.name}</h1>
+              {/* Info produit style 1688 */}
+              <div className="flex items-center gap-4 text-sm text-white/80">
+                {product.category && (
+                  <span>Catégorie: {product.category}</span>
+                )}
+                {product.availability.label && (
+                  <span className="text-white font-medium">{product.availability.label}</span>
+                )}
+                {product.isImported && (
+                  <span className="text-white/90">Import Chine</span>
+                )}
+              </div>
+            </div>
+            {/* Actions rapides */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="p-2 rounded border border-white/20 hover:bg-white/10 transition-colors"
+                aria-label="Ajouter aux favoris"
+              >
+                <Heart className={clsx('h-5 w-5', isFavorite ? 'fill-white text-white' : 'text-white/80')} />
+              </button>
+              <button
+                onClick={() => setShareFeedback('Lien copié!')}
+                className="p-2 rounded border border-white/20 hover:bg-white/10 transition-colors"
+                aria-label="Partager"
+              >
+                <Share2 className="h-5 w-5 text-white/80" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        {/* Layout principal avec sidebar sticky */}
-        <div className="lg:flex lg:gap-12">
-          {/* Colonne gauche : Galerie + Onglets (scrollable) */}
-          <div className="lg:flex-1 lg:min-w-0">
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Layout principal style 1688 : galerie gauche + sidebar droite */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Colonne gauche : Galerie + Onglets */}
+          <div className="flex-1 min-w-0">
             {/* Galerie d'images */}
-            <div className="space-y-4 mb-8">
-              <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded-2xl overflow-hidden bg-gray-100 border-2 border-gray-200 group mx-auto">
-                <button
-                  type="button"
-                  onClick={() => setShowImageModal(true)}
-                  className="absolute inset-0 cursor-zoom-in"
-                  aria-label="Agrandir l'image"
-                >
-                  <Image
-                    src={gallery[activeImageIndex] || '/file.svg'}
-                    alt={product.name}
-                    fill
-                    className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
-                    priority
-                  />
-                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 shadow-lg">
-                    <ZoomIn className="h-4 w-4" />
-                    <span>Cliquer pour agrandir</span>
-                  </div>
-                </button>
-                {/* Badge disponibilité */}
-                <div className={clsx(
-                  'absolute top-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-sm',
-                  product.availability.status === 'in_stock'
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-amber-500 text-white'
-                )}>
-                  <Clock className="h-3.5 w-3.5" />
-                  {product.availability.label}
-                </div>
-              </div>
-              {/* Miniatures */}
-              {gallery.length > 1 && (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {gallery.map((src, index) => (
+            <div className="mb-8">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                {/* Média principal - style 1688 */}
+                <div className="order-1 flex-1 lg:order-1">
+                  <div className="relative aspect-[4/3] max-h-[400px] lg:max-h-[450px] rounded overflow-hidden bg-white border group mx-auto">
                     <button
-                      key={`${src}-${index}`}
                       type="button"
-                      onClick={() => setActiveImageIndex(index)}
-                      className={clsx(
-                        'relative h-20 w-20 flex-shrink-0 rounded-xl border-2 transition-all',
-                        activeImageIndex === index
-                          ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-lg scale-105'
-                          : 'border-gray-200 hover:border-emerald-300'
-                      )}
-                      aria-label={`Image ${index + 1}`}
+                      onClick={() => setShowImageModal(true)}
+                      className="absolute inset-0 cursor-zoom-in"
+                      aria-label="Agrandir l'image"
                     >
-                      <Image
-                        src={src}
-                        alt={`${product.name} ${index + 1}`}
-                        fill
-                        className="object-cover rounded-lg"
-                        sizes="80px"
-                      />
+                      {galleryItems[activeImageIndex]?.kind === 'image' && (
+                        <Image
+                          src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                          alt={product.name}
+                          fill
+                          className="object-contain p-6 transition-transform duration-200 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 450px"
+                          priority
+                        />
+                      )}
+
+                      {galleryItems[activeImageIndex]?.kind === 'video' && (
+                        <div className="absolute inset-0 flex items-center justify-center p-4">
+                          <video
+                            src={(galleryItems[activeImageIndex] as any)?.src}
+                            controls
+                            playsInline
+                            className="h-full w-full rounded-xl bg-black object-contain"
+                          />
+                        </div>
+                      )}
+
+                      {galleryItems[activeImageIndex]?.kind === 'youtube' && (
+                        <div className="absolute inset-0 p-4">
+                          <iframe
+                            src={(galleryItems[activeImageIndex] as any)?.embedUrl}
+                            title={product.name}
+                            className="h-full w-full rounded-xl bg-black"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                          />
+                        </div>
+                      )}
+                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-900/85 backdrop-blur-sm px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-lg">
+                        <ZoomIn className="h-4 w-4" />
+                        <span>Cliquer pour agrandir</span>
+                      </div>
                     </button>
-                  ))}
+                    {/* Badge disponibilité style marque */}
+                    <div className={clsx(
+                      'absolute top-2 right-2 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
+                      product.availability.status === 'in_stock'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-500 text-white'
+                    )}>
+                      {product.availability.status === 'in_stock' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                      {product.availability.label}
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Miniatures : horizontales sur mobile, verticales à droite sur desktop */}
+                {gallery.length > 1 && (
+                  <div className="order-2 flex flex-col items-center gap-2 lg:order-2 lg:h-[450px]">
+                    <button 
+                      onClick={() => scrollThumbnails('up')}
+                      className="hidden lg:flex p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors shadow-sm z-10"
+                      aria-label="Défiler vers le haut"
+                      type="button"
+                    >
+                      <ChevronUp className="h-5 w-5" />
+                    </button>
+
+                    <div 
+                      ref={thumbnailsRef}
+                      className="flex gap-3 overflow-x-auto pb-2 w-full lg:w-auto lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0 lg:flex-1 scrollbar-hide scroll-smooth"
+                    >
+                      {galleryItems.map((item, index) => (
+                        <button
+                          key={`${(item as any).src}-${index}`}
+                          type="button"
+                          onClick={() => setActiveImageIndex(index)}
+                          className={clsx(
+                            'relative h-16 w-16 flex-shrink-0 rounded border transition-all',
+                            activeImageIndex === index
+                              ? 'border-green-500 shadow-md'
+                              : 'border-gray-300 hover:border-green-300'
+                          )}
+                          aria-label={item.kind === 'image' ? `Image ${index + 1}` : `Vidéo ${index + 1}`}
+                        >
+                          <Image
+                            src={item.kind === 'image' ? item.src : (item as any).poster}
+                            alt={`${product.name} ${index + 1}`}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                          {item.kind !== 'image' && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="rounded-full bg-black/60 text-white p-1">
+                                <Play className="h-3 w-3" />
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={() => scrollThumbnails('down')}
+                      className="hidden lg:flex p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors shadow-sm z-10"
+                      aria-label="Défiler vers le bas"
+                      type="button"
+                    >
+                      <ChevronDown className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Onglets d'information - Dans la colonne gauche */}
-            <div className="mt-8">
-              <div className="flex flex-wrap gap-2 border-b border-gray-200 mb-6">
+            {/* Onglets d'information - style 1688 */}
+            <div className="mt-6">
+              <div className="flex gap-6 border-b border-gray-300 mb-4">
                 {(['description', 'features', 'logistics', 'support', 'reviews'] as InfoTab[]).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
                     className={clsx(
-                      'px-6 py-3 text-sm font-semibold border-b-2 transition-colors',
+                      'px-0 py-3 text-sm font-normal border-b-2 transition-colors',
                       activeTab === tab
-                        ? 'border-emerald-500 text-emerald-600'
+                        ? 'border-green-500 text-green-600'
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     )}
                   >
-                    {tab === 'description' && 'Description'}
+                    {tab === 'description' && 'Description du produit'}
                     {tab === 'features' && 'Caractéristiques'}
                     {tab === 'logistics' && 'Logistique'}
-                    {tab === 'support' && 'Garantie & SAV'}
-                    {tab === 'reviews' && 'Avis clients'}
+                    {tab === 'support' && 'Service après-vente'}
+                    {tab === 'reviews' && 'Avis'}
                   </button>
                 ))}
               </div>
 
-              <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 sm:p-8">
+              <div className="bg-white border border-gray-200 rounded p-4">
                 <AnimatePresence mode="wait">
                   {activeTab === 'description' && (
                     <motion.div
@@ -951,10 +1202,10 @@ Merci de me recontacter.`
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="prose prose-emerald max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-800"
+                      className="prose max-w-none"
                     >
                       {product.description ? (
-                        <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                        <div dangerouslySetInnerHTML={{ __html: parseMarkdown(product.description) }} />
                       ) : (
                         <p className="text-gray-500 italic">
                           Description détaillée disponible sur demande auprès de nos équipes sourcing.
@@ -976,7 +1227,7 @@ Merci de me recontacter.`
                           : ['Qualité professionnelle import Chine', 'Installation & support IT Vision Dakar', 'Tarification optimisée selon le mode de transport']
                         ).map((feature, index) => (
                           <li key={index} className="flex items-start gap-3">
-                            <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                             <span className="text-gray-700">{feature}</span>
                           </li>
                         ))}
@@ -994,19 +1245,19 @@ Merci de me recontacter.`
                     >
                       {logisticsEntries.length > 0 && (
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4">Spécifications techniques</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Spécifications techniques</h3>
                           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {logisticsEntries.map((entry, index) => (
-                              <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{entry.label}</div>
-                                <div className="text-base font-semibold text-gray-900">{entry.value || '—'}</div>
+                              <div key={index} className="bg-gray-50 dark:bg-gray-950/40 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{entry.label}</div>
+                                <div className="text-base font-semibold text-gray-900 dark:text-white">{entry.value || '—'}</div>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
                       {logisticsEntries.length === 0 && (
-                        <p className="text-gray-600 text-center py-8">Informations logistiques détaillées disponibles sur demande.</p>
+                        <p className="text-gray-600 dark:text-gray-300 text-center py-8">Informations logistiques détaillées disponibles sur demande.</p>
                       )}
                     </motion.div>
                   )}
@@ -1026,7 +1277,7 @@ Merci de me recontacter.`
                           'Support import dédié & livraison sécurisée'
                         ].map((item, index) => (
                           <li key={index} className="flex items-start gap-3">
-                            <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                             <span className="text-gray-700">{item}</span>
                           </li>
                         ))}
@@ -1043,18 +1294,18 @@ Merci de me recontacter.`
                     >
                       {reviewsLoading ? (
                         <div className="text-center py-12">
-                          <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto" />
+                          <Loader2 className="h-8 w-8 animate-spin text-green-500 mx-auto" />
                         </div>
                       ) : reviews.length === 0 ? (
                         <div className="text-center py-12">
-                          <p className="text-gray-600">Aucun avis pour le moment.</p>
-                          <p className="text-sm text-gray-500 mt-2">Soyez le premier à laisser un avis !</p>
+                          <p className="text-gray-600 dark:text-gray-300">Aucun avis pour le moment.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Soyez le premier à laisser un avis !</p>
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
+                          <div className="flex items-center gap-6 pb-6 border-b border-gray-200 dark:border-gray-800">
                             <div className="text-center">
-                              <div className="text-5xl font-bold text-emerald-600">{averageRating.toFixed(1)}</div>
+                              <div className="text-5xl font-bold text-green-600">{averageRating.toFixed(1)}</div>
                               <div className="flex items-center justify-center gap-1 mt-2">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <Star
@@ -1063,27 +1314,27 @@ Merci de me recontacter.`
                                       'h-5 w-5',
                                       star <= Math.round(averageRating)
                                         ? 'text-yellow-400 fill-yellow-400'
-                                        : 'text-gray-300'
+                                        : 'text-gray-300 dark:text-gray-600'
                                     )}
                                   />
                                 ))}
                               </div>
-                              <div className="text-sm text-gray-500 mt-2">{reviews.length} avis</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">{reviews.length} avis</div>
                             </div>
                           </div>
                           <div className="space-y-4">
                             {reviews.map((review) => (
-                              <div key={review.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                              <div key={review.id} className="bg-gray-50 dark:bg-gray-950/40 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-sm font-bold text-white">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
                                       {review.userName.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-gray-900">{review.userName}</span>
+                                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{review.userName}</span>
                                         {review.verified && (
-                                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                             Vérifié
                                           </span>
                                         )}
@@ -1096,21 +1347,21 @@ Merci de me recontacter.`
                                               'h-3 w-3',
                                               star <= review.rating
                                                 ? 'text-yellow-400 fill-yellow-400'
-                                                : 'text-gray-300'
+                                                : 'text-gray-300 dark:text-gray-600'
                                             )}
                                           />
                                         ))}
                                       </div>
                                     </div>
                                   </div>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
                                     {new Date(review.createdAt).toLocaleDateString('fr-FR')}
                                   </span>
                                 </div>
                                 {review.title && (
-                                  <h4 className="text-base font-semibold text-gray-900 mb-2">{review.title}</h4>
+                                  <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-2">{review.title}</h4>
                                 )}
-                                <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                                <p className="text-gray-700 dark:text-gray-200 leading-relaxed">{review.comment}</p>
                               </div>
                             ))}
                           </div>
@@ -1129,19 +1380,29 @@ Merci de me recontacter.`
               {/* En-tête produit */}
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
                     <ShieldCheck className="h-3 w-3" />
                     IT Vision
                   </span>
+                  {product.condition === 'used' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
+                      Occasion
+                    </span>
+                  )}
+                  {product.condition === 'refurbished' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">
+                      Refurb
+                    </span>
+                  )}
                   {product.isImported && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                       Import Chine
                     </span>
                   )}
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{product.name}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{product.name}</h1>
                 {product.tagline && (
-                  <p className="text-sm text-gray-600 mt-1">{product.tagline}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{product.tagline}</p>
                 )}
               </div>
 
@@ -1155,11 +1416,11 @@ Merci de me recontacter.`
               />
 
               {/* Actions secondaires compactes */}
-              <div className="flex items-center gap-2 text-xs pt-4 mt-4 border-t border-gray-100">
-                <button onClick={handleExportPDF} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Télécharger PDF">
+              <div className="flex items-center gap-2 text-xs pt-4 mt-4 border-t border-gray-100 dark:border-gray-800">
+                <button onClick={handleExportPDF} className="flex items-center gap-1 px-2 py-1 border border-gray-200 dark:border-gray-800 rounded hover:bg-gray-50 dark:hover:bg-gray-800" title="Télécharger PDF">
                   <FileDown className="h-3 w-3" /> PDF
                 </button>
-                <button onClick={() => handleShare('copy')} className="flex items-center gap-1 px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Copier le lien">
+                <button onClick={() => handleShare('copy')} className="flex items-center gap-1 px-2 py-1 border border-gray-200 dark:border-gray-800 rounded hover:bg-gray-50 dark:hover:bg-gray-800" title="Copier le lien">
                   <Share2 className="h-3 w-3" /> Lien
                 </button>
               </div>
@@ -1170,7 +1431,7 @@ Merci de me recontacter.`
         {/* Produits similaires */}
         {similar.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Produits similaires</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Produits similaires</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {similar.map((item) => {
                 const Icon = shippingIcon(item.shippingOptions[0]?.id)
@@ -1181,9 +1442,9 @@ Merci de me recontacter.`
                   <Link
                     key={item.id}
                     href={`/produits/${item.id}`}
-                    className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden hover:border-emerald-300 hover:shadow-lg transition-all group"
+                    className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden hover:border-green-300 hover:shadow-lg transition-all group"
                   >
-                    <div className="relative aspect-square bg-gray-100">
+                    <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
                       <Image
                         src={item.image || '/file.svg'}
                         alt={item.name}
@@ -1191,11 +1452,21 @@ Merci de me recontacter.`
                         className="object-contain p-4 group-hover:scale-105 transition-transform"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       />
+                      {item.condition === 'used' && (
+                        <div className="absolute top-3 left-3 rounded-full bg-amber-600 text-white px-2 py-1 text-[10px] font-bold leading-none shadow">
+                          Occasion
+                        </div>
+                      )}
+                      {item.condition === 'refurbished' && (
+                        <div className="absolute top-3 left-3 rounded-full bg-indigo-600 text-white px-2 py-1 text-[10px] font-bold leading-none shadow">
+                          Refurb
+                        </div>
+                      )}
                     </div>
                     <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">{item.name}</h3>
-                      <div className="text-lg font-bold text-emerald-600 mb-2">{itemPrice || 'Sur devis'}</div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">{item.name}</h3>
+                      <div className="text-lg font-bold text-green-600 mb-2">{itemPrice || 'Sur devis'}</div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <Icon className="h-3 w-3" />
                         <span>{item.availabilityLabel || (item.availabilityStatus === 'in_stock' ? 'Stock Dakar' : 'Commande Chine')}</span>
                       </div>
@@ -1222,7 +1493,7 @@ Merci de me recontacter.`
             }}
           >
             <motion.div
-              className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+              className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 p-6 shadow-2xl"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1230,8 +1501,8 @@ Merci de me recontacter.`
             >
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Négocier avec un conseiller</h3>
-                  <p className="text-sm text-gray-600 mt-1">Partagez vos conditions (quantités, délais, transport préféré).</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Négocier avec un conseiller</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Partagez vos conditions (quantités, délais, transport préféré).</p>
                 </div>
                 <button
                   type="button"
@@ -1239,7 +1510,7 @@ Merci de me recontacter.`
                     setShowNegotiation(false)
                     setNegotiationStatus('idle')
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1248,15 +1519,15 @@ Merci de me recontacter.`
                 value={negotiationMessage}
                 onChange={(e) => setNegotiationMessage(e.target.value)}
                 rows={4}
-                className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none resize-none"
+                className="w-full rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-3 focus:border-green-500 focus:outline-none resize-none"
               />
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Produit : {product.name}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Produit : {product.name}</span>
                 <button
                   type="button"
                   onClick={handleNegotiationSubmit}
                   disabled={negotiationStatus === 'sending'}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-4 py-2 text-sm font-semibold text-white hover:from-green-600 hover:to-violet-600 transition-colors disabled:opacity-50"
                 >
                   {negotiationStatus === 'sending' && <Loader2 className="h-4 w-4 animate-spin" />}
                   {negotiationStatus === 'sent' ? 'Message envoyé !' : 'Envoyer'}
@@ -1299,14 +1570,39 @@ Merci de me recontacter.`
 
               {/* Image principale */}
               <div className="relative aspect-[4/3] bg-gray-950">
-                <Image
-                  src={gallery[activeImageIndex] || '/file.svg'}
-                  alt={product.name}
-                  fill
-                  className="object-contain p-4"
-                  sizes="(max-width: 768px) 100vw, 900px"
-                  priority
-                />
+                {galleryItems[activeImageIndex]?.kind === 'image' && (
+                  <Image
+                    src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                    alt={product.name}
+                    fill
+                    className="object-contain p-4"
+                    sizes="(max-width: 768px) 100vw, 900px"
+                    priority
+                  />
+                )}
+
+                {galleryItems[activeImageIndex]?.kind === 'video' && (
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <video
+                      src={(galleryItems[activeImageIndex] as any)?.src}
+                      controls
+                      playsInline
+                      className="h-full w-full rounded-xl bg-black object-contain"
+                    />
+                  </div>
+                )}
+
+                {galleryItems[activeImageIndex]?.kind === 'youtube' && (
+                  <div className="absolute inset-0 p-4">
+                    <iframe
+                      src={(galleryItems[activeImageIndex] as any)?.embedUrl}
+                      title={product.name}
+                      className="h-full w-full rounded-xl bg-black"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
                 
                 {/* Boutons navigation gauche/droite */}
                 {gallery.length > 1 && (
@@ -1341,7 +1637,7 @@ Merci de me recontacter.`
               {gallery.length > 1 && (
                 <div className="px-4 py-3 bg-gray-800/80 border-t border-gray-700">
                   <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
-                    {gallery.map((src, index) => (
+                    {galleryItems.map((item, index) => (
                       <button
                         key={`modal-thumb-${index}`}
                         type="button"
@@ -1349,18 +1645,25 @@ Merci de me recontacter.`
                         className={clsx(
                           'relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all',
                           activeImageIndex === index
-                            ? 'border-emerald-500 ring-2 ring-emerald-400/50 scale-105'
+                            ? 'border-green-500 ring-2 ring-green-400/50 scale-105'
                             : 'border-gray-600 hover:border-gray-400 opacity-60 hover:opacity-100'
                         )}
-                        aria-label={`Voir image ${index + 1}`}
+                        aria-label={item.kind === 'image' ? `Voir image ${index + 1}` : `Voir vidéo ${index + 1}`}
                       >
                         <Image
-                          src={src}
+                          src={item.kind === 'image' ? item.src : (item as any).poster}
                           alt={`${product.name} ${index + 1}`}
                           fill
                           className="object-cover"
                           sizes="56px"
                         />
+                        {item.kind !== 'image' && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="rounded-full bg-black/60 text-white p-1.5">
+                              <Play className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                        )}
                       </button>
                     ))}
                   </div>

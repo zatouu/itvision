@@ -29,12 +29,16 @@ export interface IProduct extends Document {
   category?: string
   description?: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   price?: number
+  b2bPrice?: number                    // Prix entreprise en FCFA (séparé du prix marketplace)
   baseCost?: number                    // Coût fournisseur en FCFA
   marginRate?: number                  // Marge commerciale (0% par défaut, ajustable manuellement)
   currency?: string
   image?: string
   gallery?: string[]
+  descriptionImages?: string[]          // Images de présentation/description (grandes, séparées de la galerie)
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
@@ -81,6 +85,18 @@ export interface IProduct extends Document {
   // TensorFlow.js Image Search
   imageEmbedding?: number[]      // Vecteur de features MobileNet (1280 dimensions)
   embeddingUpdatedAt?: Date      // Date de dernière mise à jour de l'embedding
+  // Historique des prix fournisseur (surveillance automatique)
+  priceHistory?: Array<{
+    date: Date
+    price1688: number
+    exchangeRate: number
+    changePercent: number
+    source: string // 'auto_check', 'manual_update', 'import'
+  }>
+  // Dernière vérification automatique du prix
+  lastPriceCheckAt?: Date
+  // Alerte prix configurée
+  priceAlertThreshold?: number // % de changement pour alerte (ex: 10 pour 10%)
   createdAt: Date
   updatedAt: Date
 }
@@ -90,12 +106,16 @@ const ProductSchema = new Schema<IProduct>({
   category: { type: String, index: true },
   description: { type: String },
   tagline: { type: String },
+  condition: { type: String, enum: ['new', 'used', 'refurbished'], default: 'new', index: true },
+  tags: { type: [String], default: [], index: true },
   price: { type: Number },
+  b2bPrice: { type: Number },  // Prix entreprise (défini depuis les devis)
   baseCost: { type: Number },
   marginRate: { type: Number, default: 0 },  // Marge commerciale par défaut à 0%
   currency: { type: String, default: 'FCFA', enum: ['FCFA', 'EUR', 'USD', 'CNY'] },
   image: { type: String },
   gallery: { type: [String], default: [] },
+  descriptionImages: { type: [String], default: [] },
   features: { type: [String], default: [] },
   requiresQuote: { type: Boolean, default: false },
   deliveryDays: { type: Number, default: 0 },
@@ -169,9 +189,22 @@ const ProductSchema = new Schema<IProduct>({
   imageEmbedding: {
     type: [Number],
     default: undefined,
-    index: false, // Les embeddings ne sont pas indexés par défaut (trop grands)
+    index: false,
   },
-  embeddingUpdatedAt: { type: Date }
+  embeddingUpdatedAt: { type: Date },
+  // Historique des prix fournisseur
+  priceHistory: {
+    type: [new Schema({
+      date: { type: Date, required: true, default: Date.now },
+      price1688: { type: Number, required: true },
+      exchangeRate: { type: Number, required: true, default: 100 },
+      changePercent: { type: Number, default: 0 },
+      source: { type: String, enum: ['auto_check', 'manual_update', 'import'], default: 'manual_update' }
+    }, { _id: false })],
+    default: []
+  },
+  lastPriceCheckAt: { type: Date },
+  priceAlertThreshold: { type: Number, default: 10 } // 10% par défaut
 }, { timestamps: true })
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)

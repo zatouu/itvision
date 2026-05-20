@@ -11,6 +11,20 @@ const normalizeGallery = (product: any): string[] => {
   return ['/file.svg']
 }
 
+  const normalizeTags = (product: any): string[] => {
+    const raw = Array.isArray(product?.tags) ? product.tags : []
+    const cleaned = raw
+      .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+      .filter(Boolean)
+    if (cleaned.length > 0) return cleaned
+
+    // Fallback: derive tag from condition for legacy products
+    const condition = product?.condition
+    if (condition === 'used') return ['occasion']
+    if (condition === 'refurbished') return ['refurb']
+    return []
+  }
+
 // Normalise les variantes avec prix (style 1688)
 const normalizeVariantGroups = (product: any) => {
   if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
@@ -56,8 +70,11 @@ export const formatProductDetail = (
     tagline: product.tagline ?? null,
     description: product.description ?? null,
     category: product.category ?? 'Catalogue import Chine',
+    condition: product.condition ?? 'new',
+      tags: normalizeTags(product),
     image: product.image ?? '/file.svg',
     gallery: normalizeGallery(product),
+    descriptionImages: Array.isArray(product.descriptionImages) ? product.descriptionImages : [],
     features: Array.isArray(product.features) ? product.features : [],
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],
@@ -93,7 +110,15 @@ export const formatProductDetail = (
     },
     // Note: Les informations de sourcing et prix source ne sont pas exposées au client
     // Seul indicateur: si le produit est importé
-    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform))),
+    isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
+    // Exposer les infos simplifiées pour le simulateur 1688 si disponibles
+    pricing1688: product.price1688 ? {
+      price1688: product.price1688,
+      price1688Currency: 'CNY', // ou product.currencySource
+      exchangeRate: product.exchangeRate || 100, // Fallback safe
+      serviceFeeRate: product.serviceFeeRate || 10,
+      insuranceRate: product.insuranceRate || 0
+    } : null,
     // Achat groupé (front)
     groupBuyEnabled: product.groupBuyEnabled ?? false,
     groupBuyBestPrice,
@@ -101,6 +126,8 @@ export const formatProductDetail = (
     priceTiers: product.priceTiers ?? [],
     groupBuyMinQty: product.groupBuyMinQty ?? null,
     groupBuyTargetQty: product.groupBuyTargetQty ?? null,
+    // Prix wholesale B2B (activé à 5+ pcs ou compte Pro)
+    b2bPrice: typeof product.b2bPrice === 'number' && product.b2bPrice > 0 ? product.b2bPrice : null,
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }
@@ -121,6 +148,8 @@ export const formatSimilarProducts = (
       name: item.name,
       tagline: item.tagline ?? null,
       category: item.category ?? 'Catalogue import Chine',
+      condition: item.condition ?? 'new',
+        tags: normalizeTags(item),
       image: normalizeGallery(item)[0] ?? '/file.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
       // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice

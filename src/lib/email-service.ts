@@ -12,9 +12,15 @@ interface EmailConfig {
 
 interface EmailData {
   to: string
+  bcc?: string
   subject: string
   html: string
   text?: string
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+    contentType?: string
+  }>
 }
 
 class EmailService {
@@ -65,15 +71,17 @@ class EmailService {
 
     try {
       const mailOptions = {
-        from: `"IT Vision Plus" <${process.env.SMTP_USER}>`,
+        from: `"IT Vision Plus" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: emailData.to,
+        bcc: emailData.bcc,
         subject: emailData.subject,
         html: emailData.html,
-        text: emailData.text || this.stripHtml(emailData.html)
+        text: emailData.text || this.stripHtml(emailData.html),
+        attachments: emailData.attachments
       }
 
-      const result = await this.transporter.sendMail(mailOptions)
-      console.log('[EMAIL] Email envoyé avec succès:', result.messageId)
+      const result: any = await this.transporter.sendMail(mailOptions as any)
+      console.log('[EMAIL] Email envoyé avec succès:', result?.messageId)
       return true
     } catch (error) {
       console.error('[EMAIL] Erreur lors de l\'envoi:', error)
@@ -87,6 +95,9 @@ class EmailService {
     console.log('\n=== EMAIL SIMULÉ ===')
     console.log(`À: ${emailData.to}`)
     console.log(`Sujet: ${emailData.subject}`)
+    if (emailData.attachments?.length) {
+      console.log(`Pièces jointes: ${emailData.attachments.map(a => a.filename).join(', ')}`)
+    }
     console.log('Contenu HTML:')
     console.log(emailData.html)
     console.log('===================\n')
@@ -422,6 +433,87 @@ class EmailService {
         
         Connectez-vous sur : ${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/login
         
+        Support: support@itvisionplus.sn | WhatsApp: +221 77 413 34 40
+      `
+    }
+  }
+
+  // Template pour notification de changement d'email du compte client
+  generateEmailChangedNotification(userEmail: string, userName: string, resetUrl: string): EmailData {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Changement d'email - IT Vision Plus</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+          .info { background: #e0f2fe; border: 1px solid #bae6fd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📧 Votre email a été mis à jour</h1>
+            <p>IT Vision Plus - Espace Client</p>
+          </div>
+          <div class="content">
+            <h2>Bonjour ${userName},</h2>
+            <p>L'email de votre compte IT Vision Plus a été modifié par notre équipe.</p>
+
+            <div class="info">
+              <strong>Nouvel email :</strong> ${userEmail}
+            </div>
+
+            <p>Vous devez définir un nouveau mot de passe pour continuer à accéder à votre espace client :</p>
+
+            <div style="text-align: center;">
+              <a href="${resetUrl}" class="button">Définir mon mot de passe</a>
+            </div>
+
+            <p>Ou copiez ce lien dans votre navigateur :</p>
+            <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 5px;">
+              ${resetUrl}
+            </p>
+
+            <p><strong>Ce lien expire dans 24 heures.</strong></p>
+            <p>Si vous n'êtes pas à l'origine de cette demande, contactez immédiatement notre support.</p>
+
+            <p>📧 Email: support@itvisionplus.sn<br>
+            📱 WhatsApp: +221 77 413 34 40</p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} IT Vision Plus - Tous droits réservés</p>
+            <p>Cet email a été envoyé à ${userEmail}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+    return {
+      to: userEmail,
+      subject: '📧 Votre email de connexion a été mis à jour - IT Vision Plus',
+      html,
+      text: `
+        Changement d'email - IT Vision Plus
+
+        Bonjour ${userName},
+
+        L'email de votre compte IT Vision Plus a été modifié par notre équipe.
+        Nouvel email: ${userEmail}
+
+        Définissez votre nouveau mot de passe ici :
+        ${resetUrl}
+
+        Ce lien expire dans 24 heures.
+
         Support: support@itvisionplus.sn | WhatsApp: +221 77 413 34 40
       `
     }

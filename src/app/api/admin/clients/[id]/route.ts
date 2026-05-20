@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Client from '@/lib/models/Client'
+import Contact from '@/lib/models/Contact'
+import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
+import emailService from '@/lib/email-service'
+import crypto from 'crypto'
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
-    if (String(role || '').toUpperCase() !== 'ADMIN') throw new Error('Accès non autorisé')
+    const r = String(role || '').toUpperCase()
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(r)) throw new Error('Accès non autorisé')
   })
 }
 
@@ -27,7 +32,11 @@ export async function GET(
       }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, client })
+    // Charger les contacts associés
+    const contacts = await Contact.find({ clientId: id }).sort({ isPrimary: -1, nom: 1 }).lean()
+    const contactsMapped = contacts.map((c: any) => ({ ...c, id: String(c._id) }))
+
+    return NextResponse.json({ success: true, client, contacts: contactsMapped })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
     const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500
@@ -45,7 +54,8 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { name, email, phone, company, address, city, country, canAccessPortal, notes, isActive, tags, category, rating } = body
+    const { name, email, phone, company, address, city, country, canAccessPortal, notes, isActive, tags, category, rating, contacts, contactPrincipal } = body
+    const normalizedEmail = email !== undefined ? String(email).toLowerCase().trim() : undefined
 
     // Vérifier si le client existe
     const existingClient = await Client.findById(id)
@@ -57,8 +67,8 @@ export async function PUT(
     }
 
     // Si l'email change, vérifier qu'il n'existe pas déjà
-    if (email && email !== existingClient.email) {
-      const emailExists = await Client.findOne({ email, _id: { $ne: id } })
+    if (normalizedEmail && normalizedEmail !== existingClient.email) {
+      const emailExists = await Client.findOne({ email: normalizedEmail, _id: { $ne: id } })
       if (emailExists) {
         return NextResponse.json({ 
           success: false, 
@@ -67,10 +77,46 @@ export async function PUT(
       }
     }
 
+    // Synchroniser le compte utilisateur CLIENT lié à cette entreprise
+    const linkedUser = await User.findOne({ companyClientId: id, role: 'CLIENT' })
+    if (linkedUser) {
+      const userSetData: any = {
+        ...(name !== undefined ? { name } : {}),
+        ...(phone !== undefined ? { phone } : {}),
+        ...(company !== undefined ? { company: company || name || linkedUser.name } : {}),
+        ...(canAccessPortal !== undefined ? { isActive: Boolean(canAccessPortal) } : {}),
+        companyClientId: id
+      }
+
+      if (normalizedEmail && normalizedEmail !== linkedUser.email) {
+        const existingUserWithEmail = await User.findOne({ email: normalizedEmail, _id: { $ne: linkedUser._id } })
+        if (!existingUserWithEmail) {
+          userSetData.email = normalizedEmail
+          // Générer un token de réinitialisation et envoyer un email de notification
+          const resetToken = crypto.randomBytes(32).toString('hex')
+          const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+          userSetData.passwordResetToken = resetToken
+          userSetData.passwordResetExpires = tokenExpires
+          userSetData.forcePasswordReset = true
+
+          await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+
+          const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
+          const emailData = emailService.generateEmailChangedNotification(normalizedEmail, linkedUser.name || name || '', resetUrl)
+          await emailService.sendEmail(emailData)
+        } else {
+          // Email déjà utilisé par un autre utilisateur — ne pas modifier l'email du linkedUser
+          await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+        }
+      } else {
+        await User.updateOne({ _id: linkedUser._id }, { $set: userSetData })
+      }
+    }
+
     // Mettre à jour le client
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
-    if (email !== undefined) updateData.email = email
+    if (normalizedEmail !== undefined) updateData.email = normalizedEmail
     if (phone !== undefined) updateData.phone = phone
     if (company !== undefined) updateData.company = company
     if (address !== undefined) updateData.address = address
@@ -86,11 +132,32 @@ export async function PUT(
     }
     updateData.lastContact = new Date()
 
+    if (contactPrincipal !== undefined) updateData.contactPerson = contactPrincipal
+
     const client = await Client.findByIdAndUpdate(
       id,
       { $set: updateData },
       { new: true, runValidators: true }
     )
+
+    // Mettre à jour les contacts supplémentaires si fournis
+    if (Array.isArray(contacts)) {
+      // Supprimer les anciens contacts et recréer
+      await Contact.deleteMany({ clientId: id })
+      const contactDocs = contacts
+        .filter((c: any) => c.nom?.trim())
+        .map((c: any) => ({
+          clientId: id,
+          nom: c.nom.trim(),
+          fonction: c.fonction?.trim() || undefined,
+          telephone: c.telephone?.trim() || undefined,
+          email: c.email?.trim().toLowerCase() || undefined,
+          isPrimary: c.isPrimary || false
+        }))
+      if (contactDocs.length > 0) {
+        await Contact.insertMany(contactDocs)
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -122,6 +189,15 @@ export async function DELETE(
         error: 'Client non trouvé' 
       }, { status: 404 })
     }
+
+    // Nettoyer les données liées
+    await Contact.deleteMany({ clientId: id })
+
+    // Dissocier et désactiver les utilisateurs liés à ce client entreprise
+    await User.updateMany(
+      { companyClientId: id },
+      { $set: { isActive: false }, $unset: { companyClientId: 1 } }
+    )
 
     // Supprimer le client
     await Client.findByIdAndDelete(id)

@@ -20,9 +20,12 @@ export interface IProduct extends Document {
   category?: string
   description?: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   
   // Pricing standard
   price?: number
+  b2bPrice?: number              // Prix entreprise en FCFA (séparé du prix marketplace)
   baseCost?: number
   marginRate?: number
   currency: Currency
@@ -30,6 +33,7 @@ export interface IProduct extends Document {
   // Médias
   image?: string
   gallery: string[]
+  descriptionImages: string[]  // Images de présentation/description (grandes, séparées de la galerie)
   
   // Caractéristiques
   features: string[]
@@ -138,10 +142,14 @@ const validateImportLogistics = function(this: IProduct) {
   const platform = this.sourcing?.platform
 
   // Même logique que le reste du code: produit considéré comme importé
-  // s'il a un prix 1688 ou une plateforme 1688/alibaba/taobao
-  const isImported = !!(this.price1688 || (platform && ['1688', 'alibaba', 'taobao'].includes(platform)))
+  // s'il a un prix 1688 ou une plateforme d'import.
+  const isImported = !!(this.price1688 || (platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(platform)))
 
   if (!isImported) return true
+
+  // Si le produit est en "sur devis", on autorise l'absence de poids/volume.
+  // L'admin pourra les renseigner plus tard pour activer un pricing transporté.
+  if (this.requiresQuote) return true
 
   const hasWeight = !!(this.weightKg || this.grossWeightKg || this.netWeightKg)
   const hasVolume = !!(this.volumeM3 || (this.lengthCm && this.widthCm && this.heightCm))
@@ -181,6 +189,21 @@ const ProductSchema = new Schema<IProduct>({
     trim: true,
     maxlength: [200, 'Le tagline ne peut pas dépasser 200 caractères']
   },
+  condition: {
+    type: String,
+    default: 'new',
+    index: true,
+    enum: {
+      values: ['new', 'used', 'refurbished'],
+      message: 'Condition invalide. Valeurs acceptées: new, used, refurbished'
+    }
+  },
+
+  tags: {
+    type: [String],
+    default: [],
+    index: true
+  },
   
   // Pricing standard
   price: {
@@ -188,6 +211,13 @@ const ProductSchema = new Schema<IProduct>({
     validate: {
       validator: validatePositiveNumber,
       message: 'Le prix doit être positif ou nul'
+    }
+  },
+  b2bPrice: {
+    type: Number,
+    validate: {
+      validator: validatePositiveNumber,
+      message: 'Le prix entreprise doit être positif ou nul'
     }
   },
   baseCost: {
@@ -227,6 +257,14 @@ const ProductSchema = new Schema<IProduct>({
     validate: {
       validator: (arr: string[]) => arr.length <= 20,
       message: 'Maximum 20 images dans la galerie'
+    }
+  },
+  descriptionImages: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: (arr: string[]) => arr.length <= 30,
+      message: 'Maximum 30 images de description'
     }
   },
   

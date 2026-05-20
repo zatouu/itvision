@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useState, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown } from 'lucide-react'
+import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage } from 'lucide-react'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -38,16 +38,20 @@ type Product = {
   category?: string
   description?: string
   tagline?: string
+  condition?: 'new' | 'used' | 'refurbished'
+  tags?: string[]
   price?: number
+  b2bPrice?: number
   baseCost?: number
   marginRate?: number
   currency?: string
   image?: string
   gallery?: string[]
+  descriptionImages?: string[]
   features?: string[]
   requiresQuote?: boolean
   deliveryDays?: number
-  stockStatus?: 'in_stock' | 'preorder'
+  stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   stockQuantity?: number
   leadTimeDays?: number
   // Poids
@@ -94,15 +98,45 @@ type Product = {
   insuranceRate?: number // Frais d'assurance (en %)
 }
 
-async function fetchProducts(q = '', category = '') {
-  const res = await fetch(`/api/products?search=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}`)
+async function fetchProducts(
+  q = '',
+  category = '',
+  condition = '',
+  opts?: { skip?: number; limit?: number }
+) {
+  const skip = Math.max(Number(opts?.skip ?? 0), 0)
+  const limit = Math.min(Math.max(Number(opts?.limit ?? 50), 1), 100)
+  const params = new URLSearchParams({
+    search: q,
+    category,
+    condition,
+    skip: String(skip),
+    limit: String(limit)
+  })
+  const res = await fetch(`/api/products?${params.toString()}`)
   if (!res.ok) throw new Error('Failed to fetch products')
-  return (await res.json()).items as Product[]
+  const data = await res.json()
+  return {
+    items: (data?.items || []) as Product[],
+    total: Number(data?.total) || 0,
+    skip: Number(data?.skip) || 0,
+    limit: Number(data?.limit) || limit
+  }
 }
 
 const formatCurrency = (amount?: number, currency = 'FCFA') => {
   if (typeof amount !== 'number') return '-'
   return `${amount.toLocaleString('fr-FR')} ${currency}`
+}
+
+const isVideoUrl = (url: string) => {
+  if (!url) return false
+  return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)
+}
+
+const isYouTubeUrl = (url: string) => {
+  if (!url) return false
+  return /youtu\.be\//i.test(url) || /youtube\.com\//i.test(url)
 }
 
 type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'groupbuy' | 'import'
@@ -392,7 +426,10 @@ export default function AdminProductManager() {
     category: '',
     description: '',
     tagline: '',
+    condition: 'new',
+    tags: [],
     price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
+    b2bPrice: undefined,
     baseCost: undefined, // Coût d'achat fournisseur
     marginRate: 30, // Marge par défaut 30%
     currency: 'FCFA',
@@ -438,10 +475,14 @@ export default function AdminProductManager() {
   }
 
   const [items, setItems] = useState<Product[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [pageSize, setPageSize] = useState(50)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
+  const [conditionFilter, setConditionFilter] = useState<string>('')
   const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; count: number }>>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState<'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category'>(
@@ -453,7 +494,13 @@ export default function AdminProductManager() {
   const [activeTab, setActiveTab] = useState<ProductTab>('info')
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
+  const [uploadingDescImages, setUploadingDescImages] = useState(false)
   const [newGalleryInput, setNewGalleryInput] = useState('')
+  const [newTagInput, setNewTagInput] = useState('')
+  const [dragOverGallery, setDragOverGallery] = useState(false)
+  const [dragOverDesc, setDragOverDesc] = useState(false)
+  const [dragItem, setDragItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
+  const [dragOverItem, setDragOverItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
@@ -465,21 +512,50 @@ export default function AdminProductManager() {
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
 
+  const normalizeItems = (list: Product[]) =>
+    list.map(item => ({
+      ...item,
+      gallery: item.gallery || [],
+      features: item.features || [],
+      tags: item.tags || [],
+      colorOptions: item.colorOptions || [],
+      variantOptions: item.variantOptions || [],
+      shippingOverrides: ensureOverrides(item.shippingOverrides)
+    }))
+
   const refresh = async () => {
     setLoading(true)
     try {
-      const result = await fetchProducts(query, category)
-      setItems(result.map(item => ({
-        ...item,
-        gallery: item.gallery || [],
-        features: item.features || [],
-        colorOptions: item.colorOptions || [],
-        variantOptions: item.variantOptions || [],
-        shippingOverrides: ensureOverrides(item.shippingOverrides)
-      })))
+      const result = await fetchProducts(query, category, conditionFilter, { skip: 0, limit: pageSize })
+      setItems(normalizeItems(result.items))
+      setTotalCount(result.total || result.items.length)
       setSelectedIds(new Set())
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMore = async () => {
+    if (loading || loadingMore) return
+    if (totalCount > 0 && items.length >= totalCount) return
+    setLoadingMore(true)
+    try {
+      const result = await fetchProducts(query, category, conditionFilter, { skip: items.length, limit: pageSize })
+      const next = normalizeItems(result.items)
+      setItems(prev => {
+        const seen = new Set(prev.map(p => String(p._id || '')))
+        const merged = [...prev]
+        for (const it of next) {
+          const id = String(it._id || '')
+          if (id && seen.has(id)) continue
+          merged.push(it)
+          if (id) seen.add(id)
+        }
+        return merged
+      })
+      setTotalCount(result.total || totalCount)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -565,6 +641,7 @@ export default function AdminProductManager() {
       setAutoPrice(false)
       setUploadingMain(false)
       setUploadingGallery(false)
+      setUploadingDescImages(false)
       setNewGalleryInput('')
       setSaveError(null)
     }
@@ -599,6 +676,7 @@ export default function AdminProductManager() {
       const payload: Record<string, unknown> = {
         ...editing,
         gallery: (editing.gallery || []).filter(Boolean),
+        descriptionImages: (editing.descriptionImages || []).filter(Boolean),
         features: (editing.features || []).filter(Boolean),
         colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
         variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),
@@ -728,6 +806,7 @@ export default function AdminProductManager() {
 
   const computedDisplayPrice = (product: Product) => {
     if (typeof product.price === 'number') return formatCurrency(product.price, product.currency)
+    if (typeof product.b2bPrice === 'number') return formatCurrency(product.b2bPrice, product.currency)
     if (typeof product.baseCost === 'number') {
       const margin = typeof product.marginRate === 'number' ? product.marginRate : 25
       const sale = Math.round(product.baseCost * (1 + margin / 100))
@@ -752,6 +831,7 @@ export default function AdminProductManager() {
       ...product,
       gallery: product.gallery || [],
       features: product.features || [],
+      tags: product.tags || [],
       colorOptions: product.colorOptions || [],
       variantOptions: product.variantOptions || [],
       shippingOverrides: ensureOverrides(product.shippingOverrides),
@@ -823,10 +903,111 @@ export default function AdminProductManager() {
       }
     } catch (error) {
       console.error('Galerie import', error)
-      alert('Impossible d’ajouter certains fichiers au moment du téléversement.')
+      alert('Impossible d\'ajouter certains fichiers.')
     } finally {
       setUploadingGallery(false)
     }
+  }
+
+  const handleDescImagesUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    try {
+      setUploadingDescImages(true)
+      const uploads: string[] = []
+      for (const file of Array.from(files)) {
+        try {
+          const url = await uploadMediaFile(file)
+          uploads.push(url)
+        } catch (error) {
+          console.error('Upload description image', error)
+        }
+      }
+      if (uploads.length > 0) {
+        setEditing(prev => (prev ? { ...prev, descriptionImages: [...(prev.descriptionImages || []), ...uploads] } : prev))
+      }
+    } catch (error) {
+      console.error('Description images import', error)
+    } finally {
+      setUploadingDescImages(false)
+    }
+  }
+
+  const handleDropUpload = async (e: React.DragEvent, target: 'gallery' | 'desc') => {
+    e.preventDefault()
+    if (target === 'gallery') setDragOverGallery(false)
+    else setDragOverDesc(false)
+
+    if (dragItem) {
+      handleImageReorderDrop(target)
+      return
+    }
+
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
+    if (imageFiles.length === 0) return
+
+    const fileList = Object.assign(imageFiles, { item: (i: number) => imageFiles[i] }) as unknown as FileList
+    if (target === 'gallery') {
+      await handleGalleryUpload(fileList)
+    } else {
+      await handleDescImagesUpload(fileList)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, target: 'gallery' | 'desc') => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = dragItem ? 'move' : 'copy'
+    if (target === 'gallery') setDragOverGallery(true)
+    else setDragOverDesc(true)
+  }
+
+  const handleDragLeave = (target: 'gallery' | 'desc') => {
+    if (target === 'gallery') setDragOverGallery(false)
+    else setDragOverDesc(false)
+  }
+
+  const moveImage = (type: 'gallery' | 'desc', fromIndex: number, toIndex: number) => {
+    if (!editing) return
+    const field = type === 'gallery' ? 'gallery' : 'descriptionImages'
+    const arr = [...(editing[field] || [])]
+    if (fromIndex < 0 || fromIndex >= arr.length || toIndex < 0 || toIndex >= arr.length) return
+    const [moved] = arr.splice(fromIndex, 1)
+    arr.splice(toIndex, 0, moved)
+    setEditing({ ...editing, [field]: arr })
+  }
+
+  const handleImageReorderDrop = (targetType: 'gallery' | 'desc') => {
+    if (!dragItem || !dragOverItem || !editing) {
+      setDragItem(null)
+      setDragOverItem(null)
+      return
+    }
+    if (dragItem.type === targetType && dragOverItem.type === targetType) {
+      moveImage(targetType, dragItem.index, dragOverItem.index)
+    } else if (dragItem.type !== targetType) {
+      const sourceField = dragItem.type === 'gallery' ? 'gallery' : 'descriptionImages'
+      const targetField = targetType === 'gallery' ? 'gallery' : 'descriptionImages'
+      const sourceArr = [...(editing[sourceField] || [])]
+      const targetArr = [...(editing[targetField] || [])]
+      const [moved] = sourceArr.splice(dragItem.index, 1)
+      const insertAt = dragOverItem ? dragOverItem.index : targetArr.length
+      targetArr.splice(insertAt, 0, moved)
+      setEditing({ ...editing, [sourceField]: sourceArr, [targetField]: targetArr })
+    }
+    setDragItem(null)
+    setDragOverItem(null)
+  }
+
+  const transferImage = (fromType: 'gallery' | 'desc', index: number) => {
+    if (!editing) return
+    const sourceField = fromType === 'gallery' ? 'gallery' : 'descriptionImages'
+    const targetField = fromType === 'gallery' ? 'descriptionImages' : 'gallery'
+    const sourceArr = [...(editing[sourceField] || [])]
+    const targetArr = [...(editing[targetField] || [])]
+    const [moved] = sourceArr.splice(index, 1)
+    targetArr.push(moved)
+    setEditing({ ...editing, [sourceField]: sourceArr, [targetField]: targetArr })
   }
 
   const renderInfoTab = () => {
@@ -858,6 +1039,86 @@ export default function AdminProductManager() {
               list="admin-product-categories"
               onChange={e => setEditing({ ...editing, category: e.target.value })}
             />
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="block text-xs font-medium text-gray-500">État</span>
+                <select
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+                  value={editing.condition || 'new'}
+                  onChange={e => setEditing({ ...editing, condition: (e.target.value as any) || 'new' })}
+                >
+                  <option value="new">Neuf</option>
+                  <option value="used">Occasion (Seconde main)</option>
+                  <option value="refurbished">Refurb (Reconditionné)</option>
+                </select>
+              </label>
+              <div className="flex items-end">
+                <div className="flex flex-wrap gap-2">
+                  {(editing.condition === 'used') && (
+                    <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 text-xs font-semibold">Occasion</span>
+                  )}
+                  {(editing.condition === 'refurbished') && (
+                    <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs font-semibold">Refurb</span>
+                  )}
+                  {(editing.condition === 'new' || !editing.condition) && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs font-semibold">Neuf</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="text-xs font-medium text-gray-600 mb-2">Tags</div>
+              <div className="flex flex-wrap gap-2">
+                {(editing.tags || []).length === 0 && (
+                  <span className="text-xs text-gray-500 italic">Aucun tag</span>
+                )}
+                {(editing.tags || []).map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:border-red-200 hover:bg-red-50"
+                    onClick={() => setEditing(prev => (prev
+                      ? { ...prev, tags: (prev.tags || []).filter(t => t !== tag) }
+                      : prev))}
+                    title="Retirer"
+                  >
+                    <span>#{tag}</span>
+                    <span className="text-gray-400">×</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Ajouter un tag (ex: promo, hikvision, poe...)"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  onClick={() => {
+                    const tag = newTagInput.trim().replace(/^#/, '')
+                    if (!tag) return
+                    setEditing(prev => {
+                      if (!prev) return prev
+                      const next = Array.isArray(prev.tags) ? [...prev.tags] : []
+                      if (!next.some(t => String(t).toLowerCase() === tag.toLowerCase())) next.push(tag)
+                      return { ...prev, tags: next }
+                    })
+                    setNewTagInput('')
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Ajouter
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Les tags <span className="font-semibold">occasion</span> / <span className="font-semibold">refurb</span> sont ajoutés automatiquement selon l’état lors de l’enregistrement.
+              </p>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 Description détaillée
@@ -1036,6 +1297,7 @@ export default function AdminProductManager() {
               >
                 <option value="in_stock">Disponible à Dakar</option>
                 <option value="preorder">Commande Chine</option>
+                <option value="out_of_stock">Rupture temporaire</option>
               </select>
             </label>
             <label className="space-y-1">
@@ -1181,8 +1443,82 @@ export default function AdminProductManager() {
 
   const renderMediaTab = () => {
     if (!editing) return null
+
+    const renderImageGrid = (
+      images: string[],
+      type: 'gallery' | 'desc',
+      field: 'gallery' | 'descriptionImages'
+    ) => (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        {images.map((url, index) => (
+          <div
+            key={`${type}-${url}-${index}`}
+            draggable
+            onDragStart={() => setDragItem({ type, index })}
+            onDragOver={(e) => { e.preventDefault(); setDragOverItem({ type, index }) }}
+            onDragEnd={() => { setDragItem(null); setDragOverItem(null) }}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleImageReorderDrop(type) }}
+            className={`group relative overflow-hidden rounded-lg border-2 transition-all cursor-grab active:cursor-grabbing ${
+              dragOverItem?.type === type && dragOverItem?.index === index
+                ? 'border-emerald-400 bg-emerald-50 scale-105'
+                : dragItem?.type === type && dragItem?.index === index
+                  ? 'border-emerald-300 opacity-50'
+                  : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            {isVideoUrl(url) ? (
+              <div className="relative h-24 w-full bg-black">
+                <video src={url} muted playsInline preload="metadata" className="h-24 w-full object-cover opacity-90" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-full bg-black/60 text-white p-2"><Play className="h-4 w-4" /></div>
+                </div>
+              </div>
+            ) : isYouTubeUrl(url) ? (
+              <div className="relative h-24 w-full bg-gray-900 flex items-center justify-center text-white">
+                <div className="flex items-center gap-2 text-xs font-semibold"><Play className="h-4 w-4" /> YouTube</div>
+              </div>
+            ) : (
+              <img src={url} alt={`${type} ${index + 1}`} className="h-24 w-full object-cover" />
+            )}
+            <div className="absolute left-1 top-1 hidden group-hover:flex">
+              <div className="rounded bg-black/60 p-0.5 text-white"><GripVertical className="h-3.5 w-3.5" /></div>
+            </div>
+            <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
+              {index > 0 && (
+                <button type="button" className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  onClick={() => moveImage(type, index, index - 1)}>
+                  <ArrowLeft className="h-3 w-3" />
+                </button>
+              )}
+              {index < images.length - 1 && (
+                <button type="button" className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  onClick={() => moveImage(type, index, index + 1)}>
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              )}
+              <button type="button" className="rounded-full bg-purple-600/80 p-1 text-white hover:bg-purple-700"
+                title={type === 'gallery' ? 'Déplacer vers Description' : 'Déplacer vers Galerie'}
+                onClick={() => transferImage(type, index)}>
+                <FileImage className="h-3 w-3" />
+              </button>
+              <button type="button" className="rounded-full bg-red-600/80 p-1 text-white hover:bg-red-700"
+                onClick={() => setEditing(prev => (prev
+                  ? { ...prev, [field]: (prev[field] || []).filter((_: string, idx: number) => idx !== index) }
+                  : prev))}>
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5 hidden group-hover:block">
+              {index + 1}/{images.length}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+
     return (
       <div className="space-y-6">
+        {/* Image principale */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
             <ImageIcon className="h-4 w-4" />
@@ -1206,17 +1542,10 @@ export default function AdminProductManager() {
               <div className="flex flex-wrap items-center gap-3">
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <Upload className="h-4 w-4" />
-                  <span>Téléverser depuis l’ordinateur</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (file) handleMainImageUpload(file)
-                    }}
-                    disabled={uploadingMain}
-                  />
+                  <span>Téléverser</span>
+                  <input type="file" className="hidden" accept="image/*"
+                    onChange={e => { const file = e.target.files?.[0]; if (file) handleMainImageUpload(file) }}
+                    disabled={uploadingMain} />
                 </label>
                 {uploadingMain && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
               </div>
@@ -1224,70 +1553,119 @@ export default function AdminProductManager() {
           </div>
         </div>
 
+        {/* Galerie produit (miniatures affichées sur la page produit) */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
-            <ImageIcon className="h-4 w-4" />
-            Galerie & médias secondaires
-          </div>
-          <div className="mt-4 space-y-4 text-sm text-gray-700">
-            <textarea
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              rows={4}
-              placeholder="Une URL par ligne"
-              value={(editing.gallery || []).join('\n')}
-              onChange={e => setEditing({
-                ...editing,
-                gallery: e.target.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-              })}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                placeholder="Ajouter une URL (https://...)"
-                value={newGalleryInput}
-                onChange={e => setNewGalleryInput(e.target.value)}
-              />
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-                onClick={() => {
-                  if (!newGalleryInput.trim()) return
-                  setEditing(prev => (prev ? { ...prev, gallery: [...(prev.gallery || []), newGalleryInput.trim()] } : prev))
-                  setNewGalleryInput('')
-                }}
-              >
-                <Plus className="h-4 w-4" /> Ajouter
-              </button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+              <ImageIcon className="h-4 w-4" />
+              Galerie produit
+              <span className="text-xs font-normal normal-case text-gray-400">— miniatures affichées sur la fiche</span>
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50">
-              <Upload className="h-4 w-4" />
-              <span>Importer des images (JPG / PNG)</span>
-              <input type="file" className="hidden" multiple accept="image/*" onChange={e => handleGalleryUpload(e.target.files)} disabled={uploadingGallery} />
-            </label>
+            <span className="text-xs text-gray-400">{(editing.gallery || []).length} image(s)</span>
+          </div>
+
+          <div
+            className={`mt-4 rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+              dragOverGallery ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50'
+            }`}
+            onDragOver={e => handleDragOver(e, 'gallery')}
+            onDragLeave={() => handleDragLeave('gallery')}
+            onDrop={e => handleDropUpload(e, 'gallery')}
+          >
+            <Upload className="mx-auto h-8 w-8 text-gray-300" />
+            <p className="mt-2 text-sm text-gray-500">
+              Glissez-déposez des images ici ou
+            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                <Upload className="h-4 w-4" />
+                <span>Parcourir</span>
+                <input type="file" className="hidden" multiple accept="image/*,video/*"
+                  onChange={e => handleGalleryUpload(e.target.files)} disabled={uploadingGallery} />
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-60"
+                  placeholder="Ou coller une URL..."
+                  value={newGalleryInput}
+                  onChange={e => setNewGalleryInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newGalleryInput.trim()) {
+                      setEditing(prev => (prev ? { ...prev, gallery: [...(prev.gallery || []), newGalleryInput.trim()] } : prev))
+                      setNewGalleryInput('')
+                    }
+                  }}
+                />
+                <button type="button"
+                  className="rounded-lg bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
+                  onClick={() => {
+                    if (!newGalleryInput.trim()) return
+                    setEditing(prev => (prev ? { ...prev, gallery: [...(prev.gallery || []), newGalleryInput.trim()] } : prev))
+                    setNewGalleryInput('')
+                  }}>
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
             {uploadingGallery && (
-              <p className="flex items-center gap-2 text-xs text-gray-500">
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs text-emerald-600">
                 <Loader2 className="h-3 w-3 animate-spin" /> Téléversement en cours...
               </p>
             )}
-            {(editing.gallery?.length ?? 0) > 0 && (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {editing.gallery?.map((url, index) => (
-                  <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-lg border border-gray-200">
-                    <img src={url} alt={`Galerie ${index + 1}`} className="h-24 w-full object-cover" />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 hidden rounded-full bg-black/60 p-1 text-white transition group-hover:flex"
-                      onClick={() => setEditing(prev => (prev
-                        ? { ...prev, gallery: (prev.gallery || []).filter((_, idx) => idx !== index) }
-                        : prev))}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+          </div>
+
+          {(editing.gallery?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs text-gray-400">Glissez pour réorganiser · Survolez pour les actions</p>
+              {renderImageGrid(editing.gallery || [], 'gallery', 'gallery')}
+            </div>
+          )}
+        </div>
+
+        {/* Images de description / présentation (grandes images) */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-purple-700">
+              <FileImage className="h-4 w-4" />
+              Images de description
+              <span className="text-xs font-normal normal-case text-gray-400">— grandes images de présentation</span>
+            </div>
+            <span className="text-xs text-gray-400">{(editing.descriptionImages || []).length} image(s)</span>
+          </div>
+
+          <div
+            className={`mt-4 rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+              dragOverDesc ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-50'
+            }`}
+            onDragOver={e => handleDragOver(e, 'desc')}
+            onDragLeave={() => handleDragLeave('desc')}
+            onDrop={e => handleDropUpload(e, 'desc')}
+          >
+            <FileImage className="mx-auto h-8 w-8 text-gray-300" />
+            <p className="mt-2 text-sm text-gray-500">
+              Glissez-déposez des images de description ici
+            </p>
+            <div className="mt-3 flex justify-center">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700">
+                <Upload className="h-4 w-4" />
+                <span>Parcourir</span>
+                <input type="file" className="hidden" multiple accept="image/*"
+                  onChange={e => handleDescImagesUpload(e.target.files)} disabled={uploadingDescImages} />
+              </label>
+            </div>
+            {uploadingDescImages && (
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs text-purple-600">
+                <Loader2 className="h-3 w-3 animate-spin" /> Téléversement en cours...
+              </p>
             )}
           </div>
+
+          {(editing.descriptionImages?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs text-gray-400">Glissez pour réorganiser · Survolez pour les actions</p>
+              {renderImageGrid(editing.descriptionImages || [], 'desc', 'descriptionImages')}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -1314,6 +1692,15 @@ export default function AdminProductManager() {
                   setAutoPrice(false)
                   setEditing({ ...editing, price: e.target.value ? Number(e.target.value) : undefined })
                 }}
+              />
+            </label>
+            <label className="space-y-1">
+              <span>Prix corporate (FCFA)</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                type="number"
+                value={editing.b2bPrice ?? ''}
+                onChange={e => setEditing({ ...editing, b2bPrice: e.target.value ? Number(e.target.value) : undefined })}
               />
             </label>
             <label className="space-y-1">
@@ -1368,20 +1755,20 @@ export default function AdminProductManager() {
             )}
           </div>
           {/* Indicateur de validation du prix */}
-          {!editing.requiresQuote && !editing.price && !editing.baseCost && !editing.price1688 && (
+          {!editing.requiresQuote && !editing.price && !editing.b2bPrice && !editing.baseCost && !editing.price1688 && (
             <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
               <svg className="h-5 w-5 flex-shrink-0 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div>
                 <div className="font-medium">Prix requis</div>
-                <div className="text-xs">Renseignez un prix (prix public, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
+                <div className="text-xs">Renseignez un prix (prix public, prix corporate, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
               </div>
             </div>
           )}
           
           {/* Indicateur de prix valide */}
-          {!editing.requiresQuote && (editing.price || editing.baseCost || editing.price1688) && (
+          {!editing.requiresQuote && (editing.price || editing.b2bPrice || editing.baseCost || editing.price1688) && (
             <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-center gap-2">
               <svg className="h-5 w-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1390,7 +1777,9 @@ export default function AdminProductManager() {
                 <strong>Prix affiché:</strong> {
                   editing.price 
                     ? formatCurrency(editing.price, editing.currency)
-                    : editing.baseCost && editing.marginRate
+                    : editing.b2bPrice
+                      ? formatCurrency(editing.b2bPrice, editing.currency)
+                      : editing.baseCost && editing.marginRate
                       ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
                       : editing.price1688 && editing.exchangeRate
                         ? `Calculé depuis prix source: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
@@ -1660,8 +2049,39 @@ export default function AdminProductManager() {
     )
   }
 
+  const startManual1688 = (rawUrl: string) => {
+    const url = String(rawUrl || '').trim()
+    const offerId = (() => {
+      const m = url.match(/offer\/(\d+)/i)
+      return m?.[1] || undefined
+    })()
+
+    setAutoPrice(false)
+    setActiveTab('info')
+    setEditing({
+      ...empty,
+      name: offerId ? `Produit 1688 (offer ${offerId})` : 'Produit 1688 (manuel)',
+      category: 'Catalogue import Chine',
+      tagline: 'Import 1688 (manuel)',
+      requiresQuote: false,
+      stockStatus: 'preorder',
+      currency: 'FCFA',
+      price1688Currency: 'CNY',
+      exchangeRate: 100,
+      sourcing: {
+        platform: '1688',
+        productUrl: url || undefined,
+        notes: `Création manuelle suite blocage captcha 1688.${offerId ? ` offerId ${offerId}.` : ''} Ajouter nom + images manuellement.`
+      }
+    })
+  }
+
   const renderImportTab = () => (
-    <ImportTab onImported={handleImportedProduct} formatCurrency={formatCurrency} />
+    <ImportTab
+      onImported={handleImportedProduct}
+      formatCurrency={formatCurrency}
+      onStartManual1688={startManual1688}
+    />
   )
 
   // Génère un ID unique pour les variantes
@@ -2260,8 +2680,8 @@ export default function AdminProductManager() {
       {/* Statistiques rapides */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4">
-          <div className="text-2xl font-bold text-gray-900">{items.length}</div>
-          <div className="text-xs text-gray-500">Produits total</div>
+          <div className="text-2xl font-bold text-gray-900">{totalCount || items.length}</div>
+          <div className="text-xs text-gray-500">Produits (chargés: {items.length})</div>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <div className="text-2xl font-bold text-emerald-600">
@@ -2277,7 +2697,7 @@ export default function AdminProductManager() {
         </div>
         <div className="bg-white rounded-xl border p-4">
           <div className="text-2xl font-bold text-red-600">
-            {items.filter(p => !p.requiresQuote && !p.price && !p.baseCost && !p.price1688).length}
+            {items.filter(p => !p.requiresQuote && !p.price && !p.b2bPrice && !p.baseCost && !p.price1688).length}
           </div>
           <div className="text-xs text-gray-500">Prix manquants</div>
         </div>
@@ -2295,13 +2715,61 @@ export default function AdminProductManager() {
           list="admin-product-categories"
           className="w-48 border rounded-lg px-3 py-2 text-sm"
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { id: '', label: 'Tous' },
+            { id: 'new', label: 'Neuf' },
+            { id: 'used', label: 'Occasion' },
+            { id: 'refurbished', label: 'Refurb' }
+          ] as const).map((chip) => {
+            const active = conditionFilter === chip.id
+            return (
+              <button
+                key={chip.id || 'all'}
+                type="button"
+                onClick={() => {
+                  setConditionFilter(chip.id)
+                  // refresh immediately with the new filter
+                  setTimeout(() => refresh(), 0)
+                }}
+                className={
+                  'h-9 rounded-full px-3 text-sm font-medium border transition ' +
+                  (active
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50')
+                }
+                aria-pressed={active}
+              >
+                {chip.label}
+              </button>
+            )
+          })}
+        </div>
+
         <button onClick={refresh} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition">Filtrer</button>
+
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            const next = Number(e.target.value) || 50
+            setPageSize(next)
+            // refresh with the new page size
+            setTimeout(() => refresh(), 0)
+          }}
+          className="h-9 rounded-lg border px-2 text-sm"
+          title="Nombre de produits chargés par page"
+        >
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
 
         <div className="h-9 w-px bg-gray-200" />
 
         <div className="flex items-center gap-2">
           <div className="text-xs text-gray-600">
-            {selectedCount > 0 ? `${selectedCount} sélectionné(s)` : 'Sélection'}
+            {selectedCount > 0 ? `${selectedCount} sélectionné(s)` : `Affichés ${items.length}${totalCount ? ` / ${totalCount}` : ''}`}
           </div>
           <select
             value={bulkAction}
@@ -2403,7 +2871,7 @@ export default function AdminProductManager() {
                       <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-orange-100 text-orange-700 text-xs font-medium">
                         Sur devis
                       </div>
-                    ) : !product.price && !product.baseCost && !product.price1688 ? (
+                    ) : !product.price && !product.b2bPrice && !product.baseCost && !product.price1688 ? (
                       <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-medium">
                         ⚠️ Prix manquant
                       </div>
@@ -2413,6 +2881,9 @@ export default function AdminProductManager() {
                     {typeof product.baseCost === 'number' && (
                       <div className="text-xs text-gray-500">Coût: {formatCurrency(product.baseCost, product.currency)}</div>
                     )}
+                    {typeof product.b2bPrice === 'number' && (
+                      <div className="text-xs text-green-700">Corporate: {formatCurrency(product.b2bPrice, product.currency)}</div>
+                    )}
                     {typeof product.price1688 === 'number' && (
                       <div className="text-xs text-blue-600">Source: ¥{product.price1688}</div>
                     )}
@@ -2421,8 +2892,8 @@ export default function AdminProductManager() {
                     )}
                   </td>
                   <td className="p-3">
-                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${product.stockStatus === 'in_stock' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                      <Package className="h-3.5 w-3.5" /> {product.stockStatus === 'in_stock' ? 'Stock Dakar' : 'Commande Chine'}
+                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${product.stockStatus === 'in_stock' ? 'bg-emerald-100 text-emerald-700' : product.stockStatus === 'out_of_stock' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <Package className="h-3.5 w-3.5" /> {product.stockStatus === 'in_stock' ? 'Stock Dakar' : product.stockStatus === 'out_of_stock' ? 'Rupture' : 'Commande Chine'}
                     </div>
                     {typeof product.leadTimeDays === 'number' && (
                       <div className="text-xs text-gray-500 mt-1">{product.leadTimeDays} jours estimés</div>
@@ -2457,6 +2928,24 @@ export default function AdminProductManager() {
           </tbody>
         </table>
       </div>
+
+      {!loading && (totalCount === 0 || items.length < totalCount) && (
+        <div className="mt-4 flex items-center justify-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
+              </>
+            ) : (
+              `Charger plus`
+            )}
+          </button>
+        </div>
+      )}
 
       {editing && (
         <div
@@ -2608,9 +3097,10 @@ type Import1688Preview = {
 type ImportTabProps = {
   onImported: (product: Product) => Promise<void> | void
   formatCurrency: (amount?: number, currency?: string) => string
+  onStartManual1688: (url: string) => void
 }
 
-function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
+function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabProps) {
   const [keyword, setKeyword] = useState('')
   const [limit, setLimit] = useState(6)
   const [results, setResults] = useState<ImportPreview[]>([])
@@ -2623,6 +3113,7 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
   const [preview1688, setPreview1688] = useState<Import1688Preview | null>(null)
   const [loading1688, setLoading1688] = useState(false)
   const [importing1688, setImporting1688] = useState(false)
+  const [captcha1688, setCaptcha1688] = useState(false)
 
   const handleSearch = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -2691,11 +3182,15 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
     setError(null)
     setFeedback(null)
     setPreview1688(null)
+    setCaptcha1688(false)
     try {
       const params = new URLSearchParams({ url: url1688.trim() })
       const res = await fetch(`/api/products/import?${params.toString()}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data?.success) {
+        if (String(data?.code || '').toUpperCase() === 'CAPTCHA') {
+          setCaptcha1688(true)
+        }
         throw new Error(data?.error || 'Prévisualisation impossible')
       }
       setPreview1688(data.item as Import1688Preview)
@@ -2986,6 +3481,31 @@ function ImportTab({ onImported, formatCurrency }: ImportTabProps) {
             </div>
           )}
         </div>
+
+        {captcha1688 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="text-sm font-semibold text-amber-900">1688 a demandé un captcha</div>
+            <p className="mt-1 text-xs text-amber-800">
+              Ça arrive souvent selon l’IP du serveur. Tu peux réessayer plus tard, changer de réseau (4G/VPN), ou continuer en création manuelle.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onStartManual1688(url1688.trim())}
+                className="rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-800"
+              >
+                Créer manuellement (pré-rempli)
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(url1688.trim(), '_blank', 'noopener,noreferrer')}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+              >
+                Ouvrir le lien 1688
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (

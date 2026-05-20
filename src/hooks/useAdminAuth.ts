@@ -66,7 +66,7 @@ export function useAdminAuth(redirectOnFail = true): UseAdminAuthReturn {
           if (redirectOnFail) {
             // Rediriger vers le portail approprié selon le rôle
             if (userRole === 'CLIENT') {
-              router.replace('/client-portal')
+              router.replace('/compte')
             } else if (userRole === 'TECHNICIAN') {
               router.replace('/tech-interface')
             } else if (userRole === 'PRODUCT_MANAGER') {

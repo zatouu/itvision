@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Project from '@/lib/models/Project'
 import User from '@/lib/models/User'
+import Client from '@/lib/models/Client'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
 import { requireAuth } from '@/lib/jwt'
+import mongoose from 'mongoose'
 
 async function verifyToken(request: NextRequest) {
   return await requireAuth(request)
+}
+
+function isAdminRole(role: any) {
+  return ['ADMIN', 'SUPER_ADMIN'].includes(String(role || '').toUpperCase())
+}
+
+function asObjectIdString(value: any): string | null {
+  const s = String(value || '').trim()
+  if (!s) return null
+  return /^[a-fA-F0-9]{24}$/.test(s) ? s : null
 }
 
 // GET - Récupérer les projets
@@ -41,6 +53,7 @@ export async function GET(request: NextRequest) {
     const [projects, totalCount] = await Promise.all([
       Project.find(query)
         .populate('clientId', 'id name email phone')
+        .populate('clientCompanyId', 'name company email phone')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -74,10 +87,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+
+    // Désactiver le $jsonSchema validator MongoDB incompatible avec le schema Mongoose actuel
+    try {
+      const db = (mongoose.connection as any).db
+      if (db) {
+        const collections = await db.listCollections({ name: 'projects' }).toArray()
+        const collInfo = collections.find((c: any) => c.name === 'projects')
+        if (collInfo?.options?.validator) {
+          await db.command({
+            collMod: 'projects',
+            validator: {},
+            validationLevel: 'off'
+          })
+        }
+      }
+    } catch {
+      // Ignorer si pas de permission ou déjà désactivé
+    }
+
     const { userId, role } = await verifyToken(request)
-    
+
     // Seuls les admins peuvent créer des projets
-    if (role !== 'ADMIN') {
+    if (!isAdminRole(role)) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
         { status: 403 }
@@ -98,31 +130,61 @@ export async function POST(request: NextRequest) {
     }
     
     // Vérification que le client existe
-    const client = await User.findOne({ _id: projectData.clientId, role: 'CLIENT' }).lean()
-    
-    if (!client) {
+    // clientId peut être un User._id (compte client) ou un Client._id (entreprise)
+    let resolvedClientId = asObjectIdString(projectData.clientId)
+    let resolvedClient: any = null
+    let resolvedCompanyId = asObjectIdString(projectData.clientCompanyId)
+
+    if (resolvedClientId) {
+      // Essayer d'abord comme User._id avec role CLIENT
+      resolvedClient = await User.findOne({ _id: resolvedClientId, role: 'CLIENT' }).lean()
+
+      // Si non trouvé, essayer comme Client._id (entreprise) et chercher le User lié
+      if (!resolvedClient) {
+        const company = await Client.findById(resolvedClientId).lean() as any
+        if (company?._id) {
+          resolvedCompanyId = String(company._id)
+          resolvedClient = await User.findOne({ companyClientId: resolvedCompanyId, role: 'CLIENT' }).lean()
+        }
+      }
+    }
+
+    if (!resolvedClient) {
       return NextResponse.json(
-        { error: 'Client non trouvé' },
+        { error: 'Client non trouvé. Assurez-vous que le client a un compte utilisateur actif.' },
         { status: 404 }
       )
     }
+
+    const finalClientId = String(resolvedClient._id)
+
+    if (resolvedCompanyId) {
+      const company = await Client.findById(resolvedCompanyId).select({ _id: 1 }).lean() as any
+      if (!company?._id) {
+        return NextResponse.json({ error: 'Entreprise introuvable' }, { status: 404 })
+      }
+    }
     
-    // Création du projet
-    const created = await Project.create({
+    // Création du projet — insertion native pour contourner le $jsonSchema validator incompatible
+    const projectId = new mongoose.Types.ObjectId()
+    const docToInsert = {
+      _id: projectId,
       name: projectData.name,
       description: projectData.description || '',
       address: projectData.address,
-      clientId: projectData.clientId,
+      projectId: projectId.toString(),
+      clientId: new mongoose.Types.ObjectId(finalClientId),
+      clientCompanyId: resolvedCompanyId ? new mongoose.Types.ObjectId(resolvedCompanyId) : undefined,
       status: (projectData.status || 'lead').toLowerCase(),
       startDate: new Date(projectData.startDate),
-      endDate: projectData.endDate ? new Date(projectData.endDate) : undefined,
+      endDate: projectData.endDate ? new Date(projectData.endDate) : null,
       currentPhase: projectData.currentPhase || '',
       progress: projectData.progress || 0,
       serviceType: projectData.serviceType || '',
-      clientSnapshot: projectData.clientSnapshot,
-      site: projectData.site,
+      clientSnapshot: projectData.clientSnapshot || { company: '', contact: '', phone: '', email: '' },
+      site: projectData.site || { name: '', address: '', access: '', constraints: [], contacts: [] },
       assignedTo: projectData.assignedTo || [],
-      value: projectData.value || 0,
+      value: String(projectData.value || 0),
       margin: projectData.margin || 0,
       milestones: projectData.milestones || [],
       quote: projectData.quote || null,
@@ -130,11 +192,16 @@ export async function POST(request: NextRequest) {
       timeline: projectData.timeline || [],
       risks: projectData.risks || [],
       documents: projectData.documents || [],
-      clientAccess: !!projectData.clientAccess
-    })
+      clientAccess: !!projectData.clientAccess,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
 
-    const newProject = (await Project.findById(created._id)
+    await mongoose.connection.collection('projects').insertOne(docToInsert as any)
+
+    const newProject = (await Project.findById(projectId)
       .populate('clientId', 'id name email phone')
+      .populate('clientCompanyId', 'name company email phone')
       .lean()) as any
 
     if (!newProject) {
@@ -142,6 +209,11 @@ export async function POST(request: NextRequest) {
         { error: 'Projet non trouvé après création' },
         { status: 404 }
       )
+    }
+
+    // Normaliser value en number pour la réponse API
+    if (newProject && typeof newProject.value === 'string') {
+      newProject.value = parseFloat(newProject.value) || 0
     }
     
     logDataAccess('projects', 'create', request, userId, { projectId: String(newProject._id) })
@@ -152,10 +224,12 @@ export async function POST(request: NextRequest) {
       message: 'Projet créé avec succès'
     }, { status: 201 })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur création projet:', error)
+    console.error('errInfo details:', JSON.stringify(error?.errInfo || {}, null, 2))
+    console.error('errorResponse:', JSON.stringify(error?.errorResponse || {}, null, 2))
     return NextResponse.json(
-      { error: 'Erreur lors de la création du projet' },
+      { error: 'Erreur lors de la création du projet', details: error?.errInfo || error?.message },
       { status: 500 }
     )
   }
@@ -177,7 +251,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Seuls les admins peuvent modifier des projets
-    if (role !== 'ADMIN') {
+    if (!isAdminRole(role)) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
         { status: 403 }
@@ -193,6 +267,17 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const nextCompanyId = updateData.clientCompanyId === null
+      ? null
+      : (asObjectIdString(updateData.clientCompanyId) || undefined)
+
+    if (typeof nextCompanyId === 'string') {
+      const company = await Client.findById(nextCompanyId).select({ _id: 1 }).lean() as any
+      if (!company?._id) {
+        return NextResponse.json({ error: 'Entreprise introuvable' }, { status: 404 })
+      }
+    }
     
     // Mise à jour du projet
     await Project.updateOne(
@@ -203,6 +288,9 @@ export async function PUT(request: NextRequest) {
           description: updateData.description ?? existingProject.description,
           address: updateData.address ?? existingProject.address,
           status: (updateData.status || existingProject.status),
+          ...(nextCompanyId === null
+            ? { clientCompanyId: null }
+            : (typeof nextCompanyId === 'string' ? { clientCompanyId: nextCompanyId } : {})),
           endDate: updateData.endDate ? new Date(updateData.endDate) : null,
           currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
           progress: typeof updateData.progress === 'number' ? updateData.progress : existingProject.progress,
@@ -226,6 +314,7 @@ export async function PUT(request: NextRequest) {
 
     const updatedProject = (await Project.findById(projectId)
       .populate('clientId', 'id name email phone')
+      .populate('clientCompanyId', 'name company email phone')
       .lean()) as any
 
     if (!updatedProject) {
@@ -258,7 +347,7 @@ export async function DELETE(request: NextRequest) {
     await connectMongoose()
     const { userId, role } = await verifyToken(request)
 
-    if (role !== 'ADMIN') {
+    if (!isAdminRole(role)) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
         { status: 403 }

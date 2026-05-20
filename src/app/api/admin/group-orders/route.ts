@@ -4,6 +4,8 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import { requireAdminApi } from '@/lib/api-auth'
 import Product from '@/lib/models/Product'
 import mongoose from 'mongoose'
+import { readPaymentSettings } from '@/lib/payments/settings'
+import { withGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
 
 function generateGroupId(): string {
   const timestamp = Date.now().toString(36).toUpperCase()
@@ -34,11 +36,13 @@ export async function GET(request: NextRequest) {
       query.deadline = { $gte: new Date() }
     }
 
-    const groups = await GroupOrder.find(query)
+    const rawGroups = await GroupOrder.find(query)
       .select('-participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt')
       .sort({ createdAt: -1 })
       .limit(500)
       .lean()
+
+    const groups = rawGroups.map(withGroupOrderPaymentSummary)
 
     return NextResponse.json({ success: true, groups })
   } catch (error) {
@@ -58,6 +62,12 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectDB()
+    const paymentSettings = readPaymentSettings()
+    const groupRules = paymentSettings.groupOrders.rules
+    const allowedShipping = Object.entries(groupRules.allowedShippingMethods)
+      .filter(([, enabled]) => enabled)
+      .map(([method]) => method)
+    const defaultShippingMethod = allowedShipping[0] || 'maritime_60j'
 
     const body = await request.json().catch(() => ({}))
     const productId = typeof body?.productId === 'string' ? body.productId : null
@@ -66,10 +76,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'productId invalide' }, { status: 400 })
     }
 
-    const minQty = Number(body?.minQty)
-    const targetQty = Number(body?.targetQty)
+    const minQtyRaw = Number(body?.minQty)
+    const minQty = Number.isFinite(minQtyRaw) && minQtyRaw > 0 ? Math.round(minQtyRaw) : groupRules.defaultMinQty
+    const targetQtyRaw = Number(body?.targetQty)
+    const targetQty =
+      Number.isFinite(targetQtyRaw) && targetQtyRaw >= minQty
+        ? Math.round(targetQtyRaw)
+        : Math.max(minQty, groupRules.defaultTargetQty)
     const maxQty = body?.maxQty !== undefined && body?.maxQty !== null ? Number(body.maxQty) : undefined
-    const maxParticipants = body?.maxParticipants !== undefined && body?.maxParticipants !== null ? Number(body.maxParticipants) : undefined
+    const maxParticipants =
+      body?.maxParticipants !== undefined && body?.maxParticipants !== null
+        ? Number(body.maxParticipants)
+        : groupRules.maxParticipantsPerGroup
 
     if (!Number.isFinite(minQty) || minQty < 1) {
       return NextResponse.json({ success: false, error: 'minQty invalide' }, { status: 400 })
@@ -89,7 +107,9 @@ export async function POST(request: NextRequest) {
     }
 
     const deadlineRaw = typeof body?.deadline === 'string' ? body.deadline : null
-    const deadline = deadlineRaw ? new Date(deadlineRaw) : null
+    const deadline = deadlineRaw
+      ? new Date(deadlineRaw)
+      : new Date(Date.now() + groupRules.defaultDeadlineDays * 24 * 60 * 60 * 1000)
     if (!deadline || Number.isNaN(deadline.getTime())) {
       return NextResponse.json({ success: false, error: 'deadline invalide' }, { status: 400 })
     }
@@ -100,8 +120,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'status invalide' }, { status: 400 })
     }
 
-    const shippingMethod = typeof body?.shippingMethod === 'string' ? body.shippingMethod : 'maritime_60j'
-    const allowedShipping = ['maritime_60j', 'air_15j', 'express_3j']
+    const shippingMethod = typeof body?.shippingMethod === 'string' ? body.shippingMethod : defaultShippingMethod
     if (!allowedShipping.includes(shippingMethod)) {
       return NextResponse.json({ success: false, error: 'shippingMethod invalide' }, { status: 400 })
     }

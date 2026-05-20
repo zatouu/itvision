@@ -9,22 +9,22 @@ export default function NetworkCablingServicePage() {
   return (
     <main>
       <Header />
-      <section className="bg-gradient-to-br from-orange-50 via-white to-gray-50 pt-36 md:pt-40 pb-16">
+      <section className="bg-gradient-to-br from-orange-50 via-white to-gray-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Câblage Réseau & TV</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">Câblage Réseau & TV</h1>
+            <p className="text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Câblage réseau professionnel (Cat6A/Cat7), prises TV/satellite et baies de brassage 19". Intégration idéale dès la construction.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
                 <Cable className="h-5 w-5 text-orange-600 mr-2" />
                 Prestations
               </h2>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 {[
                   'Câblage Cat6A/Cat7 certifié',
                   'Prises TV et satellite multi-pièces',
@@ -40,7 +40,7 @@ export default function NetworkCablingServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4">Contact</h2>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -56,7 +56,7 @@ export default function NetworkCablingServicePage() {
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
-                <a href="tel:+221774133440" className="border-2 border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 inline-flex items-center">
+                <a href="tel:+221774133440" className="border-2 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-900 inline-flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
                   +221 77 413 34 40
                 </a>
@@ -66,35 +66,35 @@ export default function NetworkCablingServicePage() {
 
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Pourquoi c’est critique</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Pourquoi c’est critique</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Le câblage est la <strong>colonne vertébrale</strong> de vos réseaux & TV. Un design correct évite goulots
                 d’étranglement et pannes chroniques.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Débits garantis et latence maîtrisée</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Disponibilité accrue et évolutivité</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Conformité et documentation claire</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Bonnes pratiques</h3>
-              <ul className="space-y-2 text-gray-700 text-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Bonnes pratiques</h3>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Cat6A/Cat7 certifié, brassage organisé</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Tests & étiquetage, plans as‑built</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Pré‑câblage TV/SAT multi‑pièces</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Apport IT Vision</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Nous livrons une infrastructure <strong>performante</strong> et <strong>documentée</strong> prête pour 10 Gbps, avec
                 chemins de câbles optimisés et baies bien ventilées.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Audit, plans de cheminement, métrés</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Installation propre et tests de recette</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Dossier technique et support</li>

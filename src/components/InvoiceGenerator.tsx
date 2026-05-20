@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   FileText, 
   Download, 
@@ -61,7 +61,8 @@ import {
   ChevronDown,
   ChevronRight,
   X,
-  Check
+  Check,
+  Upload
 } from 'lucide-react'
 
 interface InvoiceItem {
@@ -111,6 +112,8 @@ interface Invoice {
     name: string
     phase: string
   }
+  clientCompanyId?: string
+  attachments?: Array<{ name: string; url: string; type: string; size: number; uploadedAt?: string; category?: string }>
 }
 
 interface QuoteReference {
@@ -133,6 +136,14 @@ export default function InvoiceGenerator() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
+  const [sendModalOpen, setSendModalOpen] = useState(false)
+  const [sendModalInvoice, setSendModalInvoice] = useState<Invoice | null>(null)
+  const [sendContacts, setSendContacts] = useState<Array<{ id: string; nom: string; email: string; isPrimary: boolean }>>([])
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Charger les données
   useEffect(() => {
@@ -140,151 +151,47 @@ export default function InvoiceGenerator() {
     loadQuotes()
   }, [])
 
-  const loadInvoices = () => {
-    const storedInvoices = localStorage.getItem('itvision-invoices')
-    if (storedInvoices) {
-      setInvoices(JSON.parse(storedInvoices))
-    } else {
-      // Factures d'exemple
-      const defaultInvoices: Invoice[] = [
-        {
-          id: 'inv-001',
-          number: 'FAC-2024-001',
-          date: '2024-03-15',
-          dueDate: '2024-04-15',
-          status: 'sent',
-          client: {
-            id: 'client-001',
-            name: 'Moussa Diallo',
-            company: 'Diallo Construction SARL',
-            email: 'moussa@diallo-construction.sn',
-            phone: '+221 77 123 45 67',
-            address: '15 Avenue Bourguiba',
-            city: 'Dakar',
-            postalCode: '12500',
-            taxId: 'SN123456789'
-          },
-          items: [
-            {
-              id: 'item-001',
-              description: 'Installation système vidéosurveillance 16 caméras 4K',
-              quantity: 1,
-              unitPrice: 2500000,
-              totalPrice: 2500000,
-              category: 'videosurveillance',
-              productId: 'system-video-16cam'
-            },
-            {
-              id: 'item-002',
-              description: 'Configuration et formation utilisateurs',
-              quantity: 8,
-              unitPrice: 25000,
-              totalPrice: 200000,
-              category: 'services'
-            }
-          ],
-          subtotal: 2700000,
-          taxRate: 18,
-          taxAmount: 486000,
-          total: 3186000,
-          notes: 'Installation réalisée selon cahier des charges. Garantie 2 ans pièces et main d\'œuvre.',
-          terms: 'Paiement à 30 jours. Pénalités de retard 1.5% par mois.',
-          createdAt: '2024-03-15T09:00:00Z',
-          updatedAt: '2024-03-15T09:00:00Z',
-          createdBy: 'Admin',
-          quoteId: 'quote-001',
-          project: {
-            id: 'proj-001',
-            name: 'Sécurisation Immeuble Diallo',
-            phase: 'Installation'
-          }
-        },
-        {
-          id: 'inv-002',
-          number: 'FAC-2024-002',
-          date: '2024-03-20',
-          dueDate: '2024-04-20',
-          status: 'paid',
-          client: {
-            id: 'client-002',
-            name: 'Aïssatou Fall',
-            company: 'Fall Immobilier',
-            email: 'aissatou@fall-immobilier.sn',
-            phone: '+221 77 234 56 78',
-            address: '42 Rue de la République',
-            city: 'Dakar',
-            postalCode: '12600'
-          },
-          items: [
-            {
-              id: 'item-003',
-              description: 'Câblage fibre optique FTTH - 14 appartements',
-              quantity: 14,
-              unitPrice: 180000,
-              totalPrice: 2520000,
-              category: 'fiber-optic'
-            },
-            {
-              id: 'item-004',
-              description: 'Installation BPI et PBO',
-              quantity: 1,
-              unitPrice: 450000,
-              totalPrice: 450000,
-              category: 'fiber-optic'
-            }
-          ],
-          subtotal: 2970000,
-          taxRate: 18,
-          taxAmount: 534600,
-          total: 3504600,
-          notes: 'Projet Antalya - Installation conforme normes opérateurs.',
-          terms: 'Paiement comptant à la livraison.',
-          createdAt: '2024-03-20T14:30:00Z',
-          updatedAt: '2024-03-22T10:15:00Z',
-          createdBy: 'Admin',
-          paymentMethod: 'Virement bancaire',
-          paymentDate: '2024-03-22',
-          project: {
-            id: 'proj-002',
-            name: 'Résidence Antalya FTTH',
-            phase: 'Terminé'
-          }
-        }
-      ]
-      setInvoices(defaultInvoices)
-      localStorage.setItem('itvision-invoices', JSON.stringify(defaultInvoices))
+  const loadInvoices = async () => {
+    try {
+      const res = await fetch('/api/admin/invoices', { 
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache' }
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Erreur lors du chargement des factures')
+      setInvoices(Array.isArray(data?.invoices) ? data.invoices : [])
+    } catch (e) {
+      // Fallback: garder le stockage local (dev/offline)
+      const storedInvoices = localStorage.getItem('itvision-invoices')
+      if (storedInvoices) {
+        setInvoices(JSON.parse(storedInvoices))
+      } else {
+        setInvoices([])
+      }
     }
   }
 
-  const loadQuotes = () => {
-    // Simulation devis disponibles pour conversion
-    const availableQuotes: QuoteReference[] = [
-      {
-        id: 'quote-003',
-        number: 'DEV-2024-003',
-        client: 'Mamadou Ndiaye - Ndiaye Services',
-        total: 1850000,
-        date: '2024-03-10',
-        status: 'approved'
-      },
-      {
-        id: 'quote-004', 
-        number: 'DEV-2024-004',
-        client: 'Fatou Sarr - Sarr Technologie',
-        total: 950000,
-        date: '2024-03-12',
-        status: 'approved'
-      },
-      {
-        id: 'quote-005',
-        number: 'DEV-2024-005',
-        client: 'Omar Ba - Ba Consulting',
-        total: 3200000,
-        date: '2024-03-14',
-        status: 'approved'
-      }
-    ]
-    setQuotes(availableQuotes)
+  const loadQuotes = async () => {
+    try {
+      const res = await fetch('/api/admin/quotes', { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Erreur lors du chargement des devis')
+      const list = Array.isArray(data?.quotes) ? data.quotes : []
+
+      const normalized: QuoteReference[] = list.map((q: any) => ({
+        id: String(q._id || q.id),
+        number: String(q.numero || ''),
+        client: String(q?.client?.name || ''),
+        total: Number(q.total || 0),
+        date: q.date ? new Date(q.date).toISOString().slice(0, 10) : '',
+        status: String(q.status || '')
+      }))
+
+      setQuotes(normalized)
+    } catch {
+      setQuotes([])
+    }
   }
 
   const generateInvoiceNumber = () => {
@@ -293,35 +200,59 @@ export default function InvoiceGenerator() {
     return `FAC-${year}-${nextNumber.toString().padStart(3, '0')}`
   }
 
-  const saveInvoice = (invoice: Invoice) => {
+  const saveInvoice = async (invoice: Invoice) => {
     const now = new Date().toISOString()
-    
-    if (editingInvoice) {
-      // Mise à jour facture existante
-      setInvoices(prev => {
-        const updated = prev.map(inv => 
-          inv.id === invoice.id 
-            ? { ...invoice, updatedAt: now }
-            : inv
-        )
-        localStorage.setItem('itvision-invoices', JSON.stringify(updated))
-        return updated
-      })
-    } else {
-      // Nouvelle facture
-      const newInvoice: Invoice = {
+
+    try {
+      const payload = {
         ...invoice,
-        id: `inv-${Date.now()}`,
-        number: generateInvoiceNumber(),
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'Admin'
+        id: editingInvoice ? invoice.id : undefined,
+        number: editingInvoice ? invoice.number : (invoice.number || generateInvoiceNumber()),
+        createdAt: invoice.createdAt || now,
+        updatedAt: now
       }
+
+      const res = await fetch('/api/admin/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Erreur sauvegarde facture')
+
+      const saved = data.invoice as Invoice
       setInvoices(prev => {
-        const updated = [...prev, newInvoice]
+        const exists = prev.some(i => i.id === saved.id)
+        const updated = exists ? prev.map(i => (i.id === saved.id ? saved : i)) : [saved, ...prev]
         localStorage.setItem('itvision-invoices', JSON.stringify(updated))
         return updated
       })
+    } catch (e) {
+      // fallback local
+      const now2 = new Date().toISOString()
+      if (editingInvoice) {
+        setInvoices(prev => {
+          const updated = prev.map(inv => inv.id === invoice.id ? { ...invoice, updatedAt: now2 } : inv)
+          localStorage.setItem('itvision-invoices', JSON.stringify(updated))
+          return updated
+        })
+      } else {
+        const newInvoice: Invoice = {
+          ...invoice,
+          id: `inv-${Date.now()}`,
+          number: generateInvoiceNumber(),
+          createdAt: now2,
+          updatedAt: now2,
+          createdBy: 'Admin'
+        }
+        setInvoices(prev => {
+          const updated = [...prev, newInvoice]
+          localStorage.setItem('itvision-invoices', JSON.stringify(updated))
+          return updated
+        })
+      }
+      console.error(e)
     }
 
     setEditingInvoice(null)
@@ -329,11 +260,74 @@ export default function InvoiceGenerator() {
     setShowQuoteImportModal(false)
   }
 
+  const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/admin/invoices/extract', {
+        method: 'POST',
+        body: form,
+        credentials: 'include'
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Échec de l\'extraction')
+      }
+      const data = json.data
+      const imported: Invoice = {
+        id: `inv-temp-${Date.now()}`,
+        number: data.numero || generateInvoiceNumber(),
+        date: data.date || new Date().toISOString().split('T')[0],
+        dueDate: data.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'draft',
+        client: {
+          id: 'imported',
+          name: data.client?.name || '',
+          company: data.client?.company || '',
+          email: data.client?.email || '',
+          phone: data.client?.phone || '',
+          address: data.client?.address || '',
+          city: 'Dakar',
+          postalCode: '',
+          taxId: data.client?.taxId
+        },
+        items: (data.items || []).map((it: any, idx: number) => ({
+          id: `item-${Date.now()}-${idx}`,
+          description: it.description || '',
+          quantity: Number(it.quantity) || 1,
+          unitPrice: Number(it.unitPrice) || 0,
+          totalPrice: Number(it.totalPrice) || 0,
+          category: it.category || 'products'
+        })),
+        subtotal: Number(data.subtotal) || 0,
+        taxRate: Number(data.taxRate) || 18,
+        taxAmount: Number(data.taxAmount) || 0,
+        total: Number(data.total) || 0,
+        notes: data.notes || '',
+        terms: data.terms || 'Paiement à 30 jours selon conditions générales.',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'Admin'
+      }
+      setEditingInvoice(imported)
+      setShowNewInvoiceModal(true)
+      alert(`Facture importée : ${imported.items.length} article(s)`)
+    } catch (err: any) {
+      alert(err?.message || 'Erreur lors de l\'import')
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const createInvoiceFromQuote = (quoteId: string) => {
-    // Simulation conversion devis vers facture
     const quote = quotes.find(q => q.id === quoteId)
     if (!quote) return
 
+    const baseHT = quote.total ? quote.total / 1.18 : 0
     const newInvoice: Partial<Invoice> = {
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -341,8 +335,8 @@ export default function InvoiceGenerator() {
       quoteId: quote.id,
       client: {
         id: 'client-quote',
-        name: quote.client.split(' - ')[0],
-        company: quote.client.split(' - ')[1] || '',
+        name: quote.client,
+        company: '',
         email: '',
         phone: '',
         address: '',
@@ -354,14 +348,14 @@ export default function InvoiceGenerator() {
           id: 'item-quote',
           description: `Prestations selon devis ${quote.number}`,
           quantity: 1,
-          unitPrice: quote.total / 1.18, // Prix HT
-          totalPrice: quote.total / 1.18,
+          unitPrice: baseHT,
+          totalPrice: baseHT,
           category: 'services'
         }
       ],
-      subtotal: quote.total / 1.18,
+      subtotal: baseHT,
       taxRate: 18,
-      taxAmount: (quote.total / 1.18) * 0.18,
+      taxAmount: baseHT * 0.18,
       total: quote.total,
       notes: `Facture générée depuis le devis ${quote.number}`,
       terms: 'Paiement à 30 jours selon conditions devis.'
@@ -373,20 +367,23 @@ export default function InvoiceGenerator() {
   }
 
   const updateInvoiceStatus = (invoiceId: string, newStatus: Invoice['status']) => {
+    const paymentDate = newStatus === 'paid' ? new Date().toISOString().split('T')[0] : undefined
+    // Optimistic UI
     setInvoices(prev => {
-      const updated = prev.map(inv => 
-        inv.id === invoiceId 
-          ? { 
-              ...inv, 
-              status: newStatus,
-              updatedAt: new Date().toISOString(),
-              ...(newStatus === 'paid' ? { paymentDate: new Date().toISOString().split('T')[0] } : {})
-            }
-          : inv
+      const updated = prev.map(inv => inv.id === invoiceId
+        ? { ...inv, status: newStatus, updatedAt: new Date().toISOString(), ...(paymentDate ? { paymentDate } : {}) }
+        : inv
       )
       localStorage.setItem('itvision-invoices', JSON.stringify(updated))
       return updated
     })
+
+    fetch('/api/admin/invoices', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: invoiceId, status: newStatus, ...(paymentDate ? { paymentDate } : {}) })
+    }).catch(() => {})
   }
 
   const deleteInvoice = (invoiceId: string) => {
@@ -396,21 +393,99 @@ export default function InvoiceGenerator() {
         localStorage.setItem('itvision-invoices', JSON.stringify(updated))
         return updated
       })
+      fetch(`/api/admin/invoices?id=${encodeURIComponent(invoiceId)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      }).catch(() => {})
     }
   }
 
-  const exportInvoicePDF = (invoice: Invoice) => {
-    // Génération PDF (simulation)
-    const pdfContent = generateInvoicePDF(invoice)
-    
-    // Création du blob et téléchargement
-    const blob = new Blob([pdfContent], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${invoice.number}-${invoice.client.company}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+  const exportInvoicePDF = async (invoice: Invoice) => {
+    try {
+      const res = await fetch('/api/admin/invoices/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(invoice)
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Erreur génération PDF')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${invoice.number}-${invoice.client.company || invoice.client.name}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error(e)
+      // fallback: ancien mode texte
+      const pdfContent = generateInvoicePDF(invoice)
+      const blob = new Blob([pdfContent], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${invoice.number}-${invoice.client.company || invoice.client.name}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const openSendModal = async (invoice: Invoice) => {
+    if (!invoice?.id) return
+    setSendModalInvoice(invoice)
+    setSendModalOpen(true)
+    setLoadingContacts(true)
+    setSelectedRecipients([])
+    try {
+      if (invoice.clientCompanyId) {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(invoice.clientCompanyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        setSendContacts(contacts.map((c: any) => ({ id: String(c._id || c.id), nom: c.nom || '', email: c.email || '', isPrimary: Boolean(c.isPrimary) })))
+        const primary = contacts.find((c: any) => c.isPrimary && c.email)
+        const preselected: string[] = []
+        if (primary?.email) preselected.push(primary.email)
+        else if (invoice.client?.email) preselected.push(invoice.client.email)
+        setSelectedRecipients(preselected)
+      } else {
+        setSendContacts([])
+        if (invoice.client?.email) setSelectedRecipients([invoice.client.email])
+      }
+    } catch {
+      setSendContacts([])
+      if (invoice.client?.email) setSelectedRecipients([invoice.client.email])
+    } finally {
+      setLoadingContacts(false)
+    }
+  }
+
+  const confirmSendInvoice = async () => {
+    if (!sendModalInvoice) return
+    const invoice = sendModalInvoice
+    try {
+      setSendingInvoiceId(invoice.id)
+      const res = await fetch('/api/admin/invoices/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: invoice.id, recipients: selectedRecipients })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Envoi impossible')
+      }
+      await loadInvoices()
+      alert('Facture envoyée par email')
+      setSendModalOpen(false)
+      setSendModalInvoice(null)
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de l\'envoi')
+    } finally {
+      setSendingInvoiceId(null)
+    }
   }
 
   const generateInvoicePDF = (invoice: Invoice) => {
@@ -663,7 +738,23 @@ export default function InvoiceGenerator() {
               <ArrowRight className="h-4 w-4" />
               <span>Devis → Facture</span>
             </button>
-            
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv"
+              onChange={importFromFile}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2 disabled:opacity-60"
+            >
+              <Upload className="h-4 w-4" />
+              <span>{importing ? 'Analyse…' : 'Importer PDF / Excel'}</span>
+            </button>
+
             <button
               onClick={() => setShowNewInvoiceModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
@@ -920,6 +1011,15 @@ export default function InvoiceGenerator() {
                             <Download className="h-4 w-4" />
                           </button>
 
+                          <button
+                            onClick={() => openSendModal(invoice)}
+                            disabled={sendingInvoiceId === invoice.id}
+                            className="text-indigo-600 hover:text-indigo-800 p-1 disabled:opacity-60"
+                            title="Envoyer par email"
+                          >
+                            <Send className="h-4 w-4" />
+                          </button>
+
                           {invoice.status !== 'paid' && (
                             <button
                               onClick={() => updateInvoiceStatus(invoice.id, 'paid')}
@@ -1041,6 +1141,69 @@ export default function InvoiceGenerator() {
           </div>
         </div>
       )}
+
+      {/* Modale sélection destinataires */}
+      {sendModalOpen && sendModalInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Envoyer la facture {sendModalInvoice.number}</h3>
+              <button onClick={() => setSendModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {loadingContacts ? (
+              <p className="text-gray-500 text-sm">Chargement des contacts…</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">Sélectionnez les destinataires :</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+                  {sendContacts.length === 0 && sendModalInvoice.client?.email && (
+                    <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(sendModalInvoice.client.email)}
+                        onChange={(e) => {
+                          const email = sendModalInvoice.client.email
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, email] : prev.filter(r => r !== email))
+                        }}
+                        className="h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <span className="text-sm">{sendModalInvoice.client.email} (client)</span>
+                    </label>
+                  )}
+                  {sendContacts.map(contact => (
+                    <label key={contact.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(contact.email)}
+                        onChange={(e) => {
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, contact.email] : prev.filter(r => r !== contact.email))
+                        }}
+                        className="h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <div className="text-sm">
+                        <div className="font-medium">{contact.nom} {contact.isPrimary && <span className="text-xs text-indigo-600">(principal)</span>}</div>
+                        <div className="text-gray-500">{contact.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
+                  <button
+                    onClick={confirmSendInvoice}
+                    disabled={selectedRecipients.length === 0 || sendingInvoiceId === sendModalInvoice.id}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {sendingInvoiceId === sendModalInvoice.id ? 'Envoi…' : 'Envoyer'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1153,6 +1316,73 @@ function InvoiceForm({
     }
   }
 
+  const uploadAttachment = async (file: File, category: string = 'autre') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('category', category)
+    const res = await fetch('/api/admin/documents/upload', { method: 'POST', body: formData, credentials: 'include' })
+    if (!res.ok) throw new Error('Upload échoué')
+    const data = await res.json()
+    const att = { name: data.name, url: data.url || data.staticUrl, type: file.type || 'application/octet-stream', size: file.size, category: data.category }
+    setFormData(prev => ({ ...prev, attachments: [...(prev.attachments || []), att] }))
+  }
+
+  const removeAttachment = (url: string) => {
+    setFormData(prev => ({ ...prev, attachments: (prev.attachments || []).filter(a => a.url !== url) }))
+  }
+
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<any[]>([])
+  const [showClientDrop, setShowClientDrop] = useState(false)
+  const [clientSearching, setClientSearching] = useState(false)
+  const [clientEmails, setClientEmails] = useState<string[]>([])
+
+  const searchClients = async (q: string) => {
+    if (!q.trim()) { setClientResults([]); setShowClientDrop(false); return }
+    setClientSearching(true)
+    try {
+      const res = await fetch(`/api/admin/clients?q=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setClientResults(data.clients || [])
+        setShowClientDrop(true)
+      }
+    } catch { setClientResults([]) }
+    finally { setClientSearching(false) }
+  }
+
+  const selectClient = async (c: any) => {
+    const companyId = String(c._id || c.id || '')
+    const emails: string[] = [c.email || ''].filter(Boolean)
+    if (companyId) {
+      try {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(companyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        contacts.forEach((contact: any) => {
+          if (contact.email && !emails.includes(contact.email)) emails.push(contact.email)
+        })
+      } catch { /* ignore */ }
+    }
+    setClientEmails(emails)
+    setFormData(prev => ({
+      ...prev,
+      clientCompanyId: companyId,
+      client: {
+        ...prev.client,
+        name: c.company || c.name || '',
+        company: c.company || c.name || '',
+        address: c.address || '',
+        phone: c.phone || '',
+        email: emails[0] || c.email || '',
+        taxId: c.ninea || c.taxId || prev.client.taxId
+      }
+    }))
+    setClientQuery(c.company || c.name || '')
+    setShowClientDrop(false)
+    setClientResults([])
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
   }
@@ -1213,6 +1443,37 @@ function InvoiceForm({
         {/* Informations client */}
         <div className="bg-gray-50 rounded-lg p-6">
           <h4 className="text-lg font-semibold text-gray-900 mb-4">👤 Informations Client</h4>
+
+          {/* Recherche client */}
+          <div className="mb-4 relative">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Rechercher un client entreprise</label>
+            <input
+              type="text"
+              value={clientQuery}
+              onChange={(e) => {
+                setClientQuery(e.target.value)
+                searchClients(e.target.value)
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Saisir le nom de l'entreprise..."
+            />
+            {clientSearching && <p className="text-xs text-gray-500 mt-1">Recherche…</p>}
+            {showClientDrop && clientResults.length > 0 && (
+              <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
+                {clientResults.map((c: any) => (
+                  <button
+                    key={c._id || c.id}
+                    type="button"
+                    onClick={() => selectClient(c)}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                  >
+                    <div className="font-medium">{c.company || c.name}</div>
+                    <div className="text-sm text-gray-500">{c.email} · {c.phone}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1243,15 +1504,43 @@ function InvoiceForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={formData.client.email}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  client: { ...prev.client, email: e.target.value }
-                }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              {clientEmails.length > 1 ? (
+                <select
+                  value={formData.client.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    client: { ...prev.client, email: e.target.value }
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {clientEmails.map(email => (
+                    <option key={email} value={email}>{email}</option>
+                  ))}
+                  <option value="">Autre email…</option>
+                </select>
+              ) : (
+                <input
+                  type="email"
+                  value={formData.client.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    client: { ...prev.client, email: e.target.value }
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+              {clientEmails.length > 1 && !clientEmails.includes(formData.client.email) && (
+                <input
+                  type="email"
+                  value={formData.client.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    client: { ...prev.client, email: e.target.value }
+                  }))}
+                  className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Saisir un autre email"
+                />
+              )}
             </div>
 
             <div>
@@ -1411,6 +1700,62 @@ function InvoiceForm({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Conditions de paiement..."
             />
+          </div>
+        </div>
+
+        {/* Documents joints */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Documents joints</label>
+          <div className="space-y-2">
+            {(formData.attachments || []).map(att => (
+              <div key={att.url} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate max-w-[70%]">
+                  {att.name} {att.category ? `(${att.category})` : ''}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.url)}
+                  className="text-red-500 hover:text-red-700 text-sm px-2"
+                  title="Supprimer"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <select
+                id="invoice-doc-category"
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+                defaultValue="autre"
+              >
+                <option value="cheque">Chèque</option>
+                <option value="bon_commande">Bon de commande</option>
+                <option value="recu">Reçu de versement</option>
+                <option value="contrat">Contrat</option>
+                <option value="autre">Autre</option>
+              </select>
+              <label className="flex-1 cursor-pointer">
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const cat = (document.getElementById('invoice-doc-category') as HTMLSelectElement)?.value || 'autre'
+                    try {
+                      await uploadAttachment(file, cat)
+                    } catch (err: any) {
+                      alert(err.message || 'Erreur upload')
+                    }
+                    e.target.value = ''
+                  }}
+                />
+                <span className="block w-full text-center px-4 py-2 border border-dashed border-gray-400 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                  + Ajouter un document
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -1633,6 +1978,26 @@ function InvoiceDetailView({
             </div>
           </div>
         </div>
+
+        {/* Documents joints */}
+        {(invoice.attachments && invoice.attachments.length > 0) && (
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3">📎 Documents joints</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {invoice.attachments.map((att, i) => (
+                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{att.name}</div>
+                    <div className="text-xs text-gray-500">{att.category || 'Document'} — {(att.size / 1024).toFixed(1)} Ko</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Notes et conditions */}
         {(invoice.notes || invoice.terms) && (

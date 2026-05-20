@@ -1,4 +1,5 @@
 import type { IProduct } from './models/Product.validated'
+import { calculateBilledWeight } from './pricing/volumetric-weight'
 
 export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight'
 
@@ -20,6 +21,14 @@ export interface ShippingOptionPricing {
   cost: number
   total: number
   currency: string
+  // Informations sur le calcul du poids (transparence client)
+  weightDetails?: {
+    actualWeight: number
+    volumetricWeight: number
+    billedWeight: number
+    billingMethod: 'actual' | 'volumetric'
+    volumetricRatio?: number // ex: 2.5 si le poids volumétrique est 2.5x le poids réel
+  }
 }
 
 // Taux par défaut pour les frais additionnels (centralisés)
@@ -65,30 +74,30 @@ export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minim
 export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
   air_express: {
     id: 'air_express',
-    label: 'Express 3j',
+    label: 'Express 3-5 jrs',
     description: 'Livraison express porte-à-porte',
-    durationDays: 3,
+    durationDays: 4,
     billing: 'per_kg',
     rate: 12000, // 12 000 CFA/kg
-    minimumCharge: 20000
+    minimumCharge: 12000
   },
   air_15: {
     id: 'air_15',
-    label: 'Aérien 15j',
+    label: 'Aérien 10-15 jrs',
     description: 'Fret aérien économique',
-    durationDays: 15,
+    durationDays: 13,
     billing: 'per_kg',
-    rate: 8000, // 8 000 CFA/kg
-    minimumCharge: 15000
+    rate: 8500, // 8 500 CFA/kg
+    minimumCharge: 8500
   },
   sea_freight: {
     id: 'sea_freight',
-    label: 'Maritime 60j',
+    label: 'Maritime 45-50 jrs',
     description: 'Groupage maritime économique',
-    durationDays: 60,
+    durationDays: 48,
     billing: 'per_cubic_meter',
-    rate: 170000, // 170 000 CFA/m³
-    minimumCharge: 170000
+    rate: 180000, // 180 000 CFA/m³
+    minimumCharge: 0 // Règle de 3 sur le volume
   }
 }
 
@@ -156,7 +165,7 @@ export const computeProductPricing = (
   const isInStock = product.stockStatus === 'in_stock'
   
   // Déterminer si le produit est importé
-  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao'].includes(product.sourcing.platform)))
+  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress'].includes(product.sourcing.platform)))
 
   // Calcul des frais additionnels (uniquement pour les produits importés avec un prix)
   let fees: PricingFees | undefined
@@ -186,12 +195,29 @@ export const computeProductPricing = (
     : Object.values(shippingRates)
     .map((method): ShippingOptionPricing | null => {
       let billedAmount: number | null = null
+      let weightDetails: ShippingOptionPricing['weightDetails'] | undefined
 
       if (method.billing === 'per_kg') {
-        if (typeof weightKg !== 'number' || weightKg <= 0) return null
+        // Calcul du poids facturable avec prise en compte du poids volumétrique (IATA)
+        const weightInfo = calculateBilledWeight({
+          actualWeightKg: weightKg ?? 0.1,
+          lengthCm: product.lengthCm,
+          widthCm: product.widthCm,
+          heightCm: product.heightCm
+        })
+
         const customRate = resolveOverrideRate(overrides, method.id, 'ratePerKg')
         const rate = typeof customRate === 'number' ? customRate : method.rate
-        billedAmount = roundCurrency(weightKg * rate)
+        billedAmount = roundCurrency(weightInfo.billedWeight * rate)
+
+        // Stocker les détails de calcul pour transparence
+        weightDetails = {
+          actualWeight: weightInfo.actualWeight,
+          volumetricWeight: weightInfo.volumetricWeight,
+          billedWeight: weightInfo.billedWeight,
+          billingMethod: weightInfo.billingMethod,
+          volumetricRatio: weightInfo.volumetricWeight > 0 ? weightInfo.volumetricWeight / weightInfo.actualWeight : undefined
+        }
       } else {
         const vol = volumeM3
         if (typeof vol !== 'number' || vol <= 0) return null
@@ -219,7 +245,8 @@ export const computeProductPricing = (
         durationDays: method.durationDays,
         cost: cost ?? 0,
         total: total ?? cost ?? 0,
-        currency
+        currency,
+        weightDetails
       }
     })
     .filter((option): option is ShippingOptionPricing => option !== null)

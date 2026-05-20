@@ -161,6 +161,36 @@ interface NormalizedAliExpressItem {
   sourcingNotes?: string
 }
 
+// Formater les spécifications en markdown compatible avec parseMarkdown
+// Produit un bloc `- **Key**: Value` qui sera rendu en tableau propre
+const formatSpecsAsMarkdown = (specs?: Record<string, string>, rawDescription?: string): string => {
+  const parts: string[] = []
+
+  // Tableau de spécifications
+  if (specs && typeof specs === 'object') {
+    const entries = Object.entries(specs).filter(([k, v]) => k && v && k.length < 60 && v.length < 200)
+    if (entries.length > 0) {
+      parts.push('**Spécifications**')
+      parts.push(entries.map(([k, v]) => `- **${k}**: ${v}`).join('\n'))
+    }
+  }
+
+  // Texte de description brut (nettoyé)
+  if (rawDescription && rawDescription.length > 20) {
+    // Éviter de re-dupliquer les specs déjà formatées
+    const cleanDesc = rawDescription
+      .replace(/^\s*spécifications?\s*$/gim, '')
+      .replace(/^\s*specifications?\s*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    if (cleanDesc.length > 20) {
+      parts.push(cleanDesc)
+    }
+  }
+
+  return parts.join('\n\n').slice(0, 4900) || ''
+}
+
 type Import1688Preview = {
   offerId?: string
   name: string
@@ -202,7 +232,7 @@ const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 0)  // Ma
 async function requireManagerRole(request: NextRequest) {
   try {
     const { role } = await requireAuth(request)
-    const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
+    const allowed = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PRODUCT_MANAGER'
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {
@@ -225,6 +255,13 @@ const toFcfa = (usdPrice: number | null) => {
 const ensureMinimumWeight = (weight?: number | null) => {
   if (typeof weight === 'number' && weight > 0) return Number(weight.toFixed(2))
   return 1
+}
+
+function isTaobaoUrl(rawUrl: string): boolean {
+  const url = safeUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return host.endsWith('taobao.com') || host.endsWith('tmall.com')
 }
 
 function safeUrl(raw: string) {
@@ -391,96 +428,42 @@ async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Previe
   }
 
   const offerId = extractOfferId(url)
-  const res = await fetch(url.toString(), {
-    headers: {
-      // User-Agent d’un vrai navigateur récent (Windows/Chrome)
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1'
-    },
-    cache: 'no-store'
-  })
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Impossible de charger la page 1688 (${res.status}). ${body ? body.slice(0, 120) : ''}`)
+  // Utiliser Playwright pour scraper (contourne le captcha)
+  const { scrape1688WithBrowser } = await import('@/lib/browser-scraper')
+  const scrapeResult = await scrape1688WithBrowser(url.toString())
+
+  if (!scrapeResult.success || !scrapeResult.data) {
+    throw new Error(scrapeResult.error || 'Scraping 1688 échoué via Playwright')
   }
 
-  const html = await res.text()
-  // Détection blocage/captcha : page très courte ou contient "robot check"
-  if (!html || html.length < 1000 || /robot|verify|captcha|window.location/i.test(html)) {
-    throw new Error('Le site 1688 a bloqué l’accès automatisé (captcha ou protection anti-bot). Essayez de réessayer plus tard ou manuellement.')
-  }
-
-  const jsonLd = extractJsonLdProduct(html)
-  const title = (typeof jsonLd.name === 'string' && jsonLd.name.trim()) || extractTitle(html)
-  if (!title || /1688|robot|verify|captcha/i.test(title)) {
-    throw new Error('Impossible d’extraire le titre du produit. Le scraping est probablement bloqué par 1688 (captcha ou page protégée).')
-  }
-
-  const images = [...new Set([...(jsonLd.images || []), ...extractImages(html)])]
-  const price1688 = jsonLd.price ?? extractPrice1688(html)
-
-  const variantNames = extractVariantNamesFromText(html)
-  const variantGroups = variantNames.length
-    ? [
-        {
-          name: 'Modèle',
-          variants: variantNames.slice(0, 25).map((name, idx) => ({
-            id: randomUUID(),
-            name,
-            image: images[idx + 1] || images[0],
-            price1688,
-            stock: undefined,
-            isDefault: idx === 0
-          }))
-        }
-      ]
-    : undefined
-
-  const gallery = images.slice(0, 10)
-  const image = gallery[0]
-
-  // Defaults chosen to satisfy import logistics validation; admin should adjust.
-  const weightKg = 1
-  const lengthCm = 10
-  const widthCm = 10
-  const heightCm = 10
-
-  const features: string[] = []
-  if (offerId) features.push(`1688 offerId: ${offerId}`)
-  if (typeof price1688 === 'number') features.push(`Prix 1688 (min): ¥${price1688}`)
-  if (variantNames.length) {
-    features.push(`Variantes: ${variantNames.slice(0, 4).join(' / ')}${variantNames.length > 4 ? '…' : ''}`)
-  }
+  const data = scrapeResult.data
 
   return {
     offerId,
-    name: title,
+    name: data.name,
     productUrl: url.toString(),
-    image,
-    gallery,
-    price1688,
+    image: data.image,
+    gallery: data.gallery || [],
+    price1688: data.price1688,
     price1688Currency: 'CNY',
-    exchangeRate: 100,
+    exchangeRate: data.exchangeRate || 100,
     currency: 'FCFA',
-    category: 'Catalogue import Chine',
-    tagline: 'Import 1688',
-    availabilityNote: 'Import 1688 — à vérifier: poids/dimensions avant calcul transport',
-    features,
-    weightKg,
-    lengthCm,
-    widthCm,
-    heightCm,
-    variantGroups
+    category: data.category || 'Catalogue import Chine',
+    tagline: data.tagline || 'Import 1688',
+    availabilityNote: data.availabilityNote || 'Import 1688 — vérifier poids/dimensions',
+    features: data.features || [],
+    weightKg: data.weightKg || 1,
+    lengthCm: data.lengthCm || 10,
+    widthCm: data.widthCm || 10,
+    heightCm: data.heightCm || 10,
+    variantGroups: data.variantGroups?.map(g => ({
+      ...g,
+      variants: g.variants.map(v => ({
+        ...v,
+        stock: v.stock ?? undefined,
+      }))
+    }))
   }
 }
 
@@ -501,51 +484,10 @@ const extractFeatures = (item: AliExpressItem): string[] => {
 }
 
 const fetchAliExpress = async (keyword: string, limit: number) => {
-  // Détecter la source d'import (Apify ou RapidAPI)
-  const importSource = (process.env.IMPORT_SOURCE || 'rapidapi').toLowerCase()
-  const apifyKey = process.env.APIFY_API_KEY
   const rapidApiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
 
-  // Essayer Apify si configuré, sinon RapidAPI
-  if (importSource === 'apify' && apifyKey) {
-    try {
-      const { importFromApify } = await import('@/lib/import-sources')
-      const result = await importFromApify(keyword, limit, {
-        source: 'apify',
-        apiKey: apifyKey,
-        options: {}
-      })
-      // Convertir les résultats au format attendu
-      return result.items.map(item => ({
-        product_id: item.productId,
-        product_title: item.name,
-        product_detail_url: item.productUrl,
-        image_url: item.image,
-        sale_price: item.baseCost ? String(item.baseCost / 620) : undefined, // Convertir FCFA -> USD pour compatibilité
-        original_price: item.baseCost ? String(item.baseCost / 620) : undefined,
-        shop_name: item.shopName,
-        orders: item.orders,
-        total_rated: item.totalRated,
-        item_weight: item.weightKg,
-        first_level_category_name: item.category,
-        second_level_category_name: item.tagline,
-        product_properties: item.features.map(f => ({
-          attr_name: f.split(':')[0] || 'Feature',
-          attr_value: f.split(':').slice(1).join(':') || f
-        }))
-      }))
-    } catch (error: any) {
-      console.error('Apify import error, falling back to RapidAPI:', error.message)
-      // Fallback sur RapidAPI si Apify échoue
-      if (!rapidApiKey) {
-        throw new Error(`Apify a échoué et aucune clé RapidAPI disponible: ${error.message}`)
-      }
-    }
-  }
-
-  // Utiliser RapidAPI (par défaut ou fallback)
   if (!rapidApiKey) {
-    throw new Error('ALIEXPRESS_RAPIDAPI_KEY ou APIFY_API_KEY est requis pour l\'import AliExpress')
+    throw new Error('ALIEXPRESS_RAPIDAPI_KEY est requis pour la recherche AliExpress. Utilisez l\'extension Chrome pour l\'import par URL.')
   }
 
   const pageSize = Math.min(Math.max(limit, 1), 20)
@@ -619,6 +561,20 @@ export async function GET(request: NextRequest) {
   const rawUrl = (searchParams.get('url') || '').trim()
   if (rawUrl) {
     try {
+      // Détection Taobao/Tmall - import non supporté automatiquement
+      if (isTaobaoUrl(rawUrl)) {
+        return NextResponse.json({
+          success: false,
+          code: 'TAOBAO_NOT_SUPPORTED',
+          error: 'Import automatique depuis Taobao/Tmall temporairement indisponible.',
+          message: 'Solutions alternatives : 1) Utilisez 1688.com (mêmes fournisseurs, prix B2B meilleurs), 2) Import manuel via l\'admin (coller nom, prix et images)',
+          alternatives: [
+            { platform: '1688', url: `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(rawUrl.split('/').pop() || '')}` },
+            { platform: 'manual', description: 'Import manuel via /admin/import-produits' }
+          ]
+        }, { status: 400 })
+      }
+      
       if (is1688Url(rawUrl)) {
         const preview = await buildPreviewFrom1688Url(rawUrl)
         return NextResponse.json({ success: true, item: preview })
@@ -630,7 +586,11 @@ export async function GET(request: NextRequest) {
       }
     } catch (error: any) {
       console.error('Preview error:', error)
-      return NextResponse.json({ success: false, error: error?.message || 'Import impossible' }, { status: 500 })
+      const message = String(error?.message || 'Import impossible')
+      const isCaptcha = /CAPTCHA_1688|captcha|robot|verify/i.test(message)
+      const code = isCaptcha ? 'CAPTCHA' : 'PREVIEW_FAILED'
+      const status = isCaptcha ? 502 : 500
+      return NextResponse.json({ success: false, error: message.replace(/^CAPTCHA_1688:\s*/i, ''), code }, { status })
     }
   }
 
@@ -647,9 +607,10 @@ export async function GET(request: NextRequest) {
       .filter((item): item is NormalizedAliExpressItem => Boolean(item))
 
     return NextResponse.json({ success: true, items: normalized })
-  } catch (error: any) {
-    console.error('AliExpress search error:', error)
-    return NextResponse.json({ success: false, error: error?.message || 'Import impossible' }, { status: 500 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Import impossible'
+    console.error('AliExpress search error:', message)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 
@@ -693,6 +654,17 @@ export async function POST(request: NextRequest) {
 
       for (const url of urls) {
         try {
+          // Détection Taobao/Tmail dans le bulk import
+          if (isTaobaoUrl(url)) {
+            results.push({
+              url,
+              ok: false,
+              error: 'Import Taobao/Tmall non supporté automatiquement. Utilisez 1688.com ou import manuel.'
+            })
+            failedCount++
+            continue
+          }
+          
           let preview: NormalizedAliExpressItem | Import1688Preview
           if (is1688Url(url)) {
             preview = await buildPreviewFrom1688Url(url)
@@ -708,21 +680,21 @@ export async function POST(request: NextRequest) {
           }
 
           if (is1688Url(preview.productUrl)) {
-            const item1688 = preview as Import1688Preview
+            const item1688 = preview as Import1688Preview & { description?: string; supplier?: { name?: string } }
             const payload: any = {
               name: item1688.name,
               category: item1688.category || 'Catalogue import Chine',
               tagline: item1688.tagline || 'Import 1688',
-              description: item1688.offerId
+              description: item1688.description || (item1688.offerId
                 ? `Import depuis 1688 • offerId ${item1688.offerId}`
-                : 'Import depuis 1688',
+                : 'Import depuis 1688'),
               currency: 'FCFA',
               image: item1688.image,
               gallery: Array.isArray(item1688.gallery) ? item1688.gallery : [],
               features: Array.isArray(item1688.features) ? item1688.features : [],
               requiresQuote: false,
               stockStatus: 'preorder' as const,
-              stockQuantity: 0,
+              stockQuantity: 50,
               leadTimeDays: 15,
               availabilityNote: item1688.availabilityNote,
               // 1688
@@ -731,7 +703,7 @@ export async function POST(request: NextRequest) {
               exchangeRate: typeof item1688.exchangeRate === 'number' && item1688.exchangeRate > 0 ? item1688.exchangeRate : 100,
               serviceFeeRate: 10,
               insuranceRate: 2.5,
-              // Logistics placeholders (required for imported items)
+              // Logistics (réelles si extraites par Playwright)
               weightKg: Number(item1688.weightKg) || 1,
               lengthCm: Number(item1688.lengthCm) || 10,
               widthCm: Number(item1688.widthCm) || 10,
@@ -741,10 +713,10 @@ export async function POST(request: NextRequest) {
               // Sourcing
               sourcing: {
                 platform: '1688',
-                supplierName: undefined,
+                supplierName: item1688.supplier?.name || undefined,
                 supplierContact: undefined,
                 productUrl: item1688.productUrl,
-                notes: `Import auto 1688${item1688.offerId ? ` (offerId ${item1688.offerId})` : ''}. Vérifier poids/dimensions.`
+                notes: `Import Playwright 1688${item1688.offerId ? ` (offerId ${item1688.offerId})` : ''}.`
               },
               shippingOverrides: []
             }
@@ -763,11 +735,12 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const ali = preview as NormalizedAliExpressItem
+          const ali = preview as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string>; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
           const payload = {
             name: ali.name,
             category: ali.category,
-            description: `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+            description: aliDesc,
             tagline: ali.tagline,
             baseCost: ali.baseCost,
             marginRate: DEFAULT_MARGIN,
@@ -778,9 +751,13 @@ export async function POST(request: NextRequest) {
             features: ali.features,
             requiresQuote: typeof ali.price === 'number' ? false : true,
             stockStatus: 'preorder' as const,
-            stockQuantity: 0,
+            stockQuantity: 50,
             leadTimeDays: 15,
-            weightKg: ali.weightKg,
+            weightKg: ali.weightKg || undefined,
+            lengthCm: ali.lengthCm || undefined,
+            widthCm: ali.widthCm || undefined,
+            heightCm: ali.heightCm || undefined,
+            variantGroups: Array.isArray((ali as any).variantGroups) ? (ali as any).variantGroups : [],
             availabilityNote: ali.availabilityNote,
             sourcing: {
               platform: 'aliexpress',
@@ -822,9 +799,215 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Bulk import from already-normalized items: body.items = Array<{ name, productUrl, ... }>
+    const rawItems = Array.isArray(body?.items) ? (body.items as unknown[]) : null
+    if (rawItems) {
+      const items = Array.from(
+        new Set(
+          rawItems
+            .filter((v): v is NormalizedAliExpressItem | Import1688Preview =>
+              typeof v === 'object' && v !== null && 'productUrl' in v
+            )
+            .map(v => v as NormalizedAliExpressItem | Import1688Preview)
+            .filter(v => typeof v.productUrl === 'string')
+            .map(v => ({ ...v, productUrl: String(v.productUrl).trim() }))
+            .filter(v => v.productUrl.length > 0)
+            .map(v => v.productUrl)
+        )
+      )
+
+      const uniqueByUrl = new Map<string, NormalizedAliExpressItem | Import1688Preview>()
+      for (const v of rawItems) {
+        if (typeof v !== 'object' || v === null) continue
+        const candidate = v as NormalizedAliExpressItem | Import1688Preview
+        const url = typeof candidate.productUrl === 'string' ? candidate.productUrl.trim() : ''
+        if (!url) continue
+        uniqueByUrl.set(url, { ...candidate, productUrl: url })
+      }
+
+      const normalizedItems = Array.from(uniqueByUrl.values()).slice(0, 20)
+      if (normalizedItems.length === 0) {
+        return NextResponse.json({ success: false, error: 'Aucun item valide fourni' }, { status: 400 })
+      }
+
+      type BulkItemResult = {
+        productUrl: string
+        ok: boolean
+        action?: 'created' | 'updated' | 'preview'
+        productId?: string
+        error?: string
+      }
+
+      const dryRun = Boolean(body?.dryRun)
+      const results: BulkItemResult[] = []
+      let createdCount = 0
+      let updatedCount = 0
+      let failedCount = 0
+
+      for (const it of normalizedItems) {
+        const productUrl = it.productUrl
+        try {
+          if (!it.name || !productUrl) {
+            throw new Error('Données import invalides')
+          }
+
+          if (dryRun) {
+            results.push({ productUrl, ok: true, action: 'preview' })
+            continue
+          }
+
+          if (isTaobaoUrl(productUrl)) {
+            results.push({
+              productUrl,
+              ok: false,
+              error: 'Import Taobao/Tmall non supporté automatiquement. Utilisez 1688.com ou import manuel.'
+            })
+            failedCount++
+            continue
+          }
+
+          if (is1688Url(productUrl)) {
+            const preview = it as Import1688Preview & { description?: string; supplier?: { name?: string }; specifications?: Record<string, string> }
+            const rawDesc = preview.description || (preview.offerId
+              ? `Import depuis 1688 • offerId ${preview.offerId}`
+              : 'Import depuis 1688')
+            const payload: Record<string, unknown> = {
+              name: preview.name?.slice(0, 200),
+              category: preview.category || 'Catalogue import Chine',
+              tagline: (preview.tagline || 'Import 1688').slice(0, 200),
+              description: rawDesc.slice(0, 4900),
+              currency: 'FCFA',
+              image: preview.image,
+              gallery: Array.isArray(preview.gallery) ? preview.gallery : [],
+              features: Array.isArray(preview.features) ? preview.features : [],
+              requiresQuote: false,
+              stockStatus: 'preorder',
+              stockQuantity: 50,
+              leadTimeDays: 15,
+              availabilityNote: preview.availabilityNote,
+              // 1688
+              price1688: typeof preview.price1688 === 'number' ? preview.price1688 : undefined,
+              price1688Currency: 'CNY',
+              exchangeRate: typeof preview.exchangeRate === 'number' && preview.exchangeRate > 0 ? preview.exchangeRate : 100,
+              serviceFeeRate: 10,
+              insuranceRate: 2.5,
+              // Logistics (réelles si extraites)
+              weightKg: Number(preview.weightKg) || 1,
+              lengthCm: Number(preview.lengthCm) || 10,
+              widthCm: Number(preview.widthCm) || 10,
+              heightCm: Number(preview.heightCm) || 10,
+              // Variants
+              variantGroups: Array.isArray(preview.variantGroups) ? preview.variantGroups : [],
+              descriptionImages: Array.isArray((preview as any).descriptionImages) ? (preview as any).descriptionImages : [],
+              // Sourcing
+              sourcing: {
+                platform: '1688',
+                supplierName: preview.supplier?.name || undefined,
+                supplierContact: undefined,
+                productUrl: preview.productUrl,
+                notes: `Import extension 1688${preview.offerId ? ` (offerId ${preview.offerId})` : ''}.`
+              },
+              shippingOverrides: []
+            }
+
+            const existing = await Product.findOne({ 'sourcing.productUrl': preview.productUrl })
+            if (existing) {
+              await Product.updateOne({ _id: existing._id }, { $set: payload })
+              updatedCount++
+              results.push({ productUrl, ok: true, action: 'updated', productId: String(existing._id) })
+              continue
+            }
+
+            const created = await Product.create(payload)
+            createdCount++
+            results.push({ productUrl, ok: true, action: 'created', productId: String(created._id) })
+            continue
+          }
+
+          const ali = it as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string>; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
+          const payload = {
+            name: (ali.name || 'Produit AliExpress').slice(0, 200),
+            category: ali.category,
+            description: aliDesc,
+            tagline: (ali.tagline || 'Import AliExpress').slice(0, 200),
+            baseCost: ali.baseCost,
+            marginRate: DEFAULT_MARGIN,
+            price: ali.price,
+            currency: ali.currency,
+            image: ali.image,
+            gallery: ali.gallery,
+            descriptionImages: Array.isArray((ali as any).descriptionImages) ? (ali as any).descriptionImages : [],
+            features: ali.features,
+            requiresQuote: typeof ali.price === 'number' ? false : true,
+            stockStatus: 'preorder' as const,
+            stockQuantity: 50,
+            leadTimeDays: 15,
+            weightKg: ali.weightKg || undefined,
+            lengthCm: ali.lengthCm || undefined,
+            widthCm: ali.widthCm || undefined,
+            heightCm: ali.heightCm || undefined,
+            variantGroups: Array.isArray((ali as any).variantGroups) ? (ali as any).variantGroups : [],
+            availabilityNote: ali.availabilityNote,
+            sourcing: {
+              platform: 'aliexpress',
+              supplierName: ali.shopName,
+              supplierContact: undefined,
+              productUrl: ali.productUrl,
+              notes: ali.sourcingNotes
+            },
+            shippingOverrides: []
+          }
+
+          const existing = await Product.findOne({ 'sourcing.productUrl': ali.productUrl })
+          if (existing) {
+            await Product.updateOne({ _id: existing._id }, { $set: payload })
+            updatedCount++
+            results.push({ productUrl, ok: true, action: 'updated', productId: String(existing._id) })
+            continue
+          }
+
+          const created = await Product.create(payload)
+          createdCount++
+          results.push({ productUrl, ok: true, action: 'created', productId: String(created._id) })
+        } catch (error) {
+          failedCount++
+          const message = error instanceof Error ? error.message : 'Import impossible'
+          console.error(`[import] Échec pour ${productUrl}:`, message)
+          results.push({ productUrl, ok: false, error: message })
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        results,
+        summary: {
+          total: normalizedItems.length,
+          created: createdCount,
+          updated: updatedCount,
+          failed: failedCount,
+          dryRun
+        }
+      })
+    }
+
     const item = body?.item as (NormalizedAliExpressItem | Import1688Preview) | undefined
     if (!item || !item.name || !item.productUrl) {
       return NextResponse.json({ success: false, error: 'Données import invalides' }, { status: 400 })
+    }
+
+    // Détection Taobao pour import unique
+    if (isTaobaoUrl(item.productUrl)) {
+      return NextResponse.json({
+        success: false,
+        code: 'TAOBAO_NOT_SUPPORTED',
+        error: 'Import automatique depuis Taobao/Tmall temporairement indisponible.',
+        message: 'Solutions alternatives : 1) Utilisez 1688.com (mêmes fournisseurs, prix B2B meilleurs), 2) Import manuel via l\'admin (coller nom, prix et images)',
+        alternatives: [
+          { platform: '1688', url: `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(item.name)}` },
+          { platform: 'manual', description: 'Import manuel via /admin/import-produits' }
+        ]
+      }, { status: 400 })
     }
 
     if (is1688Url(item.productUrl)) {
@@ -842,7 +1025,7 @@ export async function POST(request: NextRequest) {
         features: Array.isArray(preview.features) ? preview.features : [],
         requiresQuote: false,
         stockStatus: 'preorder' as const,
-        stockQuantity: 0,
+        stockQuantity: 50,
         leadTimeDays: 15,
         availabilityNote: preview.availabilityNote,
         // 1688
@@ -880,11 +1063,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, product: created.toObject(), action: 'created' }, { status: 201 })
     }
 
-    const ali = item as NormalizedAliExpressItem
+    const ali = item as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string> }
+    const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
     const payload = {
       name: ali.name,
       category: ali.category,
-      description: `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`,
+      description: aliDesc,
       tagline: ali.tagline,
       baseCost: ali.baseCost,
       marginRate: DEFAULT_MARGIN,
@@ -895,7 +1079,7 @@ export async function POST(request: NextRequest) {
       features: ali.features,
       requiresQuote: typeof ali.price === 'number' ? false : true,
       stockStatus: 'preorder' as const,
-      stockQuantity: 0,
+      stockQuantity: 50,
       leadTimeDays: 15,
       weightKg: ali.weightKg,
       availabilityNote: ali.availabilityNote,

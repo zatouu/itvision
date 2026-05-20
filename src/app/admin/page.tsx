@@ -49,7 +49,9 @@ import {
   Plus,
   Wrench,
   Download,
-  Briefcase
+  Briefcase,
+  Wallet,
+  TrendingDown
 } from 'lucide-react'
 import KPICard from '@/components/admin/KPICard'
 import ProgressRing from '@/components/admin/ProgressRing'
@@ -666,6 +668,26 @@ export default function AdminDashboard() {
                 <Briefcase className="h-6 w-6 text-blue-600" />
               </div>
               <span className="text-sm font-medium text-gray-700 text-center">Marketplace</span>
+            </Link>
+
+            <Link 
+              href="/admin/tresorerie" 
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
+            >
+              <div className="bg-emerald-100 p-3 rounded-xl group-hover:bg-emerald-200 transition">
+                <Wallet className="h-6 w-6 text-emerald-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 text-center">Trésorerie 360°</span>
+            </Link>
+
+            <Link 
+              href="/admin/depenses" 
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
+            >
+              <div className="bg-orange-100 p-3 rounded-xl group-hover:bg-orange-200 transition">
+                <TrendingDown className="h-6 w-6 text-orange-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 text-center">Dépenses</span>
             </Link>
 
             <Link 

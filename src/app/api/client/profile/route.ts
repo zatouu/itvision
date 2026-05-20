@@ -3,8 +3,10 @@ import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
+import { Order } from '@/lib/models/Order' // Import Order
 import bcrypt from 'bcryptjs'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { findRegionByDepartment } from '@/lib/senegal-address' // Import helper
 
 interface DecodedToken {
   userId: string
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     // Chercher dans User puis dans Client
-    let profile: any = await User.findById(userId).select('-password').lean()
+    let profile: any = await User.findById(userId).select('-passwordHash').lean()
     
     if (!profile) {
       profile = await Client.findById(userId).lean()
@@ -50,9 +52,40 @@ export async function GET(request: NextRequest) {
     }
 
     const profileData = profile as any
+
+    // Récupérer la dernière commande pour l'adresse
+    let lastAddress = null
+    try {
+        const lastOrder = await Order.findOne({ 
+            $or: [
+                { clientId: userId },
+                { clientEmail: profileData.email }
+            ]
+        })
+        .sort({ createdAt: -1 })
+        .limit(1)
+        .lean() as any // Type assertion needed for lean Order
+        
+        if (lastOrder && lastOrder.address) {
+            // Reconstruire l'adresse structurée
+            const department = lastOrder.address.postalCode 
+            const region = findRegionByDepartment(department || '') || lastOrder.address.city
+            
+            lastAddress = {
+                street: lastOrder.address.street || '',
+                department: department || '',
+                neighborhood: lastOrder.address.city || '', // On a stocké le quartier dans city
+                region: region || '',
+                additionalInfo: lastOrder.address.notes || ''
+            }
+        }
+    } catch (e) {
+        console.error('Erreur récupération dernière commande:', e)
+    }
     
     return NextResponse.json({
       success: true,
+      lastAddress,
       profile: {
         _id: profileData._id.toString(),
         name: profileData.name,
@@ -60,10 +93,16 @@ export async function GET(request: NextRequest) {
         phone: profileData.phone,
         company: profileData.company,
         address: profileData.address,
+        companyClientId: profileData.companyClientId,
         role: profileData.role,
-        avatar: profileData.avatar,
+        avatar: profileData.avatar || profileData.avatarUrl,
         preferences: profileData.preferences || {},
-        createdAt: profileData.createdAt
+        createdAt: profileData.createdAt,
+        marketplaceTier: profileData.marketplaceTier || 'standard',
+        totalMarketplacePurchases: profileData.totalMarketplacePurchases || 0,
+        marketplaceOrderCount: profileData.marketplaceOrderCount || 0,
+        proRequestedAt: profileData.proRequestedAt || null,
+        proValidatedAt: profileData.proValidatedAt || null
       }
     })
   } catch (error) {
@@ -105,11 +144,12 @@ export async function PUT(request: NextRequest) {
 
     // Changement de mot de passe
     if (currentPassword && newPassword) {
-      if (!profile.password) {
+      const passwordHash: string | undefined = profile.passwordHash
+      if (!passwordHash) {
         return NextResponse.json({ error: 'Mot de passe non configuré' }, { status: 400 })
       }
 
-      const isValidPassword = await bcrypt.compare(currentPassword, profile.password)
+      const isValidPassword = await bcrypt.compare(currentPassword, passwordHash)
       if (!isValidPassword) {
         return NextResponse.json({ error: 'Mot de passe actuel incorrect' }, { status: 400 })
       }
@@ -118,7 +158,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Le nouveau mot de passe doit contenir au moins 6 caractères' }, { status: 400 })
       }
 
-      profile.password = await bcrypt.hash(newPassword, 10)
+      profile.passwordHash = await bcrypt.hash(newPassword, 10)
     }
 
     await profile.save()

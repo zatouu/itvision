@@ -1,0 +1,27 @@
+# Secrets GitHub requis (Settings > Secrets > Actions) :
+#   APP_BASE_URL  — ex: https://votre-domaine.com (sans slash final)
+#   CRON_SECRET   — chaîne aléatoire définie aussi dans .env: CRON_SECRET=xxx
+
+name: Cron — Rappels & Expiration Achats Groupés
+
+on:
+  schedule:
+    # Tous les jours à 08h00 UTC (09h00 Dakar en hiver)
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Déclenchement manuel depuis l'UI GitHub
+
+jobs:
+  run-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Envoyer rappels & expirer groupes dépassés
+        run: |
+          RESPONSE=$(curl -s -o /tmp/cron_response.json -w "%{http_code}" \
+            "${{ secrets.APP_BASE_URL }}/api/group-orders/cron/reminders?secret=${{ secrets.CRON_SECRET }}")
+          cat /tmp/cron_response.json
+          echo "HTTP status: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "ERREUR: Le cron a retourné HTTP $RESPONSE" >&2
+            exit 1
+          fi

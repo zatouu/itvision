@@ -10,6 +10,8 @@ export interface AuthResult {
     role: string
     email?: string
     name?: string
+    marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
+    companyClientId?: string
   }
   error?: string
 }
@@ -53,7 +55,9 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
         id: String(payload.userId || payload.id || payload.sub || ''),
         role: String(payload.role || '').toUpperCase(),
         email: typeof payload.email === 'string' ? payload.email : undefined,
-        name: typeof payload.name === 'string' ? payload.name : undefined
+        name: typeof payload.name === 'string' ? payload.name : undefined,
+        marketplaceTier: (payload as any).marketplaceTier || 'standard',
+        companyClientId: typeof (payload as any).companyClientId === 'string' ? (payload as any).companyClientId : undefined
       }
     }
   } catch (error) {

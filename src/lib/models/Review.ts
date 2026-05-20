@@ -8,8 +8,11 @@ export interface IReview extends Document {
   rating: number
   title?: string
   comment: string
+  photos?: string[]
   verified: boolean
   helpful: number
+  status: 'pending' | 'approved' | 'rejected'
+  orderId?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -48,6 +51,10 @@ const ReviewSchema = new Schema<IReview>({
     required: true,
     trim: true
   },
+  photos: {
+    type: [String],
+    default: []
+  },
   verified: {
     type: Boolean,
     default: false
@@ -55,6 +62,14 @@ const ReviewSchema = new Schema<IReview>({
   helpful: {
     type: Number,
     default: 0
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'approved'
+  },
+  orderId: {
+    type: String
   }
 }, { timestamps: true })
 

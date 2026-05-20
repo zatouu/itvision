@@ -1,0 +1,55 @@
+# Fichier exemple pour import bulk
+# Format: une URL par ligne
+# Commentaires avec #
+# Supporte: 1688.com et aliexpress.com
+
+# =====================================================
+# CAMÉRAS & VIDÉOSURVEILLANCE
+# =====================================================
+
+# Caméras IP 4K - 1688
+https://detail.1688.com/offer/6928374657182904819.html
+https://detail.1688.com/offer/6928374657182904820.html
+
+# Caméras PTZ - AliExpress
+https://www.aliexpress.com/item/1005004938271654.html
+https://www.aliexpress.com/item/1005004938271655.html
+
+# =====================================================
+# SYSTÈMES D'ALARME
+# =====================================================
+
+# Alarme maison complète - 1688
+https://detail.1688.com/offer/6928374657182904821.html
+
+# Détecteurs de mouvement - AliExpress
+https://www.aliexpress.com/item/1005004938271656.html
+
+# =====================================================
+# CONTRÔLE D'ACCÈS
+# =====================================================
+
+# Lecteurs biométriques - 1688
+https://detail.1688.com/offer/6928374657182904822.html
+
+# Serrures électriques - 1688
+https://detail.1688.com/offer/6928374657182904823.html
+
+# =====================================================
+# RÉSEAUX & CÂBLAGE
+# =====================================================
+
+# Switches PoE - AliExpress
+https://www.aliexpress.com/item/1005004938271657.html
+
+# Câbles RJ45 - 1688
+https://detail.1688.com/offer/6928374657182904824.html
+
+# =====================================================
+# REMPLACER LES URLS CI-DESSUS PAR TES 60 URLS RÉELLES
+# Récupérer depuis:
+# - Historique navigateur (chrome://history)
+# - Emails de sourcing
+# - Screenshots ancien admin
+# - Fichiers fournisseurs
+# =====================================================

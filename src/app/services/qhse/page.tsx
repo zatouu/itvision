@@ -9,11 +9,11 @@ export default function QHSEServicePage() {
   return (
     <main>
       <Header />
-      <section className="bg-gradient-to-br from-teal-50 via-white to-gray-50 pt-36 md:pt-40 pb-16">
+      <section className="bg-gradient-to-br from-teal-50 via-white to-gray-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">QHSE - Qualité, Hygiène, Sécurité, Environnement</h1>
-            <p className="text-gray-700 max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">QHSE - Qualité, Hygiène, Sécurité, Environnement</h1>
+            <p className="text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
               Accompagnement certifié pour la mise en conformité et l'amélioration continue de vos processus<br className="hidden md:inline" />
               <strong>Qualité</strong>, <strong>Hygiène</strong>, <strong>Sécurité</strong> et <strong>Environnement</strong>.
               Notre équipe certifiée vous guide vers l'excellence opérationnelle.
@@ -21,12 +21,12 @@ export default function QHSEServicePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
                 <FileCheck className="h-5 w-5 text-teal-600 mr-2" />
                 Ce que nous proposons
               </h2>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 {[
                   'Audit et diagnostic QHSE complet',
                   'Mise en conformité réglementaire',
@@ -43,7 +43,7 @@ export default function QHSEServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4">Demander un devis</h2>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -59,7 +59,7 @@ export default function QHSEServicePage() {
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
-                <a href="tel:+221774133440" className="border-2 border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 inline-flex items-center">
+                <a href="tel:+221774133440" className="border-2 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-900 inline-flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
                   +221 77 413 34 40
                 </a>
@@ -69,12 +69,12 @@ export default function QHSEServicePage() {
 
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <div className="flex items-center mb-3">
                 <Award className="h-8 w-8 text-teal-600 mr-2" />
-                <h3 className="text-xl font-semibold">Qualité</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Qualité</h3>
               </div>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Management de la qualité ISO 9001</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Amélioration continue des processus</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Indicateurs de performance qualité</li>
@@ -82,12 +82,12 @@ export default function QHSEServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <div className="flex items-center mb-3">
                 <Users className="h-8 w-8 text-teal-600 mr-2" />
-                <h3 className="text-xl font-semibold">Hygiène</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Hygiène</h3>
               </div>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />HACCP et sécurité alimentaire</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Procédures d'hygiène et nettoyage</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Gestion des risques sanitaires</li>
@@ -95,12 +95,12 @@ export default function QHSEServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <div className="flex items-center mb-3">
                 <Shield className="h-8 w-8 text-teal-600 mr-2" />
-                <h3 className="text-xl font-semibold">Sécurité</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Sécurité</h3>
               </div>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Sécurité au travail (OHSAS 18001)</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Évaluation des risques professionnels</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Prévention des accidents</li>
@@ -108,12 +108,12 @@ export default function QHSEServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <div className="flex items-center mb-3">
                 <Leaf className="h-8 w-8 text-teal-600 mr-2" />
-                <h3 className="text-xl font-semibold">Environnement</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Environnement</h3>
               </div>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />ISO 14001 - Management environnemental</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction de l'impact environnemental</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Gestion des déchets et recyclage</li>

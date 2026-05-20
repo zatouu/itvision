@@ -29,15 +29,19 @@ export interface ProductCardProps {
   shippingOptions?: ShippingOption[]
   availabilityStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   detailHref?: string
+  favoriteButtonEnabled?: boolean
   isNew?: boolean
   isPopular?: boolean
   createdAt?: string
   onCompareToggle?: (productId: string, isSelected: boolean) => void
   isComparing?: boolean
   isImported?: boolean // Produit importé (sans exposer les détails source)
+  condition?: 'new' | 'used' | 'refurbished'
   // Données physiques pour le calcul transport
   unitWeightKg?: number
   unitVolumeM3?: number
+  // Prix wholesale B2B (5+ pcs ou compte Pro)
+  b2bPrice?: number
   // Achat groupé
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number // Meilleur prix possible en achat groupé
@@ -79,14 +83,17 @@ export default function ProductCard({
   shippingOptions = [],
   availabilityStatus,
   detailHref,
+  favoriteButtonEnabled = true,
   isNew = false,
   isPopular = false,
   createdAt,
   onCompareToggle,
   isComparing = false,
   isImported = false,
+  condition = 'new',
   unitWeightKg,
   unitVolumeM3,
+  b2bPrice,
   groupBuyEnabled = false,
   groupBuyBestPrice,
   groupBuyDiscount,
@@ -96,6 +103,11 @@ export default function ProductCard({
     ? (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) < 30
     : false
   const showNewBadge = isNew || isRecentlyNew
+  const conditionBadge = condition === 'used'
+    ? { label: 'Occasion', className: 'bg-amber-600 text-white' }
+    : condition === 'refurbished'
+      ? { label: 'Refurb', className: 'bg-indigo-600 text-white' }
+      : null
   const [activeIndex, setActiveIndex] = useState(0)
   const [adding, setAdding] = useState(false)
   
@@ -112,41 +124,88 @@ export default function ProductCard({
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(getDefaultShippingOption())
   const [isFavorite, setIsFavorite] = useState(false)
   const shippingEnabled = shippingOptions.length > 0 && availabilityStatus !== 'in_stock'
-  
-  useEffect(() => {
+
+  const getProductIdFromHref = () => {
+    if (!detailHref) return null
+    const productId = detailHref.split(PATH_SEPARATOR).pop()
+    return productId || null
+  }
+
+  const syncFavoriteStateFromLocal = () => {
     if (typeof window === 'undefined' || !detailHref) return
     try {
       const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      const productId = detailHref.split(PATH_SEPARATOR).pop()
-      setIsFavorite(favorites.some((id: string) => id === productId))
+      const productId = getProductIdFromHref()
+      if (!productId) return
+      setIsFavorite(Array.isArray(favorites) && favorites.some((id: string) => id === productId))
     } catch {
       setIsFavorite(false)
+    }
+  }
+  
+  useEffect(() => {
+    syncFavoriteStateFromLocal()
+  }, [detailHref])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => syncFavoriteStateFromLocal()
+    window.addEventListener('wishlist:updated', handler)
+    window.addEventListener('storage', handler)
+    return () => {
+      window.removeEventListener('wishlist:updated', handler)
+      window.removeEventListener('storage', handler)
     }
   }, [detailHref])
   
   const toggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (typeof window === 'undefined' || !detailHref) return
-    try {
-      const favorites = JSON.parse(localStorage.getItem('wishlist:items') || '[]')
-      const productId = detailHref.split(PATH_SEPARATOR).pop()
-      
-      if (isFavorite) {
-        const updated = favorites.filter((id: string) => id !== productId)
-        localStorage.setItem('wishlist:items', JSON.stringify(updated))
-        setIsFavorite(false)
-        trackEvent('remove_from_wishlist', { productId })
-      } else {
-        favorites.push(productId)
-        localStorage.setItem('wishlist:items', JSON.stringify(favorites))
-        setIsFavorite(true)
-        trackEvent('add_to_wishlist', { productId })
+    const productId = getProductIdFromHref()
+    if (!productId) return
+
+    ;(async () => {
+      try {
+        const favoritesRaw = localStorage.getItem('wishlist:items')
+        const favorites = favoritesRaw ? JSON.parse(favoritesRaw) : []
+        const set = new Set<string>(Array.isArray(favorites) ? favorites : [])
+
+        const nextIsFavorite = !isFavorite
+        if (nextIsFavorite) {
+          set.add(productId)
+        } else {
+          set.delete(productId)
+        }
+
+        const next = Array.from(set)
+        localStorage.setItem('wishlist:items', JSON.stringify(next))
+        setIsFavorite(nextIsFavorite)
+        window.dispatchEvent(new CustomEvent('wishlist:updated'))
+
+        // Persister en base si connecté (ignore 401)
+        if (nextIsFavorite) {
+          const res = await fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId })
+          })
+          if (!res.ok && res.status !== 401) {
+            console.warn('favorite persist failed', res.status)
+          }
+          trackEvent('add_to_wishlist', { productId })
+        } else {
+          const res = await fetch(`/api/favorites?productId=${encodeURIComponent(productId)}`, {
+            method: 'DELETE'
+          })
+          if (!res.ok && res.status !== 401) {
+            console.warn('favorite remove persist failed', res.status)
+          }
+          trackEvent('remove_from_wishlist', { productId })
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error)
       }
-      
-      window.dispatchEvent(new CustomEvent('wishlist:updated'))
-    } catch (error) {
-      console.error('Error toggling favorite:', error)
-    }
+    })()
   }
 
   useEffect(() => {
@@ -229,6 +288,7 @@ export default function ProductCard({
           qty: 1,
           // Prix principal = prix sourcing (basePrice). Les frais et le transport sont ajoutés au checkout.
           price: basePrice,
+          b2bPrice: typeof b2bPrice === 'number' && b2bPrice > 0 ? b2bPrice : undefined,
           currency: effectiveCurrency,
           requiresQuote: !!requiresQuote,
           unitWeightKg: typeof unitWeightKg === 'number' ? unitWeightKg : undefined,
@@ -289,10 +349,10 @@ export default function ProductCard({
   return (
     <div 
       onClick={handleCardClick}
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden group hover:shadow-lg hover:border-emerald-300 transition-all duration-200 h-full flex flex-col cursor-pointer"
+      className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden group hover:shadow-lg hover:border-green-300 dark:hover:border-green-500/60 transition-all duration-200 h-full flex flex-col cursor-pointer"
     >
       {/* Image */}
-      <div className="relative aspect-square bg-gray-50">
+      <div className="relative aspect-square bg-gray-50 dark:bg-gray-800">
         <Image
           src={images[activeIndex] || images[0] || '/file.svg'}
           alt={name}
@@ -303,25 +363,30 @@ export default function ProductCard({
         />
         
         {/* Favoris */}
-        <button
-          onClick={toggleFavorite}
-          className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors z-10"
-          aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-        >
-          <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
-        </button>
+        {favoriteButtonEnabled && (
+          <button
+            onClick={toggleFavorite}
+            className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-gray-900 transition-colors z-10"
+            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          >
+            <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
+          </button>
+        )}
       </div>
 
       {/* Contenu */}
       <div className="p-4 flex flex-col flex-1">
         {/* Rating + Badges (compact, sans cacher l'image) */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1 text-xs font-semibold text-gray-700">
+          <div className="flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-200">
             <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
             <span>{rating.toFixed(1)}</span>
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-1">
+            {conditionBadge && (
+              <span className={`${conditionBadge.className} px-1.5 py-0.5 rounded text-[9px] font-bold leading-none`}>{conditionBadge.label}</span>
+            )}
             {showNewBadge && (
               <span className="bg-red-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Nouv.</span>
             )}
@@ -334,7 +399,7 @@ export default function ProductCard({
               </span>
             )}
             {groupBuyEnabled && activeGroupCount > 0 && (
-              <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none tabular-nums">
+              <span className="bg-green-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none tabular-nums">
                 {groupProgressPercent !== null ? `${groupProgressPercent}%` : `${activeGroupCount} grp`}
               </span>
             )}
@@ -342,7 +407,7 @@ export default function ProductCard({
               <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Import</span>
             )}
             {isInStock && (
-              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Stock DK</span>
+              <span className="bg-green-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Stock DK</span>
             )}
             {!isInStock && !showNewBadge && !isImported && !isPopular && !groupBuyEnabled && (
               <span className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold leading-none">Sur cmd</span>
@@ -351,11 +416,11 @@ export default function ProductCard({
         </div>
 
         {/* Titre */}
-        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
+        <h3 className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
           {name}
         </h3>
         {model && (
-          <p className="text-xs text-gray-500 line-clamp-1 mb-2">{model}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{model}</p>
         )}
 
         {/* Features clés (limitées à 2 pour la carte) */}
@@ -364,7 +429,7 @@ export default function ProductCard({
             {features.slice(0, 2).map((feature, idx) => (
               <span 
                 key={idx} 
-                className="inline-flex items-center text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded"
+                className="inline-flex items-center text-[10px] text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded"
               >
                 {feature.length > 30 ? feature.substring(0, 30) + '...' : feature}
               </span>
@@ -374,13 +439,18 @@ export default function ProductCard({
 
         {/* Prix avec variation selon transport */}
         <div className="mb-3">
-          <div className="text-xl font-bold text-emerald-600">
+          <div className="text-xl font-bold text-green-600 dark:text-green-400">
             {computedPriceLabel}
           </div>
+          {typeof b2bPrice === 'number' && b2bPrice > 0 && basePrice > 0 && b2bPrice < basePrice && (
+            <p className="text-xs text-violet-600 font-semibold mt-0.5 truncate">
+              5 pcs+ : {b2bPrice.toLocaleString('fr-FR')} {effectiveCurrency} ({-Math.round((1 - b2bPrice / basePrice) * 100)}%)
+            </p>
+          )}
           {groupBuyEnabled && (bestActiveGroup || typeof groupBuyBestPrice === 'number') && (
             <div className="mt-1 space-y-1">
               {bestActiveGroup && currentGroupPriceLabel && (
-                <div className="text-[11px] leading-tight text-gray-600 flex items-center justify-between gap-2">
+                <div className="text-[11px] leading-tight text-gray-600 dark:text-gray-300 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1 min-w-0">
                     <Users className="h-3 w-3 text-purple-600 flex-shrink-0" />
                     <span className="font-semibold text-purple-700 truncate">Actuel</span>
@@ -389,7 +459,7 @@ export default function ProductCard({
                 </div>
               )}
               {typeof groupBuyBestPrice === 'number' && groupBuyBestPrice > 0 && (
-                <div className="text-[11px] leading-tight text-gray-600 flex items-center justify-between gap-2">
+                <div className="text-[11px] leading-tight text-gray-600 dark:text-gray-300 flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <span className="font-semibold text-indigo-700 truncate">Possible</span>
                   </div>
@@ -401,20 +471,20 @@ export default function ProductCard({
             </div>
           )}
           {!showQuote && shippingEnabled && activeShipping && (
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 <span>{computedDeliveryDays} jours</span>
               </div>
               {basePrice > 0 && (
-                <div className="text-[10px] text-gray-400 mt-0.5">
+                <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                   Prix source • hors frais et transport
                 </div>
               )}
             </div>
           )}
           {!showQuote && !shippingEnabled && computedDeliveryDays > 0 && (
-            <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
               <Clock className="h-3 w-3" />
               <span>{computedDeliveryDays} jours</span>
             </div>
@@ -424,7 +494,7 @@ export default function ProductCard({
         {/* Shipping details removed from listing card to keep card minimal and encourage clicking 'Voir détails' */}
 
         {/* Action: Voir détails */}
-        <div className="mt-auto pt-3 border-t border-gray-100">
+        <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
           <div className="flex flex-col gap-2">
             {joinHref && (canJoin || isFilledGroup) && (
               <a
@@ -441,8 +511,8 @@ export default function ProductCard({
               onClick={(e) => { e.stopPropagation() }}
               className={
                 joinHref && (canJoin || isFilledGroup)
-                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
-                  : 'w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+                  ? 'w-full inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700/40 px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+                  : 'w-full inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
               }
             >
               <span>Voir détails</span>

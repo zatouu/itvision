@@ -12,7 +12,8 @@ import {
   Building,
   AlertCircle,
   Loader2,
-  Send
+  Send,
+  Share2
 } from 'lucide-react'
 
 interface PaymentLink {
@@ -207,25 +208,46 @@ export default function GroupBuyPaymentModal({
                           {quantity} × {unitPrice.toLocaleString('fr-FR')} FCFA
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">Référence</p>
-                        <div className="flex items-center gap-2">
-                          <code className="text-sm font-mono bg-white px-2 py-1 rounded border">
-                            {reference || '...'}
-                          </code>
-                          {reference && (
-                            <button
-                              onClick={() => copyToClipboard(reference, 'reference')}
-                              className="p-1 hover:bg-white rounded transition"
-                            >
-                              {copiedField === 'reference' ? (
-                                <Check className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4 text-gray-400" />
-                              )}
-                            </button>
-                          )}
+                      <div className="text-right flex flex-col items-end gap-2">
+                        <div>
+                          <p className="text-xs text-gray-400">Référence</p>
+                          <div className="flex items-center gap-2">
+                            <code className="text-sm font-mono bg-white px-2 py-1 rounded border">
+                              {reference || '...'}
+                            </code>
+                            {reference && (
+                              <button
+                                onClick={() => copyToClipboard(reference, 'reference')}
+                                className="p-1 hover:bg-white rounded transition"
+                              >
+                                {copiedField === 'reference' ? (
+                                  <Check className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <Copy className="w-4 h-4 text-gray-400" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Share Button (New Feature) */}
+                        <button
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: `Rejoignez mon achat groupé pour ${productName}`,
+                                text: `Nous économisons ensemble sur ${productName}. Rejoins l'achat groupé IT Vision !`,
+                                url: window.location.href
+                              }).catch(() => {})
+                            } else {
+                              copyToClipboard(window.location.href, 'share')
+                            }
+                          }}
+                          className="flex items-center gap-2 text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-100 px-3 py-1.5 rounded-full transition"
+                        >
+                          {copiedField === 'share' ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+                          Inviter un ami
+                        </button>
                       </div>
                     </div>
                   </div>

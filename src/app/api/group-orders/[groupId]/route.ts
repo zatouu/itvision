@@ -6,11 +6,14 @@ import { requireAdminApi } from '@/lib/api-auth'
 import { 
   notifyGroupJoinConfirmation, 
   notifyNewParticipant, 
-  notifyObjectiveReached,
   notifyStatusUpdate 
 } from '@/lib/group-order-notifications'
+import { assignPaymentRefsAndNotify } from '@/lib/group-order-helpers'
 import crypto from 'crypto'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { requireAuth } from '@/lib/jwt'
+import { buildGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
+import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -66,6 +69,13 @@ export async function POST(
   const { groupId } = await context.params
   
   try {
+    let auth: Awaited<ReturnType<typeof requireAuth>>
+    try {
+      auth = await requireAuth(req)
+    } catch {
+      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    }
+
     const settings = readPaymentSettings()
     if (!settings.groupOrders.enabled) {
       return NextResponse.json(
@@ -73,15 +83,33 @@ export async function POST(
         { status: 503 }
       )
     }
+    const groupRules = settings.groupOrders.rules
 
     await connectDB()
     
     const body = await req.json()
-    const { name, phone, email, qty } = body
+    const qty = Number(body?.qty)
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    const phone = typeof body?.phone === 'string' ? body.phone.trim() : ''
+    const email = typeof body?.email === 'string' ? body.email.trim() : undefined
 
-    if (!name || !phone || !qty || qty < 1) {
+    if (!name || !phone || !Number.isFinite(qty) || !Number.isInteger(qty)) {
       return NextResponse.json(
         { success: false, error: 'Données manquantes: name, phone, qty requis' },
+        { status: 400 }
+      )
+    }
+
+    if (qty < groupRules.minJoinQty) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: minimum ${groupRules.minJoinQty}` },
+        { status: 400 }
+      )
+    }
+
+    if (qty > groupRules.maxJoinQtyPerParticipant) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: maximum ${groupRules.maxJoinQtyPerParticipant}` },
         { status: 400 }
       )
     }
@@ -119,6 +147,17 @@ export async function POST(
 
     const normalizedPhone = formatSenegalPhone(phone)
 
+    // Vérifier si déjà participant (par userId)
+    const existingUserParticipant = group.participants.find(
+      (p: any) => p?.userId && String(p.userId) === String(auth.userId)
+    )
+    if (existingUserParticipant) {
+      return NextResponse.json(
+        { success: false, error: 'Vous participez déjà à cet achat groupé' },
+        { status: 400 }
+      )
+    }
+
     // Vérifier si déjà participant (par téléphone, normalisé)
     const existingParticipant = group.participants.find(
       (p: any) => formatSenegalPhone(p.phone) === normalizedPhone
@@ -130,14 +169,27 @@ export async function POST(
       )
     }
 
-    // Vérifier max participants
-    if (group.maxParticipants && group.participants.length >= group.maxParticipants) {
+    // Vérifier max participants (groupe ou règle globale admin)
+    const participantLimit =
+      typeof group.maxParticipants === 'number' && group.maxParticipants > 0
+        ? group.maxParticipants
+        : groupRules.maxParticipantsPerGroup
+    if (participantLimit > 0 && group.participants.length >= participantLimit) {
       return NextResponse.json(
         { success: false, error: 'Nombre maximum de participants atteint' },
         { status: 400 }
       )
     }
     
+    // Vérifier maxQty avant d'ajouter
+    if (group.maxQty && (group.currentQty + qty) > group.maxQty) {
+      const remaining = group.maxQty - group.currentQty
+      return NextResponse.json(
+        { success: false, error: `Quantité max dépassée. Il reste ${remaining} unité(s) disponible(s).` },
+        { status: 400 }
+      )
+    }
+
     // Calculer nouveau prix avec la quantité ajoutée
     const previousUnitPrice = group.currentUnitPrice
     const newTotalQty = group.currentQty + qty
@@ -146,7 +198,7 @@ export async function POST(
     if (group.priceTiers && group.priceTiers.length > 0) {
       const sortedTiers = [...group.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
       for (const tier of sortedTiers) {
-        if (newTotalQty >= tier.minQty && (!tier.maxQty || newTotalQty <= tier.maxQty)) {
+        if (newTotalQty >= tier.minQty) {
           newUnitPrice = tier.price
           break
         }
@@ -159,6 +211,7 @@ export async function POST(
     const chatTokenCreatedAt = new Date()
 
     group.participants.push({
+      userId: auth.userId as any,
       name,
       phone: normalizedPhone,
       email,
@@ -183,8 +236,13 @@ export async function POST(
       })
     }
     
-    // Vérifier si quantité min atteinte
-    const objectiveJustReached = group.currentQty >= group.minQty && group.status === 'open'
+    // Le groupe passe en "filled" quand l'objectif cible est atteint (ou quantité max)
+    const reachedTarget = group.currentQty >= group.targetQty
+    const reachedMaxQty = typeof group.maxQty === 'number' && group.currentQty >= group.maxQty
+    const objectiveJustReached =
+      groupRules.autoFillOnTargetReached &&
+      group.status === 'open' &&
+      (reachedTarget || reachedMaxQty)
     if (objectiveJustReached) {
       group.status = 'filled'
     }
@@ -219,12 +277,9 @@ export async function POST(
         await notifyNewParticipant(otherParticipants, newParticipantData, groupData)
       }
       
-      // 3. Si objectif atteint, notifier tout le monde
+      // 3. Si objectif atteint : générer les refs de paiement + envoyer liens à tous
       if (objectiveJustReached) {
-        const allParticipants = group.participants.map((p: any) => ({
-          name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount
-        }))
-        await notifyObjectiveReached(allParticipants, groupData)
+        await assignPaymentRefsAndNotify(group)
       }
     } catch (notifError) {
       console.error('Erreur notifications:', notifError)
@@ -301,7 +356,16 @@ export async function PATCH(
     const updateData: any = {}
     
     // Champs modifiables
-    if (body.status) updateData.status = body.status
+    if (body.status) {
+      const allowedStatuses = ['draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled']
+      if (!allowedStatuses.includes(body.status)) {
+        return NextResponse.json(
+          { success: false, error: 'status invalide' },
+          { status: 400 }
+        )
+      }
+      updateData.status = body.status
+    }
     if (body.deadline) updateData.deadline = new Date(body.deadline)
     if (body.shippingMethod) updateData.shippingMethod = body.shippingMethod
     if (body.shippingCostPerUnit !== undefined) updateData.shippingCostPerUnit = body.shippingCostPerUnit
@@ -362,7 +426,50 @@ export async function PATCH(
     
     // Récupérer le groupe avant mise à jour pour comparer le statut
     const previousGroup = await GroupOrder.findOne({ groupId }).lean() as any
+    if (!previousGroup) {
+      return NextResponse.json(
+        { success: false, error: 'Achat groupé non trouvé' },
+        { status: 404 }
+      )
+    }
     const previousStatus = previousGroup?.status
+
+    if (
+      ['ordering', 'ordered'].includes(body.status) &&
+      previousStatus !== body.status
+    ) {
+      const participants = Array.isArray(previousGroup?.participants) ? previousGroup.participants : []
+      const unpaidParticipants = participants
+        .filter((p: any) => p.paymentStatus !== 'paid')
+        .map((p: any) => ({
+          name: p.name,
+          phone: p.phone,
+          paymentStatus: p.paymentStatus,
+          totalAmount: Number(p.totalAmount) || 0,
+          paidAmount: Number(p.paidAmount) || 0,
+          remainingAmount: Math.max(0, (Number(p.totalAmount) || 0) - (Number(p.paidAmount) || 0))
+        }))
+
+      if (unpaidParticipants.length > 0 && body.forceOrderingWithUnpaid !== true) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Des participants n’ont pas encore payé',
+            requiresConfirmation: true,
+            paymentSummary: buildGroupOrderPaymentSummary(previousGroup),
+            unpaidParticipants
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    if (body.status && ['ordering', 'ordered', 'shipped', 'delivered', 'cancelled'].includes(body.status)) {
+      const chinaPurchase = await syncChinaPurchaseFromGroupOrder(previousGroup, body.status)
+      if (chinaPurchase) {
+        updateData.chinaPurchase = chinaPurchase
+      }
+    }
     
     const group = await GroupOrder.findOneAndUpdate(
       { groupId },
@@ -392,6 +499,14 @@ export async function PATCH(
           deadline: group.deadline
         }
         await notifyStatusUpdate(participants, groupData, body.status, body.statusMessage)
+
+        // Si passage à 'filled' → générer refs paiement + envoyer liens checkout
+        if (body.status === 'filled') {
+          const groupDoc = await GroupOrder.findOne({ groupId })
+          if (groupDoc) {
+            await assignPaymentRefsAndNotify(groupDoc)
+          }
+        }
       } catch (notifError) {
         console.error('Erreur notification statut:', notifError)
       }

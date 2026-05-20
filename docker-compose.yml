@@ -16,7 +16,7 @@ services:
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
-      - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
+      - ./docker/mongodb/init-safe.js:/docker-entrypoint-initdb.d/init.js:ro
     command: ["mongod", "--bind_ip_all"]
     networks:
       - itvision-network
@@ -47,6 +47,13 @@ services:
       - WHATSAPP_NUMBER=${WHATSAPP_NUMBER:-+221774133440}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost}
+      # Configuration SMTP OVH
+      - SMTP_HOST=${SMTP_HOST:-ssl0.ovh.net}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-contact@itvisionplus.sn}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-contact@itvisionplus.sn}
+      - SMTP_SECURE=${SMTP_SECURE:-true}
     ports:
       - "3000:3000"
     volumes:

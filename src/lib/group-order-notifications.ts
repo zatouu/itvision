@@ -29,6 +29,16 @@ interface ParticipantData {
   totalAmount: number
 }
 
+interface StandardOrderPaymentData {
+  orderId: string
+  clientName: string
+  clientEmail?: string
+  clientPhone: string
+  total: number
+  currency?: string
+  items?: Array<{ name: string; qty: number; price: number; currency?: string }>
+}
+
 const formatCurrency = (amount: number, currency = 'FCFA') => 
   `${amount.toLocaleString('fr-FR')} ${currency}`
 
@@ -543,11 +553,237 @@ export async function notifyPaymentRequest(
   }
 }
 
+/**
+ * Notification: Lien de paiement direct avec URL checkout (/paiement/checkout/[reference])
+ * Envoyée quand un groupe passe en 'filled' — chaque participant reçoit son propre lien.
+ */
+export async function notifyPaymentWithCheckoutLink(
+  participant: ParticipantData & { paymentReference: string },
+  group: GroupOrderData
+): Promise<boolean> {
+  if (!participant.email) {
+    console.log(`[NOTIF] Pas d'email pour ${participant.name}, lien paiement ignoré`)
+    return false
+  }
+
+  const checkoutUrl = `${siteUrl}/paiement/checkout/${participant.paymentReference}`
+  const savings = group.product.basePrice - group.currentUnitPrice
+  const savingsPercent = savings > 0 ? Math.round((savings / group.product.basePrice) * 100) : 0
+
+  const content = `
+    <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+      <h1>💰 Finalisez votre paiement</h1>
+      <p>Achat Groupé #${group.groupId} — Objectif atteint !</p>
+    </div>
+    <div class="content">
+      <p>Bonjour <strong>${participant.name}</strong>,</p>
+      <p>L'objectif de l'achat groupé pour <strong>${group.product.name}</strong> a été atteint. 🎉<br>
+      Il ne reste plus qu'à régler votre participation pour que nous passions la commande.</p>
+
+      <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 16px; padding: 25px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0; color: #64748b; font-size: 14px;">Montant à régler</p>
+        <p style="margin: 10px 0; font-size: 36px; font-weight: bold; color: #059669;">
+          ${formatCurrency(participant.totalAmount, group.product.currency)}
+        </p>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+          ${participant.qty} × ${formatCurrency(participant.unitPrice, group.product.currency)}
+          ${savingsPercent > 0 ? `<span style="background:#10b981;color:white;padding:2px 8px;border-radius:4px;margin-left:8px;">-${savingsPercent}%</span>` : ''}
+        </p>
+      </div>
+
+      <div class="warning-box">
+        <strong>Référence paiement:</strong>
+        <code style="background:white;padding:4px 10px;border-radius:4px;font-size:14px;">${participant.paymentReference}</code>
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${checkoutUrl}" class="button" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-size: 18px; padding: 18px 36px;">
+          Payer maintenant
+        </a>
+        <p style="margin-top: 10px; font-size: 13px; color: #64748b;">
+          Wave · Orange Money · Carte bancaire (PayDunya)
+        </p>
+      </div>
+
+      <table>
+        <tr>
+          <td>Produit</td>
+          <td><strong>${group.product.name}</strong></td>
+        </tr>
+        <tr>
+          <td>Quantité</td>
+          <td><strong>${participant.qty} unité(s)</strong></td>
+        </tr>
+        <tr>
+          <td>Prix unitaire</td>
+          <td><strong>${formatCurrency(participant.unitPrice, group.product.currency)}</strong></td>
+        </tr>
+        <tr>
+          <td>Total</td>
+          <td><strong style="color:#059669;">${formatCurrency(participant.totalAmount, group.product.currency)}</strong></td>
+        </tr>
+        <tr>
+          <td>Mode transport</td>
+          <td>${group.shippingMethod === 'express_3j' ? '✈️ Express 3j' : group.shippingMethod === 'air_15j' ? '✈️ Aérien 15j' : '🚢 Maritime 60j'}</td>
+        </tr>
+      </table>
+
+      <div class="info-box">
+        <strong>Prochaines étapes après paiement :</strong><br>
+        1. Votre paiement est confirmé automatiquement<br>
+        2. Nous passons la commande groupée chez le fournisseur<br>
+        3. Livraison à Dakar dans les délais prévus
+      </div>
+
+      <p style="font-size: 14px; color: #64748b; text-align: center;">
+        Questions ? Appelez-nous ou répondez à cet email.<br>
+        <a href="${siteUrl}/achats-groupes/${group.groupId}" style="color:#7c3aed;">Voir les détails du groupe</a>
+      </p>
+    </div>
+  `
+
+  try {
+    await emailService.sendEmail({
+      to: participant.email,
+      subject: `💰 Paiement requis — Achat Groupé ${group.product.name} (${formatCurrency(participant.totalAmount, group.product.currency)})`,
+      html: wrapEmailTemplate(content, 'Demande de paiement')
+    })
+    console.log(`[NOTIF] Lien paiement envoyé à ${participant.email} (ref: ${participant.paymentReference})`)
+    return true
+  } catch (error) {
+    console.error(`[NOTIF] Erreur envoi lien paiement:`, error)
+    return false
+  }
+}
+
+export async function notifyGroupPaymentConfirmed(
+  participant: ParticipantData & { paymentReference?: string },
+  group: GroupOrderData,
+  transactionId: string
+): Promise<boolean> {
+  if (!participant.email) {
+    console.log(`[NOTIF] Pas d'email pour ${participant.name}, confirmation paiement ignorée`)
+    return false
+  }
+
+  const content = `
+    <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+      <h1>✅ Paiement confirmé</h1>
+      <p>Achat Groupé #${group.groupId}</p>
+    </div>
+    <div class="content">
+      <p>Bonjour <strong>${participant.name}</strong>,</p>
+      <p>Votre paiement pour l'achat groupé <strong>${group.product.name}</strong> a bien été confirmé.</p>
+
+      <div class="success-box">
+        <strong>Montant payé:</strong> ${formatCurrency(participant.totalAmount, group.product.currency)}<br>
+        <strong>Référence:</strong> ${participant.paymentReference || 'N/A'}<br>
+        <strong>Transaction:</strong> ${transactionId}
+      </div>
+
+      <table>
+        <tr><td>Produit</td><td><strong>${group.product.name}</strong></td></tr>
+        <tr><td>Quantité</td><td><strong>${participant.qty} unité(s)</strong></td></tr>
+        <tr><td>Prix unitaire</td><td><strong>${formatCurrency(participant.unitPrice, group.product.currency)}</strong></td></tr>
+        <tr><td>Total</td><td><strong style="color:#059669;">${formatCurrency(participant.totalAmount, group.product.currency)}</strong></td></tr>
+      </table>
+
+      <div class="info-box">
+        Nous vous tiendrons informé dès que la commande groupée passera à l'étape suivante.
+      </div>
+
+      <p style="text-align:center;">
+        <a href="${siteUrl}/achats-groupes/${group.groupId}" class="button">Suivre l'achat groupé</a>
+      </p>
+    </div>
+  `
+
+  try {
+    await emailService.sendEmail({
+      to: participant.email,
+      subject: `✅ Paiement confirmé — Achat Groupé ${group.product.name}`,
+      html: wrapEmailTemplate(content, 'Paiement confirmé')
+    })
+    console.log(`[NOTIF] Confirmation paiement groupe envoyée à ${participant.email}`)
+    return true
+  } catch (error) {
+    console.error(`[NOTIF] Erreur confirmation paiement groupe:`, error)
+    return false
+  }
+}
+
+export async function notifyStandardOrderPaymentConfirmed(
+  order: StandardOrderPaymentData,
+  transactionId: string
+): Promise<boolean> {
+  if (!order.clientEmail) {
+    console.log(`[NOTIF] Pas d'email pour ${order.clientName}, confirmation commande ignorée`)
+    return false
+  }
+
+  const currency = order.currency || 'FCFA'
+  const itemsHtml = (order.items || []).map((item) => `
+    <tr>
+      <td>${item.name}</td>
+      <td>${item.qty}</td>
+      <td>${formatCurrency(item.price * item.qty, item.currency || currency)}</td>
+    </tr>
+  `).join('')
+
+  const content = `
+    <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+      <h1>✅ Paiement confirmé</h1>
+      <p>Commande #${order.orderId}</p>
+    </div>
+    <div class="content">
+      <p>Bonjour <strong>${order.clientName}</strong>,</p>
+      <p>Votre paiement a bien été confirmé. Votre commande est maintenant prise en charge par notre équipe.</p>
+
+      <div class="success-box">
+        <strong>Montant payé:</strong> ${formatCurrency(order.total, currency)}<br>
+        <strong>Commande:</strong> ${order.orderId}<br>
+        <strong>Transaction:</strong> ${transactionId}
+      </div>
+
+      ${itemsHtml ? `
+        <table>
+          <tr><th>Article</th><th>Qté</th><th>Total</th></tr>
+          ${itemsHtml}
+        </table>
+      ` : ''}
+
+      <div class="info-box">
+        Vous recevrez les prochaines informations dès que votre commande avancera dans le traitement et la logistique.
+      </div>
+
+      <p style="text-align:center;">
+        <a href="${siteUrl}/compte/commandes" class="button">Voir mes commandes</a>
+      </p>
+    </div>
+  `
+
+  try {
+    await emailService.sendEmail({
+      to: order.clientEmail,
+      subject: `✅ Paiement confirmé — Commande ${order.orderId}`,
+      html: wrapEmailTemplate(content, 'Paiement confirmé')
+    })
+    console.log(`[NOTIF] Confirmation paiement commande envoyée à ${order.clientEmail}`)
+    return true
+  } catch (error) {
+    console.error(`[NOTIF] Erreur confirmation paiement commande:`, error)
+    return false
+  }
+}
+
 export default {
   notifyGroupJoinConfirmation,
   notifyNewParticipant,
   notifyObjectiveReached,
   notifyStatusUpdate,
   notifyDeadlineReminder,
-  notifyPaymentRequest
+  notifyPaymentRequest,
+  notifyPaymentWithCheckoutLink,
+  notifyGroupPaymentConfirmed,
+  notifyStandardOrderPaymentConfirmed
 }

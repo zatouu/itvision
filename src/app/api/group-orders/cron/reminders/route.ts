@@ -31,25 +31,29 @@ export async function GET(req: NextRequest) {
     await connectDB()
     
     const now = new Date()
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
-    const oneDayFromNow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000)
+    
+    // Bornes pour J+3 (début et fin de journée)
+    const threeDayStart = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+    threeDayStart.setHours(0, 0, 0, 0)
+    const threeDayEnd = new Date(threeDayStart)
+    threeDayEnd.setHours(23, 59, 59, 999)
+    
+    // Bornes pour J+1 (début et fin de journée)
+    const oneDayStart = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000)
+    oneDayStart.setHours(0, 0, 0, 0)
+    const oneDayEnd = new Date(oneDayStart)
+    oneDayEnd.setHours(23, 59, 59, 999)
     
     // Trouver les achats groupés ouverts avec deadline dans 3 jours
     const groupsThreeDays = await GroupOrder.find({
       status: 'open',
-      deadline: {
-        $gte: new Date(threeDaysFromNow.setHours(0, 0, 0, 0)),
-        $lt: new Date(threeDaysFromNow.setHours(23, 59, 59, 999))
-      }
+      deadline: { $gte: threeDayStart, $lt: threeDayEnd }
     }).lean()
     
     // Trouver les achats groupés ouverts avec deadline dans 1 jour
     const groupsOneDay = await GroupOrder.find({
       status: 'open',
-      deadline: {
-        $gte: new Date(oneDayFromNow.setHours(0, 0, 0, 0)),
-        $lt: new Date(oneDayFromNow.setHours(23, 59, 59, 999))
-      }
+      deadline: { $gte: oneDayStart, $lt: oneDayEnd }
     }).lean()
     
     let sentCount = 0

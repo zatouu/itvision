@@ -14,6 +14,8 @@ import {
 import { emailService } from '@/lib/email-service'
 import { requireAdminApi } from '@/lib/api-auth'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { notifyGroupPaymentConfirmed } from '@/lib/group-order-notifications'
+import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 
 // Générer une référence de paiement unique
 function generatePaymentReference(groupId: string, participantPhone: string): string {
@@ -163,7 +165,9 @@ export async function POST(
         productName: (group as any).product?.name,
         status: group.status,
         deadline: group.deadline,
-        progress: Math.round(((group as any).currentQty / (group as any).minQty) * 100)
+        progress: Math.round(
+          ((group as any).currentQty / Math.max(1, Number((group as any).targetQty) || 1)) * 100
+        )
       }
     })
 
@@ -237,7 +241,9 @@ export async function PATCH(
       )
     }
 
-    // Mettre à jour le statut de paiement
+    const previousPaymentStatus = group.participants[participantIndex].paymentStatus
+    const totalAmount = Number((group.participants[participantIndex] as any).totalAmount)
+
     group.participants[participantIndex].paymentStatus = paymentStatus
     if (transactionId) {
       group.participants[participantIndex].transactionId = transactionId
@@ -250,7 +256,6 @@ export async function PATCH(
           { status: 400 }
         )
       }
-      const totalAmount = Number((group.participants[participantIndex] as any).totalAmount)
       if (Number.isFinite(totalAmount) && nextPaidAmount > totalAmount) {
         return NextResponse.json(
           { error: 'paidAmount ne peut pas dépasser totalAmount' },
@@ -258,13 +263,33 @@ export async function PATCH(
         )
       }
       group.participants[participantIndex].paidAmount = nextPaidAmount
+    } else if (paymentStatus === 'paid' && Number.isFinite(totalAmount)) {
+      group.participants[participantIndex].paidAmount = totalAmount
+    } else if (paymentStatus === 'pending' || paymentStatus === 'refunded') {
+      group.participants[participantIndex].paidAmount = 0
     }
     if (adminNote) {
       group.participants[participantIndex].adminNote = adminNote
     }
     group.participants[participantIndex].paymentUpdatedAt = new Date()
 
+    if ((group as any).chinaPurchase?.purchaseId) {
+      const chinaPurchase = await syncChinaPurchaseFromGroupOrder(group)
+      if (chinaPurchase) {
+        const groupWithChinaPurchase = group as any
+        groupWithChinaPurchase.chinaPurchase = chinaPurchase
+      }
+    }
+
     await group.save()
+
+    if (paymentStatus === 'paid' && previousPaymentStatus !== 'paid') {
+      await notifyGroupPaymentConfirmed(
+        group.participants[participantIndex],
+        group,
+        group.participants[participantIndex].transactionId || 'MANUAL'
+      )
+    }
 
     return NextResponse.json({
       success: true,

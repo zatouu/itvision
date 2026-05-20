@@ -5,6 +5,58 @@ import User from '@/lib/models/User'
 import emailService from '@/lib/email-service'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 
+const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+
+async function verifyCaptchaToken(token: string, remoteIp?: string) {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY
+
+  if (!secretKey) {
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        success: false,
+        error: 'Captcha non configuré sur le serveur'
+      }
+    }
+    return { success: true }
+  }
+
+  if (!token) {
+    return {
+      success: false,
+      error: 'Captcha requis'
+    }
+  }
+
+  const payload = new URLSearchParams()
+  payload.set('secret', secretKey)
+  payload.set('response', token)
+  if (remoteIp) payload.set('remoteip', remoteIp)
+
+  try {
+    const response = await fetch(TURNSTILE_VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: payload.toString()
+    })
+
+    const data = await response.json().catch(() => null) as { success?: boolean } | null
+
+    if (!response.ok || !data?.success) {
+      return {
+        success: false,
+        error: 'Échec de validation du captcha'
+      }
+    }
+
+    return { success: true }
+  } catch {
+    return {
+      success: false,
+      error: 'Impossible de vérifier le captcha'
+    }
+  }
+}
+
 function validatePassword(password: string): string | null {
   const minLength = 8
   const hasUpperCase = /[A-Z]/.test(password)
@@ -52,7 +104,16 @@ export async function POST(request: NextRequest) {
     const limited = applyRateLimit(request, authRateLimiter)
     if (limited) return limited
 
-    const { email, password, name, phone, role = 'CLIENT' } = await request.json()
+    const { email, password, name, phone, role = 'CLIENT', captchaToken = '' } = await request.json()
+
+    const forwardedFor = request.headers.get('x-forwarded-for') || ''
+    const remoteIp = forwardedFor.split(',')[0]?.trim() || undefined
+    const captchaCheck = await verifyCaptchaToken(String(captchaToken || ''), remoteIp)
+    if (!captchaCheck.success) {
+      return NextResponse.json({
+        error: captchaCheck.error || 'Captcha invalide'
+      }, { status: 400 })
+    }
 
     // Validation des champs requis
     if (!email || !password || !name) {
@@ -149,6 +210,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[REGISTER] Erreur serveur:', error)
+
+    // Validator MongoDB (collection-level) : configuration incompatible
+    // Ex: enum role en minuscules alors que l'app utilise des rôles en MAJUSCULES.
+    const anyError = error as any
+    if (typeof anyError?.code === 'number' && anyError.code === 121) {
+      return NextResponse.json({
+        error: 'Erreur de configuration de la base de données (validation).',
+        code: 'DB_VALIDATION_FAILED'
+      }, { status: 500 })
+    }
     
     // Gérer les erreurs de validation MongoDB
     if (error instanceof Error && error.message.includes('duplicate key')) {

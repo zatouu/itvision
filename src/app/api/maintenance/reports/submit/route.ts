@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
+import Intervention from '@/lib/models/Intervention'
 import { addNotification } from '@/lib/notifications-memory'
 import { verifyJwtPayload } from '@/lib/jwt'
+import { emailService } from '@/lib/email-service'
+import { getClientContactEmails } from '@/lib/client-contacts'
+import { emitInterventionUpdate, emitGroupNotification } from '@/lib/socket-emit'
+import { logAuditEvent } from '@/lib/audit'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
@@ -24,7 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
     
-    const { technicianId } = await verifyTechnicianToken(request)
+    const tokenData = await verifyTechnicianToken(request)
     const { reportId, finalChecks } = await request.json()
     
     if (!reportId) {
@@ -33,6 +38,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Résoudre le vrai Technician._id depuis le token (qui contient User._id)
+    let technicianId = tokenData.technicianId || tokenData.userId
+    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null) as any
+      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() as any : null)
+    if (techRecord && techRecord._id) technicianId = String(techRecord._id)
     
     // Récupération et vérification du rapport
     const report = await MaintenanceReport.findOne({
@@ -105,10 +116,45 @@ export async function POST(request: NextRequest) {
       })
     
     await report.save()
-    
-    // Notification admin (ici on simule, mais dans un vrai système on enverrait email/push)
+
+    // Temps réel + audit + liaison intervention
+    try {
+      await logAuditEvent({
+        entityType: 'MaintenanceReport',
+        entityId: String(report._id),
+        action: 'submitted_for_validation',
+        previousState: { status: 'draft' },
+        newState: { status: 'pending_validation' },
+        userId: technicianId,
+        userRole: 'TECHNICIAN',
+        ip: request.headers.get('x-forwarded-for') || undefined,
+        metadata: { needsQuote, followUpCount: followUps.length }
+      })
+      emitGroupNotification('admins', {
+        type: 'info',
+        title: 'Nouveau rapport à valider',
+        message: `Rapport ${report.reportId} soumis par ${tokenData.name || 'technicien'}`,
+        data: { reportId: String(report._id), reportNumber: report.reportId }
+      })
+      if (report.interventionId) {
+        await Intervention.updateOne(
+          { _id: report.interventionId },
+          { $set: { status: 'completed' } }
+        )
+        emitInterventionUpdate(String(report.interventionId), { id: String(report.interventionId), status: 'completed' })
+      }
+    } catch (e) { console.error('[Report] Realtime/audit error:', e) }
+
+    // Notification admin
     try {
       await notifyAdminNewReport(report)
+    } catch {}
+
+    // Notification contacts client (si le rapport est lié à un client)
+    try {
+      if (report.clientId) {
+        await notifyClientContacts(report)
+      }
     } catch {}
     
     // Mise à jour statistiques technicien
@@ -255,24 +301,89 @@ async function notifyAdminNewReport(report: any) {
     metadata: { reportMongoId: String(report._id), reportId: report.reportId }
   })
   
-  // Exemple d'envoi d'email (à adapter avec votre service email)
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      // await sendEmail({
-      //   to: 'admin@itvision.sn',
-      //   subject: `Nouveau rapport à valider - ${report.reportId}`,
-      //   template: 'new-report-validation',
-      //   data: {
-      //     reportId: report.reportId,
-      //     technicianName: report.technicianName,
-      //     clientName: report.clientName,
-      //     interventionDate: report.interventionDate,
-      //     priority: report.priority,
-      //     validationUrl: `https://itvision.sn/validation-rapports?report=${report._id}`
-      //   }
-      // })
-    } catch (emailError) {
-      console.error('Erreur envoi email notification:', emailError)
-    }
+  // Envoi d'email de notification à l'admin
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+    const dateStr = report.interventionDate
+      ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
+      : 'Non spécifiée'
+    const priorityLabel = report.priority === 'urgent' ? '🔴 URGENT' :
+      report.priority === 'high' ? '🟠 Haute' :
+      report.priority === 'medium' ? '🟡 Moyenne' : '🟢 Faible'
+
+    await emailService.sendEmail({
+      to: 'contact@itvisionplus.sn',
+      subject: `Nouveau rapport à valider - ${report.reportId}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:linear-gradient(135deg,#059669,#2563eb);color:white;padding:20px;border-radius:10px 10px 0 0">
+            <h2 style="margin:0">📋 Nouveau rapport soumis</h2>
+          </div>
+          <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
+            <p><strong>Rapport :</strong> ${report.reportId}</p>
+            <p><strong>Site :</strong> ${report.site || 'Non spécifié'}</p>
+            <p><strong>Date d'intervention :</strong> ${dateStr}</p>
+            <p><strong>Priorité :</strong> ${priorityLabel}</p>
+            <p style="margin-top:20px">
+              <a href="${siteUrl}/admin" style="background:#2563eb;color:white;padding:10px 20px;border-radius:5px;text-decoration:none">
+                Valider le rapport
+              </a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Nouveau rapport soumis: ${report.reportId}\nSite: ${report.site}\nDate: ${dateStr}\nPriorité: ${priorityLabel}`
+    })
+  } catch (emailError) {
+    console.error('Erreur envoi email notification:', emailError)
+  }
+}
+
+// Notification des contacts client lors de la soumission d'un rapport
+async function notifyClientContacts(report: any) {
+  try {
+    const clientId = String(report.clientId)
+    const emails = await getClientContactEmails(clientId)
+    if (emails.length === 0) return
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+    const dateStr = report.interventionDate
+      ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
+      : 'Non spécifiée'
+
+    await emailService.sendEmail({
+      to: emails.join(', '),
+      subject: `Fiche d'intervention ${report.reportId} - IT Vision Plus`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:20px;border-radius:10px 10px 0 0">
+            <h2 style="margin:0">📋 Fiche d'intervention</h2>
+            <p style="margin:5px 0 0;opacity:0.9">IT Vision Plus - Sécurité Électronique</p>
+          </div>
+          <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
+            <p>Bonjour,</p>
+            <p>Une intervention a été réalisée sur votre site. Voici les détails :</p>
+            <table style="width:100%;border-collapse:collapse;margin:15px 0">
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold;width:40%">Référence</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.reportId}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Site</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.site || 'Non spécifié'}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Date d'intervention</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${dateStr}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Horaires</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.startTime || ''} - ${report.endTime || ''}</td></tr>
+            </table>
+            <p>Pour consulter le rapport complet, connectez-vous à votre espace client :</p>
+            <p style="text-align:center;margin:20px 0">
+              <a href="${siteUrl}/espace-client" style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
+                Accéder à mon espace
+              </a>
+            </p>
+            <p style="color:#6b7280;font-size:13px">Merci de votre confiance.<br>L'équipe IT Vision Plus</p>
+          </div>
+        </div>
+      `,
+      text: `Fiche d'intervention ${report.reportId}\nSite: ${report.site}\nDate: ${dateStr}\nHoraires: ${report.startTime || ''} - ${report.endTime || ''}\nConsultez votre espace client: ${siteUrl}/espace-client`
+    })
+
+    console.log(`[REPORT] Notification envoyée aux contacts client: ${emails.join(', ')}`)
+  } catch (error) {
+    console.error('Erreur notification contacts client:', error)
   }
 }

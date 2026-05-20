@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
+import { createWriteStream, existsSync } from 'fs'
 import path from 'path'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
 import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
 import { requireAuth } from '@/lib/jwt'
+
+export const maxDuration = 120
+export const dynamic = 'force-dynamic'
 
 // Vérification d'authentification requise pour l'upload
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; userId?: string; role?: string }> {
@@ -44,27 +49,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Vérifier le type de fichier (image/jpeg couvre .jpg et .jpeg)
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    // Certains navigateurs/systèmes peuvent envoyer un type incorrect pour les JPG
-    const isJpeg = file.type === 'image/jpeg' || 
-                   file.type === 'image/jpg' || 
-                   file.name.toLowerCase().endsWith('.jpg') || 
-                   file.name.toLowerCase().endsWith('.jpeg')
-    const isAllowed = allowedTypes.includes(file.type) || isJpeg
-    
-    if (!isAllowed) {
+    // Vérifier le type de fichier (images + courte vidéo)
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+
+    const lowerName = file.name.toLowerCase()
+    const isJpeg = file.type === 'image/jpeg' ||
+      file.type === 'image/jpg' ||
+      lowerName.endsWith('.jpg') ||
+      lowerName.endsWith('.jpeg')
+
+    const isVideoExt = /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(lowerName)
+    const isAllowedImage = allowedImageTypes.includes(file.type) || isJpeg
+    const isAllowedVideo =
+      allowedVideoTypes.includes(file.type) ||
+      (isVideoExt && (file.type === '' || file.type === 'application/octet-stream' || file.type.startsWith('video/')))
+
+    if (!isAllowedImage && !isAllowedVideo) {
       return NextResponse.json(
-        { error: `Type de fichier non autorisé: ${file.type}` },
+        { error: `Type de fichier non autorisé: ${file.type || 'inconnu'}` },
         { status: 400 }
       )
     }
 
-    // Vérifier la taille (5MB max)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    // Vérifier la taille
+    const maxImageSize = 10 * 1024 * 1024 // 10MB
+    const maxVideoSize = 100 * 1024 * 1024 // 100MB (courte vidéo)
+    const maxSize = isAllowedVideo ? maxVideoSize : maxImageSize
+
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'Fichier trop volumineux (5MB max)' },
+        { error: isAllowedVideo ? 'Vidéo trop volumineuse (100MB max)' : 'Fichier trop volumineux (5MB max)' },
         { status: 400 }
       )
     }
@@ -81,10 +96,20 @@ export async function POST(request: NextRequest) {
       await mkdir(uploadDir, { recursive: true })
     }
 
-    // Sauvegarder le fichier
+    // Sauvegarder le fichier (streaming pour les gros fichiers vidéo)
     const filepath = path.join(uploadDir, filename)
-    const bytes = await file.arrayBuffer()
-    await writeFile(filepath, new Uint8Array(bytes))
+    if (isAllowedVideo && file.size > 5 * 1024 * 1024) {
+      // Streaming pour fichiers > 5MB (évite de tout charger en RAM)
+      const webStream = file.stream()
+      const nodeStream = Readable.fromWeb(webStream as any)
+      const writeStream = createWriteStream(filepath)
+      await pipeline(nodeStream, writeStream)
+      console.log(`[upload] Vidéo streamée: ${filename} (${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+    } else {
+      const bytes = await file.arrayBuffer()
+      await writeFile(filepath, new Uint8Array(bytes))
+      console.log(`[upload] Fichier écrit: ${filename} (${(file.size / 1024).toFixed(0)}KB)`)
+    }
 
     // URL publique - utiliser l'API pour servir les fichiers en mode standalone
     // En développement, les fichiers statiques fonctionnent directement

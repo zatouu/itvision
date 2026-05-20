@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Calculator, TrendingUp, DollarSign, Package, Truck, Info, Loader2 } from 'lucide-react'
 import type { ShippingMethodId } from '@/lib/logistics'
 
@@ -18,6 +18,7 @@ interface ProductPricing1688Props {
   weightKg?: number | null
   volumeM3?: number | null
   baseCost?: number | null
+  orderQuantity?: number
 }
 
 interface SimulationResult {
@@ -52,7 +53,8 @@ export default function ProductPricing1688({
   pricing1688,
   weightKg,
   volumeM3,
-  baseCost
+  baseCost,
+  orderQuantity = 1
 }: ProductPricing1688Props) {
   const [selectedMethod, setSelectedMethod] = useState<ShippingMethodId>('air_15')
   const [simulation, setSimulation] = useState<SimulationResult | null>(null)
@@ -78,6 +80,7 @@ export default function ProductPricing1688({
           weightKg: weightKg || undefined,
           volumeM3: volumeM3 || undefined,
           serviceFeeRate: pricing1688.serviceFeeRate || 10,
+          orderQuantity: orderQuantity || 1,
           insuranceRate: pricing1688.insuranceRate || 0
         })
       })
@@ -94,13 +97,19 @@ export default function ProductPricing1688({
   }
 
   const productCostFCFA = pricing1688.price1688 * pricing1688.exchangeRate
+// Reset simulation when props change
+  useEffect(() => {
+    setSimulation(null)
+    setShowDetails(false)
+  }, [pricing1688, weightKg, volumeM3, baseCost, orderQuantity])
 
+  
   return (
     <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Prix d'origine</h3>
+          <Truck className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Simulateur 1688</h3>
         </div>
         <button
           onClick={() => setShowDetails(!showDetails)}
@@ -111,28 +120,6 @@ export default function ProductPricing1688({
       </div>
 
       <div className="space-y-3">
-        <div className="bg-white rounded-lg p-4 border border-blue-100">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Prix direct</span>
-            <span className="text-lg font-bold text-gray-900">
-              {pricing1688.price1688.toLocaleString('fr-FR')} {pricing1688.price1688Currency}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Taux de change</span>
-            <span className="text-sm font-medium text-gray-700">
-              1 {pricing1688.price1688Currency} = {pricing1688.exchangeRate} FCFA
-            </span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">Coût produit</span>
-              <span className="text-xl font-bold text-blue-600">
-                {formatCurrency(productCostFCFA)}
-              </span>
-            </div>
-          </div>
-        </div>
 
         {showDetails && (
           <div className="space-y-3">
@@ -143,33 +130,33 @@ export default function ProductPricing1688({
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setSelectedMethod('air_express')}
-                  className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
                     selectedMethod === 'air_express'
                       ? 'bg-emerald-500 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
-                  Express<br />3 jours
+                  Express<br />3-5 jrs
                 </button>
                 <button
                   onClick={() => setSelectedMethod('air_15')}
-                  className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
                     selectedMethod === 'air_15'
                       ? 'bg-emerald-500 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
-                  Aérien<br />6-10 jours
+                  Aérien<br />10-15 jrs
                 </button>
                 <button
                   onClick={() => setSelectedMethod('sea_freight')}
-                  className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
                     selectedMethod === 'sea_freight'
                       ? 'bg-emerald-500 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
-                  Maritime<br />50-60 jours
+                  Maritime<br />45-50 jrs
                 </button>
               </div>
             </div>

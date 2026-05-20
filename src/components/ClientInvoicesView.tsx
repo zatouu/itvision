@@ -97,9 +97,19 @@ export default function ClientInvoicesView({ clientId }: ClientInvoicesViewProps
     loadClientInvoices()
   }, [clientId])
 
-  const loadClientInvoices = () => {
-    // Simulation données factures client spécifique
-    const clientInvoices: ClientInvoice[] = [
+  const loadClientInvoices = async () => {
+    try {
+      const res = await fetch('/api/client/invoices', { credentials: 'include' })
+      if (!res.ok) throw new Error('Erreur chargement factures')
+      const data = await res.json()
+      if (data?.success && Array.isArray(data.invoices)) {
+        setInvoices(data.invoices)
+        return
+      }
+      throw new Error('Format factures invalide')
+    } catch {
+      // Fallback: données simulées
+      const clientInvoices: ClientInvoice[] = [
       {
         id: 'inv-001',
         number: 'FAC-2024-001',
@@ -213,9 +223,9 @@ export default function ClientInvoicesView({ clientId }: ClientInvoicesViewProps
         notes: 'Extension du système existant pour couvrir l\'annexe du bâtiment.',
         downloadUrl: '/api/invoices/FAC-2024-052/download'
       }
-    ]
-    
-    setInvoices(clientInvoices)
+      ]
+      setInvoices(clientInvoices)
+    }
   }
 
   const filteredAndSortedInvoices = invoices

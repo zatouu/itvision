@@ -5,10 +5,15 @@ import { addNotification } from '@/lib/notifications-memory'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const adminRecipient = process.env.CONTACT_EMAIL || process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
+
+    if (!body?.contact?.email || !body?.contact?.name) {
+      return NextResponse.json({ success: false, error: 'Contact incomplet pour le diagnostic' }, { status: 400 })
+    }
 
     // Envoi email admin (ou log si non configuré)
     await emailService.sendEmail({
-      to: process.env.ADMIN_EMAIL || 'admin@example.com',
+      to: adminRecipient,
       subject: `🧩 Nouveau diagnostic de digitalisation - ${body?.contact?.company || 'Prospect'}`,
       html: `
         <h2>Nouveau diagnostic</h2>
@@ -41,10 +46,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, recipient: adminRecipient })
   } catch (error) {
     console.error('Diagnostic submit error:', error)
-    return NextResponse.json({ success: false }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Erreur lors de la soumission du diagnostic' }, { status: 500 })
   }
 }
 

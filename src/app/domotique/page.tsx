@@ -199,13 +199,13 @@ export default function DomotiquePage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 page-content py-20">
+      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 dark:from-black dark:via-black dark:to-black page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Domotique &amp; <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Bâtiment Intelligent</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-4xl mx-auto mb-8">
               Experts en systèmes connectés depuis 2019, nous maîtrisons les protocoles les plus avancés pour créer
               des espaces intelligents, sécurisés et économes en énergie.
             </p>
@@ -233,10 +233,10 @@ export default function DomotiquePage() {
       </section>
 
       {/* Section Protocoles Avancés */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Maîtrise des <span className="text-emerald-600">Protocoles Avancés</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, memo, useCallback } from 'react'
+import { useState, useEffect, memo, useCallback, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Users, 
@@ -31,10 +32,12 @@ import {
   Package,
   Calculator,
   Crown,
-  Briefcase
+  Briefcase,
+  Trash2
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { useCsrf } from '@/hooks/useCsrf'
+import { getUserCategoryLabel, type UserCategory } from '@/lib/user-segmentation'
 
 // Types
 interface UserData {
@@ -45,6 +48,12 @@ interface UserData {
   phone?: string
   avatarUrl?: string
   role: string
+  company?: string
+  address?: string
+  city?: string
+  country?: string
+  companyClientId?: any
+  userCategory?: UserCategory
   isActive: boolean
   loginAttempts: number
   lockedUntil?: string
@@ -61,6 +70,18 @@ interface UserFormData {
   avatarUrl?: string
   role: string
   password?: string
+  company: string
+  address: string
+  city: string
+  country: string
+  companyClientId: string
+}
+
+interface CompanyOption {
+  _id: string
+  name?: string
+  company?: string
+  email?: string
 }
 
 // Configuration des rôles
@@ -76,12 +97,14 @@ const ROLES = [
 // Composant formulaire isolé pour éviter les re-renders
 const UserFormFields = memo(function UserFormFields({
   initialData,
+  companyOptions,
   isEdit,
   onSubmit,
   onCancel,
   isSubmitting
 }: {
   initialData: UserFormData
+  companyOptions: CompanyOption[]
   isEdit: boolean
   onSubmit: (data: UserFormData) => void
   onCancel: () => void
@@ -180,6 +203,71 @@ const UserFormFields = memo(function UserFormFields({
             placeholder="+221 77 123 45 67"
           />
         </div>
+
+        {/* Entreprise (clients) */}
+        {formData.role === 'CLIENT' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Entreprise liée (optionnel)</label>
+              <select
+                value={formData.companyClientId}
+                onChange={(e) => setFormData(prev => ({ ...prev, companyClientId: e.target.value }))}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors bg-white"
+              >
+                <option value="">Aucune</option>
+                {companyOptions.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.company || c.name || c.email || c._id}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Lie l'utilisateur à une entreprise (Client) pour le portail entreprise.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Société (libre)</label>
+                <input
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Nom de société (si pas liée)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Pays</label>
+                <input
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Sénégal"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Adresse</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Adresse"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ville</label>
+                <input
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  placeholder="Dakar"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Rôle avec cartes */}
         <div>
@@ -443,10 +531,15 @@ function SimpleModal({
 // Composant principal
 export default function UserManagementInterface() {
   const { fetchWithCsrf } = useCsrf()
+  const searchParams = useSearchParams()
+  const didInitFromQuery = useRef(false)
   const [users, setUsers] = useState<UserData[]>([])
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([])
+  const [companyOptionsLoading, setCompanyOptionsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [userCategoryFilter, setUserCategoryFilter] = useState<'all' | UserCategory>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -458,6 +551,25 @@ export default function UserManagementInterface() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const usersPerPage = 10
+
+  // Init filters from URL query once (e.g. /admin/users?userCategory=MARKETPLACE_CLIENT)
+  useEffect(() => {
+    if (didInitFromQuery.current) return
+    didInitFromQuery.current = true
+
+    const role = (searchParams?.get('role') || '').trim()
+    const userCategory = (searchParams?.get('userCategory') || '').trim().toUpperCase()
+    const q = (searchParams?.get('q') || '').trim()
+    const isActive = (searchParams?.get('isActive') || '').trim()
+
+    if (q) setSearchTerm(q)
+    if (role) setRoleFilter(role)
+    if (['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(userCategory)) {
+      setUserCategoryFilter(userCategory as UserCategory)
+    }
+    if (isActive) setStatusFilter(isActive)
+    if (q || role || userCategory || isActive) setCurrentPage(1)
+  }, [searchParams])
 
   // Stats calculées
   const stats = {
@@ -477,6 +589,7 @@ export default function UserManagementInterface() {
         limit: usersPerPage.toString(),
         q: searchTerm,
         ...(roleFilter !== 'all' && { role: roleFilter }),
+        ...(userCategoryFilter !== 'all' && { userCategory: userCategoryFilter }),
         ...(statusFilter !== 'all' && { isActive: statusFilter })
       })
 
@@ -498,7 +611,34 @@ export default function UserManagementInterface() {
 
   useEffect(() => {
     fetchUsers()
-  }, [currentPage, searchTerm, roleFilter, statusFilter])
+  }, [currentPage, searchTerm, roleFilter, userCategoryFilter, statusFilter])
+
+  const fetchCompanyOptions = useCallback(async () => {
+    if (companyOptionsLoading) return
+    setCompanyOptionsLoading(true)
+    try {
+      const res = await fetch('/api/admin/clients?limit=200', { credentials: 'include' })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success && Array.isArray(data?.clients)) {
+        setCompanyOptions(data.clients.map((c: any) => ({
+          _id: String(c._id),
+          name: c.name,
+          company: c.company,
+          email: c.email
+        })))
+      }
+    } catch {
+      // silent: l'UI reste utilisable sans liaison entreprise
+    } finally {
+      setCompanyOptionsLoading(false)
+    }
+  }, [companyOptionsLoading])
+
+  useEffect(() => {
+    if ((showCreateModal || showEditModal) && companyOptions.length === 0) {
+      fetchCompanyOptions()
+    }
+  }, [showCreateModal, showEditModal, companyOptions.length, fetchCompanyOptions])
 
   // Créer un utilisateur
   const handleCreateUser = async (formData: UserFormData) => {
@@ -560,6 +700,11 @@ export default function UserManagementInterface() {
           phone: formData.phone,
           avatarUrl: formData.avatarUrl,
           role: formData.role,
+          company: formData.company,
+          address: formData.address,
+          city: formData.city,
+          country: formData.country,
+          companyClientId: formData.companyClientId || null,
           isActive: selectedUser.isActive
         })
       })
@@ -646,6 +791,32 @@ export default function UserManagementInterface() {
     setShowPasswordModal(true)
   }
 
+  const handleDeleteUser = async (user: UserData) => {
+    const confirmed = window.confirm(
+      `Supprimer définitivement l'utilisateur ${user.name} (${user.email}) ?\n\nCette action est irréversible.`
+    )
+    if (!confirmed) return
+
+    setError('')
+    try {
+      const response = await fetchWithCsrf('/api/admin/users', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: user._id, action: 'delete' })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setSuccess('Utilisateur supprimé avec succès')
+        fetchUsers()
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        setError(data.error || 'Erreur lors de la suppression')
+      }
+    } catch {
+      setError('Erreur de connexion')
+    }
+  }
+
   const getRoleBadge = (role: string) => {
     const roleConfig = ROLES.find(r => r.value === role)
     if (!roleConfig) {
@@ -678,6 +849,18 @@ export default function UserManagementInterface() {
     return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-100 text-green-700">Actif</span>
   }
 
+  const getUserCategoryBadge = (user: UserData) => {
+    const category = user.userCategory || (user.role === 'CLIENT' ? (user.companyClientId ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT') : 'PLATFORM_USER')
+
+    if (category === 'ENTERPRISE_CLIENT') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">{getUserCategoryLabel(category)}</span>
+    }
+    if (category === 'MARKETPLACE_CLIENT') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700">{getUserCategoryLabel(category)}</span>
+    }
+    return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">{getUserCategoryLabel(category)}</span>
+  }
+
   const totalPages = Math.ceil(totalUsers / usersPerPage)
 
   const emptyFormData: UserFormData = {
@@ -686,7 +869,12 @@ export default function UserManagementInterface() {
     name: '',
     phone: '',
     avatarUrl: '',
-    role: 'CLIENT'
+    role: 'CLIENT',
+    company: '',
+    address: '',
+    city: '',
+    country: 'Sénégal',
+    companyClientId: ''
   }
 
   return (
@@ -699,10 +887,10 @@ export default function UserManagementInterface() {
               <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
                 <Users className="h-7 w-7 text-white" />
               </div>
-              Gestion des Utilisateurs
+              Gestion des Comptes Utilisateurs
             </h1>
             <p className="text-gray-600 mt-2">
-              Gérez les comptes, rôles et permissions de votre équipe
+              Segmentation unifiée : clients marketplace, clients entreprise et utilisateurs plateforme
             </p>
           </div>
           
@@ -787,7 +975,7 @@ export default function UserManagementInterface() {
 
         {/* Filtres */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Recherche</label>
               <div className="relative">
@@ -812,6 +1000,19 @@ export default function UserManagementInterface() {
                 {ROLES.map(role => (
                   <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+              <select
+                value={userCategoryFilter}
+                onChange={(e) => setUserCategoryFilter(e.target.value as 'all' | UserCategory)}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+              >
+                <option value="all">Toutes</option>
+                <option value="MARKETPLACE_CLIENT">Clients marketplace</option>
+                <option value="ENTERPRISE_CLIENT">Clients entreprise</option>
+                <option value="PLATFORM_USER">Utilisateurs plateforme</option>
               </select>
             </div>
             <div>
@@ -863,7 +1064,7 @@ export default function UserManagementInterface() {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Utilisateur</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Rôle</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Rôle / Catégorie</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sécurité</th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
@@ -909,7 +1110,12 @@ export default function UserManagementInterface() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1.5">
+                          {getRoleBadge(user.role)}
+                          {getUserCategoryBadge(user)}
+                        </div>
+                      </td>
                       <td className="px-6 py-4">{getStatusBadge(user)}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -980,6 +1186,14 @@ export default function UserManagementInterface() {
                               <Lock className="h-4 w-4" />
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-2 text-gray-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer définitivement"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -1043,6 +1257,7 @@ export default function UserManagementInterface() {
       >
         <UserFormFields
           initialData={emptyFormData}
+          companyOptions={companyOptions}
           isEdit={false}
           onSubmit={handleCreateUser}
           onCancel={() => setShowCreateModal(false)}
@@ -1068,8 +1283,14 @@ export default function UserManagementInterface() {
               name: selectedUser.name,
               phone: selectedUser.phone || '',
               avatarUrl: selectedUser.avatarUrl || '',
-              role: selectedUser.role
+              role: selectedUser.role,
+              company: selectedUser.company || '',
+              address: selectedUser.address || '',
+              city: selectedUser.city || '',
+              country: selectedUser.country || 'Sénégal',
+              companyClientId: selectedUser.companyClientId ? String((selectedUser.companyClientId as any)?._id || selectedUser.companyClientId) : ''
             }}
+            companyOptions={companyOptions}
             isEdit={true}
             onSubmit={handleUpdateUser}
             onCancel={() => { setShowEditModal(false); setSelectedUser(null); }}

@@ -16,6 +16,43 @@ async function requireManagerRole(request: NextRequest) {
   }
 }
 
+const normalizeCondition = (value: any): 'new' | 'used' | 'refurbished' | undefined => {
+  if (value === null || value === undefined) return undefined
+  const v = String(value).trim().toLowerCase()
+  if (!v) return undefined
+
+  if (v === 'new' || v === 'neuf' || v === 'brandnew' || v === 'brand new') return 'new'
+  if (
+    v === 'used' ||
+    v === 'occasion' ||
+    v === 'occas' ||
+    v === '2nd main' ||
+    v === '2ndmain' ||
+    v === 'second main' ||
+    v === 'secondmain' ||
+    v === 'secondhand' ||
+    v === 'second hand' ||
+    v === '2ndhand' ||
+    v === '2nd hand' ||
+    v === 'seconde main' ||
+    v === 'seconde-main' ||
+    v === 'seconde_main'
+  ) {
+    return 'used'
+  }
+  if (
+    v === 'refurb' ||
+    v === 'refurbished' ||
+    v === 'reconditionne' ||
+    v === 'reconditionné' ||
+    v === 'reconditionné'
+  ) {
+    return 'refurbished'
+  }
+
+  return undefined
+}
+
 const parseNumber = (value: any): number | undefined => {
   if (value === null || value === undefined || value === '') return undefined
   const numeric = Number(value)
@@ -37,18 +74,48 @@ const parseStringArray = (value: unknown): string[] | undefined => {
   return undefined
 }
 
+const syncConditionTags = (
+  tags: string[],
+  condition: 'new' | 'used' | 'refurbished' | undefined
+): string[] => {
+  const removeConditionTags = new Set(['occasion', 'refurb', 'refurbished'])
+  const cleaned = (Array.isArray(tags) ? tags : [])
+    .map((t) => (typeof t === 'string' ? t.trim() : ''))
+    .filter(Boolean)
+    .filter((t) => !removeConditionTags.has(t.toLowerCase()))
+
+  const toAdd = condition === 'used' ? 'occasion' : condition === 'refurbished' ? 'refurb' : null
+
+  const merged = toAdd ? [toAdd, ...cleaned] : cleaned
+
+  // Dédoublonner (case-insensitive) en gardant la première occurrence
+  const seen = new Set<string>()
+  const deduped: string[] = []
+  for (const t of merged) {
+    const key = t.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(t)
+  }
+  return deduped
+}
+
 const buildProductPayload = (payload: any): Partial<IProduct> => {
   const {
     name,
     category,
     description,
     tagline,
+    condition,
+    tags,
     price,
+    b2bPrice,
     baseCost,
     marginRate,
     currency,
     image,
     gallery,
+    descriptionImages,
     features,
     requiresQuote,
     deliveryDays,
@@ -89,6 +156,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     category,
     description,
     tagline,
+    condition: normalizeCondition(condition),
     currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
       ? currency 
       : 'FCFA',
@@ -100,6 +168,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   }
 
   normalized.price = parseNumber(price)
+  normalized.b2bPrice = parseNumber(b2bPrice)
   normalized.baseCost = parseNumber(baseCost)
   normalized.marginRate = parseNumber(marginRate)
   normalized.deliveryDays = parseNumber(deliveryDays)
@@ -116,8 +185,19 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
 
   if (typeof image === 'string') normalized.image = image
 
+  const parsedTags = parseStringArray(tags)
+  if (parsedTags) {
+    normalized.tags = syncConditionTags(parsedTags, normalized.condition)
+  } else if (normalized.condition) {
+    // Si une condition est fournie sans tags, injecter le tag de condition
+    normalized.tags = syncConditionTags([], normalized.condition)
+  }
+
   const parsedGallery = parseStringArray(gallery)
   if (parsedGallery) normalized.gallery = parsedGallery
+
+  const parsedDescImages = parseStringArray(descriptionImages)
+  if (parsedDescImages) normalized.descriptionImages = parsedDescImages
 
   const parsedFeatures = parseStringArray(features)
   if (parsedFeatures) normalized.features = parsedFeatures
@@ -244,12 +324,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get('search') || '').trim()
     const category = (searchParams.get('category') || '').trim()
+    const condition = (searchParams.get('condition') || '').trim()
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
     const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0)
 
     const query: any = {}
     if (q) query.name = new RegExp(q, 'i')
     if (category) query.category = category
+    if (condition && (condition === 'new' || condition === 'used' || condition === 'refurbished')) {
+      query.condition = condition
+    }
 
     const [items, total] = await Promise.all([
       Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -273,10 +357,10 @@ export async function POST(request: NextRequest) {
     if (!payload.name) return NextResponse.json({ success: false, error: 'Le nom du produit est requis' }, { status: 400 })
 
     // Validation des prix - par défaut, un prix doit être défini sauf si explicitement sur devis
-    if (!payload.requiresQuote && !payload.price && !payload.baseCost && !payload.price1688) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+    if (!payload.requiresQuote && !payload.price && !payload.b2bPrice && !payload.baseCost && !payload.price1688) {
+      return NextResponse.json({
+        success: false,
+        error: 'Un prix doit être défini (prix public, prix corporate, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.'
       }, { status: 400 })
     }
 
@@ -316,16 +400,23 @@ export async function PATCH(request: NextRequest) {
     // Validation des prix - un prix doit être défini sauf si explicitement sur devis
     const finalRequiresQuote = payload.requiresQuote ?? (existing as any).requiresQuote
     const finalPrice = payload.price ?? (existing as any).price
+    const finalB2bPrice = payload.b2bPrice ?? (existing as any).b2bPrice
     const finalBaseCost = payload.baseCost ?? (existing as any).baseCost
     const finalPrice1688 = payload.price1688 ?? (existing as any).price1688
     
-    if (!finalRequiresQuote && !finalPrice && !finalBaseCost && !finalPrice1688) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Un prix doit être défini (prix public, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.' 
+    if (!finalRequiresQuote && !finalPrice && !finalB2bPrice && !finalBaseCost && !finalPrice1688) {
+      return NextResponse.json({
+        success: false,
+        error: 'Un prix doit être défini (prix public, prix corporate, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.'
       }, { status: 400 })
     }
     
+    // Synchroniser tags/condition en conservant les tags existants
+    const existingTags = Array.isArray((existing as any).tags) ? (existing as any).tags : []
+    const finalCondition = (payload as any).condition ?? (existing as any).condition
+    const incomingTags = (payload as any).tags ?? existingTags
+    ;(payload as any).tags = syncConditionTags(incomingTags, finalCondition)
+
     await Product.updateOne({ _id: id }, { $set: payload })
     const updated = await Product.findById(id).lean()
     return NextResponse.json({ success: true, item: updated })

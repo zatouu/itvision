@@ -1,0 +1,429 @@
+/**
+ * Utilitaire de calcul complet pour le panier et les commandes
+ * Intègre : poids volumétrique, réduction B2B, réduction quantité, décomposition prix
+ */
+
+import { calculateBilledWeight } from './volumetric-weight'
+import { calculateCompleteFees, getServiceFeeTier, type ServiceFeeTier } from './tiered-service-fees'
+import { applyTierDiscount, type TierPricing } from './tiered-pricing'
+import { getCNYToXOFRate, DEFAULT_EXCHANGE_RATE } from './exchange-rate'
+import { resolveProductPrice, type MarketplaceTier } from './resolve-product-price'
+
+export interface CartItem {
+  id: string
+  name: string
+  price: number // Prix avec frais inclus (pour affichage)
+  price1688?: number // Prix fournisseur en yuan
+  qty: number
+  weightKg?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  volumeM3?: number
+  b2bPrice?: number // Prix wholesale en FCFA (5+ pcs ou compte Pro)
+  // Frais spécifiques au produit
+  exchangeRate?: number
+  serviceFeeRate?: number
+  insuranceRate?: number
+  // Tier marketplace de l'acheteur (passé depuis le JWT)
+  marketplaceTier?: MarketplaceTier
+}
+
+export interface ShippingCalculation {
+  methodId: string
+  methodLabel: string
+  actualWeight: number
+  volumetricWeight: number
+  billedWeight: number
+  billingMethod: 'actual' | 'volumetric'
+  ratePerKg: number
+  cost: number
+  minimumCharge?: number
+}
+
+export interface CompleteCartCalculation {
+  // Totaux physiques
+  totalQuantity: number
+  totalItems: number
+  
+  // Frais détaillés
+  fees: {
+    supplierCost: number        // Total fournisseurs (1688 converti)
+    serviceFeeRate: number      // Taux appliqué (avec réduction B2B)
+    serviceFeeStandardRate: number // 10%
+    serviceFeeAmount: number
+    serviceFeeSavings: number   // Économie B2B
+    insuranceRate: number
+    insuranceAmount: number
+    totalFees: number
+  }
+  
+  // Sous-totaux
+  subtotalBeforeDiscounts: number  // Fournisseur + frais
+  quantityDiscount: {
+    percent: number
+    amount: number
+    tier: TierPricing | null
+  }
+  subtotal: number                  // Après réduction quantité
+  
+  // Transport
+  shipping: ShippingCalculation | null
+  
+  // Total final
+  total: number
+  
+  // Informations B2B
+  b2bTier: {
+    label: string
+    minAmount: number
+    maxAmount?: number
+    feeRate: number
+  }
+  nextTierProgress: {
+    hasNextTier: boolean
+    amountNeeded?: number
+    progressPercent: number
+  }
+  // Pricing retail/wholesale appliqué
+  appliedPricing: {
+    hasWholesaleItems: boolean
+    wholesaleItemCount: number
+    retailItemCount: number
+  }
+}
+
+/**
+ * Calcule le total complet d'un panier avec toutes les réductions
+ */
+export async function calculateCartTotal(
+  items: CartItem[],
+  shippingMethodId: string,
+  shippingRate: { rate: number; minimumCharge?: number; label: string },
+  options: {
+    insuranceRate?: number
+    serviceFeeTiers?: ServiceFeeTier[]
+  } = {}
+): Promise<CompleteCartCalculation> {
+  // 1. Récupérer le taux de change actuel
+  const exchangeRate = await getCNYToXOFRate()
+  
+  // 2. Calculer le coût fournisseur total
+  let supplierCost = 0
+  let totalQuantity = 0
+  let totalWeight = 0
+  let totalVolumetricWeight = 0
+  let totalVolume = 0
+  let wholesaleItemCount = 0
+  let retailItemCount = 0
+  
+  for (const item of items) {
+    const qty = item.qty || 1
+    totalQuantity += qty
+    
+    // Résoudre le prix applicable (retail vs wholesale)
+    const resolved = resolveProductPrice({
+      price: item.price,
+      b2bPrice: item.b2bPrice,
+      qty,
+      marketplaceTier: item.marketplaceTier
+    })
+    if (resolved.priceType === 'wholesale') {
+      wholesaleItemCount += qty
+    } else {
+      retailItemCount += qty
+    }
+    
+    // Coût fournisseur
+    if (item.price1688 && item.price1688 > 0) {
+      const itemExchangeRate = item.exchangeRate || exchangeRate
+      supplierCost += item.price1688 * itemExchangeRate * qty
+    }
+    
+    // Poids
+    if (item.weightKg) {
+      totalWeight += item.weightKg * qty
+      
+      // Calcul volumétrique si dimensions disponibles
+      if (item.lengthCm && item.widthCm && item.heightCm) {
+        const itemVolumetric = calculateBilledWeight({
+          actualWeightKg: item.weightKg,
+          lengthCm: item.lengthCm,
+          widthCm: item.widthCm,
+          heightCm: item.heightCm
+        })
+        totalVolumetricWeight += itemVolumetric.volumetricWeight * qty
+      }
+    }
+    
+    // Volume
+    if (item.volumeM3) {
+      totalVolume += item.volumeM3 * qty
+    }
+  }
+  
+  supplierCost = Math.round(supplierCost)
+
+  // Fallback critique: si aucun price1688 disponible, utiliser la somme des prix retail
+  // pour que le total de commande ne soit jamais 0 (uniquement transport)
+  let retailFallbackTotal = 0
+  const usingRetailFallback = supplierCost === 0
+  if (usingRetailFallback) {
+    for (const item of items) {
+      const qty = item.qty || 1
+      const resolved = resolveProductPrice({
+        price: item.price,
+        b2bPrice: item.b2bPrice,
+        qty,
+        marketplaceTier: item.marketplaceTier
+      })
+      retailFallbackTotal += resolved.appliedPrice * qty
+    }
+    retailFallbackTotal = Math.round(retailFallbackTotal)
+  }
+  
+  // 3. Déterminer le palier B2B et calculer les frais
+  const effectiveBase = usingRetailFallback ? retailFallbackTotal : supplierCost
+  const b2bTier = getServiceFeeTier(effectiveBase, options.serviceFeeTiers)
+  const standardServiceFeeRate = options.serviceFeeTiers?.[0]?.feeRate ?? 10
+  const insuranceRate = options.insuranceRate ?? 2.5
+  
+  const feesBreakdown = usingRetailFallback
+    ? {
+        finalPrice: retailFallbackTotal,
+        serviceFee: { rate: 0, amount: 0, savingsVsStandard: 0 },
+        insuranceFee: { rate: 0, amount: 0 },
+        totalFees: 0
+      }
+    : calculateCompleteFees(supplierCost, supplierCost, {
+        insuranceRate,
+        serviceFeeTiers: options.serviceFeeTiers
+      })
+  
+  // 4. Calculer le sous-total avant réduction quantité
+  const subtotalBeforeDiscounts = feesBreakdown.finalPrice
+  
+  // 5. Appliquer la réduction par quantité
+  const quantityTier = applyTierDiscount(subtotalBeforeDiscounts, totalQuantity)
+  
+  // 6. Calculer le transport avec poids volumétrique
+  let shipping: ShippingCalculation | null = null
+  
+  if (shippingMethodId === 'sea_freight') {
+    // Maritime: par volume
+    if (totalVolume > 0) {
+      const cost = Math.max(
+        totalVolume * shippingRate.rate,
+        shippingRate.minimumCharge || 0
+      )
+      shipping = {
+        methodId: shippingMethodId,
+        methodLabel: shippingRate.label,
+        actualWeight: totalWeight,
+        volumetricWeight: 0,
+        billedWeight: 0,
+        billingMethod: 'actual',
+        ratePerKg: shippingRate.rate,
+        cost: Math.round(cost),
+        minimumCharge: shippingRate.minimumCharge
+      }
+    }
+  } else {
+    // Aérien: prendre le max entre poids réel et volumétrique
+    // Recalculer le vrai poids facturable (max réel vs volumétrique)
+    const billedWeight = Math.max(totalWeight, totalVolumetricWeight) || 0.1
+    
+    const baseCost = billedWeight * shippingRate.rate
+    const cost = Math.max(baseCost, shippingRate.minimumCharge || 0)
+    
+    shipping = {
+      methodId: shippingMethodId,
+      methodLabel: shippingRate.label,
+      actualWeight: totalWeight,
+      volumetricWeight: totalVolumetricWeight,
+      billedWeight,
+      billingMethod: totalVolumetricWeight > totalWeight ? 'volumetric' : 'actual',
+      ratePerKg: shippingRate.rate,
+      cost: Math.round(cost),
+      minimumCharge: shippingRate.minimumCharge
+    }
+  }
+  
+  // 7. Total final
+  const subtotal = quantityTier.finalPrice
+  const total = subtotal + (shipping?.cost || 0)
+  
+  return {
+    totalQuantity,
+    totalItems: items.length,
+    fees: {
+      supplierCost: usingRetailFallback ? retailFallbackTotal : supplierCost,
+      serviceFeeRate: feesBreakdown.serviceFee.rate,
+      serviceFeeStandardRate: standardServiceFeeRate,
+      serviceFeeAmount: feesBreakdown.serviceFee.amount,
+      serviceFeeSavings: feesBreakdown.serviceFee.savingsVsStandard,
+      insuranceRate: feesBreakdown.insuranceFee.rate,
+      insuranceAmount: feesBreakdown.insuranceFee.amount,
+      totalFees: feesBreakdown.totalFees
+    },
+    subtotalBeforeDiscounts,
+    quantityDiscount: {
+      percent: quantityTier.discountPercent,
+      amount: quantityTier.discountAmount,
+      tier: quantityTier.tier
+    },
+    subtotal,
+    shipping,
+    total,
+    b2bTier: {
+      label: b2bTier.label,
+      minAmount: b2bTier.minAmount,
+      maxAmount: b2bTier.maxAmount,
+      feeRate: b2bTier.feeRate
+    },
+    nextTierProgress: {
+      hasNextTier: false, // Sera calculé côté client avec ServiceFeeTierProgress
+      progressPercent: 0
+    },
+    appliedPricing: {
+      hasWholesaleItems: wholesaleItemCount > 0,
+      wholesaleItemCount,
+      retailItemCount
+    }
+  }
+}
+
+/**
+ * Version synchrone pour calcul rapide côté client (sans API call)
+ * Utilise le taux de change par défaut
+ */
+export function calculateCartTotalSync(
+  items: CartItem[],
+  shippingMethodId: string,
+  shippingRate: { rate: number; minimumCharge?: number; label: string },
+  options: {
+    insuranceRate?: number
+    exchangeRate?: number // Taux fixe pour calcul synchrone
+    serviceFeeTiers?: ServiceFeeTier[]
+  } = {}
+): CompleteCartCalculation {
+  const exchangeRate = options.exchangeRate || DEFAULT_EXCHANGE_RATE
+  const standardServiceFeeRate = options.serviceFeeTiers?.[0]?.feeRate ?? 10
+  
+  // Simuler un appel async synchrone
+  const syncResult: CompleteCartCalculation = {
+    totalQuantity: 0,
+    totalItems: items.length,
+    fees: {
+      supplierCost: 0,
+      serviceFeeRate: standardServiceFeeRate,
+      serviceFeeStandardRate: standardServiceFeeRate,
+      serviceFeeAmount: 0,
+      serviceFeeSavings: 0,
+      insuranceRate: options.insuranceRate ?? 2.5,
+      insuranceAmount: 0,
+      totalFees: 0
+    },
+    subtotalBeforeDiscounts: 0,
+    quantityDiscount: {
+      percent: 0,
+      amount: 0,
+      tier: null
+    },
+    subtotal: 0,
+    shipping: null,
+    total: 0,
+    b2bTier: {
+      label: 'Standard',
+      minAmount: 0,
+      feeRate: standardServiceFeeRate
+    },
+    nextTierProgress: {
+      hasNextTier: false,
+      progressPercent: 0
+    },
+    appliedPricing: {
+      hasWholesaleItems: false,
+      wholesaleItemCount: 0,
+      retailItemCount: 0
+    }
+  }
+  
+  // Calcul simplifié pour le client
+  let supplierCost = 0
+  let totalQuantity = 0
+  let totalWeight = 0
+  
+  for (const item of items) {
+    const qty = item.qty || 1
+    totalQuantity += qty
+    
+    if (item.price1688 && item.price1688 > 0) {
+      supplierCost += item.price1688 * exchangeRate * qty
+    }
+    
+    if (item.weightKg) {
+      totalWeight += item.weightKg * qty
+    }
+  }
+  
+  supplierCost = Math.round(supplierCost)
+  
+  // Frais
+  const serviceFeeTier = getServiceFeeTier(supplierCost, options.serviceFeeTiers)
+  const serviceFeeRate = serviceFeeTier.feeRate
+  const insuranceRate = options.insuranceRate ?? 2.5
+  const serviceFeeAmount = Math.round(supplierCost * (serviceFeeRate / 100))
+  const insuranceAmount = Math.round(supplierCost * (insuranceRate / 100))
+  
+  syncResult.totalQuantity = totalQuantity
+  syncResult.fees = {
+    supplierCost,
+    serviceFeeRate,
+    serviceFeeStandardRate: standardServiceFeeRate,
+    serviceFeeAmount,
+    serviceFeeSavings: Math.max(0, Math.round(supplierCost * ((standardServiceFeeRate - serviceFeeRate) / 100))),
+    insuranceRate,
+    insuranceAmount,
+    totalFees: serviceFeeAmount + insuranceAmount
+  }
+
+  syncResult.b2bTier = {
+    label: serviceFeeTier.label,
+    minAmount: serviceFeeTier.minAmount,
+    maxAmount: serviceFeeTier.maxAmount,
+    feeRate: serviceFeeTier.feeRate
+  }
+  
+  // Réduction quantité
+  const quantityTier = applyTierDiscount(supplierCost + serviceFeeAmount + insuranceAmount, totalQuantity)
+  syncResult.quantityDiscount = {
+    percent: quantityTier.discountPercent,
+    amount: quantityTier.discountAmount,
+    tier: quantityTier.tier
+  }
+  
+  syncResult.subtotalBeforeDiscounts = supplierCost + serviceFeeAmount + insuranceAmount
+  syncResult.subtotal = quantityTier.finalPrice
+  
+  // Transport simple
+  const billedWeight = Math.max(totalWeight, 0.1)
+  const baseCost = billedWeight * shippingRate.rate
+  const shippingCost = Math.round(Math.max(baseCost, shippingRate.minimumCharge || 0))
+  
+  syncResult.shipping = {
+    methodId: shippingMethodId,
+    methodLabel: shippingRate.label,
+    actualWeight: totalWeight,
+    volumetricWeight: 0,
+    billedWeight,
+    billingMethod: 'actual',
+    ratePerKg: shippingRate.rate,
+    cost: shippingCost,
+    minimumCharge: shippingRate.minimumCharge
+  }
+  
+  syncResult.total = syncResult.subtotal + shippingCost
+  
+  return syncResult
+}

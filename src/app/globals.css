@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Dark mode via class (.dark) pour le toggle */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Base theme variables */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
 /* Animations digitales */
 @keyframes fade-in {
   from {
@@ -56,13 +75,27 @@
   display: none;
 }
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary-emerald: #10B981;
-  --primary-purple: #8B5CF6;
-  --accent-cyan: #06B6D4;
-  --header-height: 120px; /* Hauteur réduite du header */
+/* Scrollbar fine pour sidebar produit */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
 }
 
 @theme inline {
@@ -72,15 +105,30 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Mode sombre désactivé - site toujours en mode clair */
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-} */
+.dark {
+  --background: #0b0f14;
+  --foreground: #e5e7eb;
+  --primary-emerald: #34d399;
+  --primary-purple: #a78bfa;
+  --accent-cyan: #22d3ee;
+  --bg-white: #0f172a;
+  --bg-gray-50: #0b1220;
+  --bg-gray-100: #111827;
+  --text-gray-900: #f9fafb;
+  --text-gray-700: #d1d5db;
+  --text-black: #f9fafb;
+  color-scheme: dark;
+}
 
-/* Règles de lisibilité désactivées - mode clair uniquement */
+/* Classes that use the theme-aware CSS variables - wrapped in @layer to prevent Tailwind from stripping them */
+@layer components {
+  .bg-white { background-color: var(--bg-white, #ffffff) !important; }
+  .bg-gray-50 { background-color: var(--bg-gray-50, #f9fafb) !important; }
+  .bg-gray-100 { background-color: var(--bg-gray-100, #f3f4f6) !important; }
+  .text-gray-900 { color: var(--text-gray-900, #111827) !important; }
+  .text-gray-700 { color: var(--text-gray-700, #374151) !important; }
+  .text-black { color: var(--text-black, #000000) !important; }
+}
 
 body {
   background: var(--background);
@@ -96,7 +144,7 @@ body {
 
 /* Section Hero avec padding top réduit */
 .hero-section {
-  padding-top: calc(var(--header-height) + 2rem);
+  padding-top: calc(var(--header-height) + 3rem);
 }
 
 /* Animations personnalisées */
@@ -397,6 +445,27 @@ textarea {
 input[type="checkbox"] {
   color: initial !important;
   background-color: initial !important;
+}
+
+/* Input quantité variant (sidebar produit) — override global !important */
+input.variant-qty-input {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+input.variant-qty-input::-webkit-outer-spin-button,
+input.variant-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input.variant-qty-input:focus {
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
 }
 
 /* Animation de défilement pour les logos partenaires */

@@ -2,8 +2,12 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ main, cursor/* ]
+    branches: [ main, cursor/*, deploy/* ]
   workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -12,6 +16,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: read
       packages: write
@@ -114,19 +119,20 @@ jobs:
             cd $APP_DIR
 
             # Construire .env.ec2 à partir des secrets GitHub
-            cat > .env.ec2 << 'EOF'
-            MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
-            MONGO_APP_PASSWORD=${{ secrets.MONGO_APP_PASSWORD }}
-            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
-            IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}
-            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-            TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}
-            # Lien Mongo pour l'app (utilisateur applicatif)
-            MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db
-            EOF
+            echo "MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}" > .env.ec2
+            echo "MONGO_APP_PASSWORD=${{ secrets.MONGO_APP_PASSWORD }}" >> .env.ec2
+            echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env.ec2
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.ec2
+            echo "NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}" >> .env.ec2
+            echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> .env.ec2
+            echo "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" >> .env.ec2
+            echo "MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db" >> .env.ec2
+            echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env.ec2
+            echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env.ec2
+            echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env.ec2
+            echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env.ec2
+            echo "SMTP_FROM=${{ secrets.SMTP_FROM }}" >> .env.ec2
+            echo "SMTP_SECURE=${{ secrets.SMTP_SECURE }}" >> .env.ec2
 
             # Login au registre GHCR (méthode sécurisée avec stdin)
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} --password-stdin

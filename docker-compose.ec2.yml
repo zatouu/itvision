@@ -27,6 +27,7 @@ services:
     image: ${IMAGE}
     container_name: itvision-app
     restart: unless-stopped
+    shm_size: '512mb'
     environment:
       NODE_ENV: production
       MONGODB_URI: ${MONGODB_URI}
@@ -35,6 +36,13 @@ services:
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-${NEXT_PUBLIC_SITE_URL}}
       UPLOAD_DIR: /app/public/uploads
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_SECURE: ${SMTP_SECURE}
     volumes:
       - uploads_data:/app/public/uploads
       - app_logs:/app/logs
@@ -48,7 +56,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    # Limite l'exposition au réseau public; Nginx sur la VM proxy passera vers 127.0.0.1:3000
     ports:
       - "127.0.0.1:3000:3000"
 

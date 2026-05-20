@@ -4,7 +4,10 @@ export interface IProject extends Document {
   name: string
   description?: string
   address: string
+  projectId?: string
   clientId: mongoose.Types.ObjectId
+  // Optionnel: rattacher un projet à une entreprise (Client) pour visibilité multi-utilisateurs
+  clientCompanyId?: mongoose.Types.ObjectId
   status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold'
   startDate: Date
   endDate?: Date | null
@@ -126,7 +129,9 @@ const ProjectSchema = new Schema<IProject>({
   name: { type: String, required: true },
   description: { type: String },
   address: { type: String, required: true },
+  projectId: { type: String, index: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'], default: 'lead', index: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date },
@@ -134,23 +139,29 @@ const ProjectSchema = new Schema<IProject>({
   progress: { type: Number, default: 0 },
   serviceType: { type: String, default: '' },
   clientSnapshot: {
-    company: String,
-    contact: String,
-    phone: String,
-    email: String
+    type: {
+      company: String,
+      contact: String,
+      phone: String,
+      email: String
+    },
+    default: () => ({ company: '', contact: '', phone: '', email: '' })
   },
   site: {
-    name: String,
-    address: String,
-    access: String,
-    constraints: [String],
-    contacts: [{
+    type: {
       name: String,
-      role: String,
-      phone: String,
-      email: String,
-      availability: String
-    }]
+      address: String,
+      access: String,
+      constraints: [String],
+      contacts: [{
+        name: String,
+        role: String,
+        phone: String,
+        email: String,
+        availability: String
+      }]
+    },
+    default: () => ({ name: '', address: '', access: '', constraints: [], contacts: [] })
   },
   assignedTo: [String],
   value: { type: Number, default: 0 },
@@ -242,5 +253,6 @@ const ProjectSchema = new Schema<IProject>({
 }, { timestamps: true })
 
 ProjectSchema.index({ clientId: 1, createdAt: -1 })
+ProjectSchema.index({ clientCompanyId: 1, createdAt: -1 })
 
 export default mongoose.models.Project || mongoose.model<IProject>('Project', ProjectSchema)

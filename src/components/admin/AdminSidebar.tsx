@@ -22,7 +22,18 @@ import {
   ChevronLeft,
   Menu,
   ShoppingCart,
-  UsersRound
+  UsersRound,
+  Receipt,
+  ClipboardCheck,
+  Calendar,
+  FolderKanban,
+  Shield,
+  Download,
+  Tags,
+  ListChecks,
+  Wallet,
+  TrendingDown,
+  Banknote
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -63,20 +74,93 @@ const menuItems: MenuItem[] = [
         label: 'Paiements',
         icon: CreditCard,
         href: '/admin/paiements'
+      },
+      {
+        id: 'migration',
+        label: 'Paramètres / Migration',
+        icon: Settings,
+        href: '/admin/migration'
       }
     ]
   },
   {
-    id: 'devis',
-    label: 'Devis',
-    icon: FileText,
-    href: '/admin/devis'
+    id: 'finance',
+    label: 'Finance',
+    icon: Wallet,
+    children: [
+      {
+        id: 'tresorerie',
+        label: 'Trésorerie 360°',
+        icon: Wallet,
+        href: '/admin/tresorerie'
+      },
+      {
+        id: 'devis',
+        label: 'Devis',
+        icon: FileText,
+        href: '/admin/devis'
+      },
+      {
+        id: 'factures',
+        label: 'Factures',
+        icon: Receipt,
+        href: '/admin/factures'
+      },
+      {
+        id: 'depenses',
+        label: 'Dépenses',
+        icon: TrendingDown,
+        href: '/admin/depenses'
+      },
+      {
+        id: 'comptabilite',
+        label: 'Comptabilité',
+        icon: Calculator,
+        href: '/admin/comptabilite'
+      },
+      {
+        id: 'paiements-finance',
+        label: 'Paiements',
+        icon: Banknote,
+        href: '/admin/paiements'
+      }
+    ]
+  },
+  {
+    id: 'projets',
+    label: 'Projets',
+    icon: FolderKanban,
+    href: '/admin/projects'
+  },
+  {
+    id: 'planning',
+    label: 'Planning',
+    icon: Calendar,
+    href: '/admin/planning'
   },
   {
     id: 'clients',
     label: 'Clients',
     icon: Building2,
     href: '/admin/clients'
+  },
+  {
+    id: 'clients-marketplace',
+    label: 'Clients marketplace',
+    icon: Users,
+    href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
+  },
+  {
+    id: 'clients-entreprise-comptes',
+    label: 'Clients entreprise (comptes)',
+    icon: UsersRound,
+    href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
+  },
+  {
+    id: 'utilisateurs-plateforme',
+    label: 'Utilisateurs plateforme',
+    icon: Shield,
+    href: '/admin/users?userCategory=PLATFORM_USER'
   },
   {
     id: 'commandes',
@@ -91,10 +175,35 @@ const menuItems: MenuItem[] = [
     href: '/admin/achats-groupes'
   },
   {
+    id: 'achats-chine',
+    label: 'Achats Chine',
+    icon: Package,
+    href: '/admin/achats-chine'
+  },
+  {
     id: 'produits',
     label: 'Produits',
     icon: Package,
-    href: '/admin/produits'
+    children: [
+      {
+        id: 'produits-liste',
+        label: 'Liste produits',
+        icon: ListChecks,
+        href: '/admin/produits'
+      },
+      {
+        id: 'produits-prix',
+        label: 'Gestion des prix',
+        icon: Tags,
+        href: '/admin/prices'
+      },
+      {
+        id: 'produits-b2b-pricing',
+        label: 'Pricing B2B en masse',
+        icon: Tags,
+        href: '/admin/produits/b2b-pricing'
+      }
+    ]
   },
   {
     id: 'technicians',
@@ -106,19 +215,45 @@ const menuItems: MenuItem[] = [
     id: 'maintenance',
     label: 'Maintenance',
     icon: Wrench,
-    href: '/admin/maintenance'
+    children: [
+      {
+        id: 'maintenance-contrats',
+        label: 'Contrats',
+        icon: Wrench,
+        href: '/admin/maintenance'
+      },
+      {
+        id: 'maintenance-rapports',
+        label: 'Rapports d\'intervention',
+        icon: ClipboardCheck,
+        href: '/admin/rapports'
+      }
+    ]
   },
   {
     id: 'marketplace',
     label: 'Marketplace',
     icon: Briefcase,
-    href: '/admin/marketplace'
+    children: [
+      {
+        id: 'marketplace-dashboard',
+        label: 'Dashboard Marketplace',
+        icon: Briefcase,
+        href: '/admin/marketplace'
+      },
+      {
+        id: 'marketplace-comptes-pro',
+        label: 'Comptes Pro',
+        icon: UsersRound,
+        href: '/admin/marketplace/comptes-pro'
+      }
+    ]
   },
   {
-    id: 'comptabilite',
-    label: 'Comptabilité',
-    icon: Calculator,
-    href: '/admin/comptabilite'
+    id: 'garanties',
+    label: 'Garanties',
+    icon: Shield,
+    href: '/admin/garanties'
   },
   {
     id: 'tickets',
@@ -130,6 +265,7 @@ const menuItems: MenuItem[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const [search, setSearch] = useState('')
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -140,6 +276,12 @@ export default function AdminSidebar() {
       setIsCollapsed(saved === 'true')
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearch(window.location.search)
+    }
+  }, [pathname])
 
   // Sauvegarder l'état de collapse
   const toggleCollapse = () => {
@@ -158,10 +300,20 @@ export default function AdminSidebar() {
 
   const isActive = (href?: string) => {
     if (!href) return false
-    if (href === '/admin') {
+    const [targetPath, targetQuery = ''] = href.split('?')
+
+    if (targetPath === '/admin') {
       return pathname === '/admin'
     }
-    return pathname.startsWith(href)
+
+    let active = pathname.startsWith(targetPath)
+    if (!active) return false
+
+    if (!targetQuery) return true
+
+    const expectedParams = new URLSearchParams(targetQuery)
+    const currentParams = new URLSearchParams(search)
+    return Array.from(expectedParams.entries()).every(([key, value]) => currentParams.get(key) === value)
   }
 
   const hasActiveChild = (item: MenuItem): boolean => {
@@ -185,7 +337,7 @@ export default function AdminSidebar() {
             title={isCollapsed ? item.label : undefined}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
-                ? 'bg-emerald-50 text-emerald-700'
+                ? 'bg-green-50 text-green-700'
                 : 'text-gray-700 hover:bg-gray-50'
             } ${isCollapsed ? 'justify-center' : ''}`}
           >
@@ -217,7 +369,7 @@ export default function AdminSidebar() {
         title={isCollapsed ? item.label : undefined}
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
-            ? 'bg-emerald-50 text-emerald-700 font-medium'
+            ? 'bg-green-50 text-green-700 font-medium'
             : 'text-gray-700 hover:bg-gray-50'
         }`}
         style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
@@ -237,7 +389,7 @@ export default function AdminSidebar() {
         {!isCollapsed ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
               </div>
               <div>

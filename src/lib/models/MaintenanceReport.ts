@@ -66,6 +66,7 @@ export interface IMaintenanceReportNextAction {
 
 export interface IMaintenanceReport extends Document {
   reportId: string
+  interventionId?: mongoose.Types.ObjectId
   technicianId: mongoose.Types.ObjectId
   clientId: mongoose.Types.ObjectId
   projectId: mongoose.Types.ObjectId
@@ -197,6 +198,7 @@ export interface IMaintenanceReport extends Document {
 
 const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
   reportId: { type: String, required: true, unique: true },
+  interventionId: { type: Schema.Types.ObjectId, ref: 'Intervention', index: true },
   technicianId: { type: Schema.Types.ObjectId, ref: 'Technician', required: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
@@ -443,6 +445,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
 
 // Index pour les recherches fréquentes
 MaintenanceReportSchema.index({ status: 1, interventionDate: -1 })
+MaintenanceReportSchema.index({ interventionId: 1 })
 MaintenanceReportSchema.index({ technicianId: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ clientId: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ projectId: 1 })

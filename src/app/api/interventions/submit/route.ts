@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       photosApres: formatPhotos(photosApres || []),
       signatures: signatures || undefined,
       gpsLocation: gpsLocation ? { ...gpsLocation, timestamp: new Date() } : undefined,
-      status: status || 'soumis',
+      status: status || 'pending',
       priority: priority || 'medium',
       title: `Intervention ${typeIntervention}`,
       service: typeIntervention
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     let generatedQuote = null
     const hasRecommendations = recommandations && Array.isArray(recommandations) && recommandations.length > 0
     
-    if (hasRecommendations && status === 'soumis') {
+    if (hasRecommendations && status === 'pending') {
       try {
         // Récupérer les informations des produits recommandés
         const productPromises = recommandations.map(async (rec: any) => {

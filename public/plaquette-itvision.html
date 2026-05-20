@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT Vision Plus - Plaquette Commerciale</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #334155; line-height: 1.6; }
+.page { width: 210mm; min-height: 297mm; margin: 20px auto; background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.08); position: relative; overflow: hidden; }
+.page-break { page-break-after: always; }
+
+/* Page 1: Cover */
+.cover { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 50%, #6366f1 100%); color: white; padding: 70px 60px; min-height: 297mm; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+.cover::before { content: ''; position: absolute; top: -80px; right: -80px; width: 350px; height: 350px; background: radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%); border-radius: 50%; }
+.cover::after { content: ''; position: absolute; bottom: -120px; left: -120px; width: 450px; height: 450px; background: radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 70%); border-radius: 50%; }
+.logo { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; z-index: 1; position: relative; }
+.logo-icon { width: 60px; height: 60px; background: linear-gradient(135deg, #7c3aed, #22c55e); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.5em; box-shadow: 0 4px 15px rgba(124,58,237,0.3); }
+.logo-text { font-size: 1.8em; font-weight: 800; }
+.logo-text span { color: #22c55e; }
+.cover-content { z-index: 1; position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.cover h1 { font-size: 3.5em; font-weight: 900; line-height: 1.1; margin-bottom: 20px; letter-spacing: -0.02em; }
+.cover h1 .highlight { background: linear-gradient(135deg, #22c55e, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.cover .tagline { font-size: 1.2em; color: #cbd5e1; font-weight: 300; margin-bottom: 40px; line-height: 1.7; }
+.cover .services-list { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 30px; }
+.cover .service-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 15px 20px; backdrop-filter: blur(10px); font-size: 0.95em; transition: all 0.3s; }
+.cover .service-item:hover { background: rgba(255,255,255,0.1); border-color: rgba(34,197,94,0.4); }
+.cover .service-item::before { content: '✓'; color: #22c55e; margin-right: 10px; font-weight: 700; }
+.cover-footer { z-index: 1; position: relative; display: flex; justify-content: space-between; align-items: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9em; color: #94a3b8; }
+.cover-footer .contact-item { display: flex; align-items: center; gap: 8px; }
+.cover-footer .icon { color: #22c55e; }
+
+/* Page 2: Expertise */
+.expertise { padding: 70px 60px; background: white; }
+.section-tag { font-size: 0.85em; font-weight: 600; color: #22c55e; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 15px; }
+.section-title { font-size: 2.5em; font-weight: 800; color: #1e293b; margin-bottom: 20px; line-height: 1.2; }
+.section-title .highlight { background: linear-gradient(135deg, #22c55e, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.section-desc { font-size: 1.05em; color: #64748b; line-height: 1.8; margin-bottom: 40px; max-width: 850px; }
+.values-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+.value-card { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; transition: all 0.3s; }
+.value-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); border-color: #22c55e; }
+.value-card h3 { font-size: 1.3em; color: #1e293b; margin-bottom: 12px; font-weight: 700; }
+.value-card p { color: #64748b; font-size: 0.95em; line-height: 1.6; }
+.value-card .icon { font-size: 2.5em; margin-bottom: 15px; display: block; }
+.objectives-box { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); color: white; border-radius: 16px; padding: 40px; margin-top: 40px; box-shadow: 0 4px 20px rgba(91,33,182,0.15); }
+.objectives-box h3 { font-size: 1.8em; margin-bottom: 25px; font-weight: 700; }
+.objectives-list { list-style: none; }
+.objectives-list li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 15px; font-size: 0.95em; }
+.objectives-list li:last-child { border: none; }
+.objectives-list .check { color: #22c55e; font-size: 1.2em; }
+
+/* Page 3: Services Grid */
+.services-page { padding: 70px 60px; background: white; }
+.services-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 25px; margin-top: 30px; }
+.service-card { background: white; border: 2px solid #e2e8f0; border-radius: 16px; padding: 30px 25px; text-align: center; transition: all 0.3s; position: relative; overflow: hidden; }
+.service-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #22c55e, #a78bfa); transform: scaleX(0); transition: transform 0.3s; }
+.service-card:hover { border-color: #22c55e; transform: translateY(-4px); box-shadow: 0 8px 30px rgba(34,197,94,0.15); }
+.service-card:hover::before { transform: scaleX(1); }
+.service-card .icon { font-size: 3em; margin-bottom: 15px; display: block; }
+.service-card h3 { font-size: 1.15em; color: #1e293b; margin-bottom: 10px; font-weight: 700; }
+.service-card p { color: #64748b; font-size: 0.85em; line-height: 1.5; }
+.service-card.featured { background: linear-gradient(135deg, rgba(34,197,94,0.05), rgba(167,139,250,0.05)); border-color: #22c55e; }
+
+/* Page 4: Expertise Technique */
+.tech-page { padding: 70px 60px; background: #f8fafc; }
+.tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
+.tech-card { background: white; border-radius: 16px; padding: 35px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.tech-card .img-placeholder { width: 100%; height: 180px; background: linear-gradient(135deg, #e2e8f0, #cbd5e1); border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; font-size: 3em; overflow: hidden; }
+.tech-card .img-placeholder img { width: 100%; height: 100%; object-fit: cover; }
+.tech-card h3 { font-size: 1.4em; color: #1e293b; margin-bottom: 15px; font-weight: 700; }
+.tech-card ul { list-style: none; margin-top: 15px; }
+.tech-card ul li { padding: 8px 0; color: #64748b; font-size: 0.9em; display: flex; align-items: center; gap: 10px; }
+.tech-card ul li::before { content: '→'; color: #22c55e; font-weight: 700; }
+.tech-features { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+.tech-badge { background: rgba(34,197,94,0.1); color: #15803d; padding: 6px 14px; border-radius: 20px; font-size: 0.75em; font-weight: 600; border: 1px solid rgba(34,197,94,0.2); }
+
+/* Page 5: Contact */
+.contact-page { padding: 70px 60px; background: linear-gradient(135deg, #f8fafc 0%, white 100%); min-height: 297mm; display: flex; flex-direction: column; }
+.contact-split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 30px; flex: 1; }
+.contact-left { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); color: white; border-radius: 20px; padding: 50px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 20px rgba(91,33,182,0.15); }
+.contact-left h3 { font-size: 1.8em; margin-bottom: 30px; font-weight: 700; }
+.contact-info { margin-bottom: 30px; }
+.contact-item { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; }
+.contact-item .icon { color: #22c55e; font-size: 1.3em; width: 30px; flex-shrink: 0; }
+.contact-item .text { font-size: 0.95em; line-height: 1.6; }
+.contact-item .text strong { display: block; font-weight: 600; margin-bottom: 3px; }
+.social-links { display: flex; gap: 15px; margin-top: 30px; }
+.social-links a { width: 45px; height: 45px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; text-decoration: none; font-size: 1.2em; transition: all 0.3s; }
+.social-links a:hover { background: #22c55e; transform: scale(1.1); }
+.contact-right { display: flex; flex-direction: column; gap: 20px; }
+.cta-box { background: white; border: 2px solid #e2e8f0; border-radius: 16px; padding: 35px; text-align: center; }
+.cta-box h4 { font-size: 1.4em; color: #1e293b; margin-bottom: 15px; font-weight: 700; }
+.cta-box p { color: #64748b; font-size: 0.9em; margin-bottom: 20px; }
+.cta-btn { display: inline-block; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 14px 30px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.95em; transition: all 0.3s; }
+.cta-btn:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(34,197,94,0.3); }
+.cta-box.secondary { background: linear-gradient(135deg, rgba(34,197,94,0.05), rgba(167,139,250,0.05)); border-color: #22c55e; }
+.guarantee { font-size: 0.8em; color: #64748b; text-align: center; margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; }
+
+@media print {
+  .page { margin: 0; box-shadow: none; }
+  .page-break { page-break-after: always; }
+}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER -->
+<div class="page page-break">
+  <div class="cover">
+    <div class="logo">
+      <img src="images/logo-it-vision.png" alt="IT Vision Plus" style="height:70px;width:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.15))">
+    </div>
+    
+    <div class="cover-content">
+      <h1>
+        <span class="highlight">SÉCURITÉ ET SÛRETÉ</span><br>
+        À PORTÉE DE MAIN
+      </h1>
+      <p class="tagline">
+        Votre solution de sécurité électronique,<br>
+        IoT et domotique pour vous aider à<br>
+        sécuriser vos biens pour des années.
+      </p>
+      
+      <div class="services-list">
+        <div class="service-item">Vidéosurveillance</div>
+        <div class="service-item">Contrôle d'accès</div>
+        <div class="service-item">Domotique & IoT</div>
+        <div class="service-item">Chatbot & IA</div>
+        <div class="service-item">Sécurité incendie</div>
+        <div class="service-item">Câblage & Fibre</div>
+        <div class="service-item">Alarmes</div>
+        <div class="service-item">Maintenance 24/7</div>
+      </div>
+    </div>
+    
+    <div class="cover-footer">
+      <div class="contact-item">
+        <span class="icon">📍</span>
+        <span>11 Cité Lonase, Nord Foire, Dakar</span>
+      </div>
+      <div class="contact-item">
+        <span class="icon">📞</span>
+        <span>+221 77 413 34 40</span>
+      </div>
+      <div class="contact-item">
+        <span class="icon">🌐</span>
+        <span>www.itvisionplus.sn</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: EXPERTISE -->
+<div class="page page-break">
+  <div class="expertise">
+    <p class="section-tag">🎯 EXPERTISE DE POINTE</p>
+    <h2 class="section-title">
+      L'Expertise <span class="highlight">Sécurité</span><br>
+      Au Sénégal
+    </h2>
+    <p class="section-desc">
+      Depuis 2019, IT Vision Plus offre une gamme complète de solutions de sécurité électronique dans l'intégralité du Sénégal. Nous concevons, fabriquons et maintenons des solutions de sécurité électronique, de domotique pour les particuliers, les entreprises et les professionnels de la sécurité.
+    </p>
+    
+    <div class="values-grid">
+      <div class="value-card">
+        <span class="icon">🎯</span>
+        <h3>Notre Mission</h3>
+        <p>Protéger vos biens et vos proches avec des solutions de sécurité électronique innovantes, fiables et accessibles à tous.</p>
+      </div>
+      <div class="value-card">
+        <span class="icon">🔬</span>
+        <h3>Innovation Continue</h3>
+        <p>Veille technologique permanente pour vous proposer les solutions les plus avancées du marché (IA, IoT, protocoles mesh).</p>
+      </div>
+      <div class="value-card">
+        <span class="icon">🤝</span>
+        <h3>Proximité Client</h3>
+        <p>Équipe technique locale disponible 24/7, support en français et wolof, interventions rapides partout au Sénégal.</p>
+      </div>
+      <div class="value-card">
+        <span class="icon">⚡</span>
+        <h3>Excellence Opérationnelle</h3>
+        <p>Installations conformes aux normes internationales, maintenance préventive, garantie 2 ans pièces et main d'œuvre.</p>
+      </div>
+    </div>
+    
+    <div class="objectives-box">
+      <h3>💼 Nos Valeurs</h3>
+      <ul class="objectives-list">
+        <li><span class="check">✓</span> <strong>Transparence totale</strong> — Devis détaillés et explications claires</li>
+        <li><span class="check">✓</span> <strong>Qualité sans compromis</strong> — Équipements professionnels certifiés</li>
+        <li><span class="check">✓</span> <strong>Engagement durable</strong> — Maintenance et support long terme</li>
+        <li><span class="check">✓</span> <strong>Innovation accessible</strong> — Technologies avancées pour tous budgets</li>
+        <li><span class="check">✓</span> <strong>Réactivité garantie</strong> — Interventions sous 24h en cas d'urgence</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: SERVICES -->
+<div class="page page-break">
+  <div class="services-page">
+    <p class="section-tag">🚀 NOS SOLUTIONS COMPLÈTES</p>
+    <h2 class="section-title">
+      Une Offre <span class="highlight">Globale</span> de Sécurité
+    </h2>
+    <p class="section-desc">
+      Solutions intégrées pour protéger vos biens, automatiser vos espaces et digitaliser vos processus.
+    </p>
+    
+    <div class="services-grid">
+      <div class="service-card">
+        <span class="icon">📹</span>
+        <h3>Vidéosurveillance</h3>
+        <p>Caméras IP 4K/8MP, NVR POE, détection IA, vision nocturne couleur, accès distant smartphone</p>
+      </div>
+      
+      <div class="service-card">
+        <span class="icon">🔐</span>
+        <h3>Contrôle d'Accès</h3>
+        <p>Badges RFID, biométrie, reconnaissance faciale, serrures connectées, historique temps réel</p>
+      </div>
+      
+      <div class="service-card featured">
+        <span class="icon">🏠</span>
+        <h3>Domotique & IoT</h3>
+        <p>Protocoles mesh ZigBee/Z-Wave, éclairage smart, climatisation, volets, multi-room audio</p>
+      </div>
+      
+      <div class="service-card featured">
+        <span class="icon">🤖</span>
+        <h3>Chatbot & IA</h3>
+        <p>Assistants virtuels WhatsApp, réponses automatiques 24/7, français & wolof, analytics</p>
+      </div>
+      
+      <div class="service-card">
+        <span class="icon">🔥</span>
+        <h3>Sécurité Incendie</h3>
+        <p>Détection fumée/chaleur, centrale d'alarme, extinction automatique, conformité normes</p>
+      </div>
+      
+      <div class="service-card">
+        <span class="icon">🌐</span>
+        <h3>Câblage & Fibre</h3>
+        <p>Cat6A/Cat7, fibre optique FTTH, BPI/PBO/PTO pour immeubles, distribution TV</p>
+      </div>
+      
+      <div class="service-card">
+        <span class="icon">🏭</span>
+        <h3>IoT & Industrie 4.0</h3>
+        <p>Capteurs connectés, Digital Twins, supervision industrielle, dashboards temps réel</p>
+      </div>
+      
+      <div class="service-card">
+        <span class="icon">🚨</span>
+        <h3>Alarmes</h3>
+        <p>Systèmes anti-intrusion, détecteurs de mouvement, sirènes, notifications instantanées</p>
+      </div>
+      
+      <div class="service-card">
+        <span class="icon">🛠️</span>
+        <h3>Maintenance</h3>
+        <p>Contrats sur mesure, visites planifiées, reporting, support 24/7, pièces détachées</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: EXPERTISE TECHNIQUE -->
+<div class="page page-break">
+  <div class="tech-page">
+    <p class="section-tag">⚙️ NOS SOLUTIONS PHARES</p>
+    <h2 class="section-title">
+      Expertise Technique <span class="highlight">& Innovation</span>
+    </h2>
+    
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="img-placeholder"><img src="https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&h=400&fit=crop" alt="Vidéosurveillance" style="object-fit:cover"></div>
+        <h3>Vidéosurveillance</h3>
+        <p style="color:#64748b;font-size:0.9em;margin-bottom:15px">
+          Systèmes de surveillance professionnels haute définition avec analyses IA pour une protection optimale 24/7.
+        </p>
+        <ul>
+          <li>Caméras IP 4K/8MP Dahua & Hikvision</li>
+          <li>NVR 8/16/32 canaux avec POE intégré</li>
+          <li>Détection intelligente (intrusion, visage)</li>
+          <li>Vision nocturne couleur Starlight</li>
+          <li>Stockage cloud ou local sécurisé</li>
+        </ul>
+        <div class="tech-features">
+          <span class="tech-badge">Dahua</span>
+          <span class="tech-badge">Hikvision</span>
+        </div>
+      </div>
+      
+      <div class="tech-card">
+        <div class="img-placeholder"><img src="https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=800&h=400&fit=crop&q=80" alt="Contrôle d'accès" style="object-fit:cover;border-radius:12px"></div>
+        <h3>Contrôle d'Accès</h3>
+        <p style="color:#64748b;font-size:0.9em;margin-bottom:15px">
+          Solutions avancées de contrôle d'accès par badge, biométrie ou codes pour une sécurité maximale.
+        </p>
+        <ul>
+          <li>Lecteurs d'empreintes digitales</li>
+          <li>Reconnaissance faciale IA</li>
+          <li>Badges RFID & codes PIN</li>
+          <li>Serrures électroniques connectées</li>
+          <li>Gestion centralisée multi-sites</li>
+        </ul>
+        <div class="tech-features">
+          <span class="tech-badge">ZKTeco</span>
+          <span class="tech-badge">Suprema</span>
+          <span class="tech-badge">HID</span>
+        </div>
+      </div>
+      
+      <div class="tech-card">
+        <div class="img-placeholder"><img src="images/domo2.jpeg" alt="Domotique" style="object-fit:cover;border-radius:12px"></div>
+        <h3>Domotique & IoT</h3>
+        <p style="color:#64748b;font-size:0.9em;margin-bottom:15px">
+          Maison connectée avec protocoles mesh avancés. Retrofit ou intégration complète pour construction neuve.
+        </p>
+        <ul>
+          <li>Protocoles ZigBee 3.0 & Z-Wave Plus</li>
+          <li>Éclairage intelligent (scènes, horaires)</li>
+          <li>Climatisation smart & économies énergie</li>
+          <li>Volets motorisés & multi-room audio</li>
+          <li>Commande vocale Alexa/Google</li>
+        </ul>
+        <div class="tech-features">
+          <span class="tech-badge">ZigBee</span>
+          <span class="tech-badge">Z-Wave</span>
+          <span class="tech-badge">Tuya</span>
+          <span class="tech-badge">Sonoff</span>
+        </div>
+      </div>
+      
+      <div class="tech-card">
+        <div class="img-placeholder"><img src="images/digitalisation.png" alt="Digitalisation & IA" style="object-fit:cover;border-radius:12px"></div>
+        <h3>Chatbot & IA</h3>
+        <p style="color:#64748b;font-size:0.9em;margin-bottom:15px">
+          Assistants virtuels intelligents pour automatiser votre service client et améliorer l'expérience utilisateur.
+        </p>
+        <ul>
+          <li>Chatbot WhatsApp Business API</li>
+          <li>Widget site web personnalisé</li>
+          <li>Réponses en français & wolof</li>
+          <li>Prise de RDV automatisée</li>
+          <li>Dashboard analytics & insights</li>
+        </ul>
+        <div class="tech-features">
+          <span class="tech-badge">GPT-4</span>
+          <span class="tech-badge">WhatsApp</span>
+          <span class="tech-badge">Dialogflow</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 5: CONTACT -->
+<div class="page">
+  <div class="contact-page">
+    <p class="section-tag">📞 CONTACTEZ-NOUS</p>
+    <h2 class="section-title">
+      Prêt à sécuriser<br>
+      <span class="highlight">votre avenir ?</span>
+    </h2>
+    <p class="section-desc">
+      Nos experts sont à votre disposition pour analyser vos besoins et vous proposer la solution la plus adaptée à votre projet.
+    </p>
+    
+    <div class="contact-split">
+      <div class="contact-left">
+        <div>
+          <h3>IT VISION PLUS</h3>
+          <p style="font-size:0.9em;color:#94a3b8;margin-bottom:30px">Votre partenaire sécurité de confiance</p>
+          
+          <div class="contact-info">
+            <div class="contact-item">
+              <div class="icon">👤</div>
+              <div class="text">
+                <strong>M. Cheikhou Oumar Ndiaye</strong>
+                Directeur Général
+              </div>
+            </div>
+            
+            <div class="contact-item">
+              <div class="icon">📞</div>
+              <div class="text">
+                <strong>Téléphone</strong>
+                +221 77 413 34 40<br>
+                +221 77 740 82 28
+              </div>
+            </div>
+            
+            <div class="contact-item">
+              <div class="icon">✉️</div>
+              <div class="text">
+                <strong>Email</strong>
+                contact@itvisionplus.sn
+              </div>
+            </div>
+            
+            <div class="contact-item">
+              <div class="icon">🌐</div>
+              <div class="text">
+                <strong>Site Web</strong>
+                www.itvisionplus.sn
+              </div>
+            </div>
+            
+            <div class="contact-item">
+              <div class="icon">📍</div>
+              <div class="text">
+                <strong>Adresse</strong>
+                11 Cité Lonase, Nord Foire<br>
+                Dakar, Sénégal
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <p style="font-size:0.85em;margin-bottom:10px">Suivez-nous sur les réseaux sociaux</p>
+          <div class="social-links">
+            <a href="#" title="Facebook">f</a>
+            <a href="#" title="Instagram">📷</a>
+            <a href="#" title="Twitter">🐦</a>
+            <a href="#" title="LinkedIn">in</a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="contact-right">
+        <div class="cta-box secondary">
+          <h4>📋 Demandez un Audit Gratuit</h4>
+          <p>Évaluation complète de vos besoins en sécurité et domotique sans engagement.</p>
+          <a href="https://wa.me/221774133440?text=Bonjour, je souhaite un audit gratuit" class="cta-btn">
+            💬 Demander un audit
+          </a>
+        </div>
+        
+        <div class="cta-box">
+          <h4>⚡ Devis Express 24h</h4>
+          <p>Recevez votre devis détaillé sous 24h par WhatsApp ou email.</p>
+          <a href="https://wa.me/221774133440?text=Bonjour, je souhaite un devis pour" class="cta-btn">
+            📱 Obtenir mon devis
+          </a>
+        </div>
+        
+        <div class="guarantee">
+          <strong>✓ Garantie 2 ans pièces & main d'œuvre</strong><br>
+          <span style="font-size:0.9em">Support technique 24/7 • Interventions sous 24h</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

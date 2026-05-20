@@ -7,10 +7,10 @@ export default function MentionsLegalesPage() {
   return (
     <main>
       <Header />
-      <section className="page-content pt-28 pb-16 bg-white">
+      <section className="page-content pt-28 pb-16 bg-white dark:bg-black">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold mb-6">Mentions légales</h1>
-          <div className="prose max-w-none">
+          <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Mentions légales</h1>
+          <div className="prose max-w-none dark:prose-invert">
             <p>Ce site est édité par IT Vision Plus. Les informations légales et coordonnées seront complétées selon vos directives.</p>
           </div>
         </div>

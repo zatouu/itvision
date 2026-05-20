@@ -9,22 +9,22 @@ export default function MaintenanceServicePage() {
   return (
     <main>
       <Header />
-      <section className="bg-gradient-to-br from-gray-50 via-white to-gray-50 pt-36 md:pt-40 pb-16">
+      <section className="bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Maintenance & Support</h1>
-            <p className="text-gray-600 max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">Maintenance & Support</h1>
+            <p className="text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Maintenez vos systèmes en parfait état: maintenance préventive, support 24h/7j, mise à jour firmware et audit complet.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
                 <Wrench className="h-5 w-5 text-orange-600 mr-2" />
                 Prestations
               </h2>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 {[
                   'Maintenance préventive programmée',
                   'Support technique réactif 24h/7j',
@@ -40,7 +40,7 @@ export default function MaintenanceServicePage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
               <h2 className="text-xl font-semibold mb-4">Contact</h2>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -56,7 +56,7 @@ export default function MaintenanceServicePage() {
                   Nous contacter
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
-                <a href="tel:+221774133440" className="border-2 border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 inline-flex items-center">
+                <a href="tel:+221774133440" className="border-2 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-900 inline-flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
                   +221 77 413 34 40
                 </a>
@@ -66,35 +66,35 @@ export default function MaintenanceServicePage() {
 
           {/* Bloc descriptif enrichi */}
           <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Pourquoi la maintenance</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Pourquoi la maintenance</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Sans maintenance, les systèmes se dégradent silencieusement: <strong>images manquantes</strong>,
                 <strong> alertes désactivées</strong>, <strong>mises à jour absentes</strong>. Un plan préventif assure
                 fiabilité et longévité.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Réduction des pannes critiques</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Performance et sécurité maximisées</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Coûts maîtrisés, visibilité budgétaire</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Ce que nous faisons</h3>
-              <ul className="space-y-2 text-gray-700 text-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Ce que nous faisons</h3>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Visites planifiées et rapports détaillés</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Mises à jour firmware/logiciels</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Nettoyage capteurs, vérif. enregistrement</li>
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-semibold mb-3">Apport IT Vision</h3>
-              <p className="text-gray-700 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">Apport IT Vision</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
                 Un contrat clair, <strong>indicateurs</strong> de disponibilité, tableau de bord et <strong>support 24/7</strong>.
               </p>
-              <ul className="space-y-2 text-gray-700 text-sm">
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />SLA adaptés à vos enjeux</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Hotline et interventions programmées</li>
                 <li className="flex items-start"><CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />Historique centralisé, conformité</li>

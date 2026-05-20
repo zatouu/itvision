@@ -8,6 +8,8 @@
  * - PayDunya: https://paydunya.com/
  */
 
+import { readPaymentSettings } from '@/lib/payments/settings'
+
 export interface PaymentRequest {
   amount: number
   currency?: string
@@ -21,7 +23,7 @@ export interface PaymentRequest {
 }
 
 export interface PaymentLink {
-  provider: 'wave' | 'orange_money' | 'manual'
+  provider: 'wave' | 'orange_money' | 'manual' | 'gateway'
   url?: string
   instructions: string
   reference: string
@@ -29,9 +31,8 @@ export interface PaymentLink {
   phoneNumber?: string
 }
 
-// Numéros de paiement de l'entreprise (à configurer en .env)
-const WAVE_MERCHANT_PHONE = process.env.WAVE_MERCHANT_PHONE || '+221770000000'
-const ORANGE_MERCHANT_PHONE = process.env.ORANGE_MERCHANT_PHONE || '+221760000000'
+// Récupération dynamique des paramètres depuis le fichier data/payment-settings.json
+const getSettings = () => readPaymentSettings()
 
 const formatCurrency = (amount: number, currency = 'FCFA') => 
   `${amount.toLocaleString('fr-FR')} ${currency}`
@@ -42,10 +43,12 @@ const formatCurrency = (amount: number, currency = 'FCFA') =>
  */
 export function generateWavePaymentLink(request: PaymentRequest): PaymentLink {
   const { amount, reference, description, customerName } = request
+  const settings = getSettings()
+  const merchantPhone = settings.providers.manual.waveMerchantPhone || '+221770000000'
   
   // Format Wave: le client envoie de l'argent au numéro marchand
   const waveUrl = `https://wave.com/send?` + new URLSearchParams({
-    phone: WAVE_MERCHANT_PHONE.replace('+', ''),
+    phone: merchantPhone.replace('+', ''),
     amount: amount.toString(),
     note: `${reference} - ${customerName}`
   }).toString()
@@ -55,13 +58,13 @@ export function generateWavePaymentLink(request: PaymentRequest): PaymentLink {
     url: waveUrl,
     reference,
     amount,
-    phoneNumber: WAVE_MERCHANT_PHONE,
+    phoneNumber: merchantPhone,
     instructions: `
 📱 **Paiement Wave**
 
 1. Ouvrez l'app Wave
 2. Appuyez sur "Envoyer"
-3. Entrez le numéro: **${WAVE_MERCHANT_PHONE}**
+3. Entrez le numéro: **${merchantPhone}**
 4. Montant: **${formatCurrency(amount)}**
 5. Dans "Note", écrivez: **${reference}**
 6. Confirmez le paiement
@@ -80,18 +83,20 @@ ${waveUrl}
  */
 export function generateOrangeMoneyPaymentLink(request: PaymentRequest): PaymentLink {
   const { amount, reference, customerName } = request
+  const settings = getSettings()
+  const merchantPhone = settings.providers.manual.orangeMerchantPhone || '+221760000000'
   
   return {
     provider: 'orange_money',
     reference,
     amount,
-    phoneNumber: ORANGE_MERCHANT_PHONE,
+    phoneNumber: merchantPhone,
     instructions: `
 📱 **Paiement Orange Money**
 
 1. Composez **#144#** sur votre téléphone Orange
 2. Choisissez "Transfert d'argent"
-3. Entrez le numéro: **${ORANGE_MERCHANT_PHONE}**
+3. Entrez le numéro: **${merchantPhone}**
 4. Montant: **${formatCurrency(amount)}**
 5. Confirmez avec votre code secret
 6. Envoyez-nous une capture d'écran avec la référence: **${reference}**
@@ -99,11 +104,11 @@ export function generateOrangeMoneyPaymentLink(request: PaymentRequest): Payment
 Ou via l'app Orange Money:
 1. Ouvrez Orange Money
 2. "Envoyer de l'argent"
-3. Numéro: **${ORANGE_MERCHANT_PHONE}**
+3. Numéro: **${merchantPhone}**
 4. Montant: **${formatCurrency(amount)}**
 5. Motif: **${reference} - ${customerName}**
 
-⚠️ Après paiement, envoyez la confirmation par WhatsApp au ${ORANGE_MERCHANT_PHONE} avec la référence **${reference}**
+⚠️ Après paiement, envoyez la confirmation par WhatsApp au ${merchantPhone} avec la référence **${reference}**
     `.trim()
   }
 }
@@ -113,6 +118,9 @@ Ou via l'app Orange Money:
  */
 export function generateManualPaymentInstructions(request: PaymentRequest): PaymentLink {
   const { amount, reference, customerName } = request
+  const settings = getSettings()
+  const instructions = settings.providers.manual.instructions || 'Paiement à la livraison ou retrait au bureau.'
+  const contact = settings.providers.manual.waveMerchantPhone || '+221770000000'
   
   return {
     provider: 'manual',
@@ -129,8 +137,9 @@ export function generateManualPaymentInstructions(request: PaymentRequest): Paym
 1. **Espèces** - Passez à nos bureaux avec la référence
 2. **Virement bancaire** - Contactez-nous pour les coordonnées bancaires
 
+${instructions}
 📍 Adresse: Dakar, Sénégal (adresse complète sur demande)
-📞 Contact: ${WAVE_MERCHANT_PHONE}
+📞 Contact: ${contact}
 
 Présentez la référence **${reference}** lors du paiement.
     `.trim()
@@ -138,14 +147,49 @@ Présentez la référence **${reference}** lors du paiement.
 }
 
 /**
+ * Génère un lien vers la passerelle de paiement (si active)
+ */
+export function generateGatewayPaymentLink(request: PaymentRequest): PaymentLink | null {
+  const settings = getSettings()
+  if (!settings.providers.gateway.active) return null
+
+  // Ici on simulerait l'appel API vers PayDunya/Stripe pour obtenir le checkout URL
+  // Pour l'instant, on retourne un lien générique qui redirigerait vers une page de checkout interne
+  // qui elle-même initialiserait le widget de paiement.
+  
+  const providerName = settings.providers.gateway.provider
+  
+  return {
+     provider: 'gateway',
+     reference: request.reference,
+     amount: request.amount,
+     url: `/paiement/checkout/${request.reference}`, // Page intermédiaire à créer
+     instructions: `
+🔒 **Paiement sécurisé par Carte / Mobile Money (${providerName})**
+
+Cliquez sur le bouton ci-dessous pour payer en ligne via notre partenaire sécurisé.
+     `.trim()
+  }
+}
+
+/**
  * Génère tous les liens de paiement disponibles
  */
 export function generateAllPaymentLinks(request: PaymentRequest): PaymentLink[] {
-  return [
-    generateWavePaymentLink(request),
-    generateOrangeMoneyPaymentLink(request),
-    generateManualPaymentInstructions(request)
-  ]
+  const links: PaymentLink[] = []
+  
+  // 1. Gateway (Prioritaire si actif)
+  const gatewayLink = generateGatewayPaymentLink(request)
+  if (gatewayLink) {
+    links.push(gatewayLink)
+  }
+  
+  // 2. Méthodes manuelles (Toujours disponibles comme fallback ou options directes)
+  links.push(generateWavePaymentLink(request))
+  links.push(generateOrangeMoneyPaymentLink(request))
+  links.push(generateManualPaymentInstructions(request))
+
+  return links
 }
 
 /**
@@ -155,6 +199,7 @@ export function generatePaymentInstructionsEmail(
   request: PaymentRequest,
   groupInfo: { groupId: string; productName: string; deadline: string }
 ): { subject: string; html: string } {
+  const settings = readPaymentSettings()
   const waveLink = generateWavePaymentLink(request)
   const orangeLink = generateOrangeMoneyPaymentLink(request)
   
@@ -209,7 +254,7 @@ export function generatePaymentInstructionsEmail(
           
           <div class="payment-option wave">
             <h3>📱 Wave (Recommandé)</h3>
-            <p><strong>Numéro:</strong> ${WAVE_MERCHANT_PHONE}</p>
+            <p><strong>Numéro:</strong> ${settings.providers.manual.waveMerchantPhone}</p>
             <p><strong>Montant:</strong> ${formatCurrency(request.amount)}</p>
             <p><strong>Note:</strong> ${request.reference}</p>
             ${waveLink.url ? `<a href="${waveLink.url}" class="button" style="background: #00b4d8;">Payer avec Wave</a>` : ''}
@@ -217,7 +262,7 @@ export function generatePaymentInstructionsEmail(
           
           <div class="payment-option orange">
             <h3>📱 Orange Money</h3>
-            <p><strong>Numéro:</strong> ${ORANGE_MERCHANT_PHONE}</p>
+            <p><strong>Numéro:</strong> ${settings.providers.manual.orangeMerchantPhone}</p>
             <p><strong>Montant:</strong> ${formatCurrency(request.amount)}</p>
             <p>Composez <strong>#144#</strong> ou utilisez l'app Orange Money</p>
             <p><small>Après paiement, envoyez la confirmation WhatsApp avec la référence.</small></p>
@@ -226,7 +271,7 @@ export function generatePaymentInstructionsEmail(
           <div class="payment-option">
             <h3>🏦 Autres méthodes</h3>
             <p>Contactez-nous pour paiement par espèces ou virement bancaire.</p>
-            <p>📞 ${WAVE_MERCHANT_PHONE}</p>
+            <p>📞 ${settings.providers.manual.waveMerchantPhone}</p>
           </div>
           
           <p style="color: #64748b; font-size: 14px;">

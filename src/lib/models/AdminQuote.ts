@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IAdminQuoteProduct {
+  productId?: mongoose.Types.ObjectId  // Référence au produit DB (optionnel pour lignes manuelles)
   description: string
   quantity: number
   unitPrice: number
@@ -17,10 +18,26 @@ export interface IAdminQuoteClient {
   ninea?: string
 }
 
+export interface IAdminQuoteAttachment {
+  name: string
+  url: string
+  type: string
+  size: number
+  uploadedAt: Date
+  uploadedBy?: string
+  category?: string // 'bon_commande', 'recu', 'contrat', 'autre'
+}
+
 export interface IAdminQuote extends Document {
   numero: string
+  title?: string
   date: Date
   client: IAdminQuoteClient
+  // Liaison optionnelle vers un utilisateur/client entreprise pour la visibilité portail
+  clientUserId?: mongoose.Types.ObjectId
+  clientCompanyId?: mongoose.Types.ObjectId
+  projectId?: mongoose.Types.ObjectId
+  cci?: string
   products: IAdminQuoteProduct[]
   subtotal: number
   brsAmount: number // 5% de déduction
@@ -28,6 +45,9 @@ export interface IAdminQuote extends Document {
   other: number
   total: number
   status: 'draft' | 'sent' | 'accepted' | 'rejected'
+  sentAt?: Date
+  acceptedAt?: Date
+  rejectedAt?: Date
   notes?: string
   bonCommande?: string
   dateLivraison?: string
@@ -36,9 +56,23 @@ export interface IAdminQuote extends Document {
   createdBy?: string
   createdAt: Date
   updatedAt: Date
+  // Interactions client portail
+  clientResponse?: 'pending' | 'accepted' | 'rejected' | 'counter_proposed'
+  clientRespondedAt?: Date
+  clientCounterAmount?: number
+  clientComments?: Array<{
+    _id?: mongoose.Types.ObjectId
+    authorId: mongoose.Types.ObjectId
+    authorRole: 'CLIENT' | 'ADMIN'
+    message: string
+    createdAt: Date
+    readByOther?: boolean
+  }>
+  attachments?: IAdminQuoteAttachment[]
 }
 
 const AdminQuoteProductSchema = new Schema<IAdminQuoteProduct>({
+  productId: { type: Schema.Types.ObjectId, ref: 'Product' },
   description: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true, min: 0 },
@@ -55,10 +89,25 @@ const AdminQuoteClientSchema = new Schema<IAdminQuoteClient>({
   ninea: { type: String }
 })
 
+const AdminQuoteAttachmentSchema = new Schema<IAdminQuoteAttachment>({
+  name: { type: String, required: true },
+  url: { type: String, required: true },
+  type: { type: String },
+  size: { type: Number, default: 0 },
+  uploadedAt: { type: Date, default: Date.now },
+  uploadedBy: { type: String },
+  category: { type: String }
+})
+
 const AdminQuoteSchema = new Schema<IAdminQuote>({
   numero: { type: String, required: true, unique: true, index: true },
+  title: { type: String },
   date: { type: Date, required: true },
   client: { type: AdminQuoteClientSchema, required: true },
+  clientUserId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
+  cci: { type: String },
   products: { type: [AdminQuoteProductSchema], default: [] },
   subtotal: { type: Number, default: 0 },
   brsAmount: { type: Number, default: 0 }, // 5% de déduction
@@ -66,16 +115,32 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   other: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   status: { type: String, enum: ['draft', 'sent', 'accepted', 'rejected'], default: 'draft', index: true },
+  sentAt: { type: Date },
+  acceptedAt: { type: Date },
+  rejectedAt: { type: Date },
   notes: { type: String },
   bonCommande: { type: String },
   dateLivraison: { type: String },
   pointExpedition: { type: String },
   conditions: { type: String },
-  createdBy: { type: String }
+  createdBy: { type: String },
+  clientResponse: { type: String, enum: ['pending', 'accepted', 'rejected', 'counter_proposed'], default: 'pending' },
+  clientRespondedAt: { type: Date },
+  clientCounterAmount: { type: Number },
+  clientComments: { type: [{
+    authorId: { type: Schema.Types.ObjectId, required: true },
+    authorRole: { type: String, enum: ['CLIENT', 'ADMIN'], required: true },
+    message: { type: String, required: true },
+    createdAt: { type: Date, default: () => new Date() },
+    readByOther: { type: Boolean, default: false }
+  }], default: [] },
+  attachments: { type: [AdminQuoteAttachmentSchema], default: [] }
 }, { timestamps: true })
 
 AdminQuoteSchema.index({ createdAt: -1 })
 AdminQuoteSchema.index({ 'client.name': 1 })
+AdminQuoteSchema.index({ clientUserId: 1, createdAt: -1 })
+AdminQuoteSchema.index({ clientCompanyId: 1, createdAt: -1 })
 
 export default mongoose.models.AdminQuote || mongoose.model<IAdminQuote>('AdminQuote', AdminQuoteSchema)
 

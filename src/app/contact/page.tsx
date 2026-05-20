@@ -46,13 +46,13 @@ export default function ContactPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 page-content py-20">
+      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 dark:from-black dark:via-black dark:to-black page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Contactez-<span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">nous</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8">
               Notre équipe d&apos;experts est à votre disposition pour vous accompagner dans vos projets de sécurité électronique
             </p>
             
@@ -76,13 +76,13 @@ export default function ContactPage() {
       </section>
 
       {/* Options de Contact Digitales */}
-      <section className="py-16 bg-gradient-to-br from-gray-50 to-white">
+      <section className="py-16 bg-gradient-to-br from-gray-50 to-white dark:from-black dark:to-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
               Comment souhaitez-vous <span className="text-blue-600">nous contacter ?</span>
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Choisissez la méthode qui vous convient le mieux pour obtenir rapidement un devis ou des informations
             </p>
           </div>
@@ -98,7 +98,7 @@ export default function ContactPage() {
                   className={`flex items-center space-x-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 ${
                     activeDigitalTool === option.id
                       ? `bg-gradient-to-r ${option.color} text-white shadow-lg scale-105`
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 shadow-md'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-800 shadow-md'
                   }`}
                 >
                   <IconComponent className="h-5 w-5" />

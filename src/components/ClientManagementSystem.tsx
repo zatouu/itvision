@@ -141,7 +141,7 @@ export default function ClientManagementSystem() {
     setShowCreateModal(true)
   }
 
-  const handleEdit = (client: Client) => {
+  const handleEdit = async (client: Client) => {
     setFormData({
       type: client.type,
       name: client.name,
@@ -159,6 +159,27 @@ export default function ClientManagementSystem() {
     })
     setEditingClient(client)
     setShowCreateModal(true)
+
+    // Charger les contacts existants depuis l'API
+    try {
+      const res = await fetch(`/api/admin/clients/contacts?clientId=${client.id}`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data.contacts) && data.contacts.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            contacts: data.contacts.map((c: any) => ({
+              id: c.id || c._id || Date.now().toString(),
+              nom: c.nom || '',
+              fonction: c.fonction || '',
+              telephone: c.telephone || '',
+              email: c.email || '',
+              isPrimary: c.isPrimary || false
+            }))
+          }))
+        }
+      }
+    } catch {}
   }
 
   const handleViewDetails = async (client: Client) => {

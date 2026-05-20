@@ -5,6 +5,8 @@ import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 import { logFailedAuth, logDataAccess, logSecurityViolation } from '@/lib/security-logger'
 import { InputValidator } from '@/lib/input-validation'
 import { verifyJwtPayload } from '@/lib/jwt'
+import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
+import { logAuditEvent } from '@/lib/audit'
 
 async function verifyAdminToken(request: NextRequest) {
   // Supporte à la fois 'auth-token' (standard) et 'admin-auth-token' (legacy)
@@ -158,18 +160,48 @@ export async function POST(request: NextRequest) {
     )
     
     await report.save()
-    
+
+    // Temps réel + audit
+    try {
+      await logAuditEvent({
+        entityType: 'MaintenanceReport',
+        entityId: String(report._id),
+        action: action === 'approved' ? 'validated' : 'rejected',
+        previousState: { status: 'pending_validation' },
+        newState: { status: report.status, publishedToClient: report.publishedToClient },
+        userId,
+        userRole: 'ADMIN',
+        ip: request.headers.get('x-forwarded-for') || undefined,
+        metadata: { validationTime, autoPublished: action === 'approved' && process.env.AUTO_PUBLISH_VALIDATED_REPORTS === 'true' }
+      })
+      if (report.interventionId) {
+        emitInterventionUpdate(String(report.interventionId), {
+          id: String(report.interventionId),
+          status: 'completed',
+          reportValidated: action === 'approved'
+        })
+      }
+      if (report.clientId && action === 'approved') {
+        emitUserNotification(String(report.clientId), {
+          type: 'success',
+          title: 'Rapport validé',
+          message: `Votre fiche d'intervention ${report.reportId} est disponible.`,
+          data: { reportId: String(report._id) }
+        })
+      }
+    } catch (e) { console.error('[Report] Realtime/audit error:', e) }
+
     // Notification au technicien
     await notifyTechnicianValidation(report, action, comments)
-    
+
     // Notification au client si publié
     if (report.status === 'published') {
       await notifyClientReportAvailable(report)
     }
-    
+
     // Mise à jour des statistiques admin (optionnel)
     await updateAdminStats(userId, action)
-    
+
     return NextResponse.json({
       success: true,
       message: action === 'approved' ? 'Rapport validé avec succès' : 'Rapport rejeté',

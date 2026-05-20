@@ -65,11 +65,15 @@ export default function PriceManagementSystem() {
     ]
     setProductTypes(allProductTypes)
 
-    // Charger les prix depuis localStorage
-    const storedPrices = localStorage.getItem('itvision-price-overrides')
-    if (storedPrices) {
-      setPriceOverrides(JSON.parse(storedPrices))
-    }
+    // Charger les prix depuis l'API
+    fetch('/api/admin/pricing-overrides')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.overrides)) {
+          setPriceOverrides(d.overrides)
+        }
+      })
+      .catch(console.error)
   }
 
   const getServiceIcon = (serviceId: string) => {
@@ -163,18 +167,26 @@ export default function PriceManagementSystem() {
     }
 
     // Désactiver l'ancien prix s'il existe
-    setPriceOverrides(prev => {
-      const updated = prev.map(po => 
-        po.productTypeId === editing.productTypeId && 
-        po.variantId === editing.variantId
-          ? { ...po, isActive: false }
-          : po
-      )
-      
-      const final = [...updated, newOverride]
-      localStorage.setItem('itvision-price-overrides', JSON.stringify(final))
-      return final
+    const updatedList = priceOverrides.map(po => 
+      po.productTypeId === editing.productTypeId && 
+      po.variantId === editing.variantId
+        ? { ...po, isActive: false }
+        : po
+    )
+    
+    const final = [...updatedList, newOverride]
+    
+    // Sauvegarder via API
+    fetch('/api/admin/pricing-overrides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(final)
     })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setPriceOverrides(d.overrides)
+      })
+      .catch(console.error)
 
     // Nettoyer l'édition
     setEditingPrices(prev => {
@@ -235,20 +247,26 @@ export default function PriceManagementSystem() {
     })
 
     // Désactiver les anciens prix et ajouter les nouveaux
-    setPriceOverrides(prev => {
-      const deactivated = prev.map(po => {
-        const shouldDeactivate = newOverrides.some(no => 
-          no.productTypeId === po.productTypeId && no.variantId === po.variantId
-        )
-        return shouldDeactivate ? { ...po, isActive: false } : po
-      })
-      
-      const final = [...deactivated, ...newOverrides]
-      localStorage.setItem('itvision-price-overrides', JSON.stringify(final))
-      return final
+    const deactivated = priceOverrides.map(po => {
+      const shouldDeactivate = newOverrides.some(no => 
+        no.productTypeId === po.productTypeId && no.variantId === po.variantId
+      )
+      return shouldDeactivate ? { ...po, isActive: false } : po
     })
+    
+    const final = [...deactivated, ...newOverrides]
 
-    window.dispatchEvent(new CustomEvent('prices-updated'))
+    fetch('/api/admin/pricing-overrides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(final)
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setPriceOverrides(d.overrides)
+        window.dispatchEvent(new CustomEvent('prices-updated'))
+      })
+      .catch(console.error)
   }
 
   const filteredProductTypes = productTypes.filter(productType => {
