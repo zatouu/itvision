@@ -30,7 +30,10 @@ import {
   Shield,
   Download,
   Tags,
-  ListChecks
+  ListChecks,
+  Wallet,
+  TrendingDown,
+  Banknote
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -81,10 +84,47 @@ const menuItems: MenuItem[] = [
     ]
   },
   {
-    id: 'devis',
-    label: 'Devis',
-    icon: FileText,
-    href: '/admin/devis'
+    id: 'finance',
+    label: 'Finance',
+    icon: Wallet,
+    children: [
+      {
+        id: 'tresorerie',
+        label: 'Trésorerie 360°',
+        icon: Wallet,
+        href: '/admin/tresorerie'
+      },
+      {
+        id: 'devis',
+        label: 'Devis',
+        icon: FileText,
+        href: '/admin/devis'
+      },
+      {
+        id: 'factures',
+        label: 'Factures',
+        icon: Receipt,
+        href: '/admin/factures'
+      },
+      {
+        id: 'depenses',
+        label: 'Dépenses',
+        icon: TrendingDown,
+        href: '/admin/depenses'
+      },
+      {
+        id: 'comptabilite',
+        label: 'Comptabilité',
+        icon: Calculator,
+        href: '/admin/comptabilite'
+      },
+      {
+        id: 'paiements-finance',
+        label: 'Paiements',
+        icon: Banknote,
+        href: '/admin/paiements'
+      }
+    ]
   },
   {
     id: 'projets',
@@ -97,12 +137,6 @@ const menuItems: MenuItem[] = [
     label: 'Planning',
     icon: Calendar,
     href: '/admin/planning'
-  },
-  {
-    id: 'factures',
-    label: 'Factures',
-    icon: Receipt,
-    href: '/admin/factures'
   },
   {
     id: 'clients',
@@ -220,12 +254,6 @@ const menuItems: MenuItem[] = [
     label: 'Garanties',
     icon: Shield,
     href: '/admin/garanties'
-  },
-  {
-    id: 'comptabilite',
-    label: 'Comptabilité',
-    icon: Calculator,
-    href: '/admin/comptabilite'
   },
   {
     id: 'tickets',
