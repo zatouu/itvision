@@ -1954,7 +1954,8 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
         name: selectedProject.name,
         description: selectedProject.description,
         address: selectedProject.site.address,
-        status: 'ACTIVE',
+        status: selectedProject.status,
+        serviceType: selectedProject.serviceType,
         endDate: selectedProject.endDate || null
       }) })
       // Synchroniser ressources granulaires

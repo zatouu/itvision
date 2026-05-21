@@ -49,6 +49,23 @@ function buildStatusQuery(value: any): any {
   return { $in: [requested, mapped] }
 }
 
+function normalizeServiceType(value: any, fallback = ''): string {
+  const s = String(value ?? fallback ?? '').trim()
+  return s
+}
+
+function normalizeProgressForDb(value: any, fallback = 0): number {
+  const raw = value ?? fallback
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.min(100, Math.trunc(n)))
+}
+
+function normalizeValueForDb(value: any, fallback = '0'): string {
+  if (value === undefined || value === null || value === '') return String(fallback)
+  return String(value)
+}
+
 // GET - Récupérer les projets
 export async function GET(request: NextRequest) {
   try {
@@ -90,7 +107,9 @@ export async function GET(request: NextRequest) {
     
     const normalizedProjects = projects.map((project: any) => ({
       ...project,
-      status: normalizeProjectStatusForUi(project?.status)
+      status: normalizeProjectStatusForUi(project?.status),
+      serviceType: normalizeServiceType(project?.serviceType ?? project?.type),
+      value: typeof project?.value === 'string' ? (parseFloat(project.value) || 0) : Number(project?.value || 0)
     }))
 
     logDataAccess('projects', 'read', request, userId, { count: normalizedProjects.length })
@@ -199,6 +218,8 @@ export async function POST(request: NextRequest) {
     
     // Création du projet — insertion native pour contourner le $jsonSchema validator incompatible
     const projectId = new mongoose.Types.ObjectId()
+    const serviceType = normalizeServiceType(projectData.serviceType ?? projectData.type)
+
     const docToInsert = {
       _id: projectId,
       name: projectData.name,
@@ -211,12 +232,13 @@ export async function POST(request: NextRequest) {
       startDate: new Date(projectData.startDate),
       endDate: projectData.endDate ? new Date(projectData.endDate) : null,
       currentPhase: projectData.currentPhase || '',
-      progress: projectData.progress || 0,
-      serviceType: projectData.serviceType || '',
+      progress: normalizeProgressForDb(projectData.progress || 0),
+      serviceType,
+      type: serviceType,
       clientSnapshot: projectData.clientSnapshot || { company: '', contact: '', phone: '', email: '' },
       site: projectData.site || { name: '', address: '', access: '', constraints: [], contacts: [] },
       assignedTo: projectData.assignedTo || [],
-      value: String(projectData.value || 0),
+      value: normalizeValueForDb(projectData.value || 0),
       margin: projectData.margin || 0,
       milestones: projectData.milestones || [],
       quote: projectData.quote || null,
@@ -249,6 +271,7 @@ export async function POST(request: NextRequest) {
     }
     if (newProject) {
       newProject.status = normalizeProjectStatusForUi(newProject.status)
+      newProject.serviceType = normalizeServiceType(newProject.serviceType ?? newProject.type)
     }
     
     logDataAccess('projects', 'create', request, userId, { projectId: String(newProject._id) })
@@ -314,6 +337,19 @@ export async function PUT(request: NextRequest) {
       }
     }
     
+    const nextServiceType = normalizeServiceType(
+      updateData.serviceType ?? updateData.type,
+      (existingProject as any).serviceType ?? (existingProject as any).type ?? ''
+    )
+    const nextProgress = normalizeProgressForDb(
+      updateData.progress,
+      Number((existingProject as any).progress || 0)
+    )
+    const nextValue = normalizeValueForDb(
+      updateData.value,
+      String((existingProject as any).value ?? '0')
+    )
+
     // Mise à jour du projet
     await Project.updateOne(
       { _id: projectId },
@@ -325,15 +361,16 @@ export async function PUT(request: NextRequest) {
           status: normalizeProjectStatusForDb(updateData.status || existingProject.status),
           ...(nextCompanyId === null
             ? { clientCompanyId: null }
-            : (typeof nextCompanyId === 'string' ? { clientCompanyId: nextCompanyId } : {})),
+            : (typeof nextCompanyId === 'string' ? { clientCompanyId: new mongoose.Types.ObjectId(nextCompanyId) } : {})),
           endDate: updateData.endDate ? new Date(updateData.endDate) : null,
           currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
-          progress: typeof updateData.progress === 'number' ? updateData.progress : existingProject.progress,
-          serviceType: updateData.serviceType ?? existingProject.serviceType,
+          progress: nextProgress,
+          serviceType: nextServiceType,
+          type: nextServiceType,
           clientSnapshot: updateData.clientSnapshot ?? existingProject.clientSnapshot,
           site: updateData.site ?? existingProject.site,
           assignedTo: updateData.assignedTo ?? existingProject.assignedTo,
-          value: typeof updateData.value === 'number' ? updateData.value : existingProject.value,
+          value: nextValue,
           margin: typeof updateData.margin === 'number' ? updateData.margin : existingProject.margin,
           milestones: updateData.milestones ?? existingProject.milestones,
           quote: updateData.quote ?? existingProject.quote,
@@ -361,6 +398,10 @@ export async function PUT(request: NextRequest) {
     
     if (updatedProject) {
       updatedProject.status = normalizeProjectStatusForUi(updatedProject.status)
+      updatedProject.serviceType = normalizeServiceType(updatedProject.serviceType ?? updatedProject.type)
+      if (typeof updatedProject.value === 'string') {
+        updatedProject.value = parseFloat(updatedProject.value) || 0
+      }
     }
 
     logDataAccess('projects', 'update', request, userId, { projectId: String(updatedProject._id) })
@@ -371,10 +412,12 @@ export async function PUT(request: NextRequest) {
       message: 'Projet mis à jour avec succès'
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur mise à jour projet:', error)
+    console.error('errInfo details:', JSON.stringify(error?.errInfo || {}, null, 2))
+    console.error('errorResponse:', JSON.stringify(error?.errorResponse || {}, null, 2))
     return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour' },
+      { error: 'Erreur lors de la mise à jour', details: error?.errInfo || error?.message },
       { status: 500 }
     )
   }
