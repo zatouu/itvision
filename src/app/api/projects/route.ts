@@ -350,38 +350,41 @@ export async function PUT(request: NextRequest) {
       String((existingProject as any).value ?? '0')
     )
 
-    // Mise à jour du projet
-    await Project.updateOne(
-      { _id: projectId },
-      {
-        $set: {
-          name: updateData.name ?? existingProject.name,
-          description: updateData.description ?? existingProject.description,
-          address: updateData.address ?? existingProject.address,
-          status: normalizeProjectStatusForDb(updateData.status || existingProject.status),
-          ...(nextCompanyId === null
-            ? { clientCompanyId: null }
-            : (typeof nextCompanyId === 'string' ? { clientCompanyId: new mongoose.Types.ObjectId(nextCompanyId) } : {})),
-          endDate: updateData.endDate ? new Date(updateData.endDate) : null,
-          currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
-          progress: nextProgress,
-          serviceType: nextServiceType,
-          type: nextServiceType,
-          clientSnapshot: updateData.clientSnapshot ?? existingProject.clientSnapshot,
-          site: updateData.site ?? existingProject.site,
-          assignedTo: updateData.assignedTo ?? existingProject.assignedTo,
-          value: nextValue,
-          margin: typeof updateData.margin === 'number' ? updateData.margin : existingProject.margin,
-          milestones: updateData.milestones ?? existingProject.milestones,
-          quote: updateData.quote ?? existingProject.quote,
-          products: updateData.products ?? existingProject.products,
-          timeline: updateData.timeline ?? existingProject.timeline,
-          risks: updateData.risks ?? existingProject.risks,
-          documents: updateData.documents ?? existingProject.documents,
-          clientAccess: typeof updateData.clientAccess === 'boolean' ? updateData.clientAccess : existingProject.clientAccess,
-          updatedAt: new Date()
-        }
-      }
+    // Mise à jour du projet (native Mongo pour éviter le cast Mongoose sur value)
+    const setData: any = {
+      name: updateData.name ?? existingProject.name,
+      description: updateData.description ?? existingProject.description,
+      address: updateData.address ?? existingProject.address,
+      status: normalizeProjectStatusForDb(updateData.status || existingProject.status),
+      endDate: updateData.endDate ? new Date(updateData.endDate) : null,
+      currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
+      progress: nextProgress,
+      serviceType: nextServiceType,
+      type: nextServiceType,
+      clientSnapshot: updateData.clientSnapshot ?? existingProject.clientSnapshot,
+      site: updateData.site ?? existingProject.site,
+      assignedTo: updateData.assignedTo ?? existingProject.assignedTo,
+      value: nextValue,
+      margin: typeof updateData.margin === 'number' ? updateData.margin : existingProject.margin,
+      milestones: updateData.milestones ?? existingProject.milestones,
+      quote: updateData.quote ?? existingProject.quote,
+      products: updateData.products ?? existingProject.products,
+      timeline: updateData.timeline ?? existingProject.timeline,
+      risks: updateData.risks ?? existingProject.risks,
+      documents: updateData.documents ?? existingProject.documents,
+      clientAccess: typeof updateData.clientAccess === 'boolean' ? updateData.clientAccess : existingProject.clientAccess,
+      updatedAt: new Date()
+    }
+
+    if (nextCompanyId === null) {
+      setData.clientCompanyId = null
+    } else if (typeof nextCompanyId === 'string') {
+      setData.clientCompanyId = new mongoose.Types.ObjectId(nextCompanyId)
+    }
+
+    await mongoose.connection.collection('projects').updateOne(
+      { _id: existingProject._id as any },
+      { $set: setData }
     )
 
     const updatedProject = (await Project.findById(projectId)
