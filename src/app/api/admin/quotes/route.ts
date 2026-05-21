@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
       client: body.client,
       products: body.products,
       subtotal: body.subtotal,
+      applyBRS: Boolean(body.applyBRS),
+      brsThreshold: Number(body.brsThreshold ?? 25000),
       brsAmount: body.brsAmount,
       taxAmount: body.taxAmount,
       other: body.other || 0,

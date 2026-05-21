@@ -41,7 +41,9 @@ interface Quote {
   companyAddress?: string
   products: QuoteProduct[]
   subtotal: number
-  brsAmount: number // 5% de déduction
+  applyBRS: boolean
+  brsThreshold: number
+  brsAmount: number // 5% de déduction sur main-d'oeuvre
   taxAmount: number
   other: number
   total: number
@@ -128,6 +130,8 @@ export default function AdminQuoteGenerator() {
           }))
         : [],
       subtotal: Number(q?.subtotal || 0),
+      applyBRS: Boolean(q?.applyBRS),
+      brsThreshold: Number(q?.brsThreshold ?? 25000),
       brsAmount: Number(q?.brsAmount || 0),
       taxAmount: Number(q?.taxAmount || 0),
       other: Number(q?.other || 0),
@@ -278,6 +282,8 @@ export default function AdminQuoteGenerator() {
           total: Number(p.total) || 0
         })),
         subtotal: Number(data.subtotal) || 0,
+        applyBRS: Boolean(data.applyBRS),
+        brsThreshold: Number(data.brsThreshold ?? 25000),
         brsAmount: Number(data.brsAmount) || 0,
         taxAmount: Number(data.taxAmount) || 0,
         other: Number(data.other) || 0,
@@ -314,6 +320,8 @@ export default function AdminQuoteGenerator() {
       },
       products: [],
       subtotal: 0,
+      applyBRS: false,
+      brsThreshold: 25000,
       brsAmount: 0,
       taxAmount: 0,
       other: 0,
@@ -429,13 +437,15 @@ export default function AdminQuoteGenerator() {
     const subtotal = quote.products.reduce((sum, p) => sum + p.total, 0)
 
     // BRS (Bordereau de Réduction Sénégalaise) = 5% sur la main-d'œuvre uniquement
+    // S'applique uniquement si case cochée ET main-d'oeuvre > seuil (25 000 FCFA par défaut)
     const laborTotal = quote.products.filter(p => p.isLabor).reduce((sum, p) => sum + p.total, 0)
-    const brsAmount = laborTotal * 0.05
+    const applyBRS = quote.applyBRS && laborTotal > (quote.brsThreshold || 25000)
+    const brsAmount = applyBRS ? laborTotal * 0.05 : 0
 
     // Sous-total après BRS
     const subtotalApresBRS = subtotal - brsAmount
 
-    // Taxe de vente (si applicable) - 0% par défaut, peut être ajustée
+    // Pas de TVA pour l'instant
     const taxAmount = 0
 
     // Autres frais
@@ -447,6 +457,8 @@ export default function AdminQuoteGenerator() {
     setCurrentQuote({
       ...quote,
       subtotal,
+      applyBRS: quote.applyBRS,
+      brsThreshold: quote.brsThreshold,
       brsAmount,
       taxAmount,
       total
@@ -1261,16 +1273,31 @@ export default function AdminQuoteGenerator() {
                   </span>
                 </div>
                 
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 flex items-center gap-2">
+                <div className="flex justify-between text-sm items-center">
+                  <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentQuote.applyBRS}
+                      onChange={(e) => {
+                        const updatedQuote = { ...currentQuote, applyBRS: e.target.checked }
+                        calculateTotals(updatedQuote)
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
                     BRS (main-d'œuvre)
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">5.00%</span>
-                  </span>
+                    <span className="text-[10px] text-gray-400">(si MO &gt; {currentQuote.brsThreshold.toLocaleString('fr-FR')} FCFA)</span>
+                  </label>
                   <span className="font-medium text-orange-700">
                     -{currentQuote.brsAmount.toLocaleString('fr-FR')} CFA
                   </span>
                 </div>
-                
+                <div className="text-[11px] text-gray-400 ml-6">
+                  {currentQuote.applyBRS
+                    ? `Main-d'œuvre détectée : ${currentQuote.products.filter(p => p.isLabor).reduce((s, p) => s + p.total, 0).toLocaleString('fr-FR')} FCFA`
+                    : "Cochez pour appliquer la retenue BRS (entreprises uniquement)"}
+                </div>
+
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Taxe de vente</span>
                   <span className="font-medium text-gray-900">

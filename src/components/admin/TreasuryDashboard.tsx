@@ -24,6 +24,8 @@ interface TreasuryData {
     grossMarginPct: number
     invoicesCount: number
     expensesCount: number
+    brsRetained: number
+    brsPending: number
   }
   pipeline: { draft: number; sent: number; accepted: number }
   cashflow: Array<{ period: string; revenue: number; expense: number; net: number }>
@@ -235,15 +237,15 @@ export default function TreasuryDashboard() {
         />
       </div>
 
-      {/* Sous-KPIs : créances/dettes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Sous-KPIs : créances/dettes / BRS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="bg-blue-100 p-2 rounded-lg"><ArrowDownRight className="h-4 w-4 text-blue-600" /></div>
-              <h3 className="text-sm font-semibold text-gray-900">Créances clients (à encaisser)</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Créances clients</h3>
             </div>
-            <Link href="/admin/factures" className="text-xs text-blue-600 hover:underline">Voir factures →</Link>
+            <Link href="/admin/factures" className="text-xs text-blue-600 hover:underline">Voir →</Link>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-blue-50">
@@ -261,9 +263,9 @@ export default function TreasuryDashboard() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="bg-orange-100 p-2 rounded-lg"><ArrowUpRight className="h-4 w-4 text-orange-600" /></div>
-              <h3 className="text-sm font-semibold text-gray-900">Dettes fournisseurs (à payer)</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Dettes fournisseurs</h3>
             </div>
-            <Link href="/admin/depenses" className="text-xs text-orange-600 hover:underline">Voir dépenses →</Link>
+            <Link href="/admin/depenses" className="text-xs text-orange-600 hover:underline">Voir →</Link>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-orange-50">
@@ -273,6 +275,25 @@ export default function TreasuryDashboard() {
             <div className="p-3 rounded-xl bg-red-50">
               <p className="text-xs text-gray-500">En retard</p>
               <p className="text-xl font-bold text-red-700">{fmt(k.payablesOverdue)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-100 p-2 rounded-lg"><Receipt className="h-4 w-4 text-blue-600" /></div>
+              <h3 className="text-sm font-semibold text-gray-900">Retenue BRS</h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-blue-50">
+              <p className="text-xs text-gray-500">Total retenu</p>
+              <p className="text-xl font-bold text-blue-700">{fmt(k.brsRetained)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-yellow-50">
+              <p className="text-xs text-gray-500">À déclarer (non payé)</p>
+              <p className="text-xl font-bold text-yellow-700">{fmt(k.brsPending)}</p>
             </div>
           </div>
         </div>

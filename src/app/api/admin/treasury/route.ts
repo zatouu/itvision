@@ -67,20 +67,28 @@ export async function GET(request: NextRequest) {
     }
 
     // ========== DÉPENSES ==========
-    let expensesTotal = 0       // Toutes dépenses TTC
-    let expensesPaid = 0        // Décaissé
-    let payablesOpen = 0        // À payer (unpaid + partial)
+    let expensesTotal = 0       // Coût total TTC pour l'entreprise
+    let expensesPaid = 0        // Décaissé réel (net payable payé)
+    let payablesOpen = 0        // Reste à décaisser
     let payablesOverdue = 0
+    let brsRetained = 0         // Total BRS retenu
+    let brsPending = 0          // BRS sur dettes non encore payées
 
     for (const exp of expenses) {
+      if (exp.paymentStatus === 'cancelled') continue
       const ttc = Number(exp.amountTTC || 0)
       const paid = Number(exp.paidAmount || 0)
-      if (exp.paymentStatus === 'cancelled') continue
+      const net = Number(exp.netPayable ?? ttc)
+      const brs = Number(exp.brsAmount || 0)
+
       expensesTotal += ttc
       expensesPaid += paid
-      const remaining = Math.max(0, ttc - paid)
+      brsRetained += brs
+
+      const remaining = Math.max(0, net - paid)
       if (exp.paymentStatus !== 'paid') {
         payablesOpen += remaining
+        brsPending += brs
         const due = exp.dueDate ? new Date(exp.dueDate) : null
         if (due && due < today) payablesOverdue += remaining
       }
@@ -107,6 +115,7 @@ export async function GET(request: NextRequest) {
       if (exp.paymentStatus === 'cancelled') continue
       const date = exp.paidAt ? new Date(exp.paidAt) : new Date(exp.expenseDate)
       if (isNaN(date.getTime())) continue
+      // Décaissement réel
       ensure(ymKey(date)).expense += Number(exp.paidAmount || 0)
     }
     const cashflow = Array.from(cashflowMap.values()).sort((a, b) => a.period.localeCompare(b.period))
@@ -181,6 +190,14 @@ export async function GET(request: NextRequest) {
       e.expensesTotal += Number(exp.amountTTC || 0)
       e.expensesPaid += Number(exp.paidAmount || 0)
       e.expensesCount += 1
+    }
+
+    // BRS par projet
+    const projectBRS = new Map<string, number>()
+    for (const exp of expenses) {
+      if (!exp.projectId || exp.paymentStatus === 'cancelled') continue
+      const id = String(exp.projectId)
+      projectBRS.set(id, (projectBRS.get(id) || 0) + Number(exp.brsAmount || 0))
     }
 
     const projectsPL = Array.from(projectMap.values())
@@ -261,7 +278,9 @@ export async function GET(request: NextRequest) {
         grossMargin,
         grossMarginPct: revenueBilled > 0 ? (grossMargin / revenueBilled) * 100 : 0,
         invoicesCount: invoices.length,
-        expensesCount: expenses.length
+        expensesCount: expenses.length,
+        brsRetained,
+        brsPending
       },
       pipeline: {
         draft: pipelineDraft,
