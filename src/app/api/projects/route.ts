@@ -21,6 +21,34 @@ function asObjectIdString(value: any): string | null {
   return /^[a-fA-F0-9]{24}$/.test(s) ? s : null
 }
 
+function normalizeProjectStatusForDb(value: any): 'pending' | 'in_progress' | 'completed' | 'cancelled' {
+  const status = String(value || '').trim().toLowerCase()
+
+  if (status === 'in_progress') return 'in_progress'
+  if (status === 'completed' || status === 'maintenance') return 'completed'
+  if (status === 'cancelled' || status === 'canceled' || status === 'rejected') return 'cancelled'
+
+  // lead, quoted, negotiation, approved, testing, on_hold, pending, etc.
+  return 'pending'
+}
+
+function normalizeProjectStatusForUi(value: any): string {
+  const status = String(value || '').trim().toLowerCase()
+  if (status === 'pending') return 'lead'
+  if (status === 'cancelled') return 'on_hold'
+  return status || 'lead'
+}
+
+function buildStatusQuery(value: any): any {
+  const requested = String(value || '').trim().toLowerCase()
+  if (!requested || requested === 'all') return null
+
+  const mapped = normalizeProjectStatusForDb(requested)
+  if (mapped === requested) return mapped
+
+  return { $in: [requested, mapped] }
+}
+
 // GET - Récupérer les projets
 export async function GET(request: NextRequest) {
   try {
@@ -41,9 +69,8 @@ export async function GET(request: NextRequest) {
     }
     // Les admins et techniciens voient tous les projets
     
-    if (status && status !== 'all') {
-      where.status = status.toUpperCase()
-    }
+    const statusQuery = buildStatusQuery(status)
+    if (statusQuery) where.status = statusQuery
     
     // Récupération des projets (Mongoose)
     const query: any = {}
@@ -61,11 +88,16 @@ export async function GET(request: NextRequest) {
       Project.countDocuments(query)
     ])
     
-    logDataAccess('projects', 'read', request, userId, { count: projects.length })
+    const normalizedProjects = projects.map((project: any) => ({
+      ...project,
+      status: normalizeProjectStatusForUi(project?.status)
+    }))
+
+    logDataAccess('projects', 'read', request, userId, { count: normalizedProjects.length })
     
     return NextResponse.json({
       success: true,
-      projects,
+      projects: normalizedProjects,
       pagination: {
         total: totalCount,
         page: Math.floor(skip / limit) + 1,
@@ -175,7 +207,7 @@ export async function POST(request: NextRequest) {
       projectId: projectId.toString(),
       clientId: new mongoose.Types.ObjectId(finalClientId),
       clientCompanyId: resolvedCompanyId ? new mongoose.Types.ObjectId(resolvedCompanyId) : undefined,
-      status: (projectData.status || 'lead').toLowerCase(),
+      status: normalizeProjectStatusForDb(projectData.status || 'lead'),
       startDate: new Date(projectData.startDate),
       endDate: projectData.endDate ? new Date(projectData.endDate) : null,
       currentPhase: projectData.currentPhase || '',
@@ -211,9 +243,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Normaliser value en number pour la réponse API
+    // Normaliser la réponse API pour l'UI
     if (newProject && typeof newProject.value === 'string') {
       newProject.value = parseFloat(newProject.value) || 0
+    }
+    if (newProject) {
+      newProject.status = normalizeProjectStatusForUi(newProject.status)
     }
     
     logDataAccess('projects', 'create', request, userId, { projectId: String(newProject._id) })
@@ -287,7 +322,7 @@ export async function PUT(request: NextRequest) {
           name: updateData.name ?? existingProject.name,
           description: updateData.description ?? existingProject.description,
           address: updateData.address ?? existingProject.address,
-          status: (updateData.status || existingProject.status),
+          status: normalizeProjectStatusForDb(updateData.status || existingProject.status),
           ...(nextCompanyId === null
             ? { clientCompanyId: null }
             : (typeof nextCompanyId === 'string' ? { clientCompanyId: nextCompanyId } : {})),
@@ -324,6 +359,10 @@ export async function PUT(request: NextRequest) {
       )
     }
     
+    if (updatedProject) {
+      updatedProject.status = normalizeProjectStatusForUi(updatedProject.status)
+    }
+
     logDataAccess('projects', 'update', request, userId, { projectId: String(updatedProject._id) })
     
     return NextResponse.json({
