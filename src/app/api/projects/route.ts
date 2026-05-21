@@ -21,6 +21,12 @@ function asObjectIdString(value: any): string | null {
   return /^[a-fA-F0-9]{24}$/.test(s) ? s : null
 }
 
+function toDate(value: any): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? null : d
+}
+
 // GET - Récupérer les projets
 export async function GET(request: NextRequest) {
   try {
@@ -165,8 +171,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Création du projet — insertion native pour contourner le $jsonSchema validator incompatible
+    // Création du projet — insertion native
     const projectId = new mongoose.Types.ObjectId()
+    const startDate = toDate(projectData.startDate)
+    const endDate = toDate(projectData.endDate)
+
+    if (!startDate) {
+      return NextResponse.json({ error: 'Date de début invalide' }, { status: 400 })
+    }
+
     const docToInsert = {
       _id: projectId,
       name: projectData.name,
@@ -174,17 +187,16 @@ export async function POST(request: NextRequest) {
       address: projectData.address,
       projectId: projectId.toString(),
       clientId: new mongoose.Types.ObjectId(finalClientId),
-      clientCompanyId: resolvedCompanyId ? new mongoose.Types.ObjectId(resolvedCompanyId) : undefined,
       status: (projectData.status || 'lead').toLowerCase(),
-      startDate: new Date(projectData.startDate),
-      endDate: projectData.endDate ? new Date(projectData.endDate) : null,
+      startDate,
+      endDate,
       currentPhase: projectData.currentPhase || '',
       progress: projectData.progress || 0,
       serviceType: projectData.serviceType || '',
       clientSnapshot: projectData.clientSnapshot || { company: '', contact: '', phone: '', email: '' },
       site: projectData.site || { name: '', address: '', access: '', constraints: [], contacts: [] },
       assignedTo: projectData.assignedTo || [],
-      value: String(projectData.value || 0),
+      value: Number(projectData.value || 0),
       margin: projectData.margin || 0,
       milestones: projectData.milestones || [],
       quote: projectData.quote || null,
@@ -195,6 +207,10 @@ export async function POST(request: NextRequest) {
       clientAccess: !!projectData.clientAccess,
       createdAt: new Date(),
       updatedAt: new Date()
+    }
+
+    if (resolvedCompanyId) {
+      ;(docToInsert as any).clientCompanyId = new mongoose.Types.ObjectId(resolvedCompanyId)
     }
 
     await mongoose.connection.collection('projects').insertOne(docToInsert as any)
