@@ -40,7 +40,9 @@ export interface IAdminQuote extends Document {
   cci?: string
   products: IAdminQuoteProduct[]
   subtotal: number
-  brsAmount: number // 5% de déduction
+  applyBRS: boolean
+  brsThreshold: number
+  brsAmount: number // 5% de déduction sur main-d'oeuvre
   taxAmount: number
   other: number
   total: number
@@ -110,7 +112,9 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   cci: { type: String },
   products: { type: [AdminQuoteProductSchema], default: [] },
   subtotal: { type: Number, default: 0 },
-  brsAmount: { type: Number, default: 0 }, // 5% de déduction
+  applyBRS: { type: Boolean, default: false },
+  brsThreshold: { type: Number, default: 25000 },
+  brsAmount: { type: Number, default: 0 }, // 5% de déduction sur main-d'oeuvre
   taxAmount: { type: Number, default: 0 },
   other: { type: Number, default: 0 },
   total: { type: Number, default: 0 },

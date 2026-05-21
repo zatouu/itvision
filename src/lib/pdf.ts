@@ -311,7 +311,7 @@ export function generateITVisionQuotePdf(quote: {
 
   const totalsData = [
     ['Sous-total', `${formatPrice(quote.subtotal)} CFA`],
-    ['BRS', `${formatPrice(quote.brsAmount)} CFA`],
+    ['BRS (retenue 5% MO)', `-${formatPrice(quote.brsAmount)} CFA`],
     ['Taxe de vente', `${formatPrice(quote.taxAmount)} CFA`],
     ['Autres', `${formatPrice(quote.other)} CFA`],
     ['TOTAL', `${formatPrice(quote.total)} CFA`]

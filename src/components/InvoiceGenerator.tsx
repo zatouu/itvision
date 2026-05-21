@@ -303,7 +303,7 @@ export default function InvoiceGenerator() {
           category: it.category || 'products'
         })),
         subtotal: Number(data.subtotal) || 0,
-        taxRate: Number(data.taxRate) || 18,
+        taxRate: Number(data.taxRate ?? 0),
         taxAmount: Number(data.taxAmount) || 0,
         total: Number(data.total) || 0,
         notes: data.notes || '',
@@ -327,7 +327,8 @@ export default function InvoiceGenerator() {
     const quote = quotes.find(q => q.id === quoteId)
     if (!quote) return
 
-    const baseHT = quote.total ? quote.total / 1.18 : 0
+    // Le devis a déjà le total net (BRS déduite, pas de TVA pour l'instant)
+    const total = quote.total || 0
     const newInvoice: Partial<Invoice> = {
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -348,15 +349,15 @@ export default function InvoiceGenerator() {
           id: 'item-quote',
           description: `Prestations selon devis ${quote.number}`,
           quantity: 1,
-          unitPrice: baseHT,
-          totalPrice: baseHT,
+          unitPrice: total,
+          totalPrice: total,
           category: 'services'
         }
       ],
-      subtotal: baseHT,
-      taxRate: 18,
-      taxAmount: baseHT * 0.18,
-      total: quote.total,
+      subtotal: total,
+      taxRate: 0,
+      taxAmount: 0,
+      total,
       notes: `Facture générée depuis le devis ${quote.number}`,
       terms: 'Paiement à 30 jours selon conditions devis.'
     }
@@ -1246,7 +1247,7 @@ function InvoiceForm({
         }
       ],
       subtotal: 0,
-      taxRate: 18,
+      taxRate: 0,
       taxAmount: 0,
       total: 0,
       notes: '',

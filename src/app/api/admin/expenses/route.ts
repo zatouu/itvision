@@ -36,7 +36,17 @@ function computeAmounts(body: any) {
   const taxRate = Number(body.taxRate ?? 0)
   const taxAmount = Number(body.taxAmount ?? (amountHT * taxRate / 100))
   const amountTTC = Number(body.amountTTC ?? (amountHT + taxAmount))
-  return { amountHT, taxRate, taxAmount, amountTTC }
+
+  const brsApplicable = Boolean(body.brsApplicable)
+  const brsRate = Number(body.brsRate ?? 5)
+  const brsThreshold = Number(body.brsThreshold ?? 25000)
+  let brsAmount = 0
+  if (brsApplicable && amountHT > brsThreshold) {
+    brsAmount = Math.round(amountHT * brsRate) / 100
+  }
+  const netPayable = amountTTC - brsAmount
+
+  return { amountHT, taxRate, taxAmount, amountTTC, brsApplicable, brsRate, brsThreshold, brsAmount, netPayable }
 }
 
 // GET: liste avec filtres
@@ -96,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     const amounts = computeAmounts(body)
-    const paidAmount = Number(body.paidAmount ?? (body.paymentStatus === 'paid' ? amounts.amountTTC : 0))
+    const paidAmount = Number(body.paidAmount ?? (body.paymentStatus === 'paid' ? amounts.netPayable : 0))
 
     const data: any = {
       numero,
@@ -129,8 +139,11 @@ export async function POST(request: NextRequest) {
 
     let saved: any
     if (id) {
-      saved = await Expense.findByIdAndUpdate(id, { $set: data }, { new: true }).lean()
-      if (!saved) return NextResponse.json({ error: 'Dépense introuvable' }, { status: 404 })
+      const existing = await Expense.findById(id)
+      if (!existing) return NextResponse.json({ error: 'Dépense introuvable' }, { status: 404 })
+      Object.assign(existing, data)
+      await existing.save()
+      saved = existing.toObject()
     } else {
       const created = new Expense(data)
       await created.save()
@@ -157,20 +170,21 @@ export async function PATCH(request: NextRequest) {
 
     await connectMongoose()
 
-    const update: any = {}
-    if (body.paymentStatus) update.paymentStatus = body.paymentStatus
-    if (body.paymentMethod !== undefined) update.paymentMethod = body.paymentMethod
-    if (body.paidAmount !== undefined) update.paidAmount = Number(body.paidAmount)
-    if (body.paidAt !== undefined) update.paidAt = toDate(body.paidAt)
+    const exp = await Expense.findById(id)
+    if (!exp) return NextResponse.json({ error: 'Dépense introuvable' }, { status: 404 })
+
+    if (body.paymentStatus) exp.paymentStatus = body.paymentStatus
+    if (body.paymentMethod !== undefined) exp.paymentMethod = body.paymentMethod
+    if (body.paidAmount !== undefined) exp.paidAmount = Number(body.paidAmount)
+    if (body.paidAt !== undefined) exp.paidAt = toDate(body.paidAt)
 
     if (body.paymentStatus === 'paid') {
-      update.paidAt = update.paidAt || new Date()
-      const exp = await Expense.findById(id).select({ amountTTC: 1 }).lean() as any
-      if (exp && (update.paidAmount === undefined)) update.paidAmount = exp.amountTTC
+      exp.paidAt = exp.paidAt || new Date()
+      if (body.paidAmount === undefined) exp.paidAmount = exp.netPayable ?? exp.amountTTC
     }
 
-    const saved = await Expense.findByIdAndUpdate(id, { $set: update }, { new: true }).lean() as any
-    if (!saved) return NextResponse.json({ error: 'Dépense introuvable' }, { status: 404 })
+    await exp.save()
+    const saved = exp.toObject()
 
     return NextResponse.json({ success: true, expense: saved })
   } catch (error) {

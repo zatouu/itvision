@@ -46,6 +46,11 @@ interface Expense {
   taxAmount: number
   amountTTC: number
   currency: string
+  brsApplicable: boolean
+  brsRate: number
+  brsThreshold: number
+  brsAmount: number
+  netPayable: number
   paymentStatus: 'unpaid' | 'partial' | 'paid' | 'cancelled'
   paymentMethod?: string
   paidAmount: number
@@ -68,6 +73,11 @@ const emptyExpense: Partial<Expense> = {
   taxRate: 0,
   taxAmount: 0,
   amountTTC: 0,
+  brsApplicable: false,
+  brsRate: 5,
+  brsThreshold: 25000,
+  brsAmount: 0,
+  netPayable: 0,
   paymentStatus: 'unpaid',
   paidAmount: 0,
   expenseDate: todayISO(),
@@ -128,24 +138,37 @@ export default function ExpenseManager() {
   }, [expenses, search, filterCategory, filterStatus, filterProject])
 
   const totals = useMemo(() => {
-    let total = 0, paid = 0, unpaid = 0
+    let total = 0, paid = 0, unpaid = 0, brsTotal = 0
     for (const e of filtered) {
       if (e.paymentStatus === 'cancelled') continue
+      const net = Number(e.netPayable ?? e.amountTTC) || 0
       total += Number(e.amountTTC) || 0
       paid += Number(e.paidAmount) || 0
+      brsTotal += Number(e.brsAmount) || 0
       if (e.paymentStatus !== 'paid') {
-        unpaid += Math.max(0, (Number(e.amountTTC) || 0) - (Number(e.paidAmount) || 0))
+        unpaid += Math.max(0, net - (Number(e.paidAmount) || 0))
       }
     }
-    return { total, paid, unpaid, count: filtered.length }
+    return { total, paid, unpaid, brsTotal, count: filtered.length }
   }, [filtered])
+
+  const BRS_CATEGORIES = new Set(['sous_traitance', 'services', 'commissions', 'salaire'])
 
   const updateAmounts = (next: Partial<Expense>) => {
     const ht = Number(next.amountHT || 0)
     const rate = Number(next.taxRate || 0)
     const taxAmount = Math.round(ht * rate) / 100
     const ttc = ht + taxAmount
-    return { ...next, taxAmount, amountTTC: ttc }
+
+    // Auto-détection BRS selon la catégorie
+    const autoBrs = next.category ? BRS_CATEGORIES.has(next.category) : false
+    const brsApplicable = next.brsApplicable !== undefined ? next.brsApplicable : autoBrs
+    const brsRate = Number(next.brsRate ?? 5)
+    const brsThreshold = Number(next.brsThreshold ?? 25000)
+    const brsAmount = brsApplicable && ht > brsThreshold ? Math.round(ht * brsRate) / 100 : 0
+    const netPayable = ttc - brsAmount
+
+    return { ...next, taxAmount, amountTTC: ttc, brsApplicable, brsRate, brsThreshold, brsAmount, netPayable }
   }
 
   const openCreate = () => {
@@ -167,7 +190,7 @@ export default function ExpenseManager() {
 
   const save = async () => {
     if (!editing.label?.trim()) { setError('Libellé requis'); return }
-    if (!Number.isFinite(Number(editing.amountTTC)) || Number(editing.amountTTC) < 0) {
+    if (!Number.isFinite(Number(editing.amountHT)) || Number(editing.amountHT) < 0) {
       setError('Montant invalide'); return
     }
     setSaving(true)
@@ -198,11 +221,19 @@ export default function ExpenseManager() {
 
   const togglePaid = async (e: Expense) => {
     const newStatus = e.paymentStatus === 'paid' ? 'unpaid' : 'paid'
+    const body: any = { id: e._id, paymentStatus: newStatus }
+    if (newStatus === 'paid') {
+      body.paidAt = new Date().toISOString()
+      body.paidAmount = e.netPayable ?? e.amountTTC
+    } else {
+      body.paidAmount = 0
+      body.paidAt = null
+    }
     const res = await fetch('/api/admin/expenses', {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: e._id, paymentStatus: newStatus, paidAt: newStatus === 'paid' ? new Date().toISOString() : null })
+      body: JSON.stringify(body)
     })
     if (res.ok) await load()
   }
@@ -249,7 +280,7 @@ export default function ExpenseManager() {
         </div>
 
         {/* Totaux */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-5">
           <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
             <p className="text-xs text-gray-500">Nombre</p>
             <p className="text-xl font-bold text-gray-900">{totals.count}</p>
@@ -259,12 +290,16 @@ export default function ExpenseManager() {
             <p className="text-xl font-bold text-orange-700">{fmt(totals.total)}</p>
           </div>
           <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-            <p className="text-xs text-gray-500">Payé</p>
+            <p className="text-xs text-gray-500">Payé (net)</p>
             <p className="text-xl font-bold text-emerald-700">{fmt(totals.paid)}</p>
           </div>
           <div className="p-3 rounded-xl bg-red-50 border border-red-100">
             <p className="text-xs text-gray-500">Reste à payer</p>
             <p className="text-xl font-bold text-red-700">{fmt(totals.unpaid)}</p>
+          </div>
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
+            <p className="text-xs text-gray-500">BRS retenu</p>
+            <p className="text-xl font-bold text-blue-700">{fmt(totals.brsTotal)}</p>
           </div>
         </div>
       </div>
@@ -496,6 +531,47 @@ export default function ExpenseManager() {
                     className="input font-bold"
                   />
                 </Field>
+              </div>
+
+              {/* BRS */}
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-blue-900">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editing.brsApplicable)}
+                    onChange={(e) => setEditing(updateAmounts({ ...editing, brsApplicable: e.target.checked }))}
+                    className="rounded"
+                  />
+                  Sujette à retenue BRS (main d'oeuvre / services)
+                </label>
+                {editing.brsApplicable && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <Field label="Taux BRS (%)">
+                      <input
+                        type="number"
+                        value={editing.brsRate ?? 5}
+                        onChange={(e) => setEditing(updateAmounts({ ...editing, brsRate: Number(e.target.value) }))}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Seuil BRS (FCFA)">
+                      <input
+                        type="number"
+                        value={editing.brsThreshold ?? 25000}
+                        onChange={(e) => setEditing(updateAmounts({ ...editing, brsThreshold: Number(e.target.value) }))}
+                        className="input"
+                      />
+                    </Field>
+                    <div className="p-2 rounded-lg bg-white border border-blue-100">
+                      <p className="text-[11px] text-blue-600 font-semibold">Retenue BRS</p>
+                      <p className="text-lg font-bold text-blue-800">{fmt(Number(editing.brsAmount) || 0)}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white border border-emerald-100">
+                      <p className="text-[11px] text-emerald-600 font-semibold">Net à payer</p>
+                      <p className="text-lg font-bold text-emerald-800">{fmt(Number(editing.netPayable) || 0)}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

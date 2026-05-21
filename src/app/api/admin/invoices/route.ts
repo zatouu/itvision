@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       client: body.client,
       items: Array.isArray(body.items) ? body.items : [],
       subtotal: Number(body.subtotal || 0),
-      taxRate: Number(body.taxRate ?? 18),
+      taxRate: Number(body.taxRate ?? 0),
       taxAmount: Number(body.taxAmount || 0),
       total: Number(body.total || 0),
       notes: body.notes,
