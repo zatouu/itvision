@@ -175,7 +175,35 @@ const ProjectSchema = new Schema<IProject>({
     completedDate: Date,
     dependencies: [String],
     deliverables: [String],
-    clientNotified: { type: Boolean, default: false }
+    clientNotified: { type: Boolean, default: false },
+    // Vue 360 du jalon
+    checklist: [{
+      label: String,
+      done: { type: Boolean, default: false },
+      required: { type: Boolean, default: false }
+    }],
+    expectedDeliverables: [{
+      name: String,
+      description: String,
+      done: { type: Boolean, default: false },
+      url: String
+    }],
+    fieldReport: {
+      observations: String,
+      issues: [String],
+      satisfaction: { type: Number, min: 1, max: 10 },
+      realDuration: Number, // heures
+      photos: [String],
+      signedBy: String,
+      signedAt: Date
+    },
+    learnings: [{
+      category: { type: String, enum: ['technical', 'process', 'client', 'safety', 'other'] },
+      insight: String,
+      author: String,
+      createdAt: { type: Date, default: Date.now }
+    }],
+    phaseTemplate: String // référence vers un template de phase pour onboarding
   }],
   quote: {
     id: String,

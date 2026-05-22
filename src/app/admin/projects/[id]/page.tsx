@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import WorkflowMiniPanel from '@/components/WorkflowMiniPanel'
+import MilestoneDetailView from '@/components/admin/MilestoneDetailView'
 
 interface Project {
   _id: string
@@ -119,6 +120,9 @@ export default function ProjectDetailPage() {
 
   // Document upload
   const [newDoc, setNewDoc] = useState({ name: '', url: '', type: '' })
+
+  // Milestone detail modal
+  const [selectedMilestone, setSelectedMilestone] = useState<any | null>(null)
 
   const loadProject = async () => {
     setLoading(true)
@@ -395,10 +399,14 @@ export default function ProjectDetailPage() {
                   ) : (
                     <div className="space-y-2">
                       {(project.milestones || []).slice(0, 5).map(m => (
-                        <div key={m.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-gray-50">
+                        <button
+                          key={m.id}
+                          onClick={() => setSelectedMilestone(m)}
+                          className="w-full flex items-center justify-between text-sm p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors text-left"
+                        >
                           <span className="font-medium text-gray-900">{m.name}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${MSTATUS_COLORS[m.status]}`}>{MSTATUS_LABELS[m.status]}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -502,12 +510,12 @@ export default function ProjectDetailPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(editing.milestones || []).map(m => (
-                <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start justify-between gap-3">
+                <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start justify-between gap-3 group hover:shadow-sm transition-shadow cursor-pointer" onClick={() => setSelectedMilestone(m)}>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm">{m.name}</p>
                     {m.dueDate && <p className="text-xs text-gray-500 mt-0.5">Échéance : {fd(m.dueDate)}</p>}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     <select value={m.status} onChange={e => handleMilestoneStatus(m.id, e.target.value as any)} className="text-xs border border-gray-200 rounded-lg px-2 py-1">
                       {Object.keys(MSTATUS_LABELS).map(s => <option key={s} value={s}>{MSTATUS_LABELS[s]}</option>)}
                     </select>
@@ -690,6 +698,21 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Milestone Detail Modal */}
+      {selectedMilestone && project && (
+        <MilestoneDetailView
+          milestone={selectedMilestone}
+          projectId={project._id}
+          projectServiceType={project.serviceType}
+          onClose={() => setSelectedMilestone(null)}
+          onUpdate={(updated) => {
+            setProject(prev => prev ? { ...prev, milestones: (prev.milestones || []).map((m: any) => m.id === updated.id ? updated : m) } : prev)
+            setEditing(prev => ({ ...prev, milestones: (prev.milestones || []).map((m: any) => m.id === updated.id ? updated : m) }))
+            setSelectedMilestone(null)
+          }}
+        />
+      )}
     </div>
   )
 }
