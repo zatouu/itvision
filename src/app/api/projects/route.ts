@@ -372,6 +372,7 @@ export async function PUT(request: NextRequest) {
       timeline: updateData.timeline ?? existingProject.timeline,
       risks: updateData.risks ?? existingProject.risks,
       documents: updateData.documents ?? existingProject.documents,
+      sharedNotes: updateData.sharedNotes ?? (existingProject as any).sharedNotes ?? [],
       clientAccess: typeof updateData.clientAccess === 'boolean' ? updateData.clientAccess : existingProject.clientAccess,
       updatedAt: new Date()
     }

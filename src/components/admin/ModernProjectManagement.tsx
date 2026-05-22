@@ -8,7 +8,9 @@ import {
   DollarSign, CheckCircle2, AlertCircle, XCircle, Pause, Play, Target,
   Briefcase, FileText, Package, Activity, Award, BarChart3, PieChart,
   ArrowUp, ArrowDown, Minus, MapPin, Phone, Mail, Building2, Wrench,
-  ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle
+  ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle,
+  MessageSquare, Flag, Save, Circle, CheckSquare, Layers, SlidersHorizontal,
+  Lock, Unlock, ExternalLink
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 
@@ -135,6 +137,130 @@ export default function ModernProjectManagement() {
   const [showProjectDetail, setShowProjectDetail] = useState(false)
   const [projectPendingDeletion, setProjectPendingDeletion] = useState<Project | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Detail modal enriched state
+  const [detailTab, setDetailTab] = useState<'overview' | 'edit' | 'milestones' | 'notes'>('overview')
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [savingProject, setSavingProject] = useState(false)
+  const [newMilestoneName, setNewMilestoneName] = useState('')
+  const [newMilestoneDue, setNewMilestoneDue] = useState('')
+  const [newNote, setNewNote] = useState('')
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all')
+
+  const openProjectDetail = (project: Project) => {
+    setSelectedProject(project)
+    setEditingProject({ ...project })
+    setDetailTab('overview')
+    setNewMilestoneName('')
+    setNewMilestoneDue('')
+    setNewNote('')
+    setShowProjectDetail(true)
+  }
+
+  const handleEditFieldChange = (field: keyof Project, value: any) => {
+    setEditingProject(prev => prev ? { ...prev, [field]: value } : null)
+  }
+
+  const handleSaveProject = async () => {
+    if (!editingProject?._id) return
+    setSavingProject(true)
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: editingProject._id,
+          name: editingProject.name,
+          description: editingProject.description,
+          address: editingProject.address,
+          status: editingProject.status,
+          progress: editingProject.progress,
+          currentPhase: editingProject.currentPhase,
+          endDate: editingProject.endDate || null,
+          value: editingProject.value,
+          serviceType: editingProject.serviceType,
+          milestones: editingProject.milestones,
+          clientAccess: (editingProject as any).clientAccess
+        })
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Mise à jour impossible')
+      }
+      const data = await res.json()
+      const updated = data.project as Project
+      setSelectedProject(updated)
+      setEditingProject({ ...updated })
+      setProjects(prev => prev.map(p => p._id === updated._id ? updated : p))
+      toast.success('Projet mis à jour', { description: updated.name })
+    } catch (err: any) {
+      toast.error('Erreur de sauvegarde', { description: err?.message || 'Réessayez.' })
+    } finally {
+      setSavingProject(false)
+    }
+  }
+
+  const handleAddMilestone = () => {
+    if (!newMilestoneName.trim() || !editingProject) return
+    const milestone = {
+      id: Date.now().toString(),
+      name: newMilestoneName.trim(),
+      status: 'pending' as const,
+      dueDate: newMilestoneDue || undefined
+    }
+    setEditingProject(prev => prev ? {
+      ...prev,
+      milestones: [...(prev.milestones || []), milestone]
+    } : null)
+    setNewMilestoneName('')
+    setNewMilestoneDue('')
+  }
+
+  const handleMilestoneStatusChange = (id: string, status: 'pending' | 'in_progress' | 'completed' | 'delayed') => {
+    setEditingProject(prev => prev ? {
+      ...prev,
+      milestones: (prev.milestones || []).map(m => m.id === id ? { ...m, status } : m)
+    } : null)
+  }
+
+  const handleRemoveMilestone = (id: string) => {
+    setEditingProject(prev => prev ? {
+      ...prev,
+      milestones: (prev.milestones || []).filter(m => m.id !== id)
+    } : null)
+  }
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !editingProject?._id) return
+    const note = {
+      id: Date.now().toString(),
+      author: 'Admin',
+      role: 'ADMIN' as const,
+      createdAt: new Date().toISOString(),
+      message: newNote.trim(),
+      clientVisible: false
+    }
+    const updatedNotes = [...((editingProject as any).sharedNotes || []), note]
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: editingProject._id, sharedNotes: updatedNotes })
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const updated = data.project as Project
+      setSelectedProject(updated)
+      setEditingProject({ ...updated })
+      setProjects(prev => prev.map(p => p._id === updated._id ? updated : p))
+      setNewNote('')
+      toast.success('Note ajoutée')
+    } catch {
+      toast.error('Erreur lors de l\'ajout de la note')
+    }
+  }
 
   const fetchProjects = async () => {
     setLoading(true)
@@ -391,10 +517,18 @@ export default function ModernProjectManagement() {
         project.clientSnapshot?.company?.toLowerCase().includes(searchTerm.toLowerCase())
       
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter
+
+      const matchesServiceType = serviceTypeFilter === 'all' ||
+        (project.serviceType || '').toLowerCase().includes(serviceTypeFilter.toLowerCase())
       
-      return matchesSearch && matchesStatus
+      return matchesSearch && matchesStatus && matchesServiceType
     })
-  }, [projects, searchTerm, statusFilter])
+  }, [projects, searchTerm, statusFilter, serviceTypeFilter])
+
+  const serviceTypeOptions = useMemo(() => {
+    const types = Array.from(new Set(projects.map(p => p.serviceType).filter(Boolean))) as string[]
+    return types
+  }, [projects])
 
   // Regroupement par statut pour Kanban
   const projectsByStatus = useMemo(() => {
@@ -595,6 +729,19 @@ export default function ModernProjectManagement() {
               <option value="completed">Terminés</option>
             </select>
 
+            {serviceTypeOptions.length > 0 && (
+              <select
+                value={serviceTypeFilter}
+                onChange={(e) => setServiceTypeFilter(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              >
+                <option value="all">Tous les services</option>
+                {serviceTypeOptions.map(st => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+            )}
+
             {/* Mode de vue */}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
               <button
@@ -680,10 +827,7 @@ export default function ModernProjectManagement() {
                       {column.projects.map(project => (
                         <div
                           key={project._id}
-                          onClick={() => {
-                            setSelectedProject(project)
-                            setShowProjectDetail(true)
-                          }}
+                          onClick={() => openProjectDetail(project)}
                           className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer group"
                         >
                           <div className="flex items-start justify-between mb-2">
@@ -774,10 +918,7 @@ export default function ModernProjectManagement() {
                     <tr 
                       key={project._id} 
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setSelectedProject(project)
-                        setShowProjectDetail(true)
-                      }}
+                      onClick={() => openProjectDetail(project)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -823,8 +964,7 @@ export default function ModernProjectManagement() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedProject(project)
-                            setShowProjectDetail(true)
+                            openProjectDetail(project)
                           }}
                           className="text-blue-600 hover:text-blue-900 mr-3"
                         >
@@ -1220,125 +1360,486 @@ export default function ModernProjectManagement() {
         </div>
       )}
 
-      {/* Modal détails projet */}
-      {showProjectDetail && selectedProject && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8 shadow-2xl">
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-5 flex items-center justify-between rounded-t-3xl">
-              <h2 className="text-2xl font-bold">{selectedProject.name}</h2>
-              <button
-                onClick={() => setShowProjectDetail(false)}
-                className="p-2 hover:bg-white/20 rounded-xl transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      {/* Modal détails projet — enrichi */}
+      {showProjectDetail && selectedProject && editingProject && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full my-8 shadow-2xl flex flex-col">
 
-            <div className="p-6 space-y-6">
-              {/* Informations principales */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 rounded-xl p-4">
-                  <div className="text-sm text-blue-700 font-medium mb-1">Client</div>
-                  <div className="font-semibold text-blue-900">{selectedProject.clientSnapshot?.company || '-'}</div>
-                  <div className="text-sm text-blue-600">{selectedProject.clientSnapshot?.contact || ''}</div>
-                </div>
-                
-                <div className="bg-green-50 rounded-xl p-4">
-                  <div className="text-sm text-green-700 font-medium mb-1">Statut</div>
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-${getStatusColor(selectedProject.status)}-100 text-${getStatusColor(selectedProject.status)}-700`}>
-                    {getStatusIcon(selectedProject.status)}
-                    {getStatusLabel(selectedProject.status)}
-                  </span>
-                </div>
-                
-                <div className="bg-purple-50 rounded-xl p-4">
-                  <div className="text-sm text-purple-700 font-medium mb-1">Progrès</div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-purple-200 rounded-full h-3">
-                      <div 
-                        className="bg-purple-600 h-3 rounded-full"
-                        style={{ width: `${selectedProject.progress}%` }}
-                      />
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-6 py-5 rounded-t-3xl">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 border border-white/30`}>
+                      {getStatusIcon(selectedProject.status)}
+                      {getStatusLabel(selectedProject.status)}
+                    </span>
+                    {selectedProject.serviceType && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/15 border border-white/25">
+                        <Package className="h-3 w-3" />
+                        {selectedProject.serviceType}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl font-bold truncate">{selectedProject.name}</h2>
+                  {selectedProject.clientSnapshot?.company && (
+                    <div className="flex items-center gap-1.5 text-blue-100 text-sm mt-1">
+                      <Building2 className="h-4 w-4" />
+                      {selectedProject.clientSnapshot.company}
+                      {selectedProject.clientSnapshot.contact && ` — ${selectedProject.clientSnapshot.contact}`}
                     </div>
-                    <span className="text-purple-900 font-bold">{selectedProject.progress}%</span>
-                  </div>
+                  )}
                 </div>
-                
-                <div className="bg-orange-50 rounded-xl p-4">
-                  <div className="text-sm text-orange-700 font-medium mb-1">Valeur</div>
-                  <div className="font-semibold text-orange-900">
-                    {selectedProject.value ? `${selectedProject.value.toLocaleString('fr-FR')} FCFA` : '-'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Dates et localisation */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Date de début</div>
-                  <div className="text-gray-900 font-medium">
-                    {new Date(selectedProject.startDate).toLocaleDateString('fr-FR', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </div>
-                </div>
-                
-                {selectedProject.endDate && (
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Date de fin prévue</div>
-                    <div className="text-gray-900 font-medium">
-                      {new Date(selectedProject.endDate).toLocaleDateString('fr-FR', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {selectedProject.address && (
-                <div>
-                  <div className="text-sm text-gray-600 mb-1 flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Adresse du site
-                  </div>
-                  <div className="text-gray-900">{selectedProject.address}</div>
-                </div>
-              )}
-
-              {selectedProject.description && (
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Description</div>
-                  <div className="text-gray-900 bg-gray-50 rounded-xl p-4">
-                    {selectedProject.description}
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => setShowProjectDetail(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
+                  className="p-2 hover:bg-white/20 rounded-xl transition-colors flex-shrink-0"
                 >
-                  Fermer
+                  <X className="h-6 w-6" />
                 </button>
+              </div>
+
+              {/* Onglets */}
+              <div className="flex gap-1 mt-4">
+                {([
+                  { id: 'overview', label: 'Vue d\'ensemble', icon: Layers },
+                  { id: 'edit', label: 'Modifier', icon: Edit3 },
+                  { id: 'milestones', label: `Jalons (${(editingProject.milestones || []).length})`, icon: Flag },
+                  { id: 'notes', label: 'Notes', icon: MessageSquare }
+                ] as { id: typeof detailTab; label: string; icon: any }[]).map(tab => {
+                  const Icon = tab.icon
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setDetailTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        detailTab === tab.id
+                          ? 'bg-white text-blue-700 shadow'
+                          : 'text-blue-100 hover:bg-white/15'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Contenu des onglets */}
+            <div className="p-6 overflow-y-auto" style={{ maxHeight: '60vh' }}>
+
+              {/* ─── Vue d'ensemble ─── */}
+              {detailTab === 'overview' && (
+                <div className="space-y-5">
+                  {/* KPIs rapides */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Progression</div>
+                      <div className="text-2xl font-bold text-blue-800">{selectedProject.progress}%</div>
+                      <div className="mt-1.5 bg-blue-200 rounded-full h-1.5">
+                        <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${selectedProject.progress}%` }} />
+                      </div>
+                    </div>
+                    <div className="bg-green-50 border border-green-100 rounded-xl p-3 text-center">
+                      <div className="text-xs text-green-600 font-medium mb-1">Valeur</div>
+                      <div className="text-lg font-bold text-green-800">
+                        {selectedProject.value ? `${(selectedProject.value / 1000).toFixed(0)}K` : '—'}
+                      </div>
+                      <div className="text-xs text-green-600">FCFA</div>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
+                      <div className="text-xs text-purple-600 font-medium mb-1">Jalons</div>
+                      <div className="text-2xl font-bold text-purple-800">{(selectedProject.milestones || []).length}</div>
+                      <div className="text-xs text-purple-600">
+                        {(selectedProject.milestones || []).filter(m => m.status === 'completed').length} terminés
+                      </div>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
+                      <div className="text-xs text-orange-600 font-medium mb-1">Phase</div>
+                      <div className="text-sm font-bold text-orange-800 line-clamp-2">
+                        {selectedProject.currentPhase || '—'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dates et adresse */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                        <CalendarIcon className="h-4 w-4 text-blue-500" />
+                        Dates
+                      </div>
+                      <div className="text-sm text-gray-900">
+                        <div>Début : <span className="font-medium">{new Date(selectedProject.startDate).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+                        {selectedProject.endDate && (
+                          <div className="mt-1">Fin prévue : <span className="font-medium">{new Date(selectedProject.endDate).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                        <MapPin className="h-4 w-4 text-green-500" />
+                        Adresse du site
+                      </div>
+                      <div className="text-sm text-gray-900">{selectedProject.address}</div>
+                    </div>
+                  </div>
+
+                  {/* Contact client */}
+                  {selectedProject.clientSnapshot && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                        <Users className="h-4 w-4 text-indigo-500" />
+                        Contact client
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        {selectedProject.clientSnapshot.company && (
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <Building2 className="h-3.5 w-3.5 text-gray-400" />
+                            {selectedProject.clientSnapshot.company}
+                          </div>
+                        )}
+                        {selectedProject.clientSnapshot.contact && (
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <Users className="h-3.5 w-3.5 text-gray-400" />
+                            {selectedProject.clientSnapshot.contact}
+                          </div>
+                        )}
+                        {selectedProject.clientSnapshot.phone && (
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <Phone className="h-3.5 w-3.5 text-gray-400" />
+                            {selectedProject.clientSnapshot.phone}
+                          </div>
+                        )}
+                        {selectedProject.clientSnapshot.email && (
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <Mail className="h-3.5 w-3.5 text-gray-400" />
+                            {selectedProject.clientSnapshot.email}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {selectedProject.description && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                      <div className="text-sm font-semibold text-gray-700 mb-2">Description</div>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{selectedProject.description}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── Modifier ─── */}
+              {detailTab === 'edit' && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Nom du projet</label>
+                      <input
+                        type="text"
+                        value={editingProject.name}
+                        onChange={e => handleEditFieldChange('name', e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Statut</label>
+                      <select
+                        value={editingProject.status}
+                        onChange={e => handleEditFieldChange('status', e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      >
+                        <option value="lead">Prospect</option>
+                        <option value="quoted">Devis envoyé</option>
+                        <option value="negotiation">Négociation</option>
+                        <option value="approved">Approuvé</option>
+                        <option value="in_progress">En cours</option>
+                        <option value="testing">Tests</option>
+                        <option value="completed">Terminé</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="on_hold">En pause</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Phase actuelle</label>
+                      <input
+                        type="text"
+                        value={editingProject.currentPhase || ''}
+                        onChange={e => handleEditFieldChange('currentPhase', e.target.value)}
+                        placeholder="Installation, recette..."
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Type / Service</label>
+                      <input
+                        type="text"
+                        value={editingProject.serviceType || ''}
+                        onChange={e => handleEditFieldChange('serviceType', e.target.value)}
+                        placeholder="Fibre, vidéosurveillance..."
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Valeur (FCFA)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingProject.value ?? ''}
+                        onChange={e => handleEditFieldChange('value', e.target.value ? Number(e.target.value) : 0)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Date de fin prévue</label>
+                      <input
+                        type="date"
+                        value={editingProject.endDate ? editingProject.endDate.toString().slice(0, 10) : ''}
+                        onChange={e => handleEditFieldChange('endDate', e.target.value || null)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Progression — {editingProject.progress}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={editingProject.progress}
+                        onChange={e => handleEditFieldChange('progress', Number(e.target.value))}
+                        className="mt-2 w-full accent-blue-600"
+                      />
+                      <div className="mt-1 bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${editingProject.progress}%` }} />
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Description</label>
+                      <textarea
+                        rows={4}
+                        value={editingProject.description || ''}
+                        onChange={e => handleEditFieldChange('description', e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        placeholder="Contexte, objectifs, contraintes..."
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Adresse du site</label>
+                      <input
+                        type="text"
+                        value={editingProject.address}
+                        onChange={e => handleEditFieldChange('address', e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        id="clientAccess"
+                        type="checkbox"
+                        checked={!!(editingProject as any).clientAccess}
+                        onChange={e => handleEditFieldChange('clientAccess' as any, e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="clientAccess" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        {(editingProject as any).clientAccess ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-gray-400" />}
+                        Accès portail client activé
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── Jalons ─── */}
+              {detailTab === 'milestones' && (
+                <div className="space-y-4">
+                  {/* Formulaire ajout jalon */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <div className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Ajouter un jalon
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nom du jalon"
+                        value={newMilestoneName}
+                        onChange={e => setNewMilestoneName(e.target.value)}
+                        className="flex-1 rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                      <input
+                        type="date"
+                        value={newMilestoneDue}
+                        onChange={e => setNewMilestoneDue(e.target.value)}
+                        className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      />
+                      <button
+                        onClick={handleAddMilestone}
+                        disabled={!newMilestoneName.trim()}
+                        className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2">Sauvegardez depuis l'onglet Modifier pour persister les jalons.</p>
+                  </div>
+
+                  {/* Liste des jalons */}
+                  {(editingProject.milestones || []).length === 0 ? (
+                    <div className="text-center py-10 text-gray-500">
+                      <Flag className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Aucun jalon défini</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(editingProject.milestones || []).map(m => (
+                        <div key={m.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 hover:shadow-sm transition-shadow">
+                          <div className="flex-shrink-0">
+                            {m.status === 'completed' ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            ) : m.status === 'in_progress' ? (
+                              <Activity className="h-5 w-5 text-blue-500" />
+                            ) : m.status === 'delayed' ? (
+                              <AlertCircle className="h-5 w-5 text-red-500" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm text-gray-900 truncate">{m.name}</div>
+                            {m.dueDate && (
+                              <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                <CalendarIcon className="h-3 w-3" />
+                                {new Date(m.dueDate).toLocaleDateString('fr-FR')}
+                              </div>
+                            )}
+                          </div>
+                          <select
+                            value={m.status}
+                            onChange={e => handleMilestoneStatusChange(m.id, e.target.value as any)}
+                            className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-blue-200"
+                          >
+                            <option value="pending">En attente</option>
+                            <option value="in_progress">En cours</option>
+                            <option value="completed">Terminé</option>
+                            <option value="delayed">Retardé</option>
+                          </select>
+                          <button
+                            onClick={() => handleRemoveMilestone(m.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── Notes ─── */}
+              {detailTab === 'notes' && (
+                <div className="space-y-4">
+                  {/* Formulaire ajout note */}
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                    <div className="text-sm font-semibold text-indigo-800 mb-3 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Ajouter une note
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={newNote}
+                      onChange={e => setNewNote(e.target.value)}
+                      placeholder="Remarque, décision, problème rencontré..."
+                      className="w-full rounded-xl border border-indigo-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={handleAddNote}
+                        disabled={!newNote.trim()}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        <Save className="h-4 w-4" />
+                        Publier
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Liste des notes */}
+                  {((selectedProject as any).sharedNotes || []).length === 0 ? (
+                    <div className="text-center py-10 text-gray-500">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Aucune note pour ce projet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {((selectedProject as any).sharedNotes || []).slice().reverse().map((note: any) => (
+                        <div key={note.id || note._id} className="bg-white border border-gray-200 rounded-xl p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                {(note.author || 'A').charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-sm font-semibold text-gray-900">{note.author || 'Admin'}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${note.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' : note.role === 'TECHNICIAN' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                                {note.role === 'ADMIN' ? 'Admin' : note.role === 'TECHNICIAN' ? 'Technicien' : 'Client'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {new Date(note.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{note.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer avec actions */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex items-center justify-between gap-3">
+              <button
+                onClick={() => setShowProjectDetail(false)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-white transition-colors text-sm font-medium"
+              >
+                Fermer
+              </button>
+              <div className="flex gap-3">
                 <button
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg hover:scale-105"
                   onClick={() => {
                     setShowProjectDetail(false)
-                    if (selectedProject?._id) {
-                      redirectToProjectEditor(selectedProject._id)
-                    } else {
-                      redirectToProjectEditor()
-                    }
+                    redirectToProjectEditor(selectedProject._id)
                   }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors text-sm font-medium"
                 >
-                  Modifier le projet
+                  <ExternalLink className="h-4 w-4" />
+                  Éditeur complet
                 </button>
+                {detailTab === 'edit' && (
+                  <button
+                    onClick={handleSaveProject}
+                    disabled={savingProject}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60 shadow text-sm"
+                  >
+                    {savingProject ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {savingProject ? 'Sauvegarde...' : 'Sauvegarder'}
+                  </button>
+                )}
+                {detailTab === 'milestones' && (editingProject.milestones || []).length > 0 && (
+                  <button
+                    onClick={handleSaveProject}
+                    disabled={savingProject}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-60 shadow text-sm"
+                  >
+                    {savingProject ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {savingProject ? 'Sauvegarde...' : 'Enregistrer jalons'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
