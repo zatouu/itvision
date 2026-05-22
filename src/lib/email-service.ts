@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import SentEmail from '@/lib/models/SentEmail'
 
 interface EmailConfig {
   host: string
@@ -11,7 +12,8 @@ interface EmailConfig {
 }
 
 interface EmailData {
-  to: string
+  to: string | string[]
+  cc?: string
   bcc?: string
   subject: string
   html: string
@@ -62,18 +64,29 @@ class EmailService {
   }
 
   async sendEmail(emailData: EmailData): Promise<boolean> {
+    const bccRecipients = emailData.bcc
+      ? `${emailData.bcc}, contact@itvisionplus.sn`
+      : 'contact@itvisionplus.sn'
+    const fromAddress = `"IT Vision Plus" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`
+
     if (!this.isConfigured || !this.transporter) {
       console.warn('[EMAIL] Service non configuré, email simulé:', emailData.subject)
-      // En mode développement, logguer l'email au lieu de l'envoyer
       this.logEmailToConsole(emailData)
+      await this.logEmailToDb({
+        emailData,
+        fromAddress,
+        bccRecipients,
+        status: 'simulated'
+      })
       return true
     }
 
     try {
       const mailOptions = {
-        from: `"IT Vision Plus" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        from: fromAddress,
         to: emailData.to,
-        bcc: emailData.bcc,
+        cc: emailData.cc,
+        bcc: bccRecipients,
         subject: emailData.subject,
         html: emailData.html,
         text: emailData.text || this.stripHtml(emailData.html),
@@ -82,12 +95,55 @@ class EmailService {
 
       const result: any = await this.transporter.sendMail(mailOptions as any)
       console.log('[EMAIL] Email envoyé avec succès:', result?.messageId)
+      await this.logEmailToDb({
+        emailData,
+        fromAddress,
+        bccRecipients,
+        status: 'sent',
+        messageId: result?.messageId
+      })
       return true
     } catch (error) {
       console.error('[EMAIL] Erreur lors de l\'envoi:', error)
-      // En cas d'erreur, logger l'email pour debug
       this.logEmailToConsole(emailData)
+      await this.logEmailToDb({
+        emailData,
+        fromAddress,
+        bccRecipients,
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error)
+      })
       return false
+    }
+  }
+
+  private async logEmailToDb(opts: {
+    emailData: EmailData
+    fromAddress: string
+    bccRecipients: string
+    status: 'sent' | 'failed' | 'simulated'
+    messageId?: string
+    error?: string
+  }) {
+    try {
+      const toNormalized = Array.isArray(opts.emailData.to)
+        ? opts.emailData.to
+        : [opts.emailData.to]
+      await SentEmail.create({
+        to: toNormalized,
+        cc: opts.emailData.cc,
+        bcc: opts.bccRecipients,
+        from: opts.fromAddress,
+        subject: opts.emailData.subject,
+        html: opts.emailData.html,
+        text: opts.emailData.text,
+        status: opts.status,
+        messageId: opts.messageId,
+        error: opts.error,
+        sentAt: new Date()
+      })
+    } catch (logError) {
+      console.error('[EMAIL] Erreur lors du logging en BDD:', logError)
     }
   }
 

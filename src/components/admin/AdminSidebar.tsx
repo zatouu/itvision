@@ -33,7 +33,8 @@ import {
   ListChecks,
   Wallet,
   TrendingDown,
-  Banknote
+  Banknote,
+  Mail
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -68,6 +69,12 @@ const menuItems: MenuItem[] = [
         label: 'Guide d\'utilisation',
         icon: BookOpen,
         href: '/admin/administration/how-to'
+      },
+      {
+        id: 'emails',
+        label: 'Emails',
+        icon: Mail,
+        href: '/admin/emails'
       },
       {
         id: 'paiements',
