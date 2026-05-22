@@ -9,7 +9,7 @@ import {
   Briefcase, FileText, Package, Activity, Award, BarChart3, PieChart,
   ArrowUp, ArrowDown, Minus, MapPin, Phone, Mail, Building2, Wrench,
   ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle,
-  MessageSquare, Flag, Save, Circle, CheckSquare, Layers, SlidersHorizontal,
+  MessageSquare, Flag, Save, Circle, Layers,
   Lock, Unlock, ExternalLink
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
@@ -42,6 +42,14 @@ interface Project {
     status: 'pending' | 'in_progress' | 'completed' | 'delayed'
     dueDate?: string
   }>
+  sharedNotes?: Array<{
+    id: string
+    author: string
+    role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT'
+    createdAt: string
+    message: string
+    clientVisible?: boolean
+  }>
   metrics?: {
     tasksTotal?: number
     tasksCompleted?: number
@@ -49,6 +57,7 @@ interface Project {
     budgetUsed?: number
     satisfactionScore?: number
   }
+  clientAccess?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -181,7 +190,7 @@ export default function ModernProjectManagement() {
           value: editingProject.value,
           serviceType: editingProject.serviceType,
           milestones: editingProject.milestones,
-          clientAccess: (editingProject as any).clientAccess
+          clientAccess: editingProject.clientAccess
         })
       })
       if (!res.ok) {
@@ -241,7 +250,7 @@ export default function ModernProjectManagement() {
       message: newNote.trim(),
       clientVisible: false
     }
-    const updatedNotes = [...((editingProject as any).sharedNotes || []), note]
+    const updatedNotes = [...(editingProject.sharedNotes || []), note]
     try {
       const res = await fetch('/api/projects', {
         method: 'PUT',
@@ -1640,12 +1649,12 @@ export default function ModernProjectManagement() {
                       <input
                         id="clientAccess"
                         type="checkbox"
-                        checked={!!(editingProject as any).clientAccess}
-                        onChange={e => handleEditFieldChange('clientAccess' as any, e.target.checked)}
+                        checked={!!editingProject.clientAccess}
+                        onChange={e => handleEditFieldChange('clientAccess', e.target.checked)}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <label htmlFor="clientAccess" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                        {(editingProject as any).clientAccess ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-gray-400" />}
+                        {editingProject.clientAccess ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-gray-400" />}
                         Accès portail client activé
                       </label>
                     </div>
@@ -1719,7 +1728,7 @@ export default function ModernProjectManagement() {
                           </div>
                           <select
                             value={m.status}
-                            onChange={e => handleMilestoneStatusChange(m.id, e.target.value as any)}
+                            onChange={e => handleMilestoneStatusChange(m.id, e.target.value as 'pending' | 'in_progress' | 'completed' | 'delayed')}
                             className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-blue-200"
                           >
                             <option value="pending">En attente</option>
@@ -1769,15 +1778,15 @@ export default function ModernProjectManagement() {
                   </div>
 
                   {/* Liste des notes */}
-                  {((selectedProject as any).sharedNotes || []).length === 0 ? (
+                  {((selectedProject.sharedNotes || [])).length === 0 ? (
                     <div className="text-center py-10 text-gray-500">
                       <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p className="text-sm">Aucune note pour ce projet</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {((selectedProject as any).sharedNotes || []).slice().reverse().map((note: any) => (
-                        <div key={note.id || note._id} className="bg-white border border-gray-200 rounded-xl p-4">
+                      {(selectedProject.sharedNotes || []).slice().reverse().map((note) => (
+                        <div key={note.id} className="bg-white border border-gray-200 rounded-xl p-4">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
