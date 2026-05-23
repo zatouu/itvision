@@ -31,6 +31,7 @@
     "**/*.test.tsx",
     "**/*.spec.ts",
     "**/*.spec.tsx",
-    "src/lib/tensorflow"
+    "src/lib/tensorflow",
+    "mobile/**"
   ]
 }
