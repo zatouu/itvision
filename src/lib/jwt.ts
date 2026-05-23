@@ -1,4 +1,5 @@
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
+import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 import type { NextRequest } from 'next/server'
 
@@ -21,6 +22,18 @@ export function extractAuthToken(request: NextRequest): string | null {
 }
 
 export async function verifyAuthToken(token: string): Promise<JwtUser> {
+  if (keycloakEnabled()) {
+    const kc = await verifyKeycloakToken(token)
+    const role = mapKeycloakRolesToAppRole(kc.roles)
+    const userId = kc.sub
+    if (!userId || !role) throw new Error('Token invalide')
+    return {
+      userId,
+      role,
+      email: kc.email,
+      username: kc.name
+    }
+  }
   const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
 

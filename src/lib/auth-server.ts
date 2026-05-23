@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { jwtVerify } from 'jose'
+import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 
 export interface AuthResult {
@@ -45,6 +46,22 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
 
     if (!token) {
       return { isAuthenticated: false, error: 'Token manquant' }
+    }
+
+    // If Keycloak is enabled, verify via JWKS; otherwise fallback to internal secret
+    if (keycloakEnabled()) {
+      const kc = await verifyKeycloakToken(token)
+      return {
+        isAuthenticated: true,
+        user: {
+          id: kc.sub,
+          role: mapKeycloakRolesToAppRole(kc.roles),
+          email: kc.email,
+          name: kc.name,
+          marketplaceTier: 'standard',
+          companyClientId: undefined
+        }
+      }
     }
 
     const { payload } = await jwtVerify(token, getJwtSecretKey())

@@ -21,12 +21,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const { userId } = await requireAuth(request)
+    const { userId, role } = await requireAuth(request) as any
     const body = await request.json()
     const { requestId, price, etaMinutes, comment } = body || {}
     if (!requestId || typeof price !== 'number') return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
     const sr = await ServiceRequest.findById(requestId)
     if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
+    // Prevent client from offering on own request
+    if (String(sr.clientId) === String(userId)) {
+      return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+    }
     const created = await Offer.create({ requestId, providerId: userId, price, etaMinutes, comment })
     if (sr.status === 'created') { sr.status = 'pending_offers'; await sr.save() }
     return NextResponse.json({ success: true, item: created })
