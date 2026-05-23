@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { CheckCircle, Clock, AlertTriangle, Play, Check, Zap, Bot, ChevronRight, Loader2 } from 'lucide-react'
 
 interface WorkflowDoc {
@@ -17,6 +17,7 @@ export default function WorkflowMiniPanel({ projectId }: { projectId: string }) 
   const [takeoverMode, setTakeoverMode] = useState(false)
   const [autoAdvancing, setAutoAdvancing] = useState(false)
   const [eventLog, setEventLog] = useState<string[]>([])
+  const lastAutoStepRef = useRef<string | null>(null)
 
   const logEvent = (msg: string) => setEventLog(prev => [msg, ...prev].slice(0, 5))
 
@@ -32,16 +33,25 @@ export default function WorkflowMiniPanel({ projectId }: { projectId: string }) 
 
   // Orchestration event-driven: quand une étape se termine, auto-démarrer la suivante si takeoverMode
   useEffect(() => {
-    if (!takeoverMode || !wf || wf.status !== 'active') return
-    const next = wf.steps.find(s => s.status === 'pending' && s.dependencies.every(dep => wf.steps.find(x => x.id === dep)?.status === 'completed'))
-    if (next && next.id !== wf.currentStep) {
-      setAutoAdvancing(true)
-      act(next.id, 'start', true).then(() => {
-        logEvent(`Auto-start: ${next.name}`)
-        setAutoAdvancing(false)
-      })
+    if (!takeoverMode || !wf || wf.status !== 'active') {
+      if (!takeoverMode) lastAutoStepRef.current = null
+      return
     }
-  }, [takeoverMode, wf?.progress, wf?.currentStep])
+    const next = wf.steps.find(s => s.status === 'pending' && s.dependencies.every(dep => wf.steps.find(x => x.id === dep)?.status === 'completed'))
+    if (!next || next.id === wf.currentStep) return
+    if (autoAdvancing) return
+    if (lastAutoStepRef.current === next.id) return
+
+    lastAutoStepRef.current = next.id
+    setAutoAdvancing(true)
+    actRef.current(next.id, 'start', true).then(() => {
+      logEvent(`Auto-start: ${next.name}`)
+    }).catch(() => {
+      lastAutoStepRef.current = null // retry permit on error
+    }).finally(() => {
+      setAutoAdvancing(false)
+    })
+  }, [takeoverMode, wf?.progress, wf?.currentStep, autoAdvancing])
 
   const bootstrap = async () => {
     const steps = [
@@ -71,6 +81,9 @@ export default function WorkflowMiniPanel({ projectId }: { projectId: string }) 
       }
     } finally { if (!silent) setLoading(false) }
   }, [wf, projectId])
+
+  const actRef = useRef(act)
+  actRef.current = act
 
   if (loading && !wf) return <div className="text-gray-500 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Chargement workflow…</div>
 

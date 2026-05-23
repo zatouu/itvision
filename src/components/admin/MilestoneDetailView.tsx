@@ -89,11 +89,12 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
   const persist = async (updated: Milestone) => {
     setSaving(true)
     try {
-      const res = await fetch('/api/projects', {
-        method: 'PUT',
+      // Utiliser l'API PATCH dédiée qui merge sans écraser les autres jalons
+      const res = await fetch(`/api/projects/${projectId}/milestones`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: projectId, milestones: [updated] })
+        body: JSON.stringify({ milestoneId: updated.id, updates: updated })
       })
       if (!res.ok) throw new Error()
       onUpdate(updated)
