@@ -61,7 +61,13 @@ export function csrfMiddleware(request: NextRequest): Response | null {
   // et ne peut pas être lu par un site malveillant
   const authToken = request.cookies.get('auth-token')?.value
   if (authToken) {
-    // L'utilisateur est authentifié, le JWT protège déjà contre CSRF
+    return null
+  }
+
+  // Les requêtes avec Authorization: Bearer sont CSRF-safe par nature
+  // (les apps mobiles ne peuvent pas recevoir de cookies cross-origin)
+  const authHeader = request.headers.get('authorization') || ''
+  if (authHeader.startsWith('Bearer ')) {
     return null
   }
 

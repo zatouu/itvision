@@ -37,11 +37,11 @@ const AppConfigSchema = new Schema<IAppConfig>({
     mode: { type: String, enum: ['free', 'points', 'commission'], default: 'free' },
     freeUntil: { type: Date },
     pointsPerWonMission: { type: Number, default: 0, min: 0 },
-    welcomePoints: { type: Number, default: 100, min: 0 },
+    welcomePoints: { type: Number, default: 25, min: 0 },
     referralBonusPoints: { type: Number, default: 1000, min: 0 },
     commissionRate: { type: Number, default: 0, min: 0, max: 100 },
     fcfaPerPoint: { type: Number, default: 100, min: 1 },
-    escrowCostPoints: { type: Number, default: 50, min: 0 },
+    escrowCostPoints: { type: Number, default: 25, min: 0 },
   },
   escrow: {
     enabled: { type: Boolean, default: true },

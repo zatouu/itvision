@@ -47,6 +47,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
+    {
+      name: 'services-mobile',
+      testMatch: /services\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 
   webServer: isRemote

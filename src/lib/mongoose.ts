@@ -40,9 +40,11 @@ export async function connectMongoose(uri?: string) {
     cache.uri = mongoUri
     console.log('[MongoDB] Connexion à MongoDB…', safeUri)
 
+    const isDev = process.env.NODE_ENV !== 'production'
     const options: mongoose.ConnectOptions = {
       autoIndex: true,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: isDev ? 3000 : 10000,
+      connectTimeoutMS: isDev ? 3000 : 10000,
       socketTimeoutMS: 45000,
     }
 

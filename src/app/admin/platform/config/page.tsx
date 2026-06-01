@@ -142,12 +142,12 @@ export default function PlatformConfigPage() {
                   onChange={(e) => updateMonetization('mode', e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="free">Gratuit (accumulation de points)</option>
-                  <option value="points">Points (consommation)</option>
+                  <option value="free">Gratuit (accumulation de XC)</option>
+                  <option value="points">XC (consommation)</option>
                   <option value="commission">Commission (% sur transactions)</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  En mode gratuit, les points s'accumulent mais ne sont pas consommés.
+                  En mode gratuit, les XC s'accumulent mais ne sont pas consommés.
                 </p>
               </div>
 
@@ -168,7 +168,7 @@ export default function PlatformConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Points par mission gagnée (provider)
+                  XC par mission gagnée (provider)
                 </label>
                 <input
                   type="number"
@@ -181,7 +181,7 @@ export default function PlatformConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Points de bienvenue (nouveau user)
+                  XC de bienvenue (nouveau user)
                 </label>
                 <input
                   type="number"
@@ -194,7 +194,7 @@ export default function PlatformConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bonus parrainage (points)
+                  Bonus parrainage (XC)
                 </label>
                 <input
                   type="number"
@@ -221,7 +221,7 @@ export default function PlatformConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  FCFA par point (taux recharge)
+                  FCFA par XC (taux recharge)
                 </label>
                 <input
                   type="number"
@@ -234,7 +234,7 @@ export default function PlatformConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Coût escrow (points client)
+                  Coût escrow (XC client)
                 </label>
                 <input
                   type="number"
@@ -244,7 +244,7 @@ export default function PlatformConfigPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Points prélevés au client pour chaque paiement sécurisé.
+                  XC prélevés au client pour chaque paiement sécurisé.
                 </p>
               </div>
             </div>

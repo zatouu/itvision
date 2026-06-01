@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         fcfaPerPoint: cfg.monetization.fcfaPerPoint,
         freeUntil: cfg.monetization.freeUntil || null,
         escrowEnabled: cfg.escrow.enabled,
+        escrowMandatory: cfg.escrow.mandatory,
         escrowCostPoints: cfg.escrow.enabled ? cfg.monetization.escrowCostPoints : 0,
       },
       history: history.map((t: any) => ({

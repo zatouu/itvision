@@ -22,6 +22,15 @@ export function extractAuthToken(request: NextRequest): string | null {
 }
 
 export async function verifyAuthToken(token: string): Promise<JwtUser> {
+  // Dev mobile tokens statiques — acceptés uniquement en développement
+  const isDev = process.env.NODE_ENV !== 'production'
+  if (isDev && process.env.DEV_MOBILE_TOKEN && token === process.env.DEV_MOBILE_TOKEN) {
+    return { userId: 'dev-mobile-user', role: 'CLIENT', email: 'dev@mobile' }
+  }
+  if (isDev && process.env.DEV_PROVIDER_TOKEN && token === process.env.DEV_PROVIDER_TOKEN) {
+    return { userId: 'dev-provider-user', role: 'PROVIDER', email: 'dev@provider' }
+  }
+
   if (keycloakEnabled()) {
     const kc = await verifyKeycloakToken(token)
     const role = mapKeycloakRolesToAppRole(kc.roles)

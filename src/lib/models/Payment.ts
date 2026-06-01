@@ -12,6 +12,7 @@ const PaymentSchema = new Schema({
   currency: { type: String, default: 'XOF' },
   provider: { type: String, enum: ['wave', 'orange_money', 'free_money'], required: true },
   status: { type: String, enum: ['pending', 'held', 'released', 'refunded', 'failed'], default: 'pending' },
+  useEscrow: { type: Boolean, default: true },
   // Provider-specific reference IDs
   externalId: { type: String },
   checkoutUrl: { type: String },

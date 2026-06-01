@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
-    let cfg = await AppConfig.findOne({ key: 'global' }).lean()
+    let cfg: any = await AppConfig.findOne({ key: 'global' }).lean()
     if (!cfg) {
       cfg = await AppConfig.create({ key: 'global' })
       cfg = cfg.toObject()

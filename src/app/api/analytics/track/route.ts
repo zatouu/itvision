@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import PageVisit from '@/lib/models/PageVisit'
 import { jwtVerify } from 'jose'
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
       path,
       pageName,
       pageType,
-      userId: userId ? userId : undefined,
+      userId: userId && mongoose.Types.ObjectId.isValid(userId) ? userId : undefined,
       userRole,
       isAuthenticated,
       sessionId,

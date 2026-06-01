@@ -4,7 +4,8 @@ import Payment from '@/lib/models/Payment'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { sendPushToUser } from '@/lib/push'
-import { refundEscrowPoints, getAppConfig } from '@/lib/wallet'
+import { refundEscrowPoints } from '@/lib/wallet'
+import { acceptOfferForRequest } from '@/lib/service-acceptance'
 
 /**
  * Webhook endpoint for Mobile Money providers.
@@ -43,37 +44,12 @@ export async function POST(request: NextRequest) {
       const sr = await ServiceRequest.findById(payment.requestId)
       const offer = await Offer.findById(payment.offerId)
       if (sr && offer) {
-        sr.status = 'assigned'
-        sr.assignedProviderId = offer.providerId
-        sr.selectedOfferId = offer._id
-        sr.assignedAt = new Date()
-        await sr.save()
-
-        await Offer.updateOne({ _id: offer._id }, { status: 'accepted' })
-        await Offer.updateMany(
-          { requestId: sr._id, _id: { $ne: offer._id }, status: 'submitted' },
-          { status: 'rejected' }
-        )
-
-        // Push notifications (fire & forget)
-        void sendPushToUser(String(offer.providerId), {
-          title: '✅ Offre acceptée + paiement sécurisé !',
-          body: `Votre offre pour ${sr.category} a été retenue. Le paiement est sécurisé.`,
-          data: { type: 'offer:accepted', requestId: String(sr._id), offerId: String(offer._id) },
-        })
-        void sendPushToUser(String(payment.clientId), {
-          title: '💳 Paiement sécurisé',
-          body: `${payment.amount.toLocaleString('fr-FR')} FCFA en escrow. Le prestataire est notifié.`,
-          data: { type: 'payment:held', requestId: String(sr._id) },
-        })
-      }
-
-      // Emit socket events if io available
-      const io = (global as any).io
-      if (io) {
-        io.to(`request-${payment.requestId}`).emit('request:assigned', {
-          requestId: String(payment.requestId),
-          acceptedOfferId: String(payment.offerId),
+        await acceptOfferForRequest({
+          serviceRequest: sr,
+          offer,
+          securePayment: payment.useEscrow !== false,
+          notifyClientPaymentHeld: payment.useEscrow !== false,
+          amount: payment.amount,
         })
       }
     } else if (isFailed && payment.status === 'pending') {

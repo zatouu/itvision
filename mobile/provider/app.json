@@ -1,19 +1,65 @@
 {
   "expo": {
-    "name": "Itvision Provider",
+    "name": "Ligey Pro",
     "slug": "itvision-provider",
     "scheme": "itvisionprovider",
-    "version": "0.1.0",
+    "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": { "image": "./assets/splash.png", "resizeMode": "contain", "backgroundColor": "#ffffff" },
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" } },
-    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F59E0B"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.itvision.ligeypro",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ligey Pro utilise votre position pour vous montrer les demandes proches.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ligey Pro utilise votre position pour le tracking en mission."
+      }
+    },
+    "android": {
+      "package": "com.itvision.ligeypro",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F59E0B"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      "expo-av",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#F59E0B",
+          "sounds": [],
+          "defaultChannel": "services"
+        }
+      ],
+      "sentry-expo"
+    ],
+    "web": {
+      "bundler": "metro"
+    },
     "extra": {
-      "eas": { "projectId": "00000000-0000-0000-0000-000000000000" },
-      "apiBaseUrl": "${EXPO_PUBLIC_API_BASE_URL:-http://localhost:3000}"
-    }
+      "eas": {
+        "projectId": "eb84b017-e68a-40f7-aca5-db4ecb0c0f17"
+      }
+    },
+    "owner": "xeuy"
   }
 }

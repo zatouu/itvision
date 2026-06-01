@@ -19,6 +19,16 @@ const handle = app.getRequestHandler()
 // Fonction de vérification du token JWT
 async function verifyToken(token) {
   try {
+    // Dev mobile tokens statiques (pas un JWT) — acceptés uniquement en dev
+    if (process.env.NODE_ENV !== 'production' && process.env.DEV_MOBILE_TOKEN && token === process.env.DEV_MOBILE_TOKEN) {
+      console.log('[WS] Dev mobile token accepté (consumer)')
+      return { userId: 'dev-mobile-user', role: 'CLIENT', email: 'dev@mobile' }
+    }
+    if (process.env.NODE_ENV !== 'production' && process.env.DEV_PROVIDER_TOKEN && token === process.env.DEV_PROVIDER_TOKEN) {
+      console.log('[WS] Dev provider token accepté')
+      return { userId: 'dev-provider-user', role: 'PROVIDER', email: 'dev@provider' }
+    }
+
     const jwtSecret = process.env.JWT_SECRET
     if (!jwtSecret) {
       if (process.env.NODE_ENV === 'production') {
@@ -28,20 +38,35 @@ async function verifyToken(token) {
     }
     const secret = new TextEncoder().encode(jwtSecret || 'dev-insecure-jwt-secret')
     const { payload } = await jwtVerify(token, secret)
-    
-    if (!payload.userId || !payload.role || !payload.email) {
+
+    if (!payload.userId) {
       return null
     }
-    
+
     return {
       userId: payload.userId,
-      role: payload.role,
-      email: payload.email
+      role: payload.role || 'USER',
+      email: payload.email || ''
     }
   } catch (error) {
     console.error('Erreur vérification token:', error.message)
     return null
   }
+}
+
+// ── GEOFENCING : positions des providers en mémoire ──
+const providerPositions = new Map() // userId → { lat, lng, updatedAt }
+const STALE_POSITION_MS = 10 * 60 * 1000 // 10 min sans update = considéré stale
+
+/**
+ * Haversine distance between two points in km
+ */
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 app.prepare().then(() => {
@@ -59,9 +84,8 @@ app.prepare().then(() => {
   // Configuration Socket.io
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.NEXT_PUBLIC_URL || `http://localhost:${port}`,
+      origin: '*',
       methods: ['GET', 'POST'],
-      credentials: true
     },
     transports: ['websocket', 'polling'],
     pingTimeout: 60000,
@@ -108,6 +132,54 @@ app.prepare().then(() => {
     } else if (role === 'TECHNICIAN') {
       socket.join('technicians')
     }
+
+    // ── ROOMS MOBILES ──
+    // Consumer s'abonne aux offres d'une demande spécifique
+    socket.on('join-request-room', (requestId) => {
+      socket.join(`request-${requestId}`)
+      console.log(`   📋 ${userId} écoute la demande: ${requestId}`)
+    })
+    socket.on('leave-request-room', (requestId) => {
+      socket.leave(`request-${requestId}`)
+    })
+
+    // Provider s'abonne à ses notifications
+    socket.on('join-provider-channel', () => {
+      socket.join(`provider-${userId}`)
+      socket.join('providers-online')
+      console.log(`   🔧 Provider en ligne: ${userId}`)
+    })
+    socket.on('leave-provider-channel', () => {
+      socket.leave(`provider-${userId}`)
+      socket.leave('providers-online')
+      providerPositions.delete(userId)
+    })
+
+    // Provider envoie sa position GPS pour le geofencing
+    socket.on('provider:gps', (data) => {
+      if (!data?.lat || !data?.lng) return
+      providerPositions.set(userId, { lat: data.lat, lng: data.lng, updatedAt: Date.now() })
+    })
+
+    socket.on('provider:location', (data) => {
+      if (!data?.requestId || !data?.lat || !data?.lng) return
+      socket.to(`request-${data.requestId}`).emit('provider:location', {
+        lat: data.lat,
+        lng: data.lng,
+        heading: data.heading || null,
+        speed: data.speed || null,
+        timestamp: Date.now(),
+      })
+    })
+
+    // Chat mission — rejoindre/quitter la room de chat
+    socket.on('join-mission-chat', (requestId) => {
+      socket.join(`mission-${requestId}`)
+      console.log(`   💬 ${userId} a rejoint le chat mission: ${requestId}`)
+    })
+    socket.on('leave-mission-chat', (requestId) => {
+      socket.leave(`mission-${requestId}`)
+    })
 
     // Événement: Rejoindre un projet
     socket.on('join-project', (projectId) => {
@@ -209,8 +281,52 @@ app.prepare().then(() => {
     })
   })
 
+  // Periodic cleanup of stale provider positions (every 10 min)
+  setInterval(() => {
+    const now = Date.now()
+    let cleaned = 0
+    for (const [id, pos] of providerPositions.entries()) {
+      if (now - pos.updatedAt > STALE_POSITION_MS) {
+        providerPositions.delete(id)
+        cleaned++
+      }
+    }
+    if (cleaned > 0) console.log(`[GF] Cleaned ${cleaned} stale provider position(s)`)
+  }, STALE_POSITION_MS)
+
   // Exposer io globalement pour pouvoir l'utiliser dans les API routes
   global.io = io
+
+  /**
+   * Notify only providers within radiusKm of the request location.
+   * Fallback broadcast only when NO provider has ever reported a position.
+   */
+  global.notifyNearbyProviders = function (requestData, radiusKm = 10) {
+    const { lng, lat, requestId } = requestData
+    if (!lng || !lat || !requestId) return 0
+    const now = Date.now()
+    let notified = 0
+    let inRadius = 0
+    for (const [providerId, pos] of providerPositions.entries()) {
+      const dist = haversineKm(lat, lng, pos.lat, pos.lng)
+      if (dist <= radiusKm) inRadius++
+      if (now - pos.updatedAt > STALE_POSITION_MS) continue
+      if (dist <= radiusKm) {
+        io.to(`provider-${providerId}`).emit('request:nearby', requestData)
+        notified++
+      }
+    }
+    // Fallback: broadcast ONLY if zero providers have ever reported a position.
+    // If providers exist but all positions are stale, do NOT broadcast —
+    // they will re-emit positions on next heartbeat and start receiving again.
+    if (notified === 0 && providerPositions.size === 0) {
+      console.log(`[GF] No provider positions known — broadcasting request ${requestId} to all online providers`)
+      io.to('providers-online').emit('request:nearby', requestData)
+      return 'broadcast'
+    }
+    console.log(`[GF] Notified ${notified}/${inRadius} providers within ${radiusKm}km for request ${requestId} (total tracked: ${providerPositions.size})`)
+    return notified
+  }
 
   // Démarrer le serveur
   httpServer

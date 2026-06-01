@@ -1,0 +1,17 @@
+Starting project at D:\itvision-1\mobile\consumer
+env: load .env
+env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+The following packages should be updated for best compatibility with the installed expo version:
+  @react-native-async-storage/async-storage@1.24.0 - expected version: 1.23.1
+  expo-location@16.5.5 - expected version: ~17.0.1
+  react-native@0.74.1 - expected version: 0.74.5
+  react-native-safe-area-context@4.14.1 - expected version: 4.10.5
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web Bundled 19281ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (668 modules)
+Web Bundled 111ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+› Detected a change in metro.config.js. Restart the server to see the new results.

@@ -1,19 +1,59 @@
 {
   "expo": {
-    "name": "Itvision Consumer",
+    "name": "Ligey",
     "slug": "itvision-consumer",
     "scheme": "itvisionconsumer",
-    "version": "0.1.0",
+    "version": "1.0.0",
+    "runtimeVersion": { "policy": "appVersion" },
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": { "image": "./assets/splash.png", "resizeMode": "contain", "backgroundColor": "#ffffff" },
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" } },
-    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
-    "extra": {
-      "eas": { "projectId": "00000000-0000-0000-0000-000000000000" },
-      "apiBaseUrl": "${EXPO_PUBLIC_API_BASE_URL:-http://localhost:3000}"
-    }
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.itvision.ligey",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ligey utilise votre position pour trouver les prestataires proches.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ligey utilise votre position pour le suivi de mission."
+      }
+    },
+    "android": {
+      "package": "com.itvision.ligey",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Ligey utilise le microphone pour enregistrer des messages vocaux."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0F172A",
+          "sounds": [],
+          "defaultChannel": "default"
+        }
+      ],
+      "sentry-expo"
+    ],
+    "web": { "bundler": "metro" },
+    "extra": {}
+
   }
 }

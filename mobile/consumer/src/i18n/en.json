@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "error": "Error",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "back": "Back",
+    "next": "Continue",
+    "send": "Send",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK"
+  },
+  "auth": {
+    "loginTitle": "Welcome to Ligey",
+    "loginSub": "Find a provider in minutes",
+    "phonePlaceholder": "Phone number",
+    "sendCode": "Get code",
+    "verifyTitle": "Verification",
+    "verifySubPre": "Code sent to ",
+    "codePlaceholder": "6-digit code",
+    "verify": "Verify",
+    "resend": "Resend code",
+    "logout": "Log out"
+  },
+  "home": {
+    "greeting_morning": "Good morning",
+    "greeting_afternoon": "Good afternoon",
+    "greeting_evening": "Good evening",
+    "newRequest": "New request",
+    "myRequests": "My requests",
+    "recentActivity": "Recent activity",
+    "noActivity": "No recent activity"
+  },
+  "request": {
+    "createTitle": "New request",
+    "chooseCategory": "Choose a category",
+    "chooseCategorySub": "Select the service type",
+    "describeNeed": "Describe your need",
+    "description": "Description",
+    "descPlaceholder": "E.g.: Power outage upstairs, need an electrician...",
+    "budget": "Estimated budget (FCFA)",
+    "budgetCustom": "Or enter an amount",
+    "media": "Photos / Videos",
+    "voiceNote": "Voice message (optional)",
+    "location": "Your location",
+    "locationSub": "Nearby providers will receive your request",
+    "useGps": "Use my GPS location",
+    "positionOk": "Location set ✓",
+    "landmark": "Landmark / Neighborhood",
+    "landmarkPlaceholder": "E.g.: Near the Mermoz mosque, next to the school...",
+    "landmarkHint": "Required — helps the provider find you",
+    "publish": "Publish request 🚀",
+    "published": "Request published",
+    "publishedSub": "Nearby providers will send you their offers.",
+    "viewRequests": "View my requests",
+    "newOne": "New request",
+    "stepCategory": "Category",
+    "stepDetails": "Details",
+    "stepLocation": "Location"
+  },
+  "offers": {
+    "title": "Offers received",
+    "accept": "Accept this offer",
+    "price": "Price",
+    "eta": "ETA",
+    "noOffers": "No offers yet"
+  },
+  "mission": {
+    "title": "Active mission",
+    "arriving": "On the way",
+    "inProgress": "In progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "cancelMission": "Cancel mission",
+    "chat": "Send a message",
+    "rate": "Rate this service"
+  },
+  "rating": {
+    "title": "Rate this service",
+    "commentPlaceholder": "Anything to say about your experience? (optional)",
+    "submit": "Submit review",
+    "thanks": "Thanks for your review!",
+    "thanksSub": "Your feedback helps the community."
+  },
+  "categories": {
+    "electricite": "Electrical",
+    "plomberie": "Plumbing",
+    "menuiserie": "Carpentry",
+    "peinture": "Painting",
+    "climatisation": "HVAC",
+    "securite": "Security"
+  },
+  "offline": {
+    "badge": "{{count}} pending action(s)",
+    "queued": "Saved offline — will be sent when network returns."
+  }
+}

@@ -1,0 +1,30 @@
+# === EC2 .env.local template ===
+# Copy to .env.local on your EC2 server
+
+# App
+NODE_ENV=production
+NEXT_PUBLIC_BASE_URL=http://YOUR_EC2_IP:3000
+
+# MongoDB
+MONGODB_URI=mongodb://localhost:27017/itvision
+
+# JWT
+JWT_SECRET=CHANGE_ME_GENERATE_RANDOM_64_CHARS
+
+# SMS (dev mode = console.log, no real SMS)
+# SMS_PROVIDER=twilio
+# TWILIO_ACCOUNT_SID=
+# TWILIO_AUTH_TOKEN=
+# TWILIO_FROM_NUMBER=
+
+# Dev tokens (remove in real prod)
+DEV_MOBILE_TOKEN=dev-mobile-token-123
+DEV_PROVIDER_TOKEN=dev-provider-token-456
+
+# Payment (dev mode = mocked)
+# WAVE_API_KEY=
+# OM_API_URL=
+# OM_API_TOKEN=
+
+# Upload
+UPLOAD_MAX_SIZE_MB=10

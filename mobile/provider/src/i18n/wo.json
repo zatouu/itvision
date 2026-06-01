@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "Yàgg nañu…",
+    "error": "Njuumte",
+    "retry": "Jéemaat",
+    "cancel": "Bayyil",
+    "confirm": "Dëggal",
+    "save": "Denc",
+    "back": "Dellu",
+    "next": "Kontine",
+    "send": "Yónnee",
+    "close": "Tëj",
+    "yes": "Waaw",
+    "no": "Déet",
+    "ok": "Baax"
+  },
+  "auth": {
+    "loginTitle": "Dalal jàmm ci Ligey",
+    "loginSub": "Gis sa liggéeykat ci simili yu néew",
+    "phonePlaceholder": "Nimero telefon",
+    "sendCode": "Jot kood bi",
+    "verifyTitle": "Saytu",
+    "verifySubPre": "Kood bi dañu ko yónnee ci ",
+    "codePlaceholder": "Kood bu 6 sifr",
+    "verify": "Saytu",
+    "resend": "Yónnee kood bi",
+    "logout": "Génne"
+  },
+  "home": {
+    "greeting_morning": "Jàmm ngeen fanaan",
+    "greeting_afternoon": "Naka ngeen def",
+    "greeting_evening": "Naka ngeen def",
+    "newRequest": "Laaj bu bees",
+    "myRequests": "Samay laaj",
+    "recentActivity": "Lu amoon dëg",
+    "noActivity": "Amul dara bu bees"
+  },
+  "request": {
+    "createTitle": "Laaj bu bees",
+    "chooseCategory": "Tànn ci mbir yi",
+    "chooseCategorySub": "Tànn li nga bëgg",
+    "describeNeed": "Wax li nga soxla",
+    "description": "Ndeyu baat",
+    "descPlaceholder": "Misaal: Kuuraŋ bi dafa faj, soxla elektrisieŋ…",
+    "budget": "Alal bi ngay fay (FCFA)",
+    "budgetCustom": "Walla bind montaa",
+    "media": "Nataal / Wideyoo",
+    "voiceNote": "Baat bu bopp (sañ-sañ)",
+    "location": "Fan ngay nekk",
+    "locationSub": "Liggéeykat yi nekk ci sa wàll dinañu gis sa laaj",
+    "useGps": "Jëfandikoo sama pozisiyoŋ GPS",
+    "positionOk": "Pozisiyoŋ bi amna ✓",
+    "landmark": "Repeer / Kër-gu-mag",
+    "landmarkPlaceholder": "Misaal: Ci gannaaw jaaka Mermoz, ci wetu ekol bi…",
+    "landmarkHint": "War naa am — jàppale liggéeykat bi ngir mu la gis",
+    "publish": "Soppi laaj bi 🚀",
+    "published": "Laaj bi dafa am",
+    "publishedSub": "Liggéeykat yi nekk ci sa wàll dinañu la yónnee seen ofr.",
+    "viewRequests": "Gis samay laaj",
+    "newOne": "Laaj bu bees",
+    "stepCategory": "Mbir",
+    "stepDetails": "Xibaar",
+    "stepLocation": "Palaas"
+  },
+  "offers": {
+    "title": "Ofr yi ñu yónnee",
+    "accept": "Nangu ofr bii",
+    "price": "Njëg",
+    "eta": "Ba mu ñëw",
+    "noOffers": "Amul ofr ba léegi"
+  },
+  "mission": {
+    "title": "Misiyoŋ bi",
+    "arriving": "Mii ñëw",
+    "inProgress": "Dafay liggéey",
+    "completed": "Jeexna",
+    "cancelled": "Dañu ko bayyil",
+    "cancelMission": "Bayyil misiyoŋ bi",
+    "chat": "Bind baat",
+    "rate": "Dimbali ci sa xel"
+  },
+  "rating": {
+    "title": "Dimbali ci sa xel",
+    "commentPlaceholder": "Am nga dara wax? (sañ-sañ)",
+    "submit": "Yónnee sama xalaat",
+    "thanks": "Jërëjëf ci sa xalaat!",
+    "thanksSub": "Sa baat dafay jàppale mbooloo mi."
+  },
+  "categories": {
+    "electricite": "Kuuraŋ",
+    "plomberie": "Robine",
+    "menuiserie": "Bënu-bant",
+    "peinture": "Pentur",
+    "climatisation": "Klima",
+    "securite": "Kaarange"
+  },
+  "offline": {
+    "badge": "{{count}} jëf(i) ngay xaar",
+    "queued": "Denc nañu ko — dinañu ko yónnee bu internet bi dellu."
+  }
+}

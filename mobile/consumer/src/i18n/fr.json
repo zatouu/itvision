@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "Chargement…",
+    "error": "Erreur",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "back": "Retour",
+    "next": "Continuer",
+    "send": "Envoyer",
+    "close": "Fermer",
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK"
+  },
+  "auth": {
+    "loginTitle": "Bienvenue sur Ligey",
+    "loginSub": "Trouvez un prestataire en quelques minutes",
+    "phonePlaceholder": "Numéro de téléphone",
+    "sendCode": "Recevoir le code",
+    "verifyTitle": "Vérification",
+    "verifySubPre": "Code envoyé au ",
+    "codePlaceholder": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "resend": "Renvoyer le code",
+    "logout": "Déconnexion"
+  },
+  "home": {
+    "greeting_morning": "Bonjour",
+    "greeting_afternoon": "Bon après-midi",
+    "greeting_evening": "Bonsoir",
+    "newRequest": "Nouvelle demande",
+    "myRequests": "Mes demandes",
+    "recentActivity": "Activité récente",
+    "noActivity": "Aucune activité récente"
+  },
+  "request": {
+    "createTitle": "Nouvelle demande",
+    "chooseCategory": "Choisissez une catégorie",
+    "chooseCategorySub": "Sélectionnez le type de service",
+    "describeNeed": "Décrivez votre besoin",
+    "description": "Description",
+    "descPlaceholder": "Ex: Coupure de courant à l'étage, besoin d'un électricien...",
+    "budget": "Budget estimé (FCFA)",
+    "budgetCustom": "Ou saisir un montant",
+    "media": "Photos / Vidéos",
+    "voiceNote": "Message vocal (optionnel)",
+    "location": "Votre position",
+    "locationSub": "Les prestataires proches recevront votre demande",
+    "useGps": "Utiliser ma position GPS",
+    "positionOk": "Position obtenue ✓",
+    "landmark": "Repère / Quartier",
+    "landmarkPlaceholder": "Ex: Près de la mosquée de Mermoz, à côté de l'école...",
+    "landmarkHint": "Obligatoire — aide le prestataire à vous trouver",
+    "publish": "Publier la demande 🚀",
+    "published": "Demande publiée",
+    "publishedSub": "Les prestataires proches vont vous envoyer leurs offres.",
+    "viewRequests": "Voir mes demandes",
+    "newOne": "Nouvelle demande",
+    "stepCategory": "Catégorie",
+    "stepDetails": "Détails",
+    "stepLocation": "Lieu"
+  },
+  "offers": {
+    "title": "Offres reçues",
+    "accept": "Accepter cette offre",
+    "price": "Prix",
+    "eta": "Délai",
+    "noOffers": "Aucune offre pour le moment"
+  },
+  "mission": {
+    "title": "Mission en cours",
+    "arriving": "En route",
+    "inProgress": "En cours",
+    "completed": "Terminée",
+    "cancelled": "Annulée",
+    "cancelMission": "Annuler la mission",
+    "chat": "Envoyer un message",
+    "rate": "Noter cette intervention"
+  },
+  "rating": {
+    "title": "Notez cette intervention",
+    "commentPlaceholder": "Un mot sur votre expérience ? (optionnel)",
+    "submit": "Envoyer mon avis",
+    "thanks": "Merci pour votre avis !",
+    "thanksSub": "Votre retour aide la communauté."
+  },
+  "categories": {
+    "electricite": "Électricité",
+    "plomberie": "Plomberie",
+    "menuiserie": "Menuiserie",
+    "peinture": "Peinture",
+    "climatisation": "Climatisation",
+    "securite": "Sécurité"
+  },
+  "offline": {
+    "badge": "{{count}} action(s) en attente",
+    "queued": "Enregistré hors ligne — sera envoyé dès le retour réseau."
+  }
+}

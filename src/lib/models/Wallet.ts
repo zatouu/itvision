@@ -11,14 +11,17 @@ const WalletTxnSchema = new Schema({
 }, { _id: false })
 
 const WalletSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  // Solde en FCFA (escrow cash, payouts providers)
   balance: { type: Number, default: 0 },
   escrow: { type: Number, default: 0 },
+  // Système de points (monétisation providers — style Yango/InDrive)
+  points: { type: Number, default: 0, min: 0 },
+  lifetimePointsEarned: { type: Number, default: 0, min: 0 },
+  lifetimePointsSpent: { type: Number, default: 0, min: 0 },
   txns: { type: [WalletTxnSchema], default: [] },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: false, updatedAt: 'updatedAt' } })
-
-WalletSchema.index({ userId: 1 })
 
 const Wallet = models.Wallet || model('Wallet', WalletSchema)
 export default Wallet

@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, Document } from 'mongoose'
+import mongoose, { Schema, model, models, Document } from 'mongoose'
 
 export interface ITopupPayment extends Document {
   userId: string

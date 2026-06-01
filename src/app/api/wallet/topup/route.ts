@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       provider,
       amountFcfa,
       payPhone,
-      `Recharge ${points} points Ligey`
+      `Recharge ${points} XC Xeuy`
     )
 
     if (!result.success) {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // En prod, le crédit doit être confirmé par le webhook opérateur (paiement réel).
     if (isDev) {
       const { balance } = await creditPoints(String(userId), points, 'topup', {
-        description: `Recharge ${points} pts (${amountFcfa} FCFA via ${provider})`,
+        description: `Recharge ${points} XC (${amountFcfa} FCFA via ${provider})`,
         paymentRef: result.externalId,
       })
       return NextResponse.json({
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       externalId: result.externalId,
       checkoutUrl: result.checkoutUrl,
       topupId: topup._id,
-      message: 'Paiement initié. Vos points seront crédités après confirmation.',
+      message: 'Paiement initié. Vos XC seront crédités après confirmation.',
     })
   } catch (e: any) {
     if (e.message === 'Non authentifié') {

@@ -49,9 +49,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Vérifier le type de fichier (images + courte vidéo)
+    // Vérifier le type de fichier (images + vidéo + audio)
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+    const allowedAudioTypes = ['audio/mp4', 'audio/m4a', 'audio/aac', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/x-m4a']
 
     const lowerName = file.name.toLowerCase()
     const isJpeg = file.type === 'image/jpeg' ||
@@ -60,12 +61,16 @@ export async function POST(request: NextRequest) {
       lowerName.endsWith('.jpeg')
 
     const isVideoExt = /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(lowerName)
+    const isAudioExt = /\.(m4a|aac|mp3|wav|ogg|webm|caf)$/i.test(lowerName)
     const isAllowedImage = allowedImageTypes.includes(file.type) || isJpeg
     const isAllowedVideo =
       allowedVideoTypes.includes(file.type) ||
       (isVideoExt && (file.type === '' || file.type === 'application/octet-stream' || file.type.startsWith('video/')))
+    const isAllowedAudio =
+      allowedAudioTypes.includes(file.type) ||
+      (isAudioExt && (file.type === '' || file.type === 'application/octet-stream' || file.type.startsWith('audio/')))
 
-    if (!isAllowedImage && !isAllowedVideo) {
+    if (!isAllowedImage && !isAllowedVideo && !isAllowedAudio) {
       return NextResponse.json(
         { error: `Type de fichier non autorisé: ${file.type || 'inconnu'}` },
         { status: 400 }
@@ -75,7 +80,8 @@ export async function POST(request: NextRequest) {
     // Vérifier la taille
     const maxImageSize = 10 * 1024 * 1024 // 10MB
     const maxVideoSize = 100 * 1024 * 1024 // 100MB (courte vidéo)
-    const maxSize = isAllowedVideo ? maxVideoSize : maxImageSize
+    const maxAudioSize = 10 * 1024 * 1024 // 10MB (note vocale)
+    const maxSize = isAllowedVideo ? maxVideoSize : isAllowedAudio ? maxAudioSize : maxImageSize
 
     if (file.size > maxSize) {
       return NextResponse.json(
