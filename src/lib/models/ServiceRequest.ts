@@ -1,6 +1,6 @@
 import mongoose, { Schema, model, models } from 'mongoose'
 
-export type ServiceRequestStatus = 'created' | 'pending_offers' | 'assigned' | 'in_progress' | 'completed' | 'cancelled'
+export type ServiceRequestStatus = 'created' | 'pending_offers' | 'assigned' | 'provider_arriving' | 'in_progress' | 'completed' | 'cancelled'
 
 const MediaSchema = new Schema({
   url: { type: String, required: true },
@@ -15,16 +15,23 @@ const GeoPointSchema = new Schema({
 }, { _id: false })
 
 const ServiceRequestSchema = new Schema({
-  clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  clientId: { type: String, required: true },
   category: { type: String, required: true },
   description: { type: String },
   media: { type: [MediaSchema], default: [] },
   location: { type: GeoPointSchema, required: true },
   budget: { type: Number, min: 0 },
-  channel: { type: String, enum: ['web', 'pwa', 'whatsapp', 'callcenter'], default: 'web' },
-  status: { type: String, enum: ['created','pending_offers','assigned','in_progress','completed','cancelled'], default: 'created' },
+  channel: { type: String, enum: ['web', 'pwa', 'mobile', 'whatsapp', 'callcenter'], default: 'web' },
+  status: { type: String, enum: ['created','pending_offers','assigned','provider_arriving','in_progress','completed','cancelled'], default: 'created' },
   assignedProviderId: { type: Schema.Types.ObjectId, ref: 'User' },
   selectedOfferId: { type: Schema.Types.ObjectId, ref: 'Offer' },
+  assignedAt: { type: Date },
+  providerArrivingAt: { type: Date },
+  startedAt: { type: Date },
+  completedAt: { type: Date },
+  cancelledAt: { type: Date },
+  cancelledBy: { type: String, enum: ['client', 'provider', 'admin', 'system'] },
+  cancelReason: { type: String, maxlength: 500 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })

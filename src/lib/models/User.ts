@@ -30,6 +30,19 @@ export interface IUser extends Document {
   passwordResetToken?: string
   passwordResetExpires?: Date
   forcePasswordReset?: boolean
+  kycVerified?: boolean
+  referralCode?: string
+  referredBy?: string
+  referralBalance?: number
+  referralCount?: number
+  // Provider reliability stats (utilisés pour le ranking et l'affichage côté client)
+  providerStats?: {
+    completedMissions: number
+    cancelledByProvider: number
+    cancelledByClient: number
+    reliabilityScore: number // 0..100 (100 = jamais annulé, défaut 100)
+    lastUpdatedAt?: Date
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -62,7 +75,22 @@ const UserSchema = new Schema<IUser>({
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },
   forcePasswordReset: { type: Boolean, default: false },
+  kycVerified: { type: Boolean, default: false },
+  referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
+  referredBy: { type: String, uppercase: true, trim: true },
+  referralBalance: { type: Number, default: 0, min: 0 },
+  referralCount: { type: Number, default: 0, min: 0 },
+  providerStats: {
+    completedMissions: { type: Number, default: 0, min: 0 },
+    cancelledByProvider: { type: Number, default: 0, min: 0 },
+    cancelledByClient: { type: Number, default: 0, min: 0 },
+    reliabilityScore: { type: Number, default: 100, min: 0, max: 100 },
+    lastUpdatedAt: { type: Date },
+  },
 }, { timestamps: true })
+
+UserSchema.index({ referralCode: 1 })
+UserSchema.index({ referredBy: 1 })
 
 // Index uniques déjà définis via unique:true dans les champs ci-dessus
 

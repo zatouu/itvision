@@ -34,7 +34,8 @@ import {
   Wallet,
   TrendingDown,
   Banknote,
-  Mail
+  Mail,
+  Globe
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -58,6 +59,37 @@ const menuItems: MenuItem[] = [
     label: 'Analytics',
     icon: BarChart3,
     href: '/admin/analytics'
+  },
+  {
+    id: 'plateforme',
+    label: 'Plateforme',
+    icon: Globe,
+    children: [
+      {
+        id: 'plateforme-config',
+        label: 'Configuration',
+        icon: Settings,
+        href: '/admin/platform/config'
+      },
+      {
+        id: 'plateforme-analytics',
+        label: 'Analytics Mobile',
+        icon: BarChart3,
+        href: '/admin/platform/analytics'
+      },
+      {
+        id: 'plateforme-wallets',
+        label: 'Wallets',
+        icon: Wallet,
+        href: '/admin/platform/wallets'
+      },
+      {
+        id: 'plateforme-transactions',
+        label: 'Transactions Points',
+        icon: CreditCard,
+        href: '/admin/platform/transactions'
+      }
+    ]
   },
   {
     id: 'administration',

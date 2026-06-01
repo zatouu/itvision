@@ -131,6 +131,21 @@ export async function middleware(request: NextRequest) {
   ) {
     // Pour les API, on applique juste la protection CSRF
     if (pathname.startsWith('/api/')) {
+
+      // ── CORS pour les routes mobiles (/api/services/*) ──
+      const isMobileRoute = pathname.startsWith('/api/services') || pathname.startsWith('/api/auth/login') || pathname.startsWith('/api/auth/mobile') || pathname.startsWith('/api/auth/referral') || pathname.startsWith('/api/wallet') || pathname.startsWith('/api/notifications') || pathname.startsWith('/api/client/profile') || pathname.startsWith('/api/upload') || pathname.startsWith('/api/payments') || pathname.startsWith('/api/kyc') || pathname === '/api/health'
+      const corsHeaders: Record<string, string> = isMobileRoute ? {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
+        'Access-Control-Max-Age': '86400',
+      } : {}
+
+      // Répondre aux preflight OPTIONS immédiatement
+      if (request.method === 'OPTIONS' && isMobileRoute) {
+        return new NextResponse(null, { status: 204, headers: corsHeaders })
+      }
+
       const response = NextResponse.next()
       const csrfResult = csrfProtection.middleware(request)
       if (csrfResult) return csrfResult
@@ -139,6 +154,10 @@ export async function middleware(request: NextRequest) {
       response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
       response.headers.set('Pragma', 'no-cache')
       response.headers.set('Expires', '0')
+
+      // Injecter les headers CORS sur la réponse
+      Object.entries(corsHeaders).forEach(([k, v]) => response.headers.set(k, v))
+
       return response
     }
     return NextResponse.next()
