@@ -133,6 +133,13 @@ jobs:
             echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env.ec2
             echo "SMTP_FROM=${{ secrets.SMTP_FROM }}" >> .env.ec2
             echo "SMTP_SECURE=${{ secrets.SMTP_SECURE }}" >> .env.ec2
+            echo "SMS_PROVIDER=${{ secrets.SMS_PROVIDER }}" >> .env.ec2
+            echo "TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}" >> .env.ec2
+            echo "TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}" >> .env.ec2
+            echo "TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" >> .env.ec2
+            echo "ALLOW_TEST_CODES=${{ secrets.ALLOW_TEST_CODES }}" >> .env.ec2
+            
+            
 
             # Login au registre GHCR (méthode sécurisée avec stdin)
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} --password-stdin
