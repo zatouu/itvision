@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
+import { View, Text, ActivityIndicator, StyleSheet, Alert } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
+import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
@@ -18,6 +19,20 @@ export default function Layout(){
   const segments = useSegments()
 
   useEffect(() => { initSentry() }, [])
+
+  // Check OTA updates au boot
+  useEffect(() => {
+    if (__DEV__) return
+    Updates.checkForUpdateAsync().then(update => {
+      if (update.isAvailable) {
+        Updates.fetchUpdateAsync().then(() => {
+          Alert.alert('Mise à jour', 'Une nouvelle version est disponible. Redémarrage...', [
+            { text: 'OK', onPress: () => Updates.reloadAsync() }
+          ])
+        })
+      }
+    }).catch(() => { /* silently fail */ })
+  }, [])
 
   useEffect(() => {
     loadSavedLanguage()

@@ -17,6 +17,7 @@
     },
     "ec2": {
       "distribution": "internal",
+      "channel": "ec2",
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn"

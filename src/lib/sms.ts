@@ -62,13 +62,15 @@ async function sendViaTwilio(to: string, body: string): Promise<boolean> {
 }
 
 /**
- * Normalise un numéro de téléphone sénégalais.
- * Accepte : 77 123 45 67, +221771234567, 221771234567, 0771234567
- * Retourne : +221771234567
+ * Normalise un numéro de téléphone (Sénégal +221 ou Maroc +212).
+ * Sénégal : 77 123 45 67, +221771234567, 0771234567
+ * Maroc    : 06 12 34 56 78, +212612345678, 0612345678
+ * Retourne : +221771234567 ou +212612345678
  */
 export function normalizePhone(phone: string): string | null {
   const cleaned = phone.replace(/[\s\-().]/g, '')
 
+  // --- SÉNÉGAL +221 ---
   // Déjà en format international
   if (/^\+221[7-8]\d{8}$/.test(cleaned)) return cleaned
 
@@ -80,6 +82,19 @@ export function normalizePhone(phone: string): string | null {
 
   // Avec 0 devant
   if (/^0[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned.slice(1)
+
+  // --- MAROC +212 ---
+  // Déjà en format international
+  if (/^\+212[5-7]\d{8}$/.test(cleaned)) return cleaned
+
+  // Sans le +
+  if (/^212[5-7]\d{8}$/.test(cleaned)) return '+' + cleaned
+
+  // Format local 05/06/07 (10 chiffres)
+  if (/^[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned
+
+  // Avec 0 devant
+  if (/^0[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned.slice(1)
 
   return null
 }

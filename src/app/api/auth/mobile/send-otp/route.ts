@@ -9,6 +9,8 @@ const otpSendLimiter = new RateLimiter(15 * 60 * 1000, 5)
 
 const OTP_LENGTH = 6
 const OTP_TTL_MIN = 5
+const TEST_CODE = '000000'
+const isTestMode = process.env.ALLOW_TEST_CODES === 'true' || (process.env.SMS_PROVIDER || 'console') === 'console'
 
 function generateOtp(): string {
   const digits = '0123456789'
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
     const phone = normalizePhone(rawPhone)
     if (!phone) {
-      return NextResponse.json({ error: 'Numéro de téléphone invalide. Format attendu : 77 123 45 67' }, { status: 400 })
+      return NextResponse.json({ error: 'Numéro invalide. Sénégal : 77 123 45 67 | Maroc : 06 12 34 56 78' }, { status: 400 })
     }
 
     // Validation rôle
@@ -64,8 +66,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Générer le code
-    const code = generateOtp()
+    // En mode test, utiliser le code fixe pour simplifier les tests terrain
+    const code = isTestMode ? TEST_CODE : generateOtp()
     const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
 
     // Sauvegarder en DB
@@ -85,8 +87,8 @@ export async function POST(request: NextRequest) {
       success: true,
       phone,
       expiresIn: OTP_TTL_MIN * 60,
-      // En dev, on renvoie le code pour faciliter le test
-      ...(process.env.NODE_ENV !== 'production' ? { _devCode: code } : {}),
+      // En mode test (pas de SMS reel), on expose le code pour faciliter les tests terrain
+      ...(isTestMode ? { _devCode: code, isTestMode: true } : {}),
     })
   } catch (err) {
     console.error('[POST /api/auth/mobile/send-otp]', err)

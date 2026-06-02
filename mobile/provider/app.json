@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Ligey Pro",
-    "slug": "itvision-provider",
-    "scheme": "itvisionprovider",
+    "name": "Xeuy Bi Pro",
+    "slug": "Xeuy-provider",
+    "scheme": "xeuyprovider",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -17,14 +17,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.itvision.ligeypro",
+      "bundleIdentifier": "com.xeuy.xeuypro",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Ligey Pro utilise votre position pour vous montrer les demandes proches.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ligey Pro utilise votre position pour le tracking en mission."
+        "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour vous montrer les demandes proches.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour le tracking en mission."
       }
     },
     "android": {
-      "package": "com.itvision.ligeypro",
+      "package": "com.xeuy.xeuypro",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F59E0B"
@@ -55,9 +55,13 @@
     "web": {
       "bundler": "metro"
     },
+    "updates": {
+      "url": "https://u.expo.dev/30c35b9c-cc94-492f-9978-a1f10809b532",
+      "checkAutomatically": "ON_LOAD"
+    },
     "extra": {
       "eas": {
-        "projectId": "eb84b017-e68a-40f7-aca5-db4ecb0c0f17"
+        "projectId": "30c35b9c-cc94-492f-9978-a1f10809b532"
       }
     },
     "owner": "xeuy"
