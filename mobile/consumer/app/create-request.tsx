@@ -79,7 +79,7 @@ export default function CreateRequest() {
     try {
       const pos = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
       ])
       const c: [number, number] = [pos.coords.longitude, pos.coords.latitude]
       setCoords(c)
@@ -90,10 +90,8 @@ export default function CreateRequest() {
         setAutoAddress(parts.join(', ') || geo.display.split(',').slice(0, 3).join(','))
       }
     } catch {
-      // Fallback Dakar centre (Place de l'Indépendance) — évite de bloquer le flow
-      setCoords([-17.4467, 14.6928])
-      setAutoAddress('Dakar Centre')
-      setErr('Position approximative utilisée (Dakar centre). Précisez votre repère.')
+      // GPS obligatoire — guide l'utilisateur à l'activer
+      setErr('GPS requis. Activez la localisation dans les paramètres du téléphone et réessayez.')
     }
     setLocating(false)
   }
@@ -140,10 +138,14 @@ export default function CreateRequest() {
         category,
         description,
         media: uploadedMedia,
-        location: {
+        location: coords ? {
           type: 'Point',
           coordinates: coords,
           address: [landmark, autoAddress].filter(Boolean).join(' — ') || undefined,
+        } : {
+          type: 'Point',
+          coordinates: [0, 0],
+          address: landmark,
         },
         budget: Number(budget.replace(/\s/g, '')) || undefined,
         channel: 'mobile',

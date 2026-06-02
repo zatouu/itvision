@@ -1,4 +1,5 @@
 import { Platform, Alert } from 'react-native'
+import * as FileSystem from 'expo-file-system'
 import { getAuthToken } from './auth'
 import { enqueue, isNetworkError, replay, startNetInfoReplay } from './offlineQueue'
 import type { HttpMethod, ReplayResult } from './offlineQueue'
@@ -10,6 +11,7 @@ export function getToken(): string | null { return getAuthToken() }
 export function getBaseUrl(): string { return base }
 
 const TIMEOUT_MS = 20_000
+const UPLOAD_TIMEOUT_MS = 60_000
 
 function authHeaders(): Record<string, string> {
   const t = getAuthToken()
@@ -96,22 +98,40 @@ export async function apiPatch(path: string, body: Record<string, unknown>) {
 
 export async function apiUpload(fileUri: string, filename: string, contentType: string) {
   const formData = new FormData()
+
   if (Platform.OS === 'web') {
     const blob = await fetch(fileUri).then(res => res.blob())
     formData.append('file', blob, filename)
   } else {
-    // @ts-ignore — React Native FormData accepte des objets { uri, name, type }
-    formData.append('file', { uri: fileUri, name: filename, type: contentType })
+    // Android/iOS: lire le fichier en base64 puis créer un Blob standard
+    // Next.js request.formData() ne comprend pas le format {uri,name,type} de RN
+    const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 })
+    const byteCharacters = atob(base64)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i)
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: contentType })
+    formData.append('file', blob, filename)
   }
   formData.append('type', 'requests')
 
-  const r = await fetchWithTimeout(base + '/api/upload', {
-    method: 'POST',
-    headers: authHeaders(),
-    body: formData,
-  })
-  await handleStatus(r)
-  return r.json()
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+  try {
+    const r = await fetch(base + '/api/upload', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData,
+      signal: controller.signal,
+    })
+    await handleStatus(r)
+    return r.json()
+  } catch (e: unknown) {
+    if ((e as { name?: string }).name === 'AbortError') throw new Error('Délai upload dépassé — connexion trop lente')
+    throw e
+  } finally {
+    clearTimeout(id)
+  }
 }
 
 // ─── Offline-queue wrappers ─────────────────────────────────────────────────
