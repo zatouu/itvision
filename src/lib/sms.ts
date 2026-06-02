@@ -77,12 +77,6 @@ export function normalizePhone(phone: string): string | null {
   // Sans le +
   if (/^221[7-8]\d{8}$/.test(cleaned)) return '+' + cleaned
 
-  // Format local 7X ou 8X (9 chiffres)
-  if (/^[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned
-
-  // Avec 0 devant
-  if (/^0[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned.slice(1)
-
   // --- MAROC +212 ---
   // Déjà en format international
   if (/^\+212[5-7]\d{8}$/.test(cleaned)) return cleaned
@@ -90,11 +84,19 @@ export function normalizePhone(phone: string): string | null {
   // Sans le +
   if (/^212[5-7]\d{8}$/.test(cleaned)) return '+' + cleaned
 
-  // Format local 05/06/07 (10 chiffres)
-  if (/^[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned
-
-  // Avec 0 devant
+  // --- LOCAL AVEC 0 (10 chiffres) ---
+  // Maroc 05/06/07 en premier (car 07 chevauche le Sénégal)
   if (/^0[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned.slice(1)
+
+  // Sénégal 07/08 (format rare avec 0)
+  if (/^0[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned.slice(1)
+
+  // --- LOCAL SANS 0 (9 chiffres) ---
+  // Sénégal 7X/8X
+  if (/^[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned
+
+  // Maroc 5/6/7 (format rare sans 0)
+  if (/^[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned
 
   return null
 }
