@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({ items: withScore })
-  } catch (e) {
-    return NextResponse.json({ error: 'Erreur matching' }, { status: 500 })
+  } catch (e: any) {
+    console.error('MATCHING ERROR:', e)
+    return NextResponse.json({ error: 'Erreur matching: ' + (e?.message || String(e)) }, { status: 500 })
   }
 }
