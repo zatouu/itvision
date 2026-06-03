@@ -45,7 +45,7 @@ export default function Login() {
           <View style={s.logo}>
             <Text style={s.logoText}>L</Text>
           </View>
-          <Text style={s.title}>Ligey</Text>
+          <Text style={s.title}>Xeuy Bi</Text>
           <Text style={s.subtitle}>Services à domicile au Sénégal</Text>
         </View>
 
@@ -80,7 +80,7 @@ export default function Login() {
         </View>
 
         <Text style={s.legal}>
-          En continuant, vous acceptez les conditions d'utilisation de Ligey.
+          En continuant, vous acceptez les conditions d'utilisation de Xeuy.
         </Text>
       </KeyboardAvoidingView>
     </SafeAreaView>

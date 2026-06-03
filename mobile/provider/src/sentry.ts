@@ -13,7 +13,7 @@ export function initSentry(): void {
   Sentry.init({
     dsn: DSN,
     environment: IS_DEV ? 'development' : 'production',
-    release: `ligey-provider@${Constants.expoConfig?.version ?? '0.0.0'}`,
+    release: `xeuy-provider@${Constants.expoConfig?.version ?? '0.0.0'}`,
     tracesSampleRate: IS_DEV ? 1.0 : 0.2,
     enableAutoSessionTracking: true,
     sessionTrackingIntervalMillis: 30_000,

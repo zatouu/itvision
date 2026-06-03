@@ -80,7 +80,7 @@ export default function Layout(){
   if (!ready) {
     return (
       <View style={s.splash}>
-        <Text style={s.splashName}>Ligey</Text>
+        <Text style={s.splashName}>Xeuy Bi</Text>
         <Text style={s.splashSub}>Services à domicile</Text>
         <ActivityIndicator size="small" color="#64748B" style={{ marginTop: 24 }} />
       </View>

@@ -35,7 +35,7 @@ export default function NearbyRequests() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>(Platform.OS === 'web' ? 'list' : 'map')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
 
   const [selected, setSelected] = useState<any | null>(null)
   const [price, setPrice] = useState('')
@@ -102,8 +102,9 @@ export default function NearbyRequests() {
         },
         2 * 60 * 1000 // 2 min TTL pour les demandes proches
       )
-    } catch {
-      setErr('Impossible de charger les demandes')
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      setErr('Erreur: ' + msg)
       setLoading(false)
       setRefreshing(false)
     }

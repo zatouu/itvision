@@ -78,7 +78,7 @@ export default function Layout(){
   if (!ready) {
     return (
       <View style={s.splash}>
-        <Text style={s.splashName}>Ligey Pro</Text>
+        <Text style={s.splashName}>Xeuy Pro</Text>
         <Text style={s.splashSub}>Espace prestataire</Text>
         <ActivityIndicator size="small" color="#92400E" style={{ marginTop: 24 }} />
       </View>

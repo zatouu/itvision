@@ -79,7 +79,7 @@ export default function Login() {
         </View>
 
         <Text style={s.legal}>
-          En continuant, vous acceptez les conditions d'utilisation de Ligey.
+          En continuant, vous acceptez les conditions d'utilisation de Xeuy.
         </Text>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -92,7 +92,7 @@ export default function Home() {
         {/* Header */}
         <View style={s.header}>
           <View>
-            <Text style={s.appName}>Ligey</Text>
+            <Text style={s.appName}>Xeuy</Text>
           </View>
           <View style={s.headerRight}>
             <TouchableOpacity style={s.bellBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">

@@ -366,8 +366,8 @@ export default function CreateRequest() {
             {err && <Text style={s.errText}>{err}</Text>}
 
             <TouchableOpacity
-              style={[s.btn, (!coords || !landmark.trim() || loading || uploadingMedia) && s.btnDisabled]}
-              disabled={!coords || !landmark.trim() || loading || uploadingMedia}
+              style={[s.btn, (!coords || loading || uploadingMedia) && s.btnDisabled]}
+              disabled={!coords || loading || uploadingMedia}
               onPress={submit}
             >
               {loading || uploadingMedia ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Publier la demande 🚀</Text>}

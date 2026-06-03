@@ -1,0 +1,72 @@
+name: Build Expo Apps (EAS)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-eas.yml'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS profile (ec2 / preview / production)'
+        required: true
+        default: 'ec2'
+        type: choice
+        options:
+          - ec2
+          - preview
+          - production
+
+jobs:
+  build-consumer:
+    name: Build Consumer APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: mobile/consumer
+        run: npm ci
+
+      - name: Build Android (Consumer)
+        working-directory: mobile/consumer
+        run: eas build --platform android --profile ${{ github.event.inputs.profile || 'ec2' }} --non-interactive --no-wait
+
+  build-provider:
+    name: Build Provider APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: mobile/provider
+        run: npm ci
+
+      - name: Build Android (Provider)
+        working-directory: mobile/provider
+        run: eas build --platform android --profile ${{ github.event.inputs.profile || 'ec2' }} --non-interactive --no-wait

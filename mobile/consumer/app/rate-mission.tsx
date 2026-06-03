@@ -46,7 +46,7 @@ export default function RateMission() {
         <View style={s.successContainer}>
           <Text style={s.successEmoji}>🎉</Text>
           <Text style={s.successTitle}>Merci pour votre avis !</Text>
-          <Text style={s.successText}>Votre note aide la communauté Ligey à s'améliorer.</Text>
+          <Text style={s.successText}>Votre note aide la communauté Xeuy à s'améliorer.</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.replace('/')}>
             <Text style={s.btnText}>Retour à l'accueil</Text>
           </TouchableOpacity>

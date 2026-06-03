@@ -449,4 +449,6 @@ const s = StyleSheet.create({
   chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
   arrivingBtn: { backgroundColor: '#E0F2FE', borderWidth: 1, borderColor: '#7DD3FC' },
   arrivingBtnText: { color: '#0369A1', fontWeight: '700', fontSize: 15 },
+  mapFallback: { backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0', marginTop: 8 },
+  mapFallbackText: { color: '#15803D', fontWeight: '700', fontSize: 14 },
 })

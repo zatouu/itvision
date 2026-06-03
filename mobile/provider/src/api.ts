@@ -97,38 +97,46 @@ export async function apiPatch(path: string, body: Record<string, unknown>) {
 }
 
 export async function apiUpload(fileUri: string, filename: string, contentType: string) {
-  const formData = new FormData()
-
   if (Platform.OS === 'web') {
+    const formData = new FormData()
     const blob = await fetch(fileUri).then(res => res.blob())
     formData.append('file', blob, filename)
+    formData.append('type', 'requests')
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+    try {
+      const r = await fetch(base + '/api/upload', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+        signal: controller.signal,
+      })
+      await handleStatus(r)
+      return r.json()
+    } catch (e: unknown) {
+      if ((e as { name?: string }).name === 'AbortError') throw new Error('Délai upload dépassé — connexion trop lente')
+      throw e
+    } finally {
+      clearTimeout(id)
+    }
   } else {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 })
-    const byteCharacters = atob(base64)
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i)
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: contentType })
-    formData.append('file', blob, filename)
-  }
-  formData.append('type', 'requests')
-
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
-  try {
-    const r = await fetch(base + '/api/upload', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: formData,
-      signal: controller.signal,
-    })
-    await handleStatus(r)
-    return r.json()
-  } catch (e: unknown) {
-    if ((e as { name?: string }).name === 'AbortError') throw new Error('Délai upload dépassé — connexion trop lente')
-    throw e
-  } finally {
-    clearTimeout(id)
+    const uploadResult = await FileSystem.uploadAsync(
+      base + '/api/upload',
+      fileUri,
+      {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: contentType,
+        headers: authHeaders(),
+        parameters: {
+          type: 'requests',
+        },
+      }
+    )
+    const data = JSON.parse(uploadResult.body)
+    if (uploadResult.status >= 400) throw new Error(data.error || `Erreur upload (${uploadResult.status})`)
+    return data
   }
 }
 
