@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import MapView, { Marker } from 'react-native-maps'
+import { indriveMapStyle } from '../../src/mapStyle'
 import * as Location from 'expo-location'
 import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
@@ -367,6 +368,7 @@ export default function ActiveMission() {
                     latitudeDelta: 0.02,
                     longitudeDelta: 0.02,
                   }}
+                  customMapStyle={indriveMapStyle}
                 >
                   <Marker coordinate={{ latitude: lat, longitude: lng }} />
                 </MapView>
