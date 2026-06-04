@@ -15,7 +15,6 @@ import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
-import { indriveMapStyle } from '../src/mapStyle'
 
 const RADIUS_KM = 10
 
@@ -244,7 +243,6 @@ export default function NearbyRequests() {
                 showsUserLocation
                 showsMyLocationButton={false}
                 showsCompass={false}
-                customMapStyle={indriveMapStyle}
               >
                 {/* Cercle de la zone autorisée */}
                 <Circle

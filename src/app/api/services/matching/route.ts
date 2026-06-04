@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
     const q = parseNearQuery(request)
     if (!q) return NextResponse.json({ error: 'Paramètres géo invalides' }, { status: 400 })
 
+    console.log(`[MATCHING] user=${userId} lng=${q.lng} lat=${q.lat} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
+
     const geoFilter: any = {
       location: {
         $near: {
@@ -61,10 +63,15 @@ export async function GET(request: NextRequest) {
     const catFilter = q.category ? { category: q.category } : {}
     const mineFilter = q.excludeMine ? { clientId: { $ne: userId } } : {}
 
+    const totalCount = await ServiceRequest.countDocuments({ ...statusFilter, ...catFilter })
+    console.log(`[MATCHING] total requests in DB (status created/pending): ${totalCount}`)
+
     const items = await ServiceRequest.find({ ...geoFilter, ...statusFilter, ...catFilter, ...mineFilter })
       .select({ clientId: 1, category: 1, description: 1, location: 1, budget: 1, status: 1, createdAt: 1 })
       .limit(50)
       .lean()
+
+    console.log(`[MATCHING] found ${items.length} items after geo+status+mine filter`)
 
     const withScore = items.map((it: any) => {
       const [lng, lat] = (it.location?.coordinates || [q.lng, q.lat])
