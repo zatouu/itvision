@@ -105,7 +105,8 @@ export default function Wallet() {
               }
               await load()
             } catch (e: any) {
-              Alert.alert('Échec', e?.message || 'La recharge a échoué')
+              const msg = e?.message || String(e)
+              Alert.alert('Échec recharge', msg)
             } finally {
               setTopupLoading(false)
             }

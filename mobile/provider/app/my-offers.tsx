@@ -35,18 +35,19 @@ export default function MyOffers() {
   const [respondLoading, setRespondLoading] = useState<string | null>(null)
 
   const load = useCallback(async (isRefresh = false) => {
+    if (loading || refreshing) return
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
     setErr(null)
     try {
       const r = await apiGet('/api/services/offers?mine=1')
       setItems(r.items || [])
-    } catch {
-      setErr('Impossible de charger les offres')
+    } catch (e: any) {
+      setErr(e?.message || 'Impossible de charger les offres')
     }
     if (isRefresh) setRefreshing(false)
     else setLoading(false)
-  }, [])
+  }, [loading, refreshing])
 
   useEffect(() => { load() }, [load])
 
