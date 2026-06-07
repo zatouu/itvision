@@ -35,7 +35,7 @@ export default function NearbyRequests() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [viewMode, setViewMode] = useState<ViewMode>('map')
 
   const [selected, setSelected] = useState<any | null>(null)
   const [price, setPrice] = useState('')
@@ -58,23 +58,42 @@ export default function NearbyRequests() {
   }, [])
 
   const mapRef = useRef<MapView>(null)
+  const lastCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
 
-  const locate = async () => {
+  const locate = async (): Promise<{ lat: number; lng: number } | null> => {
     const { status } = await Location.requestForegroundPermissionsAsync()
-    if (status !== 'granted') return null
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Activez la localisation pour voir les demandes près de vous.')
+      return lastCoordsRef.current
+    }
+
+    // 1) Essayer instantanément la dernière position connue par l'OS (rapide, parfois imprécise)
+    let first: { lat: number; lng: number } | null = null
+    try {
+      const last = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000, requiredAccuracy: 1000 })
+      if (last) {
+        first = { lat: last.coords.latitude, lng: last.coords.longitude }
+        setCoords(first)
+        lastCoordsRef.current = first
+      }
+    } catch {}
+
+    // 2) Affiner avec une mesure GPS précise (timeout généreux 15 s)
     try {
       const pos = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout localisation')), 5000)),
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout GPS')), 15000)),
       ])
-      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-      setCoords(c)
-      return c
-    } catch {
-      // Fallback Dakar centre (Place de l'Indépendance)
-      const fallback = { lat: 14.6928, lng: -17.4467 }
-      setCoords(fallback)
-      return fallback
+      const fine = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      setCoords(fine)
+      lastCoordsRef.current = fine
+      return fine
+    } catch (e: any) {
+      // Si on a déjà eu la "last known", on garde celle-là. Sinon on signale l'erreur.
+      if (first) return first
+      if (lastCoordsRef.current) return lastCoordsRef.current
+      setErr('Localisation indisponible. Vérifiez le GPS / réseau et réessayez.')
+      return null
     }
   }
 
@@ -167,12 +186,20 @@ export default function NearbyRequests() {
     return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`
   }
 
+  // Zoom serré: ~0.04 ≈ couvre environ 4-5 km. (RADIUS_KM*0.018 = 0.18 → trop large)
   const mapRegion = coords ? {
     latitude: coords.lat,
     longitude: coords.lng,
-    latitudeDelta: RADIUS_KM * 0.018,
-    longitudeDelta: RADIUS_KM * 0.018,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
   } : undefined
+
+  // Recentre automatiquement la map quand la position est affinée
+  useEffect(() => {
+    if (mapRegion && mapRef.current) {
+      mapRef.current.animateToRegion(mapRegion, 600)
+    }
+  }, [coords?.lat, coords?.lng])
 
   return (
     <SafeAreaView style={s.safe}>
@@ -182,7 +209,7 @@ export default function NearbyRequests() {
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={s.title}>Demandes proches</Text>
-        <TouchableOpacity onPress={() => load(null, true)} style={s.refreshBtn}>
+        <TouchableOpacity onPress={async () => { const c = await locate(); await load(c, true) }} style={s.refreshBtn}>
           <Text style={s.refreshIcon}>↻</Text>
         </TouchableOpacity>
       </View>
