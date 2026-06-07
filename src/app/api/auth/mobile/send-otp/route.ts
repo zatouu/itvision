@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     await OtpCode.create({ phone, code, role, expiresAt })
 
     // Envoyer le SMS
-    const sent = await sendSms(phone, `Votre code Ligey : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
+    const sent = await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
 
     if (!sent) {
       return NextResponse.json(

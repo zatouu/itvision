@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       const referralCode = await createUniqueReferralCode()
       const newUser = await User.create({
         username: `mobile_${phone.replace('+', '')}`,
-        email: `${phone.replace('+', '')}@mobile.ligey`,
+        email: `${phone.replace('+', '')}@mobile.xeuy`,
         passwordHash: '___otp_only___',
         name: displayName,
         phone,

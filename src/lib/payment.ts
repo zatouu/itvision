@@ -100,7 +100,7 @@ async function omInitiate(amount: number, clientPhone: string, description: stri
     body: JSON.stringify({
       amount,
       currency: 'OUV',
-      orderId: `ligey_${Date.now()}`,
+      orderId: `xeuy_${Date.now()}`,
       description,
       notifUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payments/webhook`,
       customerMsisdn: clientPhone,
