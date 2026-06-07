@@ -160,6 +160,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const io = (global as any).io
     if (io) {
       io.to(`request-${id}`).emit('request:status-changed', { requestId: id, status: sr.status })
+      // Notifier aussi la room personnelle du client (centre de notifs in-app hors écran mission)
+      if (sr.clientId) {
+        io.to(`user-${sr.clientId}`).emit('request:status-changed', { requestId: id, status: sr.status })
+      }
       // Aussi notifier la room provider pour rafraîchir my-offers
       if (sr.assignedProviderId) {
         io.to(`provider-${sr.assignedProviderId}`).emit('mission:status-changed', { requestId: id, status: sr.status })

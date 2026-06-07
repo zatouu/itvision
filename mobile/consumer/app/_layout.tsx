@@ -4,7 +4,7 @@ import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
-import { registerPushToken, setupNotificationChannel, setupNotificationResponseListener } from '../src/push'
+import { registerPushToken, setupNotificationChannel, setupNotificationResponseListener, setupForegroundNotificationListener } from '../src/push'
 import { loadAuth, subscribeAuth, isLoggedIn, getAuthUser } from '../src/auth'
 import { initOfflineReplay } from '../src/api'
 import { initSentry, setUser, clearUser } from '../src/sentry'
@@ -71,9 +71,11 @@ export default function Layout(){
     registerPushToken()
     const stopQueueReplay = initOfflineReplay()
     const stopNotifListener = setupNotificationResponseListener()
+    const stopForegroundListener = setupForegroundNotificationListener()
     return () => {
       stopQueueReplay()
       stopNotifListener()
+      stopForegroundListener()
     }
   }, [loggedIn])
 
