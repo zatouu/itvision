@@ -9,7 +9,7 @@ import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wall
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money']
-const isDev = process.env.NODE_ENV !== 'production'
+const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
 
 export async function POST(request: NextRequest) {
   try {

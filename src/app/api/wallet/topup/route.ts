@@ -10,7 +10,7 @@ const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money'
 const MIN_POINTS = 10
 const MAX_POINTS = 10000
 
-const isDev = process.env.NODE_ENV !== 'production'
+const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
 
 export async function POST(request: NextRequest) {
   const rl = applyRateLimit(request, serviceWriteRateLimiter)

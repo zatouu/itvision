@@ -23,7 +23,8 @@ export interface ReleaseResult {
   error?: string
 }
 
-const isDev = process.env.NODE_ENV !== 'production'
+// Mock automatique en dev OU si PAYMENTS_MOCK=true (utile pour tests E2E en prod sans compte marchand)
+const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
 
 // ──── WAVE ────────────────────────────────────────────────────────────────────
 

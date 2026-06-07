@@ -1,8 +1,17 @@
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
+import Constants from 'expo-constants'
 import { apiPost } from './api'
 
 const isNative = Platform.OS === 'ios' || Platform.OS === 'android'
+
+function getProjectId(): string | undefined {
+  return (
+    process.env.EXPO_PUBLIC_PROJECT_ID
+    || (Constants?.expoConfig as any)?.extra?.eas?.projectId
+    || (Constants as any)?.easConfig?.projectId
+  )
+}
 
 /**
  * Enregistre le token push auprès du serveur.
@@ -40,18 +49,23 @@ export async function registerPushToken(): Promise<string | null> {
   }
 
   try {
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-    })
+    const projectId = getProjectId()
+    if (!projectId) {
+      console.warn('[Push] projectId introuvable (Constants.expoConfig.extra.eas.projectId manquant)')
+      return null
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId })
     const token = tokenData.data
+    console.log('[Push] Token récupéré:', token.slice(0, 30) + '...')
 
     const platform = Platform.OS === 'ios' ? 'ios' : 'android'
     await apiPost('/api/notifications/push-token', { token, platform })
-      .catch(err => console.warn('[Push] Erreur envoi token:', err.message))
+      .then(() => console.log('[Push] Token enregistré côté serveur ✓'))
+      .catch(err => console.warn('[Push] Erreur envoi token:', err?.message || err))
 
     return token
   } catch (err: any) {
-    console.error('[Push] Erreur récupération token:', err.message)
+    console.error('[Push] Erreur récupération token:', err?.message || err)
     return null
   }
 }

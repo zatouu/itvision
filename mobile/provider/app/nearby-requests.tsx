@@ -114,21 +114,24 @@ export default function NearbyRequests() {
     (async () => { const c = await locate(); await load(c) })()
   }, [])
 
+  // Refs stables pour éviter de réabonner les listeners à chaque changement de coords/load
+  const coordsRef = useRef(coords)
+  const loadRef = useRef(load)
+  useEffect(() => { coordsRef.current = coords }, [coords])
+  useEffect(() => { loadRef.current = load }, [load])
+
   // WebSocket: connexion + écouter acceptation d'offre + nouvelles demandes
   useEffect(() => {
     const socket = connectSocket()
-    const handleAccepted = (data: any) => {
+    const handleAccepted = (_data: any) => {
       Alert.alert('Offre acceptée !', 'Un client a choisi votre offre. La mission démarre.')
-      if (coords) {
-        const key = `nearby-${Math.round(coords.lat * 10)}-${Math.round(coords.lng * 10)}`
-        cacheClear(key)
-      }
+      const c = coordsRef.current
+      if (c) cacheClear(`nearby-${Math.round(c.lat * 10)}-${Math.round(c.lng * 10)}`)
     }
-    const handleRequestNew = async (data: any) => {
-      const title = data.category ? `Nouvelle demande — ${data.category}` : 'Nouvelle demande proche'
-      const msg = data.description ? `${data.description.slice(0, 80)}${data.description.length > 80 ? '…' : ''}` : 'Un client vient de publier une demande dans votre zone.'
-      const ok = await confirm(title, msg)
-      if (ok && coords) load(coords, true)
+    const handleRequestNew = (_data: any) => {
+      // Reload silencieux (pas de popup bloquante)
+      const c = coordsRef.current
+      if (c) loadRef.current(c, true)
     }
     socket.on('offer:accepted', handleAccepted)
     socket.on('request:new', handleRequestNew)
@@ -136,7 +139,7 @@ export default function NearbyRequests() {
       socket.off('offer:accepted', handleAccepted)
       socket.off('request:new', handleRequestNew)
     }
-  }, [coords, load])
+  }, [])
 
   const sendOffer = async () => {
     if (!selected || !price) return
