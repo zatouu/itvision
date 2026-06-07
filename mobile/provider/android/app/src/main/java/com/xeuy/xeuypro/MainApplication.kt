@@ -1,4 +1,4 @@
-package com.itv.ligey
+package com.xeuy.xeuypro
 
 import android.app.Application
 import android.content.res.Configuration

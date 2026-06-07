@@ -44,7 +44,7 @@ if (getRNMinorVersion() >= 75) {
   }
 }
 
-rootProject.name = 'Itvision Provider'
+rootProject.name = 'XeuyBiPro'
 
 dependencyResolutionManagement {
   versionCatalogs {
