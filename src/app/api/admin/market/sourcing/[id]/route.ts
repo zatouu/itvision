@@ -40,28 +40,30 @@ const ALLOWED_NEXT_STATUSES: SourcingStatus[] = [
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const adm = await requireAdmin(request)
   if (!adm.ok) return NextResponse.json({ error: adm.error }, { status: adm.status })
 
-  if (!mongoose.isValidObjectId(params.id)) {
+  const { id } = await params
+  if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ error: 'ID invalide' }, { status: 400 })
   }
   await connectMongoose()
-  const doc = await SourcingRequest.findById(params.id).lean()
+  const doc = await SourcingRequest.findById(id).lean()
   if (!doc) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
   return NextResponse.json({ success: true, request: doc })
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const adm = await requireAdmin(request)
   if (!adm.ok) return NextResponse.json({ error: adm.error }, { status: adm.status })
 
-  if (!mongoose.isValidObjectId(params.id)) {
+  const { id } = await params
+  if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ error: 'ID invalide' }, { status: 400 })
   }
 
@@ -73,7 +75,7 @@ export async function PATCH(
   }
 
   await connectMongoose()
-  const doc = await SourcingRequest.findById(params.id)
+  const doc = await SourcingRequest.findById(id)
   if (!doc) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
 
   // Mise à jour ciblée (champs autorisés uniquement)

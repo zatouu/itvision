@@ -51,9 +51,10 @@ function serializeForPublic(doc: any) {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  const token = (params?.token || '').trim()
+  const resolved = await params
+  const token = (resolved?.token || '').trim()
   if (!token || token.length < 16) {
     return NextResponse.json({ error: 'Lien invalide' }, { status: 400 })
   }
@@ -65,12 +66,13 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   const limited = applyRateLimit(request, decisionLimiter)
   if (limited) return limited
 
-  const token = (params?.token || '').trim()
+  const resolved = await params
+  const token = (resolved?.token || '').trim()
   if (!token || token.length < 16) {
     return NextResponse.json({ error: 'Lien invalide' }, { status: 400 })
   }

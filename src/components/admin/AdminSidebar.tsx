@@ -35,7 +35,8 @@ import {
   TrendingDown,
   Banknote,
   Mail,
-  Globe
+  Globe,
+  Search
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -285,6 +286,12 @@ const menuItems: MenuItem[] = [
         label: 'Comptes Pro',
         icon: UsersRound,
         href: '/admin/marketplace/comptes-pro'
+      },
+      {
+        id: 'marketplace-sourcing',
+        label: 'Trouvez-moi (sourcing)',
+        icon: Search,
+        href: '/admin/market/sourcing-requests'
       }
     ]
   },

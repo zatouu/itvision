@@ -48,8 +48,9 @@ function fmtFcfa(n: number): string {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   // Auth
   let userId: string, role: string, name: string | undefined
   try {
@@ -64,7 +65,7 @@ export async function POST(
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   }
 
-  if (!mongoose.isValidObjectId(params.id)) {
+  if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ error: 'ID invalide' }, { status: 400 })
   }
 
@@ -122,7 +123,7 @@ export async function POST(
   const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
 
   await connectMongoose()
-  const doc = await SourcingRequest.findById(params.id)
+  const doc = await SourcingRequest.findById(id)
   if (!doc) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
   if (['fulfilled', 'cancelled'].includes(doc.status)) {
     return NextResponse.json(

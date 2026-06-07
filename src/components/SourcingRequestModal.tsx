@@ -445,7 +445,7 @@ function PhotoTab({
 }: {
   file: File | null
   preview: string | null
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
   onFile: (f: File) => void
   onClear: () => void
 }) {
