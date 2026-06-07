@@ -2,18 +2,40 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ShoppingBag, Package, Users, TrendingDown, ArrowRight,
   Shield, Truck, Clock, Headphones, Sparkles, Star,
-  Camera, Lock, Wifi, Bell, Cpu
+  Camera, Lock, Wifi, Bell, Cpu, Search
 } from 'lucide-react'
 import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
+import SourcingRequestModal from '@/components/SourcingRequestModal'
 
 export default function MarketHomePage() {
   const router = useRouter()
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchIds, setImageSearchIds] = useState<string[]>([])
+  const [showSourcing, setShowSourcing] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id?: string; name?: string; phone?: string; email?: string } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/login', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.user) return
+        setCurrentUser({
+          id: data.user.id,
+          name: data.user.name || data.user.username,
+          phone: data.user.phone,
+          email: data.user.email,
+        })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -50,6 +72,18 @@ export default function MarketHomePage() {
               Achats groupés
             </Link>
             <ImageSearchButton onClick={() => setShowImageSearch(true)} />
+            <button
+              type="button"
+              onClick={() => setShowSourcing(true)}
+              className="group inline-flex items-center gap-2 rounded-xl border-2 border-violet-500 bg-violet-50 px-5 py-3 text-sm font-bold text-violet-700 shadow-sm hover:bg-violet-100 hover:shadow-md dark:border-violet-600 dark:bg-violet-900/30 dark:text-violet-200 dark:hover:bg-violet-900/50 transition-all"
+              title="Pas dans notre catalogue ? Notre équipe vous trouve le produit en 24h max"
+            >
+              <Search className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              Trouvez-moi ce produit
+              <span className="hidden md:inline-flex items-center gap-1 rounded-full bg-violet-200/80 dark:bg-violet-800/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+                <Clock className="h-3 w-3" /> 24h max
+              </span>
+            </button>
           </div>
           {imageSearchIds.length > 0 && (
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg text-xs text-green-700 dark:text-green-300">
@@ -234,6 +268,13 @@ export default function MarketHomePage() {
           }
           setShowImageSearch(false)
         }}
+      />
+
+      {/* Trouvez-moi ce produit (sourcing à la demande) */}
+      <SourcingRequestModal
+        isOpen={showSourcing}
+        onClose={() => setShowSourcing(false)}
+        currentUser={currentUser}
       />
     </div>
   )

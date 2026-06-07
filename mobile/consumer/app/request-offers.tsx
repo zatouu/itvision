@@ -80,7 +80,7 @@ export default function RequestOffers() {
   const [counterLoading, setCounterLoading] = useState(false)
 
   // Tick 1s pour countdown des offres (stop si demande terminée)
-  const requestDone = serviceRequest && ['assigned','provider_arriving','in_progress','completed','cancelled'].includes(serviceRequest.status)
+  const requestDone = serviceRequest && ['assigned','provider_arriving','in_progress','completed','cancelled','expired'].includes(serviceRequest.status)
   useEffect(() => {
     if (requestDone) return
     const t = setInterval(() => setNow(Date.now()), 1000)

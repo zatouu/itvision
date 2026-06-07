@@ -20,7 +20,11 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
   try {
     await connectMongoose()
     const tokens = await PushToken.find({ userId }).select('token').lean()
-    if (!tokens.length) return
+    if (!tokens.length) {
+      console.warn(`[Push] sendPushToUser(${userId}): aucun token enregistré`)
+      return
+    }
+    console.log(`[Push] → user ${userId}: ${tokens.length} token(s) — "${message.title}"`)
 
     const messages = tokens.map((t: any) => ({
       to: t.token,
@@ -73,7 +77,11 @@ export async function sendPushToAllProviders(message: PushMessage, excludeUserId
     const query: any = {}
     if (excludeUserId) query.userId = { $ne: excludeUserId }
     const tokens = await PushToken.find(query).select('token').lean()
-    if (!tokens.length) return
+    if (!tokens.length) {
+      console.warn('[Push] sendPushToAllProviders: aucun token enregistré côté serveur. Le provider a-t-il bien accordé la permission ?')
+      return
+    }
+    console.log(`[Push] → broadcast ${tokens.length} provider(s) — "${message.title}"`)
 
     const messages = tokens.map((t: any) => ({
       to: t.token,

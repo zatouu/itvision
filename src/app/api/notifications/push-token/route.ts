@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       { upsert: true, new: true }
     )
 
+    console.log(`[Push] Token enregistré pour user ${userId} (${safePlatform}): ${token.slice(0, 30)}...`)
     return NextResponse.json({ success: true })
   } catch (e: any) {
     if (e.message === 'Non authentifié') {

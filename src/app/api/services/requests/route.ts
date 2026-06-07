@@ -9,6 +9,7 @@ import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
 const MAX_BUDGET = 10_000_000
+const REQUEST_TTL_HOURS = 24 // une demande non assignée expire après 24h
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +23,17 @@ export async function GET(request: NextRequest) {
       const { userId } = await requireAuth(request)
       q.clientId = userId
     }
+
+    // Auto-expiration paresseuse: marque "expired" toute demande non assignée dont expiresAt est dépassé
+    const now = new Date()
+    await ServiceRequest.updateMany(
+      {
+        status: { $in: ['created', 'pending_offers'] },
+        expiresAt: { $ne: null, $lt: now },
+      },
+      { $set: { status: 'expired', expiredAt: now } }
+    ).catch(() => {})
+
     const items = await ServiceRequest.find(q).sort({ createdAt: -1 }).limit(100).lean()
 
     // Enrichir avec offerCount en une seule requête agrégée
@@ -87,10 +99,12 @@ export async function POST(request: NextRequest) {
     // Validation channel
     const safeChannel = ['web', 'mobile', 'callcenter'].includes(channel) ? channel : 'mobile'
 
+    const expiresAt = new Date(Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000)
     const created = await ServiceRequest.create({
       clientId: userId, category,
       description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
       media: safeMedia, location, budget: safeBudget, channel: safeChannel,
+      expiresAt,
     })
 
     // Notifier les providers proches via geofencing (fallback: tous si aucune position connue)

@@ -59,14 +59,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Auto-expire les demandes expirées (paresseux)
+    const now = new Date()
+    await ServiceRequest.updateMany(
+      {
+        status: { $in: ['created', 'pending_offers'] },
+        expiresAt: { $ne: null, $lt: now },
+      },
+      { $set: { status: 'expired', expiredAt: now } }
+    ).catch(() => {})
+
     const statusFilter = { status: { $in: ['created', 'pending_offers'] } }
+    const expiryFilter = { $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: now } }] }
     const catFilter = q.category ? { category: q.category } : {}
     const mineFilter = q.excludeMine ? { clientId: { $ne: userId } } : {}
 
     const totalCount = await ServiceRequest.countDocuments({ ...statusFilter, ...catFilter })
     console.log(`[MATCHING] total requests in DB (status created/pending): ${totalCount}`)
 
-    const items = await ServiceRequest.find({ ...geoFilter, ...statusFilter, ...catFilter, ...mineFilter })
+    const items = await ServiceRequest.find({ ...geoFilter, ...statusFilter, ...expiryFilter, ...catFilter, ...mineFilter })
       .select({ clientId: 1, category: 1, subCategory: 1, title: 1, description: 1, location: 1, address: 1, budget: 1, media: 1, status: 1, createdAt: 1 })
       .limit(50)
       .lean()

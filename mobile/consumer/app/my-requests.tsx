@@ -90,7 +90,7 @@ export default function MyRequests() {
         statusFilter === 'all'
         || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
         || (statusFilter === 'offers' && (it.status === 'pending_offers' || it.pendingOfferCount > 0))
-        || (statusFilter === 'done' && ['completed', 'cancelled'].includes(it.status))
+        || (statusFilter === 'done' && ['completed', 'cancelled', 'expired'].includes(it.status))
       const catLabel = catMap[it.category]?.label || it.category || ''
       const haystack = `${catLabel} ${it.category || ''} ${it.description || ''} ${it.budget || ''} ${it.status}`.toLowerCase()
       return matchesStatus && (!q || haystack.includes(q))

@@ -1,6 +1,6 @@
 import mongoose, { Schema, model, models } from 'mongoose'
 
-export type ServiceRequestStatus = 'created' | 'pending_offers' | 'assigned' | 'provider_arriving' | 'in_progress' | 'completed' | 'cancelled'
+export type ServiceRequestStatus = 'created' | 'pending_offers' | 'assigned' | 'provider_arriving' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 
 const MediaSchema = new Schema({
   url: { type: String, required: true },
@@ -22,7 +22,7 @@ const ServiceRequestSchema = new Schema({
   location: { type: GeoPointSchema, required: true },
   budget: { type: Number, min: 0 },
   channel: { type: String, enum: ['web', 'pwa', 'mobile', 'whatsapp', 'callcenter'], default: 'web' },
-  status: { type: String, enum: ['created','pending_offers','assigned','provider_arriving','in_progress','completed','cancelled'], default: 'created' },
+  status: { type: String, enum: ['created','pending_offers','assigned','provider_arriving','in_progress','completed','cancelled','expired'], default: 'created' },
   assignedProviderId: { type: Schema.Types.ObjectId, ref: 'User' },
   selectedOfferId: { type: Schema.Types.ObjectId, ref: 'Offer' },
   assignedAt: { type: Date },
@@ -32,12 +32,16 @@ const ServiceRequestSchema = new Schema({
   cancelledAt: { type: Date },
   cancelledBy: { type: String, enum: ['client', 'provider', 'admin', 'system'] },
   cancelReason: { type: String, maxlength: 500 },
+  // Durée de validité d'une demande (par défaut 24h après création)
+  expiresAt: { type: Date },
+  expiredAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 
 ServiceRequestSchema.index({ 'location': '2dsphere' })
 ServiceRequestSchema.index({ status: 1, createdAt: -1 })
+ServiceRequestSchema.index({ status: 1, expiresAt: 1 })
 
 const ServiceRequest = models.ServiceRequest || model('ServiceRequest', ServiceRequestSchema)
 export default ServiceRequest

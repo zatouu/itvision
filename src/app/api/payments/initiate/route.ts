@@ -32,6 +32,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Seul le client peut initier le paiement' }, { status: 403 })
     }
 
+    // Vérifier l'expiration de l'offre
+    if (offer.validUntil && new Date(offer.validUntil).getTime() < Date.now()) {
+      if (offer.status === 'submitted') {
+        offer.status = 'expired'
+        await offer.save()
+      }
+      return NextResponse.json({ error: 'Cette offre a expiré' }, { status: 410 })
+    }
+
+    // Vérifier que l'offre est encore disponible (pas déjà acceptée/refusée/retirée)
+    if (offer.status !== 'submitted') {
+      return NextResponse.json({ error: `Cette offre n'est plus disponible (${offer.status})` }, { status: 409 })
+    }
+
+    // Vérifier que la demande est encore ouverte
+    if (!['created', 'pending_offers'].includes(sr.status)) {
+      return NextResponse.json({ error: `Cette demande n'est plus ouverte (${sr.status})` }, { status: 409 })
+    }
+    if (sr.expiresAt && new Date(sr.expiresAt).getTime() < Date.now()) {
+      return NextResponse.json({ error: 'Cette demande a expiré' }, { status: 410 })
+    }
+
     // Vérifier pas de double paiement
     const existing = await Payment.findOne({ offerId, status: { $in: ['pending', 'held'] } })
     if (existing) {
