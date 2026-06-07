@@ -154,9 +154,11 @@ export default function NearbyRequests() {
     }
     socket.on('offer:accepted', handleAccepted)
     socket.on('request:new', handleRequestNew)
+    socket.on('request:nearby', handleRequestNew)
     return () => {
       socket.off('offer:accepted', handleAccepted)
       socket.off('request:new', handleRequestNew)
+      socket.off('request:nearby', handleRequestNew)
     }
   }, [])
 
