@@ -53,6 +53,12 @@
         {
           "apiKey": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
         }
+      ],
+      [
+        "./plugins/withAppName",
+        {
+          "appName": "Xeuy Bi Pro"
+        }
       ]
     ],
     "web": {

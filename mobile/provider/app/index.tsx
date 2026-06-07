@@ -83,7 +83,7 @@ export default function Home() {
         {/* Header */}
         <View style={s.header}>
           <View style={{ flex: 1 }}>
-            <Text style={s.appName}>Ligey Prestataire</Text>
+            <Text style={s.appName}>Xeuy Bi Pro</Text>
             <Text style={s.sub}>{greeting}, prêt à travailler ?</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/notifications')} style={s.bellBtn} accessibilityLabel="Notifications">

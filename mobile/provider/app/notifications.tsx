@@ -18,6 +18,7 @@ const KIND_META: Record<Notification['kind'], { tag: string; color: string; bg: 
   'request-new':     { tag: 'Demande',  color: '#1D4ED8', bg: '#EFF6FF' },
   'offer-accepted':  { tag: 'Offre',    color: '#065F46', bg: '#ECFDF5' },
   'offer-rejected':  { tag: 'Offre',    color: '#991B1B', bg: '#FEF2F2' },
+  'offer-counter':   { tag: 'Négo',     color: '#1D4ED8', bg: '#EFF6FF' },
   'mission-update':  { tag: 'Mission',  color: '#1E293B', bg: '#F1F5F9' },
 }
 

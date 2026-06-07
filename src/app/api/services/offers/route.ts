@@ -23,6 +23,14 @@ export async function GET(request: NextRequest) {
       const { userId } = await requireAuth(request)
       q.providerId = userId
     }
+
+    // Auto-expiration paresseuse : marque "expired" toute offre dont validUntil est dépassé et statut encore "submitted"
+    const now = new Date()
+    await Offer.updateMany(
+      { ...q, status: 'submitted', validUntil: { $lt: now } },
+      { $set: { status: 'expired' } }
+    ).catch(() => {})
+
     const items = await Offer.find(q).sort({ createdAt: -1 }).limit(100).lean()
 
     // Si c'est la vue "mes offres" du provider, enrichir avec le statut de la mission

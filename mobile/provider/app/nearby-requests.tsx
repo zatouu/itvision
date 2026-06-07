@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Image } from 'react-native'
 import BottomSheet from '../src/components/BottomSheet'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
@@ -326,6 +326,20 @@ export default function NearbyRequests() {
                 </View>
               </View>
               {it.description ? <Text style={s.desc} numberOfLines={2}>{it.description}</Text> : null}
+              {it.media?.filter((m: any) => m.type === 'image').length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                  {it.media.filter((m: any) => m.type === 'image').map((m: any, i: number) => {
+                    const uri = m.url?.startsWith('http') ? m.url : getBaseUrl() + m.url
+                    return (
+                      <Image
+                        key={i}
+                        source={{ uri }}
+                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 6, backgroundColor: '#F1F5F9' }}
+                      />
+                    )
+                  })}
+                </ScrollView>
+              )}
               {it.media?.some((m: any) => m.type === 'audio') && (() => {
                 const audioUrl = it.media.find((m: any) => m.type === 'audio').url
                 const fullUri = audioUrl.startsWith('http') ? audioUrl : getBaseUrl() + audioUrl

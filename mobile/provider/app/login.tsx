@@ -42,9 +42,9 @@ export default function Login() {
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.top}>
           <View style={s.logo}>
-            <Text style={s.logoText}>L</Text>
+            <Text style={s.logoText}>X</Text>
           </View>
-          <Text style={s.title}>Ligey Prestataire</Text>
+          <Text style={s.title}>Xeuy Bi Pro</Text>
           <Text style={s.subtitle}>Recevez des missions près de vous</Text>
         </View>
 

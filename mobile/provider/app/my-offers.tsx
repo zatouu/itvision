@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput, Alert, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -34,20 +34,24 @@ export default function MyOffers() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'done' | 'pending' | 'counter'>('all')
   const [respondLoading, setRespondLoading] = useState<string | null>(null)
 
+  const busyRef = useRef(false)
   const load = useCallback(async (isRefresh = false) => {
-    if (loading || refreshing) return
+    if (busyRef.current) return
+    busyRef.current = true
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
     setErr(null)
     try {
       const r = await apiGet('/api/services/offers?mine=1')
-      setItems(r.items || [])
+      setItems(Array.isArray(r?.items) ? r.items : [])
     } catch (e: any) {
       setErr(e?.message || 'Impossible de charger les offres')
+    } finally {
+      busyRef.current = false
+      if (isRefresh) setRefreshing(false)
+      else setLoading(false)
     }
-    if (isRefresh) setRefreshing(false)
-    else setLoading(false)
-  }, [loading, refreshing])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -55,27 +59,30 @@ export default function MyOffers() {
   useEffect(() => {
     const socket = connectSocket()
 
-    socket.on('offer:accepted', (payload: any) => {
+    const onAccepted = (payload: any) => {
       load(true)
       if (payload?.requestId) {
         router.push(`/active-mission/${payload.requestId}`)
       }
-    })
-    socket.on('offer:rejected', () => { load(true) })
-    socket.on('offer:counter', () => { load(true) })
-    socket.on('mission:status-changed', () => { load(true) })
+    }
+    const onRejected = () => { load(true) }
+    const onCounter = () => { load(true) }
+    const onStatus = () => { load(true) }
 
-    // Fallback si la notif temps réel est manquée
-    const interval = setInterval(() => {
-      load(true)
-    }, 15000)
+    socket.on('offer:accepted', onAccepted)
+    socket.on('offer:rejected', onRejected)
+    socket.on('offer:counter', onCounter)
+    socket.on('mission:status-changed', onStatus)
+
+    // Fallback si la notif temps réel est manquée (silencieux)
+    const interval = setInterval(() => { load(true) }, 30000)
 
     return () => {
       clearInterval(interval)
-      socket.off('offer:accepted')
-      socket.off('offer:rejected')
-      socket.off('offer:counter')
-      socket.off('mission:status-changed')
+      socket.off('offer:accepted', onAccepted)
+      socket.off('offer:rejected', onRejected)
+      socket.off('offer:counter', onCounter)
+      socket.off('mission:status-changed', onStatus)
     }
   }, [load])
 

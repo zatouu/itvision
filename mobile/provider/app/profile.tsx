@@ -90,7 +90,7 @@ export default function Profile() {
               <Text style={s.referralCode}>{user.referralCode}</Text>
               <TouchableOpacity
                 style={s.referralShareBtn}
-                onPress={() => Share.share({ message: `Rejoins-moi sur Ligey Pro ! Utilise mon code ${user.referralCode} et gagne 1 000 FCFA. Télécharge l'app ici : https://ligey.sn/pro` })}
+                onPress={() => Share.share({ message: `Rejoins-moi sur Xeuy Bi Pro ! Utilise mon code ${user.referralCode} et gagne 1 000 FCFA. Télécharge l'app ici : https://xeuy.sn/pro` })}
               >
                 <Text style={s.referralShareText}>Partager</Text>
               </TouchableOpacity>

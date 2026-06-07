@@ -43,6 +43,24 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
       SMTP_SECURE: ${SMTP_SECURE}
+      # ── Paiements ─────────────────────────────────────────
+      PAYMENTS_MOCK: ${PAYMENTS_MOCK:-false}
+      WAVE_API_KEY: ${WAVE_API_KEY:-}
+      OM_API_URL: ${OM_API_URL:-}
+      OM_API_TOKEN: ${OM_API_TOKEN:-}
+      FREE_MONEY_API_URL: ${FREE_MONEY_API_URL:-}
+      FREE_MONEY_API_KEY: ${FREE_MONEY_API_KEY:-}
+      # ── SMS / OTP ─────────────────────────────────────────
+      SMS_PROVIDER: ${SMS_PROVIDER:-console}
+      ALLOW_TEST_CODES: ${ALLOW_TEST_CODES:-false}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      # ── Mobile dev tokens (debug) ─────────────────────────
+      DEV_MOBILE_TOKEN: ${DEV_MOBILE_TOKEN:-}
+      DEV_PROVIDER_TOKEN: ${DEV_PROVIDER_TOKEN:-}
+      # ── Sentry ────────────────────────────────────────────
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - uploads_data:/app/public/uploads
       - app_logs:/app/logs

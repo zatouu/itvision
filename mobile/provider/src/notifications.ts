@@ -5,6 +5,7 @@ export type NotificationKind =
   | 'request-new'
   | 'offer-accepted'
   | 'offer-rejected'
+  | 'offer-counter'
   | 'mission-update'
 
 export interface Notification {
@@ -153,8 +154,20 @@ export function bindNotificationSocket() {
     })
   }
 
+  const onOfferCounter = (payload: any) => {
+    const requestId = String(payload?.requestId || '')
+    const price = Number(payload?.clientCounterPrice || 0)
+    pushNotification({
+      kind: 'offer-counter',
+      title: '💬 Contre-offre client',
+      body: price > 0 ? `Le client propose ${price.toLocaleString('fr-FR')} FCFA` : 'Le client a fait une contre-offre',
+      link: { pathname: '/my-offers' },
+    })
+  }
+
   socket.on('request:new', onRequestNew)
   socket.on('offer:accepted', onOfferAccepted)
   socket.on('offer:rejected', onOfferRejected)
+  socket.on('offer:counter', onOfferCounter)
   socket.on('request:status-changed', onStatusChanged)
 }
