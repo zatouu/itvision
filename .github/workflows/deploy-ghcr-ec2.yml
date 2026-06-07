@@ -138,6 +138,7 @@ jobs:
             echo "TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}" >> .env.ec2
             echo "TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" >> .env.ec2
             echo "ALLOW_TEST_CODES=${{ secrets.ALLOW_TEST_CODES }}" >> .env.ec2
+            echo "PAYMENTS_MOCK=${{ secrets.PAYMENTS_MOCK }}" >> .env.ec2
             
             
 
