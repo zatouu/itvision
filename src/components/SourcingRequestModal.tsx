@@ -66,6 +66,7 @@ export default function SourcingRequestModal({ isOpen, onClose, currentUser }: S
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CreatedResult | null>(null)
+  const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Réinitialiser les champs du compte quand currentUser change
@@ -74,6 +75,35 @@ export default function SourcingRequestModal({ isOpen, onClose, currentUser }: S
     if (currentUser?.name && !contactName) setContactName(currentUser.name)
     if (currentUser?.email && !email) setEmail(currentUser.email)
   }, [currentUser, phone, contactName, email])
+
+  // Récupérer un token CSRF dès l'ouverture de la modale (nécessaire en production
+  // pour les requêtes POST non-authentifiées — voir lib/csrf-protection.ts).
+  useEffect(() => {
+    if (!isOpen || csrfToken) return
+    let cancelled = false
+    fetch('/api/csrf', { credentials: 'include', cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.csrfToken) setCsrfToken(data.csrfToken)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, csrfToken])
+
+  const fetchCsrfToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch('/api/csrf', { credentials: 'include', cache: 'no-store' })
+      if (!res.ok) return null
+      const data = await res.json()
+      if (data?.csrfToken) {
+        setCsrfToken(data.csrfToken)
+        return data.csrfToken
+      }
+    } catch {}
+    return null
+  }, [])
 
   const resetForm = useCallback(() => {
     setTab('photo')
@@ -150,19 +180,40 @@ export default function SourcingRequestModal({ isOpen, onClose, currentUser }: S
         contactEmail: email.trim() || undefined
       }
 
-      let res: Response
-      if (file) {
-        const form = new FormData()
-        form.append('payload', JSON.stringify(payload))
-        form.append('image', file)
-        res = await fetch('/api/market/sourcing', { method: 'POST', body: form, credentials: 'include' })
-      } else {
-        res = await fetch('/api/market/sourcing', {
+      // Récupérer (ou rafraîchir) le token CSRF avant l'envoi
+      let token = csrfToken || (await fetchCsrfToken())
+
+      const doSubmit = async (csrf: string | null): Promise<Response> => {
+        const headers: Record<string, string> = {}
+        if (csrf) headers['X-CSRF-Token'] = csrf
+        if (file) {
+          const form = new FormData()
+          form.append('payload', JSON.stringify(payload))
+          form.append('image', file)
+          return fetch('/api/market/sourcing', {
+            method: 'POST',
+            body: form,
+            credentials: 'include',
+            headers
+          })
+        }
+        return fetch('/api/market/sourcing', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...headers, 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify(payload)
         })
+      }
+
+      let res = await doSubmit(token)
+
+      // Retry une fois si CSRF expiré (403 avec message CSRF)
+      if (res.status === 403) {
+        const peek = await res.clone().json().catch(() => ({} as any))
+        if (typeof peek?.error === 'string' && /CSRF/i.test(peek.error)) {
+          const fresh = await fetchCsrfToken()
+          if (fresh) res = await doSubmit(fresh)
+        }
       }
 
       const data = await res.json().catch(() => ({}))
@@ -175,7 +226,7 @@ export default function SourcingRequestModal({ isOpen, onClose, currentUser }: S
     } finally {
       setSubmitting(false)
     }
-  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, phone, contactName, email, currentUser])
+  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, phone, contactName, email, currentUser, csrfToken, fetchCsrfToken])
 
   if (!isOpen) return null
 

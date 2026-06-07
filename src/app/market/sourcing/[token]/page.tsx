@@ -143,9 +143,17 @@ export default function SourcingTrackingPage() {
       setActing(decision)
       setDecisionError(null)
       try {
+        // Récupère un token CSRF (le middleware l'exige en production)
+        const csrf = await fetch('/api/csrf', { credentials: 'include', cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => d?.csrfToken || null)
+          .catch(() => null)
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (csrf) headers['X-CSRF-Token'] = csrf
         const res = await fetch(`/api/market/sourcing/track/${token}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
+          credentials: 'include',
           body: JSON.stringify({ decision })
         })
         const json = await res.json()
