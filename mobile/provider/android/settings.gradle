@@ -44,7 +44,7 @@ if (getRNMinorVersion() >= 75) {
   }
 }
 
-rootProject.name = 'XeuyBiPro'
+rootProject.name = 'Xeuy Bi Pro'
 
 dependencyResolutionManagement {
   versionCatalogs {
