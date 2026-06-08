@@ -292,6 +292,12 @@ const menuItems: MenuItem[] = [
         label: 'Trouvez-moi (sourcing)',
         icon: Search,
         href: '/admin/market/sourcing-requests'
+      },
+      {
+        id: 'marketplace-image-embeddings',
+        label: 'Recherche par image',
+        icon: Search,
+        href: '/admin/market/image-embeddings'
       }
     ]
   },

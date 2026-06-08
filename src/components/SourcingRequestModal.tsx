@@ -38,6 +38,8 @@ interface SourcingRequestModalProps {
   isOpen: boolean
   onClose: () => void
   currentUser?: CurrentUser | null
+  /** Pré-remplissage venant d'un handoff externe (ex: ImageSearchModal) */
+  initialContext?: { file?: File | null; description?: string } | null
 }
 
 type CreatedResult = {
@@ -50,7 +52,12 @@ type CreatedResult = {
 
 const MAX_IMAGE = 8 * 1024 * 1024
 
-export default function SourcingRequestModal({ isOpen, onClose, currentUser }: SourcingRequestModalProps) {
+export default function SourcingRequestModal({
+  isOpen,
+  onClose,
+  currentUser,
+  initialContext,
+}: SourcingRequestModalProps) {
   const [tab, setTab] = useState<Tab>('photo')
   const [file, setFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
@@ -91,6 +98,25 @@ export default function SourcingRequestModal({ isOpen, onClose, currentUser }: S
       cancelled = true
     }
   }, [isOpen, csrfToken])
+
+  // Pré-remplir depuis le handoff (ex: ImageSearchModal → sourcing)
+  useEffect(() => {
+    if (!isOpen || !initialContext) return
+    if (initialContext.file) {
+      setTab('photo')
+      setFile(initialContext.file)
+      const reader = new FileReader()
+      reader.onload = (e) => setFilePreview(e.target?.result as string)
+      reader.readAsDataURL(initialContext.file)
+    } else if (initialContext.description) {
+      setTab('text')
+    }
+    if (initialContext.description && !description) {
+      setDescription(initialContext.description)
+    }
+    // initialContext est consommé à l'ouverture : pas de re-init si le user édite
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialContext])
 
   const fetchCsrfToken = useCallback(async (): Promise<string | null> => {
     try {

@@ -7,6 +7,7 @@ import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
+import SourcingRequestModal from '@/components/SourcingRequestModal'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -201,6 +202,10 @@ export default function ProduitsPage() {
   // Recherche par image
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchResults, setImageSearchResults] = useState<string[]>([]) // IDs des produits trouvés
+  // Handoff vers "Trouvez-moi ce produit"
+  const [showSourcing, setShowSourcing] = useState(false)
+  const [sourcingContext, setSourcingContext] = useState<{ file?: File | null; description?: string } | null>(null)
+  const [sourcingUser, setSourcingUser] = useState<{ id?: string; name?: string; phone?: string; email?: string } | null>(null)
 
   // Favoris (utilisé pour le mode liste)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
@@ -2238,6 +2243,38 @@ export default function ProduitsPage() {
           // Fermer le modal
           setShowImageSearch(false)
         }}
+        onRequestSourcing={(ctx) => {
+          setSourcingContext(ctx)
+          setShowImageSearch(false)
+          // Lazy-load user profile pour pré-remplir téléphone si connecté
+          if (!sourcingUser) {
+            fetch('/api/auth/login', { credentials: 'include' })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((data) => {
+                if (data?.user) {
+                  setSourcingUser({
+                    id: data.user.id,
+                    name: data.user.name || data.user.username,
+                    phone: data.user.phone,
+                    email: data.user.email,
+                  })
+                }
+              })
+              .catch(() => {})
+          }
+          setShowSourcing(true)
+        }}
+      />
+
+      {/* Modal "Trouvez-moi ce produit" */}
+      <SourcingRequestModal
+        isOpen={showSourcing}
+        onClose={() => {
+          setShowSourcing(false)
+          setSourcingContext(null)
+        }}
+        currentUser={sourcingUser}
+        initialContext={sourcingContext}
       />
 
       {/* Toast notification */}

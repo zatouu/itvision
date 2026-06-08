@@ -207,6 +207,16 @@ const ProductSchema = new Schema<IProduct>({
   priceAlertThreshold: { type: Number, default: 10 } // 10% par défaut
 }, { timestamps: true })
 
+// Invalide l'embedding d'image si l'image principale change (force un recalcul
+// au prochain passage de la recherche par image ou du backfill admin).
+ProductSchema.pre('save', function (next) {
+  if (this.isModified('image')) {
+    this.imageEmbedding = undefined
+    this.embeddingUpdatedAt = undefined
+  }
+  next()
+})
+
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
 
 

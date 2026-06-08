@@ -16,6 +16,7 @@ export default function MarketHomePage() {
   const [showImageSearch, setShowImageSearch] = useState(false)
   const [imageSearchIds, setImageSearchIds] = useState<string[]>([])
   const [showSourcing, setShowSourcing] = useState(false)
+  const [sourcingContext, setSourcingContext] = useState<{ file?: File | null; description?: string } | null>(null)
   const [currentUser, setCurrentUser] = useState<{ id?: string; name?: string; phone?: string; email?: string } | null>(null)
 
   useEffect(() => {
@@ -268,13 +269,22 @@ export default function MarketHomePage() {
           }
           setShowImageSearch(false)
         }}
+        onRequestSourcing={(ctx) => {
+          setSourcingContext(ctx)
+          setShowImageSearch(false)
+          setShowSourcing(true)
+        }}
       />
 
       {/* Trouvez-moi ce produit (sourcing à la demande) */}
       <SourcingRequestModal
         isOpen={showSourcing}
-        onClose={() => setShowSourcing(false)}
+        onClose={() => {
+          setShowSourcing(false)
+          setSourcingContext(null)
+        }}
         currentUser={currentUser}
+        initialContext={sourcingContext}
       />
     </div>
   )

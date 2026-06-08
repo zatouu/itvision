@@ -13,6 +13,7 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle,
+  ArrowRight,
 } from 'lucide-react'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,10 +30,19 @@ interface ImageSearchResult {
   similarity: number // Score de similarité 0-100
 }
 
+interface SearchMeta {
+  totalAnalyzed?: number
+  totalProducts?: number
+  embeddingsCoverage?: number
+  threshold?: number
+}
+
 interface ImageSearchModalProps {
   isOpen: boolean
   onClose: () => void
   onResultsFound: (results: ImageSearchResult[]) => void
+  /** Quand cliqué, ferme la modale et ouvre la modale "Trouvez-moi ce produit" */
+  onRequestSourcing?: (context: { file: File | null; description: string }) => void
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,14 +53,17 @@ export default function ImageSearchModal({
   isOpen,
   onClose,
   onResultsFound,
+  onRequestSourcing,
 }: ImageSearchModalProps) {
   const [dragActive, setDragActive] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [searchText, setSearchText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<ImageSearchResult[] | null>(null)
-  
+  const [meta, setMeta] = useState<SearchMeta | null>(null)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -116,9 +129,10 @@ export default function ImageSearchModal({
     setResults(null)
 
     try {
-      // Créer le FormData avec l'image
+      // Créer le FormData avec l'image + texte optionnel
       const formData = new FormData()
       formData.append('image', selectedFile)
+      if (searchText.trim()) formData.append('searchText', searchText.trim())
 
       // Récupérer un token CSRF (le middleware l'exige en production pour
       // les POST non authentifiés — voir lib/csrf-protection.ts)
@@ -155,6 +169,9 @@ export default function ImageSearchModal({
           if (fresh) response = await doSearch(fresh)
         }
       }
+      if (response.status === 429) {
+        throw new Error('Trop de recherches successives. Réessayez dans une minute.')
+      }
 
       const data = await response.json()
 
@@ -162,10 +179,11 @@ export default function ImageSearchModal({
         throw new Error(data.error || 'Erreur lors de la recherche')
       }
 
-      if (data.success && data.results) {
+      if (data.success && Array.isArray(data.results)) {
         setResults(data.results)
-        // Passer les résultats au parent
-        if (data.results.length > 0) {
+        setMeta(data.meta || null)
+        // Passer les résultats au parent uniquement si on a réellement matched
+        if (data.results.length >= 4) {
           onResultsFound(data.results)
         }
       } else {
@@ -177,17 +195,25 @@ export default function ImageSearchModal({
     } finally {
       setLoading(false)
     }
-  }, [selectedFile, onResultsFound])
+  }, [selectedFile, searchText, onResultsFound])
 
   const resetSearch = useCallback(() => {
     setSelectedImage(null)
     setSelectedFile(null)
+    setSearchText('')
     setResults(null)
+    setMeta(null)
     setError(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }, [])
+
+  const handleSourcingHandoff = useCallback(() => {
+    if (!onRequestSourcing) return
+    onRequestSourcing({ file: selectedFile, description: searchText.trim() })
+    onClose()
+  }, [onRequestSourcing, selectedFile, searchText, onClose])
 
   const handleClose = useCallback(() => {
     resetSearch()
@@ -301,6 +327,23 @@ export default function ImageSearchModal({
                     </button>
                   </div>
 
+                  {/* Texte optionnel pour préciser la recherche */}
+                  {!results && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                        Précisez si besoin (marque, modèle, usage… optionnel)
+                      </label>
+                      <input
+                        type="text"
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        placeholder="ex: caméra dome extérieur Hikvision"
+                        maxLength={200}
+                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  )}
+
                   {/* Bouton de recherche */}
                   {!results && (
                     <button
@@ -336,11 +379,18 @@ export default function ImageSearchModal({
               {/* Résultats */}
               {results && results.length > 0 && (
                 <div className="mt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <CheckCircle className="h-5 w-5 text-emerald-500" />
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                      {results.length} produit{results.length > 1 ? 's' : ''} similaire{results.length > 1 ? 's' : ''} trouvé{results.length > 1 ? 's' : ''}
-                    </h3>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-emerald-500" />
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        {results.length} résultat{results.length > 1 ? 's' : ''} dans notre catalogue
+                      </h3>
+                    </div>
+                    {meta?.totalProducts ? (
+                      <span className="text-[10px] text-gray-400">
+                        sur {meta.totalProducts} produits indexés
+                      </span>
+                    ) : null}
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[250px] overflow-y-auto pr-2">
@@ -379,39 +429,67 @@ export default function ImageSearchModal({
                     ))}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={resetSearch}
-                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
-                  >
-                    <Search className="h-4 w-4" />
-                    Nouvelle recherche
-                  </button>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={resetSearch}
+                      className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
+                    >
+                      <Search className="h-4 w-4" />
+                      Nouvelle recherche
+                    </button>
+                    {onRequestSourcing && (
+                      <button
+                        type="button"
+                        onClick={handleSourcingHandoff}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-emerald-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-semibold shadow"
+                      >
+                        Pas trouvé ? On le trouve pour vous
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Aucun résultat */}
+              {/* Aucun résultat — handoff sourcing */}
               {results && results.length === 0 && (
-                <div className="mt-4 text-center p-6 bg-gray-50 rounded-xl">
+                <div className="mt-4 text-center p-6 bg-gradient-to-br from-violet-50 to-emerald-50 dark:from-violet-900/10 dark:to-emerald-900/10 border border-violet-100 dark:border-violet-900/30 rounded-xl">
                   <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600 font-medium">Aucun produit similaire trouvé</p>
-                  <p className="text-sm text-gray-500 mt-1">Essayez avec une autre image</p>
-                  <button
-                    type="button"
-                    onClick={resetSearch}
-                    className="mt-4 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium"
-                  >
-                    Nouvelle recherche
-                  </button>
+                  <p className="text-gray-700 dark:text-gray-200 font-medium">
+                    Aucun produit similaire dans notre catalogue
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Notre équipe peut le sourcer pour vous (réponse sous 24h, sans engagement).
+                  </p>
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                    {onRequestSourcing && (
+                      <button
+                        type="button"
+                        onClick={handleSourcingHandoff}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-emerald-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-bold shadow"
+                      >
+                        Trouvez-moi ce produit
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={resetSearch}
+                      className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors text-sm font-medium"
+                    >
+                      Essayer une autre image
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <p className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
+            <div className="px-6 py-3 bg-gray-50 dark:bg-gray-950/50 border-t border-gray-100 dark:border-gray-800">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center flex items-center justify-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                Recherche intelligente basée sur la reconnaissance d'image
+                Comparaison par empreinte visuelle (perceptual hash) · résultats best-effort
               </p>
             </div>
           </motion.div>

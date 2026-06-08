@@ -1,275 +1,247 @@
+/**
+ * Recherche de produits par image — version "vraie" perceptual hashing.
+ *
+ * Stratégie :
+ *  1. L'image uploadée est validée (sharp), redimensionnée et hashée en dHash 64 bits
+ *     + histogramme couleur 8 bins (voir lib/image-hash).
+ *  2. On compare ce vecteur aux embeddings déjà stockés dans `Product.imageEmbedding`.
+ *  3. Si la couverture des embeddings est faible, on lance un backfill asynchrone
+ *     (non bloquant) sur quelques produits sans embedding.
+ *  4. On retourne les meilleurs candidats triés par score combiné (forme + couleur)
+ *     + un fallback texte (catégorie/tags) si trop peu de résultats.
+ *
+ * Sécurité :
+ *  - Rate-limit dédié (8 / minute / IP).
+ *  - Max 5 Mo, types image/* uniquement.
+ *  - Pas d'auth requise (recherche publique).
+ *
+ * Pour les anciens produits, voir POST /api/admin/catalog/search-by-image/backfill
+ * qui calcule les embeddings en batch (cron ou manuel).
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
+import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
+import {
+  computeImageEmbedding,
+  similarityScore,
+  fetchImageBuffer,
+  EMBEDDING_LENGTH,
+  isValidEmbedding,
+  type ImageEmbedding
+} from '@/lib/image-hash'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Configuration
-// ─────────────────────────────────────────────────────────────────────────────
+export const maxDuration = 30
+export const dynamic = 'force-dynamic'
 
-// Catégories de produits avec mots-clés associés pour la recherche
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  'Vidéosurveillance': ['camera', 'caméra', 'surveillance', 'nvr', 'dvr', 'hikvision', 'dahua', 'ptz', 'dome', 'bullet', 'turret', 'cctv'],
-  'Contrôle d\'Accès': ['access', 'accès', 'biometric', 'biométrique', 'facial', 'empreinte', 'fingerprint', 'badge', 'rfid', 'terminal'],
-  'Alarme': ['alarm', 'alarme', 'détecteur', 'detector', 'sirène', 'siren', 'ax pro', 'hub', 'capteur', 'sensor'],
-  'Réseau': ['switch', 'routeur', 'router', 'poe', 'network', 'réseau', 'ethernet', 'fiber', 'fibre', 'wifi'],
-  'Domotique': ['smart', 'intelligent', 'home', 'maison', 'zigbee', 'interrupteur', 'capteur', 'automation'],
-  'Visiophonie': ['interphone', 'visiophone', 'doorbell', 'sonnette', 'portier', 'moniteur', 'écran'],
+const imageSearchLimiter = new RateLimiter(60 * 1000, 8) // 8 / min / IP
+
+const MAX_BYTES = 5 * 1024 * 1024
+const MIN_SCORE = 25 // sous ce score on n'affiche rien
+
+// Combien de produits sans embedding on calcule à la volée
+// (limité pour ne pas pénaliser la latence ; le reste passe par le backfill batch)
+const ON_DEMAND_BACKFILL = 8
+
+interface ScoredResult {
+  id: string
+  name: string
+  image: string | null
+  category: string | null
+  priceAmount: number | null
+  currency: string
+  similarity: number
 }
-
-// Couleurs dominantes pour la correspondance visuelle
-const COLOR_KEYWORDS: Record<string, string[]> = {
-  'white': ['blanc', 'white', 'clair', 'light'],
-  'black': ['noir', 'black', 'dark', 'sombre'],
-  'gray': ['gris', 'gray', 'grey', 'metal', 'métallique'],
-  'silver': ['argent', 'silver', 'chrome', 'aluminium'],
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: Extraire des caractéristiques basiques de l'image
-// (Version simplifiée - en production, utiliser une API de vision IA)
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface ImageFeatures {
-  dominantColors: string[]
-  detectedCategories: string[]
-  aspectRatio: 'square' | 'landscape' | 'portrait'
-  brightness: 'dark' | 'medium' | 'bright'
-}
-
-async function extractImageFeatures(imageBuffer: Buffer): Promise<ImageFeatures> {
-  // Version simplifiée : on analyse les premiers bytes pour détecter le format
-  // En production, intégrer Google Vision API, AWS Rekognition, ou un modèle local
-  
-  const features: ImageFeatures = {
-    dominantColors: [],
-    detectedCategories: [],
-    aspectRatio: 'square',
-    brightness: 'medium',
-  }
-
-  // Détection basique du format d'image
-  const header = imageBuffer.slice(0, 12)
-  const isJPEG = header[0] === 0xFF && header[1] === 0xD8
-  const isPNG = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47
-  const isWebP = header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50
-
-  if (!isJPEG && !isPNG && !isWebP) {
-    throw new Error('Format d\'image non supporté')
-  }
-
-  // Analyse basique des couleurs (échantillonnage simplifié)
-  // Pour une vraie implémentation, utiliser sharp ou une API de vision
-  const sampleSize = Math.min(1000, imageBuffer.length)
-  let darkPixels = 0
-  let lightPixels = 0
-  
-  for (let i = 0; i < sampleSize; i += 3) {
-    const value = imageBuffer[i]
-    if (value < 85) darkPixels++
-    else if (value > 170) lightPixels++
-  }
-
-  const ratio = darkPixels / (darkPixels + lightPixels + 1)
-  if (ratio > 0.6) {
-    features.brightness = 'dark'
-    features.dominantColors.push('black', 'gray')
-  } else if (ratio < 0.3) {
-    features.brightness = 'bright'
-    features.dominantColors.push('white', 'silver')
-  } else {
-    features.dominantColors.push('gray', 'white')
-  }
-
-  // Catégories par défaut (en production, utiliser la détection d'objets)
-  // On suppose des produits de sécurité/tech par défaut
-  features.detectedCategories = ['Vidéosurveillance', 'Contrôle d\'Accès', 'Réseau']
-
-  return features
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: Calculer le score de similarité
-// ─────────────────────────────────────────────────────────────────────────────
-
-function calculateSimilarityScore(
-  product: any,
-  features: ImageFeatures,
-  searchText?: string
-): number {
-  let score = 0
-  const maxScore = 100
-
-  // 1. Correspondance de catégorie (40 points max)
-  const productCategory = product.category?.toLowerCase() || ''
-  const productName = product.name?.toLowerCase() || ''
-  const productDescription = product.description?.toLowerCase() || ''
-
-  for (const detectedCat of features.detectedCategories) {
-    const keywords = CATEGORY_KEYWORDS[detectedCat] || []
-    for (const keyword of keywords) {
-      if (productCategory.includes(keyword) || productName.includes(keyword)) {
-        score += 15
-        break
-      }
-      if (productDescription.includes(keyword)) {
-        score += 5
-      }
-    }
-  }
-  score = Math.min(score, 40)
-
-  // 2. Correspondance de couleur (20 points max)
-  for (const color of features.dominantColors) {
-    const colorKeywords = COLOR_KEYWORDS[color] || [color]
-    for (const keyword of colorKeywords) {
-      if (productName.includes(keyword) || productDescription.includes(keyword)) {
-        score += 10
-        break
-      }
-    }
-  }
-  score = Math.min(score, 60) // Cap à 60 après couleurs
-
-  // 3. Produits vedettes et populaires (15 points)
-  if (product.isFeatured) score += 10
-  if (product.isPublished) score += 5
-
-  // 4. Disponibilité (10 points)
-  if (product.stockStatus === 'in_stock') score += 10
-  else if (product.stockStatus === 'preorder') score += 5
-
-  // 5. A une image (15 points) - plus crédible pour la recherche visuelle
-  if (product.image || (product.gallery && product.gallery.length > 0)) {
-    score += 15
-  }
-
-  // 6. Recherche textuelle optionnelle (bonus)
-  if (searchText) {
-    const searchLower = searchText.toLowerCase()
-    if (productName.includes(searchLower)) score += 20
-    if (productDescription.includes(searchLower)) score += 10
-    if (productCategory.includes(searchLower)) score += 10
-  }
-
-  return Math.min(score, maxScore)
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/catalog/search-by-image
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // 1. Rate limit
+  const limited = applyRateLimit(request, imageSearchLimiter)
+  if (limited) return limited
+
+  // 2. Parse + validation image
+  let imageFile: File | null = null
+  let searchText: string | null = null
   try {
     const formData = await request.formData()
-    const imageFile = formData.get('image') as File | null
-    const searchText = formData.get('searchText') as string | null
-
-    if (!imageFile) {
-      return NextResponse.json(
-        { success: false, error: 'Aucune image fournie' },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier le type de fichier
-    if (!imageFile.type.startsWith('image/')) {
-      return NextResponse.json(
-        { success: false, error: 'Le fichier doit être une image' },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier la taille (max 5MB)
-    if (imageFile.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, error: 'L\'image ne doit pas dépasser 5 Mo' },
-        { status: 400 }
-      )
-    }
-
-    // Convertir en buffer pour l'analyse
-    const arrayBuffer = await imageFile.arrayBuffer()
-    const imageBuffer = Buffer.from(arrayBuffer)
-
-    // Extraire les caractéristiques de l'image
-    let features: ImageFeatures
-    try {
-      features = await extractImageFeatures(imageBuffer)
-    } catch (err) {
-      console.error('Error extracting image features:', err)
-      return NextResponse.json(
-        { success: false, error: 'Impossible d\'analyser l\'image' },
-        { status: 400 }
-      )
-    }
-
-    // Connexion à la base de données
-    await connectMongoose()
-
-    // Récupérer les produits publiés
-    const products = await Product.find({ isPublished: true })
-      .select('name category description image gallery price baseCost currency stockStatus isFeatured isPublished colorOptions')
-      .lean()
-
-    // Calculer les scores de similarité
-    const scoredProducts = products.map((product: any) => ({
-      id: product._id.toString(),
-      name: product.name,
-      image: product.image || product.gallery?.[0] || null,
-      category: product.category || null,
-      priceAmount: product.price || product.baseCost || null,
-      currency: product.currency || 'FCFA',
-      similarity: calculateSimilarityScore(product, features, searchText || undefined),
-    }))
-
-    // Trier par score décroissant et filtrer les scores trop bas
-    const results = scoredProducts
-      .filter(p => p.similarity >= 20) // Seuil minimum de similarité
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 12) // Limiter à 12 résultats
-
-    return NextResponse.json({
-      success: true,
-      results,
-      meta: {
-        totalAnalyzed: products.length,
-        matchesFound: results.length,
-        detectedCategories: features.detectedCategories,
-        dominantColors: features.dominantColors,
-      }
-    })
-
-  } catch (error) {
-    console.error('Image search error:', error)
+    const file = formData.get('image')
+    if (file instanceof File) imageFile = file
+    const txt = formData.get('searchText')
+    if (typeof txt === 'string') searchText = txt.trim().slice(0, 200) || null
+  } catch {
+    return NextResponse.json({ success: false, error: 'Requête invalide' }, { status: 400 })
+  }
+  if (!imageFile) {
+    return NextResponse.json({ success: false, error: 'Aucune image fournie' }, { status: 400 })
+  }
+  if (!imageFile.type.startsWith('image/')) {
+    return NextResponse.json({ success: false, error: 'Le fichier doit être une image' }, { status: 400 })
+  }
+  if (imageFile.size > MAX_BYTES) {
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Erreur lors de la recherche par image',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      { success: false, error: "L'image ne doit pas dépasser 5 Mo" },
+      { status: 400 }
     )
+  }
+
+  // 3. Embedding de la requête
+  let queryEmbedding: ImageEmbedding
+  try {
+    const buf = Buffer.from(await imageFile.arrayBuffer())
+    const result = await computeImageEmbedding(buf)
+    queryEmbedding = result.embedding
+  } catch (err) {
+    console.error('[search-by-image] hash erreur:', err)
+    return NextResponse.json(
+      { success: false, error: 'Image illisible ou format non supporté' },
+      { status: 400 }
+    )
+  }
+
+  // 4. DB — récupérer uniquement ce dont on a besoin
+  await connectMongoose()
+
+  // Produits avec embedding déjà calculé : comparaison directe
+  const projection = {
+    name: 1,
+    category: 1,
+    image: 1,
+    gallery: 1,
+    price: 1,
+    baseCost: 1,
+    currency: 1,
+    isFeatured: 1,
+    stockStatus: 1,
+    tags: 1,
+    description: 1,
+    imageEmbedding: 1
+  }
+
+  const withEmbedding = await Product.find({
+    isPublished: true,
+    imageEmbedding: { $exists: true, $ne: null }
+  })
+    .select(projection)
+    .lean()
+
+  const scored: ScoredResult[] = []
+  for (const p of withEmbedding as any[]) {
+    if (!isValidEmbedding(p.imageEmbedding)) continue
+    const sim = similarityScore(queryEmbedding, p.imageEmbedding as ImageEmbedding)
+    if (sim >= MIN_SCORE) {
+      scored.push(toResult(p, sim))
+    }
+  }
+
+  // 5. Backfill on-demand : quelques produits sans embedding (synchrone limité)
+  //    Permet aux premières recherches d'enrichir progressivement le corpus.
+  const missing = await Product.find({
+    isPublished: true,
+    imageEmbedding: { $in: [null, undefined] },
+    image: { $exists: true, $ne: null }
+  })
+    .select(projection)
+    .limit(ON_DEMAND_BACKFILL)
+    .lean()
+
+  if (missing.length > 0) {
+    await Promise.allSettled(
+      (missing as any[]).map(async (p) => {
+        const imgUrl = p.image || p.gallery?.[0]
+        if (!imgUrl) return
+        try {
+          const buf = await fetchImageBuffer(imgUrl, { baseUrl: buildBaseUrl(request) })
+          const { embedding } = await computeImageEmbedding(buf)
+          // persiste (ne fait pas échouer la requête si KO)
+          await Product.updateOne(
+            { _id: p._id },
+            { $set: { imageEmbedding: embedding, embeddingUpdatedAt: new Date() } }
+          ).catch(() => null)
+          const sim = similarityScore(queryEmbedding, embedding)
+          if (sim >= MIN_SCORE) scored.push(toResult(p, sim))
+        } catch (err) {
+          // Échec individuel acceptable, on continue
+          console.warn('[search-by-image] backfill KO pour', String(p._id), err instanceof Error ? err.message : err)
+        }
+      })
+    )
+  }
+
+  // 6. Fallback texte : si on a < 4 résultats, on enrichit via tags/catégorie/nom
+  if (scored.length < 4 && searchText) {
+    const re = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+    const textHits = await Product.find({
+      isPublished: true,
+      $or: [{ name: re }, { tags: re }, { category: re }, { description: re }],
+      _id: { $nin: scored.map((r) => r.id) }
+    })
+      .select(projection)
+      .limit(8)
+      .lean()
+    for (const p of textHits as any[]) {
+      scored.push(toResult(p, 30)) // score "ok" pour les hits texte
+    }
+  }
+
+  // 7. Tri + top 12 + dédup
+  const dedup = new Map<string, ScoredResult>()
+  for (const r of scored.sort((a, b) => b.similarity - a.similarity)) {
+    if (!dedup.has(r.id)) dedup.set(r.id, r)
+  }
+  const results = Array.from(dedup.values()).slice(0, 12)
+
+  // 8. Stats de couverture (utile pour debug / UX)
+  const totalIndexed = withEmbedding.length
+  const totalProducts = await Product.countDocuments({ isPublished: true })
+
+  return NextResponse.json({
+    success: true,
+    results,
+    meta: {
+      totalAnalyzed: totalIndexed + missing.length,
+      totalProducts,
+      embeddingsCoverage: totalProducts > 0 ? +(((totalIndexed + missing.length) / totalProducts) * 100).toFixed(1) : 0,
+      backfilledThisRequest: missing.length,
+      threshold: MIN_SCORE
+    }
+  })
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function toResult(p: any, similarity: number): ScoredResult {
+  return {
+    id: String(p._id),
+    name: p.name,
+    image: p.image || p.gallery?.[0] || null,
+    category: p.category || null,
+    priceAmount: p.price ?? p.baseCost ?? null,
+    currency: p.currency || 'FCFA',
+    similarity
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET - Info sur l'endpoint
-// ─────────────────────────────────────────────────────────────────────────────
+function buildBaseUrl(request: NextRequest): string {
+  const fromEnv = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
+  if (fromEnv) return fromEnv.replace(/\/+$/, '')
+  const proto = request.headers.get('x-forwarded-proto') || 'https'
+  const host = (request.headers.get('host') || '').replace(/^market\./i, '')
+  return `${proto}://${host}`
+}
+
+// ── GET : description (utile pour debug / API doc) ─────────────────────────
 
 export async function GET() {
   return NextResponse.json({
     endpoint: '/api/catalog/search-by-image',
     method: 'POST',
-    description: 'Recherche de produits par image',
+    description: 'Recherche visuelle par perceptual hash (dHash + histogramme couleur)',
     accepts: 'multipart/form-data',
     fields: {
-      image: 'File (required) - Image JPG, PNG ou WebP, max 5Mo',
-      searchText: 'String (optional) - Texte de recherche complémentaire'
+      image: 'File (required) — JPG/PNG/WebP/GIF, max 5 Mo',
+      searchText: 'String (optional) — fallback textuel si peu de résultats'
     },
-    returns: {
-      success: 'boolean',
-      results: 'Array<{ id, name, image, category, priceAmount, currency, similarity }>',
-      meta: '{ totalAnalyzed, matchesFound, detectedCategories, dominantColors }'
-    }
+    rateLimit: '8 / min / IP',
+    embeddingLength: EMBEDDING_LENGTH
   })
 }
