@@ -28,6 +28,12 @@ interface ImageSearchResult {
   priceAmount: number | null
   currency: string
   similarity: number // Score de similarité 0-100
+  visualScore: number | null
+  colorScore: number | null
+  textScore: number | null
+  finalScore: number
+  matchType: 'visual' | 'text_fallback' | 'mixed'
+  confidence: 'high' | 'medium' | 'low'
 }
 
 interface SearchMeta {
@@ -35,6 +41,9 @@ interface SearchMeta {
   totalProducts?: number
   embeddingsCoverage?: number
   threshold?: number
+  highConfidenceThreshold?: number
+  mediumConfidenceThreshold?: number
+  bestConfidence?: 'high' | 'medium' | 'low' | null
 }
 
 interface ImageSearchModalProps {
@@ -182,8 +191,10 @@ export default function ImageSearchModal({
       if (data.success && Array.isArray(data.results)) {
         setResults(data.results)
         setMeta(data.meta || null)
-        // Passer les résultats au parent uniquement si on a réellement matched
-        if (data.results.length >= 4) {
+        // Redirection automatique uniquement si match de confiance élevée
+        const topConfidence = data.results[0]?.confidence || 'low'
+        const topScore = data.results[0]?.finalScore ?? 0
+        if (topConfidence === 'high' && topScore >= 70 && data.results.length >= 1) {
           onResultsFound(data.results)
         }
       } else {
@@ -412,8 +423,12 @@ export default function ImageSearchModal({
                               <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
                             </div>
                           )}
-                          {/* Badge similarité */}
-                          <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded">
+                          {/* Badge similarité avec couleur selon confiance */}
+                          <div className={clsx(
+                            'absolute top-1 right-1 px-1.5 py-0.5 text-white text-[10px] font-bold rounded',
+                            result.confidence === 'high' ? 'bg-emerald-500' :
+                            result.confidence === 'medium' ? 'bg-amber-500' : 'bg-gray-500'
+                          )}>
                             {result.similarity}%
                           </div>
                         </div>
@@ -425,29 +440,51 @@ export default function ImageSearchModal({
                             {result.priceAmount.toLocaleString('fr-FR')} {result.currency}
                           </p>
                         )}
+                        {/* Indication du type de match */}
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {result.matchType === 'text_fallback'
+                            ? 'Correspondance texte'
+                            : result.confidence === 'high'
+                              ? 'Match visuel fort'
+                              : result.confidence === 'medium'
+                                ? 'Visuel approchant'
+                                : 'Résultat incertain'}
+                        </p>
                       </a>
                     ))}
                   </div>
 
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={resetSearch}
-                      className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
-                    >
-                      <Search className="h-4 w-4" />
-                      Nouvelle recherche
-                    </button>
-                    {onRequestSourcing && (
+                  <div className="mt-4 space-y-3">
+                    {onRequestSourcing && results[0]?.confidence !== 'high' && (
                       <button
                         type="button"
                         onClick={handleSourcingHandoff}
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-emerald-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-semibold shadow"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-emerald-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-semibold shadow"
                       >
-                        Pas trouvé ? On le trouve pour vous
+                        Pas trouvé ce qu'il vous faut ? On le cherche pour vous
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={resetSearch}
+                        className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
+                      >
+                        <Search className="h-4 w-4" />
+                        Nouvelle recherche
+                      </button>
+                      {onRequestSourcing && results[0]?.confidence === 'high' && (
+                        <button
+                          type="button"
+                          onClick={handleSourcingHandoff}
+                          className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-emerald-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-semibold shadow"
+                        >
+                          Demander une alternative
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

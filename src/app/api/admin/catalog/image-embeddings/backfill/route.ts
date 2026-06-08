@@ -170,3 +170,22 @@ export async function POST(request: NextRequest) {
     }
   })
 }
+
+function buildIndexableProductQuery() {
+  return {
+    isPublished: true,
+    $or: [
+      { image: { $exists: true, $ne: null } },
+      { 'gallery.0': { $exists: true } }
+    ]
+  }
+}
+
+function buildIndexedProductQuery() {
+  return {
+    ...buildIndexableProductQuery(),
+    imageEmbedding: { $exists: true, $ne: null },
+    imageEmbeddingStatus: { $ne: 'failed' },
+    imageEmbeddingVersion: CURRENT_IMAGE_EMBEDDING_VERSION
+  }
+}

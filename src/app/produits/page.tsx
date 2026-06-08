@@ -353,7 +353,7 @@ export default function ProduitsPage() {
     }, 0)
   }
 
-  // Reset pagination when filters change (search/segment/filters/sort)
+  // Reset pagination when filters change (search/segment/filters/sort/imageIds)
   useEffect(() => {
     if (isRestoringRef.current) return
     if (currentPage !== 1) {
@@ -372,7 +372,8 @@ export default function ProduitsPage() {
     priceRange?.min,
     priceRange?.max,
     deliveryRange?.min,
-    deliveryRange?.max
+    deliveryRange?.max,
+    imageSearchResults.join(',')
   ])
 
   // Sync filters to URL (shareable) + support back/forward via popstate
@@ -512,47 +513,56 @@ export default function ProduitsPage() {
           setError(null)
 
           const params = new URLSearchParams()
-          params.set('page', String(currentPage))
-          params.set('limit', '24')
 
-          if (debouncedSearch.trim()) {
-            params.set('q', debouncedSearch.trim())
-          }
+          // Mode recherche image : on charge explicitement les IDs du ranking
+          // sans appliquer les filtres classiques (catégories, prix, etc.)
+          const hasImageIds = imageSearchResults.length > 0
+          if (hasImageIds) {
+            params.set('ids', imageSearchResults.slice(0, 50).join(','))
+            params.set('limit', String(Math.min(imageSearchResults.length, 50)))
+          } else {
+            params.set('page', String(currentPage))
+            params.set('limit', '24')
 
-          if (selected.length > 0) {
-            params.set('category', selected.join(','))
-          }
+            if (debouncedSearch.trim()) {
+              params.set('q', debouncedSearch.trim())
+            }
 
-          if (segment && segment !== 'all') {
-            params.set('segment', segment)
-          }
+            if (selected.length > 0) {
+              params.set('category', selected.join(','))
+            }
 
-          if (availabilityFilter && availabilityFilter !== 'all') {
-            params.set('availability', availabilityFilter)
-          }
+            if (segment && segment !== 'all') {
+              params.set('segment', segment)
+            }
 
-          if (onlyGroupBuy) params.set('onlyGroupBuy', '1')
-          if (onlyPrice) params.set('onlyPrice', '1')
-          if (onlyQuote) params.set('onlyQuote', '1')
+            if (availabilityFilter && availabilityFilter !== 'all') {
+              params.set('availability', availabilityFilter)
+            }
 
-          if (sortBy && sortBy !== 'default') {
-            params.set('sortBy', sortBy)
-          }
+            if (onlyGroupBuy) params.set('onlyGroupBuy', '1')
+            if (onlyPrice) params.set('onlyPrice', '1')
+            if (onlyQuote) params.set('onlyQuote', '1')
 
-          // Enrichir les produits avec les groupes actifs uniquement quand utile
-          const needsGroupStats = segment === 'group_buy' || onlyGroupBuy || sortBy === 'groupbuy-discount-desc'
-          if (needsGroupStats) {
-            params.set('includeGroupStats', '1')
-          }
+            if (sortBy && sortBy !== 'default') {
+              params.set('sortBy', sortBy)
+            }
 
-          if (priceRange) {
-            if (typeof priceRange.min === 'number') params.set('minPrice', String(priceRange.min))
-            if (typeof priceRange.max === 'number') params.set('maxPrice', String(priceRange.max))
-          }
+            // Enrichir les produits avec les groupes actifs uniquement quand utile
+            const needsGroupStats = segment === 'group_buy' || onlyGroupBuy || sortBy === 'groupbuy-discount-desc'
+            if (needsGroupStats) {
+              params.set('includeGroupStats', '1')
+            }
 
-          if (deliveryRange) {
-            if (typeof deliveryRange.min === 'number') params.set('minDeliveryDays', String(deliveryRange.min))
-            if (typeof deliveryRange.max === 'number') params.set('maxDeliveryDays', String(deliveryRange.max))
+            if (priceRange) {
+              if (typeof priceRange.min === 'number') params.set('minPrice', String(priceRange.min))
+              if (typeof priceRange.max === 'number') params.set('maxPrice', String(priceRange.max))
+            }
+
+            if (deliveryRange) {
+              if (typeof deliveryRange.min === 'number') params.set('minDeliveryDays', String(deliveryRange.min))
+              if (typeof deliveryRange.max === 'number') params.set('maxDeliveryDays', String(deliveryRange.max))
+            }
           }
 
           const response = await fetch(`/api/catalog/products?${params.toString()}`, {
@@ -647,7 +657,8 @@ export default function ProduitsPage() {
               }
             })
             // Infinite scroll: append products instead of replacing
-            if (currentPage === 1) {
+            // En mode recherche image, on remplace toujours (pas de pagination)
+            if (currentPage === 1 || hasImageIds) {
               setAllProducts(formatted)
             } else {
               setAllProducts(prev => [...prev, ...formatted])
@@ -685,7 +696,8 @@ export default function ProduitsPage() {
       sortBy,
       availabilityFilter,
       priceRange,
-      deliveryRange
+      deliveryRange,
+      imageSearchResults
     ])
 
   // Charger les filtres sauvegardés et l'historique
@@ -712,7 +724,8 @@ export default function ProduitsPage() {
         'minDeliveryDays',
         'maxDeliveryDays',
         'page',
-        'view'
+        'view',
+        'imageIds'
       ].includes(k))
 
       if (hasUrlFilters) {
