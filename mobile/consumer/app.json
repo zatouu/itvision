@@ -20,7 +20,8 @@
       "bundleIdentifier": "com.xeuy.xeuy",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour trouver les prestataires proches.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour le suivi de mission."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour le suivi de mission.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

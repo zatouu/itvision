@@ -120,10 +120,41 @@ export default function ImageSearchModal({
       const formData = new FormData()
       formData.append('image', selectedFile)
 
-      const response = await fetch('/api/catalog/search-by-image', {
-        method: 'POST',
-        body: formData,
-      })
+      // Récupérer un token CSRF (le middleware l'exige en production pour
+      // les POST non authentifiés — voir lib/csrf-protection.ts)
+      const fetchCsrf = async (): Promise<string | null> => {
+        try {
+          const r = await fetch('/api/csrf', { credentials: 'include', cache: 'no-store' })
+          if (!r.ok) return null
+          const j = await r.json()
+          return j?.csrfToken || null
+        } catch {
+          return null
+        }
+      }
+      let csrfToken = await fetchCsrf()
+
+      const doSearch = async (csrf: string | null): Promise<Response> => {
+        const headers: Record<string, string> = {}
+        if (csrf) headers['X-CSRF-Token'] = csrf
+        return fetch('/api/catalog/search-by-image', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+          headers,
+        })
+      }
+
+      let response = await doSearch(csrfToken)
+
+      // Retry une fois si CSRF expiré
+      if (response.status === 403) {
+        const peek = await response.clone().json().catch(() => ({} as any))
+        if (typeof peek?.error === 'string' && /CSRF/i.test(peek.error)) {
+          const fresh = await fetchCsrf()
+          if (fresh) response = await doSearch(fresh)
+        }
+      }
 
       const data = await response.json()
 
