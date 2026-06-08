@@ -23,7 +23,7 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'])
-const CURRENT_IMAGE_EMBEDDING_VERSION = 1
+const CURRENT_IMAGE_EMBEDDING_VERSION = 2
 const MAX_FAILED_ATTEMPTS = 3
 
 async function requireAdmin(request: NextRequest) {

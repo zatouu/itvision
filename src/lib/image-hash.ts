@@ -4,22 +4,22 @@
  * Objectif : reconnaissance visuelle "best-effort" pour la recherche
  * de produits par image, sans aucune dépendance externe payante.
  *
- * - `dHash` (difference hash) sur 9x8 grayscale → 64 bits = 8 octets.
- *   Très robuste à la luminosité, au scaling et à la compression JPEG.
+ * - `dHash` (difference hash) bidirectionnel sur 9x9 grayscale → 128 bits = 16 octets.
+ *   Compare voisin droit (horizontal) + voisin bas (vertical) pour plus de robustesse.
  * - Histogramme couleur grossier 8 bins (HSV simplifié) pour pénaliser
  *   les images de catégorie totalement différente (ex: caméra vs interphone).
  *
- * Le tout sérialisé dans un `number[]` de longueur fixe = 72 valeurs :
- *   [64 bits dHash (0/1)] + [8 floats normalisés histogramme couleur 0-1]
+ * Le tout sérialisé dans un `number[]` de longueur fixe = 136 valeurs :
+ *   [128 bits dHash bidirectionnel (0/1)] + [8 floats normalisés histogramme couleur 0-1]
  * pour pouvoir le stocker dans `Product.imageEmbedding` (existant) et le
  * comparer via Hamming distance + corrélation simple.
  */
 
 import sharp from 'sharp'
 
-export const EMBEDDING_BITS = 64
+export const EMBEDDING_BITS = 128
 export const COLOR_BINS = 8
-export const EMBEDDING_LENGTH = EMBEDDING_BITS + COLOR_BINS // 72
+export const EMBEDDING_LENGTH = EMBEDDING_BITS + COLOR_BINS // 136
 
 export type ImageEmbedding = number[]
 
@@ -27,7 +27,7 @@ export interface ComputeEmbeddingResult {
   embedding: ImageEmbedding
   width: number
   height: number
-  /** Hash hex compact (16 chars) pour debug / dedup */
+  /** Hash hex compact (32 chars) pour debug / dedup */
   hashHex: string
 }
 
@@ -50,19 +50,28 @@ export async function computeImageEmbedding(input: Buffer | string): Promise<Com
     throw new Error('Image illisible (métadonnées manquantes)')
   }
 
-  // ── dHash : 9x8 grayscale → 64 bits (comparaison voisin droit) ──
+  // ── dHash bidirectionnel : 9x9 grayscale → 128 bits ──
+  // 64 bits horizontal (voisin droit) + 64 bits vertical (voisin bas)
   const grayBuffer = await img
     .clone()
-    .resize(9, 8, { fit: 'fill', kernel: 'lanczos3' })
+    .resize(9, 9, { fit: 'fill', kernel: 'lanczos3' })
     .greyscale()
     .raw()
     .toBuffer()
 
   const bits: number[] = new Array(EMBEDDING_BITS)
+  // Horizontal : 8×8 = 64 bits
   for (let y = 0; y < 8; y++) {
     for (let x = 0; x < 8; x++) {
       const idx = y * 9 + x
       bits[y * 8 + x] = grayBuffer[idx] > grayBuffer[idx + 1] ? 1 : 0
+    }
+  }
+  // Vertical : 8×8 = 64 bits
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const idx = y * 9 + x
+      bits[64 + y * 8 + x] = grayBuffer[idx] > grayBuffer[idx + 9] ? 1 : 0
     }
   }
 
@@ -88,9 +97,9 @@ export async function computeImageEmbedding(input: Buffer | string): Promise<Com
 
   const embedding = [...bits, ...histogram]
 
-  // Hash hex compact pour dedup
+  // Hash hex compact pour dedup (128 bits = 16 bytes = 32 hex chars)
   let hashHex = ''
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 16; i++) {
     let byte = 0
     for (let b = 0; b < 8; b++) byte = (byte << 1) | bits[i * 8 + b]
     hashHex += byte.toString(16).padStart(2, '0')

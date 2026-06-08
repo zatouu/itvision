@@ -39,15 +39,15 @@ export const dynamic = 'force-dynamic'
 const imageSearchLimiter = new RateLimiter(60 * 1000, 8) // 8 / min / IP
 
 const MAX_BYTES = 5 * 1024 * 1024
-const MIN_SCORE = 25 // sous ce score on n'affiche rien
-const HIGH_CONFIDENCE_SCORE = 70
-const MEDIUM_CONFIDENCE_SCORE = 50
-const CURRENT_IMAGE_EMBEDDING_VERSION = 1
+const MIN_SCORE = 40 // sous ce score on n'affiche rien
+const HIGH_CONFIDENCE_SCORE = 75
+const MEDIUM_CONFIDENCE_SCORE = 55
+const CURRENT_IMAGE_EMBEDDING_VERSION = 2
 const MAX_FAILED_ATTEMPTS = 3
 
 // Combien de produits sans embedding on calcule à la volée
 // (limité pour ne pas pénaliser la latence ; le reste passe par le backfill batch)
-const ON_DEMAND_BACKFILL = 2
+const ON_DEMAND_BACKFILL = 5
 
 type MatchType = 'visual' | 'text_fallback' | 'mixed'
 type Confidence = 'high' | 'medium' | 'low'
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
   const scored: ScoredResult[] = []
   for (const p of withEmbedding as any[]) {
     if (!isValidEmbedding(p.imageEmbedding)) continue
-    const scores = computeVisualScores(queryEmbedding, p.imageEmbedding as ImageEmbedding)
+    const scores = computeVisualScores(queryEmbedding, p.imageEmbedding as ImageEmbedding, searchText, p)
     if (scores.finalScore >= MIN_SCORE) {
       scored.push(toVisualResult(p, scores))
     }
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
             }
           ).catch(() => null)
           backfilledThisRequest++
-          const scores = computeVisualScores(queryEmbedding, embedding)
+          const scores = computeVisualScores(queryEmbedding, embedding, searchText, p)
           if (scores.finalScore >= MIN_SCORE) scored.push(toVisualResult(p, scores))
         } catch (err) {
           await Product.updateOne(
@@ -281,11 +281,30 @@ export async function POST(request: NextRequest) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function computeVisualScores(a: ImageEmbedding, b: ImageEmbedding) {
+function computeVisualScores(a: ImageEmbedding, b: ImageEmbedding, searchText?: string | null, p?: any) {
   const visualScore = Math.round((1 - hammingDistance(a, b)) * 100)
   const colorScore = Math.round(colorSimilarity(a, b) * 100)
-  const finalScore = Math.round((visualScore * 0.7) + (colorScore * 0.3))
+  let finalScore = Math.round((visualScore * 0.7) + (colorScore * 0.3))
+  // Boost catégorie/texte : +20 max si le produit correspond aux termes saisis
+  const boost = computeCategoryBoost(p, searchText)
+  finalScore = Math.min(100, finalScore + boost)
   return { visualScore, colorScore, finalScore }
+}
+
+function computeCategoryBoost(p: any, searchText?: string | null): number {
+  if (!searchText || !p) return 0
+  const terms = searchText.toLowerCase().split(/\s+/).filter((t: string) => t.length >= 2)
+  if (terms.length === 0) return 0
+  const searchable = [
+    String(p.name || ''),
+    String(p.category || ''),
+    ...(Array.isArray(p.tags) ? p.tags.map(String) : [])
+  ].join(' ').toLowerCase()
+  let matches = 0
+  for (const term of terms) {
+    if (searchable.includes(term)) matches++
+  }
+  return Math.round((matches / terms.length) * 20)
 }
 
 function confidenceFor(score: number): Confidence {
