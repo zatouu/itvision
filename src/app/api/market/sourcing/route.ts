@@ -94,14 +94,13 @@ function safeNumber(value: unknown, opts?: { min?: number; max?: number; default
 }
 
 async function buildBaseSiteUrl(request: NextRequest): Promise<string> {
-  // ENV est prioritaire en prod ; sinon on retombe sur le host de la requête
   const fromEnv = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
   if (fromEnv) return fromEnv.replace(/\/+$/, '')
   const proto = request.headers.get('x-forwarded-proto') || 'https'
-  const host = request.headers.get('host') || ''
-  // En dev, host = localhost:3000 ; en prod, market.example.com
-  const cleanHost = host.replace(/^market\./i, '')
-  return `${proto}://${cleanHost}`
+  const rawHost = request.headers.get('host') || ''
+  const cleanHost = rawHost.replace(/:\d+$/, '') // retire le port (:3000)
+  const host = /^market\./i.test(cleanHost) ? cleanHost : `market.${cleanHost}`
+  return `${proto}://${host}`
 }
 
 export async function POST(request: NextRequest) {
