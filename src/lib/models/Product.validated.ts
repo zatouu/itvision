@@ -92,6 +92,12 @@ export interface IProduct extends Document {
   // Timestamps
   createdAt: Date
   updatedAt: Date
+  imageEmbedding?: number[]
+  embeddingUpdatedAt?: Date
+  imageEmbeddingStatus?: 'pending' | 'ready' | 'failed'
+  imageEmbeddingError?: string
+  imageEmbeddingAttempts?: number
+  imageEmbeddingVersion?: number
 }
 
 // Validations personnalisées
@@ -513,7 +519,17 @@ const ProductSchema = new Schema<IProduct>({
       discount: { type: Number, min: 0, max: 100 }
     }, { _id: false })],
     default: []
-  }
+  },
+  imageEmbedding: {
+    type: [Number],
+    default: undefined,
+    index: false
+  },
+  embeddingUpdatedAt: { type: Date },
+  imageEmbeddingStatus: { type: String, enum: ['pending', 'ready', 'failed'], default: 'pending', index: true },
+  imageEmbeddingError: { type: String },
+  imageEmbeddingAttempts: { type: Number, default: 0 },
+  imageEmbeddingVersion: { type: Number }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -541,6 +557,14 @@ const calculatePackagingWeight = function(this: IProduct) {
 // Validation des dimensions avant sauvegarde
 ProductSchema.pre('save', function(next) {
   try {
+    if (this.isModified('image')) {
+      this.imageEmbedding = undefined
+      this.embeddingUpdatedAt = undefined
+      this.imageEmbeddingStatus = 'pending'
+      this.imageEmbeddingError = undefined
+      this.imageEmbeddingAttempts = 0
+      this.imageEmbeddingVersion = undefined
+    }
     validateDimensions.call(this)
     validateImportLogistics.call(this)
     calculateVolume.call(this)

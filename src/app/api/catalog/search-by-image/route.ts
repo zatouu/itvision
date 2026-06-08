@@ -25,7 +25,8 @@ import Product from '@/lib/models/Product'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
 import {
   computeImageEmbedding,
-  similarityScore,
+  hammingDistance,
+  colorSimilarity,
   fetchImageBuffer,
   EMBEDDING_LENGTH,
   isValidEmbedding,
@@ -39,10 +40,17 @@ const imageSearchLimiter = new RateLimiter(60 * 1000, 8) // 8 / min / IP
 
 const MAX_BYTES = 5 * 1024 * 1024
 const MIN_SCORE = 25 // sous ce score on n'affiche rien
+const HIGH_CONFIDENCE_SCORE = 70
+const MEDIUM_CONFIDENCE_SCORE = 50
+const CURRENT_IMAGE_EMBEDDING_VERSION = 1
+const MAX_FAILED_ATTEMPTS = 3
 
 // Combien de produits sans embedding on calcule à la volée
 // (limité pour ne pas pénaliser la latence ; le reste passe par le backfill batch)
-const ON_DEMAND_BACKFILL = 8
+const ON_DEMAND_BACKFILL = 2
+
+type MatchType = 'visual' | 'text_fallback' | 'mixed'
+type Confidence = 'high' | 'medium' | 'low'
 
 interface ScoredResult {
   id: string
@@ -52,6 +60,12 @@ interface ScoredResult {
   priceAmount: number | null
   currency: string
   similarity: number
+  visualScore: number | null
+  colorScore: number | null
+  textScore: number | null
+  finalScore: number
+  matchType: MatchType
+  confidence: Confidence
 }
 
 export async function POST(request: NextRequest) {
@@ -114,12 +128,29 @@ export async function POST(request: NextRequest) {
     stockStatus: 1,
     tags: 1,
     description: 1,
-    imageEmbedding: 1
+    imageEmbedding: 1,
+    imageEmbeddingVersion: 1,
+    imageEmbeddingStatus: 1,
+    imageEmbeddingAttempts: 1
   }
 
   const withEmbedding = await Product.find({
     isPublished: true,
-    imageEmbedding: { $exists: true, $ne: null }
+    imageEmbedding: { $exists: true, $ne: null },
+    $and: [
+      {
+        $or: [
+          { imageEmbeddingStatus: { $ne: 'failed' } },
+          { imageEmbeddingStatus: { $exists: false } }
+        ]
+      },
+      {
+        $or: [
+          { imageEmbeddingVersion: CURRENT_IMAGE_EMBEDDING_VERSION },
+          { imageEmbeddingVersion: { $exists: false } }
+        ]
+      }
+    ]
   })
     .select(projection)
     .lean()
@@ -127,9 +158,9 @@ export async function POST(request: NextRequest) {
   const scored: ScoredResult[] = []
   for (const p of withEmbedding as any[]) {
     if (!isValidEmbedding(p.imageEmbedding)) continue
-    const sim = similarityScore(queryEmbedding, p.imageEmbedding as ImageEmbedding)
-    if (sim >= MIN_SCORE) {
-      scored.push(toResult(p, sim))
+    const scores = computeVisualScores(queryEmbedding, p.imageEmbedding as ImageEmbedding)
+    if (scores.finalScore >= MIN_SCORE) {
+      scored.push(toVisualResult(p, scores))
     }
   }
 
@@ -137,13 +168,28 @@ export async function POST(request: NextRequest) {
   //    Permet aux premières recherches d'enrichir progressivement le corpus.
   const missing = await Product.find({
     isPublished: true,
-    imageEmbedding: { $in: [null, undefined] },
-    image: { $exists: true, $ne: null }
+    image: { $exists: true, $ne: null },
+    $and: [
+      {
+        $or: [
+          { imageEmbedding: { $in: [null, undefined] } },
+          { imageEmbeddingVersion: { $ne: CURRENT_IMAGE_EMBEDDING_VERSION } }
+        ]
+      },
+      {
+        $or: [
+          { imageEmbeddingStatus: { $ne: 'failed' } },
+          { imageEmbeddingAttempts: { $lt: MAX_FAILED_ATTEMPTS } },
+          { imageEmbeddingAttempts: { $exists: false } }
+        ]
+      }
+    ]
   })
     .select(projection)
     .limit(ON_DEMAND_BACKFILL)
     .lean()
 
+  let backfilledThisRequest = 0
   if (missing.length > 0) {
     await Promise.allSettled(
       (missing as any[]).map(async (p) => {
@@ -152,15 +198,34 @@ export async function POST(request: NextRequest) {
         try {
           const buf = await fetchImageBuffer(imgUrl, { baseUrl: buildBaseUrl(request) })
           const { embedding } = await computeImageEmbedding(buf)
-          // persiste (ne fait pas échouer la requête si KO)
           await Product.updateOne(
             { _id: p._id },
-            { $set: { imageEmbedding: embedding, embeddingUpdatedAt: new Date() } }
+            {
+              $set: {
+                imageEmbedding: embedding,
+                embeddingUpdatedAt: new Date(),
+                imageEmbeddingStatus: 'ready',
+                imageEmbeddingAttempts: 0,
+                imageEmbeddingVersion: CURRENT_IMAGE_EMBEDDING_VERSION
+              },
+              $unset: { imageEmbeddingError: '' }
+            }
           ).catch(() => null)
-          const sim = similarityScore(queryEmbedding, embedding)
-          if (sim >= MIN_SCORE) scored.push(toResult(p, sim))
+          backfilledThisRequest++
+          const scores = computeVisualScores(queryEmbedding, embedding)
+          if (scores.finalScore >= MIN_SCORE) scored.push(toVisualResult(p, scores))
         } catch (err) {
-          // Échec individuel acceptable, on continue
+          await Product.updateOne(
+            { _id: p._id },
+            {
+              $set: {
+                imageEmbeddingStatus: 'failed',
+                imageEmbeddingError: err instanceof Error ? err.message.slice(0, 180) : 'Erreur inconnue',
+                imageEmbeddingVersion: CURRENT_IMAGE_EMBEDDING_VERSION
+              },
+              $inc: { imageEmbeddingAttempts: 1 }
+            }
+          ).catch(() => null)
           console.warn('[search-by-image] backfill KO pour', String(p._id), err instanceof Error ? err.message : err)
         }
       })
@@ -179,37 +244,57 @@ export async function POST(request: NextRequest) {
       .limit(8)
       .lean()
     for (const p of textHits as any[]) {
-      scored.push(toResult(p, 30)) // score "ok" pour les hits texte
+      scored.push(toTextResult(p))
     }
   }
 
   // 7. Tri + top 12 + dédup
   const dedup = new Map<string, ScoredResult>()
-  for (const r of scored.sort((a, b) => b.similarity - a.similarity)) {
+  for (const r of scored.sort((a, b) => b.finalScore - a.finalScore)) {
     if (!dedup.has(r.id)) dedup.set(r.id, r)
   }
   const results = Array.from(dedup.values()).slice(0, 12)
 
   // 8. Stats de couverture (utile pour debug / UX)
-  const totalIndexed = withEmbedding.length
-  const totalProducts = await Product.countDocuments({ isPublished: true })
+  const totalIndexed = await Product.countDocuments({
+    isPublished: true,
+    imageEmbedding: { $exists: true, $ne: null },
+    imageEmbeddingStatus: { $ne: 'failed' }
+  })
+  const totalProducts = await Product.countDocuments(buildIndexableProductQuery())
 
   return NextResponse.json({
     success: true,
     results,
     meta: {
-      totalAnalyzed: totalIndexed + missing.length,
+      totalAnalyzed: withEmbedding.length + backfilledThisRequest,
       totalProducts,
-      embeddingsCoverage: totalProducts > 0 ? +(((totalIndexed + missing.length) / totalProducts) * 100).toFixed(1) : 0,
-      backfilledThisRequest: missing.length,
-      threshold: MIN_SCORE
+      embeddingsCoverage: totalProducts > 0 ? +((totalIndexed / totalProducts) * 100).toFixed(1) : 0,
+      backfilledThisRequest,
+      threshold: MIN_SCORE,
+      highConfidenceThreshold: HIGH_CONFIDENCE_SCORE,
+      mediumConfidenceThreshold: MEDIUM_CONFIDENCE_SCORE,
+      bestConfidence: results[0]?.confidence || null
     }
   })
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function toResult(p: any, similarity: number): ScoredResult {
+function computeVisualScores(a: ImageEmbedding, b: ImageEmbedding) {
+  const visualScore = Math.round((1 - hammingDistance(a, b)) * 100)
+  const colorScore = Math.round(colorSimilarity(a, b) * 100)
+  const finalScore = Math.round((visualScore * 0.7) + (colorScore * 0.3))
+  return { visualScore, colorScore, finalScore }
+}
+
+function confidenceFor(score: number): Confidence {
+  if (score >= HIGH_CONFIDENCE_SCORE) return 'high'
+  if (score >= MEDIUM_CONFIDENCE_SCORE) return 'medium'
+  return 'low'
+}
+
+function toVisualResult(p: any, scores: { visualScore: number; colorScore: number; finalScore: number }): ScoredResult {
   return {
     id: String(p._id),
     name: p.name,
@@ -217,7 +302,42 @@ function toResult(p: any, similarity: number): ScoredResult {
     category: p.category || null,
     priceAmount: p.price ?? p.baseCost ?? null,
     currency: p.currency || 'FCFA',
-    similarity
+    similarity: scores.finalScore,
+    visualScore: scores.visualScore,
+    colorScore: scores.colorScore,
+    textScore: null,
+    finalScore: scores.finalScore,
+    matchType: 'visual',
+    confidence: confidenceFor(scores.finalScore)
+  }
+}
+
+function toTextResult(p: any): ScoredResult {
+  const finalScore = 35
+  return {
+    id: String(p._id),
+    name: p.name,
+    image: p.image || p.gallery?.[0] || null,
+    category: p.category || null,
+    priceAmount: p.price ?? p.baseCost ?? null,
+    currency: p.currency || 'FCFA',
+    similarity: finalScore,
+    visualScore: null,
+    colorScore: null,
+    textScore: 60,
+    finalScore,
+    matchType: 'text_fallback',
+    confidence: 'low'
+  }
+}
+
+function buildIndexableProductQuery() {
+  return {
+    isPublished: true,
+    $or: [
+      { image: { $exists: true, $ne: null } },
+      { 'gallery.0': { $exists: true } }
+    ]
   }
 }
 

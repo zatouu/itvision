@@ -23,6 +23,8 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'])
+const CURRENT_IMAGE_EMBEDDING_VERSION = 1
+const MAX_FAILED_ATTEMPTS = 3
 
 async function requireAdmin(request: NextRequest) {
   try {
@@ -49,11 +51,8 @@ export async function GET(request: NextRequest) {
   if (!adm.ok) return NextResponse.json({ error: adm.error }, { status: adm.status })
 
   await connectMongoose()
-  const total = await Product.countDocuments({ isPublished: true, image: { $exists: true, $ne: null } })
-  const indexed = await Product.countDocuments({
-    isPublished: true,
-    imageEmbedding: { $exists: true, $ne: null }
-  })
+  const total = await Product.countDocuments(buildIndexableProductQuery())
+  const indexed = await Product.countDocuments(buildIndexedProductQuery())
 
   return NextResponse.json({
     success: true,
@@ -77,15 +76,28 @@ export async function POST(request: NextRequest) {
   await connectMongoose()
 
   const query: any = {
-    isPublished: true,
-    image: { $exists: true, $ne: null }
+    ...buildIndexableProductQuery()
   }
   if (!force) {
-    query.imageEmbedding = { $in: [null, undefined] }
+    query.$and = [
+      {
+        $or: [
+          { imageEmbedding: { $in: [null, undefined] } },
+          { imageEmbeddingVersion: { $ne: CURRENT_IMAGE_EMBEDDING_VERSION } }
+        ]
+      },
+      {
+        $or: [
+          { imageEmbeddingStatus: { $ne: 'failed' } },
+          { imageEmbeddingAttempts: { $lt: MAX_FAILED_ATTEMPTS } },
+          { imageEmbeddingAttempts: { $exists: false } }
+        ]
+      }
+    ]
   }
 
   const products = await Product.find(query)
-    .select('_id image gallery name')
+    .select('_id image gallery name imageEmbeddingAttempts')
     .limit(limit)
     .lean()
 
@@ -106,28 +118,43 @@ export async function POST(request: NextRequest) {
         const { embedding } = await computeImageEmbedding(buf)
         await Product.updateOne(
           { _id: p._id },
-          { $set: { imageEmbedding: embedding, embeddingUpdatedAt: new Date() } }
+          {
+            $set: {
+              imageEmbedding: embedding,
+              embeddingUpdatedAt: new Date(),
+              imageEmbeddingStatus: 'ready',
+              imageEmbeddingAttempts: 0,
+              imageEmbeddingVersion: CURRENT_IMAGE_EMBEDDING_VERSION
+            },
+            $unset: { imageEmbeddingError: '' }
+          }
         )
         processed++
       } catch (err: any) {
+        const errorMessage = err?.message?.slice(0, 180) || 'unknown'
+        await Product.updateOne(
+          { _id: p._id },
+          {
+            $set: {
+              imageEmbeddingStatus: 'failed',
+              imageEmbeddingError: errorMessage,
+              imageEmbeddingVersion: CURRENT_IMAGE_EMBEDDING_VERSION
+            },
+            $inc: { imageEmbeddingAttempts: 1 }
+          }
+        ).catch(() => null)
         failed++
         errors.push({
           id: String(p._id),
           name: p.name || '?',
-          error: err?.message?.slice(0, 120) || 'unknown'
+          error: errorMessage.slice(0, 120)
         })
       }
     })
   )
 
-  const indexed = await Product.countDocuments({
-    isPublished: true,
-    imageEmbedding: { $exists: true, $ne: null }
-  })
-  const total = await Product.countDocuments({
-    isPublished: true,
-    image: { $exists: true, $ne: null }
-  })
+  const indexed = await Product.countDocuments(buildIndexedProductQuery())
+  const total = await Product.countDocuments(buildIndexableProductQuery())
 
   return NextResponse.json({
     success: true,

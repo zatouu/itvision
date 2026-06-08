@@ -85,6 +85,10 @@ export interface IProduct extends Document {
   // TensorFlow.js Image Search
   imageEmbedding?: number[]      // Vecteur de features MobileNet (1280 dimensions)
   embeddingUpdatedAt?: Date      // Date de dernière mise à jour de l'embedding
+  imageEmbeddingStatus?: 'pending' | 'ready' | 'failed'
+  imageEmbeddingError?: string
+  imageEmbeddingAttempts?: number
+  imageEmbeddingVersion?: number
   // Historique des prix fournisseur (surveillance automatique)
   priceHistory?: Array<{
     date: Date
@@ -192,6 +196,10 @@ const ProductSchema = new Schema<IProduct>({
     index: false,
   },
   embeddingUpdatedAt: { type: Date },
+  imageEmbeddingStatus: { type: String, enum: ['pending', 'ready', 'failed'], default: 'pending', index: true },
+  imageEmbeddingError: { type: String },
+  imageEmbeddingAttempts: { type: Number, default: 0 },
+  imageEmbeddingVersion: { type: Number },
   // Historique des prix fournisseur
   priceHistory: {
     type: [new Schema({
@@ -213,6 +221,10 @@ ProductSchema.pre('save', function (next) {
   if (this.isModified('image')) {
     this.imageEmbedding = undefined
     this.embeddingUpdatedAt = undefined
+    this.imageEmbeddingStatus = 'pending'
+    this.imageEmbeddingError = undefined
+    this.imageEmbeddingAttempts = 0
+    this.imageEmbeddingVersion = undefined
   }
   next()
 })

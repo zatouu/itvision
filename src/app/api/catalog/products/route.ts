@@ -37,9 +37,16 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const limit = parseInt(searchParams.get('limit') || '24', 10)
-    const skip = (page - 1) * limit
+    const ids = (searchParams.get('ids') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .slice(0, 50)
+    const productIds = ids.map((id) => new mongoose.Types.ObjectId(id))
+    const isIdLookup = productIds.length > 0
+    const page = isIdLookup ? 1 : parseInt(searchParams.get('page') || '1', 10)
+    const limit = isIdLookup ? productIds.length : parseInt(searchParams.get('limit') || '24', 10)
+    const skip = isIdLookup ? 0 : (page - 1) * limit
 
     // Filtres
     const q = (searchParams.get('q') || '').trim()
@@ -76,6 +83,10 @@ export async function GET(request: NextRequest) {
     // Base match (public catalogue)
     const match: any = {
       isPublished: { $ne: false }
+    }
+
+    if (isIdLookup) {
+      match._id = { $in: productIds }
     }
 
     if (categories.length > 0) {
@@ -200,6 +211,10 @@ export async function GET(request: NextRequest) {
 
      const pipeline: any[] = [{ $match: match }, { $addFields: addDerivedFields }]
 
+    if (isIdLookup) {
+      pipeline.push({ $addFields: { __imageSearchRank: { $indexOfArray: [productIds, '$_id'] } } })
+    }
+
      if (searchMatch) {
        pipeline.push({ $match: searchMatch })
      }
@@ -250,7 +265,7 @@ export async function GET(request: NextRequest) {
        }
      })()
 
-     pipeline.push({ $sort: sort })
+     pipeline.push({ $sort: isIdLookup ? { __imageSearchRank: 1 } : sort })
 
      pipeline.push({
        $facet: {
@@ -424,7 +439,7 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-        hasMore: skip + limit < total
+        hasMore: !isIdLookup && skip + limit < total
       }
     })
   } catch (error) {
