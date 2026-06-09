@@ -33,6 +33,14 @@ import User from '@/lib/models/User'
 import { extractAuthToken, verifyAuthToken } from '@/lib/jwt'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
 import { sendSms, normalizePhone } from '@/lib/sms'
+import Product from '@/lib/models/Product'
+import {
+  computeImageEmbedding,
+  hammingDistance,
+  colorSimilarity,
+  isValidEmbedding,
+  type ImageEmbedding
+} from '@/lib/image-hash'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -210,6 +218,29 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ── Recherche catalogue automatique si image fournie ──
+  // Avant de créer une demande sourcing, on vérifie si le produit existe déjà.
+  let catalogMatch: any = null
+  if (imageFile) {
+    try {
+      const fileBuffer = Buffer.from(await imageFile.arrayBuffer())
+      const { embedding: queryEmbedding } = await computeImageEmbedding(fileBuffer)
+      catalogMatch = await findCatalogMatchByImage(queryEmbedding, description)
+    } catch (err) {
+      console.warn('[sourcing] Recherche catalogue échec:', err)
+    }
+  }
+  if (catalogMatch) {
+    return NextResponse.json(
+      {
+        success: true,
+        catalogMatch,
+        message: 'Nous avons trouvé ce produit dans notre catalogue !'
+      },
+      { status: 200 }
+    )
+  }
+
   // Génération identifiants uniques (rejouer si collision improbable)
   let reference = generateSourcingReference()
   let attempts = 0
@@ -327,4 +358,64 @@ export async function GET(request: NextRequest) {
   } catch (err: any) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   }
+}
+
+// ── Helpers recherche catalogue ──────────────────────────────────────────────
+
+const CATALOG_MATCH_THRESHOLD = 75 // doit correspondre à HIGH_CONFIDENCE_SCORE
+
+async function findCatalogMatchByImage(queryEmbedding: ImageEmbedding, description?: string): Promise<any | null> {
+  const products = await Product.find({
+    isPublished: true,
+    imageEmbedding: { $exists: true, $ne: null }
+  })
+    .select('name image category priceAmount currency slug imageEmbedding tags')
+    .lean()
+
+  let best: any = null
+  let bestScore = 0
+
+  for (const p of products as any[]) {
+    if (!isValidEmbedding(p.imageEmbedding)) continue
+    const visualScore = Math.round((1 - hammingDistance(queryEmbedding, p.imageEmbedding as ImageEmbedding)) * 100)
+    const colorScore = Math.round(colorSimilarity(queryEmbedding, p.imageEmbedding as ImageEmbedding) * 100)
+    let finalScore = Math.round(visualScore * 0.7 + colorScore * 0.3)
+    // Boost catégorie basé sur la description
+    finalScore = Math.min(100, finalScore + computeSourcingBoost(p, description))
+    if (finalScore > bestScore) {
+      bestScore = finalScore
+      best = { product: p, visualScore, colorScore, finalScore }
+    }
+  }
+
+  if (!best || bestScore < CATALOG_MATCH_THRESHOLD) return null
+
+  const p = best.product
+  return {
+    id: String(p._id),
+    name: p.name,
+    image: p.image,
+    category: p.category,
+    price: p.price,
+    currency: p.currency,
+    visualScore: best.visualScore,
+    colorScore: best.colorScore,
+    finalScore: best.finalScore
+  }
+}
+
+function computeSourcingBoost(p: any, description?: string): number {
+  if (!description || !p) return 0
+  const terms = description.toLowerCase().split(/\s+/).filter((t: string) => t.length >= 2)
+  if (terms.length === 0) return 0
+  const searchable = [
+    String(p.name || ''),
+    String(p.category || ''),
+    ...(Array.isArray(p.tags) ? p.tags.map(String) : [])
+  ].join(' ').toLowerCase()
+  let matches = 0
+  for (const term of terms) {
+    if (searchable.includes(term)) matches++
+  }
+  return Math.round((matches / terms.length) * 20)
 }

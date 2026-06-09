@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Camera,
@@ -50,6 +51,18 @@ type CreatedResult = {
   slaDueAt: string
 }
 
+type CatalogMatch = {
+  id: string
+  name: string
+  image: string
+  category: string
+  price: number
+  currency: string
+  visualScore: number
+  colorScore: number
+  finalScore: number
+}
+
 const MAX_IMAGE = 8 * 1024 * 1024
 
 export default function SourcingRequestModal({
@@ -58,6 +71,7 @@ export default function SourcingRequestModal({
   currentUser,
   initialContext,
 }: SourcingRequestModalProps) {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('photo')
   const [file, setFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
@@ -73,6 +87,7 @@ export default function SourcingRequestModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CreatedResult | null>(null)
+  const [catalogMatch, setCatalogMatch] = useState<CatalogMatch | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -143,6 +158,7 @@ export default function SourcingRequestModal({
     setDeliveryNeededBy('')
     setError(null)
     setResult(null)
+    setCatalogMatch(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -246,6 +262,10 @@ export default function SourcingRequestModal({
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || 'Échec de la soumission')
       }
+      if (data.catalogMatch) {
+        setCatalogMatch(data.catalogMatch as CatalogMatch)
+        return
+      }
       setResult(data.request as CreatedResult)
     } catch (err: any) {
       setError(err?.message || 'Échec de l\'envoi.')
@@ -298,7 +318,17 @@ export default function SourcingRequestModal({
 
           {/* Body */}
           <div className="overflow-y-auto p-6 flex-1">
-            {result ? (
+            {catalogMatch ? (
+              <CatalogMatchView
+                match={catalogMatch}
+                onViewProduct={() => {
+                  handleClose()
+                  router.push(`/produits/${catalogMatch.id}`)
+                }}
+                onContinueSourcing={() => setCatalogMatch(null)}
+                onClose={handleClose}
+              />
+            ) : result ? (
               <SuccessView result={result} onClose={handleClose} />
             ) : (
               <>
@@ -453,7 +483,7 @@ export default function SourcingRequestModal({
           </div>
 
           {/* Footer */}
-          {!result && (
+          {!result && !catalogMatch && (
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50 flex items-center justify-between gap-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
@@ -631,5 +661,106 @@ function SuccessView({ result, onClose }: { result: CreatedResult; onClose: () =
         Fermer
       </button>
     </div>
+  )
+}
+
+function CatalogMatchView({
+  match,
+  onViewProduct,
+  onContinueSourcing,
+  onClose
+}: {
+  match: CatalogMatch
+  onViewProduct: () => void
+  onContinueSourcing: () => void
+  onClose: () => void
+}) {
+  const formatPrice = (n: number, currency: string) => {
+    return `${n.toLocaleString('fr-FR')} ${currency || 'FCFA'}`
+  }
+
+  const scoreColor = (score: number) => {
+    if (score >= 75) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    if (score >= 55) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+    return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="text-center py-4"
+    >
+      <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-4">
+        <Sparkles className="h-9 w-9 text-emerald-600" />
+      </div>
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+        Nous l&apos;avons trouvé !
+      </h3>
+      <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+        Ce produit correspond à votre photo dans notre catalogue
+      </p>
+
+      {/* Card produit */}
+      <div className="mt-6 text-left rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden shadow-sm">
+        <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800">
+          <img
+            src={match.image}
+            alt={match.name}
+            className="w-full h-full object-cover"
+          />
+          <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-bold ${scoreColor(match.finalScore)}`}>
+            Match {match.finalScore}%
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-xs text-violet-600 font-medium uppercase tracking-wide mb-1">
+            {match.category || 'Produit'}
+          </p>
+          <h4 className="text-base font-semibold text-gray-900 dark:text-white leading-snug">
+            {match.name}
+          </h4>
+          <p className="mt-2 text-lg font-bold text-gray-900 dark:text-white">
+            {formatPrice(match.price, match.currency)}
+          </p>
+          <div className="mt-3 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              Forme {match.visualScore}%
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              Couleur {match.colorScore}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-6 flex flex-col gap-2.5">
+        <button
+          type="button"
+          onClick={onViewProduct}
+          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-lg"
+        >
+          <Search className="h-4 w-4" />
+          Voir la fiche produit
+        </button>
+        <button
+          type="button"
+          onClick={onContinueSourcing}
+          className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors"
+        >
+          Ce n&apos;est pas le bon ? Demander un sourcing
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          Fermer
+        </button>
+      </div>
+    </motion.div>
   )
 }
