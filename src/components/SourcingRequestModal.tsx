@@ -88,8 +88,17 @@ export default function SourcingRequestModal({
   const [result, setResult] = useState<CreatedResult | null>(null)
   const [catalogMatch, setCatalogMatch] = useState<CatalogMatch | null>(null)
   const [needsContact, setNeedsContact] = useState(false)
-  type Phase = 'search' | 'match' | 'contact' | 'result'
+  type Phase = 'search' | 'match' | 'searching_external' | 'external_results' | 'contact' | 'result'
   const [phase, setPhase] = useState<Phase>('search')
+  const [externalResults, setExternalResults] = useState<Array<{
+    title: string
+    price1688?: number
+    image: string
+    url: string
+    supplier?: string
+    minOrder?: number
+  }> | null>(null)
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -159,6 +168,8 @@ export default function SourcingRequestModal({
     setResult(null)
     setCatalogMatch(null)
     setNeedsContact(false)
+    setExternalResults(null)
+    setUploadedImageUrl(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -256,6 +267,12 @@ export default function SourcingRequestModal({
       }
       if (data.needsContact) {
         setNeedsContact(true)
+        // Si une image est présente, chercher aussi sur 1688 avant de demander le contact
+        if (file && data.imageUrl) {
+          setUploadedImageUrl(data.imageUrl)
+          setPhase('searching_external')
+          return
+        }
         setPhase('contact')
         return
       }
@@ -270,6 +287,40 @@ export default function SourcingRequestModal({
       setSubmitting(false)
     }
   }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, csrfToken, fetchCsrfToken])
+
+  // Recherche externe 1688 par image
+  const handleSearchExternal = useCallback(async (imageUrl: string) => {
+    setError(null)
+    try {
+      const res = await fetch('/api/market/sourcing/search-external', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl, description: description.trim() || undefined })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.success && Array.isArray(data.results) && data.results.length > 0) {
+        setExternalResults(data.results)
+        setPhase('external_results')
+      } else {
+        // Pas de résultats 1688 → fallback contact
+        setExternalResults(null)
+        setPhase('contact')
+      }
+    } catch (err: any) {
+      console.log('[SearchExternal] échoué:', err.message)
+      setPhase('contact')
+    }
+  }, [description])
+
+  // Auto-lancer la recherche externe quand on passe en phase searching_external
+  useEffect(() => {
+    if (phase !== 'searching_external') return
+    if (!uploadedImageUrl) {
+      setPhase('contact')
+      return
+    }
+    handleSearchExternal(uploadedImageUrl)
+  }, [phase, uploadedImageUrl, handleSearchExternal])
 
   // Phase 2 : créer le sourcing avec contact
   const handleConfirmSourcing = useCallback(async () => {
@@ -395,6 +446,35 @@ export default function SourcingRequestModal({
                   setCatalogMatch(null)
                   setPhase('contact')
                 }}
+                onClose={handleClose}
+              />
+            ) : phase === 'searching_external' ? (
+              <div className="text-center py-10">
+                <div className="mx-auto w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mb-4 animate-pulse">
+                  <Search className="h-9 w-9 text-violet-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Nous recherchons votre produit en Chine…
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
+                  Notre moteur scrute 1688.com avec votre photo. Cela prend environ 15 secondes.
+                </p>
+                <div className="mt-6 flex justify-center">
+                  <Loader2 className="h-8 w-8 text-violet-500 animate-spin" />
+                </div>
+                <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
+                  Pas de résultat ? Nous vous recontacterons sous 24h ouvrées.
+                </p>
+              </div>
+            ) : phase === 'external_results' && externalResults ? (
+              <ExternalResultsView
+                results={externalResults}
+                onSelect={(url: string) => {
+                  setExternalUrl(url)
+                  setTab('link')
+                  setPhase('contact')
+                }}
+                onSkip={() => setPhase('contact')}
                 onClose={handleClose}
               />
             ) : phase === 'result' && result ? (
@@ -555,6 +635,23 @@ export default function SourcingRequestModal({
           </div>
 
           {/* Footer */}
+          {(phase === 'searching_external' || phase === 'external_results') && (
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50 flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {phase === 'searching_external' ? 'Recherche en cours sur 1688…' : 'Résultats 1688 trouvés'}
+              </p>
+              {phase === 'external_results' && (
+                <button
+                  type="button"
+                  onClick={() => setPhase('contact')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors"
+                >
+                  Passer → Contact
+                </button>
+              )}
+            </div>
+          )}
           {phase === 'search' && (
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50 flex items-center justify-between gap-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -849,6 +946,95 @@ function CatalogMatchView({
           className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors"
         >
           Ce n&apos;est pas le bon ? Demander un sourcing
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          Fermer
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+function ExternalResultsView({
+  results,
+  onSelect,
+  onSkip,
+  onClose
+}: {
+  results: Array<{ title: string; price1688?: number; image: string; url: string; supplier?: string; minOrder?: number }>
+  onSelect: (url: string) => void
+  onSkip: () => void
+  onClose: () => void
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="py-2"
+    >
+      <div className="text-center mb-5">
+        <div className="mx-auto w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mb-3">
+          <Search className="h-6 w-6 text-violet-600" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Produits trouvés sur 1688</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Sélectionnez le plus proche ou passez à la demande manuelle.
+        </p>
+      </div>
+
+      <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+        {results.map((r, i) => (
+          <div
+            key={i}
+            className="flex gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:border-violet-300 dark:hover:border-violet-700 transition-colors"
+          >
+            <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-gray-800 flex-shrink-0 overflow-hidden">
+              <img src={r.image} alt={r.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/file.svg' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{r.title}</p>
+              <p className="text-sm text-violet-600 font-medium mt-0.5">
+                {r.price1688 ? `¥${r.price1688.toLocaleString('fr-FR')}` : 'Prix sur demande'}
+              </p>
+              {r.supplier && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{r.supplier}</p>
+              )}
+              {r.minOrder && (
+                <p className="text-xs text-gray-400 dark:text-gray-500">MOQ: {r.minOrder}</p>
+              )}
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSelect(r.url)}
+                  className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  Sourcer celui-ci
+                </button>
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Voir 1688 ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onSkip}
+          className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors"
+        >
+          Aucun ne correspond — Demander un sourcing manuel
         </button>
         <button
           type="button"

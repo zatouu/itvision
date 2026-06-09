@@ -12,21 +12,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   const productsList = document.getElementById('products-list');
   const apiUrlInput = document.getElementById('api-url');
   const apiTokenInput = document.getElementById('api-token');
+  const autoExtractToggle = document.getElementById('auto-extract');
 
   // Charger settings
-  const settings = await chrome.storage.local.get(['apiUrl', 'apiToken']);
+  const settings = await chrome.storage.local.get(['apiUrl', 'apiToken', 'settings']);
   if (settings.apiUrl) apiUrlInput.value = settings.apiUrl;
   if (settings.apiToken) apiTokenInput.value = settings.apiToken;
+  const storedSettings = settings.settings || {};
+  if (autoExtractToggle) {
+    autoExtractToggle.checked = storedSettings.autoExtract !== false;
+  }
 
   // Sauvegarder settings
   const saveSettings = () => {
     chrome.storage.local.set({
       apiUrl: apiUrlInput.value,
-      apiToken: apiTokenInput.value
+      apiToken: apiTokenInput.value,
+      settings: {
+        apiUrl: apiUrlInput.value,
+        apiToken: apiTokenInput.value,
+        autoExtract: autoExtractToggle ? autoExtractToggle.checked : true
+      }
     });
   };
   apiUrlInput.addEventListener('change', saveSettings);
   apiTokenInput.addEventListener('change', saveSettings);
+  if (autoExtractToggle) {
+    autoExtractToggle.addEventListener('change', saveSettings);
+  }
 
   // Charger produits extraits
   const loadProducts = async () => {
@@ -39,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderProducts(products);
     } else {
       productsContainer.style.display = 'none';
+      productsList.innerHTML = '';
     }
   };
 
@@ -315,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   };
 
-  // Exporter vers API IT Vision (Smart Import par défaut)
+  // Exporter vers API IT Vision (via background script pour ne pas bloquer le popup)
   const doExport = async (useSmart) => {
     const apiUrl = apiUrlInput.value.trim();
     if (!apiUrl) { showNotification('Veuillez configurer l\'URL API', 'error'); return; }
@@ -323,65 +337,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { products = [] } = await chrome.storage.local.get('products');
     if (products.length === 0) { showNotification('Aucun produit à exporter', 'error'); return; }
 
-    const cookieUrl = apiUrl.replace(/\/$/, '');
-    let authCookie = null;
-    try { authCookie = await chrome.cookies.get({ url: cookieUrl, name: 'auth-token' }); } catch {}
-    if (!authCookie?.value) {
-      showNotification('Connectez-vous d\'abord sur ' + cookieUrl, 'error');
-      return;
-    }
-
-    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authCookie.value}` };
-
+    // Déléguer au background script (plus robuste, pas de timeout popup)
     try {
-      let response, result;
+      const result = await chrome.runtime.sendMessage({
+        action: 'BULK_EXPORT',
+        apiUrl,
+        apiToken: apiTokenInput.value,
+        useSmart
+      });
 
-      if (useSmart) {
-        // Smart Import — pricing auto + enrichissement IA
-        const payload = {
-          products: products.map(transformProductForSmartApi),
-          options: { exchangeRate: 85, b2bDiscountPercent: 15, reformatDescriptions: false }
-        };
-        response = await fetch(`${cookieUrl}/api/admin/products/smart-import`, {
-          method: 'POST', headers, credentials: 'include', body: JSON.stringify(payload)
-        });
-        result = await response.json();
-        if (response.ok && result.success !== false) {
-          const failedIndexes = new Set(
-            Array.isArray(result.results)
-              ? result.results.filter(r => !r?.success && Number.isFinite(r?.index)).map(r => Number(r.index))
-              : []
-          );
-          const remainingProducts = failedIndexes.size > 0
-            ? products.filter((_, idx) => failedIndexes.has(idx))
-            : [];
-          await chrome.storage.local.set({ products: remainingProducts });
-          loadProducts();
-          showNotification(`Smart Import: ${result.imported || 0} créé(s)${result.failed > 0 ? ', ' + result.failed + ' échoué(s)' : ''}`, result.failed > 0 ? 'error' : 'success');
-        } else {
-          // Fallback sur import standard si 403 (pas ADMIN)
-          if (response.status === 403) {
-            showNotification('Smart Import nécessite le rôle ADMIN. Tentative import standard...', 'error');
-            setTimeout(() => doExport(false), 1000);
-            return;
-          }
-          showNotification('Erreur: ' + (result.error || result.errors || 'Erreur inconnue'), 'error');
-        }
+      if (!result) {
+        showNotification('Erreur: pas de réponse du background', 'error');
+        return;
+      }
+
+      if (result.success) {
+        loadProducts();
+        showNotification(
+          `${result.imported || 0} créé(s) — ${result.remaining || 0} en attente`,
+          'success'
+        );
+      } else if (result.code === 'FORBIDDEN') {
+        showNotification('Smart Import nécessite le rôle ADMIN. Tentative import standard...', 'error');
+        setTimeout(() => doExport(false), 800);
       } else {
-        // Import standard
-        const payload = { items: products.map(transformProductForApi) };
-        response = await fetch(`${cookieUrl}/api/products/import`, {
-          method: 'POST', headers, credentials: 'include', body: JSON.stringify(payload)
-        });
-        result = await response.json();
-        if (response.ok && result.success) {
-          await chrome.storage.local.set({ products: [] });
-          loadProducts();
-          const s = result.summary || {};
-          showNotification(`Exporté: ${s.created || 0} créé(s), ${s.updated || 0} mis à jour`, 'success');
-        } else {
-          showNotification('Erreur: ' + (result.error || 'Erreur inconnue'), 'error');
-        }
+        showNotification('Erreur: ' + (result.error || 'Export échoué'), 'error');
       }
     } catch (err) {
       showNotification('Erreur export: ' + err.message, 'error');

@@ -228,6 +228,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         needsContact: true,
+        imageUrl, // pour recherche externe 1688
         message: 'Nous n\'avons pas trouvé ce produit. Laissez-nous vos coordonnées pour une réponse sous 24h ouvrées.'
       },
       { status: 200 }
