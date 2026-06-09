@@ -199,7 +199,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     imageHash: { type: String, index: true, sparse: true },
     externalUrl: { type: String, trim: true, maxlength: 1000 },
     title: { type: String, trim: true, maxlength: 200 },
-    description: { type: String, required: true, trim: true, minlength: 3, maxlength: 4000 },
+    description: { type: String, trim: true, maxlength: 4000 },
     qty: { type: Number, required: true, min: 1, max: 100000, default: 1 },
     budgetMaxFCFA: { type: Number, min: 0 },
     deliveryNeededBy: { type: Date },
