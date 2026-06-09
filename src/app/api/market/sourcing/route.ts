@@ -167,12 +167,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Source invalide' }, { status: 400 })
   }
   const description = (payload.description || '').toString().trim()
-  if (description.length < 3) {
-    return NextResponse.json(
-      { error: 'Décrivez le produit (au moins quelques mots)' },
-      { status: 400 }
-    )
-  }
   if (description.length > 4000) {
     return NextResponse.json({ error: 'Description trop longue (max 4000 caractères)' }, { status: 400 })
   }
@@ -184,22 +178,6 @@ export async function POST(request: NextRequest) {
     if (!payload.externalUrl || !isValidUrl(payload.externalUrl)) {
       return NextResponse.json({ error: 'Lien externe invalide' }, { status: 400 })
     }
-  }
-
-  // Contact
-  const rawPhone = (payload.contactPhone || authUserPhone || '').trim()
-  if (!rawPhone) {
-    return NextResponse.json(
-      { error: 'Numéro de téléphone requis pour vous recontacter sous 24h' },
-      { status: 400 }
-    )
-  }
-  const phone = normalizePhone(rawPhone)
-  if (!phone) {
-    return NextResponse.json(
-      { error: 'Numéro de téléphone invalide (formats acceptés : +221 7X XXX XX XX, +212 6X XXX XX XX)' },
-      { status: 400 }
-    )
   }
 
   // DB
@@ -236,6 +214,21 @@ export async function POST(request: NextRequest) {
         success: true,
         catalogMatch,
         message: 'Nous avons trouvé ce produit dans notre catalogue !'
+      },
+      { status: 200 }
+    )
+  }
+
+  // ── Contact : requis uniquement si on crée une demande sourcing ──
+  const rawPhone = (payload.contactPhone || authUserPhone || '').trim()
+  const phone = rawPhone ? normalizePhone(rawPhone) : null
+  if (!phone) {
+    // Pas de contact fourni → on signale au frontend qu'il faut demander les infos
+    return NextResponse.json(
+      {
+        success: true,
+        needsContact: true,
+        message: 'Nous n\'avons pas trouvé ce produit. Laissez-nous vos coordonnées pour une réponse sous 24h ouvrées.'
       },
       { status: 200 }
     )
@@ -292,7 +285,7 @@ export async function POST(request: NextRequest) {
   const trackUrl = `${baseUrl}/market/sourcing/${publicToken}`
   const smsBody =
     `IT Vision Market — Demande ${reference} reçue. ` +
-    `Nous vous proposons un prix livré sous 24h max. ` +
+    `Nous recherchons votre produit en Chine. Proposition de prix + délai logistique sous 24h ouvrées. ` +
     `Suivi : ${trackUrl}`
   try {
     await sendSms(phone, smsBody)

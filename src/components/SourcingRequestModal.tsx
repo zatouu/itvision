@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  Phone,
   Clock,
   Search
 } from 'lucide-react'
@@ -88,6 +87,9 @@ export default function SourcingRequestModal({
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CreatedResult | null>(null)
   const [catalogMatch, setCatalogMatch] = useState<CatalogMatch | null>(null)
+  const [needsContact, setNeedsContact] = useState(false)
+  type Phase = 'search' | 'match' | 'contact' | 'result'
+  const [phase, setPhase] = useState<Phase>('search')
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -98,8 +100,7 @@ export default function SourcingRequestModal({
     if (currentUser?.email && !email) setEmail(currentUser.email)
   }, [currentUser, phone, contactName, email])
 
-  // Récupérer un token CSRF dès l'ouverture de la modale (nécessaire en production
-  // pour les requêtes POST non-authentifiées — voir lib/csrf-protection.ts).
+  // Récupérer un token CSRF dès l'ouverture de la modale
   useEffect(() => {
     if (!isOpen || csrfToken) return
     let cancelled = false
@@ -109,9 +110,7 @@ export default function SourcingRequestModal({
         if (!cancelled && data?.csrfToken) setCsrfToken(data.csrfToken)
       })
       .catch(() => {})
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [isOpen, csrfToken])
 
   // Pré-remplir depuis le handoff (ex: ImageSearchModal → sourcing)
@@ -129,7 +128,6 @@ export default function SourcingRequestModal({
     if (initialContext.description && !description) {
       setDescription(initialContext.description)
     }
-    // initialContext est consommé à l'ouverture : pas de re-init si le user édite
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialContext])
 
@@ -147,6 +145,7 @@ export default function SourcingRequestModal({
   }, [])
 
   const resetForm = useCallback(() => {
+    setPhase('search')
     setTab('photo')
     setFile(null)
     setFilePreview(null)
@@ -159,6 +158,7 @@ export default function SourcingRequestModal({
     setError(null)
     setResult(null)
     setCatalogMatch(null)
+    setNeedsContact(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -183,12 +183,9 @@ export default function SourcingRequestModal({
     reader.readAsDataURL(f)
   }, [])
 
-  const handleSubmit = useCallback(async () => {
+  // Phase 1 : recherche catalogue (sans contact)
+  const handleSearch = useCallback(async () => {
     setError(null)
-    if (description.trim().length < 3) {
-      setError('Décrivez le produit en quelques mots.')
-      return
-    }
     if (tab === 'photo' && !file) {
       setError('Ajoutez une photo du produit recherché.')
       return
@@ -202,8 +199,83 @@ export default function SourcingRequestModal({
         return
       }
     }
-    if (!currentUser?.id && !phone.trim()) {
-      setError('Numéro de téléphone requis pour vous répondre sous 24h.')
+
+    setSubmitting(true)
+    try {
+      const payload = {
+        source: tab,
+        title: title.trim() || undefined,
+        description: description.trim() || undefined,
+        qty: Math.max(1, Math.floor(qty || 1)),
+        budgetMaxFCFA: budgetMax ? Number(budgetMax) : undefined,
+        deliveryNeededBy: deliveryNeededBy || undefined,
+        externalUrl: tab === 'link' ? externalUrl.trim() : undefined
+      }
+
+      let token = csrfToken || (await fetchCsrfToken())
+
+      const doSearch = async (csrf: string | null): Promise<Response> => {
+        const headers: Record<string, string> = {}
+        if (csrf) headers['X-CSRF-Token'] = csrf
+        if (file) {
+          const form = new FormData()
+          form.append('payload', JSON.stringify(payload))
+          form.append('image', file)
+          return fetch('/api/market/sourcing', {
+            method: 'POST',
+            body: form,
+            credentials: 'include',
+            headers
+          })
+        }
+        return fetch('/api/market/sourcing', {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        })
+      }
+
+      let res = await doSearch(token)
+      if (res.status === 403) {
+        const peek = await res.clone().json().catch(() => ({} as any))
+        if (typeof peek?.error === 'string' && /CSRF/i.test(peek.error)) {
+          const fresh = await fetchCsrfToken()
+          if (fresh) res = await doSearch(fresh)
+        }
+      }
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Échec de la recherche')
+      }
+      if (data.catalogMatch) {
+        setCatalogMatch(data.catalogMatch as CatalogMatch)
+        setPhase('match')
+        return
+      }
+      if (data.needsContact) {
+        setNeedsContact(true)
+        setPhase('contact')
+        return
+      }
+      // Connecté avec phone connu → sourcing créé directement
+      if (data.request) {
+        setResult(data.request as CreatedResult)
+        setPhase('result')
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Échec de la recherche.')
+    } finally {
+      setSubmitting(false)
+    }
+  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, csrfToken, fetchCsrfToken])
+
+  // Phase 2 : créer le sourcing avec contact
+  const handleConfirmSourcing = useCallback(async () => {
+    setError(null)
+    if (!phone.trim()) {
+      setError('Numéro de téléphone requis pour vous répondre sous 24h ouvrées.')
       return
     }
 
@@ -212,17 +284,16 @@ export default function SourcingRequestModal({
       const payload = {
         source: tab,
         title: title.trim() || undefined,
-        description: description.trim(),
+        description: description.trim() || undefined,
         qty: Math.max(1, Math.floor(qty || 1)),
         budgetMaxFCFA: budgetMax ? Number(budgetMax) : undefined,
         deliveryNeededBy: deliveryNeededBy || undefined,
         externalUrl: tab === 'link' ? externalUrl.trim() : undefined,
-        contactPhone: phone.trim() || undefined,
+        contactPhone: phone.trim(),
         contactName: contactName.trim() || undefined,
         contactEmail: email.trim() || undefined
       }
 
-      // Récupérer (ou rafraîchir) le token CSRF avant l'envoi
       let token = csrfToken || (await fetchCsrfToken())
 
       const doSubmit = async (csrf: string | null): Promise<Response> => {
@@ -248,8 +319,6 @@ export default function SourcingRequestModal({
       }
 
       let res = await doSubmit(token)
-
-      // Retry une fois si CSRF expiré (403 avec message CSRF)
       if (res.status === 403) {
         const peek = await res.clone().json().catch(() => ({} as any))
         if (typeof peek?.error === 'string' && /CSRF/i.test(peek.error)) {
@@ -262,17 +331,14 @@ export default function SourcingRequestModal({
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || 'Échec de la soumission')
       }
-      if (data.catalogMatch) {
-        setCatalogMatch(data.catalogMatch as CatalogMatch)
-        return
-      }
       setResult(data.request as CreatedResult)
+      setPhase('result')
     } catch (err: any) {
       setError(err?.message || 'Échec de l\'envoi.')
     } finally {
       setSubmitting(false)
     }
-  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, phone, contactName, email, currentUser, csrfToken, fetchCsrfToken])
+  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, phone, contactName, email, csrfToken, fetchCsrfToken])
 
   if (!isOpen) return null
 
@@ -318,18 +384,67 @@ export default function SourcingRequestModal({
 
           {/* Body */}
           <div className="overflow-y-auto p-6 flex-1">
-            {catalogMatch ? (
+            {phase === 'match' && catalogMatch ? (
               <CatalogMatchView
                 match={catalogMatch}
                 onViewProduct={() => {
                   handleClose()
                   router.push(`/produits/${catalogMatch.id}`)
                 }}
-                onContinueSourcing={() => setCatalogMatch(null)}
+                onContinueSourcing={() => {
+                  setCatalogMatch(null)
+                  setPhase('contact')
+                }}
                 onClose={handleClose}
               />
-            ) : result ? (
+            ) : phase === 'result' && result ? (
               <SuccessView result={result} onClose={handleClose} />
+            ) : phase === 'contact' ? (
+              <>
+                <div className="text-center mb-6">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
+                    <Search className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Produit non trouvé</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Nous recherchons en Chine. Laissez-nous vos coordonnées pour une proposition sous 24h ouvrées.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50/50 dark:bg-violet-900/10 p-4 space-y-3">
+                  <Field label="Téléphone (avec WhatsApp si possible)" required>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+221 77 123 45 67"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                  </Field>
+                  <Field label="Nom (optionnel)">
+                    <input
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      placeholder="Votre nom"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                  </Field>
+                  <Field label="Email (optionnel)">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="vous@email.com"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                  </Field>
+                </div>
+                {error && (
+                  <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 {/* Tabs */}
@@ -366,7 +481,7 @@ export default function SourcingRequestModal({
                       className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      AliExpress, Amazon, Instagram, TikTok Shop, site fournisseur… nous nous occupons du reste.
+                      AliExpress, Amazon, Instagram, TikTok Shop, site fournisseur…
                     </p>
                   </div>
                 )}
@@ -387,7 +502,7 @@ export default function SourcingRequestModal({
                       maxLength={200}
                     />
                   </Field>
-                  <Field label="Description / précisions" required>
+                  <Field label="Description / précisions (optionnel)">
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
@@ -429,49 +544,6 @@ export default function SourcingRequestModal({
                   </Field>
                 </div>
 
-                {/* Contact */}
-                <div className="mt-6 rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50/50 dark:bg-violet-900/10 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Phone className="h-4 w-4 text-violet-600" />
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                      Comment vous joindre {currentUser?.id ? '' : '(sans compte requis)'}
-                    </h4>
-                  </div>
-                  {!currentUser?.id && (
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mb-3">
-                      Pas besoin de créer un compte. Laissez-nous votre numéro et nous vous envoyons la proposition par SMS sous 24h max.
-                    </p>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label="Téléphone (avec WhatsApp si possible)" required={!currentUser?.id}>
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+221 77 123 45 67"
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      />
-                    </Field>
-                    <Field label="Nom (optionnel)">
-                      <input
-                        value={contactName}
-                        onChange={(e) => setContactName(e.target.value)}
-                        placeholder="Votre nom"
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      />
-                    </Field>
-                    <Field label="Email (optionnel)">
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="vous@email.com"
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      />
-                    </Field>
-                  </div>
-                </div>
-
                 {error && (
                   <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -483,15 +555,39 @@ export default function SourcingRequestModal({
           </div>
 
           {/* Footer */}
-          {!result && !catalogMatch && (
+          {phase === 'search' && (
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50 flex items-center justify-between gap-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                Sans engagement — prix livré chez vous, frais inclus
+                Sans engagement — recherche en Chine, logistique sourcing
               </p>
               <button
                 type="button"
-                onClick={handleSubmit}
+                onClick={handleSearch}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl font-semibold text-sm shadow-lg disabled:opacity-50 transition-opacity"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Recherche…
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4" /> Rechercher
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          {phase === 'contact' && (
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50 flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Réponse sous 24h ouvrées
+              </p>
+              <button
+                type="button"
+                onClick={handleConfirmSourcing}
                 disabled={submitting}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl font-semibold text-sm shadow-lg disabled:opacity-50 transition-opacity"
               >
@@ -501,7 +597,7 @@ export default function SourcingRequestModal({
                   </>
                 ) : (
                   <>
-                    <Search className="h-4 w-4" /> Lancer la recherche
+                    <Sparkles className="h-4 w-4" /> Confirmer la demande
                   </>
                 )}
               </button>
