@@ -609,7 +609,7 @@ export default function ProduitsPage() {
                 : undefined
 
               const featuresFromApi = Array.isArray(item.features) ? item.features.filter(Boolean) : []
-              const shippingHighlights = shipping.slice(0, 2).map((opt) => `${opt.label} · ${opt.total.toLocaleString('fr-FR')} ${opt.currency}`)
+              const shippingHighlights = shipping.slice(0, 2).map((opt) => `${opt.label} · ${typeof opt.total === 'number' ? opt.total.toLocaleString('fr-FR') : '—'} ${opt.currency || 'FCFA'}`)
               const availabilityHighlight = item.availability?.label ? [item.availability.label] : []
 
               const features = [...featuresFromApi, ...shippingHighlights, ...availabilityHighlight]

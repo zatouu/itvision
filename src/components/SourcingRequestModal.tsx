@@ -675,7 +675,8 @@ function CatalogMatchView({
   onContinueSourcing: () => void
   onClose: () => void
 }) {
-  const formatPrice = (n: number, currency: string) => {
+  const formatPrice = (n: number | undefined | null, currency: string | undefined | null) => {
+    if (typeof n !== 'number' || Number.isNaN(n)) return 'Prix sur devis'
     return `${n.toLocaleString('fr-FR')} ${currency || 'FCFA'}`
   }
 
