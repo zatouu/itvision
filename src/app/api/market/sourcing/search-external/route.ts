@@ -84,178 +84,213 @@ export async function POST(request: NextRequest) {
     }
     imagePath = localPath
 
-    // === Lancement Playwright ===
-    const browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--window-size=1920,1080',
-      ],
-    })
+    // === Lancement Playwright avec retry et anti-detection ===
+    async function doSearchAttempt(imagePathLocal: string): Promise<{ results: ExternalProductResult[]; blocked: boolean }> {
+      const browser = await chromium.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--window-size=1920,1080',
+          '--disable-blink-features=AutomationControlled',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--disable-site-isolation-trials',
+          '--disable-web-security',
+          '--disable-features=BlockInsecurePrivateNetworkRequests',
+        ],
+      })
 
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1920, height: 1080 },
-      locale: 'zh-CN',
-    })
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1920, height: 1080 },
+        locale: 'zh-CN',
+        timezoneId: 'Asia/Shanghai',
+        permissions: ['notifications'],
+      })
 
-    // Anti-detection
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] })
-    })
-
-    const page = await context.newPage()
-
-    // 1. Aller sur 1688 homepage
-    await page.goto('https://www.1688.com', { waitUntil: 'domcontentloaded', timeout: 15000 })
-    await page.waitForTimeout(1500)
-
-    // 2. Chercher l'input file pour upload d'image (icône caméra)
-    // Plusieurs stratégies car le DOM change
-    let uploaded = false
-    const imageInputSelectors = [
-      'input[type="file"][accept*="image"]',
-      'input[type="file"]',
-      '[class*="upload"] input[type="file"]',
-      '[class*="imageSearch"] input[type="file"]',
-    ]
-
-    for (const sel of imageInputSelectors) {
-      const input = await page.$(sel)
-      if (input) {
-        try {
-          await input.setInputFiles(localPath)
-          uploaded = true
-          break
-        } catch {
-          // continue
+      // Anti-detection renforcée
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
+        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] })
+        Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] })
+        // @ts-ignore
+        window.chrome = { runtime: {} }
+        // @ts-ignore
+        if (window.Notification) {
+          // @ts-ignore
+          window.Notification.permission = 'default'
         }
-      }
-    }
+      })
 
-    // Si pas trouvé directement, chercher le bouton caméra et cliquer
-    if (!uploaded) {
-      const cameraBtnSelectors = [
-        '[class*="camera"]',
-        '[class*="imageSearch"]',
-        '[class*="pic"]',
-        '[title*="图片"]',
-        '[title*="拍照"]',
-        'i[class*="camera"]',
-        'span[class*="camera"]',
+      const page = await context.newPage()
+
+      // 1. Aller sur 1688 homepage
+      await page.goto('https://www.1688.com', { waitUntil: 'domcontentloaded', timeout: 15000 })
+      await page.waitForTimeout(2000)
+
+      // Détection de blocage (captcha, wall, page vide)
+      const pageContent = await page.content()
+      const isBlocked = /captcha|验证码|滑块|安全验证|访问受限|login wall/i.test(pageContent)
+      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) || '')
+      const isEmpty = bodyText.length < 100
+
+      if (isBlocked || isEmpty) {
+        console.warn('[search-external] 1688 semble bloqué ou page vide. blocked=', isBlocked, 'empty=', isEmpty)
+        await browser.close()
+        return { results: [], blocked: true }
+      }
+
+      // 2. Chercher l'input file pour upload d'image
+      let uploaded = false
+      const imageInputSelectors = [
+        'input[type="file"][accept*="image"]',
+        'input[type="file"]',
+        '[class*="upload"] input[type="file"]',
+        '[class*="imageSearch"] input[type="file"]',
       ]
-      for (const sel of cameraBtnSelectors) {
-        try {
-          const btn = await page.$(sel)
-          if (btn) {
-            await btn.click()
-            await page.waitForTimeout(1000)
-            // Chercher l'input file qui aurait apparu
-            const input = await page.$('input[type="file"]')
-            if (input) {
-              await input.setInputFiles(localPath)
-              uploaded = true
-              break
-            }
+
+      for (const sel of imageInputSelectors) {
+        const input = await page.$(sel)
+        if (input) {
+          try {
+            await input.setInputFiles(imagePathLocal)
+            uploaded = true
+            break
+          } catch {
+            // continue
           }
-        } catch {
-          // continue
         }
+      }
+
+      // Chercher le bouton caméra et cliquer
+      if (!uploaded) {
+        const cameraBtnSelectors = [
+          '[class*="camera"]',
+          '[class*="imageSearch"]',
+          '[class*="pic"]',
+          '[title*="图片"]',
+          '[title*="拍照"]',
+          'i[class*="camera"]',
+          'span[class*="camera"]',
+        ]
+        for (const sel of cameraBtnSelectors) {
+          try {
+            const btn = await page.$(sel)
+            if (btn) {
+              await btn.click()
+              await page.waitForTimeout(1500)
+              const input = await page.$('input[type="file"]')
+              if (input) {
+                await input.setInputFiles(imagePathLocal)
+                uploaded = true
+                break
+              }
+            }
+          } catch {
+            // continue
+          }
+        }
+      }
+
+      if (!uploaded) {
+        await browser.close()
+        return { results: [], blocked: false }
+      }
+
+      // 3. Attendre les résultats
+      await page.waitForTimeout(4000)
+
+      // Scroll pour lazy-load
+      await page.evaluate(() => { window.scrollBy(0, 800) })
+      await page.waitForTimeout(2500)
+
+      // 4. Scraper
+      const scraped = await page.evaluate(() => {
+        const out: any[] = []
+        const itemSelectors = [
+          '[class*="offer"]',
+          '[class*="result"]',
+          '[class*="item"]',
+          '.offer-list .item',
+          '[data-offer]',
+          '[class*="product"]',
+        ]
+
+        const items: Element[] = []
+        for (const sel of itemSelectors) {
+          const found = document.querySelectorAll(sel)
+          if (found.length >= 3) {
+            items.push(...Array.from(found))
+            break
+          }
+        }
+
+        for (const item of items.slice(0, 5)) {
+          try {
+            const titleEl =
+              item.querySelector('[class*="title"], [class*="name"], h3, h4, a') ||
+              item.querySelector('a')
+            const title = titleEl?.textContent?.trim() || ''
+            if (!title || title.length < 5) continue
+
+            const imgEl = item.querySelector('img')
+            const img = imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || ''
+
+            const priceEl = item.querySelector('[class*="price"], [class*="Price"]')
+            const priceText = priceEl?.textContent || ''
+            const priceMatch = priceText.match(/(\d+(?:\.\d+)?)/)
+            const price1688 = priceMatch ? parseFloat(priceMatch[1]) : undefined
+
+            const linkEl = item.querySelector('a[href]')
+            let url = linkEl?.getAttribute('href') || ''
+            if (url.startsWith('//')) url = 'https:' + url
+            if (url && !url.startsWith('http')) url = 'https://www.1688.com' + url
+
+            const supplierEl = item.querySelector('[class*="company"], [class*="shop"], [class*="supplier"]')
+            const supplier = supplierEl?.textContent?.trim()
+
+            const moqEl = item.querySelector('[class*="moq"], [class*="min"]')
+            const moqMatch = moqEl?.textContent?.match(/(\d+)/)
+            const minOrder = moqMatch ? parseInt(moqMatch[1]) : undefined
+
+            out.push({ title, price1688, image: img, url, supplier, minOrder, location: '', platform: '1688' })
+          } catch { /* ignore */ }
+        }
+        return out
+      })
+
+      await browser.close()
+      return { results: scraped as ExternalProductResult[], blocked: false }
+    }
+
+    // Retry : 2 tentatives avec délai
+    let attempt = 0
+    let finalResults: ExternalProductResult[] = []
+    let wasBlocked = false
+
+    while (attempt < 2) {
+      attempt++
+      console.log('[search-external] Tentative', attempt, 'sur 2')
+      const { results, blocked } = await doSearchAttempt(localPath!)
+      if (results.length > 0) {
+        finalResults = results
+        break
+      }
+      wasBlocked = blocked
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 3000)) // délai entre tentatives
       }
     }
 
-    if (!uploaded) {
-      await browser.close()
+    if (finalResults.length === 0 && wasBlocked) {
       return NextResponse.json({
         success: false,
-        error: 'Impossible de trouver le champ upload sur 1688 (DOM probablement changé)',
-        code: 'UPLOAD_NOT_FOUND',
-      }, { status: 502 })
+        error: '1688 bloque la connexion (captcha ou restriction IP). L\'équipe sourcing fera une recherche manuelle.',
+        code: 'BLOCKED_BY_1688',
+      }, { status: 503 })
     }
-
-    // 3. Attendre les résultats (max 12s)
-    await page.waitForTimeout(3000)
-
-    // Scroll pour charger les résultats lazy-load
-    await page.evaluate(() => {
-      window.scrollBy(0, 800)
-    })
-    await page.waitForTimeout(2000)
-
-    // 4. Scraper les résultats
-    const results: ExternalProductResult[] = await page.evaluate(() => {
-      const out: ExternalProductResult[] = []
-
-      // Sélecteurs multiples car 1688 change souvent
-      const itemSelectors = [
-        '[class*="offer"]',
-        '[class*="result"]',
-        '[class*="item"]',
-        '.offer-list .item',
-        '[data-offer]',
-        '[class*="product"]',
-      ]
-
-      const items: Element[] = []
-      for (const sel of itemSelectors) {
-        const found = document.querySelectorAll(sel)
-        if (found.length >= 3) {
-          items.push(...Array.from(found))
-          break
-        }
-      }
-
-      for (const item of items.slice(0, 5)) {
-        try {
-          const titleEl =
-            item.querySelector('[class*="title"], [class*="name"], h3, h4, a') ||
-            item.querySelector('a')
-          const title = titleEl?.textContent?.trim() || ''
-          if (!title || title.length < 5) continue
-
-          const imgEl = item.querySelector('img')
-          const img = imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || ''
-
-          const priceEl = item.querySelector('[class*="price"], [class*="Price"]')
-          const priceText = priceEl?.textContent || ''
-          const priceMatch = priceText.match(/(\d+(?:\.\d+)?)/)
-          const price1688 = priceMatch ? parseFloat(priceMatch[1]) : undefined
-
-          const linkEl = item.querySelector('a[href]')
-          let url = linkEl?.getAttribute('href') || ''
-          if (url.startsWith('//')) url = 'https:' + url
-          if (url && !url.startsWith('http')) url = 'https://www.1688.com' + url
-
-          const supplierEl = item.querySelector('[class*="company"], [class*="shop"], [class*="supplier"]')
-          const supplier = supplierEl?.textContent?.trim()
-
-          const moqEl = item.querySelector('[class*="moq"], [class*="min"]')
-          const moqMatch = moqEl?.textContent?.match(/(\d+)/)
-          const minOrder = moqMatch ? parseInt(moqMatch[1]) : undefined
-
-          out.push({
-            title,
-            price1688,
-            image: img,
-            url,
-            supplier,
-            minOrder,
-            location: '',
-            platform: '1688',
-          })
-        } catch {
-          // ignorer item malformé
-        }
-      }
-
-      return out
-    })
-
-    await browser.close()
 
     // Nettoyer images temporaires
     if (imagePath && imagePath.includes('tmp')) {
@@ -263,12 +298,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Normaliser les URLs image
-    const normalized = results
+    const normalized = finalResults
       .map(r => ({
         ...r,
         image: normalize1688ImageUrl(r.image),
       }))
       .filter(r => r.image && r.title.length > 3)
+
+    if (normalized.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Aucun résultat trouvé sur 1688. L\'équipe sourcing fera une recherche manuelle.',
+        code: 'NO_RESULTS',
+      }, { status: 200 })
+    }
 
     return NextResponse.json({
       success: true,
@@ -277,9 +320,6 @@ export async function POST(request: NextRequest) {
         source: '1688',
         count: normalized.length,
         searchedAt: new Date().toISOString(),
-        note: normalized.length === 0
-          ? 'Aucun résultat trouvé sur 1688. L\'équipe sourcing fera une recherche manuelle.'
-          : undefined,
       },
     })
 
