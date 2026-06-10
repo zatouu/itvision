@@ -24,17 +24,6 @@ import path from 'path'
 import fs from 'fs/promises'
 import { existsSync } from 'fs'
 
-// Playwright-extra + stealth pour anti-détection
-let chromiumExtra: any = null
-try {
-  const { chromium: chromiumExtraModule } = require('playwright-extra')
-  const stealth = require('puppeteer-extra-plugin-stealth')
-  chromiumExtraModule.use(stealth())
-  chromiumExtra = chromiumExtraModule
-} catch {
-  // fallback sur chromium standard
-}
-
 interface ExternalProductResult {
   title: string
   price1688?: number
@@ -98,8 +87,7 @@ export async function POST(request: NextRequest) {
 
     // === Lancement Playwright avec retry et anti-detection ===
     async function doSearchAttempt(imagePathLocal: string): Promise<{ results: ExternalProductResult[]; blocked: boolean; error?: string }> {
-      const launcher = chromiumExtra || chromium
-      const browser = await launcher.launch({
+      const browser = await chromium.launch({
         headless: true,
         args: [
           '--no-sandbox',
