@@ -313,13 +313,21 @@ export default function SourcingRequestModal({
       if (data.success && Array.isArray(data.results) && data.results.length > 0) {
         setExternalResults(data.results)
         setPhase('external_results')
-      } else {
-        // Pas de résultats 1688 → fallback contact
-        setExternalResults(null)
-        setPhase('contact')
+        return
       }
+      // Pas de résultats 1688 → fallback contact avec message explicatif
+      setExternalResults(null)
+      setError(
+        data.code === 'BLOCKED_BY_1688'
+          ? '1688 bloque actuellement la recherche automatique. Notre équipe fera la recherche manuellement sous 24h.'
+          : data.code === 'NO_RESULTS'
+            ? 'Aucun résultat trouvé sur 1688 avec cette photo. Notre équipe fera une recherche manuelle.'
+            : 'La recherche automatique sur 1688 a échoué. Notre équipe traitera votre demande manuellement sous 24h.'
+      )
+      setPhase('contact')
     } catch (err: any) {
       console.log('[SearchExternal] échoué:', err.message)
+      setError('La recherche automatique a échoué. Notre équipe traitera votre demande manuellement sous 24h.')
       setPhase('contact')
     }
   }, [description, csrfToken, fetchCsrfToken])

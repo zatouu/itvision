@@ -24,6 +24,17 @@ import path from 'path'
 import fs from 'fs/promises'
 import { existsSync } from 'fs'
 
+// Playwright-extra + stealth pour anti-détection
+let chromiumExtra: any = null
+try {
+  const { chromium: chromiumExtraModule } = require('playwright-extra')
+  const stealth = require('puppeteer-extra-plugin-stealth')
+  chromiumExtraModule.use(stealth())
+  chromiumExtra = chromiumExtraModule
+} catch {
+  // fallback sur chromium standard
+}
+
 interface ExternalProductResult {
   title: string
   price1688?: number
@@ -86,8 +97,9 @@ export async function POST(request: NextRequest) {
     imagePath = localPath
 
     // === Lancement Playwright avec retry et anti-detection ===
-    async function doSearchAttempt(imagePathLocal: string): Promise<{ results: ExternalProductResult[]; blocked: boolean }> {
-      const browser = await chromium.launch({
+    async function doSearchAttempt(imagePathLocal: string): Promise<{ results: ExternalProductResult[]; blocked: boolean; error?: string }> {
+      const launcher = chromiumExtra || chromium
+      const browser = await launcher.launch({
         headless: true,
         args: [
           '--no-sandbox',
@@ -127,143 +139,162 @@ export async function POST(request: NextRequest) {
 
       const page = await context.newPage()
 
-      // 1. Aller sur 1688 homepage
-      await page.goto('https://www.1688.com', { waitUntil: 'domcontentloaded', timeout: 15000 })
-      await page.waitForTimeout(2000)
+      try {
+        // 1. Aller sur 1688 image search directement
+        await page.goto('https://s.1688.com/youyuan/index.htm?tab=imageSearch', { waitUntil: 'domcontentloaded', timeout: 20000 })
+        await page.waitForTimeout(3000)
 
-      // Détection de blocage (captcha, wall, page vide)
-      const pageContent = await page.content()
-      const isBlocked = /captcha|验证码|滑块|安全验证|访问受限|login wall/i.test(pageContent)
-      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) || '')
-      const isEmpty = bodyText.length < 100
+        // Détection de blocage (captcha, wall, page vide)
+        const pageContent = await page.content()
+        const isBlocked = /captcha|验证码|滑块|安全验证|访问受限|login wall|请登录|登录/i.test(pageContent)
+        const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) || '')
+        const isEmpty = bodyText.length < 100
 
-      if (isBlocked || isEmpty) {
-        console.warn('[search-external] 1688 semble bloqué ou page vide. blocked=', isBlocked, 'empty=', isEmpty)
-        await browser.close()
-        return { results: [], blocked: true }
-      }
-
-      // 2. Chercher l'input file pour upload d'image
-      let uploaded = false
-      const imageInputSelectors = [
-        'input[type="file"][accept*="image"]',
-        'input[type="file"]',
-        '[class*="upload"] input[type="file"]',
-        '[class*="imageSearch"] input[type="file"]',
-      ]
-
-      for (const sel of imageInputSelectors) {
-        const input = await page.$(sel)
-        if (input) {
-          try {
-            await input.setInputFiles(imagePathLocal)
-            uploaded = true
-            break
-          } catch {
-            // continue
-          }
+        if (isBlocked || isEmpty) {
+          console.warn('[search-external] 1688 semble bloqué ou page vide. blocked=', isBlocked, 'empty=', isEmpty)
+          await browser.close()
+          return { results: [], blocked: true }
         }
-      }
 
-      // Chercher le bouton caméra et cliquer
-      if (!uploaded) {
-        const cameraBtnSelectors = [
-          '[class*="camera"]',
-          '[class*="imageSearch"]',
-          '[class*="pic"]',
-          '[title*="图片"]',
-          '[title*="拍照"]',
-          'i[class*="camera"]',
-          'span[class*="camera"]',
+        // 2. Chercher l'input file pour upload d'image
+        let uploaded = false
+        const imageInputSelectors = [
+          'input[type="file"][accept*="image"]',
+          'input[type="file"][name*="image"]',
+          'input[type="file"]',
+          '[class*="upload"] input[type="file"]',
+          '[class*="imageSearch"] input[type="file"]',
+          '[class*="search"] input[type="file"]',
         ]
-        for (const sel of cameraBtnSelectors) {
-          try {
-            const btn = await page.$(sel)
-            if (btn) {
-              await btn.click()
-              await page.waitForTimeout(1500)
-              const input = await page.$('input[type="file"]')
-              if (input) {
-                await input.setInputFiles(imagePathLocal)
-                uploaded = true
-                break
-              }
+
+        for (const sel of imageInputSelectors) {
+          const input = await page.$(sel)
+          if (input) {
+            try {
+              await input.setInputFiles(imagePathLocal)
+              uploaded = true
+              console.log('[search-external] Image uploadée via', sel)
+              break
+            } catch (e: any) {
+              console.log('[search-external] Échec upload avec', sel, e.message)
             }
-          } catch {
-            // continue
           }
         }
-      }
 
-      if (!uploaded) {
+        // Chercher le bouton caméra / recherche par image et cliquer
+        if (!uploaded) {
+          const cameraBtnSelectors = [
+            '[class*="camera"]',
+            '[class*="imageSearch"]',
+            '[class*="image-search"]',
+            '[class*="pic"]',
+            '[title*="图片"]',
+            '[title*="拍照"]',
+            '[title*="以图搜货"]',
+            'i[class*="camera"]',
+            'span[class*="camera"]',
+            'a[class*="image"]',
+            'div[class*="upload"]',
+          ]
+          for (const sel of cameraBtnSelectors) {
+            try {
+              const btn = await page.$(sel)
+              if (btn) {
+                await btn.click()
+                await page.waitForTimeout(2000)
+                const input = await page.$('input[type="file"]')
+                if (input) {
+                  await input.setInputFiles(imagePathLocal)
+                  uploaded = true
+                  console.log('[search-external] Image uploadée après clic sur', sel)
+                  break
+                }
+              }
+            } catch (e: any) {
+              console.log('[search-external] Échec clic avec', sel, e.message)
+            }
+          }
+        }
+
+        if (!uploaded) {
+          console.warn('[search-external] Impossible de trouver le champ d\'upload sur 1688')
+          await browser.close()
+          return { results: [], blocked: false, error: 'UPLOAD_NOT_FOUND' }
+        }
+
+        // 3. Attendre les résultats (1688 met parfois 5-10s à charger)
+        await page.waitForTimeout(6000)
+
+        // Scroll pour lazy-load
+        await page.evaluate(() => { window.scrollBy(0, 800) })
+        await page.waitForTimeout(3000)
+
+        // 4. Scraper — sélecteurs enrichis
+        const scraped = await page.evaluate(() => {
+          const out: any[] = []
+          const itemSelectors = [
+            '[class*="offer"]',
+            '[class*="result"]',
+            '[class*="item"]',
+            '[class*="product"]',
+            '.offer-list .item',
+            '.sm-offer-item',
+            '[data-offer]',
+            '[data-spm*="offer"]',
+            '.common-offer',
+            '.coms-layout-item',
+          ]
+
+          const items: Element[] = []
+          for (const sel of itemSelectors) {
+            const found = document.querySelectorAll(sel)
+            if (found.length >= 2) {
+              items.push(...Array.from(found))
+              break
+            }
+          }
+
+          for (const item of items.slice(0, 5)) {
+            try {
+              const titleEl =
+                item.querySelector('[class*="title"], [class*="name"], [class*="Title"], h3, h4, a') ||
+                item.querySelector('a')
+              const title = titleEl?.textContent?.trim() || ''
+              if (!title || title.length < 3) continue
+
+              const imgEl = item.querySelector('img')
+              const img = imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || ''
+
+              const priceEl = item.querySelector('[class*="price"], [class*="Price"], [class*="cost"]')
+              const priceText = priceEl?.textContent || ''
+              const priceMatch = priceText.match(/(\d+(?:\.\d+)?)/)
+              const price1688 = priceMatch ? parseFloat(priceMatch[1]) : undefined
+
+              const linkEl = item.querySelector('a[href]')
+              let url = linkEl?.getAttribute('href') || ''
+              if (url.startsWith('//')) url = 'https:' + url
+              if (url && !url.startsWith('http')) url = 'https://www.1688.com' + url
+
+              const supplierEl = item.querySelector('[class*="company"], [class*="shop"], [class*="supplier"], [class*="Seller"]')
+              const supplier = supplierEl?.textContent?.trim()
+
+              const moqEl = item.querySelector('[class*="moq"], [class*="min"], [class*="order"]')
+              const moqMatch = moqEl?.textContent?.match(/(\d+)/)
+              const minOrder = moqMatch ? parseInt(moqMatch[1]) : undefined
+
+              out.push({ title, price1688, image: img, url, supplier, minOrder, location: '', platform: '1688' })
+            } catch { /* ignore */ }
+          }
+          return out
+        })
+
         await browser.close()
-        return { results: [], blocked: false }
+        return { results: scraped as ExternalProductResult[], blocked: false }
+      } catch (err: any) {
+        await browser.close().catch(() => {})
+        console.error('[search-external] Erreur pendant le scraping:', err.message)
+        return { results: [], blocked: false, error: err.message }
       }
-
-      // 3. Attendre les résultats
-      await page.waitForTimeout(4000)
-
-      // Scroll pour lazy-load
-      await page.evaluate(() => { window.scrollBy(0, 800) })
-      await page.waitForTimeout(2500)
-
-      // 4. Scraper
-      const scraped = await page.evaluate(() => {
-        const out: any[] = []
-        const itemSelectors = [
-          '[class*="offer"]',
-          '[class*="result"]',
-          '[class*="item"]',
-          '.offer-list .item',
-          '[data-offer]',
-          '[class*="product"]',
-        ]
-
-        const items: Element[] = []
-        for (const sel of itemSelectors) {
-          const found = document.querySelectorAll(sel)
-          if (found.length >= 3) {
-            items.push(...Array.from(found))
-            break
-          }
-        }
-
-        for (const item of items.slice(0, 5)) {
-          try {
-            const titleEl =
-              item.querySelector('[class*="title"], [class*="name"], h3, h4, a') ||
-              item.querySelector('a')
-            const title = titleEl?.textContent?.trim() || ''
-            if (!title || title.length < 5) continue
-
-            const imgEl = item.querySelector('img')
-            const img = imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || ''
-
-            const priceEl = item.querySelector('[class*="price"], [class*="Price"]')
-            const priceText = priceEl?.textContent || ''
-            const priceMatch = priceText.match(/(\d+(?:\.\d+)?)/)
-            const price1688 = priceMatch ? parseFloat(priceMatch[1]) : undefined
-
-            const linkEl = item.querySelector('a[href]')
-            let url = linkEl?.getAttribute('href') || ''
-            if (url.startsWith('//')) url = 'https:' + url
-            if (url && !url.startsWith('http')) url = 'https://www.1688.com' + url
-
-            const supplierEl = item.querySelector('[class*="company"], [class*="shop"], [class*="supplier"]')
-            const supplier = supplierEl?.textContent?.trim()
-
-            const moqEl = item.querySelector('[class*="moq"], [class*="min"]')
-            const moqMatch = moqEl?.textContent?.match(/(\d+)/)
-            const minOrder = moqMatch ? parseInt(moqMatch[1]) : undefined
-
-            out.push({ title, price1688, image: img, url, supplier, minOrder, location: '', platform: '1688' })
-          } catch { /* ignore */ }
-        }
-        return out
-      })
-
-      await browser.close()
-      return { results: scraped as ExternalProductResult[], blocked: false }
     }
 
     // Retry : 2 tentatives avec délai
