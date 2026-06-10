@@ -350,7 +350,8 @@ export default function SourcingRequestModal({
         externalUrl: tab === 'link' ? externalUrl.trim() : undefined,
         contactPhone: phone.trim(),
         contactName: contactName.trim() || undefined,
-        contactEmail: email.trim() || undefined
+        contactEmail: email.trim() || undefined,
+        externalSearchResults: externalResults || undefined
       }
 
       let token = csrfToken || (await fetchCsrfToken())

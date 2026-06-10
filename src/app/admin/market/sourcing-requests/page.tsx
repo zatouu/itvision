@@ -87,6 +87,14 @@ interface SourcingRow {
   proposalSentAt?: string
   clientDecision?: 'accepted' | 'rejected'
   publicToken: string
+  externalSearchResults?: Array<{
+    title: string
+    price1688?: number
+    image: string
+    url: string
+    supplier?: string
+    minOrder?: number
+  }>
 }
 
 const STATUS_OPTIONS: Array<{ value: 'all' | 'pending' | Status; label: string }> = [
@@ -582,6 +590,39 @@ function DetailPanel({
               </a>
             </Section>
           )}
+          {/* Résultats recherche externe 1688 */}
+          {request.externalSearchResults && request.externalSearchResults.length > 0 && (
+            <Section title={`Résultats 1688 (${request.externalSearchResults.length})`}>
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {request.externalSearchResults.map((r, i) => (
+                  <div
+                    key={i}
+                    className="flex gap-2 p-2 rounded-lg border border-gray-100 bg-white"
+                  >
+                    <div className="w-14 h-14 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                      <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{r.title}</p>
+                      <p className="text-xs text-violet-600">
+                        {r.price1688 ? `¥${r.price1688.toLocaleString('fr-FR')}` : 'Prix N/A'}
+                      </p>
+                      {r.supplier && <p className="text-[11px] text-gray-500 truncate">{r.supplier}</p>}
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 text-[11px] text-violet-600 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Voir sur 1688
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
           <Section title="Notes admin (privées)">
             <textarea
               value={notes}

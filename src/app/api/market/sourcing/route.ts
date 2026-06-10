@@ -273,6 +273,19 @@ export async function POST(request: NextRequest) {
     budgetMaxFCFA,
     deliveryNeededBy,
     categoryHint: payload.categoryHint?.toString().trim().slice(0, 100) || undefined,
+    externalSearchResults: Array.isArray(payload.externalSearchResults)
+      ? payload.externalSearchResults.map((r: any) => ({
+          title: String(r.title || '').trim().slice(0, 300),
+          price1688: typeof r.price1688 === 'number' ? r.price1688 : undefined,
+          image: String(r.image || '').trim().slice(0, 1000),
+          url: String(r.url || '').trim().slice(0, 1000),
+          supplier: r.supplier ? String(r.supplier).trim().slice(0, 200) : undefined,
+          minOrder: typeof r.minOrder === 'number' ? r.minOrder : undefined,
+          location: r.location ? String(r.location).trim().slice(0, 100) : undefined,
+          platform: '1688',
+          searchedAt: new Date()
+        })).filter((r: any) => r.title && r.url)
+      : undefined,
 
     status: 'new',
     slaDueAt,

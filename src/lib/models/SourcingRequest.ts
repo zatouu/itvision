@@ -103,6 +103,19 @@ export interface ISourcingRequest extends Document {
     matchedAt: Date
   }>
 
+  // ── Résultats recherche externe 1688 (bridge) ───────────────────────────────
+  externalSearchResults?: Array<{
+    title: string
+    price1688?: number
+    image: string
+    url: string
+    supplier?: string
+    minOrder?: number
+    location?: string
+    platform: '1688'
+    searchedAt: Date
+  }>
+
   // ── Proposition finale ─────────────────────────────────────────────────────
   proposal?: SourcingProposal
   proposalSentAt?: Date
@@ -186,6 +199,21 @@ const CatalogMatchSchema = new Schema(
   { _id: false }
 )
 
+const ExternalSearchResultSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    price1688: { type: Number, min: 0 },
+    image: { type: String, required: true, trim: true },
+    url: { type: String, required: true, trim: true },
+    supplier: { type: String, trim: true },
+    minOrder: { type: Number, min: 0 },
+    location: { type: String, trim: true },
+    platform: { type: String, default: '1688', enum: ['1688'] },
+    searchedAt: { type: Date, default: Date.now }
+  },
+  { _id: false }
+)
+
 const SourcingRequestSchema = new Schema<ISourcingRequest>(
   {
     userId: { type: String, index: true, sparse: true },
@@ -228,6 +256,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     adminNotes: { type: String, trim: true, maxlength: 5000 },
 
     catalogMatches: { type: [CatalogMatchSchema], default: [] },
+    externalSearchResults: { type: [ExternalSearchResultSchema], default: undefined },
 
     proposal: { type: ProposalSchema, default: undefined },
     proposalSentAt: { type: Date },
