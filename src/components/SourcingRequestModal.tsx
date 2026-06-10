@@ -22,7 +22,11 @@ import {
   AlertCircle,
   Sparkles,
   Clock,
-  Search
+  Search,
+  Trophy,
+  Star,
+  Zap,
+  Globe
 } from 'lucide-react'
 
 type Tab = 'photo' | 'link' | 'text'
@@ -415,20 +419,22 @@ export default function SourcingRequestModal({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+          className="w-full max-w-3xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-violet-50 to-emerald-50 dark:from-gray-950 dark:to-gray-900">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-gray-950 dark:to-gray-900">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-xl">
-                <Search className="h-5 w-5 text-violet-600" />
+              <div className="p-2.5 bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/20 rounded-xl">
+                <Sparkles className="h-5 w-5 text-violet-600" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Trouvez-moi ce produit</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-300 flex items-center gap-1 mt-0.5">
-                  <Clock className="h-3 w-3" />
-                  Réponse personnalisée sous 24h ouvrées
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  Trouvez-moi ce produit
+                  <Sparkles className="h-4 w-4 text-violet-400" />
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                  Envoyez une photo, on le <span className="text-violet-600 font-semibold">sourcer en Chine</span> sous 24h
                 </p>
               </div>
             </div>
@@ -535,111 +541,119 @@ export default function SourcingRequestModal({
                 )}
               </>
             ) : (
-              <>
-                {/* Tabs */}
-                <div className="grid grid-cols-3 gap-2 mb-5">
-                  <TabButton active={tab === 'photo'} icon={Camera} label="Photo" onClick={() => setTab('photo')} />
-                  <TabButton active={tab === 'link'} icon={LinkIcon} label="Lien" onClick={() => setTab('link')} />
-                  <TabButton active={tab === 'text'} icon={FileText} label="Description" onClick={() => setTab('text')} />
-                </div>
+              <div className="grid lg:grid-cols-[1fr_280px] gap-6">
+                {/* Colonne gauche — formulaire */}
+                <div>
+                  {/* Tabs */}
+                  <div className="grid grid-cols-3 gap-2 mb-5">
+                    <TabButton active={tab === 'photo'} icon={Camera} label="Photo" onClick={() => setTab('photo')} />
+                    <TabButton active={tab === 'link'} icon={LinkIcon} label="Lien" onClick={() => setTab('link')} />
+                    <TabButton active={tab === 'text'} icon={FileText} label="Description" onClick={() => setTab('text')} />
+                  </div>
 
-                {/* Tab content */}
-                {tab === 'photo' && (
-                  <PhotoTab
-                    file={file}
-                    preview={filePreview}
-                    fileInputRef={fileInputRef}
-                    onFile={handleFileSelect}
-                    onClear={() => {
-                      setFile(null)
-                      setFilePreview(null)
-                      if (fileInputRef.current) fileInputRef.current.value = ''
-                    }}
-                  />
-                )}
-                {tab === 'link' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                      Lien du produit
-                    </label>
-                    <input
-                      type="url"
-                      value={externalUrl}
-                      onChange={(e) => setExternalUrl(e.target.value)}
-                      placeholder="https://www.aliexpress.com/item/..."
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  {/* Tab content */}
+                  {tab === 'photo' && (
+                    <PhotoTab
+                      file={file}
+                      preview={filePreview}
+                      fileInputRef={fileInputRef}
+                      onFile={handleFileSelect}
+                      onClear={() => {
+                        setFile(null)
+                        setFilePreview(null)
+                        if (fileInputRef.current) fileInputRef.current.value = ''
+                      }}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      AliExpress, Amazon, Instagram, TikTok Shop, site fournisseur…
+                  )}
+                  {tab === 'link' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Lien du produit
+                      </label>
+                      <input
+                        type="url"
+                        value={externalUrl}
+                        onChange={(e) => setExternalUrl(e.target.value)}
+                        placeholder="https://www.aliexpress.com/item/..."
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        AliExpress, Amazon, Instagram, TikTok Shop, site fournisseur…
+                      </p>
+                    </div>
+                  )}
+                  {tab === 'text' && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Décrivez simplement votre besoin ci-dessous, nous trouverons le produit qui correspond.
                     </p>
-                  </div>
-                )}
-                {tab === 'text' && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Décrivez simplement votre besoin ci-dessous, nous trouverons le produit qui correspond.
-                  </p>
-                )}
+                  )}
 
-                {/* Champs communs */}
-                <div className="mt-5 space-y-4">
-                  <Field label="Nom court du produit (optionnel)">
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="ex: Perceuse 18V sans fil"
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      maxLength={200}
-                    />
-                  </Field>
-                  <Field label="Description / précisions (optionnel)">
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={3}
-                      placeholder="Marque souhaitée, taille, couleur, usage prévu, alternatives acceptées…"
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
-                      maxLength={4000}
-                    />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Quantité">
+                  {/* Champs communs */}
+                  <div className="mt-5 space-y-4">
+                    <Field label="Nom court du produit (optionnel)">
                       <input
-                        type="number"
-                        min={1}
-                        value={qty}
-                        onChange={(e) => setQty(Number(e.target.value) || 1)}
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="ex: Perceuse 18V sans fil"
                         className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        maxLength={200}
                       />
                     </Field>
-                    <Field label="Budget max (FCFA, optionnel)">
+                    <Field label="Description / précisions (optionnel)">
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={3}
+                        placeholder="Marque souhaitée, taille, couleur, usage prévu, alternatives acceptées…"
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                        maxLength={4000}
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Quantité">
+                        <input
+                          type="number"
+                          min={1}
+                          value={qty}
+                          onChange={(e) => setQty(Number(e.target.value) || 1)}
+                          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        />
+                      </Field>
+                      <Field label="Budget max (FCFA, optionnel)">
+                        <input
+                          type="number"
+                          min={0}
+                          value={budgetMax}
+                          onChange={(e) => setBudgetMax(e.target.value)}
+                          placeholder="ex: 50000"
+                          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Date limite souhaitée (optionnel)">
                       <input
-                        type="number"
-                        min={0}
-                        value={budgetMax}
-                        onChange={(e) => setBudgetMax(e.target.value)}
-                        placeholder="ex: 50000"
+                        type="date"
+                        value={deliveryNeededBy}
+                        onChange={(e) => setDeliveryNeededBy(e.target.value)}
+                        min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                         className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                       />
                     </Field>
                   </div>
-                  <Field label="Date limite souhaitée (optionnel)">
-                    <input
-                      type="date"
-                      value={deliveryNeededBy}
-                      onChange={(e) => setDeliveryNeededBy(e.target.value)}
-                      min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    />
-                  </Field>
+
+                  {error && (
+                    <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                    </div>
+                  )}
                 </div>
 
-                {error && (
-                  <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-                  </div>
-                )}
-              </>
+                {/* Colonne droite — Comment ça marche ? */}
+                <div className="hidden lg:block">
+                  <HowItWorksSteps />
+                </div>
+              </div>
             )}
           </div>
 
@@ -662,27 +676,30 @@ export default function SourcingRequestModal({
             </div>
           )}
           {phase === 'search' && (
-            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                Sans engagement — recherche en Chine, logistique sourcing
-              </p>
-              <button
-                type="button"
-                onClick={handleSearch}
-                disabled={submitting}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl font-semibold text-sm shadow-lg disabled:opacity-50 transition-opacity"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Recherche…
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4" /> Rechercher
-                  </>
-                )}
-              </button>
+            <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50">
+              <SocialProofBar />
+              <div className="px-6 py-4 flex items-center justify-between gap-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  Sans engagement — recherche en Chine, logistique sourcing
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl font-semibold text-sm shadow-lg disabled:opacity-50 transition-opacity"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Recherche…
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4" /> Rechercher
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
           {phase === 'contact' && (
@@ -792,10 +809,10 @@ function PhotoTab({
             const f = e.dataTransfer.files?.[0]
             if (f) onFile(f)
           }}
-          className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+          className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer bg-gradient-to-b from-violet-50/50 to-purple-50/30 dark:from-violet-900/10 dark:to-purple-900/5 ${
             drag
               ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20'
-              : 'border-gray-300 dark:border-gray-700 hover:border-violet-400 hover:bg-gray-50 dark:hover:bg-gray-800/40'
+              : 'border-violet-300 dark:border-violet-800 hover:border-violet-400'
           }`}
         >
           <input
@@ -808,18 +825,32 @@ function PhotoTab({
             }}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
-          <div className="flex flex-col items-center gap-3">
-            <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
-              <Upload className="h-6 w-6 text-violet-600" />
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/20 flex items-center justify-center">
+                <Camera className="h-10 w-10 text-violet-500" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-violet-500 rounded-full flex items-center justify-center">
+                <Sparkles className="h-3 w-3 text-white" />
+              </div>
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Glissez une photo ici
+              <p className="text-base font-semibold text-gray-900 dark:text-white">
+                Glissez une photo ici ou cliquez pour uploader
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                ou <span className="text-violet-600 font-medium">cliquez pour parcourir</span> — JPG/PNG/WebP, max 8 Mo
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Formats acceptés : JPG, PNG, WebP · Max 10MB
               </p>
             </div>
+            <button
+              type="button"
+              className="pointer-events-none inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-violet-200/50"
+            >
+              <Camera className="h-4 w-4" /> Choisir une photo
+            </button>
+            <p className="text-xs text-violet-600 font-medium">
+              Ou prendre une photo avec ma caméra
+            </p>
           </div>
         </div>
       )}
@@ -965,6 +996,78 @@ function CatalogMatchView({
         </button>
       </div>
     </motion.div>
+  )
+}
+
+// ─── Timeline "Comment ça marche ?" ─────────────────────────────────────────
+
+function HowItWorksSteps() {
+  const steps = [
+    { num: 1, icon: Camera, title: 'Envoyez votre photo', desc: "Capture d'écran, photo produit, croquis…" },
+    { num: 2, icon: Search, title: 'Recherche intelligente', desc: 'Notre IA compare avec 10 000+ références' },
+    { num: 3, icon: CheckCircle2, title: 'Résultats en 5 secondes', desc: 'Score de correspondance affiché' },
+    { num: 4, icon: Globe, title: 'Pas trouvé ? On le source !', desc: 'Devis personnalisé en 24h depuis la Chine' },
+  ]
+  return (
+    <div className="sticky top-0">
+      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-violet-500" />
+        Comment ça marche ?
+      </h4>
+      <div className="space-y-3 relative">
+        {/* Ligne verticale connectrice */}
+        <div className="absolute left-[19px] top-6 bottom-6 w-px bg-violet-100 dark:bg-violet-900/30" />
+        {steps.map((s, i) => {
+          const I = s.icon
+          return (
+            <div key={i} className="flex gap-3 relative">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/10 border border-violet-100 dark:border-violet-900/30 flex items-center justify-center z-10">
+                <span className="text-xs font-bold text-violet-600 dark:text-violet-400">{s.num}</span>
+              </div>
+              <div className="flex-1 min-w-0 pt-1">
+                <div className="flex items-center gap-2">
+                  <I className="h-3.5 w-3.5 text-violet-500" />
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.title}</p>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{s.desc}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Barre social proof ─────────────────────────────────────────────────────
+
+function SocialProofBar() {
+  return (
+    <div className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center gap-4 sm:gap-8 flex-wrap text-white">
+      <div className="flex items-center gap-2">
+        <Trophy className="h-4 w-4 text-yellow-300" />
+        <span className="text-sm font-bold">1200+</span>
+        <span className="text-xs text-violet-200">produits trouvés cette semaine</span>
+      </div>
+      <div className="hidden sm:block w-px h-4 bg-white/20" />
+      <div className="flex items-center gap-1.5">
+        <Star className="h-4 w-4 text-yellow-300" />
+        <span className="text-sm font-bold">95%</span>
+        <span className="text-xs text-violet-200">de matchs précis</span>
+      </div>
+      <div className="hidden sm:block w-px h-4 bg-white/20" />
+      <div className="flex items-center gap-1.5">
+        <Clock className="h-4 w-4 text-violet-200" />
+        <span className="text-sm font-bold">24h</span>
+        <span className="text-xs text-violet-200">délai sourcing</span>
+      </div>
+      <div className="hidden sm:block w-px h-4 bg-white/20" />
+      <div className="flex items-center gap-1.5">
+        <Zap className="h-4 w-4 text-violet-200" />
+        <span className="text-sm font-bold">1200+</span>
+        <span className="text-xs text-violet-200">produits trouvés</span>
+      </div>
+    </div>
   )
 }
 

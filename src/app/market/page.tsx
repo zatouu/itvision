@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import {
   ShoppingBag, Package, Users, TrendingDown, ArrowRight,
   Shield, Truck, Clock, Headphones, Sparkles, Star,
@@ -41,97 +42,146 @@ export default function MarketHomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Hero */}
-      <section className="relative overflow-hidden px-4 py-16 sm:py-24 lg:py-32">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-green-300/30 blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-violet-300/30 blur-3xl" />
+      <section className="relative overflow-hidden px-4 pt-16 pb-10 sm:pt-24 sm:pb-14 lg:pt-32 lg:pb-20">
+        <div className="absolute inset-0 opacity-40 pointer-events-none">
+          <div className="absolute -right-32 -top-32 h-[500px] w-[500px] rounded-full bg-emerald-300/20 blur-[100px]" />
+          <div className="absolute -bottom-32 -left-32 h-[400px] w-[400px] rounded-full bg-violet-300/20 blur-[100px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-blue-200/10 blur-[80px]" />
         </div>
-        <div className="relative mx-auto max-w-4xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-900/40 dark:text-green-300">
+        <div className="relative mx-auto max-w-5xl text-center">
+          <motion.span
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-300"
+          >
             <Sparkles className="h-3 w-3" />
             Marketplace IT Vision Plus
-          </span>
-          <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl">
-            Import direct <span className="text-green-600">Chine</span> — Livraison <span className="text-violet-600">Sénégal</span>
-          </h1>
-          <p className="mt-4 text-base text-gray-600 dark:text-gray-300 sm:text-lg">
+          </motion.span>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mt-6 text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-6xl leading-[1.1]"
+          >
+            Import direct <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-green-600">Chine</span>{' '}
+            — Livraison <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-purple-600">Sénégal</span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-4 text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+          >
             Caméras IP, alarmes, contrôle d'accès, domotique, réseau… Commandez seul ou en groupe pour réduire vos coûts.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/produits"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-600 px-6 py-3 text-sm font-bold text-white shadow-lg hover:opacity-90 transition-opacity"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Voir le catalogue
+          </motion.p>
+
+          {/* 3 Cartes d'entrée */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-10 grid gap-4 sm:grid-cols-3"
+          >
+            {/* Carte Catalogue */}
+            <Link href="/produits" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-left shadow-lg shadow-emerald-200/50 hover:shadow-xl hover:shadow-emerald-300/50 transition-all hover:-translate-y-1">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
+              <div className="relative">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <ShoppingBag className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Voir le catalogue</h3>
+                <p className="mt-1 text-sm text-emerald-100">24 produits en stock</p>
+                <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-white">
+                  Parcourir <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
             </Link>
-            <Link
-              href="/achats-groupes"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700 transition-colors"
-            >
-              <Users className="h-4 w-4" />
-              Achats groupés
-            </Link>
-            <ImageSearchButton onClick={() => setShowImageSearch(true)} />
+
+            {/* Carte Sourcing */}
             <button
               type="button"
               onClick={() => setShowSourcing(true)}
-              className="group inline-flex items-center gap-2 rounded-xl border-2 border-violet-500 bg-violet-50 px-5 py-3 text-sm font-bold text-violet-700 shadow-sm hover:bg-violet-100 hover:shadow-md dark:border-violet-600 dark:bg-violet-900/30 dark:text-violet-200 dark:hover:bg-violet-900/50 transition-all"
-              title="Pas dans notre catalogue ? Notre équipe vous trouve le produit en 24h max"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 p-6 text-left shadow-lg shadow-violet-200/50 hover:shadow-xl hover:shadow-violet-300/50 transition-all hover:-translate-y-1 text-left"
             >
-              <Search className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              Trouvez-moi ce produit
-              <span className="hidden md:inline-flex items-center gap-1 rounded-full bg-violet-200/80 dark:bg-violet-800/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
-                <Clock className="h-3 w-3" /> 24h max
-              </span>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
+              <div className="relative">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Camera className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  Trouvez-moi ce produit
+                  <Sparkles className="h-4 w-4 text-yellow-300" />
+                </h3>
+                <p className="mt-1 text-sm text-violet-100">Envoyez une photo, on le trouve en Chine</p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-xs font-bold text-white">
+                  <Clock className="h-3 w-3" /> 24H MAX
+                </div>
+              </div>
             </button>
-          </div>
+
+            {/* Carte Achats Groupés */}
+            <Link href="/achats-groupes" className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 text-left shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-100/50 dark:bg-violet-900/20 rounded-full -mr-10 -mt-10 blur-2xl" />
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-violet-100 to-purple-50 dark:from-violet-900/30 dark:to-purple-900/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Users className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Achats groupés</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Économisez -30%</p>
+                <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-violet-600 dark:text-violet-400">
+                  Découvrir <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+
           {imageSearchIds.length > 0 && (
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg text-xs text-green-700 dark:text-green-300">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg text-xs text-emerald-700 dark:text-emerald-300"
+            >
               <Sparkles className="h-3 w-3" />
               {imageSearchIds.length} produit similaire trouvé
               <button
                 onClick={() => setImageSearchIds([])}
-                className="ml-1 text-green-600 dark:text-green-400 hover:text-green-800"
+                className="ml-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-800"
               >
                 Effacer
               </button>
-            </div>
+            </motion.div>
           )}
         </div>
       </section>
 
-      {/* Cartes features style page produits */}
-      <section className="mx-auto max-w-6xl px-4 pb-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+      {/* Badges confiance */}
+      <section className="mx-auto max-w-5xl px-4 pb-10">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="flex flex-wrap items-center justify-center gap-6 sm:gap-10"
+        >
           {[
-            { icon: Package, title: 'Import Direct', desc: 'Chine → Dakar sans intermédiaire', color: 'green' },
-            { icon: Star, title: 'Marques Leaders', desc: 'Hikvision, Dahua, Uniview', color: 'blue' },
-            { icon: Clock, title: 'Express 3 Jours', desc: 'Ou maritime économique 60j', color: 'orange' },
-            { icon: Shield, title: 'Garantie & SAV', desc: 'Installation Dakar incluse', color: 'purple' },
-          ].map((f, i) => {
-            const I = f.icon
-            const colorMap: Record<string, { bg: string; icon: string; border: string; darkBorder: string }> = {
-              green: { bg: 'from-green-100 to-green-50', icon: 'text-green-600', border: 'hover:border-green-200', darkBorder: 'dark:hover:border-green-500/50' },
-              blue: { bg: 'from-blue-100 to-blue-50', icon: 'text-blue-600', border: 'hover:border-blue-200', darkBorder: 'dark:hover:border-blue-500/50' },
-              orange: { bg: 'from-orange-100 to-orange-50', icon: 'text-orange-600', border: 'hover:border-orange-200', darkBorder: 'dark:hover:border-orange-500/50' },
-              purple: { bg: 'from-purple-100 to-purple-50', icon: 'text-purple-600', border: 'hover:border-purple-200', darkBorder: 'dark:hover:border-purple-500/50' },
-            }
-            const c = colorMap[f.color]
+            { icon: Package, label: 'Import Direct', sub: 'Direct usine, meilleurs prix' },
+            { icon: Star, label: 'Marques Leaders', sub: 'Hikvision, Dahua' },
+            { icon: Clock, label: 'Express 3 Jours', sub: 'Livraison rapide Dakar' },
+            { icon: Shield, label: 'Garantie & SAV', sub: 'Support après-vente réactif' },
+          ].map((item, i) => {
+            const I = item.icon
             return (
-              <div
-                key={i}
-                className={`group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg ${c.border} ${c.darkBorder} transition-all duration-300`}
-              >
-                <div className={`w-12 h-12 bg-gradient-to-br ${c.bg} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <I className={`h-6 w-6 ${c.icon}`} />
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <I className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                 </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-1 text-sm">{f.title}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{f.desc}</p>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{item.sub}</p>
+                </div>
               </div>
             )
           })}
-        </div>
+        </motion.div>
       </section>
 
       {/* Bannière Achats Groupés */}

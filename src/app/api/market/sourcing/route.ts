@@ -63,6 +63,15 @@ type CreatePayload = {
   contactPhone?: string
   contactName?: string
   contactEmail?: string
+  externalSearchResults?: Array<{
+    title: string
+    price1688?: number
+    image: string
+    url: string
+    supplier?: string
+    minOrder?: number
+    location?: string
+  }>
 }
 
 function isValidUrl(raw: string): boolean {
