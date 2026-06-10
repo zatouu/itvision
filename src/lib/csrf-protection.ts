@@ -49,7 +49,8 @@ export function csrfMiddleware(request: NextRequest): Response | null {
     '/api/analytics/track',
     '/api/webhook',
     '/api/csrf',
-    '/api/upload' // Upload de fichiers (FormData, pas JSON)
+    '/api/upload', // Upload de fichiers (FormData, pas JSON)
+    '/api/market/sourcing/search-external', // Bridge recherche 1688 (read-only, pas de mutation)
   ]
 
   if (excludedPaths.some(path => pathname.includes(path) || pathname.startsWith(path))) {

@@ -290,11 +290,19 @@ export default function SourcingRequestModal({
 
   // Recherche externe 1688 par image
   const handleSearchExternal = useCallback(async (imageUrl: string) => {
+    if (!imageUrl?.trim()) {
+      console.warn('[handleSearchExternal] imageUrl vide, skip')
+      setPhase('contact')
+      return
+    }
     setError(null)
     try {
+      const token = csrfToken || (await fetchCsrfToken())
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['X-CSRF-Token'] = token
       const res = await fetch('/api/market/sourcing/search-external', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ imageUrl, description: description.trim() || undefined })
       })
       const data = await res.json().catch(() => ({}))
@@ -310,7 +318,7 @@ export default function SourcingRequestModal({
       console.log('[SearchExternal] échoué:', err.message)
       setPhase('contact')
     }
-  }, [description])
+  }, [description, csrfToken, fetchCsrfToken])
 
   // Auto-lancer la recherche externe quand on passe en phase searching_external
   useEffect(() => {

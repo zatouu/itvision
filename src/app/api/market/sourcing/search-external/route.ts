@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const imageUrl = body.imageUrl?.trim()
     if (!imageUrl) {
+      console.warn('[search-external] 400 — imageUrl manquant. Body:', JSON.stringify(body))
       return NextResponse.json({ success: false, error: 'imageUrl requis' }, { status: 400 })
     }
 
