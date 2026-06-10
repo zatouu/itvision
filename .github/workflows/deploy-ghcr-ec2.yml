@@ -2,7 +2,7 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ main, cursor/*, deploy/* ]
+    branches: [ main, cursor/*, deploy/*, rel/ui-refresh ]
   workflow_dispatch:
 
 concurrency:
