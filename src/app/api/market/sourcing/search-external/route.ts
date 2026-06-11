@@ -23,6 +23,7 @@ import { chromium } from 'playwright'
 import path from 'path'
 import fs from 'fs/promises'
 import { existsSync } from 'fs'
+import { ExternalSearchLog } from '@/lib/models/ExternalSearchLog'
 
 interface ExternalProductResult {
   title: string
@@ -46,10 +47,16 @@ function normalize1688ImageUrl(src: string): string {
 
 export async function POST(request: NextRequest) {
   let imagePath: string | null = null
+  const startTime = Date.now()
+  const ip = request.headers.get('x-forwarded-for') || 'unknown'
+  let body: any = {}
+  let imageUrl = ''
+  let description = ''
 
   try {
-    const body = await request.json().catch(() => ({}))
-    const imageUrl = body.imageUrl?.trim()
+    body = await request.json().catch(() => ({}))
+    imageUrl = body.imageUrl?.trim() || ''
+    description = body.description?.trim() || ''
     if (!imageUrl) {
       console.warn('[search-external] 400 — imageUrl manquant. Body:', JSON.stringify(body))
       return NextResponse.json({ success: false, error: 'imageUrl requis' }, { status: 400 })
@@ -304,17 +311,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Nettoyer images temporaires
+    if (imagePath && imagePath.includes('tmp')) {
+      await fs.unlink(imagePath).catch(() => {})
+    }
+
+    const durationMs = Date.now() - startTime
+
     if (finalResults.length === 0 && wasBlocked) {
+      await ExternalSearchLog.create({
+        imageUrl,
+        description,
+        platform: '1688',
+        status: 'blocked',
+        resultsCount: 0,
+        durationMs,
+        ip,
+      }).catch(() => {})
       return NextResponse.json({
         success: false,
         error: '1688 bloque la connexion (captcha ou restriction IP). L\'équipe sourcing fera une recherche manuelle.',
         code: 'BLOCKED_BY_1688',
       }, { status: 503 })
-    }
-
-    // Nettoyer images temporaires
-    if (imagePath && imagePath.includes('tmp')) {
-      await fs.unlink(imagePath).catch(() => {})
     }
 
     // Normaliser les URLs image
@@ -326,12 +344,39 @@ export async function POST(request: NextRequest) {
       .filter(r => r.image && r.title.length > 3)
 
     if (normalized.length === 0) {
+      await ExternalSearchLog.create({
+        imageUrl,
+        description,
+        platform: '1688',
+        status: 'no_results',
+        resultsCount: 0,
+        durationMs,
+        ip,
+      }).catch(() => {})
       return NextResponse.json({
         success: false,
         error: 'Aucun résultat trouvé sur 1688. L\'équipe sourcing fera une recherche manuelle.',
         code: 'NO_RESULTS',
       }, { status: 200 })
     }
+
+    await ExternalSearchLog.create({
+      imageUrl,
+      description,
+      platform: '1688',
+      status: 'success',
+      resultsCount: normalized.length,
+      results: normalized.map(r => ({
+        title: r.title,
+        price1688: r.price1688,
+        image: r.image,
+        url: r.url,
+        supplier: r.supplier,
+        minOrder: r.minOrder,
+      })),
+      durationMs,
+      ip,
+    }).catch(() => {})
 
     return NextResponse.json({
       success: true,
@@ -348,6 +393,18 @@ export async function POST(request: NextRequest) {
     if (imagePath && imagePath.includes('tmp')) {
       await fs.unlink(imagePath).catch(() => {})
     }
+
+    const durationMs = Date.now() - startTime
+    await ExternalSearchLog.create({
+      imageUrl: imageUrl || '',
+      description: description || undefined,
+      platform: '1688',
+      status: 'error',
+      resultsCount: 0,
+      errorMessage: error.message || 'Erreur recherche externe',
+      durationMs,
+      ip,
+    }).catch(() => {})
 
     console.error('[search-external] Erreur:', error)
     return NextResponse.json({

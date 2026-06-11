@@ -145,6 +145,8 @@ function relativeSla(due: string): { label: string; overdue: boolean; soon: bool
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function AdminSourcingRequestsPage() {
+  const [activeTab, setActiveTab] = useState<'requests' | 'searchLogs'>('requests')
+
   const [items, setItems] = useState<SourcingRow[]>([])
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -181,8 +183,8 @@ export default function AdminSourcingRequestsPage() {
   }, [statusFilter, overdue, search])
 
   useEffect(() => {
-    load()
-  }, [load])
+    if (activeTab === 'requests') load()
+  }, [load, activeTab])
 
   // Sélectionner automatiquement la 1ère ligne
   useEffect(() => {
@@ -220,6 +222,35 @@ export default function AdminSourcingRequestsPage() {
     [selected, load]
   )
 
+  // ─── Recherches externes logs ────────────────────────────────────────────
+  const [searchLogs, setSearchLogs] = useState<any[]>([])
+  const [searchLogCounts, setSearchLogCounts] = useState<Record<string, number>>({})
+  const [searchLogLoading, setSearchLogLoading] = useState(false)
+  const [searchLogFilter, setSearchLogFilter] = useState<'all' | 'success' | 'blocked' | 'no_results' | 'error'>('all')
+
+  const loadSearchLogs = useCallback(async () => {
+    setSearchLogLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (searchLogFilter !== 'all') params.set('status', searchLogFilter)
+      params.set('limit', '50')
+      const res = await fetch(`/api/admin/market/external-search-logs?${params.toString()}`, {
+        credentials: 'include',
+        cache: 'no-store'
+      })
+      const json = await res.json()
+      if (json?.success) {
+        setSearchLogs(json.items)
+        setSearchLogCounts(json.statusCounts || {})
+      }
+    } catch {}
+    setSearchLogLoading(false)
+  }, [searchLogFilter])
+
+  useEffect(() => {
+    if (activeTab === 'searchLogs') loadSearchLogs()
+  }, [activeTab, loadSearchLogs])
+
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
@@ -233,13 +264,44 @@ export default function AdminSourcingRequestsPage() {
         </div>
         <button
           type="button"
-          onClick={load}
+          onClick={activeTab === 'requests' ? load : loadSearchLogs}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <RefreshCw className="h-4 w-4" /> Rafraîchir
         </button>
       </div>
 
+      {/* Onglets */}
+      <div className="mt-4 flex gap-2 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('requests')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'requests'
+              ? 'border-violet-600 text-violet-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Demandes
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('searchLogs')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'searchLogs'
+              ? 'border-violet-600 text-violet-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Recherches externes
+          <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
+            {searchLogCounts.success || 0}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === 'requests' && (
+        <>
       {/* Filtres */}
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-1.5">
@@ -392,8 +454,99 @@ export default function AdminSourcingRequestsPage() {
           )}
         </div>
       </div>
-    </div>
-  )
+      </>
+    )}
+
+    {activeTab === 'searchLogs' && (
+      <div className="mt-5">
+        {/* Filtres statut */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {[
+            { value: 'all', label: 'Tous' },
+            { value: 'success', label: 'Succès' },
+            { value: 'blocked', label: 'Bloqué' },
+            { value: 'no_results', label: 'Sans résultat' },
+            { value: 'error', label: 'Erreur' },
+          ].map((opt) => {
+            const isActive = searchLogFilter === opt.value
+            const count = opt.value === 'all'
+              ? Object.values(searchLogCounts).reduce((s, v) => s + v, 0)
+              : searchLogCounts[opt.value] || 0
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSearchLogFilter(opt.value as any)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  isActive
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {opt.label}
+                <span className={`ml-1.5 ${isActive ? 'text-violet-100' : 'text-gray-400'}`}>{count}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {searchLogLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+          </div>
+        ) : searchLogs.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 text-sm bg-white rounded-xl border border-gray-200">
+            Aucune recherche externe enregistrée.
+          </div>
+        ) : (
+          <div className="rounded-xl bg-white border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold text-gray-500 uppercase">
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Statut</th>
+                  <th className="px-4 py-3">Résultats</th>
+                  <th className="px-4 py-3">Durée</th>
+                  <th className="px-4 py-3">Image</th>
+                  <th className="px-4 py-3">Erreur</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchLogs.map((log: any) => (
+                  <tr key={log._id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-700">
+                      {new Date(log.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                        log.status === 'success' ? 'bg-emerald-100 text-emerald-700' :
+                        log.status === 'blocked' ? 'bg-red-100 text-red-700' :
+                        log.status === 'no_results' ? 'bg-amber-100 text-amber-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {log.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{log.resultsCount}</td>
+                    <td className="px-4 py-3 text-gray-500">{log.durationMs ? `${log.durationMs}ms` : '—'}</td>
+                    <td className="px-4 py-3">
+                      {log.imageUrl ? (
+                        <a href={log.imageUrl} target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline text-xs">Voir image</a>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 max-w-xs truncate" title={log.errorMessage || ''}>
+                      {log.errorMessage || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)
 }
 
 // ─── Panneau de détail ───────────────────────────────────────────────────────
