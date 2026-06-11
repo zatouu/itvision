@@ -198,6 +198,30 @@ export default function SourcingRequestModal({
     reader.readAsDataURL(f)
   }, [])
 
+  // Appel API brut vers search-external (retourne les données sans side-effects UI)
+  const callSearchExternalApi = useCallback(async (imageUrl: string): Promise<{
+    success: boolean
+    results?: any[]
+    code?: string
+    error?: string
+  }> => {
+    try {
+      const token = csrfToken || (await fetchCsrfToken())
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['X-CSRF-Token'] = token
+      const res = await fetch('/api/market/sourcing/search-external', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ imageUrl, description: description.trim() || undefined })
+      })
+      const data = await res.json().catch(() => ({}))
+      return data
+    } catch (err: any) {
+      console.log('[SearchExternal] échoué:', err.message)
+      return { success: false, error: err.message }
+    }
+  }, [description, csrfToken, fetchCsrfToken])
+
   // Phase 1 : recherche catalogue (sans contact)
   const handleSearch = useCallback(async () => {
     setError(null)
@@ -284,15 +308,27 @@ export default function SourcingRequestModal({
       if (data.request) {
         setResult(data.request as CreatedResult)
         setPhase('result')
+        // Recherche externe en arrière-plan pour stocker les résultats côté admin
+        if (file && data.imageUrl) {
+          setUploadedImageUrl(data.imageUrl)
+          callSearchExternalApi(data.imageUrl).then((data) => {
+            if (data.success && data.results) {
+              setExternalResults(data.results)
+              console.log('[SearchExternal] résultats trouvés en arrière-plan:', data.results.length)
+            } else {
+              console.log('[SearchExternal] échec en arrière-plan:', data.code || data.error)
+            }
+          })
+        }
       }
     } catch (err: any) {
       setError(err?.message || 'Échec de la recherche.')
     } finally {
       setSubmitting(false)
     }
-  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, csrfToken, fetchCsrfToken])
+  }, [tab, file, externalUrl, title, description, qty, budgetMax, deliveryNeededBy, csrfToken, fetchCsrfToken, callSearchExternalApi])
 
-  // Recherche externe 1688 par image
+  // Recherche externe 1688 par image (avec changement de phase pour UX)
   const handleSearchExternal = useCallback(async (imageUrl: string) => {
     if (!imageUrl?.trim()) {
       console.warn('[handleSearchExternal] imageUrl vide, skip')

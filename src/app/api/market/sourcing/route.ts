@@ -325,7 +325,8 @@ export async function POST(request: NextRequest) {
         publicToken: doc.publicToken,
         status: doc.status,
         slaDueAt: doc.slaDueAt,
-        trackUrl
+        trackUrl,
+        imageUrl,
       }
     },
     { status: 201 }
