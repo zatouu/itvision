@@ -261,18 +261,29 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 <p className="text-sm text-slate-500 mb-4 flex-1">
                   Prix transparents, zéro intermédiaire. Vous payez le prix usine.
                 </p>
-                <div className="mb-4">
+                <div className="mb-4 flex flex-wrap gap-2">
                   <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                    Marge fixe +15% seulement
+                    10% frais de service
+                  </span>
+                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                    2% assurance
                   </span>
                 </div>
-                <Link
-                  href="/produits"
-                  className="w-full inline-flex items-center justify-center gap-2 border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white py-3 rounded-xl font-semibold transition-all"
-                >
-                  Voir le catalogue
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                <div className="flex flex-col gap-2">
+                  <Link
+                    href="/produits"
+                    className="w-full inline-flex items-center justify-center gap-2 border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white py-3 rounded-xl font-semibold transition-all"
+                  >
+                    Voir le catalogue
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/tarification"
+                    className="w-full inline-flex items-center justify-center gap-2 text-slate-500 hover:text-slate-700 py-2 text-sm font-medium transition-colors"
+                  >
+                    Voir le détail de notre tarification
+                  </Link>
+                </div>
               </div>
             </motion.div>
           </motion.div>
