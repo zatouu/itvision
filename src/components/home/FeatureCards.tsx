@@ -1,14 +1,65 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Search, Users, Factory, ArrowRight, Sparkles } from 'lucide-react'
+import Image from 'next/image'
+import { Search, Users, ArrowRight, Sparkles } from 'lucide-react'
+
+interface ApiProduct {
+  id: string
+  name: string
+  image?: string
+}
 
 interface FeatureCardsProps {
   onOpenSourcing?: () => void
 }
 
+function ProductImageGrid({ products, className }: { products: ApiProduct[]; className?: string }) {
+  return (
+    <div className={`grid grid-cols-2 gap-2 ${className || ''}`}>
+      {products.slice(0, 4).map((p, i) => (
+        <motion.div
+          key={p.id}
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: i * 0.1 }}
+          className="relative rounded-2xl overflow-hidden bg-white shadow-md border border-white/50"
+          style={{ aspectRatio: '1' }}
+        >
+          {p.image ? (
+            <Image
+              src={p.image}
+              alt={p.name}
+              fill
+              className="object-cover"
+              sizes="150px"
+            />
+          ) : (
+            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+              <span className="text-slate-400 text-xs">{p.name.slice(0, 10)}</span>
+            </div>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
 export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
+  const [products, setProducts] = useState<ApiProduct[]>([])
+
+  useEffect(() => {
+    fetch('/api/catalog/products?limit=12')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const items = data?.items || data?.products || data || []
+        setProducts(items)
+      })
+      .catch(() => {})
+  }, [])
   return (
     <section className="py-20 bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -59,14 +110,19 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
               </div>
 
               {/* Image top (60%) */}
-              <div className="relative h-[60%] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-100 via-purple-50 to-violet-200 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-violet-300 to-purple-400 flex items-center justify-center shadow-lg mb-3">
-                      <Search className="h-12 w-12 text-white" />
+              <div className="relative h-[60%] overflow-hidden p-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-100 via-purple-50 to-violet-200" />
+                <div className="relative z-10 flex items-center justify-center h-full">
+                  {products.length > 0 ? (
+                    <ProductImageGrid products={products.slice(0, 4)} />
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-violet-300 to-purple-400 flex items-center justify-center shadow-lg mb-3">
+                        <Search className="h-12 w-12 text-white" />
+                      </div>
+                      <p className="text-violet-600 font-semibold text-sm">Recherche par photo</p>
                     </div>
-                    <p className="text-violet-600 font-semibold text-sm">Recherche par photo</p>
-                  </div>
+                  )}
                 </div>
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
               </div>
@@ -115,14 +171,19 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
               className="h-[520px] rounded-3xl overflow-hidden border border-emerald-200 bg-white flex flex-col shadow-lg"
             >
               {/* Image top (60%) */}
-              <div className="relative h-[60%] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 via-green-50 to-emerald-200 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-emerald-300 to-green-400 flex items-center justify-center shadow-lg mb-3">
-                      <Users className="h-12 w-12 text-white" />
+              <div className="relative h-[60%] overflow-hidden p-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 via-green-50 to-emerald-200" />
+                <div className="relative z-10 flex items-center justify-center h-full">
+                  {products.length > 4 ? (
+                    <ProductImageGrid products={products.slice(4, 8)} />
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-emerald-300 to-green-400 flex items-center justify-center shadow-lg mb-3">
+                        <Users className="h-12 w-12 text-white" />
+                      </div>
+                      <p className="text-emerald-600 font-semibold text-sm">Groupe d&apos;acheteurs</p>
                     </div>
-                    <p className="text-emerald-600 font-semibold text-sm">Groupe d&apos;acheteurs</p>
-                  </div>
+                  )}
                 </div>
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
               </div>
@@ -172,14 +233,19 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
               className="h-[520px] rounded-3xl overflow-hidden border border-slate-200 bg-white flex flex-col shadow-lg"
             >
               {/* Image top (60%) */}
-              <div className="relative h-[60%] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-lg mb-3">
-                      <Factory className="h-12 w-12 text-white" />
+              <div className="relative h-[60%] overflow-hidden p-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300" />
+                <div className="relative z-10 flex items-center justify-center h-full">
+                  {products.length > 8 ? (
+                    <ProductImageGrid products={products.slice(8, 12)} />
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-lg mb-3">
+                        <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
+                      </div>
+                      <p className="text-slate-600 font-semibold text-sm">Catalogue produits</p>
                     </div>
-                    <p className="text-slate-600 font-semibold text-sm">Direct usine Chine</p>
-                  </div>
+                  )}
                 </div>
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
               </div>
@@ -187,10 +253,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
               {/* Content bottom */}
               <div className="flex-1 p-6 flex flex-col">
                 <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
-                  <Factory className="h-5 w-5 text-slate-700" />
+                  <svg className="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
                 </div>
                 <h3 className="text-2xl font-bold text-slate-800 mb-2">
-                  Sourcing direct usine
+                  Catalogue direct usine
                 </h3>
                 <p className="text-sm text-slate-500 mb-4 flex-1">
                   Prix transparents, zéro intermédiaire. Vous payez le prix usine.
@@ -201,10 +267,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                   </span>
                 </div>
                 <Link
-                  href="/sourcing"
+                  href="/produits"
                   className="w-full inline-flex items-center justify-center gap-2 border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white py-3 rounded-xl font-semibold transition-all"
                 >
-                  Demander un devis
+                  Voir le catalogue
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
