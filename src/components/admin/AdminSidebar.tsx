@@ -36,7 +36,8 @@ import {
   Banknote,
   Mail,
   Globe,
-  Search
+  Search,
+  ImageIcon
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -292,6 +293,12 @@ const menuItems: MenuItem[] = [
         label: 'Trouvez-moi (sourcing)',
         icon: Search,
         href: '/admin/market/sourcing-requests'
+      },
+      {
+        id: 'marketplace-promo-slides',
+        label: 'Slides promotionnelles',
+        icon: ImageIcon,
+        href: '/admin/market/promo-slides'
       },
       {
         id: 'marketplace-image-embeddings',
