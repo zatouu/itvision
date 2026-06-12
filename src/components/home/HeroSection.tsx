@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Truck, Package, Percent, ArrowRight, Play } from 'lucide-react'
+import HeroProductGrid from './HeroProductGrid'
 
 export default function HeroSection() {
   return (
@@ -34,12 +35,6 @@ export default function HeroSection() {
               <span className="block">
                 L&apos;import{' '}
                 <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 bg-clip-text text-transparent">
-                  tech
-                </span>
-                ,
-              </span>
-              <span className="block">
-                <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
                   simplifié
                 </span>
                 .
@@ -102,21 +97,8 @@ export default function HeroSection() {
             className="order-1 lg:order-2 relative"
           >
             <div className="relative w-full aspect-square max-w-lg mx-auto">
-              {/* Image principale — placeholder gradient collage */}
-              <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl">
-                <div className="w-full h-full bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 grid grid-cols-2 grid-rows-2 gap-1 p-1">
-                  <div className="rounded-2xl bg-gradient-to-br from-slate-300 to-slate-400" />
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-200 to-emerald-300" />
-                  <div className="rounded-2xl bg-gradient-to-br from-violet-200 to-violet-300" />
-                  <div className="rounded-2xl bg-gradient-to-br from-slate-300 to-slate-400" />
-                </div>
-                {/* Overlay text */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-slate-400 text-sm font-medium bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full">
-                    📦 Produits tech importés
-                  </span>
-                </div>
-              </div>
+              {/* Grille produits dynamiques du catalogue */}
+              <HeroProductGrid />
 
               {/* Carte flottante 1 — Notification commande */}
               <motion.div
