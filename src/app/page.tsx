@@ -8,6 +8,7 @@ import PricingTransparencyBanner from '@/components/home/PricingTransparencyBann
 import CategoriesSection from '@/components/home/CategoriesSection'
 import SocialProofSection from '@/components/home/SocialProofSection'
 import CTAFinal from '@/components/home/CTAFinal'
+import PromoBanner from '@/components/home/PromoBanner'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
 import ImageSearchModal from '@/components/ImageSearchModal'
@@ -45,6 +46,7 @@ export default function Home() {
       <MarketHeader />
       <main className="min-h-screen bg-white">
         <HeroSection />
+        <PromoBanner />
         <FeatureCards onOpenSourcing={() => setShowSourcing(true)} />
         <PricingTransparencyBanner />
         <CategoriesSection />

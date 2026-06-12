@@ -65,7 +65,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                     <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-violet-300 to-purple-400 flex items-center justify-center shadow-lg mb-3">
                       <Search className="h-12 w-12 text-white" />
                     </div>
-                    <p className="text-violet-600 font-semibold text-sm">Photo → Recherche IA</p>
+                    <p className="text-violet-600 font-semibold text-sm">Recherche par photo</p>
                   </div>
                 </div>
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
@@ -84,10 +84,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="bg-violet-50 text-violet-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                    IA visuelle
+                    Recherche par photo
                   </span>
                   <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                    Sourcing humain
+                    Réponse sous 24h
                   </span>
                 </div>
                 <button

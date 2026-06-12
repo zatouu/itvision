@@ -8,6 +8,7 @@ import PricingTransparencyBanner from '@/components/home/PricingTransparencyBann
 import CategoriesSection from '@/components/home/CategoriesSection'
 import SocialProofSection from '@/components/home/SocialProofSection'
 import CTAFinal from '@/components/home/CTAFinal'
+import PromoBanner from '@/components/home/PromoBanner'
 import ImageSearchModal from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
 
@@ -42,6 +43,9 @@ export default function MarketHomePage() {
     <main className="min-h-screen bg-white">
       {/* Hero */}
       <HeroSection />
+
+      {/* Promo Banner */}
+      <PromoBanner />
 
       {/* Feature Cards */}
       <FeatureCards onOpenSourcing={() => setShowSourcing(true)} />
