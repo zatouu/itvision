@@ -6,7 +6,6 @@ import HeroSection from '@/components/home/HeroSection'
 import FeatureCards from '@/components/home/FeatureCards'
 import PricingTransparencyBanner from '@/components/home/PricingTransparencyBanner'
 import CategoriesSection from '@/components/home/CategoriesSection'
-import SocialProofSection from '@/components/home/SocialProofSection'
 import CTAFinal from '@/components/home/CTAFinal'
 import PromoBanner from '@/components/home/PromoBanner'
 import ImageSearchModal from '@/components/ImageSearchModal'
@@ -55,9 +54,6 @@ export default function MarketHomePage() {
 
       {/* Categories */}
       <CategoriesSection />
-
-      {/* Social Proof */}
-      <SocialProofSection />
 
       {/* Final CTA */}
       <CTAFinal />
