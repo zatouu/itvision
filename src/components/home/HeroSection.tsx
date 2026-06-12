@@ -26,8 +26,7 @@ export default function HeroSection() {
           >
             {/* Badge */}
             <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-700 mb-6">
-              <span className="text-base">✨</span>
-              Marketplace #1 Sénégal
+              Sourcing & import direct Chine
             </div>
 
             {/* Titre */}
