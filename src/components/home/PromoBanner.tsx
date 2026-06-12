@@ -133,27 +133,6 @@ export default function PromoBanner() {
             </div>
           </div>
 
-          {/* Trust bar */}
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12 px-6 py-3 bg-amber-100/50 border-t border-amber-100 text-sm text-amber-900 font-medium">
-            <span className="flex items-center gap-1.5">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Livraison gratuite dès 100 000 FCFA
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Express 3 jours
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Retour sous 7 jours
-            </span>
-          </div>
         </motion.div>
       </div>
     </section>
