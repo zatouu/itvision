@@ -8,6 +8,8 @@ import PricingTransparencyBanner from '@/components/home/PricingTransparencyBann
 import CategoriesSection from '@/components/home/CategoriesSection'
 import SocialProofSection from '@/components/home/SocialProofSection'
 import CTAFinal from '@/components/home/CTAFinal'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
 import ImageSearchModal from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
 
@@ -39,15 +41,17 @@ export default function Home() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-white">
-      <HeroSection />
-      <FeatureCards onOpenSourcing={() => setShowSourcing(true)} />
-      <PricingTransparencyBanner />
-      <CategoriesSection />
-      <SocialProofSection />
-      <CTAFinal />
+    <>
+      <MarketHeader />
+      <main className="min-h-screen bg-white">
+        <HeroSection />
+        <FeatureCards onOpenSourcing={() => setShowSourcing(true)} />
+        <PricingTransparencyBanner />
+        <CategoriesSection />
+        <SocialProofSection />
+        <CTAFinal />
 
-      <ImageSearchModal
+        <ImageSearchModal
         isOpen={showImageSearch}
         onClose={() => setShowImageSearch(false)}
         onResultsFound={(results) => {
@@ -74,6 +78,8 @@ export default function Home() {
         currentUser={currentUser}
         initialContext={sourcingContext}
       />
-    </main>
+      </main>
+      <MarketFooter />
+    </>
   )
 }
