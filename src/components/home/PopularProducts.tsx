@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Heart, Star } from 'lucide-react'
-import { popularProducts, productTabs } from '@/lib/home-data'
+import { popularProducts, productTabs, mapCatalogToHomeProduct } from '@/lib/home-data'
 import type { HomeProduct } from '@/lib/home-data'
 
 function formatPrice(price: number, currency: string) {
@@ -99,17 +99,32 @@ function ProductCard({ p, idx }: { p: HomeProduct; idx: number }) {
 
 export default function PopularProducts() {
   const [activeTab, setActiveTab] = useState('Tous')
+  const [products, setProducts] = useState<HomeProduct[]>(popularProducts)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/catalog/products?limit=10&sortBy=rating-desc')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const items = data?.products || data?.items || []
+        if (items.length > 0) {
+          setProducts(items.map(mapCatalogToHomeProduct))
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
 
   const filtered = activeTab === 'Tous'
-    ? popularProducts
-    : popularProducts.filter((p) => {
+    ? products
+    : products.filter((p) => {
         const name = p.name.toLowerCase()
-        if (activeTab === 'Mode') return name.includes('robe') || name.includes('sac') || name.includes('sneakers')
-        if (activeTab === 'Maison') return name.includes('friteuse') || name.includes('cuisine') || name.includes('déco')
-        if (activeTab === 'Tech') return name.includes('smartwatch') || name.includes('écouteurs') || name.includes('support')
-        if (activeTab === 'Beauté') return name.includes('rouge') || name.includes('maquillage') || name.includes('cheveux')
-        if (activeTab === 'Sport') return name.includes('sneakers')
-        if (activeTab === 'Auto') return name.includes('voiture') || name.includes('gps')
+        if (activeTab === 'Mode') return name.includes('robe') || name.includes('sac') || name.includes('sneakers') || name.includes('t-shirt') || name.includes('chaussure')
+        if (activeTab === 'Maison') return name.includes('friteuse') || name.includes('cuisine') || name.includes('déco') || name.includes('meuble') || name.includes('lampe')
+        if (activeTab === 'Tech') return name.includes('smartwatch') || name.includes('écouteur') || name.includes('support') || name.includes('caméra') || name.includes(' téléphone')
+        if (activeTab === 'Beauté') return name.includes('rouge') || name.includes('maquillage') || name.includes('cheveux') || name.includes('parfum') || name.includes('crème')
+        if (activeTab === 'Sport') return name.includes('sneakers') || name.includes('running') || name.includes('fitness') || name.includes('vélo')
+        if (activeTab === 'Auto') return name.includes('voiture') || name.includes('gps') || name.includes('auto') || name.includes('moto')
         return true
       })
 
@@ -137,11 +152,26 @@ export default function PopularProducts() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {filtered.map((p, i) => (
-            <ProductCard key={p.id} p={p} idx={i} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                <div className="aspect-square bg-slate-100 animate-pulse" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-slate-100 rounded animate-pulse" />
+                  <div className="h-3 bg-slate-100 rounded w-2/3 animate-pulse" />
+                  <div className="h-5 bg-slate-100 rounded w-1/2 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {filtered.map((p, i) => (
+              <ProductCard key={p.id} p={p} idx={i} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

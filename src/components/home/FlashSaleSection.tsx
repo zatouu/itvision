@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { flashSaleProducts, flashSaleEndTime } from '@/lib/home-data'
+import { flashSaleProducts, flashSaleEndTime, mapCatalogToFlashProduct } from '@/lib/home-data'
+import type { HomeProduct } from '@/lib/home-data'
 
 function CountdownTimer({ endTime }: { endTime: string }) {
   const [timeLeft, setTimeLeft] = useState({ h: 2, m: 34, s: 18 })
@@ -44,6 +45,25 @@ function formatPrice(price: number, currency: string) {
 }
 
 export default function FlashSaleSection() {
+  const [products, setProducts] = useState<HomeProduct[]>(flashSaleProducts)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/catalog/products?limit=12&onlyPrice=true&sortBy=price-desc')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const items = data?.products || data?.items || []
+        if (items.length > 0) {
+          const mapped = items.map(mapCatalogToFlashProduct)
+          // Only keep products that look like they have a discount
+          const withDiscount = mapped.filter((p: HomeProduct) => p.originalPrice && p.originalPrice > p.price)
+          setProducts(withDiscount.length >= 4 ? withDiscount.slice(0, 8) : mapped.slice(0, 8))
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
   return (
     <section className="py-6 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -61,7 +81,18 @@ export default function FlashSaleSection() {
         {/* Horizontal scroll products */}
         <div className="bg-slate-50 border border-slate-100 border-t-0 rounded-b-2xl p-4">
           <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-            {flashSaleProducts.map((p, i) => (
+            {loading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="snap-start flex-shrink-0 w-[160px] bg-white rounded-xl border border-slate-100 overflow-hidden">
+                    <div className="h-[160px] bg-slate-100 animate-pulse" />
+                    <div className="p-2.5 space-y-2">
+                      <div className="h-3 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-4 bg-slate-100 rounded w-2/3 animate-pulse" />
+                      <div className="h-1.5 bg-slate-100 rounded animate-pulse" />
+                    </div>
+                  </div>
+                ))
+              : products.map((p, i) => (
               <motion.div
                 key={p.id}
                 initial={{ opacity: 0, x: 20 }}

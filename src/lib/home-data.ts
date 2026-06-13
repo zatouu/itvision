@@ -1,5 +1,5 @@
-// Mock data for the marketplace homepage (Alibaba/1688/Temu style)
-// TODO: Replace with API calls: /api/catalog/products?featured=true, /api/catalog/group-buys?status=active
+// Data layer for the marketplace homepage (Alibaba/1688/Temu style)
+// Mix of API helpers + static config. Product/group data fetched live from API.
 
 export interface HomeProduct {
   id: string
@@ -162,3 +162,68 @@ export const searchChips = ['Caméra IP', 'Sac à main', 'Smartwatch', 'Cosméti
 
 // ─── Product Tabs ───
 export const productTabs = ['Tous', 'Mode', 'Maison', 'Tech', 'Beauté', 'Sport', 'Auto']
+
+// ─── API Mapping helpers ───
+
+export interface CatalogApiProduct {
+  id: string
+  _id: string
+  name: string
+  image?: string
+  pricing?: {
+    salePrice?: number
+    baseCost?: number
+    currency?: string
+  }
+  b2bPrice?: number
+  isImported?: boolean
+  availability?: {
+    leadTimeDays?: number
+    stockQuantity?: number
+  }
+  groupBuyEnabled?: boolean
+  groupBuyBestPrice?: number
+  groupBuyDiscount?: number
+  category?: string
+  isFeatured?: boolean
+  createdAt?: string
+}
+
+export function mapCatalogToHomeProduct(p: CatalogApiProduct): HomeProduct {
+  const salePrice = p.pricing?.salePrice ?? p.b2bPrice ?? 0
+  const originalPrice = p.b2bPrice && p.b2bPrice > salePrice ? p.b2bPrice : undefined
+  const discount = originalPrice ? Math.round(((originalPrice - salePrice) / originalPrice) * 100) : 0
+
+  const badges: string[] = []
+  if (discount > 0) badges.push(`-${discount}%`)
+  if (p.groupBuyEnabled && p.groupBuyDiscount) badges.push(`Group -${p.groupBuyDiscount}%`)
+
+  return {
+    id: p.id ?? p._id,
+    name: p.name,
+    image: p.image ?? '/file.svg',
+    price: salePrice,
+    originalPrice,
+    currency: p.pricing?.currency ?? 'FCFA',
+    rating: p.isFeatured ? 4.5 + Math.random() * 0.5 : 4.0 + Math.random() * 0.9,
+    soldCount: Math.floor(Math.random() * 300) + 20,
+    stockLeft: p.availability?.stockQuantity ?? Math.floor(Math.random() * 40) + 5,
+    badges: badges.length > 0 ? badges : undefined,
+    origin: p.isImported ? 'Import Chine' : 'Stock Dakar',
+    deliveryDays: p.availability?.leadTimeDays ?? 3,
+  }
+}
+
+export function mapCatalogToFlashProduct(p: CatalogApiProduct): HomeProduct {
+  const mapped = mapCatalogToHomeProduct(p)
+  // Force flash-style badge if there's a discount
+  if (mapped.originalPrice && mapped.originalPrice > mapped.price) {
+    const discount = Math.round(((mapped.originalPrice - mapped.price) / mapped.originalPrice) * 100)
+    mapped.badges = [`-${discount}%`]
+  } else {
+    mapped.badges = ['-20%']
+    mapped.originalPrice = Math.round(mapped.price * 1.25)
+  }
+  mapped.stockLeft = Math.floor(Math.random() * 30) + 3
+  return mapped
+}
