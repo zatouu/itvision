@@ -16,19 +16,19 @@ export const viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'IT Vision - Sécurité Électronique & Solutions Technologiques',
+  title: 'IT Vision Plus — Marketplace Import Chine & Achats Groupés',
   manifest: '/manifest.webmanifest',
-  description: 'IT Vision : Votre partenaire expert en sécurité électronique. Solutions innovantes de vidéosurveillance, contrôle d\'accès, domotique et sécurité incendie. Vision technologique avancée.',
-  keywords: 'IT Vision, sécurité électronique, vidéosurveillance, contrôle accès, domotique, sécurité incendie, technologie, innovation, solutions IT',
-  authors: [{ name: 'IT Vision' }],
+  description: 'Marketplace IT Vision Plus : Import direct Chine → Sénégal. Mode, électronique, beauté, maison, auto, sport. Prix usine, achats groupés -45%, livraison Dakar.',
+  keywords: 'marketplace, import Chine Sénégal, achats groupés, mode, électronique, beauté, maison, auto, sport, prix usine, Dakar, IT Vision Plus',
+  authors: [{ name: 'IT Vision Plus' }],
   icons: {
     icon: '/Icone.png',
     shortcut: '/Icone.png',
     apple: '/apple-touch-icon.png',
   },
   openGraph: {
-    title: 'IT Vision - Sécurité Électronique & Solutions Technologiques',
-    description: 'IT Vision : Solutions innovantes de sécurité électronique avec une vision technologique avancée.',
+    title: 'IT Vision Plus — Marketplace Import Chine & Achats Groupés',
+    description: 'Import direct Chine, livraison Sénégal. Mode, tech, beauté, maison, auto, sport. Achats groupés pour payer moins cher.',
     type: 'website',
   },
 }

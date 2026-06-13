@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Flame, Users, ArrowRight, Clock } from 'lucide-react'
+import { activeGroupBuys } from '@/lib/home-data'
 
 interface GroupBuyItem {
   _id: string
@@ -48,19 +48,71 @@ export default function GroupBuySection() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const products = data?.products || []
-        // Prioritize products with active groups
         const sorted = [...products].sort((a: GroupBuyItem, b: GroupBuyItem) =>
           Number(b.hasActiveGroup) - Number(a.hasActiveGroup)
         )
-        setItems(sorted.slice(0, 4))
+        const apiItems = sorted.slice(0, 4)
+        // Fallback to mock data if API returns nothing
+        if (apiItems.length === 0) {
+          setItems(
+            activeGroupBuys.map((g) => ({
+              _id: g.id,
+              name: g.name,
+              image: g.image,
+              basePrice: g.originalPrice,
+              bestPrice: g.currentPrice,
+              currency: g.currency,
+              groupBuyMinQty: 1,
+              groupBuyTargetQty: g.targetQty,
+              activeGroups: [
+                {
+                  groupId: g.id,
+                  currentQty: g.currentQty,
+                  targetQty: g.targetQty,
+                  currentPrice: g.currentPrice,
+                  participantCount: g.participants,
+                  deadline: g.deadline,
+                },
+              ],
+              hasActiveGroup: true,
+            }))
+          )
+        } else {
+          setItems(apiItems)
+        }
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        setItems(
+          activeGroupBuys.map((g) => ({
+            _id: g.id,
+            name: g.name,
+            image: g.image,
+            basePrice: g.originalPrice,
+            bestPrice: g.currentPrice,
+            currency: g.currency,
+            groupBuyMinQty: 1,
+            groupBuyTargetQty: g.targetQty,
+            activeGroups: [
+              {
+                groupId: g.id,
+                currentQty: g.currentQty,
+                targetQty: g.targetQty,
+                currentPrice: g.currentPrice,
+                participantCount: g.participants,
+                deadline: g.deadline,
+              },
+            ],
+            hasActiveGroup: true,
+          }))
+        )
+        setLoading(false)
+      })
   }, [])
 
   if (loading) {
     return (
-      <section className="py-12 bg-white">
+      <section className="py-8 bg-emerald-50/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="h-8 w-48 bg-slate-100 rounded animate-pulse mb-6" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -76,16 +128,16 @@ export default function GroupBuySection() {
   if (items.length === 0) return null
 
   return (
-    <section className="py-12 bg-white">
+    <section className="py-8 bg-emerald-50/50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-              <Flame className="h-5 w-5 text-orange-600" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Flame className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Achats groupés en cours</h2>
+              <h2 className="text-xl font-bold text-slate-900">🤝 Achats groupés actifs</h2>
               <p className="text-sm text-slate-500">Rejoignez un groupe, plus on est moins on paie</p>
             </div>
           </div>
@@ -119,14 +171,12 @@ export default function GroupBuySection() {
                 className="group relative rounded-2xl border border-slate-200 bg-white hover:shadow-lg hover:border-orange-200 transition-all overflow-hidden"
               >
                 {/* Image */}
-                <div className="relative h-44 bg-slate-50 overflow-hidden">
+                <div className="relative h-40 bg-slate-50 overflow-hidden">
                   {item.image ? (
-                    <Image
+                    <img
                       src={item.image}
                       alt={item.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      sizes="300px"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -142,7 +192,7 @@ export default function GroupBuySection() {
 
                 {/* Content */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-slate-800 text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
+                  <h3 className="font-semibold text-slate-800 text-sm line-clamp-2 mb-2 min-h-[2rem]">
                     {item.name}
                   </h3>
 
@@ -161,7 +211,7 @@ export default function GroupBuySection() {
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-orange-500 rounded-full transition-all"
+                            className="h-full bg-emerald-500 rounded-full transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -169,12 +219,12 @@ export default function GroupBuySection() {
 
                       {/* Counters */}
                       <div className="grid grid-cols-3 gap-1 mb-3 text-center">
-                        <div className="bg-orange-50 rounded-lg p-1.5">
+                        <div className="bg-emerald-50 rounded-lg p-1.5">
                           <div className="flex items-center justify-center gap-1">
-                            <Users className="h-3 w-3 text-orange-500" />
-                            <span className="text-xs font-bold text-orange-700">{group.participantCount}</span>
+                            <Users className="h-3 w-3 text-emerald-500" />
+                            <span className="text-xs font-bold text-emerald-700">{group.participantCount}</span>
                           </div>
-                          <span className="text-[10px] text-orange-500">participants</span>
+                          <span className="text-[10px] text-emerald-500">participants</span>
                         </div>
                         <div className="bg-slate-50 rounded-lg p-1.5">
                           <div className="text-xs font-bold text-slate-700">{group.targetQty - group.currentQty}</div>
