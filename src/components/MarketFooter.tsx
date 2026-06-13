@@ -102,10 +102,7 @@ export default function MarketFooter() {
         </div>
 
         <div className="mt-10 flex flex-col gap-3 border-t border-slate-100 pt-6 text-xs text-gray-500 dark:border-slate-800 dark:text-gray-400 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-green-500" />
-            Marketplace indépendante du site corporate IT Vision
-          </div>
+          <span>IT Vision Plus — Import & sourcing</span>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             Dakar, Sénégal

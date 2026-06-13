@@ -34,7 +34,7 @@ const categories = [
   },
   {
     title: 'Domotique',
-    desc: 'Capteurs, automatisations, smart home',
+    desc: 'Capteurs, automatisations, maison connectée',
     href: '/produits?category=Domotique',
     icon: Home,
     gradient: 'from-orange-500/20 to-orange-700/20',

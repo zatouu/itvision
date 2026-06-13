@@ -136,7 +136,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                   Trouvez un produit rare en Chine
                 </h3>
                 <p className="text-sm text-slate-500 mb-4 flex-1">
-                  Envoyez une photo, notre IA + nos sourceurs trouvent le produit en 24h.
+                  Envoyez une photo, nos sourceurs trouvent le produit en 24h.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="bg-violet-50 text-violet-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
