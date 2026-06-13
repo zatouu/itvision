@@ -3,10 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import HeroSection from '@/components/home/HeroSection'
-import FeatureCards from '@/components/home/FeatureCards'
-import PricingTransparencyBanner from '@/components/home/PricingTransparencyBanner'
-import CategoriesSection from '@/components/home/CategoriesSection'
-import CTAFinal from '@/components/home/CTAFinal'
+import CategoryPills1688 from '@/components/home/CategoryPills1688'
+import GroupBuySection from '@/components/home/GroupBuySection'
+import ProductGrid1688 from '@/components/home/ProductGrid1688'
+import TrustBadges from '@/components/home/TrustBadges'
+import PartnerBrands from '@/components/home/PartnerBrands'
+import SourcingOnDemand from '@/components/home/SourcingOnDemand'
 import PromoBanner from '@/components/home/PromoBanner'
 import ImageSearchModal from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
@@ -40,23 +42,48 @@ export default function MarketHomePage() {
 
   return (
     <main className="min-h-screen bg-white">
-      {/* Hero */}
-      <HeroSection />
+      {/* 1. Hero Alibaba-style */}
+      <HeroSection
+        onOpenImageSearch={() => setShowImageSearch(true)}
+        onOpenSourcing={() => setShowSourcing(true)}
+      />
 
-      {/* Promo Banner */}
+      {/* 2. Categories 1688-style */}
+      <CategoryPills1688 />
+
+      {/* 3. Promo Banner Slider */}
       <PromoBanner />
 
-      {/* Feature Cards */}
-      <FeatureCards onOpenSourcing={() => setShowSourcing(true)} />
+      {/* 4. Group Buy — real products */}
+      <GroupBuySection />
 
-      {/* Pricing Transparency */}
-      <PricingTransparencyBanner />
+      {/* 5. Trending products */}
+      <ProductGrid1688
+        title="Produits populaires"
+        subtitle="Les plus commandés cette semaine"
+        endpoint="/api/catalog/products"
+        limit={8}
+      />
 
-      {/* Categories */}
-      <CategoriesSection />
+      {/* 6. Trust badges */}
+      <TrustBadges />
 
-      {/* Final CTA */}
-      <CTAFinal />
+      {/* 7. New arrivals */}
+      <ProductGrid1688
+        title="Nouveaux arrivages"
+        subtitle="Derniers produits ajoutés au catalogue"
+        endpoint="/api/catalog/products"
+        limit={8}
+      />
+
+      {/* 8. Partner brands */}
+      <PartnerBrands />
+
+      {/* 9. Sourcing on demand */}
+      <SourcingOnDemand
+        onOpenImageSearch={() => setShowImageSearch(true)}
+        onOpenSourcing={() => setShowSourcing(true)}
+      />
 
       {/* Modals */}
       <ImageSearchModal

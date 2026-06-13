@@ -1,164 +1,130 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Truck, Package, Percent, ArrowRight, Play } from 'lucide-react'
-import HeroProductGrid from './HeroProductGrid'
+import { useRouter } from 'next/navigation'
+import { Search, Camera, FileText, ChevronRight } from 'lucide-react'
 
-export default function HeroSection() {
+const CATEGORIES = [
+  { name: 'Vidéosurveillance', href: '/produits?category=Vidéosurveillance' },
+  { name: 'Contrôle d\'accès', href: '/produits?category=Contrôle+d\'accès' },
+  { name: 'Réseau', href: '/produits?category=Réseau' },
+  { name: 'Alarmes', href: '/produits?category=Alarmes' },
+  { name: 'Domotique', href: '/produits?category=Domotique' },
+  { name: 'Énergie solaire', href: '/produits?category=Énergie' },
+  { name: 'Import Chine', href: '/produits?segment=import' },
+  { name: 'Déstockage', href: '/produits?segment=in_stock' },
+]
+
+interface HeroSectionProps {
+  onOpenImageSearch?: () => void
+  onOpenSourcing?: () => void
+}
+
+export default function HeroSection({ onOpenImageSearch, onOpenSourcing }: HeroSectionProps) {
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (query.trim()) {
+      router.push(`/produits?q=${encodeURIComponent(query.trim())}`)
+    }
+  }
+
   return (
-    <section className="relative min-h-[70vh] w-full overflow-hidden bg-white">
-      {/* Glow background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-3/4 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-emerald-200/40 to-violet-200/40 blur-3xl" />
-        <div className="absolute -right-20 top-20 h-[300px] w-[300px] rounded-full bg-emerald-100/30 blur-[80px]" />
-        <div className="absolute left-20 bottom-10 h-[250px] w-[250px] rounded-full bg-violet-100/30 blur-[80px]" />
+    <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 opacity-5"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-3xl mx-auto"
+        >
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Import direct Chine au Sénégal
+          </div>
+
+          {/* Title */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
+            Importer directement
+            <span className="block text-emerald-400">de Chine au Sénégal</span>
+          </h1>
+
+          <p className="text-lg sm:text-xl text-slate-300 mb-8">
+            +50 000 références · Prix usine · Livraison Dakar
+          </p>
+
+          {/* Search Bar */}
+          <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto mb-6">
+            <div className="flex items-center bg-white rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+              <div className="pl-4 text-slate-400">
+                <Search className="h-5 w-5" />
+              </div>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher un produit, marque ou référence..."
+                className="flex-1 px-4 py-4 text-slate-900 placeholder:text-slate-400 outline-none text-base"
+              />
+              <button
+                type="submit"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-4 font-semibold transition-colors"
+              >
+                Rechercher
+              </button>
+            </div>
+          </form>
+
+          {/* Quick actions */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
+            <button
+              type="button"
+              onClick={onOpenImageSearch}
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+            >
+              <Camera className="h-4 w-4" />
+              Recherche par image
+            </button>
+            <button
+              type="button"
+              onClick={onOpenSourcing}
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+            >
+              <FileText className="h-4 w-4" />
+              Demander un devis
+            </button>
+          </div>
+
+          {/* Category pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {CATEGORIES.map((cat) => (
+              <Link
+                key={cat.name}
+                href={cat.href}
+                className="inline-flex items-center gap-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:text-white transition-all"
+              >
+                {cat.name}
+                <ChevronRight className="h-3 w-3 opacity-50" />
+              </Link>
+            ))}
+          </div>
+        </motion.div>
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[60vh]">
-          {/* Colonne gauche — Texte */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="order-2 lg:order-1"
-          >
-            {/* Badge */}
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-700 mb-6">
-              Sourcing & import direct Chine
-            </div>
-
-            {/* Titre */}
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.05] tracking-tight">
-              <span className="block">
-                L&apos;import{' '}
-                <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 bg-clip-text text-transparent">
-                  simplifié
-                </span>
-                .
-              </span>
-            </h1>
-
-            {/* Sous-titre */}
-            <p className="mt-6 text-lg text-slate-500 max-w-md">
-              De la Chine à Dakar en 3 jours. Sans intermédiaires.
-            </p>
-
-            {/* CTAs */}
-            <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/produits"
-                className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-0.5"
-                aria-label="Explorer le catalogue de produits"
-              >
-                Explorer le catalogue
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link
-                href="#comment-ca-marche"
-                className="inline-flex items-center justify-center gap-2 border-2 border-violet-600 text-violet-600 hover:bg-violet-50 px-8 py-4 rounded-xl font-semibold text-lg transition-all"
-                aria-label="Voir comment ça marche"
-              >
-                <Play className="h-4 w-4 fill-current" />
-                Comment ça marche
-              </Link>
-            </div>
-
-            {/* Mini stats */}
-            <div className="mt-10 flex flex-wrap items-center gap-6 sm:gap-8">
-              <div className="flex items-center gap-2 text-slate-600">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <Truck className="h-5 w-5 text-emerald-600" />
-                </div>
-                <span className="font-semibold">3 jours</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center">
-                  <Package className="h-5 w-5 text-violet-600" />
-                </div>
-                <span className="font-semibold">1200+ produits</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <Percent className="h-5 w-5 text-emerald-600" />
-                </div>
-                <span className="font-semibold">-30% en groupe</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Colonne droite — Visuel */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' }}
-            className="order-1 lg:order-2 relative"
-          >
-            <div className="relative w-full aspect-square max-w-lg mx-auto">
-              {/* Grille produits dynamiques du catalogue */}
-              <HeroProductGrid />
-
-              {/* Carte flottante 1 — Notification commande */}
-              <motion.div
-                animate={{
-                  y: [0, -6, 0],
-                }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -top-4 -right-4 sm:top-2 sm:right-0 lg:-right-8 bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl rounded-2xl px-4 py-3"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-800">Nouvelle commande</p>
-                    <p className="text-[10px] text-slate-500">Il y a 2 min</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Carte flottante 2 — Prix */}
-              <motion.div
-                animate={{
-                  y: [0, 6, 0],
-                }}
-                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-                className="absolute -bottom-4 -left-4 sm:bottom-4 sm:left-0 lg:-left-8 bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl rounded-2xl px-4 py-3"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center">
-                    <span className="text-violet-600 text-sm font-bold">₣</span>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">15 000 FCFA</p>
-                    <p className="text-[10px] text-slate-500">À partir de</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Carte flottante 3 — Badge live */}
-              <motion.div
-                animate={{
-                  scale: [1, 1.05, 1],
-                }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg rounded-full px-4 py-2"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-xs font-bold text-slate-800">12 847 produits actifs</span>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
+      {/* Bottom fade */}
+      <div className="h-16 bg-gradient-to-b from-transparent to-slate-50" />
     </section>
   )
 }
