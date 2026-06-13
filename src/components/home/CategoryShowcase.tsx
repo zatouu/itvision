@@ -12,7 +12,7 @@ export default function CategoryShowcase() {
           🏬 Découvrez nos rayons
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
           {showcaseCategories.map((cat, i) => (
             <motion.div
               key={cat.label}
@@ -23,7 +23,7 @@ export default function CategoryShowcase() {
             >
               <Link
                 href={cat.href}
-                className="block relative h-[160px] md:h-[200px] rounded-2xl overflow-hidden group"
+                className="block relative h-[200px] md:h-[280px] rounded-2xl overflow-hidden group"
               >
                 <img
                   src={cat.image}
