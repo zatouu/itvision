@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Menu, X, ShoppingBag, Package, Users, Heart,
-  Home, Store, UserRound, Truck, Sparkles
+  Home, Store, UserRound, Truck, Sparkles, Gem
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
@@ -101,6 +101,15 @@ export default function MarketHeader() {
             <Heart className="h-5 w-5" />
           </Link>
           <CartIcon />
+          <Link
+            href="/wallet"
+            className="flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+            title="Wallet SEL"
+          >
+            <Gem className="h-4 w-4" />
+            <span>1 250</span>
+            <span className="text-[10px] text-violet-500 font-normal">Grains</span>
+          </Link>
           <ThemeToggle />
           <MarketAuthButton
             variant="header"

@@ -30,9 +30,13 @@ function formatPrice(price: number, currency: string) {
   return `${price.toLocaleString('fr-FR')} ${currency}`
 }
 
-function formatDaysLeft(deadline: string) {
-  const days = Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  return days > 0 ? `${days}j restantes` : 'Dernier jour'
+function formatTimeLeft(deadline: string) {
+  const diff = new Date(deadline).getTime() - Date.now()
+  if (diff <= 0) return 'Expire bientôt'
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  if (hours < 24) return `Fin dans ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `${days}j restantes`
 }
 
 export default function GroupBuySection() {
@@ -163,19 +167,32 @@ export default function GroupBuySection() {
                         </div>
                       </div>
 
-                      {/* Meta */}
-                      <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatDaysLeft(group.deadline)}
-                        </span>
-                        <span>{group.participantCount} participant{group.participantCount > 1 ? 's' : ''}</span>
+                      {/* Counters */}
+                      <div className="grid grid-cols-3 gap-1 mb-3 text-center">
+                        <div className="bg-orange-50 rounded-lg p-1.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <Users className="h-3 w-3 text-orange-500" />
+                            <span className="text-xs font-bold text-orange-700">{group.participantCount}</span>
+                          </div>
+                          <span className="text-[10px] text-orange-500">participants</span>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-1.5">
+                          <div className="text-xs font-bold text-slate-700">{group.targetQty - group.currentQty}</div>
+                          <span className="text-[10px] text-slate-500">places</span>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-1.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <Clock className="h-3 w-3 text-slate-400" />
+                            <span className="text-xs font-bold text-slate-700">{formatTimeLeft(group.deadline)}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500">restant</span>
+                        </div>
                       </div>
                     </>
                   )}
 
                   {/* Prices */}
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg font-bold text-orange-600">
                       {formatPrice(group?.currentPrice || item.bestPrice, item.currency)}
                     </span>
@@ -183,6 +200,13 @@ export default function GroupBuySection() {
                       {formatPrice(item.basePrice, item.currency)}
                     </span>
                   </div>
+
+                  {/* Savings */}
+                  {group && item.basePrice > group.currentPrice && (
+                    <div className="text-xs font-semibold text-emerald-600 mb-3">
+                      Économisez {formatPrice(item.basePrice - group.currentPrice, item.currency)} / unité
+                    </div>
+                  )}
 
                   <Link
                     href={`/achats-groupes?product=${item._id}`}

@@ -10,6 +10,8 @@ import TrustBadges from '@/components/home/TrustBadges'
 import PartnerBrands from '@/components/home/PartnerBrands'
 import SourcingOnDemand from '@/components/home/SourcingOnDemand'
 import PromoBanner from '@/components/home/PromoBanner'
+import LiveActivityBar from '@/components/home/LiveActivityBar'
+import BusinessPacks from '@/components/home/BusinessPacks'
 import ImageSearchModal from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
 
@@ -48,16 +50,19 @@ export default function MarketHomePage() {
         onOpenSourcing={() => setShowSourcing(true)}
       />
 
-      {/* 2. Categories 1688-style */}
+      {/* 2. Live activity bar */}
+      <LiveActivityBar />
+
+      {/* 3. Categories 1688-style */}
       <CategoryPills1688 />
 
-      {/* 3. Promo Banner Slider */}
+      {/* 4. Promo Banner Slider */}
       <PromoBanner />
 
-      {/* 4. Group Buy — real products */}
+      {/* 5. Group Buy — real products */}
       <GroupBuySection />
 
-      {/* 5. Trending products */}
+      {/* 6. Trending products */}
       <ProductGrid1688
         title="Produits populaires"
         subtitle="Les plus commandés cette semaine"
@@ -65,10 +70,10 @@ export default function MarketHomePage() {
         limit={8}
       />
 
-      {/* 6. Trust badges */}
+      {/* 7. Trust badges */}
       <TrustBadges />
 
-      {/* 7. New arrivals */}
+      {/* 8. New arrivals */}
       <ProductGrid1688
         title="Nouveaux arrivages"
         subtitle="Derniers produits ajoutés au catalogue"
@@ -76,10 +81,13 @@ export default function MarketHomePage() {
         limit={8}
       />
 
-      {/* 8. Partner brands */}
+      {/* 9. Business packs */}
+      <BusinessPacks />
+
+      {/* 10. Partner brands */}
       <PartnerBrands />
 
-      {/* 9. Sourcing on demand */}
+      {/* 11. Sourcing on demand */}
       <SourcingOnDemand
         onOpenImageSearch={() => setShowImageSearch(true)}
         onOpenSourcing={() => setShowSourcing(true)}

@@ -18,6 +18,7 @@ interface Product {
   orderCount?: number
   stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
   isImported?: boolean
+  deliveryDays?: number
   priceTiers?: Array<{ minQty: number; price: number }>
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number
@@ -136,6 +137,19 @@ export default function ProductGrid1688({
                   {p.name}
                 </h3>
 
+                {/* Origin + delivery */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {p.isImported ? (
+                    <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                      🇨🇳 Import Chine · {p.deliveryDays ? `${p.deliveryDays} jours` : '10 jours'}
+                    </span>
+                  ) : p.stockStatus === 'in_stock' ? (
+                    <span className="text-[10px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
+                      🇸🇳 Stock Dakar · Livraison 1-2j
+                    </span>
+                  ) : null}
+                </div>
+
                 {/* Rating + orders */}
                 <div className="flex items-center gap-2 mb-2">
                   {p.rating && p.rating > 0 && (
@@ -149,29 +163,26 @@ export default function ProductGrid1688({
                   )}
                 </div>
 
-                {/* Price tiers */}
-                {showTiers && p.priceTiers && p.priceTiers.length > 0 ? (
-                  <div className="space-y-1 mb-3">
-                    {p.priceTiers.slice(0, 3).map((tier) => (
-                      <div key={tier.minQty} className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">{tier.minQty}+ unités</span>
-                        <span className="font-semibold text-slate-800">{formatPrice(tier.price, p.currency)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mb-3">
-                    <div className="text-lg font-bold text-slate-900">
-                      {formatPrice(p.priceAmount, p.currency)}
+                {/* Price */}
+                <div className="mb-3">
+                  {p.b2bPrice && p.b2bPrice > (p.priceAmount || 0) ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400 line-through">{formatPrice(p.b2bPrice, p.currency)}</span>
+                      <span className="text-lg font-bold text-slate-900">{formatPrice(p.priceAmount, p.currency)}</span>
+                      <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded">
+                        -{Math.round(((p.b2bPrice - (p.priceAmount || 0)) / p.b2bPrice) * 100)}%
+                      </span>
                     </div>
-                    {p.groupBuyEnabled && p.groupBuyBestPrice && p.groupBuyBestPrice < (p.priceAmount || 0) && (
-                      <div className="flex items-center gap-1 text-xs text-orange-600">
-                        <TrendingUp className="h-3 w-3" />
-                        Groupé : {formatPrice(p.groupBuyBestPrice, p.currency)}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <span className="text-lg font-bold text-slate-900">{formatPrice(p.priceAmount, p.currency)}</span>
+                  )}
+                  {p.groupBuyEnabled && p.groupBuyBestPrice && p.groupBuyBestPrice < (p.priceAmount || 0) && (
+                    <div className="flex items-center gap-1 text-xs text-orange-600 mt-1">
+                      <TrendingUp className="h-3 w-3" />
+                      Groupé : {formatPrice(p.groupBuyBestPrice, p.currency)}
+                    </div>
+                  )}
+                </div>
 
                 {/* Actions */}
                 <div className="flex gap-2">

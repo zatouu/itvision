@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Camera, FileText, ChevronRight } from 'lucide-react'
+import { Search, Camera, FileText, ChevronRight, Upload } from 'lucide-react'
 
 const CATEGORIES = [
   { name: 'Vidéosurveillance', href: '/produits?category=Vidéosurveillance' },
@@ -42,7 +42,7 @@ export default function HeroSection({ onOpenImageSearch, onOpenSourcing }: HeroS
         }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,7 +108,7 @@ export default function HeroSection({ onOpenImageSearch, onOpenSourcing }: HeroS
           </div>
 
           {/* Category pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
             {CATEGORIES.map((cat) => (
               <Link
                 key={cat.name}
@@ -120,6 +120,24 @@ export default function HeroSection({ onOpenImageSearch, onOpenSourcing }: HeroS
               </Link>
             ))}
           </div>
+
+          {/* Bloc photo visible */}
+          <button
+            type="button"
+            onClick={onOpenImageSearch}
+            className="inline-flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-dashed border-white/30 hover:border-white/50 rounded-2xl px-6 py-4 transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
+              <Upload className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-white">Envoyez une photo</div>
+              <div className="text-xs text-slate-300">Nous retrouvons le produit chez nos fournisseurs</div>
+            </div>
+            <div className="ml-2 w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center group-hover:bg-emerald-400 transition-colors">
+              <Camera className="h-5 w-5 text-white" />
+            </div>
+          </button>
         </motion.div>
       </div>
 
