@@ -24,6 +24,7 @@ export interface CatalogProduct {
   isFlash?: boolean
   isNew?: boolean
   discount?: number
+  colorVariants?: string[]
 }
 
 interface Props {
@@ -51,8 +52,8 @@ export default function CatalogProductCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay: (index % 10) * 0.03 }}
-      whileHover={{ y: -2 }}
-      className="group relative bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200"
+      whileHover={{ y: -4 }}
+      className="group relative bg-white border border-slate-100 rounded-lg overflow-hidden hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.15)] hover:border-orange-200 transition-all duration-200"
     >
       {/* Image carrée */}
       <div className="relative aspect-square overflow-hidden bg-slate-50">
@@ -63,39 +64,41 @@ export default function CatalogProductCard({
           loading="lazy"
         />
 
-        {/* Badges floating top-left */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {product.discount && product.discount > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-              -{product.discount}%
+        {/* Diagonal discount badge */}
+        {product.discount && product.discount > 0 && (
+          <span className="absolute top-0 left-0 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-lg z-10">
+            -{product.discount}%
+          </span>
+        )}
+
+        {/* Badges floating top-right stack */}
+        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+          {product.isFlash && (
+            <span className="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">
+              ⚡ Flash
             </span>
           )}
           {product.isGroupBuy && (
-            <span className="bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-              Groupe
-            </span>
-          )}
-          {product.isFlash && (
-            <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse">
-              Flash
+            <span className="bg-violet-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+              👥 Groupe
             </span>
           )}
           {product.isNew && (
-            <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-              Nouveau
+            <span className="bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+              ✨ Nouveau
             </span>
           )}
         </div>
 
-        {/* Heart favorite top-right */}
+        {/* Heart favorite top-left (below discount) */}
         <button
           type="button"
           onClick={(e) => onToggleFavorite(e, product.id)}
-          className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white shadow-sm transition-colors"
+          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white shadow-sm transition-colors opacity-0 group-hover:opacity-100"
           aria-label="Ajouter aux favoris"
         >
           <Heart
-            className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`}
+            className={`w-3.5 h-3.5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`}
           />
         </button>
 
@@ -110,7 +113,7 @@ export default function CatalogProductCard({
             </Link>
             <button
               onClick={() => onAddToCart(product)}
-              className="flex-1 bg-emerald-500 text-white text-xs font-medium py-1.5 rounded hover:bg-emerald-600"
+              className="flex-1 bg-orange-500 text-white text-xs font-medium py-1.5 rounded hover:bg-orange-600"
             >
               + Panier
             </button>
@@ -118,41 +121,61 @@ export default function CatalogProductCard({
         </div>
       </div>
 
-      {/* Info section (compact) */}
+      {/* Info section */}
       <div className="p-2.5 space-y-1">
-        <h3 className="text-xs font-medium text-slate-900 line-clamp-2 leading-snug min-h-[2rem]">
+        <h3 className="text-[11px] font-medium text-slate-800 line-clamp-2 leading-snug min-h-[2rem]">
           {product.name}
         </h3>
 
-        {/* Rating */}
-        <div className="flex items-center gap-1 text-[11px] text-slate-500">
-          {product.rating && (
+        {/* Rating + sold */}
+        <div className="flex items-center gap-1 text-[10px] text-slate-500">
+          {product.rating !== undefined && product.rating > 0 && (
             <>
-              <span className="text-amber-500">&#9733;</span>
+              <span className="text-amber-400">★</span>
               <span>{product.rating.toFixed(1)}</span>
-              <span>·</span>
             </>
           )}
-          {product.soldCount !== undefined && (
-            <span>{product.soldCount} vendus</span>
+          {product.soldCount !== undefined && product.soldCount > 0 && (
+            <span className="text-slate-400">· {product.soldCount}+ vendus</span>
           )}
         </div>
 
-        {/* Price */}
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-base font-bold text-emerald-600">
+        {/* Price row - Alibaba/Temu style : big red price */}
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="text-sm font-bold text-red-600">
             {formatPrice(product.price, product.currency)}
           </span>
           {product.originalPrice && product.originalPrice > product.price && (
-            <span className="text-[11px] text-slate-400 line-through">
+            <span className="text-[10px] text-slate-400 line-through">
               {formatPrice(product.originalPrice, product.currency)}
+            </span>
+          )}
+          {product.discount && product.discount > 0 && (
+            <span className="text-[10px] bg-red-50 text-red-600 px-1 rounded">
+              -{product.discount}%
             </span>
           )}
         </div>
 
+        {/* Color swatches mini */}
+        {product.colorVariants && product.colorVariants.length > 0 && (
+          <div className="flex gap-1 pt-0.5">
+            {product.colorVariants.slice(0, 4).map((c, i) => (
+              <div
+                key={i}
+                className="w-3 h-3 rounded-full border border-slate-200"
+                style={{ backgroundColor: c }}
+              />
+            ))}
+            {product.colorVariants.length > 4 && (
+              <span className="text-[9px] text-slate-400 leading-3">+{product.colorVariants.length - 4}</span>
+            )}
+          </div>
+        )}
+
         {/* Bottom tag : delivery OR group buy progress */}
         {product.isGroupBuy ? (
-          <div className="space-y-1">
+          <div className="space-y-1 pt-0.5">
             <div className="flex items-center justify-between text-[10px] text-violet-700">
               <span>{product.groupProgress}/{product.groupTarget} participants</span>
               <span>{product.daysLeft}j restants</span>
@@ -167,11 +190,11 @@ export default function CatalogProductCard({
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-1 text-[10px] text-slate-500">
+          <div className="flex items-center gap-1 text-[10px] text-slate-500 pt-0.5">
             <Truck className="w-3 h-3" />
-            <span>{product.deliveryDays ?? 3}j</span>
+            <span>Livraison {product.deliveryDays ?? 3}j</span>
             {product.origin === 'Stock Dakar' && (
-              <span className="text-emerald-600">· Stock Dakar</span>
+              <span className="text-emerald-600 font-medium">· En stock</span>
             )}
           </div>
         )}

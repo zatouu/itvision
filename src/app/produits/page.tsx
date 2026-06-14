@@ -872,6 +872,7 @@ export default function ProduitsPage() {
       daysLeft: 5,
       isFlash: disc > 20,
       isNew: !!p.isFeatured,
+      colorVariants: (Math.random() > 0.5 ? ['#1a1a1a', '#ffffff', '#c41e3a'] : ['#1D4ED8', '#065F46', '#92400E', '#ffffff']) as string[],
     }
   }
 
@@ -901,7 +902,7 @@ export default function ProduitsPage() {
       <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3">
           {/* Search bar compacte */}
-          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white border border-slate-300 rounded-full p-1.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white border border-slate-300 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
             <Search className="w-4 h-4 text-slate-400 ml-3 flex-shrink-0" />
             <input
               value={search}
@@ -912,7 +913,7 @@ export default function ProduitsPage() {
             <button title="Recherche par image" onClick={() => setShowImageSearch(true)} className="p-2 hover:bg-slate-100 rounded-full flex-shrink-0">
               <Camera className="w-4 h-4 text-violet-600" />
             </button>
-            <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-full text-sm font-medium flex-shrink-0">
+            <button className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-full text-sm font-medium flex-shrink-0">
               Rechercher
             </button>
           </div>
@@ -975,7 +976,7 @@ export default function ProduitsPage() {
       )}
 
       {/* === MAIN AREA : SIDEBAR + GRID === */}
-      <section className="py-6 bg-white">
+      <section className="py-6 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
             {/* Sidebar */}
@@ -1015,7 +1016,7 @@ export default function ProduitsPage() {
                               case 'priceRange': setPriceRange(null); break
                               case 'pill': setActivePill('Tous'); break
                             }
-                          }} className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-1 flex items-center gap-1">
+                          }} className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-2 py-1 flex items-center gap-1">
                             {f.label} <X className="w-3 h-3" />
                           </button>
                         ))}
@@ -1025,10 +1026,19 @@ export default function ProduitsPage() {
                 })()}
                 {/* Prix */}
                 <div>
-                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Prix (FCFA)</span>
                   </div>
-                  <input type="range" min={0} max={500000} step={5000} value={priceRange?.max ?? 500000} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full accent-emerald-500 mb-2" />
+                  <input type="range" min={0} max={500000} step={5000} value={priceRange?.max ?? 500000} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full accent-orange-500 mb-1" />
+                  {/* Histogramme de prix visuel */}
+                  <div className="flex items-end gap-[2px] h-8 mb-2 px-1">
+                    {[30,45,20,60,85,40,55,70,35,50,90,65,30,45,25,55,40,70,50,35].map((h,i)=>{
+                      const inRange = priceRange ? (i/20)*500000 <= (priceRange.max ?? 500000) && (i/20)*500000 >= (priceRange.min ?? 0) : true
+                      return (
+                        <div key={i} className={`flex-1 rounded-t-sm ${inRange ? 'bg-orange-300' : 'bg-slate-200'}`} style={{height:`${h}%`}} />
+                      )
+                    })}
+                  </div>
                   <div className="flex gap-2">
                     <input type="number" placeholder="Min" value={priceRange?.min ?? ''} onChange={e => setPriceRange({min: Number(e.target.value), max: priceRange?.max ?? 500000})} className="w-full text-xs border border-slate-200 rounded px-2 py-1" />
                     <input type="number" placeholder="Max" value={priceRange?.max ?? ''} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full text-xs border border-slate-200 rounded px-2 py-1" />
@@ -1036,13 +1046,13 @@ export default function ProduitsPage() {
                 </div>
                 {/* Catégories */}
                 <div>
-                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Catégories</span>
                   </div>
                   <div className="space-y-1.5">
                     {['Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine'].map(cat => (
                       <label key={cat} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
-                        <input type="checkbox" checked={selected.includes(cat.toLowerCase())} onChange={() => setSelected(prev => prev.includes(cat.toLowerCase()) ? prev.filter(c => c !== cat.toLowerCase()) : [...prev, cat.toLowerCase()])} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                        <input type="checkbox" checked={selected.includes(cat.toLowerCase())} onChange={() => setSelected(prev => prev.includes(cat.toLowerCase()) ? prev.filter(c => c !== cat.toLowerCase()) : [...prev, cat.toLowerCase()])} className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
                         <span className="flex-1">{cat}</span>
                       </label>
                     ))}
@@ -1050,36 +1060,36 @@ export default function ProduitsPage() {
                 </div>
                 {/* Disponibilité */}
                 <div>
-                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Disponibilité</span>
                   </div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 border-slate-300 text-emerald-600" />
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 border-slate-300 text-orange-600" />
                       Tous
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 border-slate-300 text-emerald-600" />
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 border-slate-300 text-orange-600" />
                       En stock
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 border-slate-300 text-emerald-600" />
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 border-slate-300 text-orange-600" />
                       Sur commande
                     </label>
                   </div>
                 </div>
                 {/* Type d'achat */}
                 <div>
-                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Type d'achat</span>
                   </div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="checkbox" checked={!onlyGroupBuy} onChange={() => setOnlyGroupBuy(false)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+                      <input type="checkbox" checked={!onlyGroupBuy} onChange={() => setOnlyGroupBuy(false)} className="w-4 h-4 rounded border-slate-300 text-orange-600" />
                       <span className="flex-1">Achat individuel</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="checkbox" checked={onlyGroupBuy} onChange={() => setOnlyGroupBuy(true)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+                      <input type="checkbox" checked={onlyGroupBuy} onChange={() => setOnlyGroupBuy(true)} className="w-4 h-4 rounded border-slate-300 text-orange-600" />
                       <span className="flex-1">Achat groupé</span>
                     </label>
                   </div>
@@ -1144,7 +1154,7 @@ export default function ProduitsPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-medium text-slate-900 line-clamp-2">{product.name}</h3>
                           <div className="mt-1 text-xs text-slate-500">{product.rating} ★ · {product.deliveryDays}j</div>
-                          <div className="mt-1 text-base font-bold text-emerald-600">
+                          <div className="mt-1 text-base font-bold text-orange-600">
                             {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
                           </div>
                         </div>
@@ -1167,7 +1177,7 @@ export default function ProduitsPage() {
               {hasMore && (
                 <div ref={observerTarget} className="mt-8 flex items-center justify-center py-6">
                   {loadingMore ? (
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
                   ) : (
                     <p className="text-sm text-slate-400">Faites défiler pour voir plus</p>
                   )}
