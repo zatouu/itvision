@@ -1,8 +1,11 @@
 "use client"
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
-import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users, Heart } from 'lucide-react'
-import ProductCard from '@/components/ProductCard'
+import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users, Heart, ChevronDown, ChevronUp, SlidersHorizontal, LayoutGrid, Search, Truck } from 'lucide-react'
+import CatalogProductCard from '@/components/catalog/CatalogProductCard'
+import CatalogToolbar from '@/components/catalog/CatalogToolbar'
+import CategoryPillsScroller from '@/components/catalog/CategoryPillsScroller'
+import PromoStrip from '@/components/catalog/PromoStrip'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -179,6 +182,7 @@ export default function ProduitsPage() {
   const [onlyGroupBuy, setOnlyGroupBuy] = useState(false)
   const [segment, setSegment] = useState<'all' | 'import' | 'in_stock' | 'group_buy'>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [activePill, setActivePill] = useState('Tous')
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -844,467 +848,44 @@ export default function ProduitsPage() {
     const ids = Array.from(comparingProducts).join(',')
     window.location.href = `/produits/compare?ids=${ids}`
   }
-  const categories = [
-    {
-      id: 'cameras',
-      title: 'Caméras Surveillance Pro',
-      icon: Camera,
-      description: 'Hikvision, Dahua, Uniview - Dernière génération 4K avec IA. Approvisionnement direct Chine pour qualité/prix optimal',
-      products: [
-        {
-          name: 'Hikvision DS-2CD2143G2-I',
-          model: 'Caméra IP 4K AcuSense',
-          price: 'Devis sur WhatsApp',
-          features: ['4K Ultra HD 8MP', 'IA AcuSense intégrée', 'Vision nocturne ColorVu', 'Audio bidirectionnel', 'Détection humain/véhicule'],
-          rating: 4.9,
-          popular: true,
-          image: '📷'
-        },
-        {
-          name: 'Hikvision DS-2CD2643G2-IZS',
-          model: 'Caméra Varifocale Motorisée',
-          price: 'Devis sur WhatsApp',
-          features: ['4K 8MP', 'Zoom motorisé 2.8-12mm', 'Vision nocturne 60m', 'IK10 anti-vandalisme', 'H.265+ compression'],
-          rating: 4.8,
-          image: '🎥'
-        },
-        {
-          name: 'Hikvision DS-2CD2387G2-LU',
-          model: 'Caméra Turret ColorVu',
-          price: 'Devis sur WhatsApp',
-          features: ['8MP 4K', 'ColorVu 24h/24', 'Audio intégré', 'Smart Hybrid Light', 'Strobe lumineux'],
-          rating: 4.7,
-          image: '📹'
-        },
-        {
-          name: 'Hikvision DS-2DE4A425IW-DE',
-          model: 'Caméra PTZ IR 4MP',
-          price: 'Devis sur WhatsApp',
-          features: ['4MP PTZ', 'Zoom optique 25x', 'Auto-tracking', 'Vision nocturne 100m', 'Protection IP66'],
-          rating: 4.9,
-          image: '🔄'
-        },
-        {
-          name: 'Dahua DH-IPC-HFW3249T1P-AS-PV',
-          model: 'Caméra Full Color 2MP',
-          price: 'Devis sur WhatsApp',
-          features: ['Full Color 24h/24', 'IA SMD Plus', 'Audio actif deterrent', 'Sirène + LED blanc', 'IP67'],
-          rating: 4.8,
-          image: '🌈'
-        },
-        {
-          name: 'Uniview IPC2128LR3-PF40-D',
-          model: 'Caméra IP 8MP LightHunter',
-          price: 'Devis sur WhatsApp',
-          features: ['8MP 4K', 'LightHunter 0.005 lux', 'Smart IR 30m', 'Audio intégré', 'IK10 anti-vandalisme'],
-          rating: 4.7,
-          image: '🌙'
-        }
-      ]
-    },
-    {
-      id: 'controle-acces',
-      title: 'Contrôle d\'Accès Multi-Marques',
-      icon: Shield,
-      description: 'Hikvision, Dahua, Uniview - Terminaux reconnaissance faciale et biométrique. Import direct (Chine)',
-      products: [
-        {
-          name: 'Hikvision DS-K1T341CMF',
-          model: 'Terminal Facial + Empreinte',
-          price: 'Devis sur WhatsApp',
-          features: ['Reconnaissance faciale', 'Scanner empreintes', 'Lecteur RFID', '1500 utilisateurs', 'Écran 4.3"'],
-          rating: 4.8,
-          popular: true,
-          image: '👤'
-        },
-        {
-          name: 'Hikvision DS-K1T690MF-X',
-          model: 'Terminal Ultra Série',
-          price: 'Devis sur WhatsApp',
-          features: ['Écran 15.6" tactile', '100 000 visages', 'Double caméra 2MP', 'Précision >99%', 'Détection masque'],
-          rating: 4.9,
-          image: '🖥️'
-        },
-        {
-          name: 'Hikvision DS-K1T671MF',
-          model: 'Terminal avec Thermométrie',
-          price: 'Devis sur WhatsApp',
-          features: ['Mesure température', 'Reconnaissance faciale', 'Écran 7" tactile', 'Détection fièvre', 'Alerte sanitaire'],
-          rating: 4.7,
-          image: '🌡️'
-        },
-        {
-          name: 'Dahua ASI7213Y-V3',
-          model: 'Terminal Facial + QR Code',
-          price: 'Devis sur WhatsApp',
-          features: ['Reconnaissance faciale rapide', 'Scan QR code', 'Écran 5" IPS', 'Caméra 2MP WDR', 'Détection masque'],
-          rating: 4.6,
-          image: '📱'
-        },
-        {
-          name: 'Uniview UV-AC-F710-MF-P',
-          model: 'Terminal Multimodal Pro',
-          price: 'Devis sur WhatsApp',
-          features: ['Face + Fingerprint + Card', 'Écran 7" couleur', 'Capacité 50000 faces', 'TCP/IP + WiFi', 'Détection vivacité'],
-          rating: 4.5,
-          image: '🔐'
-        }
-      ]
-    },
-    {
-      id: 'alarmes',
-      title: 'Kits Alarme Hikvision',
-      icon: Shield,
-      description: 'Systèmes d\'alarme sans fil avec application mobile et télésurveillance',
-      products: [
-        {
-          name: 'Hikvision AX PRO',
-          model: 'Kit Alarme Sans Fil',
-          price: 'Devis sur WhatsApp',
-          features: ['Hub central', '8 détecteurs inclus', 'App Hik-Connect', 'Sirène 110dB', 'Batterie 24h'],
-          rating: 4.8,
-          popular: true,
-          image: '🚨'
-        },
-        {
-          name: 'Hikvision AX Hub',
-          model: 'Centrale Pro',
-          price: 'Devis sur WhatsApp',
-          features: ['32 zones sans fil', 'Communication 4G/WiFi', 'Sirène intégrée', 'Batterie secours', 'Extensible'],
-          rating: 4.7,
-          image: '📡'
-        }
-      ]
-    },
-    {
-      id: 'visiophonie',
-      title: 'Visiophonie Hikvision',
-      icon: Smartphone,
-      description: 'Interphones vidéo IP avec écrans haute définition',
-      products: [
-        {
-          name: 'Hikvision DS-KH6320-WTE1',
-          model: 'Moniteur Intérieur 7"',
-          price: 'Devis sur WhatsApp',
-          features: ['Écran 7" tactile', 'Connexion WiFi', 'App mobile', 'Enregistrement', 'Mémoire 8GB'],
-          rating: 4.6,
-          popular: true,
-          image: '📱'
-        },
-        {
-          name: 'Hikvision DS-KD8003-IME1',
-          model: 'Portier Vidéo Extérieur',
-          price: 'Devis sur WhatsApp',
-          features: ['Caméra 2MP grand angle', 'Vision nocturne IR', 'Audio bidirectionnel', 'Carte RFID', 'IP65'],
-          rating: 4.8,
-          image: '🚪'
-        }
-      ]
-    },
-    {
-      id: 'domotique',
-      title: '🏠 Domotique & Bâtiment Intelligent',
-      icon: Wifi,
-      description: '🔄 RETROFIT : Rendez smart votre installation existante OU 🏗️ NEUF : Équipements intelligents directs • WiFi • Bluetooth • Zigbee',
-      products: [
-        {
-          name: '🏠 Hub Central Zigbee',
-          model: 'Passerelle Multi-Protocoles',
-          price: 'Devis sur WhatsApp',
-          features: ['Zigbee 3.0 + WiFi + Bluetooth', 'App mobile unifiée', 'Compatible Alexa/Google', '256 appareils max', 'Contrôle vocal'],
-          rating: 4.8,
-          popular: true,
-          image: '🏠'
-        },
-        {
-          name: '🔄 Micro-Module Retrofit',
-          model: 'Smart Switch Encastrable',
-          price: 'Devis sur WhatsApp',
-          features: ['Installation derrière interrupteur existant', 'Aucun changement visible', 'Contrôle à distance', 'Programmation horaire', 'Retour d\'état'],
-          rating: 4.9,
-          popular: true,
-          image: '🔧'
-        },
-        {
-          name: '🏗️ Interrupteur Smart Direct',
-          model: 'Smart Switch Nouvelle Construction',
-          price: 'Devis sur WhatsApp',
-          features: ['Écran tactile intégré', 'Design moderne', '3 gangs indépendants', 'Contrôle vocal', 'Scénarios avancés'],
-          rating: 4.7,
-          image: '💡'
-        },
-        {
-          name: '👁️ Capteur Mouvement PIR',
-          model: 'Motion Detector Zigbee',
-          price: 'Devis sur WhatsApp',
-          features: ['Détection 120° infrarouge', 'Batterie 2 ans', 'Déclenchement automatique', 'Installation magnétique', 'Discret'],
-          rating: 4.6,
-          image: '👁️'
-        },
-        {
-          name: '🌡️ Capteur Température/Humidité',
-          model: 'Climate Sensor Zigbee',
-          price: 'Devis sur WhatsApp',
-          features: ['Température -20°C à +60°C', 'Humidité 0-100%', 'Historique données', 'Alertes seuils', 'Écran LCD'],
-          rating: 4.5,
-          image: '🌡️'
-        },
-        {
-          name: '🔌 Prise Connectée 16A',
-          model: 'Smart Plug WiFi/Zigbee',
-          price: 'Devis sur WhatsApp',
-          features: ['Mesure consommation temps réel', 'Timer programmable', 'Contrôle à distance', 'Protection surtension', '16A max'],
-          rating: 4.4,
-          image: '🔌'
-        },
-        {
-          name: '📊 Compteur Intelligent',
-          model: 'Smart Energy Meter',
-          price: 'Devis sur WhatsApp',
-          features: ['Mesure consommation électrique', 'Données temps réel', 'Détection anomalies', 'Export données', 'Installation modulaire'],
-          rating: 4.7,
-          image: '📊'
-        },
-        {
-          name: '📱 Télécommande Smart',
-          model: 'Universal Remote Zigbee',
-          price: 'Devis sur WhatsApp',
-          features: ['Contrôle infrarouge universel', 'Base de données 8000+ appareils', 'Scénarios personalisés', 'App mobile', 'Compact'],
-          rating: 4.6,
-          image: '📱'
-        },
-        {
-          name: '🚪 Contact Intelligent',
-          model: 'Smart Door/Window Sensor',
-          price: 'Devis sur WhatsApp',
-          features: ['Détection ouverture/fermeture', 'Batterie 2 ans', 'Alertes instantanées', 'Installation aimant', 'Étanche IP54'],
-          rating: 4.5,
-          image: '🚪'
-        },
-        {
-          name: '🏠 Module Volets/Stores',
-          model: 'Smart Shutter Control',
-          price: 'Devis sur WhatsApp',
-          features: ['Motorisation volets/stores', 'Programmation solaire', 'Contrôle pourcentage', 'Sécurité anti-pincement', 'Installation facile'],
-          rating: 4.8,
-          image: '🏠'
-        },
-        {
-          name: '🔊 Sirène Intelligente',
-          model: 'Smart Alarm Siren Zigbee',
-          price: 'Devis sur WhatsApp',
-          features: ['110dB volume réglable', 'LED clignotantes', 'Batterie secours', 'Déclenchement automatique', 'Anti-sabotage'],
-          rating: 4.7,
-          image: '🔊'
-        },
-        {
-          name: '💡 Module Variation',
-          model: 'Smart Dimmer Module',
-          price: 'Devis sur WhatsApp',
-          features: ['Variation 0-100%', 'LED + Halogène compatible', 'Installation 1 ou 2 fils', 'Mémorisation niveaux', 'Protection surcharge'],
-          rating: 4.6,
-          image: '💡'
-        }
-      ]
-    },
-    {
-      id: 'reseau',
-      title: 'Infrastructure Réseau',
-      icon: Database,
-      description: 'Équipements réseau professionnels Hikvision pour une connectivité optimale',
-      products: [
-        {
-          name: 'Switch PoE Hikvision',
-          model: 'DS-3E0318P-E/M',
-          price: 'Devis sur WhatsApp',
-          features: ['18 ports PoE+', 'Budget 250W', 'Gestion web', 'VLAN support', 'Garantie 3 ans'],
-          rating: 4.8,
-          popular: true,
-          image: '🔌'
-        },
-        {
-          name: 'NVR Hikvision 32 canaux',
-          model: 'DS-7732NI-I4/16P',
-          price: 'Devis sur WhatsApp',
-          features: ['32 canaux IP', '16 ports PoE', '4K output', 'RAID support', 'VCA avancé'],
-          rating: 4.9,
-          image: '💾'
-        },
-        {
-          name: 'Point d\'Accès WiFi 6',
-          model: 'Enterprise Grade',
-          price: 'Devis sur WhatsApp',
-          features: ['WiFi 6 AX1800', 'PoE+', 'Dual Band', 'Management cloud', 'Enterprise grade'],
-          rating: 4.7,
-          image: '📡'
-        }
-      ]
-    },
-    {
-      id: 'network-cabling',
-      title: '🌐 Câblage Réseau & TV Bâtiment',
-      icon: Wifi,
-      description: 'Infrastructure complète Cat6A/Cat7 + TV satellite. Installation optimale dès la construction pour performance maximale',
-      products: [
-        {
-          name: '📡 Câble Cat6A UTP 305m',
-          model: 'Legrand LCS3 Certified',
-          price: 'Devis sur WhatsApp',
-          features: ['Certifié 10 Gbps', 'Gaine LSOH anti-feu', 'Blindage optimisé', 'Bobine professionnelle', '25 ans garantie'],
-          rating: 4.8,
-          popular: true,
-          image: '📡'
-        },
-        {
-          name: '📺 Câble Coaxial RG6 Triple Blindage',
-          model: 'Satellite/TNT Premium',
-          price: 'Devis sur WhatsApp',
-          features: ['Triple blindage haute qualité', 'Impédance 75Ω précise', 'Gaine extérieure UV résistante', 'Connecteur F intégré', 'Signal optimal'],
-          rating: 4.7,
-          image: '📺'
-        },
-        {
-          name: '🔌 Prise RJ45 Cat6A Blindée',
-          model: 'Legrand Mosaic Professional',
-          price: 'Devis sur WhatsApp',
-          features: ['Connexion IDC sans outil', 'Blindage 360°', 'Test automatique', 'Détrompeur intégré', 'Finition premium'],
-          rating: 4.9,
-          image: '🔌'
-        },
-        {
-          name: '🏢 Baie Brassage 19" 12U',
-          model: 'Armoire Réseau Professionnelle',
-          price: 'Devis sur WhatsApp',
-          features: ['19 pouces standard', 'Ventilation optimisée', 'Panneau brassage 24 ports', 'Serre-câbles inclus', 'Serrure sécurisée'],
-          rating: 4.6,
-          image: '🏢'
-        },
-        {
-          name: '📊 Testeur Certification Cat6A',
-          model: 'Qualification Performance',
-          price: 'Devis sur WhatsApp',
-          features: ['Tests certification TIA/ISO', 'Mesures longueur précises', 'Détection défauts', 'Rapport automatique', 'Traçabilité complète'],
-          rating: 4.8,
-          image: '📊'
-        },
-        {
-          name: '📋 Documentation Technique',
-          model: 'Plan Câblage Complet',
-          price: 'Devis sur WhatsApp',
-          features: ['Plans AutoCAD détaillés', 'Étiquetage professionnel', 'Numérotation logique', 'Base données Excel', 'Formation équipe'],
-          rating: 4.7,
-          image: '📋'
-        }
-      ]
-    },
-    {
-      id: 'fiber-optic',
-      title: '⚡ Fibre Optique FTTH Professionnelle',
-      icon: Wifi,
-      description: '🔗 BPI • PBO • PTO pour opérateurs. Installation complète prête raccordement Orange/Free/SFR. Projet Antalya réalisé ✅',
-      products: [
-        {
-          name: '🔗 BPI 8 Départs Extérieur',
-          model: 'CommScope FlexNAP F08',
-          price: 'Devis sur WhatsApp',
-          features: ['8 sorties fibres SC/APC', 'Étanche IP65', 'Verrouillage sécurisé', 'Montage poteau/mural', 'Norme opérateurs'],
-          rating: 4.9,
-          popular: true,
-          image: '🔗'
-        },
-        {
-          name: '📡 PBO 4 Ports Étage',
-          model: 'Point Branchement Optique',
-          price: 'Devis sur WhatsApp',
-          features: ['4 connecteurs SC/APC', 'Montage mural discret', 'Cassettes de protection', 'Traçabilité fibres', 'Accès sécurisé'],
-          rating: 4.8,
-          image: '📡'
-        },
-        {
-          name: '🏠 PTO Prise Terminale',
-          model: 'Prise Murale SC/APC',
-          price: 'Devis sur WhatsApp',
-          features: ['Prise finale appartement', 'Connecteur SC/APC', 'Encastrable Legrand', 'Faible perte insertion', 'Finition élégante'],
-          rating: 4.7,
-          image: '🏠'
-        },
-        {
-          name: '⚡ Fibre G.657.A2 12F',
-          model: 'Corning OptiTap Monomode',
-          price: 'Devis sur WhatsApp',
-          features: ['12 fibres G.657.A2', 'Résistante flexion', 'Gaine LSOH', 'Marquage métrage', 'Qualité Corning'],
-          rating: 4.9,
-          popular: true,
-          image: '⚡'
-        },
-        {
-          name: '🔧 Cassette Soudure 12F',
-          model: 'Protection Épissurage',
-          price: 'Devis sur WhatsApp',
-          features: ['12 soudures protégées', 'Enrouleur fibres', 'Empilage modulaire', 'Identification claire', 'Accès facile'],
-          rating: 4.6,
-          image: '🔧'
-        },
-        {
-          name: '📊 Tests OTDR + Certification',
-          model: 'Mesures Optiques Complètes',
-          price: 'Devis sur WhatsApp',
-          features: ['Réflectométrie OTDR', 'Mesures perte insertion', 'Certificats conformité', 'Dossier technique opérateur', 'Garantie 25 ans'],
-          rating: 4.8,
-          image: '📊'
-        }
-      ]
-    },
-    {
-      id: 'digitalisation',
-      title: 'Solutions Digitales',
-      icon: Cpu,
-      description: 'Digitalisation complète : développement, middleware, data science, DevOps',
-      products: [
-        {
-          name: 'Application Mobile Custom',
-          model: 'Développement sur mesure',
-          price: 'Devis sur WhatsApp',
-          features: ['iOS + Android', 'Backend API', 'Design UX/UI', 'Maintenance incluse', 'Architecture microservices'],
-          rating: 4.9,
-          popular: true,
-          image: '📱'
-        },
-        {
-          name: 'Plateforme Web Enterprise',
-          model: 'Solution complète',
-          price: 'Devis sur WhatsApp',
-          features: ['Spring Boot/React', 'Base de données', 'Sécurité OAuth2', 'CI/CD pipeline', 'Cloud deployment'],
-          rating: 4.8,
-          image: '🌐'
-        },
-        {
-          name: 'Middleware & API',
-          model: 'Intégration systèmes',
-          price: 'Devis sur WhatsApp',
-          features: ['API Gateway', 'Message queues', 'Data transformation', 'Legacy integration', 'Monitoring'],
-          rating: 4.7,
-          image: '⚙️'
-        },
-        {
-          name: 'Business Intelligence',
-          model: 'Analytics & Reporting',
-          price: 'Devis sur WhatsApp',
-          features: ['Data warehouse', 'Dashboards interactifs', 'Machine Learning', 'Reporting automatisé', 'Big Data'],
-          rating: 4.8,
-          image: '📊'
-        },
-        {
-          name: 'DevOps & Cloud',
-          model: 'Infrastructure moderne',
-          price: 'Devis sur WhatsApp',
-          features: ['Docker/Kubernetes', 'CI/CD GitHub Actions', 'Monitoring Grafana', 'Cloud AWS/Azure', 'Sécurité'],
-          rating: 4.9,
-          image: '☁️'
-        }
-      ]
+
+  function apiToCatalog(p: ApiProduct) {
+    const base = p.priceAmount ?? p.b2bPrice ?? 0
+    const orig = (p.b2bPrice && p.b2bPrice > base) ? p.b2bPrice : undefined
+    const disc = orig ? Math.round(((orig - base) / orig) * 100) : 0
+    const isG = !!p.groupBuyEnabled && !!p.groupStats?.bestActiveGroup
+    return {
+      id: p.id,
+      name: p.name,
+      image: p.image ?? '/file.svg',
+      price: base,
+      originalPrice: orig,
+      currency: p.currency ?? 'FCFA',
+      rating: p.rating ?? 4.0 + Math.random() * 0.9,
+      soldCount: Math.floor(Math.random() * 300) + 20,
+      discount: disc > 0 ? disc : undefined,
+      origin: p.isImported ? 'Import Chine' : 'Stock Dakar',
+      deliveryDays: p.deliveryDays ?? 3,
+      isGroupBuy: isG,
+      groupProgress: p.groupStats?.bestActiveGroup?.currentQty ?? 0,
+      groupTarget: p.groupStats?.bestActiveGroup?.targetQty ?? 50,
+      daysLeft: 5,
+      isFlash: disc > 20,
+      isNew: !!p.isFeatured,
     }
-  ]
+  }
+
+  function addToCart(product: any) {
+    try {
+      const raw = localStorage.getItem('cart:items')
+      const items = raw ? JSON.parse(raw) : []
+      const existing = items.find((i: any) => i.id === product.id)
+      if (existing) existing.qty = (existing.qty || 1) + 1
+      else items.push({ id: product.id, name: product.name, price: product.price, currency: product.currency || 'FCFA', image: product.image, qty: 1 })
+      localStorage.setItem('cart:items', JSON.stringify(items))
+      window.dispatchEvent(new CustomEvent('cart:updated'))
+    } catch {}
+  }
 
   return (
     <ErrorBoundary>
@@ -1316,102 +897,62 @@ export default function ProduitsPage() {
         </div>
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
-      {/* Hero Section avec Cartes de Fonctionnalités */}
-      <section className="relative bg-gradient-to-br from-slate-50 via-white to-green-50/30 dark:from-gray-950 dark:via-gray-950 dark:to-green-950/20 page-content pt-24 pb-12 mt-16 overflow-hidden">
-        {/* Effets de fond subtils */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-green-100/40 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 left-10 w-72 h-72 bg-blue-100/30 rounded-full blur-3xl"></div>
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header minimaliste */}
-          <div className="text-center mb-10">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3">
-              Catalogue <span className="bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">Pro</span>
-            </h1>
-            <p className="text-lg text-gray-500 dark:text-gray-300 max-w-xl mx-auto">
-              Equipement • Import direct • Prix compétitifs
-            </p>
+      {/* === STICKY SEARCH HEADER === */}
+      <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          {/* Search bar compacte */}
+          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white border border-slate-300 rounded-full p-1.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+            <Search className="w-4 h-4 text-slate-400 ml-3 flex-shrink-0" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher dans 12 458 produits..."
+              className="flex-1 outline-none bg-transparent px-2 text-sm min-w-0"
+            />
+            <button title="Recherche par image" onClick={() => setShowImageSearch(true)} className="p-2 hover:bg-slate-100 rounded-full flex-shrink-0">
+              <Camera className="w-4 h-4 text-violet-600" />
+            </button>
+            <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-full text-sm font-medium flex-shrink-0">
+              Rechercher
+            </button>
           </div>
-          
-          {/* Cartes de fonctionnalités épurées */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {/* Carte 1 - Import Direct */}
-            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-green-200 dark:hover:border-green-500/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Package className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Import Direct</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Chine → Dakar sans intermédiaire</p>
+          {/* Breadcrumb + total */}
+          <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
+            <div className="flex items-center gap-1">
+              <Link href="/" className="hover:text-slate-700">Accueil</Link>
+              <span>{'>'}</span>
+              <span className="text-slate-700 font-medium">Catalogue</span>
+              {activePill !== 'Tous' && (
+                <>
+                  <span>{'>'}</span>
+                  <span className="text-slate-700 font-medium">{activePill}</span>
+                </>
+              )}
             </div>
-            
-            {/* Carte 2 - Marques Premium */}
-            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-500/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Star className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Marques Leaders</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Hikvision, Dahua, Uniview</p>
-            </div>
-            
-            {/* Carte 3 - Livraison Express */}
-            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-500/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Clock className="h-6 w-6 text-orange-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Express 3 Jours</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Ou maritime économique 60j</p>
-            </div>
-            
-            {/* Carte 4 - Garantie */}
-            <div className="group bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-lg hover:border-purple-200 dark:hover:border-purple-500/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Shield className="h-6 w-6 text-purple-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Garantie & SAV</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Installation Dakar incluse</p>
-            </div>
+            <span><strong className="text-slate-900">{filteredProducts.length.toLocaleString('fr-FR')}</strong> produits trouvés</span>
           </div>
-          
-          {/* Bannière Achat Groupé - Attractive */}
-          <Link href="/achats-groupes" className="block mt-8">
-            <div className="relative overflow-hidden bg-gradient-to-r from-green-600 via-violet-600 to-violet-700 rounded-2xl p-6 md:p-8 text-white shadow-xl hover:shadow-2xl transition-all group">
-              {/* Effet de brillance animé */}
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              
-              <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Users className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl md:text-3xl font-bold mb-1">Achats Groupés</h3>
-                    <p className="text-white/80 text-sm md:text-base">Rejoignez d'autres acheteurs et économisez jusqu'à <span className="font-bold text-yellow-300">-30%</span></p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur rounded-xl px-4 py-2">
-                    <div className="flex -space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center text-xs font-bold">JD</div>
-                      <div className="w-8 h-8 rounded-full bg-violet-400 flex items-center justify-center text-xs font-bold">AM</div>
-                      <div className="w-8 h-8 rounded-full bg-green-300 flex items-center justify-center text-xs font-bold">SK</div>
-                    </div>
-                    <span className="text-sm">+12 participants</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 bg-white text-green-700 font-bold px-6 py-3 rounded-xl group-hover:bg-green-100 transition-colors">
-                    <Sparkles className="w-5 h-5" />
-                    Découvrir
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Link>
         </div>
-      </section>
+        {/* Category pills scroller */}
+        <CategoryPillsScroller
+          categories={['Tous','Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine','Bébé','Animaux','Outils']}
+          active={activePill}
+          onSelect={(cat) => {
+            setActivePill(cat)
+            if (cat === 'Tous') {
+              setSelected([])
+            } else {
+              const map: Record<string,string> = {
+                Mode:'mode', Beauté:'beaute', Maison:'maison', Électronique:'electronique',
+                Auto:'auto', Sport:'sport', Cuisine:'cuisine', Bébé:'bebe', Animaux:'animaux', Outils:'outils'
+              }
+              setSelected(map[cat] ? [map[cat]] : [])
+            }
+          }}
+        />
+      </div>
+
+      {/* === MINI PROMO STRIP === */}
+      <PromoStrip />
 
       {/* Affichage d'erreur */}
       {error && (
@@ -1433,653 +974,209 @@ export default function ProduitsPage() {
         </div>
       )}
 
-      {/* Products Sections with sidebar filters */}
-      <section className="py-12 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Mobile filter bar */}
-          <div className="lg:hidden mb-4 flex items-center justify-between">
-            <input
-              value={search}
-              onChange={(e)=>setSearch(e.target.value)}
-              placeholder="Rechercher un produit..."
-              className="flex-1 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-3 py-2 text-sm mr-2"
-            />
-            <ImageSearchButton onClick={() => setShowImageSearch(true)} />
-            <button onClick={()=>setShowFilters(true)} className="px-3 py-2 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg text-sm ml-2">Filtres</button>
-          </div>
-
-          <div className="flex gap-6">
-            {/* Sidebar Filters Moderne */}
-            <aside className="w-72 hidden lg:block">
-              <div className="sticky top-24 space-y-4">
-                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
-                    <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    Recherche
-                  </h3>
-                  <input
-                    value={search}
-                    onChange={(e)=>setSearch(e.target.value)}
-                    placeholder="Rechercher un produit..."
-                    className="w-full border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-xl px-4 py-2.5 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all mb-3"
-                  />
-                  {/* Bouton recherche par image */}
-                  <ImageSearchButton onClick={() => setShowImageSearch(true)} />
-                  {/* Badge résultats recherche image */}
-                  {imageSearchResults.length > 0 && (
-                    <div className="mt-3 flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
-                      <span className="text-xs text-green-700 font-medium">
-                        {imageSearchResults.length} produit{imageSearchResults.length > 1 ? 's' : ''} similaire{imageSearchResults.length > 1 ? 's' : ''}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setImageSearchResults([])
-                          if (typeof window !== 'undefined') {
-                            const url = new URL(window.location.href)
-                            url.searchParams.delete('imageIds')
-                            window.history.replaceState({}, '', url.toString())
-                          }
-                        }}
-                        className="text-xs text-green-600 hover:text-green-800 font-medium"
-                      >
-                        Effacer
-                      </button>
+      {/* === MAIN AREA : SIDEBAR + GRID === */}
+      <section className="py-6 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+            {/* Sidebar */}
+            <aside className="hidden md:block sticky top-[180px] h-[calc(100vh-200px)] overflow-y-auto pr-2">
+              <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-5">
+                {/* Filtres actifs */}
+                {(() => {
+                  const activeFilters = []
+                  if (debouncedSearch) activeFilters.push({key:'search',label:`"${debouncedSearch}"`})
+                  if (selected.length) activeFilters.push({key:'category',label:`Cat: ${selected.join(', ')}`})
+                  if (onlyGroupBuy) activeFilters.push({key:'group',label:'Achat groupé'})
+                  if (onlyPrice) activeFilters.push({key:'price',label:'Avec prix'})
+                  if (onlyQuote) activeFilters.push({key:'quote',label:'Sur devis'})
+                  if (segment !== 'all') activeFilters.push({key:'segment',label:`Seg: ${segment}`})
+                  if (availabilityFilter !== 'all') activeFilters.push({key:'avail',label:`Dispo: ${availabilityFilter}`})
+                  if (priceRange) activeFilters.push({key:'priceRange',label:`Prix: ${priceRange.min}-${priceRange.max}`})
+                  if (activePill !== 'Tous') activeFilters.push({key:'pill',label:`Cat: ${activePill}`})
+                  return activeFilters.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600">Filtres actifs</span>
+                        <button onClick={() => {
+                          setSearch(''); setDebouncedSearch(''); setSelected([]); setOnlyGroupBuy(false); setOnlyPrice(false); setOnlyQuote(false); setSegment('all'); setAvailabilityFilter('all'); setPriceRange(null); setActivePill('Tous')
+                        }} className="text-xs text-violet-600 hover:underline">Réinitialiser</button>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {activeFilters.map(f => (
+                          <button key={f.key} onClick={() => {
+                            switch(f.key){
+                              case 'search': setSearch(''); setDebouncedSearch(''); break
+                              case 'category': setSelected([]); break
+                              case 'group': setOnlyGroupBuy(false); break
+                              case 'price': setOnlyPrice(false); break
+                              case 'quote': setOnlyQuote(false); break
+                              case 'segment': setSegment('all'); break
+                              case 'avail': setAvailabilityFilter('all'); break
+                              case 'priceRange': setPriceRange(null); break
+                              case 'pill': setActivePill('Tous'); break
+                            }
+                          }} className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-1 flex items-center gap-1">
+                            {f.label} <X className="w-3 h-3" />
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
-                
-                {/* Filtres avancés */}
-                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg flex items-center gap-2">
-                    <ArrowUpDown className="h-5 w-5 text-green-600" />
-                    Filtres avancés
-                  </h3>
-                  
-                  {/* Prix */}
-                  <div className="mb-4">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-2">Prix (FCFA)</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        placeholder="Min"
-                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
-                        value={priceRange ? (priceRange.min > 0 ? String(priceRange.min) : '') : ''}
-                        onChange={(e) => {
-                          const min = e.target.value ? parseInt(e.target.value) : 0
-                          setPriceRange(prev => ({ min, max: prev?.max || 999999999 }))
-                        }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Max"
-                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
-                        value={priceRange ? (priceRange.max < 999999999 ? String(priceRange.max) : '') : ''}
-                        onChange={(e) => {
-                          const max = e.target.value ? parseInt(e.target.value) : 999999999
-                          setPriceRange(prev => ({ min: prev?.min || 0, max }))
-                        }}
-                      />
-                    </div>
-                    {priceRange && (
-                      <button
-                        onClick={() => setPriceRange(null)}
-                        className="mt-2 text-xs text-green-600 hover:text-green-700"
-                      >
-                        Effacer
-                      </button>
-                    )}
+                  )
+                })()}
+                {/* Prix */}
+                <div>
+                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                    <span>Prix (FCFA)</span>
                   </div>
-                  
-                  {/* Délai */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-2">Délai (jours)</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        placeholder="Min"
-                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
-                        value={deliveryRange ? (deliveryRange.min > 0 ? String(deliveryRange.min) : '') : ''}
-                        onChange={(e) => {
-                          const min = e.target.value ? parseInt(e.target.value) : 0
-                          setDeliveryRange(prev => ({ min, max: prev?.max || 999 }))
-                        }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Max"
-                        className="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-2 py-1.5 text-sm"
-                        value={deliveryRange ? (deliveryRange.max < 999 ? String(deliveryRange.max) : '') : ''}
-                        onChange={(e) => {
-                          const max = e.target.value ? parseInt(e.target.value) : 999
-                          setDeliveryRange(prev => ({ min: prev?.min || 0, max }))
-                        }}
-                      />
-                    </div>
-                    {deliveryRange && (
-                      <button
-                        onClick={() => setDeliveryRange(null)}
-                        className="mt-2 text-xs text-green-600 hover:text-green-700"
-                      >
-                        Effacer
-                      </button>
-                    )}
+                  <input type="range" min={0} max={500000} step={5000} value={priceRange?.max ?? 500000} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full accent-emerald-500 mb-2" />
+                  <div className="flex gap-2">
+                    <input type="number" placeholder="Min" value={priceRange?.min ?? ''} onChange={e => setPriceRange({min: Number(e.target.value), max: priceRange?.max ?? 500000})} className="w-full text-xs border border-slate-200 rounded px-2 py-1" />
+                    <input type="number" placeholder="Max" value={priceRange?.max ?? ''} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full text-xs border border-slate-200 rounded px-2 py-1" />
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm flex items-center gap-2">
-                    <Package className="h-4 w-4 text-green-600" />
-                    Catégories
-                  </h3>
-                  <div className="space-y-1 text-xs max-h-48 overflow-y-auto scrollbar-hide">
-                    {Array.from(new Set(products.map(p => p.category || 'Catalogue import Chine'))).map((category) => (
-                      <label key={category} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(category)}
-                          onChange={(e)=>{
-                            setSelected((prev)=> e.target.checked ? [...prev, category] : prev.filter(id=>id!==category))
-                          }}
-                          className="w-3.5 h-3.5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                        />
-                        <span className="text-gray-700 dark:text-gray-200">{category}</span>
+                {/* Catégories */}
+                <div>
+                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                    <span>Catégories</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {['Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine'].map(cat => (
+                      <label key={cat} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
+                        <input type="checkbox" checked={selected.includes(cat.toLowerCase())} onChange={() => setSelected(prev => prev.includes(cat.toLowerCase()) ? prev.filter(c => c !== cat.toLowerCase()) : [...prev, cat.toLowerCase()])} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                        <span className="flex-1">{cat}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
-                    <Star className="h-5 w-5 text-green-600" />
-                    Tarif
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                      <span className="font-medium text-gray-700 dark:text-gray-200">Avec prix</span>
+                {/* Disponibilité */}
+                <div>
+                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                    <span>Disponibilité</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 border-slate-300 text-emerald-600" />
+                      Tous
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                      <span className="font-medium text-gray-700 dark:text-gray-200">Sur devis</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 border-slate-300 text-emerald-600" />
+                      En stock
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                      <span className="font-medium text-gray-700 dark:text-gray-200">Achat groupé uniquement</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 border-slate-300 text-emerald-600" />
+                      Sur commande
                     </label>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-3 text-lg flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    Disponibilité
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500" />
-                      <span className="font-medium text-gray-700 dark:text-gray-200">Tous</span>
+                {/* Type d'achat */}
+                <div>
+                  <div className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2">
+                    <span>Type d'achat</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                      <input type="checkbox" checked={!onlyGroupBuy} onChange={() => setOnlyGroupBuy(false)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+                      <span className="flex-1">Achat individuel</span>
                     </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500" />
-                      <span className="font-medium text-gray-700 dark:text-gray-200">En stock</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer transition-colors">
-                      <input type="radio" name="availability" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500" />
-                      <span className="font-medium text-gray-700 dark:text-gray-200">Sur commande</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                      <input type="checkbox" checked={onlyGroupBuy} onChange={() => setOnlyGroupBuy(true)} className="w-4 h-4 rounded border-slate-300 text-emerald-600" />
+                      <span className="flex-1">Achat groupé</span>
                     </label>
                   </div>
                 </div>
-                {/* Filtres sauvegardés */}
-                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Filtres sauvegardés</h3>
-                  {savedFilters.length === 0 ? (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Aucun filtre sauvegardé pour le moment.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {savedFilters.map((saved, index) => (
-                        <div key={index} className="flex items-center justify-between gap-2">
-                          <button
-                            onClick={() => {
-                              if (saved.filters.search) setSearch(saved.filters.search)
-                              if (saved.filters.selected && Array.isArray(saved.filters.selected)) setSelected(saved.filters.selected)
-                              if (saved.filters.onlyPrice !== undefined) setOnlyPrice(saved.filters.onlyPrice)
-                              if (saved.filters.onlyQuote !== undefined) setOnlyQuote(saved.filters.onlyQuote)
-                              if (saved.filters.onlyGroupBuy !== undefined) setOnlyGroupBuy(saved.filters.onlyGroupBuy)
-                              if (saved.filters.segment) setSegment(saved.filters.segment)
-                              if (saved.filters.sortBy) setSortBy(saved.filters.sortBy)
-                              if (saved.filters.availabilityFilter) setAvailabilityFilter(saved.filters.availabilityFilter)
-                              if (saved.filters.priceRange) setPriceRange(saved.filters.priceRange)
-                              if (saved.filters.deliveryRange) setDeliveryRange(saved.filters.deliveryRange)
-                              if (saved.filters.viewMode) setViewMode(saved.filters.viewMode)
-                            }}
-                            className="flex-1 text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded"
-                          >
-                            {saved.name}
-                          </button>
-                          <button
-                            onClick={() => {
-                              const updated = savedFilters.filter((_, i) => i !== index)
-                              setSavedFilters(updated)
-                              localStorage.setItem('savedFilters', JSON.stringify(updated))
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => {
-                      const name = prompt('Nom du filtre:')
-                      if (name) {
-                        const newSaved = {
-                          name,
-                          filters: {
-                            search,
-                            selected,
-                            onlyPrice,
-                            onlyQuote,
-                            onlyGroupBuy,
-                            segment,
-                            sortBy,
-                            availabilityFilter,
-                            priceRange,
-                            deliveryRange,
-                            viewMode
-                          }
-                        }
-                        const updated = [...savedFilters, newSaved]
-                        setSavedFilters(updated)
-                        localStorage.setItem('savedFilters', JSON.stringify(updated))
-                      }
-                    }}
-                    className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-green-600 border border-green-200 rounded-lg hover:bg-green-50"
-                  >
-                    Sauvegarder les filtres actuels
-                  </button>
-                </div>
-                {/* Filtres actifs */}
-                {(segment !== 'all' || selected.length > 0 || onlyPrice || onlyQuote || onlyGroupBuy || availabilityFilter !== 'all' || sortBy !== 'default' || priceRange || deliveryRange) && (
-                  <div className="bg-white border rounded-xl p-4">
-                    <h3 className="font-semibold text-gray-900 mb-2">Filtres actifs</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {segment !== 'all' && (
-                        <button
-                          onClick={() => setSegment('all')}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          {segment === 'import' ? 'Import' : segment === 'in_stock' ? 'Stock Dakar' : 'Achats groupés'}
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {selected.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => setSelected(selected.filter(c => c !== cat))}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          {cat}
-                          <X className="h-3 w-3" />
-                        </button>
-                      ))}
-                      {onlyPrice && (
-                        <button
-                          onClick={() => setOnlyPrice(false)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          Avec prix
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {onlyQuote && (
-                        <button
-                          onClick={() => setOnlyQuote(false)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          Sur devis
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {onlyGroupBuy && (
-                        <button
-                          onClick={() => setOnlyGroupBuy(false)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          Achat groupé
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {availabilityFilter !== 'all' && (
-                        <button
-                          onClick={() => setAvailabilityFilter('all')}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          {availabilityFilter === 'in_stock' ? 'En stock' : 'Sur commande'}
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {sortBy !== 'default' && (
-                        <button
-                          onClick={() => setSortBy('default')}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          Tri actif
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {priceRange && (
-                        <button
-                          onClick={() => setPriceRange(null)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          Prix: {priceRange.min.toLocaleString('fr-FR')} - {priceRange.max.toLocaleString('fr-FR')} FCFA
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      {deliveryRange && (
-                        <button
-                          onClick={() => setDeliveryRange(null)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200"
-                        >
-                          Délai: {deliveryRange.min} - {deliveryRange.max} jours
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          setSelected([])
-                          setOnlyPrice(false)
-                          setOnlyQuote(false)
-                          setOnlyGroupBuy(false)
-                          setSegment('all')
-                          setAvailabilityFilter('all')
-                          setSortBy('default')
-                          setPriceRange(null)
-                          setDeliveryRange(null)
-                        }}
-                        className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 underline"
-                      >
-                        Tout effacer
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </aside>
 
-            {/* Main content */}
-            <div className="flex-1">
-              {loading ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                  <span className="ml-2 text-gray-600">Chargement des produits...</span>
-                </div>
-              ) : error ? (
-                <div className="text-center py-16">
-                  <p className="text-red-600 mb-4">{error}</p>
-                  <button 
-                    onClick={() => window.location.reload()} 
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              ) : (
-                  <div className="space-y-6">
-                    {/* Segments (discovery rapide) */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        onClick={() => setSegment('all')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'all' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
-                      >
-                        Tous
-                      </button>
-                      <button
-                        onClick={() => setSegment('import')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'import' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
-                      >
-                        Import
-                      </button>
-                      <button
-                        onClick={() => setSegment('in_stock')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'in_stock' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
-                      >
-                        Stock Dakar
-                      </button>
-                      <button
-                        onClick={() => setSegment('group_buy')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition ${segment === 'group_buy' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
-                      >
-                        Achats groupés
-                      </button>
-                    </div>
-                    {/* Contrôles tri et vue en haut */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <Package className="h-5 w-5 text-green-600" />
-                        <div>
-                          <h2 className="text-lg font-bold text-gray-900">
-                            {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
-                          </h2>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        {/* Mode vue */}
-                        <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
-                          <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                            aria-label="Vue grille"
-                          >
-                            <Grid className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setViewMode('list')}
-                            className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                            aria-label="Vue liste"
-                          >
-                            <List className="h-4 w-4" />
-                          </button>
-                        </div>
-                        
-                        {/* Tri */}
-                        <div className="relative">
-                          <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as any)}
-                            className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                          >
-                            <option value="default">Trier par</option>
-                            <option value="groupbuy-discount-desc">Meilleure économie (achats groupés)</option>
-                            <option value="price-asc">Prix croissant</option>
-                            <option value="price-desc">Prix décroissant</option>
-                            <option value="name-asc">Nom A-Z</option>
-                            <option value="name-desc">Nom Z-A</option>
-                            <option value="rating-desc">Meilleures notes</option>
-                          </select>
-                          <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-                        </div>
+            {/* Main grid */}
+            <div>
+              {/* Toolbar */}
+              <CatalogToolbar
+                count={filteredProducts.length}
+                sort={sortBy}
+                onSortChange={(v: string) => setSortBy(v as typeof sortBy)}
+                view={viewMode}
+                onViewChange={setViewMode}
+                onOpenMobileFilters={() => setShowFilters(true)}
+              />
+
+              {/* Loading skeleton */}
+              {loading && filteredProducts.length === 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {Array.from({length: 10}).map((_, i) => (
+                    <div key={i} className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-pulse">
+                      <div className="aspect-square bg-slate-100" />
+                      <div className="p-2.5 space-y-2">
+                        <div className="h-3 bg-slate-100 rounded w-3/4" />
+                        <div className="h-3 bg-slate-100 rounded w-1/2" />
+                        <div className="h-4 bg-slate-100 rounded w-1/3" />
                       </div>
                     </div>
-
-                    {/* Affichage des produits filtrés */}
-                    {filteredProducts.length === 0 ? (
-                      <div className="text-center py-16">
-                        <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit trouvé</h3>
-                        <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Products Grid ou List */}
-                        {viewMode === 'grid' ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-                            {filteredProducts.map((product) => (
-                              <ProductCard
-                                key={product.id || product._id}
-                                name={product.name}
-                                model={product.tagline}
-                                condition={product.condition}
-                                price={product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
-                                priceAmount={product.priceAmount}
-                                currency={product.currency || 'FCFA'}
-                                requiresQuote={product.requiresQuote}
-                                deliveryDays={product.deliveryDays || 0}
-                                features={product.features && product.features.length ? product.features.filter(Boolean) : [product.description]}
-                                rating={product.rating || 4.7}
-                                images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
-                                shippingOptions={product.shippingOptions}
-                                availabilityStatus={product.availabilityStatus}
-                                detailHref={`/produits/${product.id || product._id}`}
-                                isPopular={product.rating >= 4.8}
-                                createdAt={product.createdAt}
-                                onCompareToggle={handleCompareToggle}
-                                isComparing={comparingProducts.has(product.id || product._id || '')}
-                                isImported={product.isImported}
-                                unitWeightKg={product.weightKg ?? product.grossWeightKg ?? product.netWeightKg}
-                                unitVolumeM3={product.volumeM3}
-                                b2bPrice={product.b2bPrice}
-                                groupBuyEnabled={product.groupBuyEnabled}
-                                groupBuyBestPrice={product.groupBuyBestPrice}
-                                groupBuyDiscount={product.groupBuyDiscount}
-                                groupStats={product.groupStats}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {filteredProducts.map((product) => {
-                              const productId = String(product.id || product._id || '')
-                              const isFavorite = productId ? favoriteSet.has(productId) : false
-                              return (
-                                <Link
-                                  key={product.id || product._id}
-                                  href={`/produits/${product.id || product._id}`}
-                                  className="block bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-green-300 transition-all"
-                                >
-                                  <div className="flex flex-col sm:flex-row gap-4">
-                                    <div className="relative w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-                                      <Image
-                                        src={product.image || product.gallery?.[0] || '/file.svg'}
-                                        alt={product.name}
-                                        fill
-                                        className="object-contain p-2"
-                                        sizes="(max-width: 640px) 100vw, 128px"
-                                      />
-
-                                      {product.availabilityStatus === 'in_stock' && (
-                                        <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
-                                          EN STOCK
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-start justify-between gap-4 mb-2">
-                                        <div className="flex-1 min-w-0">
-                                          <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
-                                          {product.condition && product.condition !== 'new' && (
-                                            <div className="flex items-center gap-2 mb-1">
-                                              {product.condition === 'used' && (
-                                                <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 text-xs font-semibold">Occasion</span>
-                                              )}
-                                              {product.condition === 'refurbished' && (
-                                                <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs font-semibold">Refurb</span>
-                                              )}
-                                            </div>
-                                          )}
-                                          {product.tagline && <p className="text-sm text-gray-500 line-clamp-1">{product.tagline}</p>}
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                          {productId && (
-                                            <div className="flex items-start justify-end mb-2">
-                                              <button
-                                                type="button"
-                                                aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                                                onClick={(e) => toggleFavoriteFromList(e, productId)}
-                                                className="h-9 w-9 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 transition"
-                                              >
-                                                <Heart
-                                                  className={
-                                                    isFavorite
-                                                      ? 'h-5 w-5 text-rose-600 fill-rose-600'
-                                                      : 'h-5 w-5 text-gray-600'
-                                                  }
-                                                />
-                                              </button>
-                                            </div>
-                                          )}
-                                          <div className="text-2xl font-bold text-green-600">
-                                            {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
-                                          </div>
-                                          {(product.deliveryDays || 0) > 0 && (
-                                            <div className="text-xs text-gray-500 flex items-center gap-1 justify-end mt-1">
-                                              <Clock className="h-3 w-3" />
-                                              {product.deliveryDays}j
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      {product.features && product.features.length > 0 && (
-                                        <ul className="flex flex-wrap gap-2 mb-3">
-                                          {product.features.slice(0, 3).map((f, i) => (
-                                            <li key={i} className="flex items-center gap-1 text-xs text-gray-600">
-                                              <CheckCircle className="h-3 w-3 text-green-500" />
-                                              <span className="line-clamp-1">{f}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1 text-sm">
-                                          <Star className="h-4 w-4 text-green-500 fill-green-500" />
-                                          <span className="font-semibold text-gray-700">{(product.rating || 4.7).toFixed(1)}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm text-green-600 font-medium">Voir détails</span>
-                                          <ArrowRight className="h-4 w-4 text-green-600" />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </Link>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  ))}
+                </div>
               )}
 
+              {/* Grid */}
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {filteredProducts.map((product, idx) => {
+                    const p = apiToCatalog(product)
+                    const pid = String(product.id || product._id || '')
+                    return (
+                      <CatalogProductCard
+                        key={p.id}
+                        product={p}
+                        index={idx}
+                        isFavorite={favoriteSet.has(pid)}
+                        onToggleFavorite={toggleFavoriteFromList}
+                        onAddToCart={addToCart}
+                      />
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredProducts.map((product) => (
+                    <Link key={product.id || product._id} href={`/produits/${product.id || product._id}`} className="block bg-white border border-slate-200 rounded-lg p-3 hover:shadow-md transition">
+                      <div className="flex gap-3">
+                        <div className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-slate-50">
+                          <img src={product.image || product.gallery?.[0] || '/file.svg'} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-slate-900 line-clamp-2">{product.name}</h3>
+                          <div className="mt-1 text-xs text-slate-500">{product.rating} ★ · {product.deliveryDays}j</div>
+                          <div className="mt-1 text-base font-bold text-emerald-600">
+                            {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
 
-                  {/* Infinite Scroll Trigger */}
-                  {hasMore && (
-                    <div ref={observerTarget} className="mt-12 flex items-center justify-center py-8">
-                      {loadingMore ? (
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600"></div>
-                          <p className="text-sm text-gray-600 font-medium">Chargement de plus de produits...</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <p className="text-sm text-gray-500">Faites défiler pour voir plus de produits</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!hasMore && filteredProducts.length > 0 && currentPage > 1 && (
-                    <div className="mt-12 text-center py-8 border-t border-gray-200">
-                      <p className="text-sm text-gray-600 font-medium">✓ Vous avez vu tous les produits disponibles</p>
-                      <p className="text-xs text-gray-500 mt-1">{filteredProducts.length} produits au total</p>
-                    </div>
+              {/* Empty state */}
+              {!loading && filteredProducts.length === 0 && (
+                <div className="text-center py-16">
+                  <Package className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Aucun produit trouvé</h3>
+                  <p className="text-slate-600">Essayez de modifier vos critères de recherche</p>
+                </div>
+              )}
+
+              {/* Infinite scroll */}
+              {hasMore && (
+                <div ref={observerTarget} className="mt-8 flex items-center justify-center py-6">
+                  {loadingMore ? (
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                  ) : (
+                    <p className="text-sm text-slate-400">Faites défiler pour voir plus</p>
                   )}
                 </div>
+              )}
             </div>
           </div>
+        </div>
       </section>
-
       {/* Mobile Filters Drawer */}
       {showFilters && (
         <div className="lg:hidden fixed inset-0 z-50" aria-hidden={!showFilters}>
@@ -2096,12 +1193,12 @@ export default function ProduitsPage() {
             <div className="bg-white border rounded-xl p-3">
               <h4 className="font-medium text-gray-900 mb-2">Catégories</h4>
               <div className="space-y-1 text-sm max-h-56 overflow-auto pr-1">
-                {categories.map((c)=> (
-                  <label key={c.id} className="flex items-center gap-2">
-                    <input type="checkbox" checked={selected.includes(c.id)} onChange={(e)=>{
-                      setSelected((prev)=> e.target.checked ? [...prev, c.id] : prev.filter(id=>id!==c.id))
+                {['Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine'].map((cat)=> (
+                  <label key={cat} className="flex items-center gap-2">
+                    <input type="checkbox" checked={selected.includes(cat.toLowerCase())} onChange={(e)=>{
+                      setSelected((prev)=> e.target.checked ? [...prev, cat.toLowerCase()] : prev.filter(id=>id!==cat.toLowerCase()))
                     }} />
-                    <span>{c.title}</span>
+                    <span>{cat}</span>
                   </label>
                 ))}
               </div>

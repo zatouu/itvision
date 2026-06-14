@@ -1,0 +1,181 @@
+'use client'
+
+import Link from 'next/link'
+import { Heart, Truck } from 'lucide-react'
+import { motion } from 'framer-motion'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  image: string
+  price: number
+  originalPrice?: number
+  currency: string
+  rating?: number
+  soldCount?: number
+  stockLeft?: number
+  badges?: string[]
+  origin?: string
+  deliveryDays?: number
+  isGroupBuy?: boolean
+  groupProgress?: number
+  groupTarget?: number
+  daysLeft?: number
+  isFlash?: boolean
+  isNew?: boolean
+  discount?: number
+}
+
+interface Props {
+  product: CatalogProduct
+  index: number
+  isFavorite: boolean
+  onToggleFavorite: (e: React.MouseEvent, id: string) => void
+  onAddToCart: (product: CatalogProduct) => void
+}
+
+function formatPrice(price: number, currency: string) {
+  return `${price.toLocaleString('fr-FR')} ${currency}`
+}
+
+export default function CatalogProductCard({
+  product,
+  index,
+  isFavorite,
+  onToggleFavorite,
+  onAddToCart,
+}: Props) {
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: (index % 10) * 0.03 }}
+      whileHover={{ y: -2 }}
+      className="group relative bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200"
+    >
+      {/* Image carrée */}
+      <div className="relative aspect-square overflow-hidden bg-slate-50">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+
+        {/* Badges floating top-left */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {product.discount && product.discount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+              -{product.discount}%
+            </span>
+          )}
+          {product.isGroupBuy && (
+            <span className="bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+              Groupe
+            </span>
+          )}
+          {product.isFlash && (
+            <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse">
+              Flash
+            </span>
+          )}
+          {product.isNew && (
+            <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+              Nouveau
+            </span>
+          )}
+        </div>
+
+        {/* Heart favorite top-right */}
+        <button
+          type="button"
+          onClick={(e) => onToggleFavorite(e, product.id)}
+          className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white shadow-sm transition-colors"
+          aria-label="Ajouter aux favoris"
+        >
+          <Heart
+            className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`}
+          />
+        </button>
+
+        {/* Quick actions on hover (slide up from bottom) */}
+        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1">
+            <Link
+              href={`/produits/${product.id}`}
+              className="flex-1 bg-white text-slate-900 text-xs font-medium py-1.5 rounded text-center"
+            >
+              Voir
+            </Link>
+            <button
+              onClick={() => onAddToCart(product)}
+              className="flex-1 bg-emerald-500 text-white text-xs font-medium py-1.5 rounded hover:bg-emerald-600"
+            >
+              + Panier
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Info section (compact) */}
+      <div className="p-2.5 space-y-1">
+        <h3 className="text-xs font-medium text-slate-900 line-clamp-2 leading-snug min-h-[2rem]">
+          {product.name}
+        </h3>
+
+        {/* Rating */}
+        <div className="flex items-center gap-1 text-[11px] text-slate-500">
+          {product.rating && (
+            <>
+              <span className="text-amber-500">&#9733;</span>
+              <span>{product.rating.toFixed(1)}</span>
+              <span>·</span>
+            </>
+          )}
+          {product.soldCount !== undefined && (
+            <span>{product.soldCount} vendus</span>
+          )}
+        </div>
+
+        {/* Price */}
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-base font-bold text-emerald-600">
+            {formatPrice(product.price, product.currency)}
+          </span>
+          {product.originalPrice && product.originalPrice > product.price && (
+            <span className="text-[11px] text-slate-400 line-through">
+              {formatPrice(product.originalPrice, product.currency)}
+            </span>
+          )}
+        </div>
+
+        {/* Bottom tag : delivery OR group buy progress */}
+        {product.isGroupBuy ? (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[10px] text-violet-700">
+              <span>{product.groupProgress}/{product.groupTarget} participants</span>
+              <span>{product.daysLeft}j restants</span>
+            </div>
+            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-purple-600"
+                style={{
+                  width: `${Math.min(100, ((product.groupProgress || 0) / (product.groupTarget || 1)) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-[10px] text-slate-500">
+            <Truck className="w-3 h-3" />
+            <span>{product.deliveryDays ?? 3}j</span>
+            {product.origin === 'Stock Dakar' && (
+              <span className="text-emerald-600">· Stock Dakar</span>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.article>
+  )
+}
