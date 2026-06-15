@@ -2032,6 +2032,7 @@ export default function AdminProductManager() {
 
   const renderVariantsTab = () => {
     if (!editing) return null
+    const exchangeRate = editing.exchangeRate || 100
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -2124,6 +2125,34 @@ export default function AdminProductManager() {
                               value={variant.sku || ''}
                               onChange={e => updateVariant(groupIndex, variantIndex, { sku: e.target.value })}
                               placeholder="SKU-001"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix optionnel (¥)</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.price1688 ?? ''}
+                              onChange={e => {
+                                const price1688 = e.target.value ? Number(e.target.value) : undefined
+                                const priceFCFA = typeof price1688 === 'number' ? Math.round(price1688 * exchangeRate) : undefined
+                                updateVariant(groupIndex, variantIndex, { price1688, priceFCFA })
+                              }}
+                              placeholder="Global"
+                            />
+                            <span className="text-[10px] text-gray-400">Vide = prix global</span>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix FCFA</label>
+                            <input
+                              type="number"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
+                              value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
+                              onChange={e => {
+                                const priceFCFA = e.target.value ? Number(e.target.value) : undefined
+                                updateVariant(groupIndex, variantIndex, { priceFCFA })
+                              }}
+                              placeholder="Auto"
                             />
                           </div>
                           <div>
@@ -2239,11 +2268,11 @@ export default function AdminProductManager() {
                 <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.reduce((s, v) => s + v.stock, 0), 0)}</strong>
               </div>
               <div>
-                <span className="text-blue-600">SKU :</span>{' '}
+                <span className="text-blue-600">Prix spécifiques :</span>{' '}
                 <strong>
                   {(() => {
-                    const skus = editing.variantGroups.flatMap(g => g.variants.map(v => v.sku).filter(Boolean))
-                    return skus.length > 0 ? `${skus.length} défini(s)` : 'Aucun'
+                    const withPrice = editing.variantGroups.flatMap(g => g.variants.filter(v => v.price1688 || v.priceFCFA))
+                    return withPrice.length > 0 ? `${withPrice.length} variante(s)` : 'Aucun (prix global)'
                   })()}
                 </strong>
               </div>
