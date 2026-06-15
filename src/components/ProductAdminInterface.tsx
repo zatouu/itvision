@@ -52,6 +52,7 @@ import {
   ChevronDown,
   X
 } from 'lucide-react'
+import { defaultProductCategories } from '@/lib/data/default-categories'
 
 interface Product {
   id: string
@@ -134,11 +135,14 @@ export default function ProductAdminInterface() {
 
   // Données initiales des produits IT Vision
   useEffect(() => {
-    // Charger les catégories dynamiquement
+    // Catégories par défaut en attendant le fetch
+    setCategories(defaultProductCategories)
+
+    // Charger les catégories dynamiquement depuis l'API
     fetch('/api/products/categories', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        if (data?.success && Array.isArray(data.items)) {
+        if (data?.success && Array.isArray(data.items) && data.items.length > 0) {
           setCategories(
             data.items.map((it: any) => ({
               id: String(it.category || ''),
@@ -152,7 +156,7 @@ export default function ProductAdminInterface() {
         }
       })
       .catch(() => {
-        // fallback si l'API est indisponible
+        // fallback : garder les catégories par défaut déjà en place
       })
 
     setSuppliers([

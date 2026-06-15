@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage } from 'lucide-react'
+import { defaultProductCategories } from '@/lib/data/default-categories'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -563,12 +564,16 @@ export default function AdminProductManager() {
 
   useEffect(() => {
     let mounted = true
+    // Catégories par défaut en attendant le fetch
+    setCategoryOptions(
+      defaultProductCategories.map(c => ({ category: c.id, label: c.name, count: 0 }))
+    )
     ;(async () => {
       try {
         const res = await fetch('/api/products/categories', { credentials: 'include' })
         const data = await res.json().catch(() => ({}))
         if (!mounted) return
-        if (res.ok && data?.success && Array.isArray(data.items)) {
+        if (res.ok && data?.success && Array.isArray(data.items) && data.items.length > 0) {
           setCategoryOptions(
             data.items
               .map((it: any) => ({
@@ -580,7 +585,7 @@ export default function AdminProductManager() {
           )
         }
       } catch {
-        // ignore: suggestions only
+        // fallback : garder les catégories par défaut déjà en place
       }
     })()
     return () => {
