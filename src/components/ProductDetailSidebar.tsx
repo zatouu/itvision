@@ -98,8 +98,6 @@ export default function ProductDetailSidebar({
   }, [])
   // ─── State ─────────────────────────────────────────────────────────────────
   const [quantity, setQuantity] = useState(1)
-  // Quantités par variante (style 1688 - chaque variante a sa propre quantité)
-  const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>({})
   const [adding, setAdding] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [showPriceDetails, setShowPriceDetails] = useState(false)
@@ -127,12 +125,8 @@ export default function ProductDetailSidebar({
     return product?.logistics?.volumeM3 ?? null
   }, [product])
 
-  // Quantité totale actuelle (variant ou simple)
-  const currentTotalQty = useMemo(() => {
-    const entries = Object.entries(variantQuantities).filter(([, qty]) => qty > 0)
-    if (entries.length === 0) return quantity
-    return entries.reduce((acc, [, qty]) => acc + qty, 0)
-  }, [variantQuantities, quantity])
+  // Quantité totale = quantité unique (la combinaison sélectionnée est UN article)
+  const currentTotalQty = quantity
 
   // Prix unitaire basé sur les paliers (tiered pricing)
   const tieredUnitPrice = useMemo(() => {
@@ -208,40 +202,38 @@ export default function ProductDetailSidebar({
     load()
   }, [product.groupBuyEnabled, product.id])
 
-  // Calcul du total par variantes (quantités × prix)
+  // Variantes sélectionnées (une par groupe) + prix effectif unique de la combinaison
+  // Règle : si une variante définit un priceFCFA > 0, on prend le MAX parmi celles
+  // sélectionnées. Sinon fallback au baseUnitPrice. La combinaison = 1 seul article.
   const variantCalculations = useMemo(() => {
-    const entries = Object.entries(variantQuantities).filter(([, qty]) => qty > 0)
-    
-    if (entries.length === 0) {
-      // Pas de variantes sélectionnées : utiliser la quantité simple
-      return {
-        totalQuantity: quantity,
-        subtotalProducts: baseUnitPrice * quantity,
-        hasVariantSelection: false,
-        selectedVariantsList: [] as Array<{ variant: ProductVariant; qty: number; price: number }>
+    const selectedList: Array<{ groupName: string; variant: ProductVariant }> = []
+    let priceFromVariants: number | null = null
+
+    for (const group of product.variantGroups ?? []) {
+      const selectedId = selectedVariants[group.name]
+      if (!selectedId) continue
+      const variant = group.variants.find(v => v.id === selectedId)
+      if (!variant) continue
+      selectedList.push({ groupName: group.name, variant })
+      if (typeof variant.priceFCFA === 'number' && variant.priceFCFA > 0) {
+        priceFromVariants = Math.max(priceFromVariants ?? 0, variant.priceFCFA)
       }
     }
 
-    let totalQuantity = 0
-    let subtotalProducts = 0
-    const selectedVariantsList: Array<{ variant: ProductVariant; qty: number; price: number }> = []
-
-    for (const [variantId, qty] of entries) {
-      const variant = product.variantGroups?.flatMap(g => g.variants).find(v => v.id === variantId)
-      if (!variant) continue
-      const price = (variant.priceFCFA && variant.priceFCFA > 0) ? variant.priceFCFA : baseUnitPrice
-      subtotalProducts += price * qty
-      totalQuantity += qty
-      selectedVariantsList.push({ variant, qty, price })
-    }
+    const hasVariantSelection = selectedList.length > 0
+    const unitPrice = priceFromVariants ?? baseUnitPrice
+    const totalQuantity = quantity
+    const subtotalProducts = unitPrice * totalQuantity
 
     return {
       totalQuantity,
       subtotalProducts,
-      hasVariantSelection: true,
-      selectedVariantsList
+      unitPrice,
+      hasVariantSelection,
+      // Conservé pour compatibilité d'affichage (qty = quantité globale, price = prix unitaire de la combinaison)
+      selectedVariantsList: selectedList.map(({ variant }) => ({ variant, qty: totalQuantity, price: unitPrice }))
     }
-  }, [variantQuantities, quantity, baseUnitPrice, product.variantGroups])
+  }, [selectedVariants, quantity, baseUnitPrice, product.variantGroups])
 
   // Calcul du transport estimé
   const shippingEstimate = useMemo(() => {
@@ -323,42 +315,15 @@ export default function ProductDetailSidebar({
     setQuantity(Math.max(1, Math.round(value)))
   }, [])
 
-  const handleVariantQuantityChange = useCallback((variantId: string, delta: number) => {
-    setVariantQuantities(prev => {
-      const current = prev[variantId] || 0
-      const newQty = Math.max(0, current + delta)
-      return { ...prev, [variantId]: newQty }
-    })
-  }, [])
-
-  const setVariantQuantityDirect = useCallback((variantId: string, value: number) => {
-    setVariantQuantities(prev => ({
-      ...prev,
-      [variantId]: Math.max(0, Math.round(value))
-    }))
-  }, [])
-
   const handleVariantSelect = useCallback((groupName: string, variant: ProductVariant) => {
-    onVariantChange(groupName, variant.id)
+    // Style AliExpress : une seule option par groupe — toggle off si déjà sélectionnée
+    const wasSelected = selectedVariants[groupName] === variant.id
+    onVariantChange(groupName, wasSelected ? '' : variant.id)
     // Si la variante a une image, notifier le parent
-    if (variant.image && onImageChange) {
+    if (!wasSelected && variant.image && onImageChange) {
       onImageChange(variant.image)
     }
-    // Style AliExpress : une seule option par groupe, quantité à 1
-    setVariantQuantities(prev => {
-      const next: Record<string, number> = { ...prev }
-      // Réinitialiser toutes les variantes du même groupe
-      product.variantGroups?.forEach(g => {
-        if (g.name === groupName) {
-          g.variants.forEach(v => { next[v.id] = 0 })
-        }
-      })
-      // Sélectionner la nouvelle variante avec quantité 1 (ou toggle off si déjà sélectionnée)
-      const wasSelected = selectedVariants[groupName] === variant.id
-      next[variant.id] = wasSelected ? 0 : 1
-      return next
-    })
-  }, [onVariantChange, onImageChange, product.variantGroups, selectedVariants])
+  }, [onVariantChange, onImageChange, selectedVariants])
 
   // Gérer le survol d'image - zoom après délai
   const handleImageHover = useCallback((e: React.MouseEvent, imageUrl: string) => {
@@ -409,47 +374,51 @@ export default function ProductDetailSidebar({
       const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
       const currency = product.pricing.currency
 
-      // Si des variantes sont sélectionnées avec quantités
+      // Si des variantes sont sélectionnées : UN SEUL item combiné (taille + couleur = 1 article)
       if (variantCalculations.hasVariantSelection) {
-        for (const { variant, qty, price } of variantCalculations.selectedVariantsList) {
-          const id = `${product.id}-${variant.id}${shippingKey}`
-          const existsIndex = items.findIndex((item: any) => item.id === id)
+        const variantList = variantCalculations.selectedVariantsList
+        const variantIdsKey = variantList.map(v => v.variant.id).sort().join('+')
+        const id = `${product.id}-${variantIdsKey}${shippingKey}`
+        const combinedLabel = variantList.map(v => v.variant.name).join(' · ')
+        const price = variantCalculations.unitPrice
+        const qty = variantCalculations.totalQuantity
+        const existsIndex = items.findIndex((item: any) => item.id === id)
 
-          if (existsIndex >= 0) {
-            items[existsIndex].qty += qty
-            items[existsIndex].price = price
-            items[existsIndex].currency = currency
-          } else {
-            const newItem: any = {
-              id,
-              name: `${product.name} — ${variant.name}`,
-              qty,
-              price,
-              currency,
-              requiresQuote: !!product.requiresQuote,
-              variantId: variant.id,
-              unitWeightKg: unitWeightKg ?? undefined,
-              unitVolumeM3: unitVolumeM3 ?? undefined,
-            }
-
-            if (activeShipping) {
-              newItem.shipping = {
-                id: activeShipping.id,
-                label: activeShipping.label,
-                durationDays: activeShipping.durationDays,
-                rate: activeShipping.rate,
-              }
-            }
-
-            if (product.pricing.fees) {
-              newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate
-              newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount
-              newItem.insuranceRate = product.pricing.fees.insuranceRate
-              newItem.insuranceAmount = product.pricing.fees.insuranceAmount
-            }
-
-            items.push(newItem)
+        if (existsIndex >= 0) {
+          items[existsIndex].qty += qty
+          items[existsIndex].price = price
+          items[existsIndex].currency = currency
+        } else {
+          const newItem: any = {
+            id,
+            name: `${product.name} — ${combinedLabel}`,
+            qty,
+            price,
+            currency,
+            requiresQuote: !!product.requiresQuote,
+            variantIds: variantList.map(v => v.variant.id),
+            variantLabels: variantList.map(v => v.variant.name),
+            unitWeightKg: unitWeightKg ?? undefined,
+            unitVolumeM3: unitVolumeM3 ?? undefined,
           }
+
+          if (activeShipping) {
+            newItem.shipping = {
+              id: activeShipping.id,
+              label: activeShipping.label,
+              durationDays: activeShipping.durationDays,
+              rate: activeShipping.rate,
+            }
+          }
+
+          if (product.pricing.fees) {
+            newItem.serviceFeeRate = product.pricing.fees.serviceFeeRate
+            newItem.serviceFeeAmount = product.pricing.fees.serviceFeeAmount
+            newItem.insuranceRate = product.pricing.fees.insuranceRate
+            newItem.insuranceAmount = product.pricing.fees.insuranceAmount
+          }
+
+          items.push(newItem)
         }
       } else {
         // Ajouter sans variante spécifique
@@ -530,7 +499,7 @@ export default function ProductDetailSidebar({
 
   const whatsappUrl = () => {
     const variantInfo = variantCalculations.hasVariantSelection 
-      ? `\nVariantes: ${variantCalculations.selectedVariantsList.map(v => `${v.variant.name} (x${v.qty})`).join(', ')}`
+      ? `\nVariante: ${variantCalculations.selectedVariantsList.map(v => v.variant.name).join(' · ')}`
       : ''
     const transportInfo = activeShipping ? `\nTransport: ${activeShipping.label}` : ''
     const message = encodeURIComponent(
@@ -803,54 +772,31 @@ Merci de me recontacter.`
             </div>
           ))}
 
-          {/* Quantité globale (style AliExpress) */}
+          {/* Quantité globale de la combinaison sélectionnée */}
           <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
             <span className="text-sm font-medium text-gray-700">Quantité</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => {
-                  const selectedIds = Object.values(selectedVariants)
-                  if (selectedIds.length === 0) {
-                    setQuantity(Math.max(1, quantity - 1))
-                    return
-                  }
-                  // Décrémenter la quantité de la variante sélectionnée (dernier groupe)
-                  const lastGroup = product.variantGroups?.[product.variantGroups.length - 1]
-                  const lastVariantId = lastGroup ? selectedVariants[lastGroup.name] : undefined
-                  if (lastVariantId) {
-                    handleVariantQuantityChange(lastVariantId, -1)
-                  }
-                }}
-                disabled={currentTotalQty <= 1}
+                onClick={() => handleQuantityChange(quantity - 1)}
+                disabled={quantity <= 1}
                 className="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <span className="w-10 text-center text-sm font-semibold text-gray-800">
-                {currentTotalQty}
+                {quantity}
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  const selectedIds = Object.values(selectedVariants)
-                  if (selectedIds.length === 0) {
-                    setQuantity(quantity + 1)
-                    return
-                  }
-                  const lastGroup = product.variantGroups?.[product.variantGroups.length - 1]
-                  const lastVariantId = lastGroup ? selectedVariants[lastGroup.name] : undefined
-                  if (lastVariantId) {
-                    handleVariantQuantityChange(lastVariantId, 1)
-                  }
-                }}
+                onClick={() => handleQuantityChange(quantity + 1)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
             <span className="text-xs text-gray-400 ml-auto">
-              {variantCalculations.totalQuantity > 0 ? `${variantCalculations.totalQuantity} article(s)` : ''}
+              {formatCurrency(variantCalculations.unitPrice, 'FCFA')} / unité
             </span>
           </div>
         </div>
@@ -1036,15 +982,14 @@ Merci de me recontacter.`
             </span>
           </div>
 
-          {/* Détail variantes sélectionnées */}
+          {/* Détail variantes sélectionnées (libellés combinés, prix unique) */}
           {variantCalculations.hasVariantSelection && variantCalculations.selectedVariantsList.length > 0 && (
-            <div className="pl-3 border-l-2 border-gray-200 space-y-1">
-              {variantCalculations.selectedVariantsList.map(({ variant, qty, price }) => (
-                <div key={variant.id} className="flex justify-between text-xs text-gray-500">
-                  <span className="truncate max-w-[180px]">{variant.name} × {qty}</span>
-                  <span>{formatCurrency(price * qty, 'FCFA')}</span>
-                </div>
-              ))}
+            <div className="pl-3 border-l-2 border-gray-200 text-xs text-gray-500">
+              <span className="truncate">
+                {variantCalculations.selectedVariantsList.map(v => v.variant.name).join(' · ')}
+                {' '}× {variantCalculations.totalQuantity}
+                {' '}@ {formatCurrency(variantCalculations.unitPrice, 'FCFA')}
+              </span>
             </div>
           )}
 

@@ -376,7 +376,10 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     }
 
     const selectedItems: { groupName: string; variant: ProductVariant }[] = []
-    let totalVariantPrice = 0
+    // La combinaison sélectionnée (taille + couleur + ...) = UN SEUL prix.
+    // On prend le MAX des priceFCFA définis parmi les variantes sélectionnées,
+    // sinon fallback au prix de base. Les variantes sans prix (ex: taille) n'impactent pas.
+    let maxVariantPrice = 0
     let hasPrice = false
     let variantImage: string | null = null
     let totalStock = 0
@@ -393,9 +396,9 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
           variantImage = selectedVar.image
         }
         
-        // Additionner les prix des variantes (en FCFA)
+        // Prix unique de la combinaison : max des prix définis (pas d'addition)
         if (selectedVar.priceFCFA !== undefined && selectedVar.priceFCFA > 0) {
-          totalVariantPrice += selectedVar.priceFCFA
+          maxVariantPrice = Math.max(maxVariantPrice, selectedVar.priceFCFA)
           hasPrice = true
         }
         
@@ -405,7 +408,7 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     }
 
     return {
-      totalVariantPrice: hasPrice ? totalVariantPrice : null,
+      totalVariantPrice: hasPrice ? maxVariantPrice : null,
       variantImage,
       totalStock,
       selectedItems
@@ -969,8 +972,16 @@ Merci de me recontacter.`
   }, [activeTab])
 
   // Handler pour le changement de variante depuis le Sidebar
+  // Si variantId est vide, désélectionner la variante du groupe.
   const handleVariantChange = useCallback((groupName: string, variantId: string) => {
-    setSelectedVariants(prev => ({ ...prev, [groupName]: variantId }))
+    setSelectedVariants(prev => {
+      if (!variantId) {
+        const next = { ...prev }
+        delete next[groupName]
+        return next
+      }
+      return { ...prev, [groupName]: variantId }
+    })
   }, [])
 
   const thumbnailsRef = useRef<HTMLDivElement>(null)
