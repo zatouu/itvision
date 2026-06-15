@@ -344,7 +344,21 @@ export default function ProductDetailSidebar({
     if (variant.image && onImageChange) {
       onImageChange(variant.image)
     }
-  }, [onVariantChange, onImageChange])
+    // Style AliExpress : une seule option par groupe, quantité à 1
+    setVariantQuantities(prev => {
+      const next: Record<string, number> = { ...prev }
+      // Réinitialiser toutes les variantes du même groupe
+      product.variantGroups?.forEach(g => {
+        if (g.name === groupName) {
+          g.variants.forEach(v => { next[v.id] = 0 })
+        }
+      })
+      // Sélectionner la nouvelle variante avec quantité 1 (ou toggle off si déjà sélectionnée)
+      const wasSelected = selectedVariants[groupName] === variant.id
+      next[variant.id] = wasSelected ? 0 : 1
+      return next
+    })
+  }, [onVariantChange, onImageChange, product.variantGroups, selectedVariants])
 
   // Gérer le survol d'image - zoom après délai
   const handleImageHover = useCallback((e: React.MouseEvent, imageUrl: string) => {
@@ -736,191 +750,109 @@ Merci de me recontacter.`
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          2. SÉLECTEUR DE VARIANTES (STYLE 1688 - LISTE AVEC QUANTITÉS)
+          2. SÉLECTEUR DE VARIANTES (STYLE ALIEXPRESS - PASTILLES)
           ═══════════════════════════════════════════════════════════════════════ */}
       {product.variantGroups && product.variantGroups.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <Package className="h-4 w-4 text-gray-400" />
-            Sélectionner les variantes
-          </h3>
-          
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
           {product.variantGroups.map((group) => (
-            <div key={group.name} className="mb-4 last:mb-0">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 break-words">
+            <div key={group.name}>
+              <div className="text-sm font-medium text-gray-700 mb-2">
                 {group.name}
               </div>
-              
-              {/* Liste des variantes (style 1688 amélioré) */}
-              <div className="grid gap-3">
+              <div className="flex flex-wrap gap-2">
                 {group.variants.map((variant) => {
                   const isOutOfStock = variant.stock === 0
-                  const qty = variantQuantities[variant.id] || 0
-                  const hasQuantity = qty > 0
-                  const price = (variant.priceFCFA && variant.priceFCFA > 0) ? variant.priceFCFA : baseUnitPrice
-                  const priceDisplay = formatCurrency(price, 'FCFA')
                   const isSelected = selectedVariants[group.name] === variant.id
 
                   return (
-                    <div
+                    <button
                       key={variant.id}
+                      type="button"
+                      disabled={isOutOfStock}
                       onClick={() => handleVariantSelect(group.name, variant)}
                       className={clsx(
-                        'relative flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md cursor-pointer overflow-hidden',
-                        hasQuantity
-                          ? 'border-green-500 bg-green-50 shadow-sm'
-                          : isSelected
-                          ? 'border-blue-500 bg-blue-50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
-                        isOutOfStock && 'opacity-60'
+                        'relative flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm transition-all duration-200',
+                        isSelected
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : isOutOfStock
+                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:bg-orange-50/30',
                       )}
                     >
-                      {/* Image variante plus grande avec effets */}
-                      {variant.image ? (
-                        <div className="relative group" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleImageClick(e, variant.image!)
-                            }}
-                            onMouseEnter={(e) => handleImageHover(e, variant.image!)}
-                            onMouseLeave={handleImageLeave}
-                            className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 cursor-zoom-in group border-2 border-transparent group-hover:border-blue-300 transition-all duration-200"
-                          >
-                            <Image
-                              src={variant.image}
-                              alt={variant.name}
-                              fill
-                              className="object-cover transition-all duration-300 group-hover:scale-110"
-                              sizes="80px"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <motion.div
-                                initial={{ scale: 0, opacity: 0 }}
-                                whileHover={{ scale: 1, opacity: 1 }}
-                                className="bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-lg"
-                              >
-                                <ZoomIn className="w-4 h-4 text-gray-700" />
-                              </motion.div>
-                            </div>
-                          </button>
-                          {/* Badge de sélection si c'est la variante active */}
-                          {isSelected && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                              <CheckCircle className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-2 border-gray-200">
-                          <Package className="h-8 w-8 text-gray-400" />
+                      {/* Mini image pour les variantes avec image (couleurs) */}
+                      {variant.image && (
+                        <div className="relative w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
+                          <Image
+                            src={variant.image}
+                            alt={variant.name}
+                            fill
+                            className="object-cover"
+                            sizes="32px"
+                          />
                         </div>
                       )}
-
-                      {/* Infos variante améliorées */}
-                      <div className="flex-1 min-w-0 space-y-2 w-full">
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <h4 className={clsx(
-                            'text-sm font-semibold flex-1 min-w-0 truncate',
-                            hasQuantity ? 'text-green-700' : isSelected ? 'text-violet-700' : 'text-gray-800'
-                          )}>
-                            {variant.name}
-                          </h4>
-                          {/* Indicateur de stock */}
-                          <div className={clsx(
-                            'text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap',
-                            variant.stock > 10 ? 'bg-green-100 text-green-700' : variant.stock > 0 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
-                          )}>
-                            {variant.stock > 0 
-                              ? `${variant.stock.toLocaleString('fr-FR')} dispo.` 
-                              : 'Rupture'
-                            }
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={clsx(
-                              'text-base font-bold whitespace-nowrap',
-                              hasQuantity ? 'text-green-600' : 'text-violet-600'
-                            )}>
-                              {priceDisplay}
-                            </span>
-                            {/* Différence de prix si différente du prix de base */}
-                            {price !== baseUnitPrice && (
-                              <span className={clsx(
-                                'text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap',
-                                price > baseUnitPrice 
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-green-100 text-green-700'
-                              )}>
-                                {price > baseUnitPrice ? '+' : ''}{formatCurrency(price - baseUnitPrice, 'FCFA')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Contrôle quantité */}
-                      <div className="flex items-center gap-1 flex-shrink-0 self-end sm:self-auto">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleVariantQuantityChange(variant.id, -1) }}
-                          disabled={qty === 0 || isOutOfStock}
-                          className={clsx(
-                            'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
-                            qty > 0
-                              ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                              : 'bg-gray-100 text-gray-400'
-                          )}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        
-                        <input
-                          type="number"
-                          min={0}
-                          value={qty}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => setVariantQuantityDirect(variant.id, parseInt(e.target.value) || 0)}
-                          disabled={isOutOfStock}
-                          className={clsx(
-                            'w-12 h-8 text-center text-sm font-semibold border rounded-lg focus:outline-none focus:ring-2',
-                            hasQuantity
-                              ? 'border-green-300 bg-green-50 text-green-700 focus:ring-green-500'
-                              : 'border-gray-300 bg-white text-gray-700 focus:ring-gray-400'
-                          )}
-                        />
-                        
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleVariantQuantityChange(variant.id, 1) }}
-                          disabled={isOutOfStock}
-                          className={clsx(
-                            'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
-                            !isOutOfStock
-                              ? 'bg-green-500 text-white hover:bg-green-600'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          )}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Badge quantité sélectionnée */}
-                      {hasQuantity && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                          <Check className="h-3 w-3 text-white" />
-                        </div>
+                      <span className="font-medium whitespace-nowrap">{variant.name}</span>
+                      {/* Checkmark si sélectionné */}
+                      {isSelected && (
+                        <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
                       )}
-                    </div>
+                    </button>
                   )
                 })}
               </div>
             </div>
           ))}
+
+          {/* Quantité globale (style AliExpress) */}
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Quantité</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const selectedIds = Object.values(selectedVariants)
+                  if (selectedIds.length === 0) {
+                    setQuantity(Math.max(1, quantity - 1))
+                    return
+                  }
+                  // Décrémenter la quantité de la variante sélectionnée (dernier groupe)
+                  const lastGroup = product.variantGroups?.[product.variantGroups.length - 1]
+                  const lastVariantId = lastGroup ? selectedVariants[lastGroup.name] : undefined
+                  if (lastVariantId) {
+                    handleVariantQuantityChange(lastVariantId, -1)
+                  }
+                }}
+                disabled={currentTotalQty <= 1}
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="w-10 text-center text-sm font-semibold text-gray-800">
+                {currentTotalQty}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const selectedIds = Object.values(selectedVariants)
+                  if (selectedIds.length === 0) {
+                    setQuantity(quantity + 1)
+                    return
+                  }
+                  const lastGroup = product.variantGroups?.[product.variantGroups.length - 1]
+                  const lastVariantId = lastGroup ? selectedVariants[lastGroup.name] : undefined
+                  if (lastVariantId) {
+                    handleVariantQuantityChange(lastVariantId, 1)
+                  }
+                }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <span className="text-xs text-gray-400 ml-auto">
+              {variantCalculations.totalQuantity > 0 ? `${variantCalculations.totalQuantity} article(s)` : ''}
+            </span>
+          </div>
         </div>
       )}
 
