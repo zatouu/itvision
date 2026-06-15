@@ -825,9 +825,13 @@ export default function AdminProductManager() {
   }
 
   const suggestedSalePrice = (product: Product): number | undefined => {
-    if (typeof product.baseCost !== 'number') return undefined
+    const base = typeof product.baseCost === 'number' ? product.baseCost : ((product.price1688 || 0) * (product.exchangeRate || 100))
+    if (base <= 0) return undefined
     const margin = typeof product.marginRate === 'number' ? product.marginRate : (empty.marginRate || 0)
-    return Math.round(product.baseCost * (1 + margin / 100))
+    const serviceFee = base * ((product.serviceFeeRate || 10) / 100)
+    const insurance = base * ((product.insuranceRate || 2.5) / 100)
+    const marginAmount = base * (margin / 100)
+    return Math.round(base + serviceFee + insurance + marginAmount)
   }
 
   const suggestedPrice = editing ? suggestedSalePrice(editing) : undefined
@@ -1788,10 +1792,12 @@ export default function AdminProductManager() {
                     ? formatCurrency(editing.price, editing.currency)
                     : editing.b2bPrice
                       ? formatCurrency(editing.b2bPrice, editing.currency)
-                      : editing.baseCost && editing.marginRate
-                      ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
-                      : editing.price1688 && editing.exchangeRate
-                        ? `Calculé depuis prix source: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
+                      : editing.baseCost || editing.price1688
+                        ? (() => {
+                            const base = editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))
+                            const total = Math.round(base * (1 + ((editing.marginRate || 0) + (editing.serviceFeeRate || 10) + (editing.insuranceRate || 2.5)) / 100))
+                            return formatCurrency(total, editing.currency)
+                          })()
                         : 'Sera calculé automatiquement'
                 }
               </span>
