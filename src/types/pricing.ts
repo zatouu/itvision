@@ -403,40 +403,40 @@ export const DEFAULT_SERVICE_TYPES: ServiceType[] = [
     name: 'Vidéosurveillance',
     description: 'Systèmes de surveillance vidéo IP',
     icon: 'Camera',
-    defaultMargin: 30,
-    minimumMargin: 20
+    defaultMargin: 0,
+    minimumMargin: 0
   },
   {
     id: 'domotique',
     name: 'Domotique',
     description: 'Systèmes d\'automatisation résidentielle',
     icon: 'Home',
-    defaultMargin: 40,
-    minimumMargin: 30
+    defaultMargin: 0,
+    minimumMargin: 0
   },
   {
     id: 'controle_acces',
     name: 'Contrôle d\'Accès',
     description: 'Systèmes de contrôle d\'accès',
     icon: 'Shield',
-    defaultMargin: 35,
-    minimumMargin: 25
+    defaultMargin: 0,
+    minimumMargin: 0
   },
   {
     id: 'network_cabling',
     name: 'Câblage Réseau',
     description: 'Infrastructure réseau et câblage',
     icon: 'Wifi',
-    defaultMargin: 35,
-    minimumMargin: 25
+    defaultMargin: 0,
+    minimumMargin: 0
   },
   {
     id: 'fiber_optic',
     name: 'Fibre Optique',
     description: 'Infrastructure fibre optique',
     icon: 'Zap',
-    defaultMargin: 30,
-    minimumMargin: 20
+    defaultMargin: 0,
+    minimumMargin: 0
   }
 ]
 

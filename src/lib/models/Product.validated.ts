@@ -235,7 +235,7 @@ const ProductSchema = new Schema<IProduct>({
   },
   marginRate: {
     type: Number,
-    default: 25,
+    default: 0,
     min: [0, 'Le taux de marge ne peut pas être négatif'],
     max: [100, 'Le taux de marge ne peut pas dépasser 100%']
   },
