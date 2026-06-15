@@ -10,6 +10,7 @@ import {
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
 import ThemeToggle from './ThemeToggle'
+import CategoryMegaMenu from './catalog/CategoryMegaMenu'
 
 export default function MarketHeader() {
   const pathname = usePathname()
@@ -71,6 +72,8 @@ export default function MarketHeader() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-1">
+          <CategoryMegaMenu />
+          <div className="w-px h-6 bg-slate-200 mx-1" />
           {nav.map((item) => {
             const I = item.icon
             const active = isActive(item.href)

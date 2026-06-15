@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
+import ProductCategory from '@/lib/models/ProductCategory'
 import Product from '@/lib/models/Product.validated'
 import { requireAuth } from '@/lib/jwt'
 
@@ -15,31 +16,34 @@ async function requireManagerRole(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireManagerRole(request)
-  if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
-
   try {
     await connectMongoose()
 
-    const rows = await Product.aggregate([
-      {
-        $match: {
-          category: { $exists: true, $nin: [null, ''] }
-        }
-      },
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1, _id: 1 } },
-      { $limit: 500 }
-    ])
+    // Enrich categories with product counts
+    const cats = await ProductCategory.find({ isActive: true })
+      .sort({ order: 1, name: 1 })
+      .lean()
 
-    const items = rows
-      .map((r: any) => ({ category: String(r._id), count: Number(r.count) || 0 }))
-      .filter((r: any) => r.category)
+    // Count products per category (top-level slug only)
+    const counts = await Product.aggregate([
+      { $match: { category: { $exists: true, $nin: [null, ''] } } },
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ])
+    const countMap = new Map(counts.map((c: any) => [String(c._id), Number(c.count) || 0]))
+
+    const items = cats.map(c => ({
+      category: c.slug,
+      name: c.labelFr || c.name,
+      label: c.labelFr || c.name,
+      icon: c.icon,
+      color: c.color,
+      subCategories: (c.subCategories || []).map((s: any) => ({
+        slug: s.slug,
+        name: s.labelFr || s.name,
+        icon: s.icon
+      })),
+      count: countMap.get(c.slug) || 0
+    }))
 
     return NextResponse.json({ success: true, items })
   } catch (error) {

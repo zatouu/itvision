@@ -134,56 +134,26 @@ export default function ProductAdminInterface() {
 
   // Données initiales des produits IT Vision
   useEffect(() => {
-    setCategories([
-      {
-        id: 'videosurveillance',
-        name: 'Vidéosurveillance',
-        description: 'Caméras et systèmes de surveillance',
-        icon: '📷',
-        margin: 30,
-        isActive: true
-      },
-      {
-        id: 'controle-acces',
-        name: 'Contrôle d\'Accès',
-        description: 'Systèmes de contrôle d\'accès',
-        icon: '🔐',
-        margin: 35,
-        isActive: true
-      },
-      {
-        id: 'domotique',
-        name: 'Domotique',
-        description: 'Équipements domotiques intelligents',
-        icon: '🏠',
-        margin: 40,
-        isActive: true
-      },
-      {
-        id: 'network-cabling',
-        name: 'Câblage Réseau',
-        description: 'Infrastructure réseau et TV',
-        icon: '🌐',
-        margin: 35,
-        isActive: true
-      },
-      {
-        id: 'fiber-optic',
-        name: 'Fibre Optique',
-        description: 'Équipements fibre optique FTTH',
-        icon: '⚡',
-        margin: 25,
-        isActive: true
-      },
-      {
-        id: 'digitalisation',
-        name: 'Digitalisation',
-        description: 'Solutions logicielles',
-        icon: '💻',
-        margin: 50,
-        isActive: true
-      }
-    ])
+    // Charger les catégories dynamiquement
+    fetch('/api/products/categories', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data?.success && Array.isArray(data.items)) {
+          setCategories(
+            data.items.map((it: any) => ({
+              id: String(it.category || ''),
+              name: String(it.label || it.name || it.category || ''),
+              description: '',
+              icon: it.icon || '🏷️',
+              margin: 30,
+              isActive: true
+            })).filter((c: any) => c.id)
+          )
+        }
+      })
+      .catch(() => {
+        // fallback si l'API est indisponible
+      })
 
     setSuppliers([
       {

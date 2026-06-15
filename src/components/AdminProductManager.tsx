@@ -483,7 +483,7 @@ export default function AdminProductManager() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [conditionFilter, setConditionFilter] = useState<string>('')
-  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; count: number }>>([])
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; label: string; count: number }>>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState<'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category'>(
     'none'
@@ -571,7 +571,11 @@ export default function AdminProductManager() {
         if (res.ok && data?.success && Array.isArray(data.items)) {
           setCategoryOptions(
             data.items
-              .map((it: any) => ({ category: String(it.category || ''), count: Number(it.count) || 0 }))
+              .map((it: any) => ({
+                category: String(it.category || ''),
+                label: String(it.label || it.name || it.category || ''),
+                count: Number(it.count) || 0
+              }))
               .filter((it: any) => it.category)
           )
         }
@@ -1279,7 +1283,7 @@ export default function AdminProductManager() {
       <div className="space-y-6">
         <datalist id="admin-product-categories">
           {categoryOptions.map((it) => (
-            <option key={it.category} value={it.category} />
+            <option key={it.category} value={it.category} label={it.label} />
           ))}
         </datalist>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
