@@ -432,7 +432,7 @@ export default function AdminProductManager() {
     price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
     b2bPrice: undefined,
     baseCost: undefined, // Coût d'achat fournisseur
-    marginRate: 30, // Marge par défaut 30%
+    marginRate: 0, // Marge par défaut 0%
     currency: 'FCFA',
     image: '',
     gallery: [],
@@ -660,17 +660,21 @@ export default function AdminProductManager() {
     if (!autoPrice || !editing) return
     if (typeof editing.baseCost !== 'number') return
     const margin = typeof editing.marginRate === 'number' ? editing.marginRate : (empty.marginRate || 0)
-    const computed = Math.round(editing.baseCost * (1 + margin / 100))
+    const serviceFee = editing.serviceFeeRate || 10
+    const insurance = editing.insuranceRate || 2.5
+    const computed = Math.round(editing.baseCost * (1 + (margin + serviceFee + insurance) / 100))
     if (editing.price === computed) return
     setEditing(prev => {
       if (!prev || !autoPrice) return prev
       if (typeof prev.baseCost !== 'number') return prev
       const marginPrev = typeof prev.marginRate === 'number' ? prev.marginRate : (empty.marginRate || 0)
-      const recomputed = Math.round(prev.baseCost * (1 + marginPrev / 100))
+      const serviceFeePrev = prev.serviceFeeRate || 10
+      const insurancePrev = prev.insuranceRate || 2.5
+      const recomputed = Math.round(prev.baseCost * (1 + (marginPrev + serviceFeePrev + insurancePrev) / 100))
       if (prev.price === recomputed) return prev
       return { ...prev, price: recomputed }
     })
-  }, [autoPrice, editing?.baseCost, editing?.marginRate])
+  }, [autoPrice, editing?.baseCost, editing?.marginRate, editing?.serviceFeeRate, editing?.insuranceRate])
 
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -817,7 +821,7 @@ export default function AdminProductManager() {
     if (typeof product.price === 'number') return formatCurrency(product.price, product.currency)
     if (typeof product.b2bPrice === 'number') return formatCurrency(product.b2bPrice, product.currency)
     if (typeof product.baseCost === 'number') {
-      const margin = typeof product.marginRate === 'number' ? product.marginRate : 25
+      const margin = typeof product.marginRate === 'number' ? product.marginRate : 0
       const sale = Math.round(product.baseCost * (1 + margin / 100))
       return formatCurrency(sale, product.currency)
     }
