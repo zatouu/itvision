@@ -6,8 +6,10 @@ export interface IProductVariant {
   name: string         // Nom de la variante (ex: "Rouge", "32GB")
   sku?: string         // SKU de la variante
   image?: string       // Image spécifique de la variante
-  price1688?: number   // Prix 1688 spécifique
+  price1688?: number   // Prix 1688 spécifique (optionnel, prix global par défaut)
+  priceFCFA?: number   // Prix FCFA spécifique (optionnel)
   stock?: number       // Stock spécifique
+  isDefault?: boolean // Variante par défaut
 }
 
 // Interface pour un groupe de variantes

@@ -1817,137 +1817,6 @@ export default function AdminProductManager() {
           </div>
         </div>
 
-        {/* Section Prix Source */}
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
-            <DollarSign className="h-4 w-4" />
-            Prix Source (Import)
-          </div>
-          <p className="text-xs text-gray-600 mt-1">Informations confidentielles - non visibles par le client</p>
-          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
-            <label className="space-y-1">
-              <span>Prix source (¥ Yuan)</span>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                step="0.01"
-                value={editing.price1688 ?? ''}
-                onChange={e => {
-                  const value = e.target.value ? Number(e.target.value) : undefined
-                  setEditing({ ...editing, price1688: value })
-                  // Calcul automatique du baseCost si exchangeRate est défini
-                  if (value && editing.exchangeRate) {
-                    const calculatedBaseCost = value * editing.exchangeRate
-                    setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
-                  }
-                }}
-              />
-              <p className="text-xs text-gray-500">Prix d'achat fournisseur en Yuan</p>
-            </label>
-            <label className="space-y-1">
-              <span>Taux de change (1 ¥ = X FCFA)</span>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.exchangeRate ?? 100}
-                onChange={e => {
-                  const value = e.target.value ? Number(e.target.value) : 100
-                  setEditing({ ...editing, exchangeRate: value })
-                  // Recalculer baseCost si prix source existe
-                  if (editing.price1688 && value) {
-                    const calculatedBaseCost = editing.price1688 * value
-                    setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
-                  }
-                }}
-              />
-              <p className="text-xs text-gray-500">Par défaut: 1 ¥ = 100 FCFA</p>
-            </label>
-            <label className="space-y-1">
-              <span>Frais de service (%)</span>
-              <select
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                value={editing.serviceFeeRate ?? 10}
-                onChange={e => setEditing({ ...editing, serviceFeeRate: Number(e.target.value) })}
-              >
-                <option value={5}>5%</option>
-                <option value={10}>10%</option>
-                <option value={15}>15%</option>
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span>Frais d'assurance (%)</span>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                step="0.1"
-                min="0"
-                value={editing.insuranceRate ?? 2.5}
-                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 2.5 })}
-              />
-              <p className="text-xs text-gray-500">Par défaut: 2.5% (obligatoire)</p>
-            </label>
-          </div>
-          {/* Récapitulatif prix automatique */}
-          {(editing.price1688 || editing.baseCost) && (
-            <div className="mt-4 rounded-lg bg-white border border-blue-100 p-4">
-              <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-blue-600" />
-                Récapitulatif prix automatique
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <span className="text-gray-500 block">Coût produit</span>
-                  <span className="font-bold text-gray-800">
-                    {formatCurrency(
-                      editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100)),
-                      'FCFA'
-                    )}
-                  </span>
-                  {editing.price1688 && (
-                    <span className="text-gray-400 block text-[10px]">
-                      ({editing.price1688} ¥ × {editing.exchangeRate || 100})
-                    </span>
-                  )}
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <span className="text-gray-500 block">Frais service ({editing.serviceFeeRate || 10}%)</span>
-                  <span className="font-bold text-orange-600">
-                    +{formatCurrency(
-                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.serviceFeeRate || 10) / 100)),
-                      'FCFA'
-                    )}
-                  </span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <span className="text-gray-500 block">Assurance ({editing.insuranceRate || 2.5}%)</span>
-                  <span className="font-bold text-purple-600">
-                    +{formatCurrency(
-                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.insuranceRate || 2.5) / 100)),
-                      'FCFA'
-                    )}
-                  </span>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
-                  <span className="text-emerald-600 block font-medium">Sous-total client</span>
-                  <span className="font-bold text-emerald-700 text-sm">
-                    {formatCurrency(
-                      Math.round(
-                        (editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * 
-                        (1 + ((editing.serviceFeeRate || 10) / 100) + ((editing.insuranceRate || 2.5) / 100))
-                      ),
-                      'FCFA'
-                    )}
-                  </span>
-                  <span className="text-emerald-500 block text-[10px]">+ transport selon mode choisi</span>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-gray-500 italic">
-                * Le prix final client inclut ce sous-total + les frais de transport selon le mode de livraison choisi.
-              </p>
-            </div>
-          )}
-        </div>
-
         {/* Simulateur de pricing */}
         <PricingSimulator product={editing} />
 
@@ -2163,8 +2032,6 @@ export default function AdminProductManager() {
 
   const renderVariantsTab = () => {
     if (!editing) return null
-    const exchangeRate = editing.exchangeRate || 100
-    
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -2250,27 +2117,13 @@ export default function AdminProductManager() {
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Prix (¥)</label>
+                            <label className="text-xs text-gray-500">SKU</label>
                             <input
-                              type="number"
+                              type="text"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
-                              value={variant.price1688 ?? ''}
-                              onChange={e => {
-                                const price1688 = e.target.value ? Number(e.target.value) : undefined
-                                const priceFCFA = price1688 ? Math.round(price1688 * exchangeRate) : undefined
-                                updateVariant(groupIndex, variantIndex, { price1688, priceFCFA })
-                              }}
-                              placeholder="57"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500">Prix FCFA</label>
-                            <input
-                              type="number"
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
-                              value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
-                              readOnly
-                              placeholder="Auto"
+                              value={variant.sku || ''}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { sku: e.target.value })}
+                              placeholder="SKU-001"
                             />
                           </div>
                           <div>
@@ -2386,14 +2239,11 @@ export default function AdminProductManager() {
                 <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.reduce((s, v) => s + v.stock, 0), 0)}</strong>
               </div>
               <div>
-                <span className="text-blue-600">Prix min/max :</span>{' '}
+                <span className="text-blue-600">SKU :</span>{' '}
                 <strong>
                   {(() => {
-                    const prices = editing.variantGroups.flatMap(g => g.variants.map(v => v.price1688).filter(p => p !== undefined)) as number[]
-                    if (prices.length === 0) return '-'
-                    const min = Math.min(...prices)
-                    const max = Math.max(...prices)
-                    return min === max ? `¥${min}` : `¥${min} - ¥${max}`
+                    const skus = editing.variantGroups.flatMap(g => g.variants.map(v => v.sku).filter(Boolean))
+                    return skus.length > 0 ? `${skus.length} défini(s)` : 'Aucun'
                   })()}
                 </strong>
               </div>
