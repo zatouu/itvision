@@ -1,0 +1,51 @@
+'use client'
+
+import { AnimatePresence, motion } from 'framer-motion'
+import Image from 'next/image'
+import { formatCurrency } from './types'
+
+interface StickyPriceBarProps {
+  productName: string
+  gallery: string[]
+  comboPrice: number
+  show: boolean
+  onAddToCart: () => void
+  onBuyNow: () => void
+}
+
+export default function StickyPriceBar({ productName, gallery, comboPrice, show, onAddToCart, onBuyNow }: StickyPriceBarProps) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          exit={{ y: -100 }}
+          className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-lg"
+        >
+          <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
+            <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+              <Image src={gallery[0] || '/file.svg'} alt="" fill className="object-cover" sizes="48px" />
+            </div>
+            <div className="flex-1 min-w-0 hidden sm:block">
+              <p className="font-medium text-sm truncate">{productName}</p>
+              <p className="text-emerald-600 font-bold text-sm">{formatCurrency(comboPrice)}</p>
+            </div>
+            <button
+              onClick={onAddToCart}
+              className="hidden md:block px-4 py-2 border-2 border-orange-400 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50 transition"
+            >
+              + Panier
+            </button>
+            <button
+              onClick={onBuyNow}
+              className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm transition"
+            >
+              Acheter
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}

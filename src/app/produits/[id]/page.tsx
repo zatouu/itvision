@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
-import ProductDetail1688 from '@/components/ProductDetail1688'
+import ProductDetailNew from '@/components/product/ProductDetailNew'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
@@ -68,7 +68,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     <div className="min-h-screen bg-gray-50">
       <MarketHeader />
       <main>
-        <ProductDetail1688 product={detail} similar={similar} />
+        <ProductDetailNew product={detail} similar={similar} />
       </main>
       <MarketFooter />
     </div>
