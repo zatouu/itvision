@@ -502,6 +502,7 @@ export default function AdminProductManager() {
   const [dragOverDesc, setDragOverDesc] = useState(false)
   const [dragItem, setDragItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
   const [dragOverItem, setDragOverItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
+  const [seedingCategories, setSeedingCategories] = useState(false)
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
@@ -560,37 +561,63 @@ export default function AdminProductManager() {
     }
   }
 
-  useEffect(() => { refresh() }, [])
-
-  useEffect(() => {
-    let mounted = true
-    // Catégories par défaut en attendant le fetch
+  const loadCategoryOptions = async () => {
     setCategoryOptions(
       defaultProductCategories.map(c => ({ category: c.id, label: c.name, count: 0 }))
     )
-    ;(async () => {
-      try {
-        const res = await fetch('/api/products/categories', { credentials: 'include' })
-        const data = await res.json().catch(() => ({}))
-        if (!mounted) return
-        if (res.ok && data?.success && Array.isArray(data.items) && data.items.length > 0) {
-          setCategoryOptions(
-            data.items
-              .map((it: any) => ({
-                category: String(it.category || ''),
-                label: String(it.label || it.name || it.category || ''),
-                count: Number(it.count) || 0
-              }))
-              .filter((it: any) => it.category)
-          )
-        }
-      } catch {
-        // fallback : garder les catégories par défaut déjà en place
+
+    try {
+      const res = await fetch('/api/products/categories', { credentials: 'include' })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.success && Array.isArray(data.items) && data.items.length > 0) {
+        setCategoryOptions(
+          data.items
+            .map((it: any) => ({
+              category: String(it.category || ''),
+              label: String(it.label || it.name || it.category || ''),
+              count: Number(it.count) || 0
+            }))
+            .filter((it: any) => it.category)
+        )
       }
-    })()
-    return () => {
-      mounted = false
+    } catch {
+      // fallback déjà appliqué au début de la fonction
     }
+  }
+
+  const resetCategories = async () => {
+    if (seedingCategories) return
+    if (!window.confirm('Réinitialiser les catégories produits depuis la liste par défaut ?')) return
+
+    setSeedingCategories(true)
+    try {
+      const res = await fetch('/api/admin/catalog/categories/seed', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Impossible de réinitialiser les catégories')
+      }
+
+      await loadCategoryOptions()
+
+      const summary = data?.summary
+      const details = summary
+        ? `\nCréées: ${Number(summary.created) || 0}\nMises à jour: ${Number(summary.updated) || 0}`
+        : ''
+      alert(`Catégories réinitialisées avec succès.${details}`)
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de la réinitialisation des catégories')
+    } finally {
+      setSeedingCategories(false)
+    }
+  }
+
+  useEffect(() => { refresh() }, [])
+
+  useEffect(() => {
+    loadCategoryOptions()
   }, [])
 
   // État pour le brouillon
@@ -1294,11 +1321,6 @@ export default function AdminProductManager() {
     if (!editing) return null
     return (
       <div className="space-y-6">
-        <datalist id="admin-product-categories">
-          {categoryOptions.map((it) => (
-            <option key={it.category} value={it.category} label={it.label} />
-          ))}
-        </datalist>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
             <Layers className="h-4 w-4" />
@@ -2667,14 +2689,30 @@ export default function AdminProductManager() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <datalist id="admin-product-categories">
+        {categoryOptions.map((it) => (
+          <option key={it.category} value={it.category} label={it.label} />
+        ))}
+      </datalist>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Gestion des Produits</h1>
           <p className="text-sm text-gray-500">Pilotez votre sourcing Chine & vos tarifs transport depuis une seule interface.</p>
         </div>
-        <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
-          <Plus className="h-4 w-4" /> Nouveau produit
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={resetCategories}
+            disabled={seedingCategories}
+            className="inline-flex items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-700 px-4 py-2 rounded-lg shadow-sm"
+          >
+            {seedingCategories ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Réinitialiser catégories
+          </button>
+          <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
+            <Plus className="h-4 w-4" /> Nouveau produit
+          </button>
+        </div>
       </div>
 
       {/* Alerte brouillon disponible */}

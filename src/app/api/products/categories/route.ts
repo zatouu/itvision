@@ -1,28 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
 import Product from '@/lib/models/Product.validated'
-import { requireAuth } from '@/lib/jwt'
+import { defaultProductCategories } from '@/lib/data/default-categories'
 
-async function requireManagerRole(request: NextRequest) {
-  try {
-    const { role } = await requireAuth(request)
-    const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
-    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
-    return { ok: true as const }
-  } catch {
-    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
-  }
-}
+const fallbackCategories = defaultProductCategories.map((category, index) => ({
+  slug: category.id,
+  name: category.name,
+  labelFr: category.name,
+  icon: category.icon,
+  color: '#f97316',
+  subCategories: [],
+  order: index,
+  isActive: true,
+}))
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await connectMongoose()
 
-    // Enrich categories with product counts
-    const cats = await ProductCategory.find({ isActive: true })
+    const dbCategories = await ProductCategory.find({ isActive: true })
       .sort({ order: 1, name: 1 })
       .lean()
+    const categories = dbCategories.length > 0 ? dbCategories : fallbackCategories
 
     // Count products per category (top-level slug only)
     const counts = await Product.aggregate([
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     ])
     const countMap = new Map(counts.map((c: any) => [String(c._id), Number(c.count) || 0]))
 
-    const items = cats.map(c => ({
+    const items = categories.map((c: any) => ({
       category: c.slug,
       name: c.labelFr || c.name,
       label: c.labelFr || c.name,
@@ -44,6 +44,20 @@ export async function GET(request: NextRequest) {
       })),
       count: countMap.get(c.slug) || 0
     }))
+
+    const knownCategories = new Set(items.map(item => item.category))
+    for (const [category, count] of countMap.entries()) {
+      if (!category || knownCategories.has(category)) continue
+      items.push({
+        category,
+        name: category,
+        label: category,
+        icon: 'tag',
+        color: '#f97316',
+        subCategories: [],
+        count,
+      })
+    }
 
     return NextResponse.json({ success: true, items })
   } catch (error) {

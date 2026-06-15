@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
 
@@ -110,15 +111,27 @@ async function seed() {
     },
   ]
 
-  for (const cat of categories) {
-    await ProductCategory.findOneAndUpdate(
+  let created = 0
+  let updated = 0
+
+  for (const [index, cat] of categories.entries()) {
+    const existing = await ProductCategory.findOneAndUpdate(
       { slug: cat.slug },
-      { $set: { ...cat, order: categories.indexOf(cat), isActive: true } },
+      { $set: { ...cat, order: index, isActive: true } },
       { upsert: true, new: true }
     )
+
+    if (existing?.createdAt && existing?.updatedAt && +new Date(existing.createdAt) === +new Date(existing.updatedAt)) {
+      created += 1
+    } else {
+      updated += 1
+    }
   }
 
-  console.log(`✅ ${categories.length} catégories produits seeded`)
+  console.log(`✅ Seed catégories produits terminé`)
+  console.log(`   - Total: ${categories.length}`)
+  console.log(`   - Créées: ${created}`)
+  console.log(`   - Mises à jour: ${updated}`)
   process.exit(0)
 }
 
