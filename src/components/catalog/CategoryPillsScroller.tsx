@@ -57,7 +57,7 @@ export default function CategoryPillsScroller({ categories, active, onSelect }: 
   return (
     <div className="border-b border-slate-100 bg-white">
       <div className="container mx-auto px-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 pt-2 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-2 pt-2 scrollbar-hide justify-center">
           {pills.map((cat) => {
             const isActive = active === cat
             const config = pillConfig[cat] ?? { icon: Search, color: 'slate' }
