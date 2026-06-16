@@ -303,12 +303,20 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
               {/* Group Buy Banner */}
               {product.groupBuyEnabled && (
-                <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
-                  <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-5 h-5 text-violet-600" /><span className="font-bold text-violet-800">Achat groupé</span></div>
-                  <p className="text-sm text-violet-700 mb-2">Joignez-vous à d'autres acheteurs pour obtenir un meilleur prix !</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-violet-600">Objectif: {product.groupBuyTargetQty ?? 20} unités</span>
-                    <span className="text-sm font-bold text-violet-700">{formatCurrency(product.groupBuyBestPrice)} <span className="text-xs font-normal text-violet-500">/pc</span></span>
+                <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-600 via-violet-500 to-emerald-500 p-4 text-white shadow-sm">
+                  <div className="mb-2 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-violet-100" />
+                    <span className="font-bold">Achetez en groupe et économisez encore plus !</span>
+                  </div>
+                  <p className="mb-3 text-xs text-violet-100/95">
+                    Prix groupé dès {product.groupBuyMinQty ?? 5} personnes
+                    {product.groupBuyDiscount ? ` • -${Math.round(product.groupBuyDiscount)}%` : ''}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-violet-100">Objectif: {product.groupBuyTargetQty ?? 20} unités</span>
+                    <span className="rounded-md bg-white/20 px-2 py-1 text-sm font-bold backdrop-blur-sm">
+                      {formatCurrency(product.groupBuyBestPrice)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -372,11 +380,11 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
               {/* CTAs */}
               <div className="space-y-3">
-                <button onClick={() => addToCart(true)} disabled={adding} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-400 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
+                <button onClick={() => addToCart(true)} disabled={adding} className="w-full rounded-lg border border-emerald-400 bg-emerald-500 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-2">
                   {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-5 h-5" />Acheter maintenant</>}
                 </button>
-                <button onClick={() => addToCart(false)} disabled={adding} className="w-full py-3 border-2 border-orange-400 text-orange-600 hover:bg-orange-50 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
-                  <ShoppingCart className="w-5 h-5" />Ajouter au panier
+                <button onClick={() => addToCart(false)} disabled={adding} className="w-full rounded-lg border border-orange-400 bg-orange-500 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:bg-gray-300 flex items-center justify-center gap-2">
+                  <ShoppingCart className="w-5 h-5" />+ Ajouter au panier
                 </button>
                 <a href={whatsappUrl()} target="_blank" rel="noopener noreferrer" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
                   <MessageCircle className="w-5 h-5" />Demander via WhatsApp
