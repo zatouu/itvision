@@ -140,6 +140,15 @@ const isYouTubeUrl = (url: string) => {
   return /youtu\.be\//i.test(url) || /youtube\.com\//i.test(url)
 }
 
+const slugifyCategory = (value: string) => {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'groupbuy' | 'import'
 
 const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => {
@@ -503,6 +512,8 @@ export default function AdminProductManager() {
   const [dragItem, setDragItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
   const [dragOverItem, setDragOverItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
   const [seedingCategories, setSeedingCategories] = useState(false)
+  const [creatingCategory, setCreatingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
@@ -611,6 +622,41 @@ export default function AdminProductManager() {
       alert(e?.message || 'Erreur lors de la réinitialisation des catégories')
     } finally {
       setSeedingCategories(false)
+    }
+  }
+
+  const createCategory = async () => {
+    const name = newCategoryName.trim()
+    if (!name || creatingCategory) return
+
+    const slug = slugifyCategory(name)
+    if (!slug) {
+      alert('Nom de catégorie invalide')
+      return
+    }
+
+    setCreatingCategory(true)
+    try {
+      const res = await fetch('/api/admin/catalog/categories', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, slug })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Impossible d\'ajouter la catégorie')
+      }
+
+      setNewCategoryName('')
+      await loadCategoryOptions()
+
+      const action = data?.action === 'updated' ? 'mise à jour' : 'ajoutée'
+      alert(`Catégorie ${action} avec succès: ${name}`)
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de l\'ajout de la catégorie')
+    } finally {
+      setCreatingCategory(false)
     }
   }
 
@@ -2695,12 +2741,35 @@ export default function AdminProductManager() {
         ))}
       </datalist>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Gestion des Produits</h1>
           <p className="text-sm text-gray-500">Pilotez votre sourcing Chine & vos tarifs transport depuis une seule interface.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  createCategory()
+                }
+              }}
+              placeholder="Nouvelle catégorie"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm sm:w-56"
+            />
+            <button
+              onClick={createCategory}
+              disabled={creatingCategory || !newCategoryName.trim()}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {creatingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Ajouter catégorie
+            </button>
+          </div>
           <button
             onClick={resetCategories}
             disabled={seedingCategories}

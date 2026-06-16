@@ -109,6 +109,14 @@ async function seed() {
         { slug: 'gaines', name: 'Gaines & chemins de câbles', labelFr: 'Gaines & chemins de câbles', icon: 'Cable' },
       ]
     },
+    {
+      slug: 'lot-10-box-cadeau',
+      name: 'Lot de 10 Box cadeau',
+      labelFr: 'Lot de 10 Box cadeau',
+      icon: 'Gift',
+      color: '#BE123C',
+      subCategories: []
+    },
   ]
 
   let created = 0

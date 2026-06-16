@@ -7,4 +7,5 @@ export const defaultProductCategories = [
   { id: 'electronique', name: 'Électronique', description: 'Smartphones, ordinateurs et accessoires', icon: '💻', margin: 0, isActive: true },
   { id: 'mobilier', name: 'Mobilier & Installation', description: 'Racks, baies et mobilier technique', icon: '🪑', margin: 0, isActive: true },
   { id: 'cables', name: 'Câbles & Connectique', description: 'Câbles coaxiaux, fibre et connecteurs', icon: '🔌', margin: 0, isActive: true },
+  { id: 'lot-10-box-cadeau', name: 'Lot de 10 Box cadeau', description: 'Packs de 10 box cadeau prêts à vendre', icon: '🎁', margin: 0, isActive: true },
 ]
