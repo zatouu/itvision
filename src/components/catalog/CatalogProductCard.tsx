@@ -142,7 +142,7 @@ export default function CatalogProductCard({
 
         {/* Price row - Alibaba/Temu style : big red price */}
         <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-sm font-bold text-orange-500">
+          <span className="text-sm font-bold text-red-600">
             {formatPrice(product.price, product.currency)}
           </span>
           {product.originalPrice && product.originalPrice > product.price && (

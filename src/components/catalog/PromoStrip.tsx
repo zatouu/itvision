@@ -29,7 +29,7 @@ export default function PromoStrip() {
         {/* Group Buy */}
         <Link
           href="/achats-groupes"
-          className="relative overflow-hidden bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-lg p-2.5 flex items-center gap-2.5 hover:shadow-md transition-shadow"
+          className="relative overflow-hidden bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg p-2.5 flex items-center gap-2.5 hover:shadow-md transition-shadow"
         >
           <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
             <Users className="w-5 h-5" />

@@ -1050,10 +1050,19 @@ export default function ProduitsPage() {
                     <span>Catégories</span>
                   </div>
                   <div className="space-y-1.5">
-                    {['Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine'].map(cat => (
-                      <label key={cat} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
-                        <input type="checkbox" checked={selected.includes(cat.toLowerCase())} onChange={() => setSelected(prev => prev.includes(cat.toLowerCase()) ? prev.filter(c => c !== cat.toLowerCase()) : [...prev, cat.toLowerCase()])} className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
-                        <span className="flex-1">{cat}</span>
+                    {[
+                      { name: 'Mode',         slug: 'mode',         dot: 'bg-emerald-400' },
+                      { name: 'Beauté',       slug: 'beaute',       dot: 'bg-pink-400' },
+                      { name: 'Maison',       slug: 'maison',       dot: 'bg-amber-400' },
+                      { name: 'Électronique', slug: 'electronique', dot: 'bg-blue-400' },
+                      { name: 'Auto',         slug: 'auto',         dot: 'bg-red-400' },
+                      { name: 'Sport',        slug: 'sport',        dot: 'bg-cyan-400' },
+                      { name: 'Cuisine',      slug: 'cuisine',      dot: 'bg-orange-400' },
+                    ].map(({ name, slug, dot }) => (
+                      <label key={name} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
+                        <input type="checkbox" checked={selected.includes(slug)} onChange={() => setSelected(prev => prev.includes(slug) ? prev.filter(c => c !== slug) : [...prev, slug])} className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+                        <span className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${selected.includes(slug) ? dot : 'bg-slate-200'}`} />
+                        <span className="flex-1">{name}</span>
                       </label>
                     ))}
                   </div>
