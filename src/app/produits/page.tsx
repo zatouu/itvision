@@ -900,7 +900,7 @@ export default function ProduitsPage() {
       
       {/* === STICKY SEARCH HEADER === */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-4 py-2">
           {/* Search bar compacte */}
           <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white border border-slate-300 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
             <Search className="w-4 h-4 text-slate-400 ml-3 flex-shrink-0" />
@@ -917,8 +917,8 @@ export default function ProduitsPage() {
               Rechercher
             </button>
           </div>
-          {/* Breadcrumb + total */}
-          <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
+          {/* Breadcrumb */}
+          <div className="flex items-center mt-1.5 text-xs text-slate-500">
             <div className="flex items-center gap-1">
               <Link href="/" className="hover:text-slate-700">Accueil</Link>
               <span>{'>'}</span>
@@ -930,7 +930,6 @@ export default function ProduitsPage() {
                 </>
               )}
             </div>
-            <span><strong className="text-slate-900">{filteredProducts.length.toLocaleString('fr-FR')}</strong> produits trouvés</span>
           </div>
         </div>
         {/* Category pills scroller */}
