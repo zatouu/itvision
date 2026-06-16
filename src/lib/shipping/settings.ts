@@ -4,8 +4,14 @@ const fs: any = _req('fs')
 const path: any = _req('path')
 
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
+import {
+  DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS,
+  sanitizeSeaFreightEligibilitySettings,
+  type SeaFreightEligibilitySettings,
+} from '@/lib/shipping/sea-freight-eligibility'
 
 const FILE_PATH = path.resolve(process.cwd(), 'data', 'shipping-rates.json')
+const SEA_FREIGHT_ELIGIBILITY_FILE_PATH = path.resolve(process.cwd(), 'data', 'sea-freight-eligibility.json')
 
 type ShippingRateOverride = {
   rate: number
@@ -28,6 +34,17 @@ function ensureFile() {
   const dir = path.dirname(FILE_PATH)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_OVERRIDES, null, 2))
+}
+
+function ensureSeaFreightEligibilityFile() {
+  const dir = path.dirname(SEA_FREIGHT_ELIGIBILITY_FILE_PATH)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+  if (!fs.existsSync(SEA_FREIGHT_ELIGIBILITY_FILE_PATH)) {
+    fs.writeFileSync(
+      SEA_FREIGHT_ELIGIBILITY_FILE_PATH,
+      JSON.stringify(DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS, null, 2)
+    )
+  }
 }
 
 export function readShippingRateOverrides(): ShippingRateOverrides {
@@ -82,4 +99,23 @@ export function getConfiguredShippingRates(): Record<ShippingMethodId, ShippingR
   })
 
   return merged
+}
+
+export function readSeaFreightEligibilitySettings(): SeaFreightEligibilitySettings {
+  try {
+    ensureSeaFreightEligibilityFile()
+    const raw = fs.readFileSync(SEA_FREIGHT_ELIGIBILITY_FILE_PATH, 'utf-8')
+    const parsed = JSON.parse(raw)
+    return sanitizeSeaFreightEligibilitySettings(parsed, DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS)
+  } catch {
+    return DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS
+  }
+}
+
+export function writeSeaFreightEligibilitySettings(payload: Partial<SeaFreightEligibilitySettings>) {
+  ensureSeaFreightEligibilityFile()
+  const current = readSeaFreightEligibilitySettings()
+  const next = sanitizeSeaFreightEligibilitySettings(payload, current)
+  fs.writeFileSync(SEA_FREIGHT_ELIGIBILITY_FILE_PATH, JSON.stringify(next, null, 2))
+  return next
 }

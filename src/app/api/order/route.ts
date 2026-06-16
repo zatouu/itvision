@@ -5,15 +5,62 @@ import Product from '@/lib/models/Product'
 import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { connectDB } from '@/lib/db'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
 import { resolveProductPrice } from '@/lib/pricing/resolve-product-price'
 import { readPricingDefaults } from '@/lib/pricing/settings'
+import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+function buildSeaFreightMetrics(items: Array<{
+  qty?: number
+  weightKg?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  volumeM3?: number
+}>, orderValueFcfa: number) {
+  let totalVolumeM3 = 0
+  let totalBilledWeightKg = 0
+  let hasDimensionsOrVolumeData = false
+
+  for (const item of items) {
+    const qty = Number(item.qty) > 0 ? Number(item.qty) : 1
+    const volume = typeof item.volumeM3 === 'number' && item.volumeM3 > 0 ? item.volumeM3 : 0
+    const hasDims =
+      typeof item.lengthCm === 'number' && item.lengthCm > 0 &&
+      typeof item.widthCm === 'number' && item.widthCm > 0 &&
+      typeof item.heightCm === 'number' && item.heightCm > 0
+
+    if (volume > 0 || hasDims) {
+      hasDimensionsOrVolumeData = true
+    }
+
+    totalVolumeM3 += volume * qty
+
+    const actualWeight = typeof item.weightKg === 'number' && item.weightKg > 0 ? item.weightKg : 0
+    const weightInfo = calculateBilledWeight({
+      actualWeightKg: actualWeight,
+      lengthCm: item.lengthCm,
+      widthCm: item.widthCm,
+      heightCm: item.heightCm,
+    })
+    totalBilledWeightKg += weightInfo.billedWeight * qty
+  }
+
+  return {
+    totalVolumeM3: Number(totalVolumeM3.toFixed(4)),
+    totalBilledWeightKg: Number(totalBilledWeightKg.toFixed(2)),
+    totalOrderValueFcfa: Math.round(orderValueFcfa || 0),
+    hasDimensionsOrVolumeData,
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -169,6 +216,33 @@ export async function POST(req: NextRequest) {
       total,
       totalQuantity
     } = calculation
+
+    if (internalMethod === 'sea_freight') {
+      const seaFreightEligibility = readSeaFreightEligibilitySettings()
+      const seaMetrics = buildSeaFreightMetrics(calculatorItems, subtotal)
+      const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
+
+      if (!seaEligibility.eligible) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'SEA_FREIGHT_NOT_ELIGIBLE',
+            error: 'Le mode maritime est réservé aux commandes volumineuses. Veuillez choisir Express ou Aérien.',
+            seaFreightEligibility,
+            seaMetrics,
+            reasons: seaEligibility.reasons,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (!shipping) {
+      return NextResponse.json(
+        { success: false, error: 'Impossible de calculer les frais de transport pour cette commande' },
+        { status: 400 }
+      )
+    }
 
     // Sauvegarder la commande (connexion DB déjà établie ci-dessus)
 

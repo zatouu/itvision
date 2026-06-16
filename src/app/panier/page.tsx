@@ -46,6 +46,12 @@ import { resolveProductPrice, type MarketplaceTier } from '@/lib/pricing/resolve
 import { ServiceFeeTierProgress } from '@/components/ServiceFeeTierProgress'
 import { useToast } from '@/components/ui/Toaster'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
+import {
+  DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS,
+  evaluateSeaFreightEligibility,
+  sanitizeSeaFreightEligibilitySettings,
+  type SeaFreightEligibilitySettings,
+} from '@/lib/shipping/sea-freight-eligibility'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
 const MARKETPLACE_TIER_LABEL: Record<MarketplaceTier, string> = {
@@ -74,6 +80,9 @@ export default function PanierPage() {
   const [addressValid, setAddressValid] = useState(false)
   const [suggestionScroll, setSuggestionScroll] = useState(0)
   const [shippingRates, setShippingRates] = useState<Record<ShippingMethodId, ShippingRate>>(BASE_SHIPPING_RATES)
+  const [seaFreightEligibility, setSeaFreightEligibility] = useState<SeaFreightEligibilitySettings>(
+    DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS
+  )
   const [serviceFeeTiers, setServiceFeeTiers] = useState<ServiceFeeTier[]>(SERVICE_FEE_TIERS)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [activeGroups, setActiveGroups] = useState<any[]>([])
@@ -138,6 +147,14 @@ export default function PanierPage() {
       .then(r => r.json())
       .then(d => {
         if (d?.success && d?.rates) setShippingRates(d.rates)
+        if (d?.success && d?.seaFreightEligibility) {
+          setSeaFreightEligibility(
+            sanitizeSeaFreightEligibilitySettings(
+              d.seaFreightEligibility,
+              DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS
+            )
+          )
+        }
       })
       .catch(() => {
         // fallback: BASE_SHIPPING_RATES
@@ -426,6 +443,34 @@ export default function PanierPage() {
     }
   }, [items, marketplaceTier, transportGlobal])
 
+  const seaFreightMetrics = useMemo(() => {
+    const hasDimensionsOrVolumeData = items.some((it) => {
+      const hasVolume = typeof it.volumeM3 === 'number' && it.volumeM3 > 0
+      const hasDims =
+        typeof it.lengthCm === 'number' && it.lengthCm > 0 &&
+        typeof it.widthCm === 'number' && it.widthCm > 0 &&
+        typeof it.heightCm === 'number' && it.heightCm > 0
+      return hasVolume || hasDims
+    })
+
+    return {
+      totalVolumeM3: Number(weightSummary.totalVolume.toFixed(4)),
+      totalBilledWeightKg: Number(weightSummary.billedWeight.toFixed(2)),
+      totalOrderValueFcfa: Math.round(breakdown.finalProducts || 0),
+      hasDimensionsOrVolumeData,
+    }
+  }, [items, weightSummary.totalVolume, weightSummary.billedWeight, breakdown.finalProducts])
+
+  const seaFreightCheck = useMemo(() => {
+    return evaluateSeaFreightEligibility(seaFreightMetrics, seaFreightEligibility)
+  }, [seaFreightMetrics, seaFreightEligibility])
+
+  useEffect(() => {
+    if (shippingMethod === 'sea' && !seaFreightCheck.eligible) {
+      setShippingMethod('air')
+    }
+  }, [shippingMethod, seaFreightCheck.eligible])
+
   const standardServiceFeeRate = serviceFeeTiers[0]?.feeRate ?? 10
 
   const removeItem = (id: string) => {
@@ -456,6 +501,11 @@ export default function PanierPage() {
       if (!phone) highlightError('phone')
       if (!addressValid) highlightError('address')
       addToast('Veuillez remplir les informations de livraison obligatoires', 'error')
+      return
+    }
+
+    if (shippingMethod === 'sea' && !seaFreightCheck.eligible) {
+      addToast('Le mode maritime est réservé aux commandes volumineuses. Veuillez choisir Express ou Aérien.', 'error')
       return
     }
 
@@ -846,22 +896,40 @@ export default function PanierPage() {
                 <div className="mb-6 pb-6 border-b">
                   <p className="text-sm font-medium text-gray-700 mb-3">Mode de transport</p>
                   <div className="space-y-2">
-                    {Object.entries(SHIPPING_CHOICES).map(([key, rate]) => (
+                    {Object.entries(SHIPPING_CHOICES).map(([key, rate]) => {
+                      const isSeaOption = key === 'sea'
+                      const isSeaDisabled = isSeaOption && !seaFreightCheck.eligible
+                      return (
                       <motion.label
                         key={key}
-                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition"
+                        className={`flex items-center gap-3 rounded-lg p-3 transition ${
+                          isSeaDisabled ? 'cursor-not-allowed opacity-50 bg-gray-50' : 'cursor-pointer hover:bg-gray-50'
+                        }`}
                       >
                         <input
                           type="radio"
                           name="shipping"
                           checked={shippingMethod === key as any}
-                          onChange={() => setShippingMethod(key as any)}
+                          onChange={() => {
+                            if (isSeaDisabled) return
+                            setShippingMethod(key as any)
+                          }}
+                          disabled={isSeaDisabled}
                           className="w-4 h-4"
                         />
-                        <span className="text-sm flex-1">{rate.label}</span>
+                        <span className="text-sm flex-1">
+                          {rate.label}
+                          {isSeaDisabled ? <span className="ml-2 text-xs text-red-600">(Non éligible)</span> : null}
+                        </span>
                       </motion.label>
-                    ))}
+                      )
+                    })}
                   </div>
+                  {!seaFreightCheck.eligible && (
+                    <p className="mt-2 text-xs text-red-600">
+                      🚫 Maritime indisponible: {seaFreightCheck.reasons[0] || 'commande non éligible'}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 mt-3">
                     📦 Poids réel: {weightSummary.totalWeight.toFixed(2)}kg
                     {weightSummary.hasVolumetric && (

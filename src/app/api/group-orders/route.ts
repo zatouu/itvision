@@ -4,9 +4,11 @@ import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
 import { readPaymentSettings } from '@/lib/payments/settings'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import type { ShippingMethodId } from '@/lib/logistics'
 import { requireAuth } from '@/lib/jwt'
+import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 
 const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   maritime_60j: 'sea_freight',
@@ -17,15 +19,20 @@ const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
 function calcShippingCostPerUnit(
   shippingMethod: string,
   weightKg: number,
+  volumeM3: number,
   targetQty: number
 ): number {
-  if (!weightKg || !targetQty || targetQty <= 0) return 0
+  if (!targetQty || targetQty <= 0) return 0
   const rates = getConfiguredShippingRates()
   const internalMethod = SHIPPING_METHOD_MAP[shippingMethod] || 'sea_freight'
   const rate = rates[internalMethod]
   if (!rate) return 0
-  const totalWeight = weightKg * targetQty
-  const totalCost = Math.max(rate.minimumCharge || 0, totalWeight * (rate.rate || 0))
+  const totalWeight = (weightKg || 0) * targetQty
+  const totalVolume = (volumeM3 || 0) * targetQty
+  const billed = rate.billing === 'per_cubic_meter'
+    ? totalVolume * (rate.rate || 0)
+    : totalWeight * (rate.rate || 0)
+  const totalCost = Math.max(rate.minimumCharge || 0, billed)
   return Math.round(totalCost / targetQty)
 }
 
@@ -241,11 +248,58 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Calcul automatique du coût de transport par unité (basé sur targetQty)
     const productWeightKg = product.weightKg || product.grossWeightKg || product.netWeightKg || 0
+    const productVolumeM3 =
+      typeof product.volumeM3 === 'number' && product.volumeM3 > 0
+        ? product.volumeM3
+        : (
+          typeof product.lengthCm === 'number' && product.lengthCm > 0 &&
+          typeof product.widthCm === 'number' && product.widthCm > 0 &&
+          typeof product.heightCm === 'number' && product.heightCm > 0
+        )
+          ? (product.lengthCm * product.widthCm * product.heightCm) / 1_000_000
+          : 0
+
+    if (normalizedShippingMethod === 'maritime_60j') {
+      const seaFreightEligibility = readSeaFreightEligibilitySettings()
+      const billedWeightPerUnit = calculateBilledWeight({
+        actualWeightKg: productWeightKg,
+        lengthCm: product.lengthCm,
+        widthCm: product.widthCm,
+        heightCm: product.heightCm,
+      }).billedWeight
+      const seaMetrics = {
+        totalVolumeM3: Number((productVolumeM3 * targetQty).toFixed(4)),
+        totalBilledWeightKg: Number((billedWeightPerUnit * targetQty).toFixed(2)),
+        totalOrderValueFcfa: Math.round((currentUnitPrice || 0) * targetQty),
+        hasDimensionsOrVolumeData:
+          productVolumeM3 > 0 || (
+            typeof product.lengthCm === 'number' && product.lengthCm > 0 &&
+            typeof product.widthCm === 'number' && product.widthCm > 0 &&
+            typeof product.heightCm === 'number' && product.heightCm > 0
+          ),
+      }
+      const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
+      if (!seaEligibility.eligible) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'SEA_FREIGHT_NOT_ELIGIBLE',
+            error: 'Le mode maritime est réservé aux commandes volumineuses. Veuillez choisir Express ou Aérien.',
+            seaFreightEligibility,
+            seaMetrics,
+            reasons: seaEligibility.reasons,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Calcul automatique du coût de transport par unité (basé sur targetQty)
     const shippingCostPerUnit = calcShippingCostPerUnit(
       normalizedShippingMethod,
       productWeightKg,
+      productVolumeM3,
       targetQty
     )
 
