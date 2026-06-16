@@ -106,12 +106,11 @@ export default function MarketHeader() {
           <CartIcon />
           <Link
             href="/wallet"
-            className="flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-violet-50/50 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100/60 transition-colors whitespace-nowrap"
             title="Wallet SEL"
           >
-            <Gem className="h-4 w-4" />
-            <span>1 250</span>
-            <span className="text-[10px] text-violet-500 font-normal">Grains</span>
+            <Gem className="h-3.5 w-3.5" />
+            <span className="whitespace-nowrap">1 250 Grains</span>
           </Link>
           <ThemeToggle />
           <MarketAuthButton
