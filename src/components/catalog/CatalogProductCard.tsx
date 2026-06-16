@@ -57,22 +57,29 @@ export default function CatalogProductCard({
     >
       {/* Image carrée */}
       <div className="relative aspect-square overflow-hidden bg-slate-50">
-        <img
-          src={product.image}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
+        {/* Clickable image overlay */}
+        <Link
+          href={`/produits/${product.id}`}
+          className="absolute inset-0 z-0"
+          aria-label={`Voir ${product.name}`}
+        >
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+        </Link>
 
         {/* Diagonal discount badge */}
         {product.discount && product.discount > 0 && (
-          <span className="absolute top-0 left-0 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-lg z-10">
+          <span className="absolute top-0 left-0 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-lg z-10 pointer-events-none">
             -{product.discount}%
           </span>
         )}
 
         {/* Badges floating top-right stack */}
-        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10 pointer-events-none">
           {product.isFlash && (
             <span className="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">
               ⚡ Flash
@@ -94,7 +101,7 @@ export default function CatalogProductCard({
         <button
           type="button"
           onClick={(e) => onToggleFavorite(e, product.id)}
-          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white shadow-sm transition-colors opacity-0 group-hover:opacity-100"
+          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white shadow-sm transition-colors opacity-0 group-hover:opacity-100 z-10"
           aria-label="Ajouter aux favoris"
         >
           <Heart
@@ -103,17 +110,17 @@ export default function CatalogProductCard({
         </button>
 
         {/* Quick actions on hover (slide up from bottom) */}
-        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10">
           <div className="flex gap-1">
             <Link
               href={`/produits/${product.id}`}
-              className="flex-1 bg-white text-slate-900 text-xs font-medium py-1.5 rounded text-center"
+              className="flex-1 bg-white text-slate-900 text-xs font-medium py-1.5 rounded text-center pointer-events-auto"
             >
               Voir
             </Link>
             <button
               onClick={() => onAddToCart(product)}
-              className="flex-1 bg-orange-500 text-white text-xs font-medium py-1.5 rounded hover:bg-orange-600"
+              className="flex-1 bg-orange-500 text-white text-xs font-medium py-1.5 rounded hover:bg-orange-600 pointer-events-auto"
             >
               + Panier
             </button>
