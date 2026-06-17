@@ -82,12 +82,12 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', 
 const formatDateTime = (date: string) => new Date(date).toLocaleString('fr-FR')
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  open: { label: 'Ouvert aux inscriptions', color: 'text-green-700', bgColor: 'bg-green-100' },
+  open: { label: 'Ouvert aux inscriptions', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
   filled: { label: 'Objectif atteint !', color: 'text-violet-700', bgColor: 'bg-violet-100' },
   ordering: { label: 'Commande en cours', color: 'text-purple-700', bgColor: 'bg-purple-100' },
   ordered: { label: 'Commandé au fournisseur', color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
   shipped: { label: 'En cours de livraison', color: 'text-orange-700', bgColor: 'bg-orange-100' },
-  delivered: { label: 'Livré', color: 'text-green-700', bgColor: 'bg-green-100' },
+  delivered: { label: 'Livré', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
   cancelled: { label: 'Annulé', color: 'text-red-700', bgColor: 'bg-red-100' }
 }
 
@@ -395,18 +395,18 @@ export default function GroupOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
       </div>
     )
   }
 
   if (!group) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
         <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Achat groupé non trouvé</h1>
-        <Link href="/achats-groupes" className="text-green-600 hover:underline">
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Achat groupé non trouvé</h1>
+        <Link href="/achats-groupes" className="text-emerald-600 hover:underline">
           Retour aux achats groupés
         </Link>
       </div>
@@ -422,7 +422,7 @@ export default function GroupOrderDetailPage() {
   const estimatedPrice = calculatePriceForQty(joinForm.qty)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-violet-50">
       {/* Notification */}
       <AnimatePresence>
         {notification && (
@@ -431,7 +431,7 @@ export default function GroupOrderDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
-              notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+              notification.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
             }`}
           >
             {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
@@ -442,7 +442,7 @@ export default function GroupOrderDetailPage() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-6 px-4">
+      <div className="bg-gradient-to-r from-emerald-600 to-violet-600 text-white py-6 px-4">
         <div className="max-w-6xl mx-auto">
           <Link href="/achats-groupes" className="flex items-center gap-2 text-white/80 hover:text-white mb-4">
             <ArrowLeft className="w-5 h-5" />
@@ -487,7 +487,7 @@ export default function GroupOrderDetailPage() {
               </span>
             )}
             {progress >= 100 && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-400/90 rounded-full text-xs font-bold">
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-400/90 rounded-full text-xs font-bold">
                 <CheckCircle className="w-3.5 h-3.5" />
                 Objectif atteint !
               </span>
@@ -525,7 +525,7 @@ export default function GroupOrderDetailPage() {
               className="bg-white rounded-2xl border shadow-lg overflow-hidden"
             >
               <div className="md:flex">
-                <div className="relative md:w-72 h-64 bg-gray-100">
+                <div className="relative md:w-72 h-64 bg-slate-100">
                   {group.product.image ? (
                     <Image
                       src={group.product.image}
@@ -535,7 +535,7 @@ export default function GroupOrderDetailPage() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-20 h-20 text-gray-300" />
+                      <Package className="w-20 h-20 text-slate-300" />
                     </div>
                   )}
                   {savingsPercent > 0 && (
@@ -548,25 +548,25 @@ export default function GroupOrderDetailPage() {
                   <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${status.bgColor} ${status.color} mb-3`}>
                     {status.label}
                   </span>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-3">{group.product.name}</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-3">{group.product.name}</h2>
                   
                   <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-3xl font-bold text-green-600">
+                    <span className="text-3xl font-bold text-emerald-600">
                       {formatCurrency(group.currentUnitPrice)}
                     </span>
                     {savings > 0 && (
-                      <span className="text-lg text-gray-400 line-through">
+                      <span className="text-lg text-slate-400 line-through">
                         {formatCurrency(group.product.basePrice)}
                       </span>
                     )}
-                    <span className="text-gray-500">/unité</span>
+                    <span className="text-slate-500">/unité</span>
                   </div>
                   
                   {group.description && (
-                    <p className="text-gray-600 mb-4">{group.description}</p>
+                    <p className="text-slate-600 mb-4">{group.description}</p>
                   )}
                   
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-4 text-sm text-slate-600">
                     <span className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       {daysLeft > 0 ? `${daysLeft} jours restants` : 'Terminé'}
@@ -587,42 +587,42 @@ export default function GroupOrderDetailPage() {
               transition={{ delay: 0.1 }}
               className="bg-white rounded-2xl border shadow-lg p-6"
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-green-600" />
+              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Target className="w-5 h-5 text-emerald-600" />
                 Progression de l&apos;achat groupé
               </h3>
               
               <div className="mb-4">
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Quantité réservée</span>
-                  <span className="font-bold text-gray-900">{group.currentQty} / {group.targetQty} unités</span>
+                  <span className="text-slate-600">Quantité réservée</span>
+                  <span className="font-bold text-slate-900">{group.currentQty} / {group.targetQty} unités</span>
                 </div>
-                <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.8 }}
                     className={`h-full rounded-full ${
-                      progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-green-400 to-violet-500'
+                      progress >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-400 to-violet-500'
                     }`}
                   />
                 </div>
                 <div className="flex justify-between mt-2 text-sm">
-                  <span className="text-gray-500">Min: {group.minQty}</span>
-                  <span className={`font-semibold ${progress >= 100 ? 'text-green-600' : 'text-gray-600'}`}>
+                  <span className="text-slate-500">Min: {group.minQty}</span>
+                  <span className={`font-semibold ${progress >= 100 ? 'text-emerald-600' : 'text-slate-600'}`}>
                     {progress}%
                   </span>
-                  <span className="text-gray-500">Cible: {group.targetQty}</span>
+                  <span className="text-slate-500">Cible: {group.targetQty}</span>
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
                 <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-green-600" />
-                  <span className="font-semibold text-gray-900">{group.participants.length} participant{group.participants.length > 1 ? 's' : ''}</span>
+                  <Users className="w-5 h-5 text-emerald-600" />
+                  <span className="font-semibold text-slate-900">{group.participants.length} participant{group.participants.length > 1 ? 's' : ''}</span>
                 </div>
                 {group.currentQty >= group.minQty && (
-                  <span className="flex items-center gap-1 text-green-600 font-semibold">
+                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
                     <CheckCircle className="w-5 h-5" />
                     Minimum atteint !
                   </span>
@@ -638,8 +638,8 @@ export default function GroupOrderDetailPage() {
                 transition={{ delay: 0.2 }}
                 className="bg-white rounded-2xl border shadow-lg p-6"
               >
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingDown className="w-5 h-5 text-green-600" />
+                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <TrendingDown className="w-5 h-5 text-emerald-600" />
                   Prix dégressifs - Plus on est nombreux, moins c&apos;est cher !
                 </h3>
                 
@@ -653,13 +653,13 @@ export default function GroupOrderDetailPage() {
                         key={i}
                         className={`flex items-center justify-between p-4 rounded-xl transition ${
                           isActive 
-                            ? 'bg-green-100 border-2 border-green-500' 
-                            : 'bg-gray-50 border border-gray-200'
+                            ? 'bg-emerald-100 border-2 border-emerald-500' 
+                            : 'bg-slate-50 border border-slate-200'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          {isActive && <CheckCircle className="w-5 h-5 text-green-600" />}
-                          <span className={`font-semibold ${isActive ? 'text-green-800' : 'text-gray-700'}`}>
+                          {isActive && <CheckCircle className="w-5 h-5 text-emerald-600" />}
+                          <span className={`font-semibold ${isActive ? 'text-emerald-800' : 'text-slate-700'}`}>
                             {tier.minQty}+ unités
                           </span>
                           {discount > 0 && (
@@ -668,7 +668,7 @@ export default function GroupOrderDetailPage() {
                             </span>
                           )}
                         </div>
-                        <span className={`text-xl font-bold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span className={`text-xl font-bold ${isActive ? 'text-emerald-600' : 'text-slate-600'}`}>
                           {formatCurrency(tier.price)}
                         </span>
                       </div>
@@ -685,31 +685,31 @@ export default function GroupOrderDetailPage() {
               transition={{ delay: 0.3 }}
               className="bg-white rounded-2xl border shadow-lg p-6"
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-600" />
+              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-600" />
                 Participants ({group.participants.length})
               </h3>
               
               {group.participants.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-slate-500 text-center py-8">
                   Soyez le premier à rejoindre cet achat groupé !
                 </p>
               ) : (
                 <div className="space-y-3">
                   {group.participants.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold">
                           {p.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{p.name}</p>
-                          <p className="text-xs text-gray-500">{formatDateTime(p.joinedAt)}</p>
+                          <p className="font-semibold text-slate-900">{p.name}</p>
+                          <p className="text-xs text-slate-500">{formatDateTime(p.joinedAt)}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-gray-900">{p.qty} unité{p.qty > 1 ? 's' : ''}</p>
-                        <p className="text-sm text-gray-500">{formatCurrency(p.totalAmount)}</p>
+                        <p className="font-bold text-slate-900">{p.qty} unité{p.qty > 1 ? 's' : ''}</p>
+                        <p className="text-sm text-slate-500">{formatCurrency(p.totalAmount)}</p>
                       </div>
                     </div>
                   ))}
@@ -736,10 +736,10 @@ export default function GroupOrderDetailPage() {
               className="bg-white rounded-2xl border shadow-lg p-6 sticky top-4"
             >
               <div className="text-center mb-6">
-                <p className="text-gray-600 mb-2">Prix actuel par unité</p>
-                <p className="text-4xl font-bold text-green-600">{formatCurrency(group.currentUnitPrice)}</p>
+                <p className="text-slate-600 mb-2">Prix actuel par unité</p>
+                <p className="text-4xl font-bold text-emerald-600">{formatCurrency(group.currentUnitPrice)}</p>
                 {savings > 0 && (
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-slate-500 mt-1">
                     Économie de {formatCurrency(savings)} par unité
                   </p>
                 )}
@@ -749,7 +749,7 @@ export default function GroupOrderDetailPage() {
                 <div className="space-y-3">
                   <button
                     onClick={() => setShowJoinModal(true)}
-                    className="w-full py-4 bg-gradient-to-r from-green-500 to-violet-500 text-white rounded-xl font-bold text-lg hover:from-green-600 hover:to-violet-600 transition flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-violet-500 text-white rounded-xl font-bold text-lg hover:from-emerald-600 hover:to-violet-600 transition flex items-center justify-center gap-2"
                   >
                     <Zap className="w-6 h-6" />
                     Rejoindre cet achat
@@ -764,7 +764,7 @@ export default function GroupOrderDetailPage() {
                   </button>
                 </div>
               ) : (
-                <div className="text-center py-4 bg-gray-100 rounded-xl text-gray-600">
+                <div className="text-center py-4 bg-slate-100 rounded-xl text-slate-600">
                   {group.status === 'cancelled' ? 'Achat annulé' : 'Inscriptions fermées'}
                 </div>
               )}
@@ -772,14 +772,14 @@ export default function GroupOrderDetailPage() {
               <div className="mt-4 flex gap-2">
                 <button
                   onClick={copyLink}
-                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2"
+                  className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition flex items-center justify-center gap-2"
                 >
-                  {copied ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   {copied ? 'Copié !' : 'Copier'}
                 </button>
                 <button
                   onClick={shareOnWhatsApp}
-                  className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition flex items-center justify-center gap-2"
                 >
                   <MessageCircle className="w-4 h-4" />
                   Partager
@@ -810,15 +810,15 @@ export default function GroupOrderDetailPage() {
               </div>
               
               {/* Partage amélioré — multi-plateforme */}
-              <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-violet-50 rounded-xl border border-green-200">
-                <p className="text-sm font-bold text-green-800 flex items-center gap-2 mb-3">
+              <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-violet-50 rounded-xl border border-emerald-200">
+                <p className="text-sm font-bold text-emerald-800 flex items-center gap-2 mb-3">
                   <Megaphone className="w-4 h-4" />
                   Partage = prix qui baissent !
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={shareAsStatus}
-                    className="py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                    className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                     Statut WhatsApp
@@ -832,7 +832,7 @@ export default function GroupOrderDetailPage() {
                   </button>
                   <button
                     onClick={shareOnTikTok}
-                    className="py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                    className="py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13.2a8.17 8.17 0 005.58 2.19V12a4.83 4.83 0 01-3.77-1.54V6.69h3.77z"/></svg>
                     TikTok
@@ -845,48 +845,48 @@ export default function GroupOrderDetailPage() {
                     Instagram
                   </button>
                 </div>
-                <p className="text-[11px] text-green-700/80 mt-2 text-center">
+                <p className="text-[11px] text-emerald-700/80 mt-2 text-center">
                   Chaque nouveau participant fait baisser le prix pour tout le monde
                 </p>
               </div>
 
               {/* Calculateur de marge entrepreneur */}
               <div className="mt-4 p-4 bg-white rounded-xl border-2 border-violet-200">
-                <p className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
+                <p className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
                   <Calculator className="w-4 h-4 text-violet-600" />
                   Calculateur de marge revendeur
                 </p>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Prix d&apos;achat (import groupé)</label>
-                    <div className="px-3 py-2 bg-green-50 rounded-lg text-green-700 font-bold text-sm">
+                    <label className="text-xs text-slate-500 mb-1 block">Prix d&apos;achat (import groupé)</label>
+                    <div className="px-3 py-2 bg-emerald-50 rounded-lg text-emerald-700 font-bold text-sm">
                       {formatCurrency(group.currentUnitPrice)}
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Votre prix de revente</label>
+                    <label className="text-xs text-slate-500 mb-1 block">Votre prix de revente</label>
                     <input
                       type="number"
                       value={resalePrice}
                       onChange={(e) => setResalePrice(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400"
                     />
                   </div>
                   {(() => {
                     const marginPerUnit = resalePrice - group.currentUnitPrice
                     const marginPct = group.currentUnitPrice > 0 ? Math.round((marginPerUnit / group.currentUnitPrice) * 100) : 0
                     return (
-                      <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Marge / unité</span>
-                          <span className={`font-bold ${marginPerUnit > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          <span className="text-slate-600">Marge / unité</span>
+                          <span className={`font-bold ${marginPerUnit > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {marginPerUnit > 0 ? '+' : ''}{formatCurrency(marginPerUnit)} ({marginPct}%)
                           </span>
                         </div>
                         {[5, 10, 20, 50].map(qty => (
                           <div key={qty} className="flex justify-between text-xs">
-                            <span className="text-gray-500">{qty} unités vendues</span>
-                            <span className={`font-semibold ${marginPerUnit > 0 ? 'text-green-700' : 'text-red-500'}`}>
+                            <span className="text-slate-500">{qty} unités vendues</span>
+                            <span className={`font-semibold ${marginPerUnit > 0 ? 'text-emerald-700' : 'text-red-500'}`}>
                               {marginPerUnit > 0 ? '+' : ''}{formatCurrency(marginPerUnit * qty)}
                             </span>
                           </div>
@@ -927,9 +927,9 @@ export default function GroupOrderDetailPage() {
               
               {/* Créateur */}
               <div className="mt-4 pt-4 border-t">
-                <p className="text-sm text-gray-500 mb-2">Créé par</p>
-                <p className="font-semibold text-gray-900">{group.createdBy.name}</p>
-                <p className="text-sm text-gray-600">{formatDate(group.createdAt)}</p>
+                <p className="text-sm text-slate-500 mb-2">Créé par</p>
+                <p className="font-semibold text-slate-900">{group.createdBy.name}</p>
+                <p className="text-sm text-slate-600">{formatDate(group.createdAt)}</p>
               </div>
             </motion.div>
           </div>
@@ -954,13 +954,13 @@ export default function GroupOrderDetailPage() {
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6 border-b">
-                <h2 className="text-2xl font-bold text-gray-900">Rejoindre l&apos;achat groupé</h2>
-                <p className="text-gray-600">{group.product.name}</p>
+                <h2 className="text-2xl font-bold text-slate-900">Rejoindre l&apos;achat groupé</h2>
+                <p className="text-slate-600">{group.product.name}</p>
               </div>
               
               <form onSubmit={handleJoin} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
                     <User className="w-4 h-4 inline mr-1" />
                     Nom complet *
                   </label>
@@ -969,13 +969,13 @@ export default function GroupOrderDetailPage() {
                     required
                     value={joinForm.name}
                     onChange={e => setJoinForm({ ...joinForm, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="Votre nom"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
                     <Phone className="w-4 h-4 inline mr-1" />
                     Téléphone *
                   </label>
@@ -984,13 +984,13 @@ export default function GroupOrderDetailPage() {
                     required
                     value={joinForm.phone}
                     onChange={e => setJoinForm({ ...joinForm, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="77 123 45 67"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
                     <Mail className="w-4 h-4 inline mr-1" />
                     Email (optionnel)
                   </label>
@@ -998,13 +998,13 @@ export default function GroupOrderDetailPage() {
                     type="email"
                     value={joinForm.email}
                     onChange={e => setJoinForm({ ...joinForm, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="email@exemple.com"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
                     <Package className="w-4 h-4 inline mr-1" />
                     Quantité souhaitée *
                   </label>
@@ -1012,7 +1012,7 @@ export default function GroupOrderDetailPage() {
                     <button
                       type="button"
                       onClick={() => setJoinForm({ ...joinForm, qty: Math.max(1, joinForm.qty - 1) })}
-                      className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      className="p-3 border border-slate-300 rounded-lg hover:bg-slate-50"
                     >
                       <Minus className="w-5 h-5" />
                     </button>
@@ -1022,12 +1022,12 @@ export default function GroupOrderDetailPage() {
                       required
                       value={joinForm.qty}
                       onChange={e => setJoinForm({ ...joinForm, qty: Math.max(1, parseInt(e.target.value) || 1) })}
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="flex-1 px-4 py-3 border border-slate-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <button
                       type="button"
                       onClick={() => setJoinForm({ ...joinForm, qty: joinForm.qty + 1 })}
-                      className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      className="p-3 border border-slate-300 rounded-lg hover:bg-slate-50"
                     >
                       <Plus className="w-5 h-5" />
                     </button>
@@ -1035,9 +1035,9 @@ export default function GroupOrderDetailPage() {
                 </div>
                 
                 {/* Estimation avec incitation */}
-                <div className="p-4 bg-green-50 rounded-xl space-y-2">
+                <div className="p-4 bg-emerald-50 rounded-xl space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Prix unitaire estimé</span>
+                    <span className="text-slate-600">Prix unitaire estimé</span>
                     <span className="font-semibold">{formatCurrency(estimatedPrice)}</span>
                   </div>
                   
@@ -1046,7 +1046,7 @@ export default function GroupOrderDetailPage() {
                     const additionalSavings = calculateSavingsForNewParticipant(joinForm.qty)
                     if (additionalSavings > 0) {
                       return (
-                        <div className="flex items-center gap-2 text-sm text-green-700 bg-white p-2 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-emerald-700 bg-white p-2 rounded-lg">
                           <TrendingUp className="w-4 h-4" />
                           <span>
                             Invite des amis pour économiser encore 
@@ -1058,17 +1058,17 @@ export default function GroupOrderDetailPage() {
                     return null
                   })()}
                   
-                  <div className="border-t border-green-200 pt-2 flex justify-between text-lg">
-                    <span className="font-semibold text-gray-900">Total estimé</span>
-                    <span className="font-bold text-green-600">{formatCurrency(estimatedPrice * joinForm.qty)}</span>
+                  <div className="border-t border-emerald-200 pt-2 flex justify-between text-lg">
+                    <span className="font-semibold text-slate-900">Total estimé</span>
+                    <span className="font-bold text-emerald-600">{formatCurrency(estimatedPrice * joinForm.qty)}</span>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     * Le prix final peut baisser si plus de personnes rejoignent
                   </p>
                 </div>
                 
                 {/* Section Entrepreneur / Bulk */}
-                <div className="p-4 bg-gradient-to-br from-violet-50 to-green-50 rounded-xl border border-violet-200">
+                <div className="p-4 bg-gradient-to-br from-violet-50 to-emerald-50 rounded-xl border border-violet-200">
                   <p className="text-sm font-bold text-violet-800 flex items-center gap-2">
                     <Briefcase className="w-4 h-4" />
                     Revendeur ? Calculez votre bénéfice
@@ -1094,12 +1094,12 @@ export default function GroupOrderDetailPage() {
                           className={`w-full flex items-center justify-between p-2.5 rounded-lg text-sm transition border ${
                             joinForm.qty === qty
                               ? 'bg-violet-100 border-violet-400 ring-2 ring-violet-300'
-                              : 'bg-white border-gray-200 hover:border-violet-300'
+                              : 'bg-white border-slate-200 hover:border-violet-300'
                           }`}
                         >
-                          <span className="font-semibold text-gray-800">{label}</span>
-                          <span className="text-xs text-gray-500">{formatCurrency(price * qty)}</span>
-                          <span className="font-bold text-green-600 text-xs">+{formatCurrency(profit)} marge</span>
+                          <span className="font-semibold text-slate-800">{label}</span>
+                          <span className="text-xs text-slate-500">{formatCurrency(price * qty)}</span>
+                          <span className="font-bold text-emerald-600 text-xs">+{formatCurrency(profit)} marge</span>
                         </button>
                       )
                     })}
@@ -1110,14 +1110,14 @@ export default function GroupOrderDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowJoinModal(false)}
-                    className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition"
+                    className="flex-1 py-3 border border-slate-300 rounded-lg font-semibold hover:bg-slate-50 transition"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={joining}
-                    className="flex-1 py-3 bg-gradient-to-r from-green-500 to-violet-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-violet-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-violet-500 text-white rounded-lg font-semibold hover:from-emerald-600 hover:to-violet-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {joining ? (
                       <Loader2 className="w-5 h-5 animate-spin" />

@@ -7,30 +7,20 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
+import CountdownBadge from '@/components/group-orders/CountdownBadge'
+import StatCounter from '@/components/group-orders/StatCounter'
+import LiveActivityFeed from '@/components/group-orders/LiveActivityFeed'
+import FeaturedGroupCard from '@/components/group-orders/FeaturedGroupCard'
+import CompactGroupCard from '@/components/group-orders/CompactGroupCard'
 import {
-  Users,
-  Package,
-  Clock,
-  TrendingDown,
-  ArrowRight,
-  Search,
-  Filter,
-  Calendar,
-  Target,
-  Zap,
-  ShoppingCart,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  X,
-  Briefcase,
-  Calculator,
-  Flame,
-  BarChart3,
-  Rocket
+  Users, Package, Clock, TrendingDown, ArrowRight, Search, Filter,
+  Calendar, Target, Zap, ShoppingCart, CheckCircle, AlertCircle,
+  Loader2, X, Briefcase, Calculator, Flame, BarChart3, Rocket,
+  Sparkles, Heart, Gem, Truck, Star, ChevronDown
 } from 'lucide-react'
 
 interface GroupOrder {
+  _id?: string
   groupId: string
   status: string
   product: {
@@ -39,16 +29,30 @@ interface GroupOrder {
     image?: string
     basePrice: number
     currency: string
+    category?: string
   }
   minQty: number
   targetQty: number
   currentQty: number
   currentUnitPrice: number
   priceTiers: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
-  participants: Array<{ name: string; qty: number }>
+  participants: Array<{ name: string; qty: number; joinedAt?: string }>
   deadline: string
   shippingMethod?: string
   description?: string
+  createdAt?: string
+  createdBy?: { name?: string }
+  // Enriched fields
+  progress?: number
+  daysLeft?: number
+  isAlmostFull?: boolean
+  isNew?: boolean
+  isPopular?: boolean
+  soloPrice?: number
+  groupPrice?: number
+  savingsPercent?: number
+  participantCount?: number
+  recentParticipants?: Array<{ name: string; joinedAt?: string }>
 }
 
 interface GroupOrdersPublicConfig {
@@ -58,18 +62,25 @@ interface GroupOrdersPublicConfig {
   allowedShippingMethods: string[]
 }
 
+interface LiveStats {
+  openGroupsCount: number
+  totalFilled: number
+  totalParticipants: number
+  totalSaved: number
+}
+
 const formatCurrency = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
-const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', { 
-  day: 'numeric', month: 'long', year: 'numeric' 
+const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', {
+  day: 'numeric', month: 'long', year: 'numeric'
 })
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  open: { label: 'Ouvert', color: 'bg-green-100 text-green-800', icon: Users },
+  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800', icon: Users },
   filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800', icon: Target },
   ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800', icon: ShoppingCart },
   ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800', icon: Package },
   shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800', icon: Package },
-  delivered: { label: 'Livré', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  delivered: { label: 'Livré', color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
   cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800', icon: AlertCircle }
 }
 
@@ -90,16 +101,19 @@ export default function GroupOrdersPage() {
   const [productIdParam, setProductIdParam] = useState<string | null>(null)
 
   const [groups, setGroups] = useState<GroupOrder[]>([])
+  const [featuredGroups, setFeaturedGroups] = useState<GroupOrder[]>([])
+  const [liveStats, setLiveStats] = useState<LiveStats>({ openGroupsCount: 0, totalFilled: 0, totalParticipants: 0, totalSaved: 0 })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'recommended' | 'deadline' | 'savings' | 'progress'>('recommended')
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'filled'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [stats, setStats] = useState({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [productPreview, setProductPreview] = useState<{ id: string; name: string; image?: string | null } | null>(null)
+  const [productPreview, setProductPreview] = useState<{ id: string; name: string; image?: string | null; price?: number } | null>(null)
   const [groupConfig, setGroupConfig] = useState<GroupOrdersPublicConfig>({
     minJoinQty: 1,
     maxJoinQtyPerParticipant: 50,
@@ -116,8 +130,58 @@ export default function GroupOrdersPage() {
     email: ''
   })
 
+  // Calculator state
+  const [calcSoloPrice, setCalcSoloPrice] = useState(50000)
+  const [calcQty, setCalcQty] = useState(10)
+  const [calcDiscount, setCalcDiscount] = useState(30)
+  const [calcTransport, setCalcTransport] = useState<'maritime' | 'air' | 'express'>('maritime')
+  const [calcRates, setCalcRates] = useState<Array<{
+    id: string
+    label: string
+    description: string
+    durationDays: number
+    billing: string
+    rate: number
+    minimumCharge?: number
+    costPerUnit: number
+    unit: string
+  }>>([])
+
+  // Fetch calculator defaults + shipping rates
   useEffect(() => {
-    // Lire les query params côté client (évite useSearchParams + suspense)
+    const loadDefaults = async () => {
+      try {
+        const res = await fetch('/api/shipping/rates-public')
+        const data = await res.json()
+        if (data.success) {
+          setCalcRates(data.rates || [])
+          if (data.defaults) {
+            setCalcSoloPrice(data.defaults.soloPrice)
+            setCalcDiscount(data.defaults.discount)
+            setCalcQty(data.defaults.qty)
+          }
+          // Auto-select first rate if current not available
+          const first = (data.rates || [])[0]
+          if (first) {
+            const map: Record<string, 'maritime' | 'air' | 'express'> = {
+              sea_freight: 'maritime',
+              air_15: 'air',
+              air_express: 'express',
+            }
+            setCalcTransport((prev) => {
+              const hasCurrent = (data.rates || []).some((r: any) => map[r.id] === prev)
+              return hasCurrent ? prev : (map[first.id] || 'maritime')
+            })
+          }
+        }
+      } catch {
+        // silent fallback — calculator keeps hardcoded defaults
+      }
+    }
+    loadDefaults()
+  }, [])
+
+  useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search)
       const pid = params.get('productId')
@@ -176,13 +240,33 @@ export default function GroupOrdersPage() {
     }
   }, [productIdParam])
 
-  useEffect(() => {
-    fetchGroups()
-  }, [fetchGroups])
+  const fetchFeatured = useCallback(async () => {
+    try {
+      const res = await fetch('/api/group-orders/featured')
+      const data = await res.json()
+      if (data.success) setFeaturedGroups(data.featured || [])
+    } catch {
+      // silent
+    }
+  }, [])
+
+  const fetchLiveStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/group-orders/stats')
+      const data = await res.json()
+      if (data.success) setLiveStats(data.stats)
+    } catch {
+      // silent
+    }
+  }, [])
 
   useEffect(() => {
-    // UX: si on arrive depuis une fiche produit (productId), on pousse "Recommandé".
-    // Sinon, tri par deadline (pragmatique pour la découverte).
+    fetchGroups()
+    fetchFeatured()
+    fetchLiveStats()
+  }, [fetchGroups, fetchFeatured, fetchLiveStats])
+
+  useEffect(() => {
     setSortBy(productIdParam ? 'recommended' : 'deadline')
   }, [productIdParam])
 
@@ -199,22 +283,16 @@ export default function GroupOrdersPage() {
         Math.max(groupConfig.minJoinQty, groupConfig.maxJoinQtyPerParticipant)
       )
 
-      return {
-        ...prev,
-        qty,
-        shippingMethod,
-        deadline: buildDefaultDeadline(groupConfig.defaultDeadlineDays)
-      }
+      return { ...prev, qty, shippingMethod, deadline: buildDefaultDeadline(groupConfig.defaultDeadlineDays) }
     })
   }, [groupConfig])
 
   const resetFilters = () => {
     setSearchTerm('')
     setStatusFilter('all')
+    setCategoryFilter('all')
     setSortBy(productIdParam ? 'recommended' : 'deadline')
   }
-
-  // Note: le modal auto est géré dans l'effet de lecture des params
 
   useEffect(() => {
     const loadProductPreview = async () => {
@@ -226,7 +304,7 @@ export default function GroupOrdersPage() {
         const res = await fetch(`/api/catalog/products/${productIdParam}`)
         const data = await res.json()
         if (data?.success && data?.product) {
-          setProductPreview({ id: data.product.id, name: data.product.name, image: data.product.image })
+          setProductPreview({ id: data.product.id, name: data.product.name, image: data.product.image, price: data.product.price })
         } else {
           setProductPreview({ id: productIdParam, name: 'Produit', image: null })
         }
@@ -237,15 +315,22 @@ export default function GroupOrdersPage() {
     loadProductPreview()
   }, [productIdParam])
 
+  // When a product is selected, pre-fill calculator with its price
+  useEffect(() => {
+    if (productPreview?.price && productPreview.price > 0) {
+      const rounded = Math.max(5000, Math.min(200000, Math.round(productPreview.price / 5000) * 5000))
+      setCalcSoloPrice(rounded)
+    }
+  }, [productPreview?.price])
+
   const filteredGroups = groups.filter(g => {
     const matchesSearch =
       g.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       g.groupId.toLowerCase().includes(searchTerm.toLowerCase())
-
     if (!matchesSearch) return false
-
     if (statusFilter === 'open') return g.status === 'open'
     if (statusFilter === 'filled') return g.status === 'filled'
+    if (categoryFilter !== 'all') return g.product?.category === categoryFilter
     return true
   })
 
@@ -256,16 +341,7 @@ export default function GroupOrdersPage() {
   }
 
   const sortedGroups = useMemo(() => {
-    const statusWeight: Record<string, number> = {
-      open: 0,
-      filled: 1,
-      ordering: 2,
-      ordered: 3,
-      shipped: 4,
-      delivered: 5,
-      cancelled: 99
-    }
-
+    const statusWeight: Record<string, number> = { open: 0, filled: 1, ordering: 2, ordered: 3, shipped: 4, delivered: 5, cancelled: 99 }
     const computeSavingsPercent = (g: GroupOrder) => {
       const savings = g.product.basePrice - g.currentUnitPrice
       if (g.product.basePrice <= 0) return 0
@@ -285,37 +361,50 @@ export default function GroupOrdersPage() {
       const sa = computeSavingsPercent(a)
       const sb = computeSavingsPercent(b)
 
-      // Tri principal
       if (sortBy === 'deadline') {
         if (da !== db) return da - db
         if (pa !== pb) return pb - pa
         if (sa !== sb) return sb - sa
         return a.groupId.localeCompare(b.groupId)
       }
-
       if (sortBy === 'savings') {
         if (sa !== sb) return sb - sa
         if (pa !== pb) return pb - pa
         if (da !== db) return da - db
         return a.groupId.localeCompare(b.groupId)
       }
-
       if (sortBy === 'progress') {
         if (pa !== pb) return pb - pa
         if (da !== db) return da - db
         if (sa !== sb) return sb - sa
         return a.groupId.localeCompare(b.groupId)
       }
-
-      // recommended: open d'abord, puis proche de l'objectif, puis deadline
       if (pa !== pb) return pb - pa
       if (da !== db) return da - db
       if (sa !== sb) return sb - sa
       return a.groupId.localeCompare(b.groupId)
     })
-
     return list
   }, [filteredGroups, sortBy])
+
+  // Calculator computed values
+  const calcGroupPrice = Math.round(calcSoloPrice * (1 - calcDiscount / 100))
+  const calcSavingsPerUnit = calcSoloPrice - calcGroupPrice
+  const transportMap: Record<string, 'maritime' | 'air' | 'express'> = {
+    sea_freight: 'maritime',
+    air_15: 'air',
+    air_express: 'express',
+  }
+  const selectedRate = calcRates.find((r) => transportMap[r.id] === calcTransport)
+  const calcTransportCost = selectedRate
+    ? Math.round(calcQty * selectedRate.costPerUnit)
+    : calcTransport === 'maritime'
+      ? Math.round(calcQty * 1500)
+      : calcTransport === 'express'
+        ? Math.round(calcQty * 5000)
+        : Math.round(calcQty * 3500)
+  const calcTotalSavings = (calcSavingsPerUnit * calcQty) - calcTransportCost
+  const calcMargin = Math.round(calcTotalSavings * 0.6)
 
   const recommendedGroup = useMemo(() => {
     if (!productIdParam) return null
@@ -326,766 +415,550 @@ export default function GroupOrdersPage() {
     return top
   }, [productIdParam, sortBy, sortedGroups])
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
-      <MarketHeader />
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-green-600 to-violet-600 text-white py-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Users className="w-12 h-12" />
-              <h1 className="text-4xl md:text-5xl font-bold">Achats groupés import Chine</h1>
-            </div>
-            <p className="text-xl text-white/90 max-w-3xl mx-auto mb-6">
-              Lancez-vous facilement dans le business sans bloquer un gros capital :
-              nous regroupons les commandes et gérons l&apos;import depuis la Chine pour vous.
-            </p>
-            <p className="text-sm md:text-base text-white/80 max-w-3xl mx-auto mb-8">
-              Vous rejoignez un groupe, vous réservez votre quantité et nous mutualisons la commande.
-              Nous faisons l&apos;interface entre vous et le marché chinois : vous déposez l&apos;argent (ou une partie),
-              nous achetons à la source, faisons venir la marchandise au Sénégal puis la livrons aux clients.
-            </p>
-            
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
-              <div className="bg-white/20 backdrop-blur rounded-xl p-4">
-                <p className="text-3xl font-bold">{stats.totalOpen}</p>
-                <p className="text-sm text-white/80">Achats ouverts</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur rounded-xl p-4">
-                <p className="text-3xl font-bold">{stats.totalFilled}</p>
-                <p className="text-sm text-white/80">Objectifs atteints</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur rounded-xl p-4">
-                <p className="text-3xl font-bold">{stats.totalParticipants}</p>
-                <p className="text-sm text-white/80">Participants</p>
-              </div>
-            </div>
+  // Seed featured groups if empty for visual demo
+  const displayFeatured = featuredGroups.length > 0 ? featuredGroups : [
+    {
+      groupId: 'GRP-DEMO-1',
+      status: 'open',
+      product: { productId: 'demo-1', name: 'Caméra IP WiFi 4MP Vision Nocturne - Lot de 10', image: 'https://images.unsplash.com/photo-1557324232-b8917d3c3dcb?w=400&q=80', basePrice: 45000, currency: 'FCFA', category: 'Électronique' },
+      minQty: 10, targetQty: 50, currentQty: 42, currentUnitPrice: 28000,
+      priceTiers: [{ minQty: 10, price: 35000, discount: 22 }, { minQty: 25, price: 30000, discount: 33 }, { minQty: 50, price: 28000, discount: 38 }],
+      participants: [{ name: 'Ahmed D.', qty: 5 }, { name: 'Fatou S.', qty: 3 }, { name: 'Moussa K.', qty: 8 }, { name: 'Aminata B.', qty: 2 }],
+      deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      shippingMethod: 'air_15j',
+      progress: 84, daysLeft: 2, isAlmostFull: true, isPopular: true, isNew: false,
+      soloPrice: 45000, groupPrice: 28000, savingsPercent: 38, participantCount: 4,
+      recentParticipants: [{ name: 'Ahmed D.' }, { name: 'Fatou S.' }, { name: 'Moussa K.' }, { name: 'Aminata B.' }]
+    },
+    {
+      groupId: 'GRP-DEMO-2',
+      status: 'open',
+      product: { productId: 'demo-2', name: 'Sneakers Running Légères - Lot de 20 paires', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80', basePrice: 35000, currency: 'FCFA', category: 'Mode' },
+      minQty: 20, targetQty: 100, currentQty: 67, currentUnitPrice: 18000,
+      priceTiers: [{ minQty: 20, price: 25000, discount: 29 }, { minQty: 50, price: 22000, discount: 37 }, { minQty: 100, price: 18000, discount: 49 }],
+      participants: [{ name: 'Omar N.', qty: 10 }, { name: 'Sophie L.', qty: 5 }, { name: 'Khalil M.', qty: 8 }],
+      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      shippingMethod: 'maritime_60j',
+      progress: 67, daysLeft: 7, isAlmostFull: false, isPopular: true, isNew: true,
+      soloPrice: 35000, groupPrice: 18000, savingsPercent: 49, participantCount: 3,
+      recentParticipants: [{ name: 'Omar N.' }, { name: 'Sophie L.' }, { name: 'Khalil M.' }]
+    },
+    {
+      groupId: 'GRP-DEMO-3',
+      status: 'open',
+      product: { productId: 'demo-3', name: 'Set Maquillage Professionnel 48 couleurs - Lot de 15', image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80', basePrice: 28000, currency: 'FCFA', category: 'Beauté' },
+      minQty: 15, targetQty: 40, currentQty: 38, currentUnitPrice: 15000,
+      priceTiers: [{ minQty: 15, price: 20000, discount: 29 }, { minQty: 30, price: 17000, discount: 39 }, { minQty: 40, price: 15000, discount: 46 }],
+      participants: [{ name: 'Aïcha D.', qty: 5 }, { name: 'Mariam S.', qty: 3 }, { name: 'Léa B.', qty: 4 }],
+      deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+      shippingMethod: 'air_15j',
+      progress: 95, daysLeft: 1, isAlmostFull: true, isPopular: false, isNew: false,
+      soloPrice: 28000, groupPrice: 15000, savingsPercent: 46, participantCount: 3,
+      recentParticipants: [{ name: 'Aïcha D.' }, { name: 'Mariam S.' }, { name: 'Léa B.' }]
+    }
+  ]
 
-            <div className="mt-6 flex flex-wrap justify-center gap-3 text-xs md:text-sm text-white/85">
-              <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
-                Accès à un vaste catalogue en import depuis la Chine
-              </span>
-              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
-                Idéal pour tester des produits sans gros stock
-              </span>
-              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
-                Paiements mobiles & garanties déjà intégrées
-              </span>
-            </div>
-          </motion.div>
+  // Demo groups for grid if real data is empty
+  const demoGridGroups: GroupOrder[] = [
+    {
+      groupId: 'GRP-DEMO-4', status: 'open',
+      product: { productId: 'demo-4', name: 'Smartwatch Pro Sport GPS - Lot de 12', image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400&q=80', basePrice: 55000, currency: 'FCFA', category: 'Électronique' },
+      minQty: 12, targetQty: 30, currentQty: 18, currentUnitPrice: 32000,
+      priceTiers: [], participants: [], deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      progress: 60, daysLeft: 5, savingsPercent: 42, participantCount: 2
+    },
+    {
+      groupId: 'GRP-DEMO-5', status: 'open',
+      product: { productId: 'demo-5', name: 'Lampes LED Solaires Jardin - Lot de 25', image: 'https://images.unsplash.com/photo-1513506003013-d531632103c3?w=400&q=80', basePrice: 18000, currency: 'FCFA', category: 'Maison' },
+      minQty: 25, targetQty: 80, currentQty: 34, currentUnitPrice: 8500,
+      priceTiers: [], participants: [], deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+      progress: 43, daysLeft: 10, savingsPercent: 53, participantCount: 2
+    },
+    {
+      groupId: 'GRP-DEMO-6', status: 'filled',
+      product: { productId: 'demo-6', name: 'Box Cadeau Luxe Premium - Lot de 20', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400&q=80', basePrice: 32000, currency: 'FCFA', category: 'Cadeaux' },
+      minQty: 20, targetQty: 50, currentQty: 50, currentUnitPrice: 16500,
+      priceTiers: [], participants: [], deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      progress: 100, daysLeft: 3, savingsPercent: 48, participantCount: 5
+    },
+    {
+      groupId: 'GRP-DEMO-7', status: 'open',
+      product: { productId: 'demo-7', name: 'Enceinte Bluetooth Waterproof - Lot de 15', image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80', basePrice: 22000, currency: 'FCFA', category: 'Électronique' },
+      minQty: 15, targetQty: 60, currentQty: 28, currentUnitPrice: 12000,
+      priceTiers: [], participants: [], deadline: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
+      progress: 47, daysLeft: 8, savingsPercent: 45, participantCount: 2
+    },
+    {
+      groupId: 'GRP-DEMO-8', status: 'open',
+      product: { productId: 'demo-8', name: 'Sacs à main Cuir PU tendance - Lot de 20', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80', basePrice: 28000, currency: 'FCFA', category: 'Mode' },
+      minQty: 20, targetQty: 50, currentQty: 22, currentUnitPrice: 14500,
+      priceTiers: [], participants: [], deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
+      progress: 44, daysLeft: 12, savingsPercent: 48, participantCount: 2
+    },
+    {
+      groupId: 'GRP-DEMO-9', status: 'open',
+      product: { productId: 'demo-9', name: 'Diffuseur Huiles Essentielles - Lot de 18', image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=400&q=80', basePrice: 20000, currency: 'FCFA', category: 'Maison' },
+      minQty: 18, targetQty: 45, currentQty: 15, currentUnitPrice: 11000,
+      priceTiers: [], participants: [], deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      progress: 33, daysLeft: 14, savingsPercent: 45, participantCount: 1
+    }
+  ]
+
+  const gridGroups = sortedGroups.length > 0 ? sortedGroups : demoGridGroups
+  const categories = [...new Set([...groups, ...demoGridGroups].map(g => g.product?.category).filter(Boolean))]
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <MarketHeader />
+
+      {/* ===== HERO ===== */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
+        {/* Background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 pt-16 pb-20 md:pt-24 md:pb-28">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left: text + stats */}
+            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-bold mb-6">
+                <Sparkles className="w-3.5 h-3.5" />
+                Import groupé depuis la Chine
+              </div>
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
+                Achats groupés
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-violet-400">
+                  pour entrepreneurs
+                </span>
+              </h1>
+
+              <p className="text-lg text-slate-300 mb-8 max-w-lg leading-relaxed">
+                Rejoignez des groupes d&apos;achat, réduisez vos coûts d&apos;import et lancez votre business sans gros capital.
+              </p>
+
+              {/* Live stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+                {[
+                  { label: 'Groupes ouverts', value: liveStats.openGroupsCount || stats.totalOpen, suffix: '' },
+                  { label: 'Objectifs atteints', value: liveStats.totalFilled || stats.totalFilled, suffix: '' },
+                  { label: 'Acheteurs actifs', value: liveStats.totalParticipants || stats.totalParticipants, suffix: '' },
+                  { label: 'FCFA économisés', value: (liveStats.totalSaved || 0) / 1000, suffix: 'k', prefix: '' }
+                ].map((s, i) => (
+                  <motion.div
+                    key={s.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1 }}
+                    className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl p-3 text-center"
+                  >
+                    <div className="text-xl md:text-2xl font-extrabold text-white">
+                      <StatCounter value={s.value} suffix={s.suffix} />
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-medium mt-1">{s.label}</div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => document.getElementById('featured-groups')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition"
+                >
+                  Voir les groupes actifs
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl border border-white/20 transition"
+                >
+                  Créer un groupe
+                </button>
+              </div>
+            </motion.div>
+
+            {/* Right: live activity feed */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="hidden lg:block"
+            >
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <h3 className="text-sm font-bold text-white">Activité en direct</h3>
+                </div>
+                <LiveActivityFeed />
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Wave bottom */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 80" fill="none" className="w-full">
+            <path d="M0 80V40c120 20 240 40 360 20s240-60 360-40 240 60 360 40 240-40 360-20v40H0z" fill="#f8fafc" />
+          </svg>
         </div>
       </section>
 
-      {/* Comment ça marche */}
-      <section className="py-12 px-4 bg-white border-b">
+      {/* ===== BENEFITS STRIP ===== */}
+      <section className="py-8 px-4 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-4 text-gray-900">Comment ça marche ?</h2>
-          <p className="text-sm text-gray-600 text-center max-w-3xl mx-auto mb-8">
-            Notre rôle : faire le lien entre vos besoins et les usines/fournisseurs en Chine.
-            Vous vous concentrez sur votre vente, nous gérons l&apos;achat groupé, l&apos;import et la logistique.
-          </p>
-          <div className="grid md:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-3 gap-4">
             {[
-              { icon: Search, title: '1. Choisissez une offre', desc: 'Sélectionnez un achat groupé qui correspond à ce que vous voulez vendre ou utiliser' },
-              { icon: Users, title: '2. Réservez votre quantité', desc: 'Indiquez la quantité souhaitée et déposez l&apos;argent (ou une partie) pour bloquer votre place' },
-              { icon: TrendingDown, title: '3. Achat à la source', desc: 'Nous regroupons toutes les participations et procédons à l&apos;achat en Chine au meilleur tarif' },
-              { icon: Package, title: '4. Transport & livraison', desc: 'Transport express, aérien ou maritime jusqu&apos;au Sénégal, puis livraison aux clients' }
-            ].map((step, i) => (
+              { icon: TrendingDown, title: 'Prix dégressifs', desc: `Jusqu'à 50% d'économie en groupant vos achats avec d'autres entrepreneurs.` },
+              { icon: Truck, title: 'Transport mutualisé', desc: 'Fret maritime, aérien ou express : les frais sont partagés entre tous les participants.' },
+              { icon: Package, title: 'Sourcing simplifié', desc: 'Nous gérons les usines, la négociation, l\'inspection et la logistique pour vous.' }
+            ].map((b, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-white border"
+                transition={{ delay: 0.1 + i * 0.1 }}
+                className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100"
               >
-                <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-r from-green-500 to-violet-500 rounded-full flex items-center justify-center text-white">
-                  <step.icon className="w-7 h-7" />
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-400 to-violet-400 flex items-center justify-center flex-shrink-0">
+                  <b.icon className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-600">{step.desc}</p>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">{b.title}</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">{b.desc}</p>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Section Entrepreneur */}
-      <section className="py-10 px-4 bg-gradient-to-r from-violet-50 via-white to-green-50 border-b">
+      {/* ===== FEATURED GROUPS ===== */}
+      <section id="featured-groups" className="py-12 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-100 text-violet-800 rounded-full text-xs font-bold mb-4">
-                <Briefcase className="w-3.5 h-3.5" />
-                Pour les entrepreneurs &amp; revendeurs
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-                Lancez votre business sans capital
-              </h2>
-              <p className="text-gray-600 mb-4">
-                Importez directement depuis la Chine à des prix groupés imbattables.
-                Revendez au Sénégal avec une marge attractive, sans bloquer de gros stock.
-              </p>
-              <div className="space-y-3">
-                {[
-                  { icon: Calculator, text: 'Prix source réels + commission transparente IT Vision' },
-                  { icon: BarChart3, text: 'Marges de 25% à 50% pour les revendeurs' },
-                  { icon: Rocket, text: 'Démarrez avec juste 5 unités, sans risque' },
-                  { icon: Users, text: 'Plus il y a de participants, plus les prix baissent' }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-green-500 to-violet-500 flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <p className="text-sm text-gray-700 font-medium pt-1">{item.text}</p>
-                  </div>
-                ))}
-              </div>
+              <h2 className="text-2xl font-extrabold text-slate-900">Groupes en vedette</h2>
+              <p className="text-sm text-slate-500 mt-1">Les offres les plus populaires et urgentes du moment</p>
             </div>
-            <div className="bg-white rounded-2xl border border-violet-200 p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-violet-600" />
-                Exemple de rentabilité
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                  <span className="text-sm text-gray-700">Prix import groupé</span>
-                  <span className="font-bold text-green-700">15 000 FCFA</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-violet-50 rounded-lg">
-                  <span className="text-sm text-gray-700">Prix de revente marché</span>
-                  <span className="font-bold text-violet-700">22 000 FCFA</span>
-                </div>
-                <div className="border-t pt-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-semibold text-gray-800">Marge / unité</span>
-                    <span className="font-bold text-green-600">+7 000 FCFA (47%)</span>
-                  </div>
-                  {[
-                    { qty: 10, profit: '70 000' },
-                    { qty: 20, profit: '140 000' },
-                    { qty: 50, profit: '350 000' }
-                  ].map((row) => (
-                    <div key={row.qty} className="flex justify-between text-sm py-1">
-                      <span className="text-gray-500">{row.qty} unités revendues</span>
-                      <span className="font-semibold text-green-700">+{row.profit} FCFA</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-500 text-center mt-2">
-                  * Exemple illustratif. Les marges varient selon le produit et le prix de revente.
-                </p>
-              </div>
-            </div>
+            <Link
+              href="#all-groups"
+              className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-violet-600 hover:text-violet-700 transition"
+            >
+              Voir tout <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {displayFeatured.slice(0, 3).map((group, i) => (
+              <FeaturedGroupCard key={group.groupId} group={group} index={i} />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Liste des achats groupés */}
-      <section className="py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-            {/* Sidebar */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-6 space-y-4">
-                {/* Quick stats */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                  <div className="text-sm font-bold text-gray-900 mb-3">Résumé</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-green-700">{stats.totalOpen}</div>
-                      <div className="text-[10px] font-semibold text-green-700/80">Ouverts</div>
-                    </div>
-                    <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-violet-700">{stats.totalFilled}</div>
-                      <div className="text-[10px] font-semibold text-violet-700/80">Atteints</div>
-                    </div>
-                    <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
-                      <div className="text-lg font-extrabold text-gray-800">{stats.totalParticipants}</div>
-                      <div className="text-[10px] font-semibold text-gray-600">Participants</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Search */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
-                      <Search className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">Recherche</div>
-                      <div className="text-xs text-gray-600">Produit ou ID de groupe</div>
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Ex: caméra, wifi, 3MP…"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
-                  </div>
-
-                  {/* Quick filters */}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('all')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                        statusFilter === 'all'
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Tous
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('open')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                        statusFilter === 'open'
-                          ? 'bg-green-600 text-white border-green-600'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Ouverts
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('filled')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                        statusFilter === 'filled'
-                          ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Objectif atteint
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <div className="text-xs text-gray-600">
-                      {loading ? 'Chargement…' : `${sortedGroups.length} résultat${sortedGroups.length > 1 ? 's' : ''}`}
-                    </div>
-                    {(searchTerm || statusFilter !== 'all' || (sortBy !== (productIdParam ? 'recommended' : 'deadline'))) && (
-                      <button
-                        type="button"
-                        onClick={resetFilters}
-                        className="text-xs font-semibold text-green-700 hover:text-green-800"
-                      >
-                        Réinitialiser
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Sort */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-                      <Filter className="w-4 h-4 text-violet-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">Trier</div>
-                      <div className="text-xs text-gray-600">Mettre en avant le meilleur choix</div>
-                    </div>
-                  </div>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="recommended">Recommandé</option>
-                    <option value="progress">Proche de l&apos;objectif</option>
-                    <option value="deadline">Date limite proche</option>
-                    <option value="savings">Meilleure économie</option>
-                  </select>
-                </div>
-
-                {/* Product filter + actions */}
-                {productIdParam ? (
-                  <div className="bg-white rounded-2xl border border-green-200 p-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      {productPreview?.image ? (
-                        <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-50 border">
-                          <Image
-                            src={productPreview.image}
-                            alt={productPreview.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-green-600" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-gray-900">Pour ce produit</div>
-                        <div className="text-xs text-gray-600 line-clamp-2">{productPreview?.name || 'Produit'}</div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
-                      >
-                        <ShoppingCart className="w-4 h-4" />
-                        Créer un achat groupé
-                      </button>
-                      <Link
-                        href="/achats-groupes"
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
-                      >
-                        Effacer le filtre
-                        <X className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                    <div className="text-sm font-bold text-gray-900 mb-1">Besoin d&apos;un produit précis ?</div>
-                    <div className="text-xs text-gray-600 mb-3">Ouvrez une fiche produit puis “Créer un achat groupé”.</div>
-                    <Link
-                      href="/produits"
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900 text-white font-semibold hover:bg-black transition"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      Voir le catalogue
-                    </Link>
-                  </div>
-                )}
+      {/* ===== SAVINGS CALCULATOR ===== */}
+      <section className="py-12 px-4 bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-white rounded-2xl p-6 md:p-8 shadow-xl"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-violet-400 flex items-center justify-center">
+                <Calculator className="w-5 h-5 text-white" />
               </div>
-            </aside>
-
-            {/* Main */}
-            <div>
-              {/* Mobile controls */}
-              <div className="lg:hidden mb-6 space-y-3">
-                {/* Mobile stats + filters */}
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-bold text-gray-900">Résumé</div>
-                    <div className="text-xs text-gray-500">Filtrer</div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-green-700">{stats.totalOpen}</div>
-                      <div className="text-[10px] font-semibold text-green-700/80">Ouverts</div>
-                    </div>
-                    <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 text-center">
-                      <div className="text-lg font-extrabold text-violet-700">{stats.totalFilled}</div>
-                      <div className="text-[10px] font-semibold text-violet-700/80">Atteints</div>
-                    </div>
-                    <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
-                      <div className="text-lg font-extrabold text-gray-800">{stats.totalParticipants}</div>
-                      <div className="text-[10px] font-semibold text-gray-600">Participants</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('all')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                        statusFilter === 'all'
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Tous
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('open')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                        statusFilter === 'open'
-                          ? 'bg-green-600 text-white border-green-600'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Ouverts
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('filled')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                        statusFilter === 'filled'
-                          ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Objectif atteint
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <div className="text-xs text-gray-600">
-                      {loading ? 'Chargement…' : `${sortedGroups.length} résultat${sortedGroups.length > 1 ? 's' : ''}`}
-                    </div>
-                    {(searchTerm || statusFilter !== 'all' || (sortBy !== (productIdParam ? 'recommended' : 'deadline'))) && (
-                      <button
-                        type="button"
-                        onClick={resetFilters}
-                        className="text-xs font-semibold text-green-700 hover:text-green-800"
-                      >
-                        Réinitialiser
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {productIdParam && (
-                  <div className="bg-white border border-green-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center">
-                        <Filter className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-900">Filtré pour un produit</div>
-                        <div className="text-xs text-gray-600">{productPreview?.name || 'Produit'} • {productIdParam}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
-                      >
-                        <ShoppingCart className="w-4 h-4" />
-                        Créer
-                      </button>
-                      <Link
-                        href="/achats-groupes"
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
-                      >
-                        Effacer
-                        <X className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                )}
-
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                  <div className="relative">
-                    <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher un produit ou ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-600">Trier</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      className="flex-1 px-3 py-3 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="recommended">Recommandé</option>
-                      <option value="progress">Proche de l&apos;objectif</option>
-                      <option value="deadline">Date limite proche</option>
-                      <option value="savings">Meilleure économie</option>
-                    </select>
-                  </div>
-                </div>
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900">Simulateur de rentabilité</h2>
+                <p className="text-xs text-slate-500">Estimez vos économies et marges en temps réel</p>
               </div>
+            </div>
 
-              {loading ? (
-                <div className="flex items-center justify-center py-20 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                  <Loader2 className="w-8 h-8 animate-spin text-green-600" />
-                  <span className="ml-3 text-gray-600">Chargement des achats groupés...</span>
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Controls */}
+              <div className="space-y-5">
+                {/* Solo price */}
+                <div>
+                  <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                    <span>Prix unitaire solo</span>
+                    <span className="text-violet-700 font-bold">{calcSoloPrice.toLocaleString('fr-FR')} F</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5000}
+                    max={200000}
+                    step={5000}
+                    value={calcSoloPrice}
+                    onChange={(e) => setCalcSoloPrice(Number(e.target.value))}
+                    className="w-full accent-violet-600"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>5 000 F</span>
+                    <span>200 000 F</span>
+                  </div>
                 </div>
-              ) : sortedGroups.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-20 bg-gray-50 rounded-2xl"
-                >
-                  <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-xl font-bold text-gray-700 mb-2">Aucun achat groupé disponible</h3>
-                  <p className="text-gray-500 mb-6">Revenez bientôt ou créez le premier !</p>
-                  <Link
-                    href="/produits"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition"
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    Voir les produits
-                  </Link>
-                </motion.div>
-              ) : (
-                <>
-                  {recommendedGroup && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mb-6 bg-gradient-to-r from-green-600 to-violet-600 text-white rounded-3xl overflow-hidden shadow-xl"
-                    >
-                      <div className="p-6 md:p-7 grid md:grid-cols-[140px_1fr] gap-5 items-center">
-                        <div className="relative w-32 h-32 md:w-[140px] md:h-[140px] rounded-2xl overflow-hidden bg-white/10 border border-white/15">
-                          {recommendedGroup.product.image ? (
-                            <Image
-                              src={recommendedGroup.product.image}
-                              alt={recommendedGroup.product.name}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-12 h-12 text-white/70" />
-                            </div>
-                          )}
-                          <div className="absolute top-3 left-3 px-2 py-1 rounded-full text-[10px] font-bold bg-white/20 border border-white/20">
-                            Groupe recommandé
-                          </div>
-                        </div>
 
-                        <div className="min-w-0">
-                          <h3 className="text-xl md:text-2xl font-extrabold leading-tight line-clamp-2">
-                            {recommendedGroup.product.name}
-                          </h3>
-                          <div className="mt-1 text-sm text-white/85">
-                            {recommendedGroup.currentQty}/{recommendedGroup.targetQty} unités • {getDaysLeft(recommendedGroup.deadline)}j restants
-                          </div>
+                {/* Discount */}
+                <div>
+                  <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                    <span>Réduction groupée</span>
+                    <span className="text-emerald-700 font-bold">{calcDiscount}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={60}
+                    step={5}
+                    value={calcDiscount}
+                    onChange={(e) => setCalcDiscount(Number(e.target.value))}
+                    className="w-full accent-emerald-500"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>5%</span>
+                    <span>60%</span>
+                  </div>
+                </div>
 
-                          <div className="mt-4">
-                            <div className="h-3 bg-white/15 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-green-300"
-                                style={{
-                                  width: `${recommendedGroup.targetQty > 0 ? Math.min(100, Math.round((recommendedGroup.currentQty / recommendedGroup.targetQty) * 100)) : 0}%`
-                                }}
-                              />
-                            </div>
-                            <div className="mt-2 flex items-center justify-between text-xs text-white/85">
-                              <span className="flex items-center gap-1">
-                                <Users className="w-4 h-4" />
-                                {recommendedGroup.participants.length} participant{recommendedGroup.participants.length > 1 ? 's' : ''}
-                              </span>
-                              <span className="font-semibold">
-                                {formatCurrency(recommendedGroup.currentUnitPrice)} / unité
-                              </span>
-                            </div>
-                          </div>
+                {/* Quantity */}
+                <div>
+                  <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                    <span>Quantité commandée</span>
+                    <span className="text-violet-700 font-bold">{calcQty} unités</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={200}
+                    step={5}
+                    value={calcQty}
+                    onChange={(e) => setCalcQty(Number(e.target.value))}
+                    className="w-full accent-violet-600"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>5</span>
+                    <span>200</span>
+                  </div>
+                </div>
 
-                          <div className="mt-5 flex flex-col sm:flex-row gap-3">
-                            <Link
-                              href={`/achats-groupes/${recommendedGroup.groupId}`}
-                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-green-700 font-bold hover:bg-white/90 transition"
-                            >
-                              <Zap className="w-5 h-5" />
-                              Rejoindre maintenant
-                            </Link>
-                            <button
-                              onClick={() => setShowCreateModal(true)}
-                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition"
-                            >
-                              <ShoppingCart className="w-5 h-5" />
-                              Créer un autre groupe
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {sortedGroups.map((group, idx) => {
-                const progress = getProgressPercent(group)
-                const daysLeft = getDaysLeft(group.deadline)
-                const status = statusConfig[group.status] || statusConfig.open
-                const savings = group.product.basePrice - group.currentUnitPrice
-                const savingsPercent =
-                  group.product.basePrice > 0
-                    ? Math.max(0, Math.round((savings / group.product.basePrice) * 100))
-                    : 0
-                const isRecommended = !!productIdParam && sortBy === 'recommended' && idx === 0 && group.status === 'open'
-                
-                return (
-                  <motion.div
-                    key={group.groupId}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition group"
-                  >
-                    {/* Image */}
-                    <div className="relative h-48 bg-gray-100">
-                      {group.product.image ? (
-                        <Image
-                          src={group.product.image}
-                          alt={group.product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="w-16 h-16 text-gray-300" />
-                        </div>
-                      )}
-                      
-                      {/* Status badge */}
-                      <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${status.color}`}>
-                        {status.label}
-                      </span>
-
-                      {isRecommended && (
-                        <span className="absolute top-12 left-3 px-3 py-1 rounded-full text-xs font-bold bg-green-600 text-white shadow">
-                          Recommandé
-                        </span>
-                      )}
-                      
-                      {/* Économie badge */}
-                      {savingsPercent > 0 && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold">
-                          -{savingsPercent}%
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-5">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
-                        {group.product.name}
-                      </h3>
-
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-gray-400 mb-2">
-                        <span>Import Chine • sourcing optimisé</span>
-                        {group.shippingMethod && (
-                          <span className="text-gray-500 normal-case">
-                            {shippingLabels[group.shippingMethod] || 'Livraison groupée optimisée'}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Prix */}
-                      <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-2xl font-bold text-green-600">
-                          {formatCurrency(group.currentUnitPrice)}
-                        </span>
-                        {savings > 0 && (
-                          <span className="text-sm text-gray-400 line-through">
-                            {formatCurrency(group.product.basePrice)}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500">/unité</span>
-                      </div>
-                      
-                      {/* Progress */}
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">
-                            <Users className="w-4 h-4 inline mr-1" />
-                            {group.participants.length} participant{group.participants.length > 1 ? 's' : ''}
-                          </span>
-                          <span className="font-semibold text-gray-900">
-                            {group.currentQty} / {group.targetQty}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 0.5, delay: idx * 0.05 }}
-                            className={`h-full rounded-full ${
-                              progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-green-400 to-violet-500'
-                            }`}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Badges urgence */}
-                      {(progress >= 80 || daysLeft <= 3) && group.status === 'open' && (
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                          {progress >= 80 && progress < 100 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[11px] font-bold">
-                              <Flame className="w-3 h-3" />
-                              Presque complet
-                            </span>
-                          )}
-                          {daysLeft <= 3 && daysLeft > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[11px] font-bold animate-pulse">
-                              <Clock className="w-3 h-3" />
-                              {daysLeft === 1 ? 'Dernier jour !' : `${daysLeft}j restants`}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Deadline */}
-                      <div className="flex items-center justify-between text-sm mb-4">
-                        <span className="flex items-center gap-1 text-gray-600">
-                          <Clock className="w-4 h-4" />
-                          {daysLeft > 0 ? `${daysLeft} jours restants` : 'Terminé'}
-                        </span>
-                        <span className="text-gray-500">
-                          <Calendar className="w-4 h-4 inline mr-1" />
-                          {formatDate(group.deadline)}
-                        </span>
-                      </div>
-                      
-                      {/* Paliers de prix */}
-                      {group.priceTiers.length > 0 && (
-                        <div className="mb-4 p-3 bg-green-50 rounded-lg">
-                          <p className="text-xs font-semibold text-green-800 mb-2 flex items-center gap-1">
-                            <TrendingDown className="w-4 h-4" />
-                            Prix dégressifs pensés pour la revente
-                          </p>
-                          <div className="space-y-1">
-                            {group.priceTiers.slice(0, 3).map((tier, i) => (
-                              <div key={i} className="flex justify-between text-xs">
-                                <span className="text-gray-600">
-                                  {tier.minQty}+ unités
-                                </span>
-                                <span className="font-semibold text-green-700">
-                                  {formatCurrency(tier.price)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* CTA */}
-                      <Link
-                        href={`/achats-groupes/${group.groupId}`}
-                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition ${
-                          group.status === 'open'
-                            ? 'bg-gradient-to-r from-green-500 to-violet-500 text-white hover:from-green-600 hover:to-violet-600'
-                            : 'bg-gray-100 text-gray-600'
+                {/* Transport */}
+                <div>
+                  <span className="text-sm font-medium text-slate-700 block mb-2">Mode de transport</span>
+                  <div className="flex gap-2">
+                    {(calcRates.length > 0
+                      ? calcRates.map((r) => {
+                          const key = transportMap[r.id] || 'maritime'
+                          const label = key === 'maritime' ? 'Maritime' : key === 'air' ? 'Aérien' : 'Express'
+                          return { key, label, cost: `~${r.costPerUnit.toLocaleString('fr-FR')} F/u` }
+                        })
+                      : [
+                          { key: 'maritime' as const, label: 'Maritime', cost: '~1 500 F/u' },
+                          { key: 'air' as const, label: 'Aérien', cost: '~3 500 F/u' },
+                          { key: 'express' as const, label: 'Express', cost: '~5 000 F/u' },
+                        ]
+                    ).map((t) => (
+                      <button
+                        key={t.key}
+                        onClick={() => setCalcTransport(t.key as any)}
+                        className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition ${
+                          calcTransport === t.key
+                            ? 'bg-violet-50 border-violet-300 text-violet-700'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
                       >
-                        {group.status === 'open' ? (
-                          <>
-                            <Zap className="w-5 h-5" />
-                            Rejoindre
-                          </>
-                        ) : (
-                          <>
-                            <ArrowRight className="w-5 h-5" />
-                            Voir les détails
-                          </>
-                        )}
-                      </Link>
-                    </div>
-                  </motion.div>
-                )
-              })}
+                        <div>{t.label}</div>
+                        <div className="text-[10px] text-slate-400 font-normal">{t.cost}</div>
+                      </button>
+                    ))}
                   </div>
-                </>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="bg-slate-50 rounded-xl p-5 space-y-4">
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-100">
+                  <span className="text-sm text-slate-600">Prix solo total</span>
+                  <span className="font-bold text-slate-400 line-through">{(calcSoloPrice * calcQty).toLocaleString('fr-FR')} F</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-100">
+                  <span className="text-sm text-slate-600">Prix groupé total</span>
+                  <span className="font-bold text-emerald-600">{(calcGroupPrice * calcQty).toLocaleString('fr-FR')} F</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-100">
+                  <span className="text-sm text-slate-600">Fret {calcTransport === 'maritime' ? 'maritime' : calcTransport === 'air' ? 'aérien' : 'express'}</span>
+                  <span className="font-bold text-slate-700">{calcTransportCost.toLocaleString('fr-FR')} F</span>
+                </div>
+                <div className="border-t border-slate-200 pt-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-bold text-slate-900">Économie totale</span>
+                    <span className="text-xl font-extrabold text-emerald-600">{calcTotalSavings.toLocaleString('fr-FR')} F</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500">Marge estimée (revente)</span>
+                    <span className="text-sm font-bold text-violet-600">+{calcMargin.toLocaleString('fr-FR')} F</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center">
+                  Estimation illustrative. Les frais réels varient selon le poids, volume et cours du fret.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ===== HOW IT WORKS ===== */}
+      <section className="py-12 px-4 bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-extrabold text-slate-900">Comment ça marche ?</h2>
+            <p className="text-sm text-slate-500 mt-2 max-w-xl mx-auto">Rejoignez un groupe en 4 étapes simples. Nous gérons l&apos;import pour vous.</p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { icon: Search, title: '1. Choisissez', desc: 'Trouvez un produit et un groupe qui correspond à votre besoin.' },
+              { icon: Users, title: '2. Réservez', desc: 'Indiquez votre quantité. Plus il y a de monde, plus le prix baisse.' },
+              { icon: TrendingDown, title: '3. On achète', desc: 'Nous regroupons les commandes et négocions le meilleur tarif en Chine.' },
+              { icon: Package, title: '4. Vous recevez', desc: 'Transport et livraison au Sénégal. Vous récupérez votre marchandise.' }
+            ].map((step, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-br from-emerald-400 to-violet-400 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                  <step.icon className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm mb-1">{step.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== ALL GROUPS ===== */}
+      <section id="all-groups" className="py-12 px-4 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+          {/* Header + filters */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900">Tous les groupes actifs</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                {loading ? 'Chargement…' : `${gridGroups.length} groupe${gridGroups.length > 1 ? 's' : ''} trouvé${gridGroups.length > 1 ? 's' : ''}`}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un produit..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 w-56"
+                />
+              </div>
+
+              {/* Status filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="open">Ouverts</option>
+                <option value="filled">Objectif atteint</option>
+              </select>
+
+              {/* Sort */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="recommended">Recommandé</option>
+                <option value="progress">Proche objectif</option>
+                <option value="deadline">Deadline proche</option>
+                <option value="savings">Meilleure économie</option>
+              </select>
+
+              {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
+                <button
+                  onClick={resetFilters}
+                  className="text-xs font-semibold text-violet-600 hover:text-violet-700"
+                >
+                  Réinitialiser
+                </button>
               )}
             </div>
           </div>
+
+          {/* Category pills */}
+          {categories.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button
+                onClick={() => setCategoryFilter('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                  categoryFilter === 'all'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                Toutes
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat as string)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                    categoryFilter === cat
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Grid */}
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+              <span className="ml-3 text-slate-600">Chargement...</span>
+            </div>
+          ) : gridGroups.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-20 bg-white rounded-2xl border border-slate-200"
+            >
+              <Package className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+              <h3 className="text-xl font-bold text-slate-700 mb-2">Aucun achat groupé disponible</h3>
+              <p className="text-slate-500 mb-6">Revenez bientôt ou créez le premier !</p>
+              <Link
+                href="/produits"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Voir les produits
+              </Link>
+            </motion.div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {gridGroups.map((group, idx) => (
+                <CompactGroupCard key={group.groupId} group={group} index={idx} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -1109,7 +982,7 @@ export default function GroupOrdersPage() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
             >
-              <div className="bg-gradient-to-r from-green-600 to-violet-600 text-white p-6">
+              <div className="bg-gradient-to-r from-emerald-600 to-violet-600 text-white p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-bold">Créer un achat groupé</h2>
@@ -1187,19 +1060,19 @@ export default function GroupOrdersPage() {
                 }}
               >
                 {/* Produit */}
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border">
+                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border">
                   {productPreview?.image ? (
                     <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-white border">
                       <Image src={productPreview.image} alt={productPreview.name} fill className="object-cover" />
                     </div>
                   ) : (
                     <div className="w-14 h-14 rounded-xl bg-white border flex items-center justify-center">
-                      <Package className="w-6 h-6 text-gray-400" />
+                      <Package className="w-6 h-6 text-slate-400" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-gray-900 line-clamp-1">{productPreview?.name || 'Produit'}</div>
-                    <div className="text-xs text-gray-500 line-clamp-1">ID: {productIdParam || '—'}</div>
+                    <div className="text-sm font-bold text-slate-900 line-clamp-1">{productPreview?.name || 'Produit'}</div>
+                    <div className="text-xs text-slate-500 line-clamp-1">ID: {productIdParam || '—'}</div>
                   </div>
                 </div>
 
@@ -1212,7 +1085,7 @@ export default function GroupOrdersPage() {
 
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Quantité initiale</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Quantité initiale</label>
                     <input
                       type="number"
                       min={groupConfig.minJoinQty}
@@ -1229,29 +1102,29 @@ export default function GroupOrdersPage() {
                           return { ...p, qty: bounded }
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
                     />
-                    <p className="text-[11px] text-gray-500 mt-1">
+                    <p className="text-[11px] text-slate-500 mt-1">
                       Min {groupConfig.minJoinQty} • Max {groupConfig.maxJoinQtyPerParticipant}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date limite</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Date limite</label>
                     <input
                       type="date"
                       value={createForm.deadline}
                       onChange={(e) => setCreateForm((p) => ({ ...p, deadline: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Mode de transport</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mode de transport</label>
                   <select
                     value={createForm.shippingMethod}
                     onChange={(e) => setCreateForm((p) => ({ ...p, shippingMethod: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
                   >
                     {(groupConfig.allowedShippingMethods.length > 0
                       ? groupConfig.allowedShippingMethods
@@ -1264,42 +1137,42 @@ export default function GroupOrdersPage() {
 
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Votre nom</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Votre nom</label>
                     <input
                       value={createForm.name}
                       onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
                       placeholder="Nom et prénom"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Téléphone</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Téléphone</label>
                     <input
                       value={createForm.phone}
                       onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
                       placeholder="+221 77 000 00 00"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Email (optionnel)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email (optionnel)</label>
                   <input
                     type="email"
                     value={createForm.email}
                     onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
                     placeholder="vous@email.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description (optionnel)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Description (optionnel)</label>
                   <textarea
                     value={createForm.description}
                     onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
                     rows={3}
                     placeholder="Ex: Couleur souhaitée, détails de livraison..."
                   />
@@ -1308,7 +1181,7 @@ export default function GroupOrdersPage() {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-green-500 to-violet-500 text-white font-bold hover:from-green-600 hover:to-violet-600 disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-violet-500 text-white font-bold hover:from-emerald-600 hover:to-violet-600 disabled:opacity-60"
                 >
                   {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
                   Créer le groupe
