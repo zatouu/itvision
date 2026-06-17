@@ -1,1189 +1,565 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
-import CountdownBadge from '@/components/group-orders/CountdownBadge'
-import StatCounter from '@/components/group-orders/StatCounter'
-import LiveActivityFeed from '@/components/group-orders/LiveActivityFeed'
-import FeaturedGroupCard from '@/components/group-orders/FeaturedGroupCard'
-import CompactGroupCard from '@/components/group-orders/CompactGroupCard'
 import {
-  Users, Package, Clock, TrendingDown, ArrowRight, Search, Filter,
-  Calendar, Target, Zap, ShoppingCart, CheckCircle, AlertCircle,
-  Loader2, X, Briefcase, Calculator, Flame, BarChart3, Rocket,
-  Sparkles, Heart, Gem, Truck, Star, ChevronDown
+  Users, Package, Clock, TrendingDown, ArrowRight, Search,
+  Target, Zap, ShoppingCart, CheckCircle, AlertCircle,
+  Loader2, X, Briefcase, Calculator, Flame,
+  Sparkles, Truck, Star, ChevronDown, Minus, Plus,
+  Megaphone, Copy, MessageCircle, CreditCard, User, Phone, Mail,
+  Shield, Factory
 } from 'lucide-react'
 
+/* ─── Types ─── */
 interface GroupOrder {
-  _id?: string
-  groupId: string
-  status: string
-  product: {
-    productId: string
-    name: string
-    image?: string
-    basePrice: number
-    currency: string
-    category?: string
-  }
-  minQty: number
-  targetQty: number
-  currentQty: number
-  currentUnitPrice: number
+  _id?: string; groupId: string; status: string
+  product: { productId: string; name: string; image?: string; basePrice: number; currency: string; category?: string }
+  minQty: number; targetQty: number; currentQty: number; currentUnitPrice: number
   priceTiers: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
   participants: Array<{ name: string; qty: number; joinedAt?: string }>
-  deadline: string
-  shippingMethod?: string
-  description?: string
-  createdAt?: string
-  createdBy?: { name?: string }
-  // Enriched fields
-  progress?: number
-  daysLeft?: number
-  isAlmostFull?: boolean
-  isNew?: boolean
-  isPopular?: boolean
-  soloPrice?: number
-  groupPrice?: number
-  savingsPercent?: number
-  participantCount?: number
+  deadline: string; shippingMethod?: string; description?: string; createdAt?: string; createdBy?: { name?: string }
+  progress?: number; daysLeft?: number; isAlmostFull?: boolean; isNew?: boolean; isPopular?: boolean
+  soloPrice?: number; groupPrice?: number; savingsPercent?: number; participantCount?: number
   recentParticipants?: Array<{ name: string; joinedAt?: string }>
 }
 
-interface GroupOrdersPublicConfig {
-  minJoinQty: number
-  maxJoinQtyPerParticipant: number
-  defaultDeadlineDays: number
-  allowedShippingMethods: string[]
-}
+/* ─── Helpers ─── */
+const fmt = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
+const fmtShort = (v: number) => v >= 1000000 ? `${(v/1000000).toFixed(0)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`
 
-interface LiveStats {
-  openGroupsCount: number
-  totalFilled: number
-  totalParticipants: number
-  totalSaved: number
-}
+/* ─── Mock Data ─── */
+const MOCK_F: GroupOrder[] = [
+  { groupId:'GRP-001', status:'open', product:{productId:'p1',name:'iPhone reconditionné 128GB',image:'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80',basePrice:245000,currency:'FCFA',category:'Électronique'}, minQty:5,targetQty:50,currentQty:47,currentUnitPrice:178000, priceTiers:[{minQty:10,price:210000},{minQty:25,price:195000},{minQty:50,price:178000}], participants:[{name:'Ahmed D.',qty:5},{name:'Fatou S.',qty:3},{name:'Moussa K.',qty:8},{name:'Aminata B.',qty:2}], deadline:new Date(Date.now()+2*24*60*60*1000).toISOString(), progress:94, daysLeft:2, isAlmostFull:true, isPopular:true, isNew:false, savingsPercent:27, participantCount:42 },
+  { groupId:'GRP-002', status:'open', product:{productId:'p2',name:'Set palette make-up pro',image:'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80',basePrice:12500,currency:'FCFA',category:'Beauté'}, minQty:10,targetQty:50,currentQty:28,currentUnitPrice:8900, priceTiers:[{minQty:10,price:11000},{minQty:30,price:9500},{minQty:50,price:8900}], participants:[{name:'Omar N.',qty:4},{name:'Sophie L.',qty:5}], deadline:new Date(Date.now()+5*24*60*60*1000).toISOString(), progress:56, daysLeft:5, isAlmostFull:false, isPopular:true, isNew:true, savingsPercent:29, participantCount:24 },
+  { groupId:'GRP-003', status:'open', product:{productId:'p3',name:'Sneakers tendance unisex',image:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80',basePrice:22000,currency:'FCFA',category:'Mode'}, minQty:8,targetQty:40,currentQty:8,currentUnitPrice:15500, priceTiers:[{minQty:8,price:18000},{minQty:20,price:16500},{minQty:40,price:15500}], participants:[{name:'Khalil M.',qty:3}], deadline:new Date(Date.now()+10*24*60*60*1000).toISOString(), progress:20, daysLeft:10, isAlmostFull:false, isPopular:false, isNew:true, savingsPercent:30, participantCount:5 }
+]
 
-const formatCurrency = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
-const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', {
-  day: 'numeric', month: 'long', year: 'numeric'
-})
+const MOCK_G: GroupOrder[] = [
+  { groupId:'GRP-004', status:'open', product:{productId:'p4',name:'Smartwatch Pro Sport GPS',image:'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400&q=80',basePrice:55000,currency:'FCFA',category:'Tech'}, minQty:12,targetQty:30,currentQty:18,currentUnitPrice:32000, priceTiers:[], participants:[], deadline:new Date(Date.now()+5*24*60*60*1000).toISOString(), progress:60, daysLeft:5, savingsPercent:42, participantCount:2 },
+  { groupId:'GRP-005', status:'open', product:{productId:'p5',name:'Parfums premium lots',image:'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&q=80',basePrice:32000,currency:'FCFA',category:'Beauté'}, minQty:15,targetQty:60,currentQty:28,currentUnitPrice:19000, priceTiers:[], participants:[], deadline:new Date(Date.now()+8*24*60*60*1000).toISOString(), progress:47, daysLeft:8, savingsPercent:41, participantCount:2 },
+  { groupId:'GRP-006', status:'open', product:{productId:'p6',name:'GPS tracker voiture',image:'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=400&q=80',basePrice:42000,currency:'FCFA',category:'Auto'}, minQty:10,targetQty:45,currentQty:24,currentUnitPrice:28000, priceTiers:[], participants:[], deadline:new Date(Date.now()+6*24*60*60*1000).toISOString(), progress:53, daysLeft:6, savingsPercent:33, participantCount:3 },
+  { groupId:'GRP-007', status:'filled', product:{productId:'p7',name:'Air fryer nouveauté',image:'https://images.unsplash.com/photo-1626147116986-4601771470a6?w=400&q=80',basePrice:65000,currency:'FCFA',category:'Maison'}, minQty:8,targetQty:40,currentQty:40,currentUnitPrice:39000, priceTiers:[], participants:[], deadline:new Date(Date.now()+3*24*60*60*1000).toISOString(), progress:100, daysLeft:3, savingsPercent:40, participantCount:5 },
+  { groupId:'GRP-008', status:'open', product:{productId:'p8',name:'Enceinte Bluetooth Waterproof',image:'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',basePrice:22000,currency:'FCFA',category:'Tech'}, minQty:15,targetQty:60,currentQty:28,currentUnitPrice:12000, priceTiers:[], participants:[], deadline:new Date(Date.now()+8*24*60*60*1000).toISOString(), progress:47, daysLeft:8, savingsPercent:45, participantCount:2 },
+  { groupId:'GRP-009', status:'open', product:{productId:'p9',name:'Sacs à main Cuir PU',image:'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80',basePrice:28000,currency:'FCFA',category:'Mode'}, minQty:20,targetQty:50,currentQty:22,currentUnitPrice:14500, priceTiers:[], participants:[], deadline:new Date(Date.now()+12*24*60*60*1000).toISOString(), progress:44, daysLeft:12, savingsPercent:48, participantCount:2 },
+  { groupId:'GRP-010', status:'open', product:{productId:'p10',name:'Lampes LED Solaires',image:'https://images.unsplash.com/photo-1513506003013-d531632103c3?w=400&q=80',basePrice:18000,currency:'FCFA',category:'Maison'}, minQty:25,targetQty:80,currentQty:34,currentUnitPrice:8500, priceTiers:[], participants:[], deadline:new Date(Date.now()+10*24*60*60*1000).toISOString(), progress:43, daysLeft:10, savingsPercent:53, participantCount:2 },
+  { groupId:'GRP-011', status:'open', product:{productId:'p11',name:'Écran LED Ultra Slim',image:'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80',basePrice:145000,currency:'FCFA',category:'Tech'}, minQty:5,targetQty:20,currentQty:7,currentUnitPrice:98000, priceTiers:[], participants:[], deadline:new Date(Date.now()+14*24*60*60*1000).toISOString(), progress:35, daysLeft:14, savingsPercent:32, participantCount:1 }
+]
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800', icon: Users },
-  filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800', icon: Target },
-  ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800', icon: ShoppingCart },
-  ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800', icon: Package },
-  shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800', icon: Package },
-  delivered: { label: 'Livré', color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
-  cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800', icon: AlertCircle }
-}
-
-const shippingLabels: Record<string, string> = {
-  maritime_60j: 'Maritime ~60 j • à partir de 170 000 F/m³',
-  air_15j: 'Fret aérien ~15 j • à partir de 12 000 F/kg',
-  express_3j: 'Express ~3 j • à partir de 8 000 F/kg'
-}
-
-const buildDefaultDeadline = (days: number) => {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
+const CATS = ['Tous','Mode','Beauté','Maison','Électronique','Auto']
 
 export default function GroupOrdersPage() {
   const router = useRouter()
-  const [productIdParam, setProductIdParam] = useState<string | null>(null)
-
-  const [groups, setGroups] = useState<GroupOrder[]>([])
-  const [featuredGroups, setFeaturedGroups] = useState<GroupOrder[]>([])
-  const [liveStats, setLiveStats] = useState<LiveStats>({ openGroupsCount: 0, totalFilled: 0, totalParticipants: 0, totalSaved: 0 })
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState<'recommended' | 'deadline' | 'savings' | 'progress'>('recommended')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'filled'>('all')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [stats, setStats] = useState({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
-
+  const [categoryFilter, setCategoryFilter] = useState('Tous')
+  const [sortBy, setSortBy] = useState('Bientôt complet')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
-  const [productPreview, setProductPreview] = useState<{ id: string; name: string; image?: string | null; price?: number } | null>(null)
-  const [groupConfig, setGroupConfig] = useState<GroupOrdersPublicConfig>({
-    minJoinQty: 1,
-    maxJoinQtyPerParticipant: 50,
-    defaultDeadlineDays: 14,
-    allowedShippingMethods: Object.keys(shippingLabels)
-  })
-  const [createForm, setCreateForm] = useState({
-    qty: 1,
-    deadline: buildDefaultDeadline(14),
-    shippingMethod: 'maritime_60j',
-    description: '',
-    name: '',
-    phone: '',
-    email: ''
-  })
-
-  // Calculator state
+  const [calcQty, setCalcQty] = useState(50)
+  const [calcDiscount, setCalcDiscount] = useState(45)
   const [calcSoloPrice, setCalcSoloPrice] = useState(50000)
-  const [calcQty, setCalcQty] = useState(10)
-  const [calcDiscount, setCalcDiscount] = useState(30)
-  const [calcTransport, setCalcTransport] = useState<'maritime' | 'air' | 'express'>('maritime')
-  const [calcRates, setCalcRates] = useState<Array<{
-    id: string
-    label: string
-    description: string
-    durationDays: number
-    billing: string
-    rate: number
-    minimumCharge?: number
-    costPerUnit: number
-    unit: string
-  }>>([])
+  const [calcTransport, setCalcTransport] = useState<'maritime'|'air'|'express'>('maritime')
 
-  // Fetch calculator defaults + shipping rates
-  useEffect(() => {
-    const loadDefaults = async () => {
-      try {
-        const res = await fetch('/api/shipping/rates-public')
-        const data = await res.json()
-        if (data.success) {
-          setCalcRates(data.rates || [])
-          if (data.defaults) {
-            setCalcSoloPrice(data.defaults.soloPrice)
-            setCalcDiscount(data.defaults.discount)
-            setCalcQty(data.defaults.qty)
-          }
-          // Auto-select first rate if current not available
-          const first = (data.rates || [])[0]
-          if (first) {
-            const map: Record<string, 'maritime' | 'air' | 'express'> = {
-              sea_freight: 'maritime',
-              air_15: 'air',
-              air_express: 'express',
-            }
-            setCalcTransport((prev) => {
-              const hasCurrent = (data.rates || []).some((r: any) => map[r.id] === prev)
-              return hasCurrent ? prev : (map[first.id] || 'maritime')
-            })
-          }
-        }
-      } catch {
-        // silent fallback — calculator keeps hardcoded defaults
-      }
-    }
-    loadDefaults()
-  }, [])
+  const calcGroupPrice = Math.round(calcSoloPrice * (1 - calcDiscount/100))
+  const unitShip = calcTransport==='maritime'?1500:calcTransport==='express'?5000:3500
+  const calcTotalUnit = calcGroupPrice + unitShip
+  const calcTotalSavings = (calcSoloPrice - calcTotalUnit) * calcQty
+  const calcMarginPct = calcTotalUnit > 0 ? Math.round(((calcSoloPrice - calcTotalUnit)/calcTotalUnit)*100) : 0
 
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search)
-      const pid = params.get('productId')
-      const create = params.get('create') === '1' ? '1' : '0'
-      const qty = params.get('qty')
+  const getProg = (g:GroupOrder) => Math.min(100, Math.round((g.currentQty/g.targetQty)*100))
+  const getDays = (d:string) => { const diff = new Date(d).getTime()-Date.now(); return Math.max(0, Math.ceil(diff/(1000*60*60*24))) }
 
-      setProductIdParam(pid)
-
-      if (qty) {
-        const parsed = Math.max(1, parseInt(qty) || 1)
-        setCreateForm((p) => ({ ...p, qty: parsed }))
-      }
-      if (create === '1') {
-        setShowCreateModal(true)
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
-
-  const fetchGroups = useCallback(async () => {
-    try {
-      const url = productIdParam
-        ? `/api/group-orders?productId=${encodeURIComponent(productIdParam)}`
-        : '/api/group-orders'
-      const res = await fetch(url)
-      const data = await res.json()
-      if (data.success) {
-        setGroups(data.groups)
-        setStats(data.stats)
-        if (data.config) {
-          const minJoinQty = Number(data.config.minJoinQty)
-          const maxJoinQtyPerParticipant = Number(data.config.maxJoinQtyPerParticipant)
-          const defaultDeadlineDays = Number(data.config.defaultDeadlineDays)
-          const allowedShippingMethods = Array.isArray(data.config.allowedShippingMethods)
-            ? data.config.allowedShippingMethods.filter((m: string) => typeof m === 'string' && shippingLabels[m])
-            : []
-
-          setGroupConfig({
-            minJoinQty: Number.isFinite(minJoinQty) && minJoinQty > 0 ? minJoinQty : 1,
-            maxJoinQtyPerParticipant:
-              Number.isFinite(maxJoinQtyPerParticipant) && maxJoinQtyPerParticipant > 0
-                ? maxJoinQtyPerParticipant
-                : 50,
-            defaultDeadlineDays:
-              Number.isFinite(defaultDeadlineDays) && defaultDeadlineDays > 0 ? defaultDeadlineDays : 14,
-            allowedShippingMethods:
-              allowedShippingMethods.length > 0 ? allowedShippingMethods : Object.keys(shippingLabels)
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Erreur:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [productIdParam])
-
-  const fetchFeatured = useCallback(async () => {
-    try {
-      const res = await fetch('/api/group-orders/featured')
-      const data = await res.json()
-      if (data.success) setFeaturedGroups(data.featured || [])
-    } catch {
-      // silent
-    }
-  }, [])
-
-  const fetchLiveStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/group-orders/stats')
-      const data = await res.json()
-      if (data.success) setLiveStats(data.stats)
-    } catch {
-      // silent
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchGroups()
-    fetchFeatured()
-    fetchLiveStats()
-  }, [fetchGroups, fetchFeatured, fetchLiveStats])
-
-  useEffect(() => {
-    setSortBy(productIdParam ? 'recommended' : 'deadline')
-  }, [productIdParam])
-
-  useEffect(() => {
-    setCreateForm((prev) => {
-      const availableShipping =
-        groupConfig.allowedShippingMethods.length > 0 ? groupConfig.allowedShippingMethods : Object.keys(shippingLabels)
-      const shippingMethod = availableShipping.includes(prev.shippingMethod)
-        ? prev.shippingMethod
-        : availableShipping[0] || 'maritime_60j'
-
-      const qty = Math.min(
-        Math.max(groupConfig.minJoinQty, prev.qty),
-        Math.max(groupConfig.minJoinQty, groupConfig.maxJoinQtyPerParticipant)
-      )
-
-      return { ...prev, qty, shippingMethod, deadline: buildDefaultDeadline(groupConfig.defaultDeadlineDays) }
-    })
-  }, [groupConfig])
-
-  const resetFilters = () => {
-    setSearchTerm('')
-    setStatusFilter('all')
-    setCategoryFilter('all')
-    setSortBy(productIdParam ? 'recommended' : 'deadline')
+  const badge = (g:GroupOrder) => {
+    if(g.isAlmostFull || (g.progress&&g.progress>=90)) return {text:`Plus que ${g.targetQty-g.currentQty} places !`, bg:'bg-[#FF5252]', icon:Zap}
+    if(g.isPopular) return {text:'Populaire', bg:'bg-[#FFAB40]', icon:Flame}
+    if(g.isNew) return {text:'Nouveau', bg:'bg-[#00C853]', icon:Sparkles}
+    return {text:'Ouvert', bg:'bg-[#448AFF]', icon:Clock}
   }
 
-  useEffect(() => {
-    const loadProductPreview = async () => {
-      if (!productIdParam) {
-        setProductPreview(null)
-        return
-      }
-      try {
-        const res = await fetch(`/api/catalog/products/${productIdParam}`)
-        const data = await res.json()
-        if (data?.success && data?.product) {
-          setProductPreview({ id: data.product.id, name: data.product.name, image: data.product.image, price: data.product.price })
-        } else {
-          setProductPreview({ id: productIdParam, name: 'Produit', image: null })
-        }
-      } catch {
-        setProductPreview({ id: productIdParam, name: 'Produit', image: null })
-      }
-    }
-    loadProductPreview()
-  }, [productIdParam])
-
-  // When a product is selected, pre-fill calculator with its price
-  useEffect(() => {
-    if (productPreview?.price && productPreview.price > 0) {
-      const rounded = Math.max(5000, Math.min(200000, Math.round(productPreview.price / 5000) * 5000))
-      setCalcSoloPrice(rounded)
-    }
-  }, [productPreview?.price])
-
-  const filteredGroups = groups.filter(g => {
-    const matchesSearch =
-      g.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      g.groupId.toLowerCase().includes(searchTerm.toLowerCase())
-    if (!matchesSearch) return false
-    if (statusFilter === 'open') return g.status === 'open'
-    if (statusFilter === 'filled') return g.status === 'filled'
-    if (categoryFilter !== 'all') return g.product?.category === categoryFilter
-    return true
-  })
-
-  const getProgressPercent = (g: GroupOrder) => Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
-  const getDaysLeft = (deadline: string) => {
-    const diff = new Date(deadline).getTime() - Date.now()
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-  }
-
-  const sortedGroups = useMemo(() => {
-    const statusWeight: Record<string, number> = { open: 0, filled: 1, ordering: 2, ordered: 3, shipped: 4, delivered: 5, cancelled: 99 }
-    const computeSavingsPercent = (g: GroupOrder) => {
-      const savings = g.product.basePrice - g.currentUnitPrice
-      if (g.product.basePrice <= 0) return 0
-      return Math.max(0, Math.round((savings / g.product.basePrice) * 100))
-    }
-
-    const list = [...filteredGroups]
-    list.sort((a, b) => {
-      const wa = statusWeight[a.status] ?? 50
-      const wb = statusWeight[b.status] ?? 50
-      if (wa !== wb) return wa - wb
-
-      const da = getDaysLeft(a.deadline)
-      const db = getDaysLeft(b.deadline)
-      const pa = getProgressPercent(a)
-      const pb = getProgressPercent(b)
-      const sa = computeSavingsPercent(a)
-      const sb = computeSavingsPercent(b)
-
-      if (sortBy === 'deadline') {
-        if (da !== db) return da - db
-        if (pa !== pb) return pb - pa
-        if (sa !== sb) return sb - sa
-        return a.groupId.localeCompare(b.groupId)
-      }
-      if (sortBy === 'savings') {
-        if (sa !== sb) return sb - sa
-        if (pa !== pb) return pb - pa
-        if (da !== db) return da - db
-        return a.groupId.localeCompare(b.groupId)
-      }
-      if (sortBy === 'progress') {
-        if (pa !== pb) return pb - pa
-        if (da !== db) return da - db
-        if (sa !== sb) return sb - sa
-        return a.groupId.localeCompare(b.groupId)
-      }
-      if (pa !== pb) return pb - pa
-      if (da !== db) return da - db
-      if (sa !== sb) return sb - sa
-      return a.groupId.localeCompare(b.groupId)
-    })
-    return list
-  }, [filteredGroups, sortBy])
-
-  // Calculator computed values
-  const calcGroupPrice = Math.round(calcSoloPrice * (1 - calcDiscount / 100))
-  const calcSavingsPerUnit = calcSoloPrice - calcGroupPrice
-  const transportMap: Record<string, 'maritime' | 'air' | 'express'> = {
-    sea_freight: 'maritime',
-    air_15: 'air',
-    air_express: 'express',
-  }
-  const selectedRate = calcRates.find((r) => transportMap[r.id] === calcTransport)
-  const calcTransportCost = selectedRate
-    ? Math.round(calcQty * selectedRate.costPerUnit)
-    : calcTransport === 'maritime'
-      ? Math.round(calcQty * 1500)
-      : calcTransport === 'express'
-        ? Math.round(calcQty * 5000)
-        : Math.round(calcQty * 3500)
-  const calcTotalSavings = (calcSavingsPerUnit * calcQty) - calcTransportCost
-  const calcMargin = Math.round(calcTotalSavings * 0.6)
-
-  const recommendedGroup = useMemo(() => {
-    if (!productIdParam) return null
-    if (sortBy !== 'recommended') return null
-    if (!sortedGroups || sortedGroups.length === 0) return null
-    const top = sortedGroups[0]
-    if (top.status !== 'open') return null
-    return top
-  }, [productIdParam, sortBy, sortedGroups])
-
-  // Seed featured groups if empty for visual demo
-  const displayFeatured = featuredGroups.length > 0 ? featuredGroups : [
-    {
-      groupId: 'GRP-DEMO-1',
-      status: 'open',
-      product: { productId: 'demo-1', name: 'Caméra IP WiFi 4MP Vision Nocturne - Lot de 10', image: 'https://images.unsplash.com/photo-1557324232-b8917d3c3dcb?w=400&q=80', basePrice: 45000, currency: 'FCFA', category: 'Électronique' },
-      minQty: 10, targetQty: 50, currentQty: 42, currentUnitPrice: 28000,
-      priceTiers: [{ minQty: 10, price: 35000, discount: 22 }, { minQty: 25, price: 30000, discount: 33 }, { minQty: 50, price: 28000, discount: 38 }],
-      participants: [{ name: 'Ahmed D.', qty: 5 }, { name: 'Fatou S.', qty: 3 }, { name: 'Moussa K.', qty: 8 }, { name: 'Aminata B.', qty: 2 }],
-      deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-      shippingMethod: 'air_15j',
-      progress: 84, daysLeft: 2, isAlmostFull: true, isPopular: true, isNew: false,
-      soloPrice: 45000, groupPrice: 28000, savingsPercent: 38, participantCount: 4,
-      recentParticipants: [{ name: 'Ahmed D.' }, { name: 'Fatou S.' }, { name: 'Moussa K.' }, { name: 'Aminata B.' }]
-    },
-    {
-      groupId: 'GRP-DEMO-2',
-      status: 'open',
-      product: { productId: 'demo-2', name: 'Sneakers Running Légères - Lot de 20 paires', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80', basePrice: 35000, currency: 'FCFA', category: 'Mode' },
-      minQty: 20, targetQty: 100, currentQty: 67, currentUnitPrice: 18000,
-      priceTiers: [{ minQty: 20, price: 25000, discount: 29 }, { minQty: 50, price: 22000, discount: 37 }, { minQty: 100, price: 18000, discount: 49 }],
-      participants: [{ name: 'Omar N.', qty: 10 }, { name: 'Sophie L.', qty: 5 }, { name: 'Khalil M.', qty: 8 }],
-      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      shippingMethod: 'maritime_60j',
-      progress: 67, daysLeft: 7, isAlmostFull: false, isPopular: true, isNew: true,
-      soloPrice: 35000, groupPrice: 18000, savingsPercent: 49, participantCount: 3,
-      recentParticipants: [{ name: 'Omar N.' }, { name: 'Sophie L.' }, { name: 'Khalil M.' }]
-    },
-    {
-      groupId: 'GRP-DEMO-3',
-      status: 'open',
-      product: { productId: 'demo-3', name: 'Set Maquillage Professionnel 48 couleurs - Lot de 15', image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80', basePrice: 28000, currency: 'FCFA', category: 'Beauté' },
-      minQty: 15, targetQty: 40, currentQty: 38, currentUnitPrice: 15000,
-      priceTiers: [{ minQty: 15, price: 20000, discount: 29 }, { minQty: 30, price: 17000, discount: 39 }, { minQty: 40, price: 15000, discount: 46 }],
-      participants: [{ name: 'Aïcha D.', qty: 5 }, { name: 'Mariam S.', qty: 3 }, { name: 'Léa B.', qty: 4 }],
-      deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-      shippingMethod: 'air_15j',
-      progress: 95, daysLeft: 1, isAlmostFull: true, isPopular: false, isNew: false,
-      soloPrice: 28000, groupPrice: 15000, savingsPercent: 46, participantCount: 3,
-      recentParticipants: [{ name: 'Aïcha D.' }, { name: 'Mariam S.' }, { name: 'Léa B.' }]
-    }
-  ]
-
-  // Demo groups for grid if real data is empty
-  const demoGridGroups: GroupOrder[] = [
-    {
-      groupId: 'GRP-DEMO-4', status: 'open',
-      product: { productId: 'demo-4', name: 'Smartwatch Pro Sport GPS - Lot de 12', image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400&q=80', basePrice: 55000, currency: 'FCFA', category: 'Électronique' },
-      minQty: 12, targetQty: 30, currentQty: 18, currentUnitPrice: 32000,
-      priceTiers: [], participants: [], deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      progress: 60, daysLeft: 5, savingsPercent: 42, participantCount: 2
-    },
-    {
-      groupId: 'GRP-DEMO-5', status: 'open',
-      product: { productId: 'demo-5', name: 'Lampes LED Solaires Jardin - Lot de 25', image: 'https://images.unsplash.com/photo-1513506003013-d531632103c3?w=400&q=80', basePrice: 18000, currency: 'FCFA', category: 'Maison' },
-      minQty: 25, targetQty: 80, currentQty: 34, currentUnitPrice: 8500,
-      priceTiers: [], participants: [], deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-      progress: 43, daysLeft: 10, savingsPercent: 53, participantCount: 2
-    },
-    {
-      groupId: 'GRP-DEMO-6', status: 'filled',
-      product: { productId: 'demo-6', name: 'Box Cadeau Luxe Premium - Lot de 20', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400&q=80', basePrice: 32000, currency: 'FCFA', category: 'Cadeaux' },
-      minQty: 20, targetQty: 50, currentQty: 50, currentUnitPrice: 16500,
-      priceTiers: [], participants: [], deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      progress: 100, daysLeft: 3, savingsPercent: 48, participantCount: 5
-    },
-    {
-      groupId: 'GRP-DEMO-7', status: 'open',
-      product: { productId: 'demo-7', name: 'Enceinte Bluetooth Waterproof - Lot de 15', image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80', basePrice: 22000, currency: 'FCFA', category: 'Électronique' },
-      minQty: 15, targetQty: 60, currentQty: 28, currentUnitPrice: 12000,
-      priceTiers: [], participants: [], deadline: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
-      progress: 47, daysLeft: 8, savingsPercent: 45, participantCount: 2
-    },
-    {
-      groupId: 'GRP-DEMO-8', status: 'open',
-      product: { productId: 'demo-8', name: 'Sacs à main Cuir PU tendance - Lot de 20', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80', basePrice: 28000, currency: 'FCFA', category: 'Mode' },
-      minQty: 20, targetQty: 50, currentQty: 22, currentUnitPrice: 14500,
-      priceTiers: [], participants: [], deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
-      progress: 44, daysLeft: 12, savingsPercent: 48, participantCount: 2
-    },
-    {
-      groupId: 'GRP-DEMO-9', status: 'open',
-      product: { productId: 'demo-9', name: 'Diffuseur Huiles Essentielles - Lot de 18', image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=400&q=80', basePrice: 20000, currency: 'FCFA', category: 'Maison' },
-      minQty: 18, targetQty: 45, currentQty: 15, currentUnitPrice: 11000,
-      priceTiers: [], participants: [], deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      progress: 33, daysLeft: 14, savingsPercent: 45, participantCount: 1
-    }
-  ]
-
-  const gridGroups = sortedGroups.length > 0 ? sortedGroups : demoGridGroups
-  const categories = [...new Set([...groups, ...demoGridGroups].map(g => g.product?.category).filter(Boolean))]
+  const initials = (name:string) => name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <MarketHeader />
-
-      {/* ===== HERO ===== */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+    <div className="min-h-screen bg-[#F8F9FA]">
+      {/* TOP BAR */}
+      <div className="h-10 bg-[#1A1A2E] text-white flex items-center justify-between px-4 text-xs">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4 text-[#00C853]" />
+          <span className="font-semibold">IT Vision Plus</span>
+          <span className="text-white/60 hidden sm:inline">Import Chine → Sénégal · Livraison Dakar · Support comm. 7j/7</span>
         </div>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1"><span className="text-[#FFAB40]">🪙</span> 1250 pts</span>
+          <button className="px-4 py-1 bg-[#00C853] rounded-full font-semibold text-xs hover:bg-emerald-500 transition">Mon compte</button>
+        </div>
+      </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 pt-16 pb-20 md:pt-24 md:pb-28">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: text + stats */}
-            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-bold mb-6">
-                <Sparkles className="w-3.5 h-3.5" />
-                Import groupé depuis la Chine
+      {/* NAV */}
+      <nav className="sticky top-0 z-40 bg-white shadow-sm h-16 flex items-center justify-between px-4">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2 font-bold text-[#1A1A2E] text-lg">
+            <Shield className="w-6 h-6 text-[#00C853]" /> IT Vision Plus
+          </div>
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+            <Link href="/" className="hover:text-[#1A1A2E] transition">Accueil</Link>
+            <Link href="/produits" className="hover:text-[#1A1A2E] transition">Produits</Link>
+            <span className="text-[#1A1A2E] border-b-2 border-[#00C853] pb-0.5 font-semibold">Achats groupés</span>
+            <Link href="/boutiques" className="hover:text-[#1A1A2E] transition">Boutiques</Link>
+            <Link href="/compte" className="hover:text-[#1A1A2E] transition">Compte</Link>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gray-300" />
+          <span className="text-sm font-medium text-[#1A1A2E] hidden sm:inline">Mon compte</span>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <section className="relative min-h-[500px] overflow-hidden" style={{background:'linear-gradient(135deg, #1A1A2E 0%, #16213E 30%, #0F3460 60%, #00C853 100%)'}}>
+        <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize:'40px 40px'}} />
+        <div className="relative max-w-7xl mx-auto px-4 pt-12 pb-20">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
+            <motion.div initial={{opacity:0,x:-30}} animate={{opacity:1,x:0}} transition={{duration:0.6}}>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur rounded-full text-white text-xs font-semibold mb-6">
+                <Sparkles className="w-3.5 h-3.5" /> DDM+ · Achetez à plusieurs
               </div>
-
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-                Achats groupés
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-violet-400">
-                  pour entrepreneurs
-                </span>
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 tracking-tight">
+                🤝 Importez en groupe,<br/>économisez ensemble
               </h1>
-
-              <p className="text-lg text-slate-300 mb-8 max-w-lg leading-relaxed">
-                Rejoignez des groupes d&apos;achat, réduisez vos coûts d&apos;import et lancez votre business sans gros capital.
+              <p className="text-lg text-white/80 mb-8 max-w-lg">
+                Plus on est nombreux, moins c&apos;est cher. Jusqu&apos;à -45% sur vos commandes.
               </p>
-
-              {/* Live stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-                {[
-                  { label: 'Groupes ouverts', value: liveStats.openGroupsCount || stats.totalOpen, suffix: '' },
-                  { label: 'Objectifs atteints', value: liveStats.totalFilled || stats.totalFilled, suffix: '' },
-                  { label: 'Acheteurs actifs', value: liveStats.totalParticipants || stats.totalParticipants, suffix: '' },
-                  { label: 'FCFA économisés', value: (liveStats.totalSaved || 0) / 1000, suffix: 'k', prefix: '' }
-                ].map((s, i) => (
-                  <motion.div
-                    key={s.label}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + i * 0.1 }}
-                    className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl p-3 text-center"
-                  >
-                    <div className="text-xl md:text-2xl font-extrabold text-white">
-                      <StatCounter value={s.value} suffix={s.suffix} />
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium mt-1">{s.label}</div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => document.getElementById('featured-groups')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition"
-                >
+              <div className="flex flex-wrap gap-3 mb-10">
+                <button onClick={()=>document.getElementById('all-groups')?.scrollIntoView({behavior:'smooth'})} className="px-6 py-3 bg-white text-[#1A1A2E] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
                   Voir les groupes actifs
                 </button>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl border border-white/20 transition"
-                >
-                  Créer un groupe
+                <button onClick={()=>setShowCreateModal(true)} className="px-6 py-3 border-2 border-white/50 text-white rounded-xl font-semibold hover:bg-white/10 transition">
+                  Créer un groupe →
                 </button>
               </div>
-            </motion.div>
-
-            {/* Right: live activity feed */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="hidden lg:block"
-            >
-              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <h3 className="text-sm font-bold text-white">Activité en direct</h3>
-                </div>
-                <LiveActivityFeed />
+              <div className="flex flex-wrap gap-8 text-white/90 text-sm font-medium">
+                <span className="flex items-center gap-2">🔥 <strong className="text-white text-base">12</strong> groupes ouverts</span>
+                <span className="flex items-center gap-2">👥 <strong className="text-white text-base">847</strong> participants</span>
+                <span className="flex items-center gap-2">💰 <strong className="text-white text-base">32M</strong> FCFA économisés</span>
               </div>
             </motion.div>
-          </div>
-        </div>
 
-        {/* Wave bottom */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 80" fill="none" className="w-full">
-            <path d="M0 80V40c120 20 240 40 360 20s240-60 360-40 240 60 360 40 240-40 360-20v40H0z" fill="#f8fafc" />
-          </svg>
-        </div>
-      </section>
-
-      {/* ===== BENEFITS STRIP ===== */}
-      <section className="py-8 px-4 bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-4">
-            {[
-              { icon: TrendingDown, title: 'Prix dégressifs', desc: `Jusqu'à 50% d'économie en groupant vos achats avec d'autres entrepreneurs.` },
-              { icon: Truck, title: 'Transport mutualisé', desc: 'Fret maritime, aérien ou express : les frais sont partagés entre tous les participants.' },
-              { icon: Package, title: 'Sourcing simplifié', desc: 'Nous gérons les usines, la négociation, l\'inspection et la logistique pour vous.' }
-            ].map((b, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.1 }}
-                className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100"
-              >
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-400 to-violet-400 flex items-center justify-center flex-shrink-0">
-                  <b.icon className="w-5 h-5 text-white" />
+            <div className="hidden lg:block relative">
+              <div className="w-[400px] h-[300px] bg-white/10 rounded-2xl flex items-center justify-center text-white/60 text-sm mx-auto border border-white/10">
+                <div className="text-center">
+                  <Package className="w-16 h-16 mx-auto mb-3 opacity-40" />
+                  Illustration 3D isométrique<br/>Import groupe
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">{b.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">{b.desc}</p>
-                </div>
+              </div>
+              <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.4}} className="absolute -top-4 right-0 bg-white rounded-xl shadow-xl p-3 flex items-center gap-3 max-w-[220px]">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-white text-[10px] font-bold">AD</div>
+                <div className="text-xs"><span className="font-bold text-[#1A1A2E]">Ahmed D.</span> <span className="text-gray-500">a rejoint un groupe</span></div>
               </motion.div>
-            ))}
+              <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.6}} className="absolute top-20 -right-4 bg-white rounded-xl shadow-xl p-3 flex items-center gap-3 max-w-[220px]">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF5252] to-[#FFAB40] flex items-center justify-center text-white text-[10px] font-bold">FS</div>
+                <div className="text-xs"><span className="font-bold text-[#1A1A2E]">Fatou S.</span> <span className="text-gray-500">a créé une cagnotte</span></div>
+              </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ===== FEATURED GROUPS ===== */}
+      {/* SEARCH & FILTERS */}
+      <section className="sticky top-16 z-30 bg-white py-6 shadow-sm border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="relative max-w-3xl mx-auto mb-4">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input type="text" placeholder="Rechercher un produit ou groupe..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="w-full h-14 bg-gray-100 rounded-2xl pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
+          </div>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 justify-center">
+              {CATS.map((cat)=>(
+                <button key={cat} onClick={()=>setCategoryFilter(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${categoryFilter===cat?'bg-[#1A1A2E] text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                  {cat}{cat==='Tous'?' (24)':''}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Trier: {sortBy} <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* VALUE BADGES */}
+      <section className="py-6 bg-white">
+        <div className="max-w-6xl mx-auto px-4 flex flex-wrap gap-4 justify-center">
+          <div className="flex items-center gap-3 px-5 py-4 bg-[#E8F5E9] rounded-xl">
+            <span className="text-xl">💰</span>
+            <span className="text-sm font-bold text-[#00C853]">Économisez jusqu&apos;à -45%</span>
+          </div>
+          <div className="flex items-center gap-3 px-5 py-4 bg-[#EDE7F6] rounded-xl">
+            <span className="text-xl">📦</span>
+            <span className="text-sm font-bold text-[#7C4DFF]">Stock négocié</span>
+          </div>
+          <div className="flex items-center gap-3 px-5 py-4 bg-orange-50 rounded-xl">
+            <span className="text-xl">🚚</span>
+            <span className="text-sm font-bold text-[#FFAB40]">Transport groupé optimisé</span>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURED GROUPS */}
       <section id="featured-groups" className="py-12 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-900">Groupes en vedette</h2>
-              <p className="text-sm text-slate-500 mt-1">Les offres les plus populaires et urgentes du moment</p>
-            </div>
-            <Link
-              href="#all-groups"
-              className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-violet-600 hover:text-violet-700 transition"
-            >
-              Voir tout <ArrowRight className="w-4 h-4" />
-            </Link>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-[#1A1A2E] mb-1 flex items-center gap-2">
+              <Flame className="w-6 h-6 text-[#FFAB40]" />
+              Groupes en vedette - Rejoignez vite !
+            </h2>
+            <p className="text-sm text-gray-500">Les offres les plus populaires et urgentes du moment</p>
           </div>
-
           <div className="grid md:grid-cols-3 gap-6">
-            {displayFeatured.slice(0, 3).map((group, i) => (
-              <FeaturedGroupCard key={group.groupId} group={group} index={i} />
-            ))}
+            {MOCK_F.map((g, i) => {
+              const b = badge(g); const prog = getProg(g); const days = getDays(g.deadline)
+              const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
+              return (
+                <motion.div key={g.groupId} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}} whileHover={{y:-6}} className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+                  <div className="relative h-48 bg-gray-100">
+                    {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">{g.product.name}</div>}
+                    <span className={`absolute top-3 left-3 px-3 py-1.5 ${b.bg} text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-md`}><b.icon className="w-3.5 h-3.5"/>{b.text}</span>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="font-bold text-lg text-[#1A1A2E] mb-2 line-clamp-1">{g.product.name}</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-gray-700">{g.currentQty}/{g.targetQty}</span>
+                      <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <motion.div initial={{width:0}} animate={{width:`${prog}%`}} transition={{duration:0.8}} className={`h-full rounded-full ${prog>=100?'bg-[#00C853]':'bg-gradient-to-r from-[#00C853] to-[#7C4DFF]'}`}/>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex -space-x-2">
+                        {(g.recentParticipants||[]).slice(0,4).map((p,i)=>(
+                          <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[10px] font-bold text-white border-2 border-white" title={p.name}>{initials(p.name)}</div>
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-500">+{(g.participantCount||0)>4?(g.participantCount||0)-4:Math.max(0,(g.participantCount||0))} acheteurs</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-sm text-gray-400 line-through">Solo: {fmt(solo)}</span>
+                      <span className="text-base font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
+                      <span className="text-xs bg-red-50 text-[#FF5252] rounded px-1.5 py-0.5 font-bold">(-{sav}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-orange-500 mb-4">
+                      <Clock className="w-4 h-4"/>{days>0?`⏱ ${days}j restantes`:'Terminé'}
+                    </div>
+                    <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-3 rounded-xl font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600 text-white shadow-lg shadow-red-200':'bg-[#00C853] hover:bg-emerald-600 text-white shadow-lg shadow-emerald-200'}`}>
+                      {g.isAlmostFull?'Rejoindre maintenant':g.isNew?`Être le ${g.currentQty+1}ème`:'Rejoindre'}
+                    </button>
+                  </div>
+                </motion.div>
+              )
+            })}
           </div>
         </div>
       </section>
 
-      {/* ===== SAVINGS CALCULATOR ===== */}
-      <section className="py-12 px-4 bg-gradient-to-br from-slate-900 to-slate-800">
+      {/* CALCULATOR */}
+      <section className="py-12 px-4 bg-gray-50">
         <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-white rounded-2xl p-6 md:p-8 shadow-xl"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-violet-400 flex items-center justify-center">
-                <Calculator className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900">Simulateur de rentabilité</h2>
-                <p className="text-xs text-slate-500">Estimez vos économies et marges en temps réel</p>
-              </div>
-            </div>
-
+          <h2 className="text-2xl font-bold text-[#1A1A2E] text-center mb-8 flex items-center justify-center gap-2">
+            <Calculator className="w-6 h-6 text-[#7C4DFF]" />
+            Calculez votre économie en temps réel
+          </h2>
+          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="bg-white rounded-3xl shadow-xl p-8">
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Controls */}
+              {/* Left: Configuration */}
               <div className="space-y-5">
-                {/* Solo price */}
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                  <div className="flex justify-between text-sm font-semibold text-[#1A1A2E] mb-2">
                     <span>Prix unitaire solo</span>
-                    <span className="text-violet-700 font-bold">{calcSoloPrice.toLocaleString('fr-FR')} F</span>
+                    <span className="text-[#7C4DFF]">{calcSoloPrice.toLocaleString('fr-FR')} F</span>
                   </div>
-                  <input
-                    type="range"
-                    min={5000}
-                    max={200000}
-                    step={5000}
-                    value={calcSoloPrice}
-                    onChange={(e) => setCalcSoloPrice(Number(e.target.value))}
-                    className="w-full accent-violet-600"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                    <span>5 000 F</span>
-                    <span>200 000 F</span>
-                  </div>
+                  <input type="range" min={5000} max={200000} step={5000} value={calcSoloPrice} onChange={(e)=>setCalcSoloPrice(Number(e.target.value))} className="w-full accent-[#7C4DFF]"/>
+                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>5 000</span><span>200 000</span></div>
                 </div>
-
-                {/* Discount */}
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                  <div className="flex justify-between text-sm font-semibold text-[#1A1A2E] mb-2">
                     <span>Réduction groupée</span>
-                    <span className="text-emerald-700 font-bold">{calcDiscount}%</span>
+                    <span className="text-[#00C853]">{calcDiscount}%</span>
                   </div>
-                  <input
-                    type="range"
-                    min={5}
-                    max={60}
-                    step={5}
-                    value={calcDiscount}
-                    onChange={(e) => setCalcDiscount(Number(e.target.value))}
-                    className="w-full accent-emerald-500"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                    <span>5%</span>
-                    <span>60%</span>
-                  </div>
+                  <input type="range" min={5} max={60} step={5} value={calcDiscount} onChange={(e)=>setCalcDiscount(Number(e.target.value))} className="w-full accent-[#00C853]"/>
+                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>5%</span><span>60%</span></div>
                 </div>
-
-                {/* Quantity */}
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                  <div className="flex justify-between text-sm font-semibold text-[#1A1A2E] mb-2">
                     <span>Quantité commandée</span>
-                    <span className="text-violet-700 font-bold">{calcQty} unités</span>
+                    <span className="text-[#7C4DFF]">{calcQty} unités</span>
                   </div>
-                  <input
-                    type="range"
-                    min={5}
-                    max={200}
-                    step={5}
-                    value={calcQty}
-                    onChange={(e) => setCalcQty(Number(e.target.value))}
-                    className="w-full accent-violet-600"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                    <span>5</span>
-                    <span>200</span>
-                  </div>
+                  <input type="range" min={1} max={100} value={calcQty} onChange={(e)=>setCalcQty(Number(e.target.value))} className="w-full accent-[#7C4DFF]"/>
+                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>1</span><span>100</span></div>
                 </div>
-
-                {/* Transport */}
                 <div>
-                  <span className="text-sm font-medium text-slate-700 block mb-2">Mode de transport</span>
+                  <label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">Produit</label>
+                  <select className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00C853]">
+                    <option>Caméra IP Hikvision 4MP</option>
+                    <option>iPhone reconditionné 128GB</option>
+                    <option>Sneakers Running Légères</option>
+                    <option>Set Maquillage Pro 48 couleurs</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">Mode transport</label>
                   <div className="flex gap-2">
-                    {(calcRates.length > 0
-                      ? calcRates.map((r) => {
-                          const key = transportMap[r.id] || 'maritime'
-                          const label = key === 'maritime' ? 'Maritime' : key === 'air' ? 'Aérien' : 'Express'
-                          return { key, label, cost: `~${r.costPerUnit.toLocaleString('fr-FR')} F/u` }
-                        })
-                      : [
-                          { key: 'maritime' as const, label: 'Maritime', cost: '~1 500 F/u' },
-                          { key: 'air' as const, label: 'Aérien', cost: '~3 500 F/u' },
-                          { key: 'express' as const, label: 'Express', cost: '~5 000 F/u' },
-                        ]
-                    ).map((t) => (
-                      <button
-                        key={t.key}
-                        onClick={() => setCalcTransport(t.key as any)}
-                        className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition ${
-                          calcTransport === t.key
-                            ? 'bg-violet-50 border-violet-300 text-violet-700'
-                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div>{t.label}</div>
-                        <div className="text-[10px] text-slate-400 font-normal">{t.cost}</div>
+                    {[
+                      {k:'maritime',l:'Maritime',d:'45j'},
+                      {k:'air',l:'Aérien',d:'7j'},
+                      {k:'express',l:'Express',d:'3j'}
+                    ].map((t)=>(
+                      <button key={t.k} onClick={()=>setCalcTransport(t.k as any)} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${calcTransport===t.k?'bg-[#EDE7F6] border-[#7C4DFF] text-[#7C4DFF]':'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                        <div>{t.l}</div>
+                        <div className="text-[10px] text-gray-400 font-normal">{t.d}</div>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-
-              {/* Results */}
-              <div className="bg-slate-50 rounded-xl p-5 space-y-4">
-                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-100">
-                  <span className="text-sm text-slate-600">Prix solo total</span>
-                  <span className="font-bold text-slate-400 line-through">{(calcSoloPrice * calcQty).toLocaleString('fr-FR')} F</span>
+              {/* Right: Live calculation */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Prix unitaire individuel</span>
+                  <span className="font-bold text-gray-500">{fmt(calcSoloPrice)}</span>
                 </div>
-                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-100">
-                  <span className="text-sm text-slate-600">Prix groupé total</span>
-                  <span className="font-bold text-emerald-600">{(calcGroupPrice * calcQty).toLocaleString('fr-FR')} F</span>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Prix groupé (50+)</span>
+                  <span className="font-bold text-[#00C853]">{fmt(calcGroupPrice)}</span>
                 </div>
-                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-100">
-                  <span className="text-sm text-slate-600">Fret {calcTransport === 'maritime' ? 'maritime' : calcTransport === 'air' ? 'aérien' : 'express'}</span>
-                  <span className="font-bold text-slate-700">{calcTransportCost.toLocaleString('fr-FR')} F</span>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Transport groupé</span>
+                  <span className="font-bold text-gray-700">+{fmt(unitShip)}</span>
                 </div>
-                <div className="border-t border-slate-200 pt-3">
+                <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-bold text-slate-900">Économie totale</span>
-                    <span className="text-xl font-extrabold text-emerald-600">{calcTotalSavings.toLocaleString('fr-FR')} F</span>
+                    <span className="text-sm font-bold text-[#1A1A2E]">Total par unité:</span>
+                    <span className="text-2xl font-extrabold text-[#00C853]">{fmt(calcTotalUnit)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500">Marge estimée (revente)</span>
-                    <span className="text-sm font-bold text-violet-600">+{calcMargin.toLocaleString('fr-FR')} F</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm text-[#00C853] font-semibold">💚 Économie: {fmt(calcTotalSavings)} (-{calcDiscount}%)</span>
                   </div>
+                  <span className="inline-block text-xs font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-3 py-1">📈 Marge revente: +{calcMarginPct}%</span>
                 </div>
-                <p className="text-[10px] text-slate-400 text-center">
-                  Estimation illustrative. Les frais réels varient selon le poids, volume et cours du fret.
-                </p>
+                <button className="w-full py-3 bg-[#00C853] text-white rounded-xl font-semibold hover:bg-emerald-600 transition mt-2 shadow-lg shadow-emerald-200">
+                  Trouver un groupe pour ce produit
+                </button>
               </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ===== HOW IT WORKS ===== */}
-      <section className="py-12 px-4 bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-extrabold text-slate-900">Comment ça marche ?</h2>
-            <p className="text-sm text-slate-500 mt-2 max-w-xl mx-auto">Rejoignez un groupe en 4 étapes simples. Nous gérons l&apos;import pour vous.</p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-6">
+      {/* HOW IT WORKS */}
+      <section className="py-12 px-4 bg-white border-b border-gray-100">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-[#1A1A2E] text-center mb-12">Comment fonctionne un achat groupé ?</h2>
+          <div className="grid md:grid-cols-4 gap-8">
             {[
-              { icon: Search, title: '1. Choisissez', desc: 'Trouvez un produit et un groupe qui correspond à votre besoin.' },
-              { icon: Users, title: '2. Réservez', desc: 'Indiquez votre quantité. Plus il y a de monde, plus le prix baisse.' },
-              { icon: TrendingDown, title: '3. On achète', desc: 'Nous regroupons les commandes et négocions le meilleur tarif en Chine.' },
-              { icon: Package, title: '4. Vous recevez', desc: 'Transport et livraison au Sénégal. Vous récupérez votre marchandise.' }
+              {num:'1', icon:Search, title:'Choisissez', desc:'Trouvez un produit et un groupe qui correspond à votre besoin.'},
+              {num:'2', icon:Users, title:'Rejoignez', desc:'Indiquez votre quantité. Plus il y a de monde, plus le prix baisse.'},
+              {num:'3', icon:Factory, title:'On achète', desc:'Nous regroupons les commandes et négocions le meilleur tarif en Chine.'},
+              {num:'4', icon:Truck, title:'Vous recevez', desc:'Transport et livraison au Sénégal. Vous récupérez votre marchandise.'}
             ].map((step, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center"
-              >
-                <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-br from-emerald-400 to-violet-400 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                  <step.icon className="w-6 h-6" />
+              <motion.div key={i} initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*0.1}} className="text-center relative">
+                <div className="w-12 h-12 mx-auto mb-4 bg-[#1A1A2E] text-white rounded-full flex items-center justify-center text-lg font-bold">
+                  {step.num}
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm mb-1">{step.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{step.desc}</p>
+                <step.icon className="w-6 h-6 mx-auto mb-2 text-[#7C4DFF]" />
+                <h3 className="font-bold text-[#1A1A2E] text-sm mb-1">{step.title}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{step.desc}</p>
+                {i < 3 && <div className="hidden md:block absolute top-6 left-[calc(100%-12px)] w-6 h-0.5 bg-gray-200" />}
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ===== ALL GROUPS ===== */}
-      <section id="all-groups" className="py-12 px-4 bg-slate-50">
+      {/* ALL GROUPS */}
+      <section id="all-groups" className="py-12 px-4 bg-[#F8F9FA]">
         <div className="max-w-6xl mx-auto">
-          {/* Header + filters */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-900">Tous les groupes actifs</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                {loading ? 'Chargement…' : `${gridGroups.length} groupe${gridGroups.length > 1 ? 's' : ''} trouvé${gridGroups.length > 1 ? 's' : ''}`}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un produit..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 w-56"
-                />
-              </div>
-
-              {/* Status filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="open">Ouverts</option>
-                <option value="filled">Objectif atteint</option>
-              </select>
-
-              {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="recommended">Recommandé</option>
-                <option value="progress">Proche objectif</option>
-                <option value="deadline">Deadline proche</option>
-                <option value="savings">Meilleure économie</option>
-              </select>
-
-              {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
-                <button
-                  onClick={resetFilters}
-                  className="text-xs font-semibold text-violet-600 hover:text-violet-700"
-                >
-                  Réinitialiser
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Category pills */}
-          {categories.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-6">
-              <button
-                onClick={() => setCategoryFilter('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                  categoryFilter === 'all'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                Toutes
+          <h2 className="text-2xl font-bold text-[#1A1A2E] mb-6 flex items-center gap-2">
+            <Package className="w-6 h-6 text-[#7C4DFF]" />
+            Tous les groupes actifs
+          </h2>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {['Tous','Bientôt complet','Nouveaux','Mode','Tech','Maison','Beauté'].map((f,i)=> (
+              <button key={f} className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white border-[#1A1A2E]':i===1?'bg-red-50 text-[#FF5252] border-red-200':i===2?'bg-emerald-50 text-[#00C853] border-emerald-200':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                {f}
               </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat as string)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                    categoryFilter === cat
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Grid */}
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
-              <span className="ml-3 text-slate-600">Chargement...</span>
-            </div>
-          ) : gridGroups.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-20 bg-white rounded-2xl border border-slate-200"
-            >
-              <Package className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-xl font-bold text-slate-700 mb-2">Aucun achat groupé disponible</h3>
-              <p className="text-slate-500 mb-6">Revenez bientôt ou créez le premier !</p>
-              <Link
-                href="/produits"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Voir les produits
-              </Link>
-            </motion.div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {gridGroups.map((group, idx) => (
-                <CompactGroupCard key={group.groupId} group={group} index={idx} />
-              ))}
-            </div>
-          )}
+            ))}
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {MOCK_G.map((g, i) => {
+              const b = badge(g); const prog = getProg(g); const days = getDays(g.deadline)
+              const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
+              return (
+                <motion.div key={g.groupId} whileHover={{y:-4}} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-lg">
+                  <div className="relative h-40 bg-gray-100">
+                    {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">{g.product.name}</div>}
+                    <span className={`absolute top-3 left-3 px-2.5 py-1 ${b.bg} text-white text-[10px] font-bold rounded-full flex items-center gap-1`}><b.icon className="w-3 h-3"/>{b.text}</span>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-bold text-sm text-[#1A1A2E] mb-2 line-clamp-1">{g.product.name}</h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">{g.currentQty}/{g.targetQty}</span>
+                      <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex -space-x-1.5">
+                        {['AD','FS','MK'].map((ini,i)=>(<div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[8px] font-bold text-white border-2 border-white">{ini}</div>))}
+                      </div>
+                      <span className="text-[10px] text-gray-500">+{Math.max(0,(g.participantCount||1)-3)}</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-xs text-gray-400 line-through">{fmt(solo)}</span>
+                      <span className="text-sm font-bold text-[#00C853]">{fmt(gp)}</span>
+                      <span className="text-[10px] bg-red-50 text-[#FF5252] rounded px-1 font-bold">-{sav}%</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-orange-500 mb-3"><Clock className="w-3 h-3"/>{days}j restantes</div>
+                    <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-2 rounded-xl text-xs font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600 text-white':'bg-[#00C853] hover:bg-emerald-600 text-white'}`}>
+                      {g.isAlmostFull?'Rejoindre maintenant':'Rejoindre'}
+                    </button>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
       </section>
 
-      {/* Modal création achat groupé */}
+      {/* CREATE GROUP CTA */}
+      <section className="py-12 px-4">
+        <div className="max-w-4xl mx-auto rounded-3xl p-8 text-white relative overflow-hidden" style={{background:'linear-gradient(135deg, #7C4DFF 0%, #00C853 100%)'}}>
+          <div className="grid md:grid-cols-2 gap-8 items-center relative z-10">
+            <div>
+              <p className="text-sm opacity-80 mb-2">Vous ne trouvez pas ?</p>
+              <h2 className="text-3xl font-bold mb-3">Créez votre propre groupe</h2>
+              <p className="opacity-90 mb-6">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
+              <button onClick={()=>setShowCreateModal(true)} className="px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
+                Créer un groupe →
+              </button>
+            </div>
+            <div className="hidden md:flex justify-center">
+              <div className="w-64 h-40 bg-white/20 rounded-2xl flex items-center justify-center text-white/60 text-sm">
+                <Package className="w-12 h-12 opacity-40" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ENTREPRENEURS */}
+      <section className="py-12 px-4 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-[#1A1A2E] mb-8 flex items-center gap-2">
+            <Briefcase className="w-6 h-6 text-[#7C4DFF]" />
+            Pour les entrepreneurs & revendeurs
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              {[
+                'Bénéficiez de prix grossiste même à petite échelle',
+                'Économisez sur l\'importation et la logistique',
+                'Revendez avec une marge confortable',
+                'Rejoignez une communauté d\'entrepreneurs'
+              ].map((txt,i)=> (
+                <div key={i} className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#00C853] flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-gray-700">{txt}</span>
+                </div>
+              ))}
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+              <h3 className="font-bold text-[#1A1A2E] mb-4 text-sm">Mini-calculateur marge</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Prix d&apos;achat groupé</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Prix de revente estimé</span><span className="font-bold text-[#1A1A2E]">22 000 FCFA</span></div>
+                <div className="border-t pt-2 flex justify-between"><span className="text-gray-500">Marge nette</span><span className="font-bold text-[#7C4DFF]">+10 000 FCFA (83%)</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="bg-[#1A1A2E] text-white py-12">
+        <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-4 gap-8">
+          <div>
+            <div className="flex items-center gap-2 font-bold mb-3"><Shield className="w-5 h-5 text-[#00C853]" /> IT Vision Plus</div>
+            <p className="text-xs text-gray-400 mb-4">Import Chine → Sénégal. Livraison Dakar. Support 7j/7.</p>
+            <div className="flex gap-3">
+              {['fb','tw','ig','tk'].map(s=>(<div key={s} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-xs">{s}</div>))}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold mb-3 text-sm">Aide</h4>
+            <div className="space-y-2 text-xs text-gray-400">
+              <p>Produits</p><p>Commandes</p><p>Paiement & Livraison</p><p>Retours</p>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold mb-3 text-sm">Communauté</h4>
+            <div className="space-y-2 text-xs text-gray-400">
+              <p>Blog</p><p>Partenaires</p><p>Revendeurs</p>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold mb-3 text-sm">Certifications</h4>
+            <div className="flex gap-2">
+              {['CE','ISO','SGS'].map(c=>(<div key={c} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-[10px] font-bold">{c}</div>))}
+            </div>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-4 mt-8 pt-6 border-t border-white/10 text-center text-xs text-gray-500">
+          © 2024 IT Vision Plus - Import Chine
+        </div>
+      </footer>
+
+      {/* CREATE MODAL */}
       <AnimatePresence>
         {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => {
-              setShowCreateModal(false)
-              setCreateError(null)
-            }}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
-            >
-              <div className="bg-gradient-to-r from-emerald-600 to-violet-600 text-white p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-2xl font-bold">Créer un achat groupé</h2>
-                    <p className="text-white/85 text-sm">Lancez un groupe et invitez d&apos;autres personnes à vous rejoindre.</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(false)
-                      setCreateError(null)
-                    }}
-                    className="p-2 hover:bg-white/15 rounded-xl transition"
-                    aria-label="Fermer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={()=>setShowCreateModal(false)}>
+            <motion.div initial={{scale:0.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:0.95,opacity:0}} onClick={e=>e.stopPropagation()} className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
+              <div className="p-6 border-b flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#1A1A2E]">Créer un achat groupé</h2>
+                <button onClick={()=>setShowCreateModal(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5" /></button>
               </div>
-
-              <form
-                className="p-6 space-y-4"
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  setCreateError(null)
-                  if (!productIdParam) {
-                    setCreateError('Veuillez ouvrir la création depuis une fiche produit (productId manquant).')
-                    return
-                  }
-                  if (
-                    !createForm.name ||
-                    !createForm.phone ||
-                    createForm.qty < groupConfig.minJoinQty ||
-                    createForm.qty > groupConfig.maxJoinQtyPerParticipant
-                  ) {
-                    setCreateError(
-                      `Nom, téléphone et quantité sont requis (quantité entre ${groupConfig.minJoinQty} et ${groupConfig.maxJoinQtyPerParticipant}).`
-                    )
-                    return
-                  }
-                  setCreating(true)
-                  try {
-                    const res = await fetch('/api/group-orders', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        productId: productIdParam,
-                        qty: createForm.qty,
-                        deadline: createForm.deadline,
-                        shippingMethod: createForm.shippingMethod,
-                        description: createForm.description,
-                        creator: {
-                          name: createForm.name,
-                          phone: createForm.phone,
-                          email: createForm.email || undefined
-                        }
-                      })
-                    })
-
-                    if (res.status === 401) {
-                      const returnUrl = `${window.location.pathname}${window.location.search}`
-                      router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`)
-                      return
-                    }
-                    const data = await res.json()
-                    if (data?.success && data?.group?.groupId) {
-                      setShowCreateModal(false)
-                      router.push(`/achats-groupes/${data.group.groupId}`)
-                      return
-                    }
-                    setCreateError(data?.error || "Impossible de créer l'achat groupé")
-                  } catch {
-                    setCreateError("Erreur réseau lors de la création")
-                  } finally {
-                    setCreating(false)
-                  }
-                }}
-              >
-                {/* Produit */}
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border">
-                  {productPreview?.image ? (
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-white border">
-                      <Image src={productPreview.image} alt={productPreview.name} fill className="object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-white border flex items-center justify-center">
-                      <Package className="w-6 h-6 text-slate-400" />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-900 line-clamp-1">{productPreview?.name || 'Produit'}</div>
-                    <div className="text-xs text-slate-500 line-clamp-1">ID: {productIdParam || '—'}</div>
-                  </div>
-                </div>
-
-                {createError && (
-                  <div className="flex items-start gap-2 text-sm bg-red-50 border border-red-200 text-red-700 rounded-xl p-3">
-                    <AlertCircle className="w-5 h-5 mt-0.5" />
-                    <div>{createError}</div>
-                  </div>
-                )}
-
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Quantité initiale</label>
-                    <input
-                      type="number"
-                      min={groupConfig.minJoinQty}
-                      max={groupConfig.maxJoinQtyPerParticipant}
-                      value={createForm.qty}
-                      onChange={(e) =>
-                        setCreateForm((p) => {
-                          const parsed = parseInt(e.target.value || String(groupConfig.minJoinQty), 10)
-                          const safe = Number.isFinite(parsed) ? parsed : groupConfig.minJoinQty
-                          const bounded = Math.min(
-                            groupConfig.maxJoinQtyPerParticipant,
-                            Math.max(groupConfig.minJoinQty, safe)
-                          )
-                          return { ...p, qty: bounded }
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Min {groupConfig.minJoinQty} • Max {groupConfig.maxJoinQtyPerParticipant}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Date limite</label>
-                    <input
-                      type="date"
-                      value={createForm.deadline}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, deadline: e.target.value }))}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    />
-                  </div>
-                </div>
-
+              <form className="p-6 space-y-4" onSubmit={e=>{e.preventDefault();setShowCreateModal(false)}}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mode de transport</label>
-                  <select
-                    value={createForm.shippingMethod}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, shippingMethod: e.target.value }))}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
-                  >
-                    {(groupConfig.allowedShippingMethods.length > 0
-                      ? groupConfig.allowedShippingMethods
-                      : Object.keys(shippingLabels)
-                    ).map((k) => (
-                      <option key={k} value={k}>{shippingLabels[k] || k}</option>
-                    ))}
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Quantité initiale</label>
+                  <input type="number" min={1} defaultValue={10} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Date limite</label>
+                  <input type="date" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Mode de transport</label>
+                  <select className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853] bg-white">
+                    <option>Maritime ~60 j</option>
+                    <option>Fret aérien ~15 j</option>
+                    <option>Express ~3 j</option>
                   </select>
                 </div>
-
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Votre nom</label>
-                    <input
-                      value={createForm.name}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      placeholder="Nom et prénom"
-                    />
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Votre nom</label>
+                    <input className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" placeholder="Nom" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Téléphone</label>
-                    <input
-                      value={createForm.phone}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      placeholder="+221 77 000 00 00"
-                    />
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Téléphone</label>
+                    <input className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" placeholder="77 000 00 00" />
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email (optionnel)</label>
-                  <input
-                    type="email"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    placeholder="vous@email.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Description (optionnel)</label>
-                  <textarea
-                    value={createForm.description}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    rows={3}
-                    placeholder="Ex: Couleur souhaitée, détails de livraison..."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-violet-500 text-white font-bold hover:from-emerald-600 hover:to-violet-600 disabled:opacity-60"
-                >
-                  {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#00C853] to-[#7C4DFF] text-white rounded-2xl font-bold hover:opacity-90 transition">
                   Créer le groupe
                 </button>
               </form>
@@ -1191,7 +567,6 @@ export default function GroupOrdersPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      <MarketFooter />
     </div>
   )
 }
