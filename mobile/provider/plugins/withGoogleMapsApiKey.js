@@ -6,8 +6,9 @@ const { withAndroidManifest } = require('@expo/config-plugins')
  *   ["./plugins/withGoogleMapsApiKey", { "apiKey": "TA_CLE" }]
  */
 module.exports = function withGoogleMapsApiKey(config, { apiKey } = {}) {
-  if (!apiKey) {
-    console.warn('[withGoogleMapsApiKey] Aucune apiKey fournie — la carte Google Maps ne fonctionnera pas.')
+  const key = apiKey || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+  if (!key) {
+    console.warn('[withGoogleMapsApiKey] Aucune apiKey fournie (param ou EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) — la carte Google Maps ne fonctionnera pas.')
     return config
   }
 
@@ -26,12 +27,12 @@ module.exports = function withGoogleMapsApiKey(config, { apiKey } = {}) {
     )
 
     if (existing) {
-      existing.$['android:value'] = apiKey
+      existing.$['android:value'] = key
     } else {
       mainApplication['meta-data'].push({
         $: {
           'android:name': 'com.google.android.geo.API_KEY',
-          'android:value': apiKey,
+          'android:value': key,
         },
       })
     }

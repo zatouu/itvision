@@ -26,11 +26,6 @@
     },
     "android": {
       "package": "com.xeuy.xeuy",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
-        }
-      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"

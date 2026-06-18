@@ -51,12 +51,7 @@
           "defaultChannel": "services"
         }
       ],
-      [
-        "./plugins/withGoogleMapsApiKey",
-        {
-          "apiKey": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
-        }
-      ],
+      "./plugins/withGoogleMapsApiKey",
       [
         "./plugins/withAppName",
         {
