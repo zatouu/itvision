@@ -208,14 +208,14 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* FEATURED GROUPS */}
-      <section id="featured-groups" className="py-12 px-4 bg-white">
+      <section id="featured-groups" className="py-8 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-[#1A1A2E] mb-1 flex items-center gap-2">
-              <Flame className="w-6 h-6 text-[#FFAB40]" />
-              Groupes en vedette - Rejoignez vite !
+          <div className="mb-5">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">GROUPES ACTIFS · HERO GROUP CARDS</p>
+            <h2 className="text-xl font-bold text-[#1A1A2E] flex items-center gap-2">
+              <Flame className="w-5 h-5 text-[#FFAB40]" />
+              Groupes en vedette – Rejoignez vite !
             </h2>
-            <p className="text-sm text-gray-500">Les offres les plus populaires et urgentes du moment</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {MOCK_F.map((g, i) => {
@@ -237,7 +237,7 @@ export default function GroupOrdersPage() {
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                       <div className="flex -space-x-2">
-                        {(g.recentParticipants||[]).slice(0,4).map((p,i)=>(
+                        {(g.participants||[]).slice(0,4).map((p,i)=>(
                           <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[10px] font-bold text-white border-2 border-white" title={p.name}>{initials(p.name)}</div>
                         ))}
                       </div>
@@ -406,12 +406,84 @@ export default function GroupOrdersPage() {
         </div>
       </section>
 
+      {/* ALL GROUPS — full width 4-col grid */}
+      <section className="py-8 px-4 bg-[#F8F9FA]">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">TOUS LES GROUPES ACTIFS · GRD</p>
+              <h2 className="text-xl font-bold text-[#1A1A2E] flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#7C4DFF]"/>Tous les groupes actifs
+              </h2>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {['Tous','Bientôt complet','Nouveau','Mode','Tech','Maison','Beauté'].map((f,i)=>(
+              <button key={f} className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white border-[#1A1A2E]':i===1?'bg-red-50 text-[#FF5252] border-red-100':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100':'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}>{f}</button>
+            ))}
+          </div>
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {MOCK_G.map((g)=>{
+              const b=badge(g);const prog=getProg(g);const days=getDays(g.deadline)
+              const solo=g.product.basePrice;const gp=g.currentUnitPrice;const sav=Math.round(((solo-gp)/solo)*100)
+              return (
+                <motion.div key={g.groupId+'-grid'} whileHover={{y:-3}} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                  <div className="relative h-28 bg-gray-100">
+                    {g.product.image&&<Image src={g.product.image} alt={g.product.name} fill className="object-cover"/>}
+                    <span className={`absolute top-2 left-2 px-2 py-0.5 ${b.bg} text-white text-[9px] font-bold rounded-full`}>{b.text}</span>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-bold text-xs text-[#1A1A2E] mb-1 line-clamp-1">{g.product.name}</h3>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-gray-500">{g.currentQty}/{g.targetQty}</span>
+                      <div className="w-14 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
+                    </div>
+                    <div className="flex -space-x-1 mb-1.5">
+                      {['AD','FS','MK'].slice(0,Math.min(3,g.participantCount||1)).map((ini,i)=>(
+                        <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[7px] font-bold text-white border border-white">{ini}</div>
+                      ))}
+                      {(g.participantCount||0)>3&&<div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[7px] font-bold text-gray-600 border border-white">+{(g.participantCount||0)-3}</div>}
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-[9px] text-gray-400 line-through">Solo: {fmt(solo)}</span>
+                      <span className="text-xs font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
+                      <span className="text-[9px] bg-red-50 text-[#FF5252] rounded px-0.5 font-bold">(-{sav}%)</span>
+                    </div>
+                    <div className="text-[10px] text-orange-500 mb-2 flex items-center gap-0.5"><Clock className="w-3 h-3"/>{days}j restantes</div>
+                    <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-1.5 rounded-lg text-[10px] font-semibold text-white transition ${prog>=100?'bg-gray-400':g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600':'bg-[#00C853] hover:bg-emerald-600'}`}>
+                      {prog>=100?'Bientôt complet':g.isAlmostFull?'Rejoindre maintenant':'Rejoindre'}
+                    </button>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* CREATE GROUP CTA — full width banner */}
+      <section className="py-6 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden" style={{background:'linear-gradient(135deg, #1A1A2E 0%, #7C4DFF 50%, #00C853 100%)'}}>
+            <div>
+              <p className="text-xs text-white/70 mb-1">Vous ne trouvez pas votre produit ?</p>
+              <h3 className="text-xl font-bold mb-1">Créez votre propre groupe</h3>
+              <p className="text-sm text-white/80">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
+            </div>
+            <button onClick={()=>setShowCreateModal(true)} className="flex-shrink-0 px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
+              Créer un groupe →
+            </button>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ENTREPRENEURS */}
       <section className="py-6 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">EXEMPLE DE RENTABILITÉ POUR REVENDEURS</p>
           <h2 className="text-base font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-[#7C4DFF]" />
-            Pour les entrepreneurs & revendeurs
+            Pour les entrepreneurs &amp; revendeurs
           </h2>
           <div className="grid md:grid-cols-2 gap-5">
             <div className="space-y-2">
@@ -428,11 +500,19 @@ export default function GroupOrdersPage() {
               ))}
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <h3 className="font-bold text-[#1A1A2E] mb-2 text-xs">Mini-calculateur marge</h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-gray-500">Prix d&apos;achat groupé</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Prix de revente estimé</span><span className="font-bold text-[#1A1A2E]">22 000 FCFA</span></div>
-                <div className="border-t pt-1 flex justify-between"><span className="text-gray-500">Marge nette</span><span className="font-bold text-[#7C4DFF]">+10 000 FCFA (83%)</span></div>
+              <h3 className="font-bold text-[#1A1A2E] mb-3 text-xs">Exemple de rentabilité pour revendeurs</h3>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between"><span className="text-gray-500">Prix unitaire individuel</span><span className="font-bold text-[#FF5252]">22 000 FCFA</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Transport groupé</span><span className="font-bold text-gray-600">+8 000 FCFA</span></div>
+                <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
+                  <span className="text-sm font-bold text-[#1A1A2E]">Total par unité:</span>
+                  <span className="text-lg font-extrabold text-[#00C853]">20 000 FCFA</span>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <span className="text-[10px] font-bold text-[#00C853] bg-emerald-50 rounded-full px-2 py-0.5">💚 Économie: -45%</span>
+                  <span className="text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-2 py-0.5">📈 Marge revente: +67%</span>
+                </div>
               </div>
             </div>
           </div>
