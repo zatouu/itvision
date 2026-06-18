@@ -11,7 +11,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<GeoAddre
   try {
     const url = `${NOMINATIM_URL}?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=fr`
     const r = await fetch(url, {
-      headers: { 'User-Agent': 'ITVision-Mobile/1.0' },
+      headers: { 'User-Agent': 'XeuyBi-Mobile/1.0' },
     })
     if (!r.ok) return null
     const data = await r.json()

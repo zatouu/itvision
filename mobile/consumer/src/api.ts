@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system'
 import { getAuthToken } from './auth'
 import { enqueue, isNetworkError, replay, startNetInfoReplay } from './offlineQueue'
 import type { HttpMethod, ReplayResult } from './offlineQueue'
-import { captureError, addBreadcrumb } from './sentry'
+import { captureError } from './sentry'
 
 const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 

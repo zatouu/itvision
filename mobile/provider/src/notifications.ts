@@ -60,12 +60,27 @@ export function unreadCount(): number {
   return cache.reduce((n, item) => (item.read ? n : n + 1), 0)
 }
 
+const recentKeys = new Map<string, number>()
+const DEDUPE_WINDOW_MS = 4000
+
 export async function pushNotification(input: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<void> {
   await loadNotifications()
+
+  // Déduplication: ignore une notif identique (kind+title+body) reçue dans les 4 dernières secondes
+  // (un même event peut être émis vers plusieurs rooms socket + push foreground)
+  const key = `${input.kind}|${input.title}|${input.body}`
+  const now = Date.now()
+  const last = recentKeys.get(key)
+  if (last && now - last < DEDUPE_WINDOW_MS) return
+  recentKeys.set(key, now)
+  for (const [k, ts] of recentKeys) {
+    if (now - ts > DEDUPE_WINDOW_MS) recentKeys.delete(k)
+  }
+
   const notif: Notification = {
     ...input,
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    createdAt: Date.now(),
+    id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now,
     read: false,
   }
   cache = [notif, ...cache].slice(0, MAX_KEEP)
@@ -128,13 +143,12 @@ export function bindNotificationSocket() {
     })
   }
 
-  const onOfferRejected = (payload: any) => {
-    const requestId = String(payload?.requestId || '')
+  const onOfferRejected = () => {
     pushNotification({
       kind: 'offer-rejected',
       title: 'Offre refusée',
       body: 'Le client a sélectionné un autre prestataire.',
-      link: requestId ? { pathname: '/my-offers' } : { pathname: '/my-offers' },
+      link: { pathname: '/my-offers' },
     })
   }
 

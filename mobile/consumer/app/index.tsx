@@ -92,11 +92,11 @@ export default function Home() {
         {/* Header */}
         <View style={s.header}>
           <View>
-            <Text style={s.appName}>Xeuy</Text>
+            <Text style={s.appName}>Xeuy Bi</Text>
           </View>
           <View style={s.headerRight}>
             <TouchableOpacity style={s.bellBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">
-              <Text style={s.bellIcon}>�</Text>
+              <Text style={s.bellIcon}>🔔</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.avatarChip} onPress={() => router.push('/profile')} accessibilityLabel="Profil">
               <Text style={s.avatarText}>{userName ? userName.slice(0, 2).toUpperCase() : '??'}</Text>

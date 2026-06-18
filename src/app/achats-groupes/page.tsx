@@ -5,14 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import MarketHeader from '@/components/MarketHeader'
-import MarketFooter from '@/components/MarketFooter'
 import {
-  Users, Package, Clock, TrendingDown, ArrowRight, Search,
-  Target, Zap, ShoppingCart, CheckCircle, AlertCircle,
-  Loader2, X, Briefcase, Calculator, Flame,
-  Sparkles, Truck, Star, ChevronDown, Minus, Plus,
-  Megaphone, Copy, MessageCircle, CreditCard, User, Phone, Mail,
+  Users, Package, Clock, ArrowRight, Search,
+  Zap, CheckCircle,
+  X, Briefcase, Calculator, Flame,
+  Sparkles, Truck, ChevronDown,
   Shield, Factory
 } from 'lucide-react'
 
@@ -31,7 +28,6 @@ interface GroupOrder {
 
 /* ─── Helpers ─── */
 const fmt = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
-const fmtShort = (v: number) => v >= 1000000 ? `${(v/1000000).toFixed(0)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`
 
 /* ─── Mock Data ─── */
 const MOCK_F: GroupOrder[] = [
@@ -43,12 +39,14 @@ const MOCK_F: GroupOrder[] = [
 const MOCK_G: GroupOrder[] = [
   { groupId:'GRP-004', status:'open', product:{productId:'p4',name:'Smartwatch Pro Sport GPS',image:'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400&q=80',basePrice:55000,currency:'FCFA',category:'Tech'}, minQty:12,targetQty:30,currentQty:18,currentUnitPrice:32000, priceTiers:[], participants:[], deadline:new Date(Date.now()+5*24*60*60*1000).toISOString(), progress:60, daysLeft:5, savingsPercent:42, participantCount:2 },
   { groupId:'GRP-005', status:'open', product:{productId:'p5',name:'Parfums premium lots',image:'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&q=80',basePrice:32000,currency:'FCFA',category:'Beauté'}, minQty:15,targetQty:60,currentQty:28,currentUnitPrice:19000, priceTiers:[], participants:[], deadline:new Date(Date.now()+8*24*60*60*1000).toISOString(), progress:47, daysLeft:8, savingsPercent:41, participantCount:2 },
-  { groupId:'GRP-006', status:'open', product:{productId:'p6',name:'GPS tracker voiture',image:'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=400&q=80',basePrice:42000,currency:'FCFA',category:'Auto'}, minQty:10,targetQty:45,currentQty:24,currentUnitPrice:28000, priceTiers:[], participants:[], deadline:new Date(Date.now()+6*24*60*60*1000).toISOString(), progress:53, daysLeft:6, savingsPercent:33, participantCount:3 },
-  { groupId:'GRP-007', status:'filled', product:{productId:'p7',name:'Air fryer nouveauté',image:'https://images.unsplash.com/photo-1626147116986-4601771470a6?w=400&q=80',basePrice:65000,currency:'FCFA',category:'Maison'}, minQty:8,targetQty:40,currentQty:40,currentUnitPrice:39000, priceTiers:[], participants:[], deadline:new Date(Date.now()+3*24*60*60*1000).toISOString(), progress:100, daysLeft:3, savingsPercent:40, participantCount:5 },
+  { groupId:'GRP-006', status:'open', product:{productId:'p6',name:'GPS tracker voiture',image:'https://images.unsplash.com/photo-1569336412511-266f835c1a47?w=400&q=80',basePrice:42000,currency:'FCFA',category:'Auto'}, minQty:10,targetQty:45,currentQty:24,currentUnitPrice:28000, priceTiers:[], participants:[], deadline:new Date(Date.now()+6*24*60*60*1000).toISOString(), progress:53, daysLeft:6, savingsPercent:33, participantCount:3 },
+  { groupId:'GRP-007', status:'filled', product:{productId:'p7',name:'Air fryer nouveauté',image:'https://images.unsplash.com/photo-1556910103-1c02745a30bf?w=400&q=80',basePrice:65000,currency:'FCFA',category:'Maison'}, minQty:8,targetQty:40,currentQty:40,currentUnitPrice:39000, priceTiers:[], participants:[], deadline:new Date(Date.now()+3*24*60*60*1000).toISOString(), progress:100, daysLeft:3, savingsPercent:40, participantCount:5 },
   { groupId:'GRP-008', status:'open', product:{productId:'p8',name:'Enceinte Bluetooth Waterproof',image:'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',basePrice:22000,currency:'FCFA',category:'Tech'}, minQty:15,targetQty:60,currentQty:28,currentUnitPrice:12000, priceTiers:[], participants:[], deadline:new Date(Date.now()+8*24*60*60*1000).toISOString(), progress:47, daysLeft:8, savingsPercent:45, participantCount:2 },
   { groupId:'GRP-009', status:'open', product:{productId:'p9',name:'Sacs à main Cuir PU',image:'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80',basePrice:28000,currency:'FCFA',category:'Mode'}, minQty:20,targetQty:50,currentQty:22,currentUnitPrice:14500, priceTiers:[], participants:[], deadline:new Date(Date.now()+12*24*60*60*1000).toISOString(), progress:44, daysLeft:12, savingsPercent:48, participantCount:2 },
   { groupId:'GRP-010', status:'open', product:{productId:'p10',name:'Lampes LED Solaires',image:'https://images.unsplash.com/photo-1513506003013-d531632103c3?w=400&q=80',basePrice:18000,currency:'FCFA',category:'Maison'}, minQty:25,targetQty:80,currentQty:34,currentUnitPrice:8500, priceTiers:[], participants:[], deadline:new Date(Date.now()+10*24*60*60*1000).toISOString(), progress:43, daysLeft:10, savingsPercent:53, participantCount:2 },
-  { groupId:'GRP-011', status:'open', product:{productId:'p11',name:'Écran LED Ultra Slim',image:'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80',basePrice:145000,currency:'FCFA',category:'Tech'}, minQty:5,targetQty:20,currentQty:7,currentUnitPrice:98000, priceTiers:[], participants:[], deadline:new Date(Date.now()+14*24*60*60*1000).toISOString(), progress:35, daysLeft:14, savingsPercent:32, participantCount:1 }
+  { groupId:'GRP-011', status:'open', product:{productId:'p11',name:'Écran LED Ultra Slim',image:'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80',basePrice:145000,currency:'FCFA',category:'Tech'}, minQty:5,targetQty:20,currentQty:7,currentUnitPrice:98000, priceTiers:[], participants:[], deadline:new Date(Date.now()+14*24*60*60*1000).toISOString(), progress:35, daysLeft:14, savingsPercent:32, participantCount:1 },
+  { groupId:'GRP-012', status:'open', product:{productId:'p12',name:'Tondeuse électrique pro',image:'https://images.unsplash.com/photo-1621607512022-6d5f5c1a4246?w=400&q=80',basePrice:18000,currency:'FCFA',category:'Beauté'}, minQty:20,targetQty:50,currentQty:12,currentUnitPrice:9500, priceTiers:[], participants:[], deadline:new Date(Date.now()+9*24*60*60*1000).toISOString(), progress:24, daysLeft:9, savingsPercent:47, participantCount:2 },
+  { groupId:'GRP-013', status:'open', product:{productId:'p13',name:'Chaussures bébé lot',image:'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=400&q=80',basePrice:15000,currency:'FCFA',category:'Mode'}, minQty:30,targetQty:100,currentQty:45,currentUnitPrice:6500, priceTiers:[], participants:[], deadline:new Date(Date.now()+7*24*60*60*1000).toISOString(), progress:45, daysLeft:7, savingsPercent:57, participantCount:3 }
 ]
 
 const CATS = ['Tous','Mode','Beauté','Maison','Électronique','Auto']
@@ -264,225 +262,177 @@ export default function GroupOrdersPage() {
         </div>
       </section>
 
-      {/* CALCULATOR */}
-      <section className="py-12 px-4 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-[#1A1A2E] text-center mb-8 flex items-center justify-center gap-2">
-            <Calculator className="w-6 h-6 text-[#7C4DFF]" />
-            Calculez votre économie en temps réel
-          </h2>
-          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="bg-white rounded-3xl shadow-xl p-8">
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Left: Configuration */}
-              <div className="space-y-5">
+      {/* CALCULATOR + GROUPS — compact side-by-side */}
+      <section id="all-groups" className="py-6 px-4 bg-gray-50">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-5">
+          {/* LEFT: Calculator */}
+          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="bg-white rounded-2xl shadow-lg p-5">
+            <h2 className="text-base font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-[#7C4DFF]" />
+              Calculez votre économie en temps réel
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="space-y-3">
                 <div>
-                  <div className="flex justify-between text-sm font-semibold text-[#1A1A2E] mb-2">
-                    <span>Prix unitaire solo</span>
-                    <span className="text-[#7C4DFF]">{calcSoloPrice.toLocaleString('fr-FR')} F</span>
-                  </div>
-                  <input type="range" min={5000} max={200000} step={5000} value={calcSoloPrice} onChange={(e)=>setCalcSoloPrice(Number(e.target.value))} className="w-full accent-[#7C4DFF]"/>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>5 000</span><span>200 000</span></div>
+                  <div className="flex justify-between text-xs font-semibold text-[#1A1A2E] mb-1"><span>Prix unitaire solo</span><span className="text-[#7C4DFF]">{calcSoloPrice.toLocaleString('fr-FR')} F</span></div>
+                  <input type="range" min={5000} max={200000} step={5000} value={calcSoloPrice} onChange={(e)=>setCalcSoloPrice(Number(e.target.value))} className="w-full accent-[#7C4DFF] h-1"/>
                 </div>
                 <div>
-                  <div className="flex justify-between text-sm font-semibold text-[#1A1A2E] mb-2">
-                    <span>Réduction groupée</span>
-                    <span className="text-[#00C853]">{calcDiscount}%</span>
-                  </div>
-                  <input type="range" min={5} max={60} step={5} value={calcDiscount} onChange={(e)=>setCalcDiscount(Number(e.target.value))} className="w-full accent-[#00C853]"/>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>5%</span><span>60%</span></div>
+                  <div className="flex justify-between text-xs font-semibold text-[#1A1A2E] mb-1"><span>Réduction groupée</span><span className="text-[#00C853]">{calcDiscount}%</span></div>
+                  <input type="range" min={5} max={60} step={5} value={calcDiscount} onChange={(e)=>setCalcDiscount(Number(e.target.value))} className="w-full accent-[#00C853] h-1"/>
                 </div>
                 <div>
-                  <div className="flex justify-between text-sm font-semibold text-[#1A1A2E] mb-2">
-                    <span>Quantité commandée</span>
-                    <span className="text-[#7C4DFF]">{calcQty} unités</span>
-                  </div>
-                  <input type="range" min={1} max={100} value={calcQty} onChange={(e)=>setCalcQty(Number(e.target.value))} className="w-full accent-[#7C4DFF]"/>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>1</span><span>100</span></div>
+                  <div className="flex justify-between text-xs font-semibold text-[#1A1A2E] mb-1"><span>Quantité</span><span className="text-[#7C4DFF]">{calcQty}</span></div>
+                  <input type="range" min={1} max={100} value={calcQty} onChange={(e)=>setCalcQty(Number(e.target.value))} className="w-full accent-[#7C4DFF] h-1"/>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">Produit</label>
-                  <select className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00C853]">
+                  <label className="text-xs font-semibold text-[#1A1A2E] mb-1 block">Produit</label>
+                  <select className="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-xs border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00C853]">
                     <option>Caméra IP Hikvision 4MP</option>
                     <option>iPhone reconditionné 128GB</option>
                     <option>Sneakers Running Légères</option>
-                    <option>Set Maquillage Pro 48 couleurs</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-[#1A1A2E] mb-2 block">Mode transport</label>
-                  <div className="flex gap-2">
-                    {[
-                      {k:'maritime',l:'Maritime',d:'45j'},
-                      {k:'air',l:'Aérien',d:'7j'},
-                      {k:'express',l:'Express',d:'3j'}
-                    ].map((t)=>(
-                      <button key={t.k} onClick={()=>setCalcTransport(t.k as any)} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${calcTransport===t.k?'bg-[#EDE7F6] border-[#7C4DFF] text-[#7C4DFF]':'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                        <div>{t.l}</div>
-                        <div className="text-[10px] text-gray-400 font-normal">{t.d}</div>
+                  <label className="text-xs font-semibold text-[#1A1A2E] mb-1 block">Mode transport</label>
+                  <div className="flex gap-1.5">
+                    {['maritime','air','express'].map((t)=>(
+                      <button key={t} onClick={()=>setCalcTransport(t as any)} className={`flex-1 py-1 rounded-lg text-[10px] font-semibold border transition ${calcTransport===t?'bg-[#EDE7F6] border-[#7C4DFF] text-[#7C4DFF]':'bg-white border-gray-200 text-gray-600'}`}>
+                        {t==='maritime'?'Maritime 45j':t==='air'?'Aérien 7j':'Express 3j'}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-              {/* Right: Live calculation */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-600">Prix unitaire individuel</span>
-                  <span className="font-bold text-gray-500">{fmt(calcSoloPrice)}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs"><span className="text-gray-600">Prix unitaire individuel</span><span className="font-bold text-gray-500">{fmt(calcSoloPrice)}</span></div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs"><span className="text-gray-600">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">{fmt(calcGroupPrice)}</span></div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs"><span className="text-gray-600">Transport groupé</span><span className="font-bold text-gray-700">+{fmt(unitShip)}</span></div>
+                <div className="border-t border-gray-200 pt-2">
+                  <div className="flex justify-between items-center mb-1"><span className="text-xs font-bold text-[#1A1A2E]">Total par unité:</span><span className="text-lg font-extrabold text-[#00C853]">{fmt(calcTotalUnit)}</span></div>
+                  <span className="text-[10px] text-[#00C853] font-semibold block">💚 Économie: {fmt(calcTotalSavings)} (-{calcDiscount}%)</span>
+                  <span className="inline-block mt-1 text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-2 py-0.5">📈 Marge: +{calcMarginPct}%</span>
                 </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-600">Prix groupé (50+)</span>
-                  <span className="font-bold text-[#00C853]">{fmt(calcGroupPrice)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-600">Transport groupé</span>
-                  <span className="font-bold text-gray-700">+{fmt(unitShip)}</span>
-                </div>
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-bold text-[#1A1A2E]">Total par unité:</span>
-                    <span className="text-2xl font-extrabold text-[#00C853]">{fmt(calcTotalUnit)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-[#00C853] font-semibold">💚 Économie: {fmt(calcTotalSavings)} (-{calcDiscount}%)</span>
-                  </div>
-                  <span className="inline-block text-xs font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-3 py-1">📈 Marge revente: +{calcMarginPct}%</span>
-                </div>
-                <button className="w-full py-3 bg-[#00C853] text-white rounded-xl font-semibold hover:bg-emerald-600 transition mt-2 shadow-lg shadow-emerald-200">
+                <button className="w-full py-2 bg-[#00C853] text-white rounded-xl font-semibold text-xs hover:bg-emerald-600 transition shadow-md">
                   Trouver un groupe pour ce produit
                 </button>
               </div>
             </div>
           </motion.div>
-        </div>
-      </section>
 
-      {/* HOW IT WORKS */}
-      <section className="py-12 px-4 bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-[#1A1A2E] text-center mb-12">Comment fonctionne un achat groupé ?</h2>
-          <div className="grid md:grid-cols-4 gap-8">
-            {[
-              {num:'1', icon:Search, title:'Choisissez', desc:'Trouvez un produit et un groupe qui correspond à votre besoin.'},
-              {num:'2', icon:Users, title:'Rejoignez', desc:'Indiquez votre quantité. Plus il y a de monde, plus le prix baisse.'},
-              {num:'3', icon:Factory, title:'On achète', desc:'Nous regroupons les commandes et négocions le meilleur tarif en Chine.'},
-              {num:'4', icon:Truck, title:'Vous recevez', desc:'Transport et livraison au Sénégal. Vous récupérez votre marchandise.'}
-            ].map((step, i) => (
-              <motion.div key={i} initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*0.1}} className="text-center relative">
-                <div className="w-12 h-12 mx-auto mb-4 bg-[#1A1A2E] text-white rounded-full flex items-center justify-center text-lg font-bold">
-                  {step.num}
-                </div>
-                <step.icon className="w-6 h-6 mx-auto mb-2 text-[#7C4DFF]" />
-                <h3 className="font-bold text-[#1A1A2E] text-sm mb-1">{step.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{step.desc}</p>
-                {i < 3 && <div className="hidden md:block absolute top-6 left-[calc(100%-12px)] w-6 h-0.5 bg-gray-200" />}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ALL GROUPS */}
-      <section id="all-groups" className="py-12 px-4 bg-[#F8F9FA]">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-[#1A1A2E] mb-6 flex items-center gap-2">
-            <Package className="w-6 h-6 text-[#7C4DFF]" />
-            Tous les groupes actifs
-          </h2>
-          <div className="flex flex-wrap gap-2 mb-6">
-            {['Tous','Bientôt complet','Nouveaux','Mode','Tech','Maison','Beauté'].map((f,i)=> (
-              <button key={f} className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white border-[#1A1A2E]':i===1?'bg-red-50 text-[#FF5252] border-red-200':i===2?'bg-emerald-50 text-[#00C853] border-emerald-200':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
-                {f}
-              </button>
-            ))}
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {MOCK_G.map((g, i) => {
-              const b = badge(g); const prog = getProg(g); const days = getDays(g.deadline)
-              const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
-              return (
-                <motion.div key={g.groupId} whileHover={{y:-4}} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-lg">
-                  <div className="relative h-40 bg-gray-100">
-                    {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">{g.product.name}</div>}
-                    <span className={`absolute top-3 left-3 px-2.5 py-1 ${b.bg} text-white text-[10px] font-bold rounded-full flex items-center gap-1`}><b.icon className="w-3 h-3"/>{b.text}</span>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-sm text-[#1A1A2E] mb-2 line-clamp-1">{g.product.name}</h3>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-gray-500">{g.currentQty}/{g.targetQty}</span>
-                      <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
+          {/* RIGHT: Compact groups */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#1A1A2E] flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#7C4DFF]" />
+                Tous les groupes
+              </h2>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {['Tous','Bientôt','Nouv.','Mode','Tech','Maison','Beauté'].map((f,i)=> (
+                <button key={f} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white':i===1?'bg-red-50 text-[#FF5252] border-red-100':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100':'bg-white text-gray-500 border-gray-100'}`}>{f}</button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {MOCK_G.slice(0,6).map((g) => {
+                const b = badge(g); const prog = getProg(g); const days = getDays(g.deadline)
+                const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
+                return (
+                  <motion.div key={g.groupId} whileHover={{y:-3}} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                    <div className="relative h-24 bg-gray-100">
+                      {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-[10px]">{g.product.name}</div>}
+                      <span className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 ${b.bg} text-white text-[8px] font-bold rounded-full`}>{b.text}</span>
                     </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex -space-x-1.5">
-                        {['AD','FS','MK'].map((ini,i)=>(<div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[8px] font-bold text-white border-2 border-white">{ini}</div>))}
+                    <div className="p-2">
+                      <h3 className="font-bold text-[11px] text-[#1A1A2E] mb-0.5 line-clamp-1">{g.product.name}</h3>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[10px] text-gray-500">{g.currentQty}/{g.targetQty}</span>
+                        <div className="w-10 h-1 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
                       </div>
-                      <span className="text-[10px] text-gray-500">+{Math.max(0,(g.participantCount||1)-3)}</span>
+                      <div className="flex items-center gap-0.5 mb-0.5">
+                        <div className="flex -space-x-1">
+                          {['AD','FS'].map((ini,i)=>(<div key={i} className="w-4 h-4 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[6px] font-bold text-white border border-white">{ini}</div>))}
+                        </div>
+                        <span className="text-[8px] text-gray-400">+{Math.max(0,(g.participantCount||1)-2)}</span>
+                      </div>
+                      <div className="flex items-baseline gap-1 mb-0.5">
+                        <span className="text-[9px] text-gray-400 line-through">{fmt(solo)}</span>
+                        <span className="text-[11px] font-bold text-[#00C853]">{fmt(gp)}</span>
+                        <span className="text-[8px] bg-red-50 text-[#FF5252] rounded px-0.5 font-bold">-{sav}%</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 text-[9px] text-orange-500 mb-1"><Clock className="w-2.5 h-2.5"/>{days}j</div>
+                      <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-1 rounded-lg text-[10px] font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] text-white':'bg-[#00C853] text-white'}`}>
+                        {g.isAlmostFull?'Bientôt complet!':'Rejoindre'}
+                      </button>
                     </div>
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-xs text-gray-400 line-through">{fmt(solo)}</span>
-                      <span className="text-sm font-bold text-[#00C853]">{fmt(gp)}</span>
-                      <span className="text-[10px] bg-red-50 text-[#FF5252] rounded px-1 font-bold">-{sav}%</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] text-orange-500 mb-3"><Clock className="w-3 h-3"/>{days}j restantes</div>
-                    <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-2 rounded-xl text-xs font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600 text-white':'bg-[#00C853] hover:bg-emerald-600 text-white'}`}>
-                      {g.isAlmostFull?'Rejoindre maintenant':'Rejoindre'}
-                    </button>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* CREATE GROUP CTA */}
-      <section className="py-12 px-4">
-        <div className="max-w-4xl mx-auto rounded-3xl p-8 text-white relative overflow-hidden" style={{background:'linear-gradient(135deg, #7C4DFF 0%, #00C853 100%)'}}>
-          <div className="grid md:grid-cols-2 gap-8 items-center relative z-10">
-            <div>
-              <p className="text-sm opacity-80 mb-2">Vous ne trouvez pas ?</p>
-              <h2 className="text-3xl font-bold mb-3">Créez votre propre groupe</h2>
-              <p className="opacity-90 mb-6">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
-              <button onClick={()=>setShowCreateModal(true)} className="px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
+                  </motion.div>
+                )
+              })}
+            </div>
+            {/* Create group CTA */}
+            <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{background:'linear-gradient(135deg, #7C4DFF 0%, #00C853 100%)'}}>
+              <p className="text-[10px] opacity-80 mb-0.5">Vous ne trouvez pas ?</p>
+              <h3 className="text-sm font-bold mb-1">Créez votre propre groupe</h3>
+              <p className="text-[10px] opacity-90 mb-2">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
+              <button onClick={()=>setShowCreateModal(true)} className="px-3 py-1.5 bg-white text-[#7C4DFF] rounded-lg text-[10px] font-semibold hover:bg-gray-100 transition">
                 Créer un groupe →
               </button>
             </div>
-            <div className="hidden md:flex justify-center">
-              <div className="w-64 h-40 bg-white/20 rounded-2xl flex items-center justify-center text-white/60 text-sm">
-                <Package className="w-12 h-12 opacity-40" />
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS — compact inline */}
+      <section className="py-6 px-4 bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-base font-bold text-[#1A1A2E] mb-4">Comment fonctionne un achat groupé ?</h2>
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              {num:'1', icon:Search, title:'Choisissez un groupe'},
+              {num:'2', icon:Users, title:'Rejoignez et réservez'},
+              {num:'3', icon:Factory, title:'Production en Chine'},
+              {num:'4', icon:Truck, title:'Livraison Sénégal'}
+            ].map((step, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-[#1A1A2E] text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{step.num}</div>
+                <div>
+                  <step.icon className="w-3.5 h-3.5 text-[#7C4DFF] mb-0.5" />
+                  <h3 className="font-bold text-[#1A1A2E] text-[11px]">{step.title}</h3>
+                </div>
+                {i < 3 && <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0" />}
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* ENTREPRENEURS */}
-      <section className="py-12 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-[#1A1A2E] mb-8 flex items-center gap-2">
-            <Briefcase className="w-6 h-6 text-[#7C4DFF]" />
+      <section className="py-6 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-base font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-[#7C4DFF]" />
             Pour les entrepreneurs & revendeurs
           </h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="space-y-2">
               {[
                 'Bénéficiez de prix grossiste même à petite échelle',
                 'Économisez sur l\'importation et la logistique',
                 'Revendez avec une marge confortable',
                 'Rejoignez une communauté d\'entrepreneurs'
               ].map((txt,i)=> (
-                <div key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-[#00C853] flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-gray-700">{txt}</span>
+                <div key={i} className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-[#00C853] flex-shrink-0 mt-0.5" />
+                  <span className="text-xs text-gray-700">{txt}</span>
                 </div>
               ))}
             </div>
-            <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-              <h3 className="font-bold text-[#1A1A2E] mb-4 text-sm">Mini-calculateur marge</h3>
-              <div className="space-y-3 text-sm">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <h3 className="font-bold text-[#1A1A2E] mb-2 text-xs">Mini-calculateur marge</h3>
+              <div className="space-y-2 text-xs">
                 <div className="flex justify-between"><span className="text-gray-500">Prix d&apos;achat groupé</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Prix de revente estimé</span><span className="font-bold text-[#1A1A2E]">22 000 FCFA</span></div>
-                <div className="border-t pt-2 flex justify-between"><span className="text-gray-500">Marge nette</span><span className="font-bold text-[#7C4DFF]">+10 000 FCFA (83%)</span></div>
+                <div className="border-t pt-1 flex justify-between"><span className="text-gray-500">Marge nette</span><span className="font-bold text-[#7C4DFF]">+10 000 FCFA (83%)</span></div>
               </div>
             </div>
           </div>

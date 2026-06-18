@@ -5,7 +5,7 @@ import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
-import { registerPushToken, setupNotificationChannel, setupNotificationResponseListener } from '../src/push'
+import { registerPushToken, setupNotificationChannel, setupNotificationResponseListener, setupForegroundNotificationListener } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser } from '../src/auth'
 import { initOfflineReplay } from '../src/api'
 import { initSentry, setUser, clearUser } from '../src/sentry'
@@ -69,16 +69,18 @@ export default function Layout(){
     registerPushToken()
     const stopQueueReplay = initOfflineReplay()
     const stopNotifListener = setupNotificationResponseListener()
+    const stopForegroundListener = setupForegroundNotificationListener()
     return () => {
       stopQueueReplay()
       stopNotifListener()
+      stopForegroundListener()
     }
   }, [loggedIn])
 
   if (!ready) {
     return (
       <View style={s.splash}>
-        <Text style={s.splashName}>Xeuy Pro</Text>
+        <Text style={s.splashName}>Xeuy Bi Pro</Text>
         <Text style={s.splashSub}>Espace prestataire</Text>
         <ActivityIndicator size="small" color="#92400E" style={{ marginTop: 24 }} />
       </View>
