@@ -298,7 +298,7 @@ export default function GroupOrderDetailPage() {
     if (!group) return
     const savPct = group.product.basePrice > 0 ? Math.round(((group.product.basePrice - group.currentUnitPrice) / group.product.basePrice) * 100) : 0
     const text = encodeURIComponent(
-      `� *ACHAT GROUPÉ EN COURS !*\n\n` +
+      `🔥 *ACHAT GROUPÉ EN COURS !*\n\n` +
       `📦 *${group.product.name}*\n` +
       `💰 À seulement *${formatCurrency(group.currentUnitPrice)}*${savPct > 0 ? ` (−${savPct}% vs marché)` : ''}\n\n` +
       `👥 Déjà ${group.participants.length} participant${group.participants.length > 1 ? 's' : ''} !\n` +

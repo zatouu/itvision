@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -29,6 +29,33 @@ interface GroupOrder {
 /* ─── Helpers ─── */
 const fmt = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
 
+interface ApiGroupOrder {
+  _id?: string; groupId: string; status: string
+  product: { productId: string; name: string; image?: string; basePrice: number; currency: string; category?: string }
+  minQty: number; targetQty: number; currentQty: number; currentUnitPrice: number
+  priceTiers: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
+  participants: Array<{ name: string; qty: number; joinedAt?: string }>
+  deadline: string; shippingMethod?: string; description?: string; createdAt?: string; createdBy?: { name?: string }
+}
+
+function enrichGroup(g: ApiGroupOrder): GroupOrder {
+  const progress = Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
+  const daysLeft = Math.max(0, Math.ceil((new Date(g.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+  const participantCount = g.participants?.length || 0
+  const isAlmostFull = progress >= 80 && progress < 100
+  const isNew = g.createdAt ? (Date.now() - new Date(g.createdAt).getTime()) < 3 * 24 * 60 * 60 * 1000 : false
+  const isPopular = participantCount >= 5 || progress >= 60
+  const savingsPercent = g.product.basePrice > 0 ? Math.round(((g.product.basePrice - g.currentUnitPrice) / g.product.basePrice) * 100) : 0
+  return { ...g, progress, daysLeft, participantCount, isAlmostFull, isNew, isPopular, savingsPercent }
+}
+
+const SORT_OPTIONS = [
+  { label: 'Bientôt complet', key: 'almost_full' },
+  { label: 'Plus grande économie', key: 'savings' },
+  { label: 'Date limite proche', key: 'deadline' },
+  { label: 'Plus de participants', key: 'participants' },
+]
+
 /* ─── Mock Data ─── */
 const MOCK_F: GroupOrder[] = [
   { groupId:'GRP-001', status:'open', product:{productId:'p1',name:'iPhone reconditionné 128GB',image:'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400&q=80',basePrice:245000,currency:'FCFA',category:'Électronique'}, minQty:5,targetQty:50,currentQty:47,currentUnitPrice:178000, priceTiers:[{minQty:10,price:210000},{minQty:25,price:195000},{minQty:50,price:178000}], participants:[{name:'Ahmed D.',qty:5},{name:'Fatou S.',qty:3},{name:'Moussa K.',qty:8},{name:'Aminata B.',qty:2}], deadline:new Date(Date.now()+2*24*60*60*1000).toISOString(), progress:94, daysLeft:2, isAlmostFull:true, isPopular:true, isNew:false, savingsPercent:27, participantCount:42 },
@@ -55,30 +82,216 @@ export default function GroupOrdersPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Tous')
-  const [sortBy, setSortBy] = useState('Bientôt complet')
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS[0])
+  const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [calcQty, setCalcQty] = useState(50)
   const [calcDiscount, setCalcDiscount] = useState(45)
   const [calcSoloPrice, setCalcSoloPrice] = useState(50000)
   const [calcTransport, setCalcTransport] = useState<'maritime'|'air'|'express'>('maritime')
 
-  const calcGroupPrice = Math.round(calcSoloPrice * (1 - calcDiscount/100))
-  const unitShip = calcTransport==='maritime'?1500:calcTransport==='express'?5000:3500
+  /* ─── API Data ─── */
+  const [groups, setGroups] = useState<GroupOrder[]>([])
+  const [stats, setStats] = useState<{ totalOpen: number; totalFilled: number; totalParticipants: number }>({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState(false)
+  const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchGroups() {
+      try {
+        setLoading(true)
+        const res = await fetch('/api/group-orders?limit=50')
+        const data = await res.json()
+        if (!cancelled) {
+          if (data.success && Array.isArray(data.groups)) {
+            const enriched = data.groups.map(enrichGroup)
+            setGroups(enriched)
+            setStats(data.stats || { totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
+            setApiError(false)
+          } else {
+            throw new Error('API error')
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setApiError(true)
+          const enriched = [...MOCK_F, ...MOCK_G].map(g => enrichGroup(g as unknown as ApiGroupOrder))
+          setGroups(enriched)
+          setStats({ totalOpen: 12, totalFilled: 1, totalParticipants: 847 })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchGroups()
+    return () => { cancelled = true }
+  }, [])
+
+  /* ─── Derived calculator ─── */
+  const calcGroupPrice = Math.round(calcSoloPrice * (1 - calcDiscount / 100))
+  const unitShip = calcTransport === 'maritime' ? 1500 : calcTransport === 'express' ? 5000 : 3500
   const calcTotalUnit = calcGroupPrice + unitShip
   const calcTotalSavings = (calcSoloPrice - calcTotalUnit) * calcQty
-  const calcMarginPct = calcTotalUnit > 0 ? Math.round(((calcSoloPrice - calcTotalUnit)/calcTotalUnit)*100) : 0
+  const calcMarginPct = calcTotalUnit > 0 ? Math.round(((calcSoloPrice - calcTotalUnit) / calcTotalUnit) * 100) : 0
 
-  const getProg = (g:GroupOrder) => Math.min(100, Math.round((g.currentQty/g.targetQty)*100))
-  const getDays = (d:string) => { const diff = new Date(d).getTime()-Date.now(); return Math.max(0, Math.ceil(diff/(1000*60*60*24))) }
+  /* ─── Filters & Sort ─── */
+  const filtered = useMemo(() => {
+    let res = [...groups]
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase()
+      res = res.filter(g => g.product.name.toLowerCase().includes(q) || g.groupId.toLowerCase().includes(q))
+    }
+    if (categoryFilter !== 'Tous') {
+      res = res.filter(g => (g.product.category || '').toLowerCase().includes(categoryFilter.toLowerCase()))
+    }
+    return res
+  }, [groups, searchTerm, categoryFilter])
 
-  const badge = (g:GroupOrder) => {
-    if(g.isAlmostFull || (g.progress&&g.progress>=90)) return {text:`Plus que ${g.targetQty-g.currentQty} places !`, bg:'bg-[#FF5252]', icon:Zap}
-    if(g.isPopular) return {text:'Populaire', bg:'bg-[#FFAB40]', icon:Flame}
-    if(g.isNew) return {text:'Nouveau', bg:'bg-[#00C853]', icon:Sparkles}
-    return {text:'Ouvert', bg:'bg-[#448AFF]', icon:Clock}
+  const sorted = useMemo(() => {
+    const res = [...filtered]
+    switch (sortBy.key) {
+      case 'almost_full':
+        res.sort((a, b) => (b.progress || 0) - (a.progress || 0))
+        break
+      case 'savings':
+        res.sort((a, b) => (b.savingsPercent || 0) - (a.savingsPercent || 0))
+        break
+      case 'deadline':
+        res.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+        break
+      case 'participants':
+        res.sort((a, b) => (b.participantCount || 0) - (a.participantCount || 0))
+        break
+    }
+    return res
+  }, [filtered, sortBy])
+
+  const featured = sorted.slice(0, 3)
+  const gridAll = sorted
+
+  const totalSavingsFcfa = stats.totalParticipants * 25000
+  const savingsLabel = totalSavingsFcfa >= 1_000_000 ? `${Math.round(totalSavingsFcfa / 1_000_000)}M` : `${Math.round(totalSavingsFcfa / 1000)}k`
+
+  /* ─── Create form ─── */
+  const [createForm, setCreateForm] = useState({
+    productId: '',
+    qty: 10,
+    deadline: '',
+    shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
+    name: '',
+    phone: '',
+    email: '',
+  })
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!createForm.productId.trim() || !createForm.name.trim() || !createForm.phone.trim()) {
+      alert('Veuillez remplir le produit, le nom et le téléphone.')
+      return
+    }
+    setCreating(true)
+    try {
+      const res = await fetch('/api/group-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: createForm.productId,
+          qty: createForm.qty,
+          deadline: createForm.deadline || undefined,
+          shippingMethod: createForm.shippingMethod,
+          creator: { name: createForm.name, phone: createForm.phone, email: createForm.email || undefined }
+        })
+      })
+      const data = await res.json()
+      if (data.success && data.group?.groupId) {
+        router.push(`/achats-groupes/${data.group.groupId}`)
+        setShowCreateModal(false)
+      } else {
+        alert(data.error || 'Erreur lors de la création')
+      }
+    } catch {
+      alert('Erreur réseau')
+    } finally {
+      setCreating(false)
+    }
   }
 
-  const initials = (name:string) => name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
+  function getProg(g: GroupOrder) {
+    return Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
+  }
+  function getDays(d: string) {
+    const diff = new Date(d).getTime() - Date.now()
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  }
+  function badgeFn(g: GroupOrder) {
+    if (g.isAlmostFull || (g.progress && g.progress >= 90)) return { text: `Plus que ${g.targetQty - g.currentQty} places !`, bg: 'bg-[#FF5252]', icon: Zap }
+    if (g.isPopular) return { text: 'Populaire', bg: 'bg-[#FFAB40]', icon: Flame }
+    if (g.isNew) return { text: 'Nouveau', bg: 'bg-[#00C853]', icon: Sparkles }
+    return { text: 'Ouvert', bg: 'bg-[#448AFF]', icon: Clock }
+  }
+  function initials(name: string) {
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  }
+
+  const featuredCards = loading ? (
+    [1,2,3].map(i => (
+      <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden animate-pulse">
+        <div className="h-48 bg-gray-200" />
+        <div className="p-5 space-y-3">
+          <div className="h-5 bg-gray-200 rounded w-3/4" />
+          <div className="h-3 bg-gray-200 rounded w-1/2" />
+          <div className="h-8 bg-gray-200 rounded w-full" />
+        </div>
+      </div>
+    ))
+  ) : featured.length === 0 ? (
+    <div className="col-span-3 text-center py-12 text-gray-500">
+      Aucun groupe en vedette pour le moment.
+    </div>
+  ) : (
+    featured.map((g, i) => {
+      const b = badgeFn(g); const prog = getProg(g); const days = getDays(g.deadline)
+      const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
+      return (
+        <motion.div key={g.groupId} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}} whileHover={{y:-6}} className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+          <div className="relative h-48 bg-gray-100">
+            {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">{g.product.name}</div>}
+            <span className={`absolute top-3 left-3 px-3 py-1.5 ${b.bg} text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-md`}><b.icon className="w-3.5 h-3.5"/>{b.text}</span>
+          </div>
+          <div className="p-5">
+            <h3 className="font-bold text-lg text-[#1A1A2E] mb-2 line-clamp-1">{g.product.name}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-gray-700">{g.currentQty}/{g.targetQty}</span>
+              <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <motion.div initial={{width:0}} animate={{width:`${prog}%`}} transition={{duration:0.8}} className={`h-full rounded-full ${prog>=100?'bg-[#00C853]':'bg-gradient-to-r from-[#00C853] to-[#7C4DFF]'}`}/>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex -space-x-2">
+                {(g.participants||[]).slice(0,4).map((p,i)=>(
+                  <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[10px] font-bold text-white border-2 border-white" title={p.name}>{initials(p.name)}</div>
+                ))}
+              </div>
+              <span className="text-xs text-gray-500">+{(g.participantCount||0)>4?(g.participantCount||0)-4:Math.max(0,(g.participantCount||0))} acheteurs</span>
+            </div>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-sm text-gray-400 line-through">Solo: {fmt(solo)}</span>
+              <span className="text-base font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
+              <span className="text-xs bg-red-50 text-[#FF5252] rounded px-1.5 py-0.5 font-bold">(-{sav}%)</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm text-orange-500 mb-4">
+              <Clock className="w-4 h-4"/>{days>0?`⏱ ${days}j restantes`:'Terminé'}
+            </div>
+            <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-3 rounded-xl font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600 text-white shadow-lg shadow-red-200':'bg-[#00C853] hover:bg-emerald-600 text-white shadow-lg shadow-emerald-200'}`}>
+              {g.isAlmostFull?'Rejoindre maintenant':g.isNew?`Être le ${g.currentQty+1}ème`:'Rejoindre'}
+            </button>
+          </div>
+        </motion.div>
+      )
+    })
+  )
 
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
@@ -139,9 +352,9 @@ export default function GroupOrdersPage() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-8 text-white/90 text-sm font-medium">
-                <span className="flex items-center gap-2">🔥 <strong className="text-white text-base">12</strong> groupes ouverts</span>
-                <span className="flex items-center gap-2">👥 <strong className="text-white text-base">847</strong> participants</span>
-                <span className="flex items-center gap-2">💰 <strong className="text-white text-base">32M</strong> FCFA économisés</span>
+                <span className="flex items-center gap-2">🔥 <strong className="text-white text-base">{stats.totalOpen}</strong> groupes ouverts</span>
+                <span className="flex items-center gap-2">👥 <strong className="text-white text-base">{stats.totalParticipants}</strong> participants</span>
+                <span className="flex items-center gap-2">💰 <strong className="text-white text-base">{savingsLabel}</strong> FCFA économisés</span>
               </div>
             </motion.div>
 
@@ -181,9 +394,24 @@ export default function GroupOrdersPage() {
               ))}
             </div>
             <div className="relative">
-              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Trier: {sortBy} <ChevronDown className="w-4 h-4" />
+              <button onClick={() => setShowSortDropdown(v => !v)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Trier: {sortBy.label} <ChevronDown className="w-4 h-4" />
               </button>
+              <AnimatePresence>
+                {showSortDropdown && (
+                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden">
+                    {SORT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => { setSortBy(opt); setShowSortDropdown(false) }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition ${sortBy.key === opt.key ? 'bg-gray-50 font-semibold text-[#1A1A2E]' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -218,46 +446,7 @@ export default function GroupOrdersPage() {
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {MOCK_F.map((g, i) => {
-              const b = badge(g); const prog = getProg(g); const days = getDays(g.deadline)
-              const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
-              return (
-                <motion.div key={g.groupId} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}} whileHover={{y:-6}} className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-                  <div className="relative h-48 bg-gray-100">
-                    {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">{g.product.name}</div>}
-                    <span className={`absolute top-3 left-3 px-3 py-1.5 ${b.bg} text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-md`}><b.icon className="w-3.5 h-3.5"/>{b.text}</span>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-bold text-lg text-[#1A1A2E] mb-2 line-clamp-1">{g.product.name}</h3>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-semibold text-gray-700">{g.currentQty}/{g.targetQty}</span>
-                      <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <motion.div initial={{width:0}} animate={{width:`${prog}%`}} transition={{duration:0.8}} className={`h-full rounded-full ${prog>=100?'bg-[#00C853]':'bg-gradient-to-r from-[#00C853] to-[#7C4DFF]'}`}/>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex -space-x-2">
-                        {(g.participants||[]).slice(0,4).map((p,i)=>(
-                          <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[10px] font-bold text-white border-2 border-white" title={p.name}>{initials(p.name)}</div>
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-500">+{(g.participantCount||0)>4?(g.participantCount||0)-4:Math.max(0,(g.participantCount||0))} acheteurs</span>
-                    </div>
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-sm text-gray-400 line-through">Solo: {fmt(solo)}</span>
-                      <span className="text-base font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
-                      <span className="text-xs bg-red-50 text-[#FF5252] rounded px-1.5 py-0.5 font-bold">(-{sav}%)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm text-orange-500 mb-4">
-                      <Clock className="w-4 h-4"/>{days>0?`⏱ ${days}j restantes`:'Terminé'}
-                    </div>
-                    <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-3 rounded-xl font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600 text-white shadow-lg shadow-red-200':'bg-[#00C853] hover:bg-emerald-600 text-white shadow-lg shadow-emerald-200'}`}>
-                      {g.isAlmostFull?'Rejoindre maintenant':g.isNew?`Être le ${g.currentQty+1}ème`:'Rejoindre'}
-                    </button>
-                  </div>
-                </motion.div>
-              )
-            })}
+            {featuredCards}
           </div>
         </div>
       </section>
@@ -334,8 +523,8 @@ export default function GroupOrdersPage() {
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {MOCK_G.slice(0,6).map((g) => {
-                const b = badge(g); const prog = getProg(g); const days = getDays(g.deadline)
+              {gridAll.slice(0,6).map((g) => {
+                const b = badgeFn(g); const prog = getProg(g); const days = getDays(g.deadline)
                 const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
                 return (
                   <motion.div key={g.groupId} whileHover={{y:-3}} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -423,8 +612,8 @@ export default function GroupOrdersPage() {
             ))}
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {MOCK_G.map((g)=>{
-              const b=badge(g);const prog=getProg(g);const days=getDays(g.deadline)
+            {gridAll.map((g)=>{
+              const b=badgeFn(g);const prog=getProg(g);const days=getDays(g.deadline)
               const solo=g.product.basePrice;const gp=g.currentUnitPrice;const sav=Math.round(((solo-gp)/solo)*100)
               return (
                 <motion.div key={g.groupId+'-grid'} whileHover={{y:-3}} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
