@@ -9,8 +9,8 @@ import {
   Users, Package, Clock, ArrowRight, Search,
   Zap, CheckCircle,
   X, Briefcase, Calculator, Flame,
-  Sparkles, Truck, ChevronDown, ChevronRight, ChevronLeft,
-  Shield, Factory, Camera, Image as ImageIcon, Plus, Minus, Info, Eye, Tag, Layers, MapPin, CalendarDays, User, Phone, Mail, Box
+  Sparkles, Truck, ChevronDown,
+  Shield, Factory
 } from 'lucide-react'
 
 /* ─── Types ─── */
@@ -84,7 +84,6 @@ export default function GroupOrdersPage() {
   const [categoryFilter, setCategoryFilter] = useState('Tous')
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0])
   const [showSortDropdown, setShowSortDropdown] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [calcQty, setCalcQty] = useState(50)
   const [calcDiscount, setCalcDiscount] = useState(45)
   const [calcSoloPrice, setCalcSoloPrice] = useState(50000)
@@ -95,7 +94,6 @@ export default function GroupOrdersPage() {
   const [stats, setStats] = useState<{ totalOpen: number; totalFilled: number; totalParticipants: number }>({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState(false)
-  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -173,67 +171,6 @@ export default function GroupOrdersPage() {
 
   const totalSavingsFcfa = stats.totalParticipants * 25000
   const savingsLabel = totalSavingsFcfa >= 1_000_000 ? `${Math.round(totalSavingsFcfa / 1_000_000)}M` : `${Math.round(totalSavingsFcfa / 1000)}k`
-
-  /* ─── Create form ─── */
-  const [createStep, setCreateStep] = useState(1)
-  const [createForm, setCreateForm] = useState({
-    productName: '',
-    productCategory: 'Tech' as string,
-    productImage: '',
-    productDescription: '',
-    productBasePrice: 50000,
-    targetQty: 30,
-    currentUnitPrice: 30000,
-    priceTiers: [] as Array<{ minQty: number; price: number; discount: number }>,
-    deadline: '',
-    shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
-    creatorName: '',
-    creatorPhone: '',
-    creatorEmail: '',
-  })
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!createForm.productName.trim() || !createForm.creatorName.trim() || !createForm.creatorPhone.trim()) {
-      alert('Veuillez remplir le nom du produit, votre nom et votre téléphone.')
-      return
-    }
-    setCreating(true)
-    try {
-      const res = await fetch('/api/group-orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product: {
-            name: createForm.productName,
-            category: createForm.productCategory,
-            image: createForm.productImage || undefined,
-            basePrice: createForm.productBasePrice,
-            currency: 'FCFA',
-          },
-          targetQty: createForm.targetQty,
-          currentUnitPrice: createForm.currentUnitPrice,
-          priceTiers: createForm.priceTiers,
-          deadline: createForm.deadline || undefined,
-          shippingMethod: createForm.shippingMethod,
-          description: createForm.productDescription || undefined,
-          creator: { name: createForm.creatorName, phone: createForm.creatorPhone, email: createForm.creatorEmail || undefined }
-        })
-      })
-      const data = await res.json()
-      if (data.success && data.group?.groupId) {
-        router.push(`/achats-groupes/${data.group.groupId}`)
-        setShowCreateModal(false)
-        setCreateStep(1)
-      } else {
-        alert(data.error || 'Erreur lors de la création')
-      }
-    } catch {
-      alert('Erreur réseau')
-    } finally {
-      setCreating(false)
-    }
-  }
 
   function getProg(g: GroupOrder) {
     return Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
@@ -364,7 +301,7 @@ export default function GroupOrdersPage() {
                 <button onClick={()=>document.getElementById('all-groups')?.scrollIntoView({behavior:'smooth'})} className="px-6 py-3 bg-white text-[#1A1A2E] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
                   Voir les groupes actifs
                 </button>
-                <button onClick={()=>setShowCreateModal(true)} className="px-6 py-3 border-2 border-white/50 text-white rounded-xl font-semibold hover:bg-white/10 transition">
+                <button onClick={()=>router.push('/achats-groupes/nouveau')} className="px-6 py-3 border-2 border-white/50 text-white rounded-xl font-semibold hover:bg-white/10 transition">
                   Créer un groupe →
                 </button>
               </div>
@@ -580,7 +517,7 @@ export default function GroupOrdersPage() {
               <p className="text-[10px] opacity-80 mb-0.5">Vous ne trouvez pas ?</p>
               <h3 className="text-sm font-bold mb-1">Créez votre propre groupe</h3>
               <p className="text-[10px] opacity-90 mb-2">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
-              <button onClick={()=>setShowCreateModal(true)} className="px-3 py-1.5 bg-white text-[#7C4DFF] rounded-lg text-[10px] font-semibold hover:bg-gray-100 transition">
+              <button onClick={()=>router.push('/achats-groupes/nouveau')} className="px-3 py-1.5 bg-white text-[#7C4DFF] rounded-lg text-[10px] font-semibold hover:bg-gray-100 transition">
                 Créer un groupe →
               </button>
             </div>
@@ -676,7 +613,7 @@ export default function GroupOrdersPage() {
               <h3 className="text-xl font-bold mb-1">Créez votre propre groupe</h3>
               <p className="text-sm text-white/80">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
             </div>
-            <button onClick={()=>setShowCreateModal(true)} className="flex-shrink-0 px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
+            <button onClick={()=>router.push('/achats-groupes/nouveau')} className="flex-shrink-0 px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
               Créer un groupe →
             </button>
           </motion.div>
@@ -759,227 +696,6 @@ export default function GroupOrdersPage() {
         </div>
       </footer>
 
-      {/* CREATE MODAL — Rich Wizard */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={()=>setShowCreateModal(false)}>
-            <motion.div initial={{scale:0.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:0.95,opacity:0}} onClick={e=>e.stopPropagation()} className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              {/* Header */}
-              <div className="p-6 border-b flex items-center justify-between shrink-0">
-                <div>
-                  <h2 className="text-xl font-bold text-[#1A1A2E]">Créer un achat groupé</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Étape {createStep} sur 4 · {['Produit','Prix & Quantité','Livraison','Contact & Récap'][createStep-1]}</p>
-                </div>
-                <button onClick={()=>{setShowCreateModal(false);setCreateStep(1)}} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5" /></button>
-              </div>
-
-              {/* Progress bar */}
-              <div className="w-full h-1.5 bg-gray-100">
-                <motion.div className="h-full bg-gradient-to-r from-[#00C853] to-[#7C4DFF]" initial={{width:0}} animate={{width:`${(createStep/4)*100}%`}} transition={{duration:0.4}} />
-              </div>
-
-              {/* Step indicators */}
-              <div className="px-6 pt-4 flex items-center gap-2 shrink-0">
-                {[1,2,3,4].map(s => (
-                  <div key={s} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition ${s===createStep?'bg-[#1A1A2E] text-white':s<createStep?'bg-[#00C853]/10 text-[#00C853]':'bg-gray-100 text-gray-400'}`}>
-                    {s < createStep ? <CheckCircle className="w-3.5 h-3.5"/> : <span className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center text-[10px]">{s}</span>}
-                    {['Produit','Prix','Livraison','Récap'][s-1]}
-                  </div>
-                ))}
-              </div>
-
-              {/* Body — scrollable */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <form id="create-form" onSubmit={handleCreate} className="space-y-5">
-                  <AnimatePresence mode="wait">
-                    {/* STEP 1 — Product */}
-                    {createStep === 1 && (
-                      <motion.div key="step1" initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}} className="space-y-5">
-                        <div>
-                          <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Tag className="w-4 h-4 text-[#7C4DFF]"/> Nom du produit <span className="text-red-500">*</span></label>
-                          <input required value={createForm.productName} onChange={e=>setCreateForm(f=>({...f,productName:e.target.value}))} placeholder="Ex: Smartwatch Pro Sport GPS" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] transition" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Layers className="w-4 h-4 text-[#7C4DFF]"/> Catégorie</label>
-                            <select value={createForm.productCategory} onChange={e=>setCreateForm(f=>({...f,productCategory:e.target.value}))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] bg-white">
-                              {['Tech','Mode','Maison','Beauté','Auto','Brico','Sport','Alimentation'].map(c=>(<option key={c}>{c}</option>))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><ImageIcon className="w-4 h-4 text-[#7C4DFF]"/> Image (URL)</label>
-                            <input value={createForm.productImage} onChange={e=>setCreateForm(f=>({...f,productImage:e.target.value}))} placeholder="https://..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] transition" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Info className="w-4 h-4 text-[#7C4DFF]"/> Description</label>
-                          <textarea value={createForm.productDescription} onChange={e=>setCreateForm(f=>({...f,productDescription:e.target.value}))} rows={3} placeholder="Décrivez le produit, la qualité, la marque..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] transition resize-none" />
-                        </div>
-                        {createForm.productImage && (
-                          <div className="relative h-40 rounded-xl overflow-hidden border border-gray-200">
-                            <Image src={createForm.productImage} alt="Aperçu" fill className="object-cover" />
-                            <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">Aperçu</span>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-
-                    {/* STEP 2 — Price & Qty */}
-                    {createStep === 2 && (
-                      <motion.div key="step2" initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}} className="space-y-5">
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Box className="w-4 h-4 text-[#00C853]"/> Qté cible <span className="text-red-500">*</span></label>
-                            <input type="number" min={2} required value={createForm.targetQty} onChange={e=>setCreateForm(f=>({...f,targetQty:Number(e.target.value)}))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
-                          </div>
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Tag className="w-4 h-4 text-[#FF5252]"/> Prix solo (FCFA)</label>
-                            <input type="number" min={1} value={createForm.productBasePrice} onChange={e=>setCreateForm(f=>({...f,productBasePrice:Number(e.target.value)}))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
-                          </div>
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Tag className="w-4 h-4 text-[#00C853]"/> Prix groupe (FCFA)</label>
-                            <input type="number" min={1} value={createForm.currentUnitPrice} onChange={e=>setCreateForm(f=>({...f,currentUnitPrice:Number(e.target.value)}))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
-                          </div>
-                        </div>
-                        {/* Live savings */}
-                        <div className="bg-gradient-to-r from-[#00C853]/10 to-[#7C4DFF]/10 rounded-xl p-4 flex items-center justify-between">
-                          <div className="text-sm text-gray-700">Économie par unité</div>
-                          <div className="text-lg font-bold text-[#00C853]">{fmt(createForm.productBasePrice - createForm.currentUnitPrice)} <span className="text-sm text-[#FF5252]">(-{createForm.productBasePrice>0?Math.round(((createForm.productBasePrice-createForm.currentUnitPrice)/createForm.productBasePrice)*100):0}%)</span></div>
-                        </div>
-                        {/* Dynamic price tiers */}
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Layers className="w-4 h-4 text-[#7C4DFF]"/> Paliers de prix (optionnel)</label>
-                            <button type="button" onClick={()=>setCreateForm(f=>({...f,priceTiers:[...f.priceTiers,{minQty:f.targetQty+10,price:Math.round(f.currentUnitPrice*0.9),discount:Math.round(((f.productBasePrice - f.currentUnitPrice*0.9)/f.productBasePrice)*100)}]}))} className="flex items-center gap-1 text-xs font-semibold text-[#7C4DFF] hover:underline"><Plus className="w-3.5 h-3.5"/> Ajouter un palier</button>
-                          </div>
-                          {createForm.priceTiers.length === 0 && (
-                            <p className="text-xs text-gray-400">Aucun palier. Ajoutez-en pour inciter les acheteurs à commander plus.</p>
-                          )}
-                          <div className="space-y-2">
-                            {createForm.priceTiers.map((tier,i)=> (
-                              <div key={i} className="grid grid-cols-3 gap-2 items-center bg-gray-50 rounded-xl p-3">
-                                <div>
-                                  <span className="text-[10px] text-gray-500">À partir de</span>
-                                  <input type="number" min={1} value={tier.minQty} onChange={e=>{const t=[...createForm.priceTiers];t[i]={...t[i],minQty:Number(e.target.value)};setCreateForm(f=>({...f,priceTiers:t}))}} className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-gray-500">Prix unitaire</span>
-                                  <input type="number" min={1} value={tier.price} onChange={e=>{const t=[...createForm.priceTiers];t[i]={...t[i],price:Number(e.target.value)};setCreateForm(f=>({...f,priceTiers:t}))}} className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
-                                </div>
-                                <div className="flex items-end gap-2">
-                                  <div className="flex-1">
-                                    <span className="text-[10px] text-gray-500">Remise %</span>
-                                    <input type="number" min={0} max={99} value={tier.discount} onChange={e=>{const t=[...createForm.priceTiers];t[i]={...t[i],discount:Number(e.target.value)};setCreateForm(f=>({...f,priceTiers:t}))}} className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
-                                  </div>
-                                  <button type="button" onClick={()=>setCreateForm(f=>({...f,priceTiers:f.priceTiers.filter((_,idx)=>idx!==i)}))} className="p-1.5 hover:bg-red-50 text-[#FF5252] rounded-lg"><Minus className="w-4 h-4" /></button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* STEP 3 — Shipping & Deadline */}
-                    {createStep === 3 && (
-                      <motion.div key="step3" initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}} className="space-y-5">
-                        <div>
-                          <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2"><CalendarDays className="w-4 h-4 text-[#FFAB40]"/> Date limite d&apos;inscription</label>
-                          <input type="date" value={createForm.deadline} onChange={e=>setCreateForm(f=>({...f,deadline:e.target.value}))} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFAB40] transition" />
-                          {createForm.deadline && <p className="text-xs text-gray-500 mt-1">{getDays(createForm.deadline)} jours restants</p>}
-                        </div>
-                        <div>
-                          <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2"><Truck className="w-4 h-4 text-[#FFAB40]"/> Mode de transport</label>
-                          <div className="grid grid-cols-3 gap-3">
-                            {[
-                              {key:'maritime_60j',label:'Maritime',delay:'~60 j',cost:'1 500',icon:Factory},
-                              {key:'air_15j',label:'Aérien',delay:'~15 j',cost:'3 500',icon:Package},
-                              {key:'express_3j',label:'Express',delay:'~3 j',cost:'5 000',icon:Zap}
-                            ].map(opt => {
-                              const active = createForm.shippingMethod === opt.key
-                              const Icon = opt.icon
-                              return (
-                                <button key={opt.key} type="button" onClick={()=>setCreateForm(f=>({...f,shippingMethod:opt.key as any}))} className={`relative p-4 rounded-xl border-2 text-left transition ${active?'border-[#FFAB40] bg-[#FFAB40]/5':'border-gray-200 hover:border-gray-300'}`}>
-                                  <Icon className={`w-6 h-6 mb-2 ${active?'text-[#FFAB40]':'text-gray-400'}`} />
-                                  <div className={`text-sm font-bold ${active?'text-[#1A1A2E]':'text-gray-700'}`}>{opt.label}</div>
-                                  <div className="text-xs text-gray-500">{opt.delay}</div>
-                                  <div className="text-xs font-semibold text-gray-600 mt-1">~{opt.cost} F/pce</div>
-                                  {active && <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#FFAB40] flex items-center justify-center"><CheckCircle className="w-3 h-3 text-white" /></div>}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* STEP 4 — Contact & Preview */}
-                    {createStep === 4 && (
-                      <motion.div key="step4" initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}} className="space-y-5">
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><User className="w-4 h-4 text-[#7C4DFF]"/> Votre nom <span className="text-red-500">*</span></label>
-                            <input required value={createForm.creatorName} onChange={e=>setCreateForm(f=>({...f,creatorName:e.target.value}))} placeholder="Prénom Nom" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] transition" />
-                          </div>
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Phone className="w-4 h-4 text-[#7C4DFF]"/> Téléphone <span className="text-red-500">*</span></label>
-                            <input required value={createForm.creatorPhone} onChange={e=>setCreateForm(f=>({...f,creatorPhone:e.target.value}))} placeholder="77 000 00 00" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] transition" />
-                          </div>
-                          <div>
-                            <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-1.5"><Mail className="w-4 h-4 text-[#7C4DFF]"/> Email</label>
-                            <input type="email" value={createForm.creatorEmail} onChange={e=>setCreateForm(f=>({...f,creatorEmail:e.target.value}))} placeholder="opt@ionnel" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] transition" />
-                          </div>
-                        </div>
-                        {/* Live Preview Card */}
-                        <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                          <div className="bg-gradient-to-r from-[#1A1A2E] to-[#7C4DFF] text-white p-3 flex items-center gap-2 text-xs font-bold">
-                            <Eye className="w-4 h-4"/> Aperçu de votre groupe
-                          </div>
-                          <div className="p-4 flex gap-4">
-                            <div className="w-20 h-20 bg-gray-100 rounded-xl shrink-0 overflow-hidden relative">
-                              {createForm.productImage ? <Image src={createForm.productImage} alt="" fill className="object-cover"/> : <Package className="w-8 h-8 text-gray-300 absolute inset-0 m-auto"/>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-[#1A1A2E] truncate">{createForm.productName || 'Nom du produit'}</h4>
-                              <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 rounded-full text-[10px] font-semibold text-gray-600">{createForm.productCategory}</span>
-                              <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
-                                <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> 0/{createForm.targetQty}</span>
-                                <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5"/> {createForm.shippingMethod==='maritime_60j'?'Maritime':createForm.shippingMethod==='air_15j'?'Aérien':'Express'}</span>
-                                {createForm.deadline && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5"/> {getDays(createForm.deadline)}j</span>}
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-sm text-gray-400 line-through">{fmt(createForm.productBasePrice)}</div>
-                              <div className="text-base font-bold text-[#00C853]">{fmt(createForm.currentUnitPrice)}</div>
-                              <div className="text-xs font-bold text-[#FF5252]">-{createForm.productBasePrice>0?Math.round(((createForm.productBasePrice-createForm.currentUnitPrice)/createForm.productBasePrice)*100):0}%</div>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </form>
-              </div>
-
-              {/* Footer navigation */}
-              <div className="p-6 border-t shrink-0 flex items-center justify-between bg-white">
-                <button type="button" disabled={createStep===1} onClick={()=>setCreateStep(s=>s-1)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition ${createStep===1?'opacity-30 cursor-not-allowed':'text-gray-700 hover:bg-gray-100'}`}>
-                  <ChevronLeft className="w-4 h-4"/> Précédent
-                </button>
-                {createStep < 4 ? (
-                  <button type="button" onClick={()=>setCreateStep(s=>s+1)} className="flex items-center gap-2 px-6 py-2.5 bg-[#1A1A2E] text-white rounded-xl font-semibold text-sm hover:bg-[#2A2A4E] transition">
-                    Suivant <ChevronRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button type="submit" form="create-form" disabled={creating} className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#00C853] to-[#7C4DFF] text-white rounded-xl font-semibold text-sm hover:opacity-90 transition disabled:opacity-60">
-                    {creating ? 'Création...' : <>Créer le groupe <CheckCircle className="w-4 h-4"/></>}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
