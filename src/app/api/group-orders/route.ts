@@ -11,6 +11,7 @@ import { requireAuth } from '@/lib/jwt'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
+import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 
 const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   maritime_60j: 'sea_freight',
@@ -23,6 +24,10 @@ function asTrimmedString(value: unknown, maxLength: number): string | undefined 
   const trimmed = value.trim()
   if (!trimmed) return undefined
   return trimmed.slice(0, maxLength)
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 function sanitizePublicGroup(group: any) {
@@ -144,6 +149,9 @@ export async function GET(req: NextRequest) {
 // POST - Créer un nouvel achat groupé
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = applyRateLimit(req, serviceWriteRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     let auth: Awaited<ReturnType<typeof requireAuth>>
     try {
       auth = await requireAuth(req)
@@ -214,6 +222,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (creatorEmail && !isValidEmail(creatorEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Adresse email invalide' },
+        { status: 400 }
+      )
+    }
+
     const creatorPhone = formatSenegalPhone(creatorPhoneRaw)
 
     if (!Number.isFinite(qty) || !Number.isInteger(qty)) {
@@ -237,9 +252,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (Number.isNaN(deadlineDate.getTime()) || deadlineDate <= new Date()) {
+    const now = new Date()
+    if (Number.isNaN(deadlineDate.getTime()) || deadlineDate <= now) {
       return NextResponse.json(
         { success: false, error: 'Date limite invalide (doit être dans le futur)' },
+        { status: 400 }
+      )
+    }
+    const maxDeadlineDays = 120
+    if (deadlineDate.getTime() - now.getTime() > maxDeadlineDays * 24 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { success: false, error: `Date limite trop éloignée (maximum ${maxDeadlineDays} jours)` },
         { status: 400 }
       )
     }

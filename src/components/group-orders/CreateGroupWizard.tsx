@@ -194,11 +194,12 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     const qty = Number.isFinite(form.initialQty) ? form.initialQty : 0
     const tiers = [...form.priceTiers].sort((a, b) => b.minQty - a.minQty)
     const matched = tiers.find(t => qty >= t.minQty)
-    return matched?.price ?? form.productBasePrice
+    const price = matched?.price ?? form.productBasePrice
+    return Math.min(price, form.productBasePrice)
   }, [form.initialQty, form.priceTiers, form.productBasePrice])
 
   const savingsPct = form.productBasePrice > 0
-    ? Math.round(((form.productBasePrice - estimatedUnitPrice) / form.productBasePrice) * 100)
+    ? Math.max(0, Math.round(((form.productBasePrice - estimatedUnitPrice) / form.productBasePrice) * 100))
     : 0
 
   return (
@@ -360,7 +361,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
-                        <input type="number" min={1} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Number(e.target.value)}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                        <input type="number" min={1} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Math.max(1, Math.round(Number(e.target.value) || 1))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Qté cible</label>
