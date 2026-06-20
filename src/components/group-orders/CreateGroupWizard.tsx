@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -53,6 +53,52 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     deadline: '', shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
     creatorName: '', creatorPhone: '', creatorEmail: '',
   })
+
+  /* ─── Autocomplete on product name (step 2) ─── */
+  const [nameSuggestions, setNameSuggestions] = useState<CatalogProduct[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestLoading, setSuggestLoading] = useState(false)
+  const nameInputRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!form.productName.trim() || form.productName.trim().length < 2) {
+      setNameSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    const timer = setTimeout(async () => {
+      setSuggestLoading(true)
+      try {
+        const res = await fetch(`/api/catalog/products?limit=6&q=${encodeURIComponent(form.productName.trim())}`)
+        const data = await res.json()
+        if (data.success && Array.isArray(data.products)) {
+          setNameSuggestions(data.products)
+          setShowSuggestions(true)
+        }
+      } catch { /* silent */ }
+      finally { setSuggestLoading(false) }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [form.productName])
+
+  function applyProduct(p: CatalogProduct) {
+    setSelectedProduct(p)
+    const base = p.price ?? p.baseCost ?? 50000
+    const best = p.groupBuyBestPrice ?? Math.round(base * 0.7)
+    setForm(f => ({
+      ...f,
+      productName: p.name,
+      productCategory: p.category || 'Tech',
+      productImage: p.image || '',
+      productDescription: p.description || p.tagline || '',
+      productBasePrice: base,
+      currentUnitPrice: best,
+      targetQty: p.groupBuyTargetQty ?? 30,
+      priceTiers: (p.priceTiers || []).map(t => ({ minQty: t.minQty, price: t.price, discount: t.discount ?? 0 })),
+    }))
+    setShowSuggestions(false)
+    setNameSuggestions([])
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -248,9 +294,42 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
                     <h3 className="font-bold text-[#1A1A2E] flex items-center gap-2"><Tag className="w-4 h-4 text-[#7C4DFF]"/> Produit</h3>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Nom</label>
-                      <input required value={form.productName} onChange={e=>setForm(f=>({...f,productName:e.target.value}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF]" />
+                    <div ref={nameInputRef} className="relative">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Nom <span className="text-gray-400 font-normal">— tapez pour chercher dans le catalogue</span></label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          required
+                          value={form.productName}
+                          onChange={e=>{setForm(f=>({...f,productName:e.target.value})); setShowSuggestions(true)}}
+                          onFocus={()=>{ if (nameSuggestions.length>0) setShowSuggestions(true) }}
+                          onBlur={()=>setTimeout(()=>setShowSuggestions(false), 150)}
+                          placeholder="Ex: Smartwatch Pro Sport GPS"
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF]"
+                        />
+                        {suggestLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gray-200 border-t-[#7C4DFF] rounded-full animate-spin" />}
+                      </div>
+                      {showSuggestions && nameSuggestions.length > 0 && (
+                        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                          {nameSuggestions.map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onMouseDown={()=>applyProduct(p)}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition"
+                            >
+                              <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden relative shrink-0">
+                                {p.image ? <Image src={p.image} alt="" fill className="object-cover"/> : <Package className="w-5 h-5 text-gray-300 absolute inset-0 m-auto"/>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-[#1A1A2E] truncate">{p.name}</div>
+                                <div className="text-[10px] text-gray-500">{p.category || 'Sans catégorie'} · {fmt(p.price ?? p.baseCost ?? 0)}</div>
+                              </div>
+                              {p.groupBuyEnabled && <span className="text-[10px] bg-[#00C853]/10 text-[#00C853] px-1.5 py-0.5 rounded font-semibold">Groupé</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
