@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
-  Search, Tag, Box, Plus, Minus, CheckCircle, ChevronRight, ChevronLeft,
+  Search, Tag, Box, CheckCircle, ChevronRight, ChevronLeft,
   Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users
 } from 'lucide-react'
 
@@ -47,8 +47,8 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   const [creating, setCreating] = useState(false)
 
   const [form, setForm] = useState({
-    productName: '', productCategory: 'Tech', productImage: '', productDescription: '',
-    productBasePrice: 50000, targetQty: 30, currentUnitPrice: 30000,
+    productId: '', productName: '', productCategory: 'Tech', productImage: '', productDescription: '',
+    productBasePrice: 50000, targetQty: 30, initialQty: 1, currentUnitPrice: 30000,
     priceTiers: [] as Array<{ minQty: number; price: number; discount: number }>,
     deadline: '', shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
     creatorName: '', creatorPhone: '', creatorEmail: '',
@@ -69,7 +69,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     const timer = setTimeout(async () => {
       setSuggestLoading(true)
       try {
-        const res = await fetch(`/api/catalog/products?limit=6&q=${encodeURIComponent(form.productName.trim())}`)
+        const res = await fetch(`/api/catalog/products?limit=6&onlyGroupBuy=true&q=${encodeURIComponent(form.productName.trim())}`)
         const data = await res.json()
         if (data.success && Array.isArray(data.products)) {
           setNameSuggestions(data.products)
@@ -87,6 +87,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     const best = p.groupBuyBestPrice ?? Math.round(base * 0.7)
     setForm(f => ({
       ...f,
+      productId: p.id,
       productName: p.name,
       productCategory: p.category || 'Tech',
       productImage: p.image || '',
@@ -107,7 +108,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
         setProdLoading(true)
         const catParam = prodCat !== 'Tous' ? `&category=${encodeURIComponent(prodCat)}` : ''
         const qParam = prodSearch.trim() ? `&q=${encodeURIComponent(prodSearch.trim())}` : ''
-        const res = await fetch(`/api/catalog/products?limit=50${catParam}${qParam}`)
+        const res = await fetch(`/api/catalog/products?limit=50&onlyGroupBuy=true${catParam}${qParam}`)
         const data = await res.json()
         if (!cancelled && data.success && Array.isArray(data.products)) {
           setProducts(data.products)
@@ -126,20 +127,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   }, [preselectedId, products])
 
   function selectProduct(p: CatalogProduct) {
-    setSelectedProduct(p)
-    const base = p.price ?? p.baseCost ?? 50000
-    const best = p.groupBuyBestPrice ?? Math.round(base * 0.7)
-    setForm(f => ({
-      ...f,
-      productName: p.name,
-      productCategory: p.category || 'Tech',
-      productImage: p.image || '',
-      productDescription: p.description || p.tagline || '',
-      productBasePrice: base,
-      currentUnitPrice: best,
-      targetQty: p.groupBuyTargetQty ?? 30,
-      priceTiers: (p.priceTiers || []).map(t => ({ minQty: t.minQty, price: t.price, discount: t.discount ?? 0 })),
-    }))
+    applyProduct(p)
     setStep(2)
   }
 
@@ -159,8 +147,17 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.productName.trim() || !form.creatorName.trim() || !form.creatorPhone.trim()) {
-      alert('Veuillez remplir le nom du produit, votre nom et votre téléphone.')
+    if (!form.productId || !selectedProduct) {
+      alert('Veuillez sélectionner un produit du catalogue avant de créer un groupe.')
+      setStep(1)
+      return
+    }
+    if (!form.creatorName.trim() || !form.creatorPhone.trim()) {
+      alert('Veuillez remplir votre nom et votre téléphone.')
+      return
+    }
+    if (!Number.isFinite(form.initialQty) || form.initialQty < 1) {
+      alert('Veuillez saisir une quantité initiale valide.')
       return
     }
     setCreating(true)
@@ -169,10 +166,8 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          product: { name: form.productName, category: form.productCategory, image: form.productImage || undefined, basePrice: form.productBasePrice, currency: 'FCFA' },
-          targetQty: form.targetQty,
-          currentUnitPrice: form.currentUnitPrice,
-          priceTiers: form.priceTiers,
+          productId: form.productId,
+          qty: form.initialQty,
           deadline: form.deadline || undefined,
           shippingMethod: form.shippingMethod,
           description: form.productDescription || undefined,
@@ -182,6 +177,9 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       const data = await res.json()
       if (data.success && data.group?.groupId) {
         router.push(`/achats-groupes/${data.group.groupId}`)
+      } else if (data.code === 'GROUP_ALREADY_EXISTS' && data.group?.groupId) {
+        const shouldOpen = window.confirm(`${data.error}\n\nVoulez-vous rejoindre le groupe existant ?`)
+        if (shouldOpen) router.push(`/achats-groupes/${data.group.groupId}`)
       } else {
         alert(data.error || 'Erreur lors de la création')
       }
@@ -192,8 +190,15 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     }
   }
 
+  const estimatedUnitPrice = useMemo(() => {
+    const qty = Number.isFinite(form.initialQty) ? form.initialQty : 0
+    const tiers = [...form.priceTiers].sort((a, b) => b.minQty - a.minQty)
+    const matched = tiers.find(t => qty >= t.minQty)
+    return matched?.price ?? form.productBasePrice
+  }, [form.initialQty, form.priceTiers, form.productBasePrice])
+
   const savingsPct = form.productBasePrice > 0
-    ? Math.round(((form.productBasePrice - form.currentUnitPrice) / form.productBasePrice) * 100)
+    ? Math.round(((form.productBasePrice - estimatedUnitPrice) / form.productBasePrice) * 100)
     : 0
 
   return (
@@ -265,10 +270,8 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     </div>
                   )}
                 </div>
-                <div className="text-center">
-                  <button type="button" onClick={()=>{setSelectedProduct(null);setStep(2)}} className="text-sm text-[#7C4DFF] font-semibold hover:underline">
-                    Le produit n&apos;est pas dans le catalogue ? Créer manuellement →
-                  </button>
+                <div className="text-center text-xs text-gray-500">
+                  Le produit doit exister dans le catalogue et avoir l&apos;option achat groupé activée.
                 </div>
               </motion.div>
             )}
@@ -301,7 +304,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                         <input
                           required
                           value={form.productName}
-                          onChange={e=>{setForm(f=>({...f,productName:e.target.value})); setShowSuggestions(true)}}
+                          onChange={e=>{setSelectedProduct(null); setForm(f=>({...f,productId:'',productName:e.target.value})); setShowSuggestions(true)}}
                           onFocus={()=>{ if (nameSuggestions.length>0) setShowSuggestions(true) }}
                           onBlur={()=>setTimeout(()=>setShowSuggestions(false), 150)}
                           placeholder="Ex: Smartwatch Pro Sport GPS"
@@ -334,13 +337,11 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Catégorie</label>
-                        <select value={form.productCategory} onChange={e=>setForm(f=>({...f,productCategory:e.target.value}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] bg-white">
-                          {CATS.filter(c=>c!=='Tous').map(c=>(<option key={c}>{c}</option>))}
-                        </select>
+                        <input readOnly value={form.productCategory} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Image URL</label>
-                        <input value={form.productImage} onChange={e=>setForm(f=>({...f,productImage:e.target.value}))} placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF]" />
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Produit catalogue</label>
+                        <input readOnly value={form.productId ? 'Sélectionné' : 'Non sélectionné'} className={`w-full px-4 py-2.5 border rounded-xl bg-gray-50 ${form.productId ? 'border-[#00C853]/30 text-[#00C853]' : 'border-red-100 text-red-500'}`} />
                       </div>
                     </div>
                     {form.productImage && (
@@ -350,7 +351,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     )}
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
-                      <textarea value={form.productDescription} onChange={e=>setForm(f=>({...f,productDescription:e.target.value}))} rows={3} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] resize-none" />
+                      <textarea value={form.productDescription} onChange={e=>setForm(f=>({...f,productDescription:e.target.value}))} rows={3} placeholder="Optionnel: précision visible sur le groupe" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF] resize-none" />
                     </div>
                   </div>
 
@@ -358,43 +359,43 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <h3 className="font-bold text-[#1A1A2E] flex items-center gap-2"><Box className="w-4 h-4 text-[#00C853]"/> Quantité & Prix</h3>
                     <div className="grid grid-cols-3 gap-3">
                       <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
+                        <input type="number" min={1} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Number(e.target.value)}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                      </div>
+                      <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Qté cible</label>
-                        <input type="number" min={2} required value={form.targetQty} onChange={e=>setForm(f=>({...f,targetQty:Number(e.target.value)}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                        <input readOnly value={form.targetQty} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Prix solo</label>
-                        <input type="number" min={1} value={form.productBasePrice} onChange={e=>setForm(f=>({...f,productBasePrice:Number(e.target.value)}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Prix groupe</label>
-                        <input type="number" min={1} value={form.currentUnitPrice} onChange={e=>setForm(f=>({...f,currentUnitPrice:Number(e.target.value)}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Prix estimé</label>
+                        <input readOnly value={fmt(estimatedUnitPrice)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-[#00C853] font-semibold" />
                       </div>
                     </div>
                     <div className="bg-gradient-to-r from-[#00C853]/10 to-[#7C4DFF]/10 rounded-xl p-3 flex items-center justify-between">
-                      <span className="text-sm text-gray-700">Économie / unité</span>
-                      <span className="font-bold text-[#00C853]">{fmt(form.productBasePrice - form.currentUnitPrice)} (-{savingsPct}%)</span>
+                      <span className="text-sm text-gray-700">Prix et paliers issus du catalogue</span>
+                      <span className="font-bold text-[#00C853]">{fmt(form.productBasePrice - estimatedUnitPrice)} (-{savingsPct}%)</span>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-gray-600">Paliers de prix</span>
-                        <button type="button" onClick={()=>setForm(f=>({...f,priceTiers:[...f.priceTiers,{minQty:f.targetQty+10,price:Math.round(f.currentUnitPrice*0.9),discount:Math.round(((f.productBasePrice - f.currentUnitPrice*0.9)/f.productBasePrice)*100)}]}))} className="flex items-center gap-1 text-xs font-semibold text-[#7C4DFF] hover:underline"><Plus className="w-3.5 h-3.5"/> Ajouter</button>
+                        <span className="text-xs font-semibold text-gray-600">Paliers de prix catalogue</span>
+                        <span className="text-[10px] text-gray-400">Non modifiable ici</span>
                       </div>
                       <div className="space-y-2">
                         {form.priceTiers.map((tier,i)=> (
                           <div key={i} className="grid grid-cols-4 gap-2 items-center bg-gray-50 rounded-xl p-3">
                             <div>
                               <span className="text-[10px] text-gray-500">Min</span>
-                              <input type="number" min={1} value={tier.minQty} onChange={e=>{const t=[...form.priceTiers];t[i]={...t[i],minQty:Number(e.target.value)};setForm(f=>({...f,priceTiers:t}))}} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm" />
+                              <input readOnly value={tier.minQty} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white text-gray-600" />
                             </div>
                             <div>
                               <span className="text-[10px] text-gray-500">Prix</span>
-                              <input type="number" min={1} value={tier.price} onChange={e=>{const t=[...form.priceTiers];t[i]={...t[i],price:Number(e.target.value)};setForm(f=>({...f,priceTiers:t}))}} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm" />
+                              <input readOnly value={tier.price} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white text-gray-600" />
                             </div>
                             <div>
                               <span className="text-[10px] text-gray-500">Remise %</span>
-                              <input type="number" min={0} max={99} value={tier.discount} onChange={e=>{const t=[...form.priceTiers];t[i]={...t[i],discount:Number(e.target.value)};setForm(f=>({...f,priceTiers:t}))}} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm" />
+                              <input readOnly value={tier.discount} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white text-gray-600" />
                             </div>
-                            <button type="button" onClick={()=>setForm(f=>({...f,priceTiers:f.priceTiers.filter((_,idx)=>idx!==i)}))} className="p-1.5 hover:bg-red-50 text-[#FF5252] rounded-lg justify-self-end"><Minus className="w-4 h-4" /></button>
+                            <CheckCircle className="w-4 h-4 text-[#00C853] justify-self-end" />
                           </div>
                         ))}
                         {form.priceTiers.length===0 && <p className="text-[11px] text-gray-400">Aucun palier. Ajoutez des paliers pour inciter les acheteurs.</p>}
@@ -479,7 +480,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm text-gray-400 line-through">{fmt(form.productBasePrice)}</div>
-                      <div className="text-xl font-bold text-[#00C853]">{fmt(form.currentUnitPrice)}</div>
+                      <div className="text-xl font-bold text-[#00C853]">{fmt(estimatedUnitPrice)}</div>
                       <div className="text-xs font-bold text-[#FF5252]">-{savingsPct}%</div>
                     </div>
                   </div>

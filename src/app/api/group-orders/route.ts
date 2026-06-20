@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
@@ -9,11 +10,37 @@ import type { ShippingMethodId } from '@/lib/logistics'
 import { requireAuth } from '@/lib/jwt'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
+import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
 
 const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   maritime_60j: 'sea_freight',
   air_15j: 'air_15',
   express_3j: 'air_express'
+}
+
+function asTrimmedString(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  return trimmed.slice(0, maxLength)
+}
+
+function sanitizePublicGroup(group: any) {
+  return {
+    groupId: group.groupId,
+    status: group.status,
+    product: group.product,
+    minQty: group.minQty,
+    targetQty: group.targetQty,
+    currentQty: group.currentQty,
+    maxQty: group.maxQty,
+    priceTiers: group.priceTiers,
+    currentUnitPrice: group.currentUnitPrice,
+    deadline: group.deadline,
+    shippingMethod: group.shippingMethod,
+    shippingCostPerUnit: group.shippingCostPerUnit,
+    participantCount: Array.isArray(group.participants) ? group.participants.length : 0,
+  }
 }
 
 function calcShippingCostPerUnit(
@@ -161,16 +188,33 @@ export async function POST(req: NextRequest) {
         ? shippingMethod
         : defaultShippingMethod
 
-    const creatorName = typeof creator?.name === 'string' ? creator.name.trim() : ''
-    const creatorPhone = typeof creator?.phone === 'string' ? creator.phone.trim() : ''
-    const creatorEmail = typeof creator?.email === 'string' ? creator.email.trim() : undefined
+    const creatorName = asTrimmedString(creator?.name, 80) || ''
+    const creatorPhoneRaw = asTrimmedString(creator?.phone, 32) || ''
+    const creatorEmail = asTrimmedString(creator?.email, 120)
+    const cleanDescription = asTrimmedString(description, 500)
     
-    if (!productId || !creatorName || !creatorPhone) {
+    if (!productId || !creatorName || !creatorPhoneRaw) {
       return NextResponse.json(
         { success: false, error: 'Données manquantes: productId, qty, creator (name, phone) requis' },
         { status: 400 }
       )
     }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return NextResponse.json(
+        { success: false, error: 'Identifiant produit invalide' },
+        { status: 400 }
+      )
+    }
+
+    if (!validateSenegalPhone(creatorPhoneRaw)) {
+      return NextResponse.json(
+        { success: false, error: 'Numéro de téléphone invalide. Format Sénégal requis.' },
+        { status: 400 }
+      )
+    }
+
+    const creatorPhone = formatSenegalPhone(creatorPhoneRaw)
 
     if (!Number.isFinite(qty) || !Number.isInteger(qty)) {
       return NextResponse.json(
@@ -201,7 +245,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Récupérer le produit
-    const product = await Product.findById(productId).lean() as any
+    const product = await Product.findOne({ _id: productId, isPublished: { $ne: false } }).lean() as any
     if (!product) {
       return NextResponse.json(
         { success: false, error: 'Produit non trouvé' },
@@ -214,6 +258,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'L\'achat groupé n\'est pas disponible pour ce produit' },
         { status: 400 }
+      )
+    }
+
+    const existingGroup = await GroupOrder.findOne({
+      'product.productId': product._id,
+      status: 'open',
+      deadline: { $gte: new Date() }
+    })
+      .sort({ currentQty: -1, deadline: 1 })
+      .lean()
+
+    if (existingGroup) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'GROUP_ALREADY_EXISTS',
+          error: 'Un groupe ouvert existe déjà pour ce produit. Rejoignez ce groupe pour concentrer les participants.',
+          group: sanitizePublicGroup(existingGroup)
+        },
+        { status: 409 }
       )
     }
     
@@ -345,7 +409,7 @@ export async function POST(req: NextRequest) {
         phone: creatorPhone,
         email: creatorEmail
       },
-      description
+      description: cleanDescription
     })
     
     await groupOrder.save()
