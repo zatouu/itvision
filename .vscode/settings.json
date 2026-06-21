@@ -1,3 +1,6 @@
 {
-    "kiroAgent.configureMCP": "Disabled"
+    "kiroAgent.configureMCP": "Disabled",
+    "github-actions.workflows.pinned.workflows": [
+        ".github/workflows/deploy-ghcr-ec2.yml"
+    ]
 }

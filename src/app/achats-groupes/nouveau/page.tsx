@@ -1,9 +1,10 @@
 import CreateGroupWizard from '@/components/group-orders/CreateGroupWizard'
 
-interface Props {
-  searchParams: { productId?: string }
-}
-
-export default function Page({ searchParams }: Props) {
-  return <CreateGroupWizard preselectedId={searchParams.productId || null} />
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ productId?: string | undefined }>
+}) {
+  const { productId } = await searchParams
+  return <CreateGroupWizard preselectedId={productId || null} />
 }
