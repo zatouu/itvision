@@ -69,7 +69,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     const timer = setTimeout(async () => {
       setSuggestLoading(true)
       try {
-        const res = await fetch(`/api/catalog/products?limit=6&onlyGroupBuy=true&q=${encodeURIComponent(form.productName.trim())}`)
+        const res = await fetch(`/api/catalog/products?limit=20&q=${encodeURIComponent(form.productName.trim())}`)
         const data = await res.json()
         if (data.success && Array.isArray(data.products)) {
           setNameSuggestions(data.products)
@@ -108,7 +108,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
         setProdLoading(true)
         const catParam = prodCat !== 'Tous' ? `&category=${encodeURIComponent(prodCat)}` : ''
         const qParam = prodSearch.trim() ? `&q=${encodeURIComponent(prodSearch.trim())}` : ''
-        const res = await fetch(`/api/catalog/products?limit=50&onlyGroupBuy=true${catParam}${qParam}`)
+        const res = await fetch(`/api/catalog/products?limit=100${catParam}${qParam}`)
         const data = await res.json()
         if (!cancelled && data.success && Array.isArray(data.products)) {
           setProducts(data.products)
@@ -127,6 +127,10 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   }, [preselectedId, products])
 
   function selectProduct(p: CatalogProduct) {
+    if (!p.groupBuyEnabled) {
+      alert('Ce produit n\'est pas disponible en achat groupé. Sélectionnez un produit avec le badge « Groupé ».')
+      return
+    }
     applyProduct(p)
     setStep(2)
   }
@@ -248,31 +252,38 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     </div>
                   ) : (
                     <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {filteredProducts.map(p => (
-                        <button key={p.id} type="button" onClick={()=>selectProduct(p)} className="text-left bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition group">
-                          <div className="relative h-36 bg-gray-100">
-                            {p.image ? <Image src={p.image} alt={p.name} fill className="object-cover group-hover:scale-105 transition duration-500" /> : <Package className="w-8 h-8 text-gray-300 absolute inset-0 m-auto"/>}
-                            {p.isImported && <span className="absolute top-2 left-2 bg-[#1A1A2E]/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Import</span>}
-                            {p.groupBuyEnabled && <span className="absolute top-2 right-2 bg-[#00C853] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Groupé</span>}
-                          </div>
-                          <div className="p-3">
-                            <h3 className="font-bold text-sm text-[#1A1A2E] line-clamp-2">{p.name}</h3>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                              <span>{p.category || 'Sans catégorie'}</span>
-                              {p.stockStatus && <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${p.stockStatus==='in_stock'?'bg-emerald-50 text-[#00C853]':'bg-orange-50 text-[#FFAB40]'}`}>{p.stockStatus==='in_stock'?'En stock':'Sur commande'}</span>}
+                      {filteredProducts.map(p => {
+                        const eligible = p.groupBuyEnabled
+                        return (
+                          <button key={p.id} type="button" onClick={()=>selectProduct(p)} className={`text-left border rounded-xl overflow-hidden transition group ${eligible ? 'bg-white border-gray-100 shadow-sm hover:shadow-md' : 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'}`}>
+                            <div className="relative h-36 bg-gray-100">
+                              {p.image ? <Image src={p.image} alt={p.name} fill className={`object-cover transition duration-500 ${eligible ? 'group-hover:scale-105' : ''}`} /> : <Package className="w-8 h-8 text-gray-300 absolute inset-0 m-auto"/>}
+                              {p.isImported && <span className="absolute top-2 left-2 bg-[#1A1A2E]/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Import</span>}
+                              {eligible ? (
+                                <span className="absolute top-2 right-2 bg-[#00C853] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Groupé</span>
+                              ) : (
+                                <span className="absolute top-2 right-2 bg-gray-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Non groupé</span>
+                              )}
                             </div>
-                            <div className="flex items-baseline justify-between mt-2">
-                              <span className="text-sm font-bold text-[#00C853]">{fmt(p.price ?? p.baseCost ?? 0)}</span>
-                              {p.groupBuyDiscount ? <span className="text-[10px] font-bold bg-red-50 text-[#FF5252] px-1.5 py-0.5 rounded">-{p.groupBuyDiscount}%</span> : null}
+                            <div className="p-3">
+                              <h3 className={`font-bold text-sm line-clamp-2 ${eligible ? 'text-[#1A1A2E]' : 'text-gray-500'}`}>{p.name}</h3>
+                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                <span>{p.category || 'Sans catégorie'}</span>
+                                {p.stockStatus && <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${p.stockStatus==='in_stock'?'bg-emerald-50 text-[#00C853]':'bg-orange-50 text-[#FFAB40]'}`}>{p.stockStatus==='in_stock'?'En stock':'Sur commande'}</span>}
+                              </div>
+                              <div className="flex items-baseline justify-between mt-2">
+                                <span className={`text-sm font-bold ${eligible ? 'text-[#00C853]' : 'text-gray-400'}`}>{fmt(p.price ?? p.baseCost ?? 0)}</span>
+                                {p.groupBuyDiscount ? <span className="text-[10px] font-bold bg-red-50 text-[#FF5252] px-1.5 py-0.5 rounded">-{p.groupBuyDiscount}%</span> : null}
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
                 <div className="text-center text-xs text-gray-500">
-                  Le produit doit exister dans le catalogue et avoir l&apos;option achat groupé activée.
+                  Tous les produits du catalogue sont affichés. Seuls ceux avec le badge <span className="inline-block bg-[#00C853] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Groupé</span> peuvent être utilisés pour un achat groupé.
                 </div>
               </motion.div>
             )}
@@ -315,23 +326,30 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                       </div>
                       {showSuggestions && nameSuggestions.length > 0 && (
                         <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                          {nameSuggestions.map(p => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onMouseDown={()=>applyProduct(p)}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition"
-                            >
-                              <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden relative shrink-0">
-                                {p.image ? <Image src={p.image} alt="" fill className="object-cover"/> : <Package className="w-5 h-5 text-gray-300 absolute inset-0 m-auto"/>}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-semibold text-[#1A1A2E] truncate">{p.name}</div>
-                                <div className="text-[10px] text-gray-500">{p.category || 'Sans catégorie'} · {fmt(p.price ?? p.baseCost ?? 0)}</div>
-                              </div>
-                              {p.groupBuyEnabled && <span className="text-[10px] bg-[#00C853]/10 text-[#00C853] px-1.5 py-0.5 rounded font-semibold">Groupé</span>}
-                            </button>
-                          ))}
+                          {nameSuggestions.map(p => {
+                            const eligible = p.groupBuyEnabled
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onMouseDown={() => eligible ? applyProduct(p) : undefined}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition ${eligible ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50'}`}
+                              >
+                                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden relative shrink-0">
+                                  {p.image ? <Image src={p.image} alt="" fill className="object-cover"/> : <Package className="w-5 h-5 text-gray-300 absolute inset-0 m-auto"/>}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className={`text-sm font-semibold truncate ${eligible ? 'text-[#1A1A2E]' : 'text-gray-400'}`}>{p.name}</div>
+                                  <div className="text-[10px] text-gray-500">{p.category || 'Sans catégorie'} · {fmt(p.price ?? p.baseCost ?? 0)}</div>
+                                </div>
+                                {eligible ? (
+                                  <span className="text-[10px] bg-[#00C853]/10 text-[#00C853] px-1.5 py-0.5 rounded font-semibold">Groupé</span>
+                                ) : (
+                                  <span className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-semibold">Non groupé</span>
+                                )}
+                              </button>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
