@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { useCsrf } from '@/hooks/useCsrf'
 import {
   Search, Tag, Box, CheckCircle, ChevronRight, ChevronLeft,
   Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users
@@ -38,6 +39,7 @@ const SHIPPING_OPTS = [
 
 export default function CreateGroupWizard({ preselectedId }: { preselectedId?: string | null }) {
   const router = useRouter()
+  const { fetchWithCsrf } = useCsrf()
   const [step, setStep] = useState(preselectedId ? 2 : 1)
   const [products, setProducts] = useState<CatalogProduct[]>([])
   const [prodLoading, setProdLoading] = useState(true)
@@ -166,9 +168,8 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     }
     setCreating(true)
     try {
-      const res = await fetch('/api/group-orders', {
+      const res = await fetchWithCsrf('/api/group-orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: form.productId,
           qty: form.initialQty,
