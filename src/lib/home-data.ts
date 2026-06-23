@@ -63,12 +63,12 @@ export const heroSlides: HeroSlide[] = [
     href: '/produits?promo=blackfriday',
     gradient: 'from-red-500 via-orange-500 to-amber-500',
     images: [
-      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1572635196237-14b3f2815032?w=200&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1572635196237-14b3f2815032?w=600&h=600&fit=crop',
     ],
   },
   {
@@ -78,8 +78,8 @@ export const heroSlides: HeroSlide[] = [
     href: '/achats-groupes',
     gradient: 'from-emerald-500 via-green-500 to-teal-500',
     images: [
-      'https://images.unsplash.com/photo-1578575437130-527eed3abb54?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1586528116311-ad85dd3c4c7a?w=200&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1578575437130-527eed3abb54?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1586528116311-ad85dd3c4c7a?w=600&h=600&fit=crop',
     ],
   },
   {
@@ -89,8 +89,8 @@ export const heroSlides: HeroSlide[] = [
     href: '/trouver-pour-moi',
     gradient: 'from-violet-600 via-purple-600 to-indigo-700',
     images: [
-      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1565849904461-04a58ad8229c?w=200&h=200&fit=crop',
+      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1565849904461-04a58ad8229c?w=600&h=600&fit=crop',
     ],
   },
 ]
