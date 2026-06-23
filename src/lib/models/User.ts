@@ -31,8 +31,10 @@ export interface IUser extends Document {
   passwordResetExpires?: Date
   forcePasswordReset?: boolean
   kycVerified?: boolean
+  tier?: 'Bronze' | 'Argent' | 'Or' | 'Platine'
   referralCode?: string
   referredBy?: string
+  referrals?: mongoose.Types.ObjectId[]
   referralBalance?: number
   referralCount?: number
   // Provider reliability stats (utilisés pour le ranking et l'affichage côté client)
@@ -76,8 +78,10 @@ const UserSchema = new Schema<IUser>({
   passwordResetExpires: { type: Date },
   forcePasswordReset: { type: Boolean, default: false },
   kycVerified: { type: Boolean, default: false },
+  tier: { type: String, enum: ['Bronze', 'Argent', 'Or', 'Platine'], default: 'Bronze' },
   referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
   referredBy: { type: String, uppercase: true, trim: true },
+  referrals: { type: [Schema.Types.ObjectId], default: [], index: true },
   referralBalance: { type: Number, default: 0, min: 0 },
   referralCount: { type: Number, default: 0, min: 0 },
   providerStats: {
