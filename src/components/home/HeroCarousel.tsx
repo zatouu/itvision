@@ -57,7 +57,7 @@ export default function HeroCarousel() {
     const key = `${current}-${slot}`
     const offset = broken[key] || 0
     if (pool.length > 0) {
-      const idx = (current * 3 + slot + offset) % pool.length
+      const idx = (current * 4 + slot + offset) % pool.length
       return pool[idx]
     }
     return fallbackImages[slot] || '/file.svg'
@@ -119,30 +119,30 @@ export default function HeroCarousel() {
 
               {/* Product collage — large & captivating */}
               <div className="hidden md:flex gap-4 ml-auto items-center shrink-0">
-                {getSrc(0) && (
+                {[0, 1].map((slot) => (
                   <motion.div
-                    key={`${current}-hero`}
+                    key={`${current}-tall-${slot}`}
                     initial={{ scale: 0.85, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.25 }}
+                    transition={{ delay: 0.2 + slot * 0.1 }}
                     className="w-[180px] h-[320px] lg:w-[240px] lg:h-[400px] rounded-2xl overflow-hidden shadow-2xl bg-white/10 ring-1 ring-white/20"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={getSrc(0)}
+                      src={getSrc(slot)}
                       alt=""
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                      onError={() => handleError(0)}
+                      onError={() => handleError(slot)}
                     />
                   </motion.div>
-                )}
+                ))}
                 <div className="flex flex-col gap-4">
-                  {[1, 2].map((slot) => (
+                  {[2, 3].map((slot) => (
                     <motion.div
                       key={`${current}-${slot}`}
                       initial={{ scale: 0.85, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.35 + (slot - 1) * 0.1 }}
+                      transition={{ delay: 0.4 + (slot - 2) * 0.1 }}
                       className="w-[180px] h-[152px] lg:w-[240px] lg:h-[192px] rounded-2xl overflow-hidden shadow-2xl bg-white/10 ring-1 ring-white/20"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
