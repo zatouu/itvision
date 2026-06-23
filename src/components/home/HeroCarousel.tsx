@@ -8,9 +8,38 @@ import { heroSlides } from '@/lib/home-data'
 
 const SLIDE_DURATION = 5000
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 export default function HeroCarousel() {
   const [current, setCurrent] = useState(0)
   const [hovered, setHovered] = useState(false)
+  const [pool, setPool] = useState<string[]>([])
+  const [broken, setBroken] = useState<Record<string, number>>({})
+
+  // Fetch catalog images on mount
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/catalog/products?limit=30')
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        if (data.success && Array.isArray(data.products)) {
+          const imgs = data.products
+            .map((p: any) => p.image)
+            .filter((img: string | undefined) => typeof img === 'string' && img.length > 0)
+          if (imgs.length > 0) setPool(shuffle(imgs))
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const next = useCallback(() => setCurrent((i) => (i + 1) % heroSlides.length), [])
   const prev = useCallback(() => setCurrent((i) => (i - 1 + heroSlides.length) % heroSlides.length), [])
@@ -22,6 +51,21 @@ export default function HeroCarousel() {
   }, [hovered, next])
 
   const slide = heroSlides[current]
+
+  const fallbackImages = slide.images
+  const getSrc = (slot: number) => {
+    const key = `${current}-${slot}`
+    const offset = broken[key] || 0
+    if (pool.length > 0) {
+      const idx = (current * 3 + slot + offset) % pool.length
+      return pool[idx]
+    }
+    return fallbackImages[slot] || '/file.svg'
+  }
+
+  const handleError = (slot: number) => {
+    setBroken(prev => ({ ...prev, [`${current}-${slot}`]: (prev[`${current}-${slot}`] || 0) + 1 }))
+  }
 
   return (
     <section
@@ -75,7 +119,7 @@ export default function HeroCarousel() {
 
               {/* Product collage — large & captivating */}
               <div className="hidden md:flex gap-4 ml-auto items-center shrink-0">
-                {slide.images[0] && (
+                {getSrc(0) && (
                   <motion.div
                     key={`${current}-hero`}
                     initial={{ scale: 0.85, opacity: 0 }}
@@ -85,28 +129,28 @@ export default function HeroCarousel() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={slide.images[0]}
+                      src={getSrc(0)}
                       alt=""
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/file.svg' }}
+                      onError={() => handleError(0)}
                     />
                   </motion.div>
                 )}
                 <div className="flex flex-col gap-4">
-                  {slide.images.slice(1, 3).map((img, i) => (
+                  {[1, 2].map((slot) => (
                     <motion.div
-                      key={`${current}-${i + 1}`}
+                      key={`${current}-${slot}`}
                       initial={{ scale: 0.85, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.35 + i * 0.1 }}
+                      transition={{ delay: 0.35 + (slot - 1) * 0.1 }}
                       className="w-[180px] h-[152px] lg:w-[240px] lg:h-[192px] rounded-2xl overflow-hidden shadow-2xl bg-white/10 ring-1 ring-white/20"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={img}
+                        src={getSrc(slot)}
                         alt=""
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/file.svg' }}
+                        onError={() => handleError(slot)}
                       />
                     </motion.div>
                   ))}
