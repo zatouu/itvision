@@ -325,9 +325,9 @@ function RewardCard({ reward, canRedeem, onRedeem }: { reward: any; canRedeem: b
 
 function SettingsQuickButton({ icon: Icon, label, href, onClick }: any) {
   const content = (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 hover:bg-slate-50 transition-colors flex flex-col items-center text-center gap-1">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 hover:bg-slate-50 transition-colors flex flex-col items-center text-center gap-1.5 min-h-[68px] justify-center">
       <Icon className="w-5 h-5 text-slate-600" />
-      <span className="text-xs font-medium text-slate-700">{label}</span>
+      <span className="text-xs font-medium text-slate-700 leading-tight">{label}</span>
     </div>
   )
   if (onClick) return <button onClick={onClick} className="w-full">{content}</button>

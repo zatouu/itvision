@@ -101,8 +101,8 @@ export default async function CompteCommandesPage({ searchParams }: { searchPara
   }, {} as Record<string, number>)
 
   return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-black dark:via-black dark:to-black">
-      <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-black dark:via-black dark:to-black pb-8">
+      <div className="mx-auto max-w-5xl px-4 py-6 md:py-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Mon compte</div>

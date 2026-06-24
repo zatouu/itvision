@@ -486,12 +486,12 @@ function OrderConfirmationContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 pb-8">
       {/* Hero confirmation */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-gradient-to-r from-emerald-500 via-emerald-600 to-blue-600 py-16 px-4 text-white shadow-xl"
+        className="relative overflow-hidden bg-gradient-to-r from-emerald-500 via-emerald-600 to-blue-600 py-10 md:py-16 px-4 text-white shadow-xl"
       >
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 -right-32 w-64 h-64 bg-white rounded-full blur-3xl"></div>
@@ -503,9 +503,9 @@ function OrderConfirmationContent() {
           transition={{ type: 'spring', stiffness: 200, damping: 15 }}
           className="max-w-3xl mx-auto text-center relative z-10"
         >
-          <CheckCircle className="h-20 w-20 mx-auto mb-4 drop-shadow-lg" />
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">Commande Confirmée!</h1>
-          <p className="text-lg text-emerald-100 mb-6">Votre commande a été créée avec succès</p>
+          <CheckCircle className="h-14 w-14 md:h-20 md:w-20 mx-auto mb-3 md:mb-4 drop-shadow-lg" />
+          <h1 className="text-2xl md:text-5xl font-bold mb-2 md:mb-3">Commande Confirmée!</h1>
+          <p className="text-sm md:text-lg text-emerald-100 mb-4 md:mb-6">Votre commande a été créée avec succès</p>
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1100,20 +1100,22 @@ function OrderConfirmationContent() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 onClick={e => e.stopPropagation()}
-                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+                className="w-full max-w-md max-h-[90vh] rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden"
               >
                 {!claimSubmitted ? (
                   <>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                        <Megaphone className="w-5 h-5 text-red-600" />
+                    <div className="p-6 border-b shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                          <Megaphone className="w-5 h-5 text-red-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">Réclamer cette commande</h3>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">Réclamer cette commande</h3>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Décrivez votre problème. Notre équipe vous répond sous 24h par SMS/téléphone.
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Décrivez votre problème. Notre équipe vous répond sous 24h par SMS/téléphone.
-                    </p>
-                    <div className="space-y-3">
+                    <div className="p-6 space-y-3 overflow-y-auto">
                       <input
                         type="text"
                         placeholder="Sujet (ex: livraison non reçue)"
@@ -1129,21 +1131,23 @@ function OrderConfirmationContent() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
                       />
                     </div>
-                    <div className="flex gap-3 mt-6">
-                      <button
-                        onClick={() => setClaimModalOpen(false)}
-                        disabled={claimSubmitting}
-                        className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        onClick={submitClaim}
-                        disabled={claimSubmitting || !claimSubject.trim() || !claimMessage.trim()}
-                        className="flex-1 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {claimSubmitting ? 'Envoi…' : 'Envoyer'}
-                      </button>
+                    <div className="p-4 border-t bg-white shrink-0">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setClaimModalOpen(false)}
+                          disabled={claimSubmitting}
+                          className="flex-1 py-3.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          onClick={submitClaim}
+                          disabled={claimSubmitting || !claimSubject.trim() || !claimMessage.trim()}
+                          className="flex-1 py-3.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {claimSubmitting ? 'Envoi…' : 'Envoyer'}
+                        </button>
+                      </div>
                     </div>
                   </>
                 ) : (

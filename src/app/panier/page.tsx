@@ -1735,7 +1735,7 @@ export default function PanierPage() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden"
+            className="fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">

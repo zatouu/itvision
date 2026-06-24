@@ -182,7 +182,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
   ]
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20 lg:pb-0">
+    <div className="bg-gray-50 min-h-screen pb-32 lg:pb-0">
       <StickyPriceBar productName={product.name} gallery={gallery} comboPrice={comboPrice} show={showStickyBar} onAddToCart={() => addToCart(false)} onBuyNow={() => addToCart(true)} />
 
       <div className="max-w-7xl mx-auto px-4 py-4">

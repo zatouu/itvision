@@ -208,7 +208,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     : 0
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-[#F8F9FA] pb-20 md:pb-0">
       <div className="bg-[#1A1A2E] text-white">
         <div className="max-w-5xl mx-auto px-4 py-6 flex items-center gap-4">
           <button onClick={() => router.push('/achats-groupes')} className="p-2 hover:bg-white/10 rounded-xl transition">

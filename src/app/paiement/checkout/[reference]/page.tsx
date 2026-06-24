@@ -115,7 +115,7 @@ export default async function CheckoutPage({ params }: PageProps) {
   const settings = readPaymentSettings()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50 pb-8">
       {/* Header marketplace */}
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">

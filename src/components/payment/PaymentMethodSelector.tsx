@@ -334,9 +334,9 @@ export default function PaymentMethodSelector({
       {/* Sécurité badges */}
       <div className="grid grid-cols-3 gap-2 pt-2">
         {[{ icon: Shield, label: 'Sécurisé' }, { icon: Building2, label: 'Marchand vérifié' }, { icon: Smartphone, label: 'Paiement mobile' }].map((b, i) => (
-          <div key={i} className="flex flex-col items-center text-center p-2 bg-gray-50 rounded-lg">
-            <b.icon className="w-4 h-4 text-emerald-500 mb-1" />
-            <span className="text-[10px] text-gray-600 font-medium">{b.label}</span>
+          <div key={i} className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-lg min-h-[72px] justify-center">
+            <b.icon className="w-5 h-5 text-emerald-500 mb-1.5" />
+            <span className="text-xs text-gray-600 font-medium leading-tight">{b.label}</span>
           </div>
         ))}
       </div>

@@ -422,7 +422,7 @@ export default function GroupOrderDetailPage() {
   const estimatedPrice = calculatePriceForQty(joinForm.qty)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-violet-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-violet-50 pb-24 md:pb-0">
       {/* Notification */}
       <AnimatePresence>
         {notification && (
@@ -950,15 +950,15 @@ export default function GroupOrderDetailPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
+              className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-6 border-b">
+              <div className="p-6 border-b shrink-0">
                 <h2 className="text-2xl font-bold text-slate-900">Rejoindre l&apos;achat groupé</h2>
                 <p className="text-slate-600">{group.product.name}</p>
               </div>
-              
-              <form onSubmit={handleJoin} className="p-6 space-y-4">
+
+              <form id="joinGroupForm" onSubmit={handleJoin} className="p-6 space-y-4 overflow-y-auto">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">
                     <User className="w-4 h-4 inline mr-1" />
@@ -1012,24 +1012,27 @@ export default function GroupOrderDetailPage() {
                     <button
                       type="button"
                       onClick={() => setJoinForm({ ...joinForm, qty: Math.max(1, joinForm.qty - 1) })}
-                      className="p-3 border border-slate-300 rounded-lg hover:bg-slate-50"
+                      className="min-h-[48px] min-w-[48px] p-3 border border-slate-300 rounded-xl hover:bg-slate-50 flex items-center justify-center active:scale-95 transition"
+                      aria-label="Diminuer la quantité"
                     >
-                      <Minus className="w-5 h-5" />
+                      <Minus className="w-6 h-6" />
                     </button>
                     <input
                       type="number"
                       min="1"
                       required
+                      inputMode="numeric"
                       value={joinForm.qty}
                       onChange={e => setJoinForm({ ...joinForm, qty: Math.max(1, parseInt(e.target.value) || 1) })}
-                      className="flex-1 px-4 py-3 border border-slate-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="flex-1 min-h-[48px] px-4 py-3 border border-slate-300 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <button
                       type="button"
                       onClick={() => setJoinForm({ ...joinForm, qty: joinForm.qty + 1 })}
-                      className="p-3 border border-slate-300 rounded-lg hover:bg-slate-50"
+                      className="min-h-[48px] min-w-[48px] p-3 border border-slate-300 rounded-xl hover:bg-slate-50 flex items-center justify-center active:scale-95 transition"
+                      aria-label="Augmenter la quantité"
                     >
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-6 h-6" />
                     </button>
                   </div>
                 </div>
@@ -1106,18 +1109,22 @@ export default function GroupOrderDetailPage() {
                   </div>
                 </div>
                 
-                <div className="flex gap-3 pt-4">
+              </form>
+
+              <div className="border-t p-4 bg-white shrink-0">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setShowJoinModal(false)}
-                    className="flex-1 py-3 border border-slate-300 rounded-lg font-semibold hover:bg-slate-50 transition"
+                    className="flex-1 py-3.5 border border-slate-300 rounded-xl font-semibold hover:bg-slate-50 transition"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
+                    form="joinGroupForm"
                     disabled={joining}
-                    className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-violet-500 text-white rounded-lg font-semibold hover:from-emerald-600 hover:to-violet-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-violet-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-violet-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {joining ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -1129,11 +1136,30 @@ export default function GroupOrderDetailPage() {
                     )}
                   </button>
                 </div>
-              </form>
+              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mobile sticky CTA */}
+      {isOpen && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between gap-4 max-w-6xl mx-auto">
+            <div className="text-sm">
+              <p className="text-slate-500">Prix actuel</p>
+              <p className="font-bold text-emerald-600">{formatCurrency(group.currentUnitPrice)} <span className="text-xs font-normal text-slate-400">/unité</span></p>
+            </div>
+            <button
+              onClick={() => setShowJoinModal(true)}
+              className="flex-1 max-w-[240px] py-3.5 bg-gradient-to-r from-emerald-500 to-violet-500 text-white rounded-xl font-bold text-base shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
+            >
+              <Zap className="w-5 h-5" />
+              Rejoindre cet achat
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

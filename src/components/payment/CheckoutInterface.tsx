@@ -205,6 +205,27 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex flex-col md:flex-row">
+      {/* Mobile sticky summary bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-gray-500">Total à payer</p>
+            <p className="text-xl font-bold bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">
+              {formatCurrency(participant.amount)}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const el = document.getElementById('payment-methods')
+              el?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            className="flex-1 max-w-[200px] bg-gradient-to-r from-emerald-500 to-violet-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition"
+          >
+            Choisir le paiement
+          </button>
+        </div>
+      </div>
+
       {/* ─── Sidebar Récapitulatif ─── */}
       <div className="md:w-5/12 lg:w-2/5 bg-gradient-to-br from-gray-50 to-violet-50/30 p-6 border-b md:border-b-0 md:border-r border-gray-100">
         <div className="flex items-center gap-2 mb-5">
@@ -317,7 +338,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
       </div>
 
       {/* ─── Contenu principal ─── */}
-      <div className="md:w-7/12 lg:w-3/5 p-6 md:p-8">
+      <div id="payment-methods" className="md:w-7/12 lg:w-3/5 p-6 md:p-8">
         <PaymentMethodSelector
           reference={participant.reference}
           amount={participant.amount}

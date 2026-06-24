@@ -45,7 +45,7 @@ export default function MarketHomePage() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white pb-20 md:pb-0">
       {/* 1. Hero Carousel en premier (full width) */}
       <HeroCarousel />
 

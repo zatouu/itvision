@@ -896,8 +896,8 @@ export default function ProduitsPage() {
     <ErrorBoundary>
       <main className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100 pb-20 md:pb-0">
         <MarketHeader />
-        {/* Local cart icon for produits page */}
-        <div className="fixed right-4 bottom-4 z-40">
+        {/* Local cart icon for produits page — hidden on mobile where bottom nav is present */}
+        <div className="fixed right-4 bottom-4 z-40 hidden md:block">
           <CartIcon count={cartCount} onClick={() => setCartOpen(true)} />
         </div>
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
@@ -1410,7 +1410,7 @@ export default function ProduitsPage() {
 
       {/* Barre de comparaison */}
       {showCompareBar && comparingProducts.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-green-300 rounded-xl shadow-2xl px-6 py-4 flex items-center gap-4 max-w-2xl">
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-green-300 rounded-xl shadow-2xl px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 max-w-[92vw] md:max-w-2xl">
           <div className="flex items-center gap-2">
             <GitCompare className="h-5 w-5 text-green-600" />
             <span className="text-sm font-semibold text-gray-900">

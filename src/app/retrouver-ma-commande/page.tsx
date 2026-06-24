@@ -44,8 +44,8 @@ export default function RecoverOrderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-4">
-      <div className="max-w-lg mx-auto pt-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-4 pb-12">
+      <div className="max-w-lg mx-auto pt-8 md:pt-12">
         <div className="rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-6 shadow-lg">
           <h1 className="text-2xl font-bold text-gray-900">Retrouver ma commande</h1>
           <p className="text-sm text-gray-600 mt-2">

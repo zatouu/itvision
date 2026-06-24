@@ -12,8 +12,8 @@ interface MobileBottomBarProps {
 
 export default function MobileBottomBar({ comboPrice, onWhatsApp, onAddToCart, onBuyNow }: MobileBottomBarProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] lg:hidden">
-      <div className="flex items-center gap-2 px-4 py-2">
+    <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] lg:hidden">
+      <div className="flex items-center gap-2 px-4 py-2.5">
         <a
           href="#" // WhatsApp link handled by parent
           onClick={e => { e.preventDefault(); onWhatsApp() }}

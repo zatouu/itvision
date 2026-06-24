@@ -248,7 +248,7 @@ export default function GroupOrdersPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-[#F8F9FA] pb-20 md:pb-0">
       {/* TOP BAR */}
       <div className="h-10 bg-[#1A1A2E] text-white flex items-center justify-between px-4 text-xs">
         <div className="flex items-center gap-2">
