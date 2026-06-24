@@ -14,6 +14,10 @@ export interface IUser extends Document {
   country?: string
   // Liaison optionnelle vers un enregistrement Client (entreprise)
   companyClientId?: mongoose.Types.ObjectId
+  // Profils découplés par domaine
+  marketplaceProfileId?: mongoose.Types.ObjectId
+  corporateProfileId?: mongoose.Types.ObjectId
+  providerProfileId?: mongoose.Types.ObjectId
   favoriteProductIds?: string[]
   role: 'CLIENT' | 'TECHNICIAN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'ADMIN' | 'SUPER_ADMIN'
   marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
@@ -61,6 +65,9 @@ const UserSchema = new Schema<IUser>({
   city: { type: String, trim: true },
   country: { type: String, trim: true },
   companyClientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  marketplaceProfileId: { type: Schema.Types.ObjectId, ref: 'MarketplaceProfile', sparse: true, index: true },
+  corporateProfileId: { type: Schema.Types.ObjectId, ref: 'CorporateProfile', sparse: true, index: true },
+  providerProfileId: { type: Schema.Types.ObjectId, ref: 'ProviderProfile', sparse: true, index: true },
   favoriteProductIds: { type: [String], default: [] },
   role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN'], default: 'CLIENT', index: true },
   marketplaceTier: { type: String, enum: ['standard', 'pro', 'reseller', 'partner'], default: 'standard', index: true },

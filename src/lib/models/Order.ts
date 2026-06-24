@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+export type OrderDomain = 'marketplace' | 'corporate' | 'services'
+
 export interface IOrderItem {
   id: string
   variantId?: string
@@ -61,6 +63,11 @@ export interface IOrder extends Document {
   // Accès invité (suivi / modification adresse) via token secret
   trackingAccessTokenHash?: string
   trackingAccessTokenCreatedAt?: Date
+  
+  // Domaine métier de la commande
+  domain: OrderDomain
+  projectId?: mongoose.Types.ObjectId // corporate
+  serviceRequestId?: mongoose.Types.ObjectId // services
   
   items: IOrderItem[]
   fees: IOrderFees                  // Décomposition des frais
@@ -160,6 +167,16 @@ const OrderSchema = new Schema<IOrder>({
 
   trackingAccessTokenHash: { type: String, sparse: true, index: true },
   trackingAccessTokenCreatedAt: { type: Date, sparse: true },
+  
+  // Domaine métier de la commande
+  domain: {
+    type: String,
+    enum: ['marketplace', 'corporate', 'services'],
+    default: 'marketplace',
+    index: true
+  },
+  projectId: { type: mongoose.Schema.Types.ObjectId, sparse: true, index: true },
+  serviceRequestId: { type: mongoose.Schema.Types.ObjectId, sparse: true, index: true },
   
   items: [OrderItemSchema],
   fees: { type: OrderFeesSchema, required: true },

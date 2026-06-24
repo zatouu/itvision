@@ -11,6 +11,7 @@ import Activity from '@/lib/models/Activity'
 import Reward from '@/lib/models/Reward'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
+import MarketBottomNav from '@/components/MarketBottomNav'
 import AccountDashboard from '@/components/account/AccountDashboard'
 
 const DEFAULT_REWARDS = [
@@ -197,6 +198,13 @@ export default async function ComptePage() {
       total: latestOrder.total,
       createdAt: latestOrder.createdAt,
     } : null,
+    recentOrders: orders.slice(0, 5).map((o: any) => ({
+      id: o.orderId,
+      status: o.status,
+      total: o.total,
+      createdAt: o.createdAt,
+      itemCount: o.items?.length || 0,
+    })),
     activities: activities.map((a: any) => ({
       _id: String(a._id),
       type: a.type,
@@ -238,10 +246,11 @@ export default async function ComptePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
       <MarketHeader />
       <AccountDashboard data={dashboardData} />
       <MarketFooter />
+      <MarketBottomNav />
     </div>
   )
 }

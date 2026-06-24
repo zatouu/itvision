@@ -17,21 +17,21 @@ export default function MobileBottomBar({ comboPrice, onWhatsApp, onAddToCart, o
         <a
           href="#" // WhatsApp link handled by parent
           onClick={e => { e.preventDefault(); onWhatsApp() }}
-          className="flex flex-col items-center justify-center w-14 h-12 text-emerald-600 border border-emerald-200 rounded-lg"
+          className="flex flex-col items-center justify-center w-12 h-11 text-emerald-600 border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition"
         >
           <MessageCircle className="w-5 h-5" />
         </a>
         <button
           onClick={onAddToCart}
-          className="flex-1 h-12 border-2 border-orange-400 text-orange-600 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-orange-50 transition"
+          className="flex-1 h-11 border border-orange-300 bg-white text-orange-600 rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 hover:bg-orange-50 transition"
         >
           <ShoppingCart className="w-4 h-4" />Panier
         </button>
         <button
           onClick={onBuyNow}
-          className="flex-1 h-12 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm transition"
+          className="flex-[1.35] h-11 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm transition shadow-sm flex items-center justify-center gap-1.5"
         >
-          {formatCurrency(comboPrice) || 'Acheter'}
+          <ShoppingCart className="w-4 h-4" />Acheter
         </button>
       </div>
     </div>

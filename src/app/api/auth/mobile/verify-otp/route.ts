@@ -7,6 +7,8 @@ import { normalizePhone } from '@/lib/sms'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
 import { createUniqueReferralCode, validateReferralCode } from '@/lib/referral'
 import { creditPoints, getAppConfig } from '@/lib/wallet'
+import { creditGrainsForReferralSignup, updateTierFromBalance } from '@/lib/grains'
+import { createUserProfiles } from '@/lib/user-profiles'
 
 // Rate limit : 10 tentatives de vérification par 15 min par IP
 const otpVerifyLimiter = new RateLimiter(15 * 60 * 1000, 10)
@@ -100,6 +102,34 @@ export async function POST(request: NextRequest) {
         referralCount: 0,
       })
       user = newUser.toObject()
+
+      // Créer les profils découplés par domaine
+      const mappedRole = role === 'PROVIDER' ? 'TECHNICIAN' : 'CLIENT'
+      await createUserProfiles(newUser._id, mappedRole, {
+        referralCode,
+        referredBy,
+        referralBalance: 0,
+        referralCount: 0
+      }).catch(profileErr => {
+        console.error('[verify-otp] Erreur création profils utilisateur:', profileErr)
+      })
+
+      // Mettre à jour le parrain et créditer les grains (best effort)
+      if (referredBy) {
+        try {
+          const referrer = await User.findOne({ referralCode: referredBy })
+          if (referrer) {
+            await User.updateOne(
+              { _id: referrer._id },
+              { $addToSet: { referrals: newUser._id }, $inc: { referralCount: 1 } }
+            )
+            await creditGrainsForReferralSignup(referrer._id, referredBy, String(newUser._id))
+            await updateTierFromBalance(referrer._id)
+          }
+        } catch (referralErr) {
+          console.error('[referral] Erreur mise à jour parrain:', referralErr)
+        }
+      }
 
       // Crédit de bienvenue en points (best effort, ne bloque pas l'inscription)
       try {

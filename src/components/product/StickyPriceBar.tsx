@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import { formatCurrency } from './types'
+import { ShoppingCart } from 'lucide-react'
 
 interface StickyPriceBarProps {
   productName: string
@@ -33,15 +34,15 @@ export default function StickyPriceBar({ productName, gallery, comboPrice, show,
             </div>
             <button
               onClick={onAddToCart}
-              className="hidden md:block px-4 py-2 border-2 border-orange-400 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50 transition"
+              className="hidden md:flex items-center gap-1.5 px-4 py-2 border border-orange-300 text-orange-600 bg-white rounded-lg text-sm font-medium hover:bg-orange-50 transition"
             >
               + Panier
             </button>
             <button
               onClick={onBuyNow}
-              className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm transition"
+              className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm transition shadow-sm flex items-center gap-1.5"
             >
-              Acheter
+              <ShoppingCart className="w-4 h-4" /> Acheter
             </button>
           </div>
         </motion.div>

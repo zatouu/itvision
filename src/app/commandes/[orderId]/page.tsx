@@ -22,7 +22,9 @@ import {
   Copy,
   Sparkles,
   LogIn,
-  UserPlus
+  UserPlus,
+  Megaphone,
+  Bell
 } from 'lucide-react'
 
 interface OrderDetails {
@@ -108,6 +110,13 @@ function OrderConfirmationContent() {
     notes: ''
   })
   const [currentStep, setCurrentStep] = useState(0)
+  const [statusHistory, setStatusHistory] = useState<string[]>([])
+  const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'warning' } | null>(null)
+  const [claimModalOpen, setClaimModalOpen] = useState(false)
+  const [claimSubject, setClaimSubject] = useState('')
+  const [claimMessage, setClaimMessage] = useState('')
+  const [claimSubmitting, setClaimSubmitting] = useState(false)
+  const [claimSubmitted, setClaimSubmitted] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
 
   const [authChecked, setAuthChecked] = useState(false)
@@ -134,12 +143,8 @@ function OrderConfirmationContent() {
             country: '',
             notes: ''
           })
-          // Animation des étapes
-          setCurrentStep(0)
-          const interval = setInterval(() => {
-            setCurrentStep(p => (p < 4 ? p + 1 : p))
-          }, 600)
-          return () => clearInterval(interval)
+          // Set timeline based on real status
+          setCurrentStep(statusIndex(data.order.status))
         } else {
           setError(data.error || 'Commande non trouvée')
         }
@@ -157,6 +162,40 @@ function OrderConfirmationContent() {
     // eslint-disable-next-line
     // (le useEffect suivant gère fetchSuggestions)
   }, [orderId, token])
+
+  // Poll order status every 30s and show toast on change
+  useEffect(() => {
+    if (!orderId || !order) return
+    let cancelled = false
+    const poll = async () => {
+      if (cancelled) return
+      try {
+        const url = token
+          ? `/api/order/${orderId}?token=${encodeURIComponent(token)}`
+          : `/api/order/${orderId}`
+        const res = await fetch(url)
+        const data = await res.json()
+        if (!res.ok || !data.success) return
+
+        const newStatus = data.order.status
+        if (newStatus !== order.status) {
+          setOrder(prev => prev ? { ...prev, ...data.order } : data.order)
+          setCurrentStep(statusIndex(newStatus))
+          const label = statusLabel(newStatus)
+          setToast({ message: `Statut mis à jour : ${label}`, type: newStatus === 'cancelled' ? 'warning' : 'success' })
+          setTimeout(() => setToast(null), 5000)
+        }
+      } catch (e) {
+        console.error('Polling error:', e)
+      }
+    }
+
+    const timer = setInterval(poll, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [orderId, token, order])
 
   // Détecter si l'utilisateur est connecté (cookie httpOnly)
   useEffect(() => {
@@ -226,6 +265,41 @@ function OrderConfirmationContent() {
   const formatCurrency = (amount: number, currency = 'FCFA') =>
     `${amount.toLocaleString('fr-FR')} ${currency}`
 
+  const submitClaim = async () => {
+    if (!claimSubject.trim() || !claimMessage.trim()) return
+    setClaimSubmitting(true)
+    try {
+      const csrfToken = await getCsrfToken()
+      const res = await fetch('/api/support/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
+        },
+        body: JSON.stringify({
+          orderId,
+          subject: claimSubject,
+          message: claimMessage,
+          phone: order?.clientPhone,
+          email: order?.clientEmail,
+        })
+      })
+      if (res.ok) {
+        setClaimSubmitted(true)
+        setTimeout(() => {
+          setClaimModalOpen(false)
+          setClaimSubmitted(false)
+          setClaimSubject('')
+          setClaimMessage('')
+        }, 3000)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setClaimSubmitting(false)
+    }
+  }
+
   const onboardingRedirect = (() => {
     if (!orderId) return '/compte'
     if (token) {
@@ -285,12 +359,41 @@ function OrderConfirmationContent() {
   }
 
   const stepItems = [
-    { icon: CheckCircle, label: 'Commande confirmée', color: 'emerald' },
-    { icon: MapPin, label: 'Adresse validée', color: 'blue' },
-    { icon: Package, label: 'Préparation', color: 'purple' },
-    { icon: Truck, label: 'Expédition', color: 'orange' },
-    { icon: CheckCircle, label: 'Livraison', color: 'emerald' }
+    { icon: CheckCircle, label: 'Commande confirmée', color: 'emerald', status: 'pending' },
+    { icon: MapPin, label: 'Adresse validée', color: 'blue', status: 'confirmed' },
+    { icon: Package, label: 'Préparation', color: 'purple', status: 'processing' },
+    { icon: Truck, label: 'Expédition', color: 'orange', status: 'shipped' },
+    { icon: CheckCircle, label: 'Livraison', color: 'emerald', status: 'delivered' }
   ]
+
+  const statusIndex = (status: string) => {
+    if (status === 'cancelled') return -1
+    const idx = stepItems.findIndex(s => s.status === status)
+    return idx === -1 ? 0 : idx
+  }
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'En attente'
+      case 'confirmed': return 'Confirmée'
+      case 'processing': return 'En traitement'
+      case 'shipped': return 'Expédiée'
+      case 'delivered': return 'Livrée'
+      case 'cancelled': return 'Annulée'
+      default: return status
+    }
+  }
+
+  const getStepDescription = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Votre commande est enregistrée. Notre équipe la valide sous 24h.'
+      case 'confirmed': return 'Votre commande est confirmée. Nous préparons votre envoi.'
+      case 'processing': return 'Votre commande est en cours de préparation chez nos fournisseurs.'
+      case 'shipped': return 'Votre commande est en route. Vous serez contacté pour la livraison.'
+      case 'delivered': return 'Votre commande est livrée. Merci pour votre confiance !'
+      default: return ''
+    }
+  }
 
   if (loading) {
     return (
@@ -303,68 +406,6 @@ function OrderConfirmationContent() {
           <Loader2 className="h-12 w-12 animate-spin text-emerald-600 mx-auto mb-4" />
           <p className="text-gray-600 font-medium">Chargement de votre commande...</p>
         </motion.div>
-          {/* Groupes d'achat en cours */}
-          <div className="max-w-5xl mx-auto p-4 md:p-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="mb-12"
-            >
-              <h2 className="text-2xl font-bold text-emerald-700 mb-4 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-emerald-500" /> Groupes d'achat en cours
-              </h2>
-              {loadingSuggestions ? (
-                <div className="text-gray-500 py-8 text-center">Chargement…</div>
-              ) : groupBuyProducts.length === 0 ? (
-                <div className="text-gray-400 py-8 text-center">Aucun groupe d'achat en cours actuellement.</div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {groupBuyProducts.map((p:any) => (
-                    <div key={p._id} className="bg-white rounded-xl border border-emerald-100 shadow p-4 flex flex-col justify-between">
-                      <div>
-                        <div className="font-bold text-lg text-gray-900 mb-1 line-clamp-2">{p.name}</div>
-                        <div className="text-sm text-gray-600 mb-2">{p.category}</div>
-                        <div className="text-xs text-emerald-700 mb-2">À partir de {p.groupBuyBestPrice?.toLocaleString('fr-FR')} FCFA</div>
-                        <div className="text-xs text-gray-500 mb-2">{p.groupBuyDiscount ? `Jusqu'à -${p.groupBuyDiscount}%` : ''}</div>
-                      </div>
-                      <button onClick={() => window.location.href = `/produits/${p._id}?groupbuy=1`} className="mt-2 w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white py-2 rounded-lg font-semibold transition">Rejoindre le groupe</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-
-            {/* Produits similaires */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9 }}
-              className="mb-12"
-            >
-              <h2 className="text-2xl font-bold text-blue-700 mb-4 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-blue-500" /> Produits similaires
-              </h2>
-              {loadingSuggestions ? (
-                <div className="text-gray-500 py-8 text-center">Chargement…</div>
-              ) : similarProducts.length === 0 ? (
-                <div className="text-gray-400 py-8 text-center">Aucun produit similaire trouvé.</div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {similarProducts.map((p:any) => (
-                    <div key={p._id} className="bg-white rounded-xl border border-blue-100 shadow p-4 flex flex-col justify-between">
-                      <div>
-                        <div className="font-bold text-lg text-gray-900 mb-1 line-clamp-2">{p.name}</div>
-                        <div className="text-sm text-gray-600 mb-2">{p.category}</div>
-                        <div className="text-xs text-emerald-700 mb-2">{p.price?.toLocaleString('fr-FR')} FCFA</div>
-                      </div>
-                      <button onClick={() => window.location.href = `/produits/${p._id}` } className="mt-2 w-full bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white py-2 rounded-lg font-semibold transition">Voir le produit</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </div>
       </div>
     )
   }
@@ -489,6 +530,23 @@ function OrderConfirmationContent() {
         </motion.div>
       </motion.div>
 
+      {/* Toast notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white ${
+              toast.type === 'warning' ? 'bg-red-500' : toast.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'
+            }`}
+          >
+            <Bell className="w-5 h-5" />
+            <span className="font-medium text-sm">{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-5xl mx-auto p-4 md:p-8">
         {/* Onboarding compte (optionnel) */}
         {authChecked && !isAuthenticated && (
@@ -553,63 +611,100 @@ function OrderConfirmationContent() {
           </motion.div>
         )}
 
-        {/* Timeline des étapes */}
+        {/* Timeline verticale enrichie */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Suivi de votre commande</h2>
-          <div className="flex justify-between items-center relative mb-8">
-            {/* Ligne de connexion */}
-            <div className="absolute top-10 left-0 right-0 h-1 bg-gray-200 -z-10">
-              <motion.div
-                initial={{ width: '0%' }}
-                animate={{ width: `${(Math.min(currentStep, 4) / 4) * 100}%` }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-emerald-500 to-blue-500"
-              />
-            </div>
-
-            {/* Étapes */}
-            {stepItems.map((step, idx) => {
-              const Icon = step.icon
-              const isCompleted = idx <= currentStep
-              const colorClass = step.color === 'emerald' ? 'emerald' : step.color === 'blue' ? 'blue' : step.color === 'purple' ? 'purple' : 'orange'
-
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="flex flex-col items-center flex-1"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.15 }}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center font-bold mb-3 border-4 transition-all shadow-lg relative ${
-                      isCompleted
-                        ? `bg-${colorClass}-500 border-${colorClass}-600 text-white`
-                        : 'bg-white border-gray-300 text-gray-400'
-                    }`}
-                  >
-                    <Icon className="w-10 h-10" />
-                    {isCompleted && idx < currentStep && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white"
-                      >
-                        <Check className="w-4 h-4 text-white" />
-                      </motion.div>
-                    )}
-                  </motion.div>
-                  <p className="text-xs md:text-sm font-medium text-center text-gray-700 px-1">{step.label}</p>
-                </motion.div>
-              )
-            })}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 text-center">Suivi de votre commande</h2>
+            <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+              order.status === 'cancelled'
+                ? 'bg-red-100 text-red-700'
+                : order.status === 'delivered'
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              {statusLabel(order.status)}
+            </span>
           </div>
+
+          {order.status === 'cancelled' ? (
+            <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-6 text-center">
+              <X className="w-12 h-12 text-red-600 mx-auto mb-3" />
+              <p className="font-bold text-red-900 text-lg">Commande annulée</p>
+              <p className="text-red-700 text-sm mt-1">Cette commande a été annulée. Contactez-nous si vous avez des questions.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+              <div className="relative">
+                {stepItems.map((step, idx) => {
+                  const Icon = step.icon
+                  const isCompleted = idx <= currentStep
+                  const isCurrent = idx === currentStep
+                  const colorClass = step.color === 'emerald' ? 'emerald' : step.color === 'blue' ? 'blue' : step.color === 'purple' ? 'purple' : 'orange'
+                  const estimatedDate = new Date(order.createdAt)
+                  estimatedDate.setDate(estimatedDate.getDate() + idx * 3)
+
+                  return (
+                    <div key={idx} className="relative pl-10 pb-8 last:pb-0">
+                      {/* Ligne verticale */}
+                      {idx < stepItems.length - 1 && (
+                        <div className={`absolute left-[19px] top-10 bottom-0 w-0.5 ${isCompleted ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+                      )}
+
+                      {/* Icône */}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className={`absolute left-0 top-0 w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
+                          isCompleted
+                            ? `bg-${colorClass}-500 border-${colorClass}-600 text-white`
+                            : 'bg-white border-gray-300 text-gray-400'
+                        } ${isCurrent ? 'ring-4 ring-blue-200' : ''}`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        {isCompleted && idx < currentStep && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+                            <Check className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Contenu */}
+                      <div className="pt-1">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <p className={`font-bold ${isCurrent ? 'text-blue-700' : isCompleted ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {step.label}
+                          </p>
+                          {isCurrent && (
+                            <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">En cours</span>
+                          )}
+                          {isCompleted && idx < currentStep && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Terminé</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {isCompleted
+                            ? `Atteint le ${estimatedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
+                            : `Prévu autour du ${estimatedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
+                          }
+                        </p>
+                        {isCurrent && (
+                          <p className="text-sm text-gray-600 mt-2 bg-blue-50 p-2 rounded-lg">
+                            {getStepDescription(step.status)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Grille principale - Infos client et adresse */}
@@ -969,6 +1064,13 @@ function OrderConfirmationContent() {
             <Download className="w-5 h-5" />
             Imprimer
           </button>
+          <button
+            onClick={() => setClaimModalOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-red-300 hover:border-red-400 text-red-700 py-4 rounded-xl font-bold transition"
+          >
+            <Megaphone className="w-5 h-5" />
+            Réclamer
+          </button>
         </motion.div>
 
         {/* Info box */}
@@ -982,6 +1084,79 @@ function OrderConfirmationContent() {
             <strong className="text-emerald-700">Prochaines étapes:</strong> Vous recevrez une confirmation par SMS/téléphone. Notre équipe traitera votre commande dans les 24 heures et vous contactera pour finaliser les détails de livraison.
           </p>
         </motion.div>
+
+        {/* Claim modal */}
+        <AnimatePresence>
+          {claimModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+              onClick={() => !claimSubmitting && setClaimModalOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+              >
+                {!claimSubmitted ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                        <Megaphone className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">Réclamer cette commande</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Décrivez votre problème. Notre équipe vous répond sous 24h par SMS/téléphone.
+                    </p>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Sujet (ex: livraison non reçue)"
+                        value={claimSubject}
+                        onChange={e => setClaimSubject(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                      <textarea
+                        placeholder="Détaillez votre réclamation..."
+                        value={claimMessage}
+                        onChange={e => setClaimMessage(e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                      />
+                    </div>
+                    <div className="flex gap-3 mt-6">
+                      <button
+                        onClick={() => setClaimModalOpen(false)}
+                        disabled={claimSubmitting}
+                        className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={submitClaim}
+                        disabled={claimSubmitting || !claimSubject.trim() || !claimMessage.trim()}
+                        className="flex-1 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {claimSubmitting ? 'Envoi…' : 'Envoyer'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-6">
+                    <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Réclamation envoyée</h3>
+                    <p className="text-gray-600 text-sm">Notre équipe traitera votre demande sous 24h.</p>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

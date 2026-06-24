@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Menu, X, ShoppingBag, Package, Users, Heart,
-  Home, Store, UserRound, Truck, Sparkles, Gem
+  Home, Store, UserRound, Truck, Sparkles, Gem,
+  BarChart3
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
@@ -15,8 +16,40 @@ import CategoryMegaMenu from './catalog/CategoryMegaMenu'
 export default function MarketHeader() {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
+  const [compareCount, setCompareCount] = useState(0)
+  const [grainsBalance, setGrainsBalance] = useState<number | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const cartRaw = localStorage.getItem('cart:items')
+        const cartItems = cartRaw ? JSON.parse(cartRaw) : []
+        setCartCount(cartItems.reduce((s: number, i: any) => s + (i.qty || 1), 0))
+
+        const compareRaw = localStorage.getItem('compare:ids')
+        setCompareCount(compareRaw ? compareRaw.split(',').filter(Boolean).length : 0)
+
+        const grainsRaw = localStorage.getItem('grains:balance')
+        setGrainsBalance(grainsRaw ? parseInt(grainsRaw, 10) : null)
+      } catch {
+        setCartCount(0)
+        setCompareCount(0)
+        setGrainsBalance(null)
+      }
+    }
+    sync()
+    window.addEventListener('cart:updated', sync)
+    window.addEventListener('grains:updated', sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener('cart:updated', sync)
+      window.removeEventListener('grains:updated', sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -103,14 +136,28 @@ export default function MarketHeader() {
           >
             <Heart className="h-5 w-5" />
           </Link>
-          <CartIcon />
+          <CartIcon count={cartCount} />
+          {compareCount > 0 && (
+            <Link
+              href="/produits/compare"
+              className="relative rounded-xl p-2 text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+              title="Comparer"
+            >
+              <BarChart3 className="h-5 w-5" />
+              <span className="absolute -top-1.5 -right-1.5 text-[10px] leading-none bg-violet-600 text-white px-1.5 py-0.5 rounded-full shadow">
+                {compareCount}
+              </span>
+            </Link>
+          )}
           <Link
             href="/wallet"
             className="flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-violet-50/50 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100/60 transition-colors whitespace-nowrap"
             title="Wallet SEL"
           >
             <Gem className="h-3.5 w-3.5" />
-            <span className="whitespace-nowrap">1 250 Grains</span>
+            <span className="whitespace-nowrap">
+              {grainsBalance !== null ? grainsBalance.toLocaleString('fr-FR') : '—'} Grains
+            </span>
           </Link>
           <ThemeToggle />
           <MarketAuthButton
@@ -124,7 +171,26 @@ export default function MarketHeader() {
 
         {/* Mobile toggle */}
         <div className="flex items-center gap-2 md:hidden">
-          <CartIcon />
+          <Link
+            href="/compte"
+            className="rounded-xl p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+            aria-label="Mon compte"
+          >
+            <UserRound className="h-5 w-5" />
+          </Link>
+          <CartIcon count={cartCount} />
+          {compareCount > 0 && (
+            <Link
+              href="/produits/compare"
+              className="relative rounded-xl p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+              aria-label="Comparer"
+            >
+              <BarChart3 className="h-5 w-5" />
+              <span className="absolute -top-1.5 -right-1.5 text-[10px] leading-none bg-violet-600 text-white px-1.5 py-0.5 rounded-full shadow">
+                {compareCount}
+              </span>
+            </Link>
+          )}
           <button
             ref={buttonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -169,6 +235,16 @@ export default function MarketHeader() {
               <Heart className="h-4 w-4" />
               Favoris
             </Link>
+            {compareCount > 0 && (
+              <Link
+                href="/produits/compare"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-slate-800"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Comparer <span className="ml-auto text-[10px] bg-violet-600 text-white px-1.5 py-0.5 rounded-full">{compareCount}</span>
+              </Link>
+            )}
 
             <div className="flex items-center gap-2 pt-1">
               <ThemeToggle />

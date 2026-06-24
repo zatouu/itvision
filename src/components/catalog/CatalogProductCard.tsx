@@ -95,6 +95,16 @@ export default function CatalogProductCard({
               ✨ Nouveau
             </span>
           )}
+          {product.origin === 'Stock Dakar' && (
+            <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+              Stock Dakar
+            </span>
+          )}
+          {product.origin === 'Import Chine' && (
+            <span className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+              Import Chine
+            </span>
+          )}
         </div>
 
         {/* Heart favorite top-left (below discount) */}

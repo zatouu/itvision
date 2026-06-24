@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db'
 import { requireAdminApi } from '@/lib/api-auth'
 import crypto from 'crypto'
 import { requireAuth } from '@/lib/jwt'
+import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -196,6 +197,16 @@ export async function PATCH(
     }
 
     console.log(`Commande ${orderId} mise à jour:`, updateData)
+
+    // Reverse grains if order is cancelled/refunded
+    if (['cancelled', 'refunded'].includes(order.status) && order.clientId) {
+      try {
+        await reverseGrainsForOrder(order.clientId, order._id, `commande ${order.status}`)
+        await updateTierFromBalance(order.clientId)
+      } catch (grainsErr) {
+        console.error('[grains] Erreur reverse grains commande:', grainsErr)
+      }
+    }
 
     return NextResponse.json(
       {

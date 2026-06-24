@@ -12,6 +12,7 @@ import type { ShippingMethodId } from '../logistics'
 export type StockStatus = 'in_stock' | 'preorder' | 'out_of_stock'
 export type ServiceFeeRate = 5 | 10 | 15
 export type Currency = 'FCFA' | 'EUR' | 'USD' | 'CNY'
+export type ProductChannel = 'marketplace' | 'corporate' | 'xeuy-bi'
 
 // ============================================================================
 // PRICING 1688
@@ -268,6 +269,9 @@ export interface ProductCreateInput {
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
+  // Canaux de distribution
+  channels?: ProductChannel[]
+  corporateVisible?: boolean
   sourcing?: Partial<ProductSourcing>
   shippingOverrides?: ShippingOverride[]
   // 1688

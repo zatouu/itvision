@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
 import ProductDetailNew from '@/components/product/ProductDetailNew'
+import MarketBottomNav from '@/components/MarketBottomNav'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
@@ -65,12 +66,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const similar = formatSimilarProducts(similarRaw, shippingRates)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <MarketHeader />
       <main>
         <ProductDetailNew product={detail} similar={similar} />
       </main>
       <MarketFooter />
+      <MarketBottomNav />
     </div>
   )
 }

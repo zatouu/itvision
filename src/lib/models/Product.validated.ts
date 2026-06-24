@@ -11,7 +11,8 @@ import type {
   ProductSourcing,
   ShippingOverride,
   ProductVariant,
-  ProductVariantGroup
+  ProductVariantGroup,
+  ProductChannel
 } from '../types/product.types'
 
 export interface IProduct extends Document {
@@ -54,6 +55,10 @@ export interface IProduct extends Document {
   // Publication
   isPublished: boolean
   isFeatured: boolean
+  
+  // Canaux de distribution
+  channels?: ProductChannel[]
+  corporateVisible?: boolean
   
   // Logistique - Poids
   netWeightKg?: number // Poids net du produit
@@ -360,6 +365,22 @@ const ProductSchema = new Schema<IProduct>({
     index: true
   },
   
+  // Canaux de distribution
+  channels: {
+    type: [String],
+    default: ['marketplace'],
+    index: true,
+    validate: {
+      validator: (arr: string[]) => arr.every((v) => ['marketplace', 'corporate', 'xeuy-bi'].includes(v)),
+      message: 'Canaux invalides. Valeurs acceptées: marketplace, corporate, xeuy-bi'
+    }
+  },
+  corporateVisible: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  
   // Logistique - Poids
   netWeightKg: {
     type: Number,
@@ -579,6 +600,8 @@ ProductSchema.pre('save', function(next) {
 ProductSchema.index({ name: 'text', description: 'text', tagline: 'text' })
 ProductSchema.index({ category: 1, isPublished: 1 })
 ProductSchema.index({ isFeatured: 1, createdAt: -1 })
+ProductSchema.index({ channels: 1, isPublished: 1 })
+ProductSchema.index({ corporateVisible: 1, isPublished: 1 })
 ProductSchema.index({ price1688: 1 })
 ProductSchema.index({ stockStatus: 1, stockQuantity: 1 })
 

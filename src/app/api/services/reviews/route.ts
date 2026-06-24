@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import ServiceReview from '@/lib/models/ServiceReview'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
+import { creditGrainsForReview, updateTierFromBalance } from '@/lib/grains'
 
 // GET /api/services/reviews?providerId=xxx — notes d'un provider
 export async function GET(request: NextRequest) {
@@ -83,6 +84,14 @@ export async function POST(request: NextRequest) {
       comment: comment ? String(comment).slice(0, 500) : undefined,
       tags: Array.isArray(tags) ? tags.slice(0, 5).map((t: any) => String(t).slice(0, 30)) : [],
     })
+
+    // Créditer les grains de fidélité (best effort)
+    try {
+      await creditGrainsForReview(userId, String(review._id), requestId)
+      await updateTierFromBalance(userId)
+    } catch (grainsErr) {
+      console.error('[grains] Erreur crédit grains avis:', grainsErr)
+    }
 
     return NextResponse.json({ success: true, review })
   } catch (e: any) {

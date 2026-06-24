@@ -81,6 +81,9 @@ type Product = {
   shippingOverrides?: ShippingOverride[]
   isPublished?: boolean
   isFeatured?: boolean
+  // Canaux de distribution
+  channels?: ('marketplace' | 'corporate' | 'xeuy-bi')[]
+  corporateVisible?: boolean
   // Configuration achat groupé
   groupBuyEnabled?: boolean
   groupBuyMinQty?: number
@@ -471,6 +474,9 @@ export default function AdminProductManager() {
     shippingOverrides: [],
     isPublished: true,
     isFeatured: false,
+    // Canaux de distribution
+    channels: ['marketplace'],
+    corporateVisible: false,
     // Configuration achat groupé
     groupBuyEnabled: false,
     groupBuyMinQty: 10,
@@ -533,7 +539,9 @@ export default function AdminProductManager() {
       tags: item.tags || [],
       colorOptions: item.colorOptions || [],
       variantOptions: item.variantOptions || [],
-      shippingOverrides: ensureOverrides(item.shippingOverrides)
+      shippingOverrides: ensureOverrides(item.shippingOverrides),
+      channels: (Array.isArray(item.channels) && item.channels.length > 0 ? item.channels : ['marketplace']) as Product['channels'],
+      corporateVisible: !!item.corporateVisible
     }))
 
   const refresh = async () => {
@@ -1237,6 +1245,38 @@ export default function AdminProductManager() {
             <label className="inline-flex items-center gap-2">
               <input type="checkbox" checked={!!editing.isFeatured} onChange={e => setEditing({ ...editing, isFeatured: e.target.checked })} />
               Mettre en avant
+            </label>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="text-xs font-semibold text-blue-800 mb-2">Canaux de distribution</div>
+            <div className="flex flex-wrap gap-4">
+              {(['marketplace', 'corporate', 'xeuy-bi'] as const).map((channel) => (
+                <label key={channel} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={(editing.channels || []).includes(channel)}
+                    onChange={(e) => {
+                      const current = new Set(editing.channels || [])
+                      if (e.target.checked) {
+                        current.add(channel)
+                      } else {
+                        current.delete(channel)
+                      }
+                      setEditing({ ...editing, channels: Array.from(current) as Product['channels'] })
+                    }}
+                  />
+                  <span className="capitalize">{channel === 'xeuy-bi' ? 'Xeuy Bi (pièces)' : channel}</span>
+                </label>
+              ))}
+            </div>
+            <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={!!editing.corporateVisible}
+                onChange={(e) => setEditing({ ...editing, corporateVisible: e.target.checked })}
+              />
+              <span className="font-medium text-blue-900">Visible sur le catalogue corporate (itvisionplus.sn/produits)</span>
             </label>
           </div>
         </div>

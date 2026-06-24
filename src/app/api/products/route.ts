@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { type IProduct } from '@/lib/models/Product.validated'
-import type { ProductVariantGroup } from '@/lib/types/product.types'
+import type { ProductVariantGroup, ProductChannel } from '@/lib/types/product.types'
 import { randomUUID } from 'crypto'
 import { requireAuth } from '@/lib/jwt'
 
@@ -74,6 +74,16 @@ const parseStringArray = (value: unknown): string[] | undefined => {
   return undefined
 }
 
+const VALID_CHANNELS = ['marketplace', 'corporate', 'xeuy-bi'] as const
+
+const parseChannels = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  const parsed = value
+    .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
+    .filter((item) => VALID_CHANNELS.includes(item as typeof VALID_CHANNELS[number]))
+  return parsed.length > 0 ? parsed : undefined
+}
+
 const syncConditionTags = (
   tags: string[],
   condition: 'new' | 'used' | 'refurbished' | undefined
@@ -136,6 +146,9 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     availabilityNote,
     isPublished,
     isFeatured,
+    // Canaux de distribution
+    channels,
+    corporateVisible,
     sourcing,
     shippingOverrides,
     // Champs 1688
@@ -165,6 +178,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     stockStatus: stockStatus === 'in_stock' ? 'in_stock' : stockStatus === 'preorder' ? 'preorder' : stockStatus === 'out_of_stock' ? 'out_of_stock' : undefined,
     isPublished: typeof isPublished === 'boolean' ? isPublished : undefined,
     isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
+    corporateVisible: typeof corporateVisible === 'boolean' ? corporateVisible : undefined,
+  }
+
+  const parsedChannels = parseChannels(channels)
+  if (parsedChannels) {
+    normalized.channels = parsedChannels as ProductChannel[]
   }
 
   normalized.price = parseNumber(price)

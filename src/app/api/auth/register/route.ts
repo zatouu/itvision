@@ -4,6 +4,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import emailService from '@/lib/email-service'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
+import { createUserProfiles } from '@/lib/user-profiles'
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 
@@ -178,6 +179,11 @@ export async function POST(request: NextRequest) {
     })
 
     await newUser.save()
+
+    // Créer les profils découplés par domaine
+    await createUserProfiles(newUser._id, role.toUpperCase()).catch(profileErr => {
+      console.error('[REGISTER] Erreur création profils utilisateur:', profileErr)
+    })
 
     console.log(`[REGISTER] Nouvel utilisateur créé: ${email} (${role})`)
 

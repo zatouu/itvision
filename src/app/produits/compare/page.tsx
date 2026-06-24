@@ -4,12 +4,11 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
+import MarketBottomNav from '@/components/MarketBottomNav'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowLeft, X, CheckCircle, Star, Clock, Package } from 'lucide-react'
-import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product'
-import { formatProductDetail } from '@/lib/catalog-format'
+import { ArrowLeft, CheckCircle, Star, Clock, Package, ShoppingCart, Trash2, TrendingDown } from 'lucide-react'
+import { useToast } from '@/components/ui/Toaster'
 
 interface CompareProduct {
   id: string
@@ -30,9 +29,49 @@ interface CompareProduct {
 function CompareContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { addToast } = useToast()
   const [products, setProducts] = useState<CompareProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const removeProduct = (id: string) => {
+    const next = products.filter(p => p.id !== id)
+    setProducts(next)
+    const ids = next.map(p => p.id).join(',')
+    if (next.length < 2) {
+      router.push('/produits')
+    } else {
+      router.replace(`/produits/compare?ids=${ids}`, { scroll: false })
+    }
+  }
+
+  const addToCart = (product: CompareProduct) => {
+    try {
+      if (typeof window === 'undefined') return
+      const raw = window.localStorage.getItem('cart:items')
+      const items = raw ? JSON.parse(raw) : []
+      const existsIndex = items.findIndex((i: any) => i.id === product.id)
+      if (existsIndex >= 0) {
+        items[existsIndex].qty += 1
+      } else {
+        items.push({
+          id: product.id,
+          name: product.name,
+          qty: 1,
+          price: product.price,
+          currency: product.currency,
+          image: product.image,
+          requiresQuote: product.requiresQuote
+        })
+      }
+      window.localStorage.setItem('cart:items', JSON.stringify(items))
+      window.dispatchEvent(new CustomEvent('cart:updated'))
+      addToast(`${product.name} ajouté au panier`, 'success')
+    } catch (err) {
+      console.error('Failed to add to cart:', err)
+      addToast('Erreur lors de l\'ajout au panier', 'error')
+    }
+  }
 
   useEffect(() => {
     const idsParam = searchParams.get('ids')
@@ -103,19 +142,20 @@ function CompareContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 md:pb-0">
         <MarketHeader />
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
         <MarketFooter />
+        <MarketBottomNav />
       </main>
     )
   }
 
   if (error || products.length < 2) {
     return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 md:pb-0">
         <MarketHeader />
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
           <div className="text-center">
@@ -130,6 +170,7 @@ function CompareContent() {
           </div>
         </div>
         <MarketFooter />
+        <MarketBottomNav />
       </main>
     )
   }
@@ -139,8 +180,13 @@ function CompareContent() {
     new Set(products.flatMap(p => p.features))
   )
 
+  const pricedProducts = products.filter(p => typeof p.price === 'number')
+  const bestPrice = pricedProducts.length > 0
+    ? Math.min(...pricedProducts.map(p => p.price!))
+    : null
+
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 pb-20 md:pb-0">
       <MarketHeader />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -168,9 +214,16 @@ function CompareContent() {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white w-64">Caractéristiques</th>
                   {products.map((product) => (
-                    <th key={product.id} className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white min-w-[280px]">
+                    <th key={product.id} className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white min-w-[260px] relative">
+                      <button
+                        onClick={() => removeProduct(product.id)}
+                        className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition"
+                        aria-label={`Retirer ${product.name}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                       <div className="flex flex-col items-center gap-3">
-                        <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                        <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                           <Image
                             src={product.image || '/file.svg'}
                             alt={product.name}
@@ -199,17 +252,27 @@ function CompareContent() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {/* Prix */}
                 <tr className="bg-emerald-50/50 dark:bg-emerald-900/10">
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">Prix</td>
-                  {products.map((product) => (
-                    <td key={product.id} className="px-6 py-4 text-center">
-                      <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                        {product.price 
-                          ? `${product.price.toLocaleString('fr-FR')} ${product.currency}`
-                          : 'Sur devis'
-                        }
-                      </div>
-                    </td>
-                  ))}
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white align-middle">Prix</td>
+                  {products.map((product) => {
+                    const isBest = typeof product.price === 'number' && product.price === bestPrice && products.length > 1
+                    return (
+                      <td key={product.id} className="px-6 py-4 text-center align-middle">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className={`text-2xl font-bold ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}>
+                            {product.price
+                              ? `${product.price.toLocaleString('fr-FR')} ${product.currency}`
+                              : 'Sur devis'
+                            }
+                          </div>
+                          {isBest && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                              <TrendingDown className="w-3 h-3" /> Meilleur prix
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    )
+                  })}
                 </tr>
 
                 {/* Disponibilité */}
@@ -300,6 +363,30 @@ function CompareContent() {
                     ))}
                   </tr>
                 )}
+
+                {/* Actions */}
+                <tr>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white align-middle">Actions</td>
+                  {products.map((product) => (
+                    <td key={product.id} className="px-6 py-4 text-center align-middle">
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => addToCart(product)}
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          {product.requiresQuote ? 'Demander un devis' : 'Ajouter au panier'}
+                        </button>
+                        <Link
+                          href={`/produits/${product.id}`}
+                          className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
+                        >
+                          Voir la fiche
+                        </Link>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
               </tbody>
             </table>
           </div>
@@ -328,6 +415,7 @@ function CompareContent() {
       </div>
 
       <MarketFooter />
+      <MarketBottomNav />
     </main>
   )
 }
@@ -341,6 +429,7 @@ export default function ComparePage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
         <MarketFooter />
+        <MarketBottomNav />
       </main>
     }>
       <CompareContent />

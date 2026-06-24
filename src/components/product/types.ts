@@ -73,6 +73,7 @@ export interface ProductDetailData {
   groupBuyDiscount?: number | null
   groupBuyMinQty?: number
   groupBuyTargetQty?: number
+  groupBuyCurrentQty?: number
   priceTiers?: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
   supplier?: {
     name: string

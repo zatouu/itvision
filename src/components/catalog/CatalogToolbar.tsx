@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutGrid, List, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react'
+import { LayoutGrid, List, SlidersHorizontal, ChevronUp, ChevronDown, ArrowDownWideNarrow } from 'lucide-react'
 
 interface Props {
   count: number
@@ -9,14 +9,17 @@ interface Props {
   view: 'grid' | 'list'
   onViewChange: (v: 'grid' | 'list') => void
   onOpenMobileFilters: () => void
+  activeFiltersCount?: number
 }
 
-const tabs = [
+const sortOptions = [
   { key: 'default', label: 'Recommandé' },
-  { key: 'price', label: 'Prix' },
+  { key: 'price-asc', label: 'Prix croissant' },
+  { key: 'price-desc', label: 'Prix décroissant' },
   { key: 'rating-desc', label: 'Évaluation' },
-  { key: 'groupbuy-discount-desc', label: 'Groupés' },
-  { key: 'name-asc', label: 'Nouveauté' },
+  { key: 'groupbuy-discount-desc', label: 'Meilleures économies' },
+  { key: 'name-asc', label: 'Nom A-Z' },
+  { key: 'name-desc', label: 'Nom Z-A' },
 ]
 
 export default function CatalogToolbar({
@@ -26,72 +29,74 @@ export default function CatalogToolbar({
   view,
   onViewChange,
   onOpenMobileFilters,
+  activeFiltersCount = 0,
 }: Props) {
   const isPriceAsc = sort === 'price-asc'
   const isPriceDesc = sort === 'price-desc'
   const isPrice = isPriceAsc || isPriceDesc
 
   return (
-    <div className="flex items-center justify-between mb-3 bg-white border border-slate-100 rounded-lg px-3 py-0 overflow-hidden">
-      {/* Left: count */}
-      <span className="text-xs text-slate-500 py-2 flex-shrink-0">
-        <strong className="text-slate-900">{count.toLocaleString('fr-FR')}</strong> produits
-      </span>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 bg-white border border-slate-100 rounded-lg px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-500">
+          <strong className="text-slate-900">{count.toLocaleString('fr-FR')}</strong> produits
+        </span>
+        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+        <span className="text-xs text-slate-500 hidden sm:inline-flex items-center gap-1">
+          <ArrowDownWideNarrow className="w-3 h-3" /> Trier
+        </span>
+      </div>
 
-      <div className="flex items-center gap-1">
-        {/* Sort tabs - underline active style */}
-        <div className="flex items-center h-full">
-          {tabs.map((tab) => {
-            if (tab.key === 'price') {
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => onSortChange(isPriceAsc ? 'price-desc' : 'price-asc')}
-                  className={`relative flex items-center gap-0.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                    isPrice
-                      ? 'text-orange-600 border-orange-500'
-                      : 'text-slate-600 border-transparent hover:text-slate-900'
-                  }`}
-                >
-                  {tab.label}
-                  <span className="flex flex-col -space-y-1">
-                    <ChevronUp className={`w-3 h-3 ${isPriceAsc ? 'text-orange-600' : 'text-slate-300'}`} />
-                    <ChevronDown className={`w-3 h-3 ${isPriceDesc ? 'text-orange-600' : 'text-slate-300'}`} />
-                  </span>
-                </button>
-              )
-            }
-            const active = sort === tab.key
-            return (
-              <button
-                key={tab.key}
-                onClick={() => onSortChange(tab.key)}
-                className={`relative px-3 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                  active
-                    ? 'text-orange-600 border-orange-500'
-                    : 'text-slate-600 border-transparent hover:text-slate-900'
-                }`}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0">
+        {/* Sort tabs */}
+        {sortOptions.map((tab) => {
+          if (tab.key === 'price-asc' || tab.key === 'price-desc') return null
+          const active = sort === tab.key
+          return (
+            <button
+              key={tab.key}
+              onClick={() => onSortChange(tab.key)}
+              className={`whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                active
+                  ? 'bg-orange-50 text-orange-700 border-orange-200'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        {/* Prix toggle asc/desc */}
+        <button
+          onClick={() => onSortChange(isPriceAsc ? 'price-desc' : 'price-asc')}
+          className={`whitespace-nowrap flex items-center gap-0.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+            isPrice
+              ? 'bg-orange-50 text-orange-700 border-orange-200'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          Prix
+          <span className="flex flex-col -space-y-1">
+            <ChevronUp className={`w-3 h-3 ${isPriceAsc ? 'text-orange-600' : 'text-slate-300'}`} />
+            <ChevronDown className={`w-3 h-3 ${isPriceDesc ? 'text-orange-600' : 'text-slate-300'}`} />
+          </span>
+        </button>
+
+        <div className="h-4 w-px bg-slate-200 mx-1 hidden sm:block" />
 
         {/* View toggle */}
         <div className="hidden md:flex items-center gap-0.5">
           <button
             onClick={() => onViewChange('grid')}
-            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'text-orange-500' : 'text-slate-400 hover:text-slate-700'}`}
+            className={`p-1.5 rounded-lg transition-colors border ${view === 'grid' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'text-slate-400 hover:text-slate-700 border-transparent'}`}
             aria-label="Vue grille"
           >
             <LayoutGrid className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onViewChange('list')}
-            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'text-orange-500' : 'text-slate-400 hover:text-slate-700'}`}
+            className={`p-1.5 rounded-lg transition-colors border ${view === 'list' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'text-slate-400 hover:text-slate-700 border-transparent'}`}
             aria-label="Vue liste"
           >
             <List className="w-3.5 h-3.5" />
@@ -101,9 +106,15 @@ export default function CatalogToolbar({
         {/* Mobile filter button */}
         <button
           onClick={onOpenMobileFilters}
-          className="md:hidden flex items-center gap-1 px-2 py-1 border border-slate-200 rounded text-xs text-slate-600"
+          className="md:hidden relative flex items-center gap-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" /> Filtres
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          Filtres
+          {activeFiltersCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+              {activeFiltersCount}
+            </span>
+          )}
         </button>
       </div>
     </div>

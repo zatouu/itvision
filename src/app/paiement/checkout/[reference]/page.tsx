@@ -72,7 +72,11 @@ export default async function CheckoutPage({ params }: PageProps) {
             fees: standardOrder.fees,
             shipping: standardOrder.shipping,
             subtotal: standardOrder.subtotal,
-            subtotalBeforeDiscounts: standardOrder.subtotalBeforeDiscounts
+            subtotalBeforeDiscounts: standardOrder.subtotalBeforeDiscounts,
+            items: standardOrder.items.map((i: any) => ({ name: i.name, qty: i.qty, price: i.price })),
+            address: standardOrder.address,
+            statusLabel: standardOrder.status,
+            shippingMethod: standardOrder.shipping?.method
         }
 
         const itemsCount = standardOrder.items.length

@@ -1,22 +1,29 @@
 'use client'
 
 import { ShoppingCart } from 'lucide-react'
+import Link from 'next/link'
 import React from 'react'
 
 export default function CartIcon({ count = 0, onClick }: { count?: number; onClick?: () => void }) {
+  const className = "relative inline-flex items-center justify-center h-10 w-10 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:text-emerald-600 hover:shadow transition"
+  const badge = count > 0 && (
+    <span className="absolute -top-1.5 -right-1.5 text-[10px] leading-none bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shadow">
+      {count}
+    </span>
+  )
+  if (onClick) {
+    return (
+      <button aria-label="Open cart" onClick={onClick} className={className}>
+        <ShoppingCart className="h-5 w-5" />
+        {badge}
+      </button>
+    )
+  }
   return (
-    <button
-      aria-label="Open cart"
-      onClick={onClick}
-      className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:text-emerald-600 hover:shadow transition"
-    >
+    <Link href="/panier" aria-label="Open cart" className={className}>
       <ShoppingCart className="h-5 w-5" />
-      {count > 0 && (
-        <span className="absolute -top-1.5 -right-1.5 text-[10px] leading-none bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shadow">
-          {count}
-        </span>
-      )}
-    </button>
+      {badge}
+    </Link>
   )
 }
 

@@ -60,6 +60,9 @@ export interface IProduct extends Document {
   availabilityNote?: string
   isPublished?: boolean
   isFeatured?: boolean
+  // Canaux de distribution
+  channels?: ('marketplace' | 'corporate' | 'xeuy-bi')[]
+  corporateVisible?: boolean
   // Configuration achat groupé
   groupBuyEnabled?: boolean           // Active l'achat groupé pour ce produit
   groupBuyMinQty?: number             // Quantité min totale pour lancer la commande
@@ -156,6 +159,17 @@ const ProductSchema = new Schema<IProduct>({
   availabilityNote: { type: String },
   isPublished: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
+  // Canaux de distribution
+  channels: {
+    type: [String],
+    default: ['marketplace'],
+    index: true
+  },
+  corporateVisible: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   // Configuration achat groupé
   groupBuyEnabled: { type: Boolean, default: false },
   groupBuyMinQty: { type: Number, default: 10 },

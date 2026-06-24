@@ -39,6 +39,7 @@ import AddressPickerSenegal from '@/components/AddressPickerSenegal'
 import CartEngagementSidebar from '@/components/CartEngagementSidebar'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
+import MarketBottomNav from '@/components/MarketBottomNav'
 import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
 import { getServiceFeeTier, SERVICE_FEE_TIERS, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
@@ -86,6 +87,7 @@ export default function PanierPage() {
   const [serviceFeeTiers, setServiceFeeTiers] = useState<ServiceFeeTier[]>(SERVICE_FEE_TIERS)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [activeGroups, setActiveGroups] = useState<any[]>([])
+  const [showMobileSummary, setShowMobileSummary] = useState(false)
 
   // 0. Vérifier l'authentification JWT custom au montage
   useEffect(() => {
@@ -126,7 +128,17 @@ export default function PanierPage() {
     }
   }, [])
 
-  // 2. Sauvegarder les changements pour persistance
+  // 2. Afficher le résumé mobile sticky au scroll
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onScroll = () => {
+      setShowMobileSummary(window.scrollY > 250)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // 3. Sauvegarder les changements pour persistance
   useEffect(() => {
      const hasData = name || phone || email || (address && Object.keys(address).length > 0)
      if (hasData && typeof window !== 'undefined') {
@@ -197,19 +209,46 @@ export default function PanierPage() {
     }
   }, [])
 
-  // Charger les produits suggérés
+  // Charger les produits suggérés (catégories du panier en priorité)
   useEffect(() => {
     const fetchSuggestions = async () => {
+      if (items.length === 0) {
+        setSuggestedProducts([])
+        return
+      }
       try {
-        // Récupérer des produits populaires/récents
-        const res = await fetch('/api/catalog/products?limit=12&sort=popular')
-        const data = await res.json()
-        if (data.success && data.items) {
-          // Exclure les produits déjà dans le panier
-          const cartIds = items.map(i => i.id?.split('-')[0] || i.id)
-          const filtered = data.items.filter((p: any) => !cartIds.includes(p._id))
-          setSuggestedProducts(filtered.slice(0, 10))
+        const cartIds = items.map(i => i.id?.split('-')[0] || i.id)
+        const categories = [...new Set(items.map(i => i.category).filter(Boolean))]
+        let products: any[] = []
+
+        // Priorité 1: même catégorie
+        for (const category of categories.slice(0, 3)) {
+          try {
+            const res = await fetch(`/api/catalog/products?category=${encodeURIComponent(category)}&limit=6`)
+            const data = await res.json()
+            if (data.success && data.items) {
+              products = [...products, ...data.items.filter((p: any) => !cartIds.includes(p._id))]
+            }
+          } catch {}
         }
+
+        // Priorité 2: populaires si besoin
+        if (products.length < 10) {
+          const res = await fetch('/api/catalog/products?limit=12&sort=popular')
+          const data = await res.json()
+          if (data.success && data.items) {
+            products = [...products, ...data.items.filter((p: any) => !cartIds.includes(p._id))]
+          }
+        }
+
+        // Dédoublonner et limiter
+        const seen = new Set<string>()
+        const deduped = products.filter((p: any) => {
+          if (seen.has(p._id)) return false
+          seen.add(p._id)
+          return true
+        })
+        setSuggestedProducts(deduped.slice(0, 10))
       } catch (e) {
         console.error('Erreur chargement suggestions:', e)
       }
@@ -264,7 +303,8 @@ export default function PanierPage() {
     setItems(updated)
     localStorage.setItem('cart:items', JSON.stringify(updated))
     window.dispatchEvent(new CustomEvent('cart:updated'))
-  }, [items])
+    addToast(`${product.name} ajouté au panier`, 'success')
+  }, [items, addToast])
 
   // Scroll du carrousel de suggestions
   const scrollSuggestions = (direction: 'left' | 'right') => {
@@ -474,13 +514,16 @@ export default function PanierPage() {
   const standardServiceFeeRate = serviceFeeTiers[0]?.feeRate ?? 10
 
   const removeItem = (id: string) => {
+    const item = items.find(i => i.id === id)
     const next = items.filter(i => i.id !== id)
     setItems(next)
     localStorage.setItem('cart:items', JSON.stringify(next))
     window.dispatchEvent(new CustomEvent('cart:updated'))
+    addToast(item ? `${item.name} retiré du panier` : 'Article retiré du panier', 'info')
   }
 
   const updateQty = (id: string, qty: number) => {
+    const item = items.find(i => i.id === id)
     if (qty <= 0) {
       removeItem(id)
       return
@@ -489,6 +532,7 @@ export default function PanierPage() {
     setItems(next)
     localStorage.setItem('cart:items', JSON.stringify(next))
     window.dispatchEvent(new CustomEvent('cart:updated'))
+    addToast(`${item?.name || 'Article'} · quantité: ${qty}`, 'success')
   }
 
   const handleCheckout = async () => {
@@ -579,7 +623,7 @@ export default function PanierPage() {
   // Panier vide
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-violet-50">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-violet-50 pb-20 md:pb-0">
         <MarketHeader />
         <div className="max-w-3xl mx-auto p-4 md:p-8">
           <motion.div
@@ -636,12 +680,13 @@ export default function PanierPage() {
           </motion.div>
         </div>
         <MarketFooter />
+        <MarketBottomNav />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50 pb-20 md:pb-0">
       <MarketHeader />
       
       {/* Header */}
@@ -902,8 +947,12 @@ export default function PanierPage() {
                       return (
                       <motion.label
                         key={key}
-                        className={`flex items-center gap-3 rounded-lg p-3 transition ${
-                          isSeaDisabled ? 'cursor-not-allowed opacity-50 bg-gray-50' : 'cursor-pointer hover:bg-gray-50'
+                        className={`flex items-center gap-3 rounded-lg p-3 transition border ${
+                          shippingMethod === key
+                            ? 'border-green-500 bg-green-50'
+                            : isSeaDisabled
+                            ? 'border-gray-200 opacity-50 bg-gray-50 cursor-not-allowed'
+                            : 'border-gray-200 hover:bg-gray-50 cursor-pointer'
                         }`}
                       >
                         <input
@@ -917,7 +966,7 @@ export default function PanierPage() {
                           disabled={isSeaDisabled}
                           className="w-4 h-4"
                         />
-                        <span className="text-sm flex-1">
+                        <span className="text-sm flex-1 font-medium">
                           {rate.label}
                           {isSeaDisabled ? <span className="ml-2 text-xs text-red-600">(Non éligible)</span> : null}
                         </span>
@@ -925,11 +974,46 @@ export default function PanierPage() {
                       )
                     })}
                   </div>
-                  {!seaFreightCheck.eligible && (
-                    <p className="mt-2 text-xs text-red-600">
-                      🚫 Maritime indisponible: {seaFreightCheck.reasons[0] || 'commande non éligible'}
-                    </p>
-                  )}
+
+                  {/* Sea freight eligibility indicator */}
+                  {shippingMethod === 'sea' || !seaFreightCheck.eligible ? (
+                    <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
+                        <Truck className="w-4 h-4" />
+                        Éligibilité fret maritime
+                      </p>
+                      <div className="space-y-2">
+                        {[
+                          { label: 'Volume / Poids', ok: seaFreightCheck.checks.volumeOk || seaFreightCheck.checks.billedWeightOk, current: Math.max(weightSummary.totalVolume, weightSummary.billedWeight / 1000), target: seaFreightEligibility.minVolumeM3, unit: 'm³', alt: `${weightSummary.billedWeight.toFixed(1)}kg` },
+                          { label: 'Montant commande', ok: seaFreightCheck.checks.orderValueOk, current: breakdown.finalProducts, target: seaFreightEligibility.minOrderValueFcfa, unit: 'FCFA', alt: null },
+                          { label: 'Dimensions renseignées', ok: seaFreightCheck.checks.dataOk, current: seaFreightCheck.checks.dataOk ? 1 : 0, target: 1, unit: '', alt: null },
+                        ].map((check, idx) => (
+                          <div key={idx}>
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-blue-800">{check.label}</span>
+                              <span className={`font-semibold ${check.ok ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {check.label === 'Dimensions renseignées'
+                                  ? (check.ok ? 'Oui' : 'Non')
+                                  : `${check.current.toLocaleString('fr-FR')}${check.unit ? ' ' + check.unit : ''} / ${check.target.toLocaleString('fr-FR')}${check.unit ? ' ' + check.unit : ''}`}
+                              </span>
+                            </div>
+                            <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${check.ok ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                style={{ width: `${Math.min(100, Math.max(8, (check.current / (check.target || 1)) * 100))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {!seaFreightCheck.eligible && (
+                        <p className="mt-3 text-xs text-blue-700">
+                          Ajoutez des articles, des quantités ou des produits volumineux pour débloquer le maritime jusqu&apos;à -50% sur le transport.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+
                   <p className="text-xs text-gray-500 mt-3">
                     📦 Poids réel: {weightSummary.totalWeight.toFixed(2)}kg
                     {weightSummary.hasVolumetric && (
@@ -938,7 +1022,7 @@ export default function PanierPage() {
                         · ⚖️ Facturé: {weightSummary.billedWeight.toFixed(2)}kg
                       </span>
                     )}
-                    · � Quantité: {breakdown.totalQuantity}
+                    · Quantité: {breakdown.totalQuantity}
                   </p>
                 </div>
 
@@ -1644,6 +1728,38 @@ export default function PanierPage() {
         </motion.div>
       )}
 
+      {/* Mobile sticky summary bar */}
+      <AnimatePresence>
+        {step === 1 && showMobileSummary && items.length > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500">Total ({breakdown.totalQuantity} article{breakdown.totalQuantity > 1 ? 's' : ''})</p>
+                <p className="text-xl font-bold text-transparent bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text">
+                  {formatCurrency(breakdown.total)}
+                </p>
+                {breakdown.wholesaleDiscount > 0 && (
+                  <p className="text-[10px] text-violet-600">Économie {formatCurrency(breakdown.wholesaleDiscount)}</p>
+                )}
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setStep(2)}
+                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg"
+              >
+                Commander
+                <ArrowRight className="w-4 h-4" />
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Footer */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -1655,6 +1771,7 @@ export default function PanierPage() {
         </div>
       </motion.div>
       <MarketFooter />
+      <MarketBottomNav />
     </div>
   )
 }

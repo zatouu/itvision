@@ -12,6 +12,7 @@ import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
+import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
 
 const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   maritime_60j: 'sea_freight',
@@ -436,7 +437,18 @@ export async function POST(req: NextRequest) {
     })
     
     await groupOrder.save()
-    
+
+    // Créditer les grains de fidélité (best effort)
+    try {
+      await creditGrainsForGroupJoin(auth.userId, groupOrder.groupId)
+      if (initialStatus === 'filled') {
+        await creditGroupCompleteToParticipants(groupOrder)
+      }
+      await updateTierFromBalance(auth.userId)
+    } catch (grainsErr) {
+      console.error('[grains] Erreur crédit grains groupe:', grainsErr)
+    }
+
     // Envoyer notification de confirmation au créateur
     try {
       await notifyGroupJoinConfirmation(

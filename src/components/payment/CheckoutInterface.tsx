@@ -2,53 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CreditCard, Smartphone, Copy, Check, Info, ExternalLink, Package, Shield, Loader2, Banknote, MessageCircle, ChevronRight } from 'lucide-react'
+import { Copy, Check, Info, ExternalLink, Package, Loader2, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
+import PaymentMethodSelector from './PaymentMethodSelector'
 import type { PaymentSettings } from '@/lib/payments/settings'
-
-/* ─── Icônes SVG des moyens de paiement ─── */
-function VisaIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="32" rx="4" fill="#1A1F71"/>
-      <path d="M19.5 21H17L18.8 11H21.3L19.5 21ZM15.2 11L12.8 18.1L12.5 16.6L12.5 16.6L11.6 12C11.6 12 11.5 11 10.2 11H6.1L6 11.2C6 11.2 7.5 11.5 9.2 12.5L11.4 21H14L18 11H15.2ZM35 21H37.5L35.3 11H33.3C32.2 11 31.9 11.8 31.9 11.8L28 21H30.6L31.1 19.5H34.3L35 21ZM31.9 17.5L33.3 13.5L34.1 17.5H31.9ZM29.2 13.4L29.5 11.5C29.5 11.5 28.2 11 26.8 11C25.3 11 22 11.7 22 14.5C22 17.1 25.6 17.1 25.6 18.5C25.6 19.9 22.4 19.6 21.2 18.7L20.9 20.7C20.9 20.7 22.2 21.3 24 21.3C25.8 21.3 28.8 20.3 28.8 17.7C28.8 15 25.2 14.8 25.2 13.6C25.2 12.4 27.6 12.5 29.2 13.4Z" fill="white"/>
-    </svg>
-  )
-}
-
-function MastercardIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="32" rx="4" fill="#252525"/>
-      <circle cx="19" cy="16" r="9" fill="#EB001B"/>
-      <circle cx="29" cy="16" r="9" fill="#F79E1B"/>
-      <path d="M24 9.3C25.8 10.8 27 13.2 27 16C27 18.8 25.8 21.2 24 22.7C22.2 21.2 21 18.8 21 16C21 13.2 22.2 10.8 24 9.3Z" fill="#FF5F00"/>
-    </svg>
-  )
-}
-
-function WaveIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="32" rx="4" fill="#1DC3E1"/>
-      <path d="M12 20C14 14 17 12 20 12C23 12 24 16 27 16C30 16 32 14 34 10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-      <text x="12" y="26" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial">WAVE</text>
-    </svg>
-  )
-}
-
-function OrangeMoneyIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="32" rx="4" fill="#FF6600"/>
-      <circle cx="24" cy="14" r="7" fill="white"/>
-      <circle cx="24" cy="14" r="5" fill="#FF6600"/>
-      <text x="10" y="27" fill="white" fontSize="5.5" fontWeight="bold" fontFamily="Arial">ORANGE</text>
-    </svg>
-  )
-}
-
-type TabId = 'card' | 'mobile' | 'manual'
 
 interface CheckoutInterfaceProps {
   participant: {
@@ -85,6 +42,10 @@ interface CheckoutInterfaceProps {
     }
     subtotal?: number
     subtotalBeforeDiscounts?: number
+    items?: { name: string; qty: number; price: number }[]
+    address?: { street?: string; city?: string; department?: string; region?: string; country?: string; notes?: string }
+    statusLabel?: string
+    shippingMethod?: string
   }
   group: {
     productName: string
@@ -96,7 +57,6 @@ interface CheckoutInterfaceProps {
 export default function CheckoutInterface({ participant, group, settings }: CheckoutInterfaceProps) {
   const gatewayActive = settings.providers.gateway.active
 
-  const [activeTab, setActiveTab] = useState<TabId>(gatewayActive ? 'card' : 'mobile')
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'error' | 'success' } | null>(null)
@@ -159,9 +119,14 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
     return () => clearInterval(interval)
   }, [participant.reference, paymentStatus, showToast])
 
+  const wavePhone = settings.providers.manual.waveMerchantPhone
+  const orangePhone = settings.providers.manual.orangeMerchantPhone
+  const whatsappLink = `https://wa.me/${wavePhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Paiement réf: ${participant.reference} - ${formatCurrency(participant.amount)}`)}`
+
   const isPaid = paymentStatus === 'paid'
 
   if (isPaid) {
+    const trackingUrl = `/commandes/${participant.reference}`
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -183,57 +148,60 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
         <div className="p-6 space-y-0">
           <div className="flex justify-between items-center py-3.5 border-b border-gray-100">
             <span className="text-gray-500 text-sm">Commande</span>
-            <span className="font-medium text-sm text-gray-800">{group.productName}</span>
+            <span className="font-medium text-sm text-gray-800 text-right max-w-[60%]">{group.productName}</span>
           </div>
           <div className="flex justify-between items-center py-3.5 border-b border-gray-100">
             <span className="text-gray-500 text-sm">Référence</span>
             <span className="font-mono bg-gray-100 px-2.5 py-1 rounded text-sm">{participant.reference}</span>
           </div>
-          <div className="flex justify-between items-center py-3.5">
+          <div className="flex justify-between items-center py-3.5 border-b border-gray-100">
             <span className="text-gray-500 text-sm">Montant payé</span>
             <span className="font-bold text-green-600 text-lg">{formatCurrency(participant.amount)}</span>
           </div>
+          {participant.address && (
+            <div className="flex justify-between items-start py-3.5 border-b border-gray-100">
+              <span className="text-gray-500 text-sm">Livraison</span>
+              <span className="text-sm text-gray-800 text-right">
+                {participant.address.street || ''}<br />
+                {participant.address.city || ''} {participant.address.department || ''}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between items-center py-3.5">
+            <span className="text-gray-500 text-sm">Statut</span>
+            <span className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">Confirmée</span>
+          </div>
         </div>
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 space-y-3">
           <Link
-            href="/compte/commandes"
+            href={trackingUrl}
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 text-white py-3 rounded-xl font-bold text-sm hover:from-green-600 hover:to-violet-600 transition"
           >
+            <Package size={18} />
             Suivre ma commande
-            <ChevronRight size={16} />
           </Link>
+          <button
+            onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : ''}${trackingUrl}`, 'tracking')}
+            className="w-full flex items-center justify-center gap-2 bg-white border-2 border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600 py-3 rounded-xl font-bold text-sm transition"
+          >
+            {copiedField === 'tracking' ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
+            {copiedField === 'tracking' ? 'Lien copié' : 'Copier le lien de suivi'}
+          </button>
+          <a
+            href={whatsappLink}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 py-3 rounded-xl font-bold text-sm transition"
+          >
+            <MessageCircle size={18} />
+            Confirmer sur WhatsApp
+          </a>
         </div>
       </motion.div>
     )
   }
 
   const isRetailFallback = participant.fees?.serviceFeeRate === 0 && (participant.fees?.supplierCost ?? 0) > 0
-
-  // Tabs definition
-  const tabs: { id: TabId; label: string; icon: React.ReactNode; show: boolean }[] = [
-    {
-      id: 'card',
-      label: 'Carte bancaire',
-      icon: <CreditCard size={17} />,
-      show: gatewayActive
-    },
-    {
-      id: 'mobile',
-      label: 'Mobile Money',
-      icon: <Smartphone size={17} />,
-      show: true
-    },
-    {
-      id: 'manual',
-      label: 'Autre',
-      icon: <Banknote size={17} />,
-      show: true
-    }
-  ]
-
-  const wavePhone = settings.providers.manual.waveMerchantPhone
-  const orangePhone = settings.providers.manual.orangeMerchantPhone
-  const whatsappLink = `https://wa.me/${wavePhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Paiement réf: ${participant.reference} - ${formatCurrency(participant.amount)}`)}`
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex flex-col md:flex-row">
@@ -247,6 +215,19 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
         <div className="mb-5 pb-4 border-b border-gray-100">
           <p className="text-gray-400 text-xs mb-1">Commande</p>
           <p className="font-semibold text-gray-800 text-sm leading-snug">{group.productName}</p>
+          {participant.items && participant.items.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {participant.items.slice(0, 4).map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs text-gray-600 bg-white p-2 rounded-lg border border-gray-100">
+                  <span className="line-clamp-1 flex-1 mr-2">{item.qty}× {item.name}</span>
+                  <span className="font-medium text-gray-900">{formatCurrency(item.price * item.qty)}</span>
+                </div>
+              ))}
+              {participant.items.length > 4 && (
+                <p className="text-xs text-gray-400">+ {participant.items.length - 4} autres articles</p>
+              )}
+            </div>
+          )}
         </div>
 
         {participant.fees && (
@@ -322,310 +303,34 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
           Voir mes commandes
         </Link>
 
-        {/* Moyens acceptés en mini-icônes */}
+        {/* Moyens acceptés */}
         <div className="mt-6 pt-4 border-t border-gray-100">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Moyens acceptés</p>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <VisaIcon className="h-6 w-auto rounded" />
-            <MastercardIcon className="h-6 w-auto rounded" />
-            <WaveIcon className="h-6 w-auto rounded" />
-            <OrangeMoneyIcon className="h-6 w-auto rounded" />
+          <div className="flex flex-wrap gap-1.5">
+            {['Wave', 'Orange Money', 'Free Money', 'Carte'].map((m) => (
+              <span key={m} className="text-[10px] bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-md font-medium">
+                {m}
+              </span>
+            ))}
           </div>
         </div>
       </div>
 
       {/* ─── Contenu principal ─── */}
       <div className="md:w-7/12 lg:w-3/5 p-6 md:p-8">
-        <h1 className="text-2xl font-bold text-slate-800 mb-1">Moyen de paiement</h1>
-        <p className="text-sm text-gray-400 mb-6">Choisissez comment payer votre commande</p>
-
-        {/* Onglets */}
-        <div className="flex gap-1 mb-7 border-b border-slate-200">
-          {tabs.filter(t => t.show).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 px-3 sm:px-4 text-sm font-medium transition-colors relative ${
-                activeTab === tab.id ? 'text-violet-600' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-              </div>
-              {activeTab === tab.id && (
-                <motion.div layoutId="checkout-tab" className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-green-500 to-violet-500" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* ─── Contenu des onglets ─── */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="min-h-[320px]"
-          >
-            {/* ══════════ CARTE BANCAIRE ══════════ */}
-            {activeTab === 'card' && gatewayActive && (
-              <div className="space-y-6">
-                {/* Badges cartes */}
-                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-blue-50 rounded-xl border border-violet-100">
-                  <div className="flex gap-2">
-                    <VisaIcon className="h-9 w-auto rounded shadow-sm" />
-                    <MastercardIcon className="h-9 w-auto rounded shadow-sm" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-800">Visa & Mastercard</p>
-                    <p className="text-xs text-slate-500">Paiement sécurisé par carte bancaire</p>
-                  </div>
-                  <Shield size={20} className="text-green-500" />
-                </div>
-
-                {/* Avantages */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-start gap-2 text-xs text-gray-600">
-                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
-                    <span>Confirmation instantanée</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-gray-600">
-                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
-                    <span>Données chiffrées SSL</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-gray-600">
-                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
-                    <span>Aucun stockage de carte</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-gray-600">
-                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
-                    <span>Certifié PCI-DSS</span>
-                  </div>
-                </div>
-
-                {/* Bouton payer */}
-                <button
-                  onClick={handleGatewayPayment}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-green-600 to-violet-600 hover:from-green-700 hover:to-violet-700 disabled:opacity-60 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      <span>Redirection en cours...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard size={20} />
-                      <span>Payer {formatCurrency(participant.amount)}</span>
-                      <span className="bg-white/20 px-2 py-0.5 rounded text-xs">Sécurisé</span>
-                    </>
-                  )}
-                </button>
-
-                <p className="text-center text-[11px] text-slate-400">
-                  Vous serez redirigé vers notre partenaire sécurisé pour finaliser le paiement.
-                </p>
-              </div>
-            )}
-
-            {/* ══════════ MOBILE MONEY ══════════ */}
-            {activeTab === 'mobile' && (
-              <div className="space-y-5">
-                {/* Si gateway active, proposer le paiement intégré mobile money via PayDunya */}
-                {gatewayActive && (
-                  <div className="bg-green-50 p-4 rounded-xl border border-green-200 mb-2">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-green-100 p-1.5 rounded-lg">
-                        <Smartphone size={18} className="text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-green-900">Paiement instantané</p>
-                        <p className="text-xs text-green-700 mt-0.5">
-                          Payez directement via Wave ou Orange Money en cliquant ci-dessous. Votre paiement sera confirmé automatiquement.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleGatewayPayment}
-                      disabled={loading}
-                      className="mt-3 w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-60 text-white font-bold py-3.5 px-6 rounded-xl shadow transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 size={18} className="animate-spin" />
-                          <span>Redirection...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Payer {formatCurrency(participant.amount)} via Mobile Money</span>
-                          <ChevronRight size={16} />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span>{gatewayActive ? 'ou transfert manuel' : 'Transfert mobile'}</span>
-                  <div className="flex-1 h-px bg-gray-200" />
-                </div>
-
-                {/* Wave */}
-                <div className="border rounded-xl p-5 hover:border-[#1DC3E1] transition-colors group">
-                  <div className="flex items-center gap-3 mb-4">
-                    <WaveIcon className="h-8 w-auto rounded shadow-sm" />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-slate-800">Wave</h4>
-                      <p className="text-[11px] text-gray-400">Transfert rapide et gratuit</p>
-                    </div>
-                    <span className="bg-[#1DC3E1]/10 text-[#1DC3E1] text-[10px] font-bold px-2 py-1 rounded-full">Recommandé</span>
-                  </div>
-                  <div className="space-y-3 pl-0">
-                    <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                      <div>
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Numéro marchand</p>
-                        <p className="text-lg font-mono font-bold text-slate-900">{wavePhone}</p>
-                      </div>
-                      <button
-                        onClick={() => copyToClipboard(wavePhone, 'wave')}
-                        className="text-gray-400 hover:text-[#1DC3E1] p-2 hover:bg-[#1DC3E1]/10 rounded-lg transition"
-                      >
-                        {copiedField === 'wave' ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1.5">
-                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">1.</span> Ouvrez l&apos;app Wave → &quot;Envoyer&quot;</p>
-                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">2.</span> Numéro : <strong>{wavePhone}</strong></p>
-                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">3.</span> Montant : <strong>{formatCurrency(participant.amount)}</strong></p>
-                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">4.</span> Note : <strong className="font-mono">{participant.reference}</strong></p>
-                    </div>
-                    <a
-                      href={`https://wave.com/send?amount=${participant.amount}&recipient=${wavePhone.replace(/[^0-9+]/g, '')}&message=${participant.reference}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 mt-1 text-sm bg-[#1DC3E1] text-white px-4 py-2.5 rounded-lg font-medium hover:bg-[#17a8c3] transition"
-                    >
-                      <Smartphone size={16} />
-                      Ouvrir Wave
-                    </a>
-                  </div>
-                </div>
-
-                {/* Orange Money */}
-                <div className="border rounded-xl p-5 hover:border-[#FF6600] transition-colors group">
-                  <div className="flex items-center gap-3 mb-4">
-                    <OrangeMoneyIcon className="h-8 w-auto rounded shadow-sm" />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-slate-800">Orange Money</h4>
-                      <p className="text-[11px] text-gray-400">USSD ou application</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3 pl-0">
-                    <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                      <div>
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Numéro marchand</p>
-                        <p className="text-lg font-mono font-bold text-slate-900">{orangePhone}</p>
-                      </div>
-                      <button
-                        onClick={() => copyToClipboard(orangePhone, 'orange')}
-                        className="text-gray-400 hover:text-[#FF6600] p-2 hover:bg-orange-50 rounded-lg transition"
-                      >
-                        {copiedField === 'orange' ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1.5">
-                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">1.</span> Composez <strong>#144#</strong> ou ouvrez l&apos;app Orange Money</p>
-                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">2.</span> Choisissez &quot;Transfert d&apos;argent&quot;</p>
-                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">3.</span> Numéro : <strong>{orangePhone}</strong></p>
-                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">4.</span> Montant : <strong>{formatCurrency(participant.amount)}</strong></p>
-                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">5.</span> Confirmez avec votre code secret</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Confirmation WhatsApp */}
-                <div className="bg-amber-50 rounded-xl p-4 text-sm border border-amber-200">
-                  <p className="font-semibold text-amber-900 mb-1.5 flex items-center gap-1.5">
-                    <Info size={14} />
-                    Après votre transfert
-                  </p>
-                  <p className="text-amber-800 text-xs leading-relaxed">
-                    Envoyez la capture d&apos;écran de confirmation par WhatsApp pour une validation rapide de votre commande.
-                  </p>
-                  <a
-                    href={whatsappLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 mt-3 text-xs bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition"
-                  >
-                    <MessageCircle size={14} />
-                    Envoyer sur WhatsApp
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* ══════════ AUTRE (ESPÈCES / VIREMENT) ══════════ */}
-            {activeTab === 'manual' && (
-              <div className="space-y-5">
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="bg-gray-200 p-2 rounded-lg">
-                      <Banknote size={20} className="text-gray-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">Paiement à la livraison / en espèces</h4>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Payez lors de la réception de votre commande ou passez à nos bureaux.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-sm text-gray-600">
-                    <div className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[11px] font-bold shrink-0">1</span>
-                      <span>Présentez la référence <strong className="font-mono">{participant.reference}</strong></span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[11px] font-bold shrink-0">2</span>
-                      <span>Montant exact : <strong>{formatCurrency(participant.amount)}</strong></span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[11px] font-bold shrink-0">3</span>
-                      <span>Contactez-nous pour organiser la remise</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-violet-50 rounded-xl p-4 border border-violet-100">
-                  <p className="text-sm font-semibold text-violet-900 mb-2">Contact</p>
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={`tel:${wavePhone}`}
-                      className="flex-1 flex items-center justify-center gap-2 bg-white border border-violet-200 text-violet-700 py-2.5 rounded-lg text-sm font-medium hover:bg-violet-100 transition"
-                    >
-                      📞 Appeler
-                    </a>
-                    <a
-                      href={whatsappLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition"
-                    >
-                      <MessageCircle size={14} />
-                      WhatsApp
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <PaymentMethodSelector
+          reference={participant.reference}
+          amount={participant.amount}
+          gatewayActive={gatewayActive}
+          phones={{
+            wave: wavePhone,
+            orange: orangePhone,
+            free: settings.providers.manual.freeMoneyMerchantPhone
+          }}
+          onGatewayPay={handleGatewayPayment}
+          gatewayLoading={loading}
+          whatsappLink={whatsappLink}
+        />
       </div>
 
       {/* Toast notification */}

@@ -100,13 +100,13 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
               <>
                 <button
                   onClick={e => { e.stopPropagation(); setActiveImageIndex(i => i > 0 ? i - 1 : gallery.length - 1) }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
                   <ArrowLeft className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
                   onClick={e => { e.stopPropagation(); setActiveImageIndex(i => i < gallery.length - 1 ? i + 1 : 0) }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
                   <ArrowRight className="w-4 h-4 text-gray-700" />
                 </button>

@@ -9,8 +9,9 @@ import {
   TrendingUp, Coins, Crown, Activity, ChevronRight, Settings, LogOut,
   Mail, BadgeCheck, ArrowRight, Bell, CreditCard, Lock, Sliders, Moon,
   CheckCircle, Truck, Wallet, Check, MessageCircle, Share2, Star,
-  Zap
+  Zap, Clock, X, LayoutGrid
 } from 'lucide-react'
+import { useToast } from '@/components/ui/Toaster'
 
 // ─── Types ───
 interface DashboardData {
@@ -51,6 +52,7 @@ interface DashboardData {
     currentUnitPrice: number
   }>
   latestOrder: { id: string; status: string; total: number; createdAt: string } | null
+  recentOrders?: Array<{ id: string; status: string; total: number; createdAt: string; itemCount?: number }>
   activities: Array<{
     _id: string
     type: string
@@ -133,6 +135,18 @@ const timeAgo = (d: string) => {
   const days = Math.floor(hours / 24)
   if (days < 30) return `Il y a ${days} j`
   return `Il y a ${Math.floor(days / 30)} mois`
+}
+
+const statusConfig = (status: string) => {
+  switch (status) {
+    case 'pending': return { color: 'amber', icon: Clock, bg: 'bg-amber-50 text-amber-700 border-amber-200', label: 'En attente' }
+    case 'confirmed': return { color: 'blue', icon: CheckCircle, bg: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Confirmée' }
+    case 'processing': return { color: 'violet', icon: Activity, bg: 'bg-violet-50 text-violet-700 border-violet-200', label: 'Traitement' }
+    case 'shipped': return { color: 'orange', icon: Truck, bg: 'bg-orange-50 text-orange-700 border-orange-200', label: 'Expédiée' }
+    case 'delivered': return { color: 'emerald', icon: CheckCircle, bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Livrée' }
+    case 'cancelled': return { color: 'red', icon: X, bg: 'bg-red-50 text-red-700 border-red-200', label: 'Annulée' }
+    default: return { color: 'slate', icon: Activity, bg: 'bg-slate-50 text-slate-700 border-slate-200', label: status }
+  }
 }
 
 const tierIcons: Record<string, string> = { Bronze: '🥉', Argent: '🥈', Or: '🥇', Platine: '💎' }
@@ -323,6 +337,16 @@ function SettingsQuickButton({ icon: Icon, label, href, onClick }: any) {
 // ─── Main Dashboard ───
 export default function AccountDashboard({ data }: { data: DashboardData }) {
   const { user, stats, cart, activeGroups, latestOrder, activities, grains, recommendations, favoriteProducts } = data
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('grains:balance', String(grains.balance))
+      window.dispatchEvent(new CustomEvent('grains:updated'))
+    } catch {
+      // ignore
+    }
+  }, [grains.balance])
   const [copied, setCopied] = useState(false)
   const [redeeming, setRedeeming] = useState<string | null>(null)
   const [balance, setBalance] = useState(grains.balance)
@@ -332,6 +356,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
     navigator.clipboard.writeText(user.referralCode).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+      addToast('Code de parrainage copié !', 'success')
     })
   }
 
@@ -342,7 +367,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
 
   const shareLink = () => {
     const url = `${window.location.origin}/register?ref=${user.referralCode}`
-    navigator.clipboard.writeText(url).then(() => alert('Lien de parrainage copié !'))
+    navigator.clipboard.writeText(url).then(() => addToast('Lien de parrainage copié !', 'success'))
   }
 
   const redeemReward = async (rewardId: string, cost: number) => {
@@ -358,12 +383,12 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
       if (data.success) {
         setBalance(data.newBalance)
         setRewards(prev => prev.filter(r => r.id !== rewardId))
-        alert('Récompense échangée avec succès !')
+        addToast('Récompense échangée avec succès !', 'success')
       } else {
-        alert(data.error || 'Erreur lors de l\'échange')
+        addToast(data.error || 'Erreur lors de l\'échange', 'error')
       }
     } catch {
-      alert('Erreur réseau')
+      addToast('Erreur réseau', 'error')
     } finally {
       setRedeeming(null)
     }
@@ -381,6 +406,8 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
   }
 
   const progressToNext = Math.max(0, Math.min(100, grains.progressToNextTier))
+
+  const recentOrders = data.recentOrders || []
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -518,10 +545,45 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
           />
         </section>
 
+        {/* Section 4b — Dernières commandes */}
+        {recentOrders.length > 0 && (
+          <section className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><Package className="w-5 h-5 text-violet-600" /> Dernières commandes</h2>
+              <Link href="/compte/commandes" className="text-sm text-violet-600 hover:underline">Voir tout →</Link>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+              {recentOrders.map((o, idx) => {
+                const cfg = statusConfig(o.status)
+                const Icon = cfg.icon
+                return (
+                  <Link
+                    key={o.id}
+                    href={`/commandes/${encodeURIComponent(o.id)}`}
+                    className="flex items-center gap-4 p-4 hover:bg-slate-50 transition border-b border-slate-100 last:border-b-0"
+                  >
+                    <div className={`w-10 h-10 rounded-full ${cfg.bg} flex items-center justify-center`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 text-sm">{o.id}</p>
+                      <p className="text-xs text-slate-500">{timeAgo(o.createdAt)} • {o.itemCount || 0} article{(o.itemCount || 0) > 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900 text-sm">{fmt(o.total)}</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.bg}`}>{cfg.label}</span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Section 5 — Secondary Actions */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <SecondaryActionCard icon={LayoutGrid} label="Catalogue" subtitle="Découvrir les produits" href="/produits" />
           <SecondaryActionCard icon={Heart} label="Favoris" subtitle={`${stats.favoritesCount} produits`} href="/produits/favoris" />
-          <SecondaryActionCard icon={Store} label="Mes boutiques" subtitle="Suivez vos vendeurs" href="/produits" />
           <SecondaryActionCard icon={MapPin} label="Suivi commande" subtitle="Tracker en temps réel" href="/retrouver-ma-commande" />
           <SecondaryActionCard icon={FileText} label="Réclamations" subtitle={`${stats.openClaims} ouverte${stats.openClaims > 1 ? 's' : ''}`} href="/compte/reclamer-commande" badge={stats.openClaims > 0 ? stats.openClaims : null} />
         </section>

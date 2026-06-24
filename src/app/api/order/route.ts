@@ -14,6 +14,7 @@ import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligib
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
+import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -257,6 +258,9 @@ export async function POST(req: NextRequest) {
       trackingAccessTokenHash,
       trackingAccessTokenCreatedAt: new Date(),
       
+      // Domaine métier : marketplace (route catalogue / panier)
+      domain: 'marketplace',
+      
       items: cart.map((item: any) => {
         const qty = item.qty || 1
         const db = dbProductMap.get(String(item.id))
@@ -342,6 +346,15 @@ export async function POST(req: NextRequest) {
           },
           { new: true }
         ).lean() as any
+
+        // Créditer les grains de fidélité (best effort)
+        try {
+          await maybeCreditGrainsForOrder(auth.userId, orderDoc._id, total)
+          await recordReferralFirstOrder(auth.userId, orderDoc._id)
+          await updateTierFromBalance(auth.userId)
+        } catch (grainsErr) {
+          console.error('[grains] Erreur crédit grains commande:', grainsErr)
+        }
 
         // Vérifier éligibilité Pro si encore standard
         if (updatedUser && updatedUser.marketplaceTier === 'standard') {

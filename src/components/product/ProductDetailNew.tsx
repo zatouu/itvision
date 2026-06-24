@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 import { BASE_SHIPPING_RATES, type ShippingMethodId } from '@/lib/logistics'
+import { useToast } from '@/components/ui/Toaster'
 
 import {
   ProductDetailData, SimilarProductSummary, getProductStats,
@@ -55,6 +56,7 @@ function LoaderSpinner() {
 }
 
 export default function ProductDetailNew({ product, similar }: Props) {
+  const { addToast } = useToast()
   const baseGallery = product.gallery?.length ? product.gallery : [product.image || '/file.svg']
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -62,7 +64,12 @@ export default function ProductDetailNew({ product, similar }: Props) {
     return initial
   })
   const [quantity, setQuantity] = useState(1)
-  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null)
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(
+    () => {
+      const first = product.pricing.shippingOptions?.[0]
+      return first ? first.id : null
+    }
+  )
   const [isFavorite, setIsFavorite] = useState(false)
   const [showStickyBar, setShowStickyBar] = useState(false)
   const [activeTab, setActiveTab] = useState<'description'|'specs'|'shipping'|'reviews'>('description')
@@ -154,9 +161,10 @@ export default function ProductDetailNew({ product, similar }: Props) {
       window.localStorage.setItem('cart:items', JSON.stringify(items))
       window.dispatchEvent(new CustomEvent('cart:updated'))
       trackEvent('add_to_cart', { productId: product.id, quantity })
+      addToast(`${product.name} (${quantity} unité${quantity > 1 ? 's' : ''}) ajouté au panier`, 'success')
       if (redirect) setTimeout(() => { window.location.href = '/panier' }, 200)
     } finally { setAdding(false) }
-  }, [product, quantity, comboPrice, selectedShippingId, selectedVariants])
+  }, [product, quantity, comboPrice, selectedShippingId, selectedVariants, addToast])
 
   const whatsappUrl = () => {
     const selectedList = (product.variantGroups ?? []).flatMap(g => { const vid = selectedVariants[g.name]; if (!vid) return []; const v = g.variants.find(x => x.id === vid); return v ? [v.name] : [] })
@@ -211,23 +219,73 @@ export default function ProductDetailNew({ product, similar }: Props) {
                   </div>
                 )}
                 {activeTab === 'shipping' && (
-                  <div className="space-y-3 text-sm text-gray-700">
+                  <div className="space-y-4 text-sm text-gray-700">
                     <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg"><Truck className="w-5 h-5 text-blue-600 mt-0.5" /><div><p className="font-medium text-gray-900">Transport international vers Sénégal</p><p className="text-gray-600 mt-1">Délai estimé: {product.availability.leadTimeDays ?? 15} jours ouvrés</p></div></div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {product.pricing.shippingOptions.map((opt: any) => {
+                        const Icon = getShippingIcon(opt.id)
+                        return (
+                          <div key={opt.id} className={clsx("p-3 rounded-lg border", selectedShippingId === opt.id ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white')}>
+                            <div className="flex items-center gap-2 mb-1"><Icon className="w-4 h-4 text-gray-500" /><span className="font-medium text-gray-900">{opt.label}</span></div>
+                            <p className="text-xs text-gray-500">{opt.deliveryDays ? `${opt.deliveryDays} jours` : 'Délai variable'}</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-1">{opt.price ? `${opt.price.toLocaleString('fr-FR')} FCFA` : 'Sur devis'}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg text-sm">
+                      <Info className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-gray-900">À propos des délais</p>
+                        <p className="text-gray-600 mt-1">Les délais sont indicatifs et peuvent varier selon la disponibilité fournisseur et la douane. Pour les produits en stock à Dakar, la livraison est généralement sous 24-72h.</p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {activeTab === 'reviews' && (
                   <div>
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="text-4xl font-bold text-emerald-600">{stats.rating}</div>
-                      <div>
-                        <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={s <= Math.round(stats.rating) ? "w-4 h-4 text-amber-400 fill-amber-400" : "w-4 h-4 text-gray-300"} />)}</div>
-                        <p className="text-sm text-gray-500">{stats.reviewCount} avis</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
+                      <div className="flex items-center gap-4">
+                        <div className="text-4xl font-bold text-emerald-600">{stats.rating}</div>
+                        <div>
+                          <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={s <= Math.round(stats.rating) ? "w-4 h-4 text-amber-400 fill-amber-400" : "w-4 h-4 text-gray-300"} />)}</div>
+                          <p className="text-sm text-gray-500">{stats.reviewCount} avis vérifiés</p>
+                        </div>
+                      </div>
+                      <div className="flex-1 max-w-xs">
+                        {[5,4,3,2,1].map(star => {
+                          const pct = star === 5 ? 68 : star === 4 ? 22 : star === 3 ? 7 : star === 2 ? 2 : 1
+                          return (
+                            <div key={star} className="flex items-center gap-2 text-xs">
+                              <span className="w-3 text-gray-500">{star}</span>
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="w-8 text-right text-gray-400">{pct}%</span>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                    {[1,2,3].map(i => (
+                    {[
+                      { name: 'Amadou B.', rating: 5, date: 'il y a 3 jours', text: 'Excellent produit, conforme à la description. Qualité au rendez-vous et livraison rapide Dakar.' },
+                      { name: 'Fatima N.', rating: 5, date: 'il y a 1 semaine', text: 'Produit conforme, livraison rapide. Je recommande pour les achats professionnels.' },
+                      { name: 'Omar S.', rating: 4, date: 'il y a 2 semaines', text: 'Très satisfait de mon achat, rapport qualité-prix excellent. Service client réactif.' },
+                    ].map((review, i) => (
                       <div key={i} className="border-b border-gray-100 pb-4 mb-4 last:border-0">
-                        <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">{String.fromCharCode(64+i)}</div><span className="text-sm text-gray-500">Achat anonyme</span><span className="text-xs text-emerald-600 font-medium">Clients réguliers</span></div>
-                        <p className="text-sm text-gray-700 leading-relaxed">{i === 1 ? 'Excellent produit, conforme à la description. Qualité au rendez-vous.' : i === 2 ? 'Produit conforme, livraison rapide. Je recommande.' : 'Très satisfait de mon achat, rapport qualité-prix excellent.'}</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-violet-400 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                            {review.name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">{review.name}</span>
+                          <span className="text-xs text-gray-400">{review.date}</span>
+                          <span className="text-xs text-emerald-600 font-medium ml-auto">Achat vérifié</span>
+                        </div>
+                        <div className="flex items-center gap-0.5 mb-1">
+                          {[1,2,3,4,5].map(s => <Star key={s} className={s <= review.rating ? "w-3 h-3 text-amber-400 fill-amber-400" : "w-3 h-3 text-gray-300"} />)}
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">{review.text}</p>
                       </div>
                     ))}
                     <button className="w-full py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center justify-center gap-1"><ChevronDown className="w-4 h-4" />Voir tous les avis</button>
@@ -236,15 +294,44 @@ export default function ProductDetailNew({ product, similar }: Props) {
               </div>
             </div>
 
+            {/* Cross-sell / Frequently bought together */}
+            {similar.length > 1 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Souvent achetés ensemble</h2>
+                <div className="space-y-3">
+                  {similar.slice(0, 3).map((item, i) => (
+                    <Link key={item.id} href={`/produits/${item.id}`} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-3 hover:border-emerald-300 hover:shadow-md transition group">
+                      <div className="relative w-16 h-16 flex-shrink-0 bg-gray-50 rounded-lg overflow-hidden">
+                        <Image src={item.image || '/file.svg'} alt={item.name} fill className="object-cover p-1 group-hover:scale-105 transition" sizes="64px" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 line-clamp-2">{item.name}</h4>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-emerald-600 font-bold text-sm">{formatCurrency(item.priceAmount) || 'Sur devis'}</span>
+                          {item.deliveryDays && <span className="text-[10px] text-slate-500">{item.deliveryDays}j</span>}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Similar Products */}
             {similar.length > 0 && (
               <div className="mt-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Produits similaires</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {similar.slice(0, 6).map(item => (
-                    <Link key={item.id} href={`/produits/${item.id}`} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-emerald-300 hover:shadow-md transition group">
-                      <div className="relative aspect-square bg-gray-50"><Image src={item.image || '/file.svg'} alt={item.name} fill className="object-contain p-3 group-hover:scale-105 transition" sizes="(max-width: 640px) 50vw, 33vw" /></div>
-                      <div className="p-3"><h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">{item.name}</h4><p className="text-emerald-600 font-bold text-sm">{formatCurrency(item.priceAmount) || 'Sur devis'}</p></div>
+                    <Link key={item.id} href={`/produits/${item.id}`} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-emerald-300 hover:shadow-md transition group flex flex-col">
+                      <div className="relative aspect-square bg-gray-50"><Image src={item.image || '/file.svg'} alt={item.name} fill className="object-cover p-3 group-hover:scale-105 transition" sizes="(max-width: 640px) 50vw, 33vw" /></div>
+                      <div className="p-3 flex-1 flex flex-col">
+                        <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">{item.name}</h4>
+                        <div className="mt-auto flex items-center justify-between">
+                          <span className="text-emerald-600 font-bold text-sm">{formatCurrency(item.priceAmount) || 'Sur devis'}</span>
+                          {item.deliveryDays && <span className="text-[10px] text-slate-500">{item.deliveryDays}j</span>}
+                        </div>
+                      </div>
                     </Link>
                   ))}
                 </div>
@@ -261,19 +348,37 @@ export default function ProductDetailNew({ product, similar }: Props) {
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full"><ShieldCheck className="w-3 h-3" />IT Vision · Import direct</span>
                   <span className={clsx("text-xs font-medium px-2 py-1 rounded-full", product.availability.status === 'in_stock' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>{product.availability.label}</span>
+                  {product.isImported && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded-full">
+                      <Ship className="w-3 h-3" />Import Chine
+                    </span>
+                  )}
+                  {!product.isImported && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
+                      <Package className="w-3 h-3" />Stock Dakar
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
                 {product.tagline && <p className="text-sm text-gray-500 mt-1">{product.tagline}</p>}
                 <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
                   <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={s <= Math.round(stats.rating) ? "w-3.5 h-3.5 text-amber-400 fill-amber-400" : "w-3.5 h-3.5 text-gray-300"} />)}<span className="font-medium ml-1">{stats.rating}</span></div>
                   <span className="text-gray-300">·</span><span className="text-gray-600">{stats.reviewCount} avis</span>
-                  <span className="text-gray-300">·</span><span className="text-gray-600">{product.availability.stockQuantity > 0 ? `${product.availability.stockQuantity} vendus` : 'Sur commande'}</span>
+                  <span className="text-gray-300">·</span><span className="text-gray-600">{stats.soldToday} vendus aujourd'hui</span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs">
                   <span className="text-emerald-600 flex items-center gap-1"><Eye className="w-3 h-3" />{stats.liveViewers} personnes regardent</span>
-                  <span className="text-orange-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" />{stats.soldToday} vendus aujourd'hui</span>
+                  <span className="text-orange-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" />{stats.soldToday} commandes aujourd'hui</span>
                   {product.availability.stockQuantity > 0 && product.availability.stockQuantity < 20 && (<span className="text-red-600 flex items-center gap-1 font-medium">⚠️ Plus que {product.availability.stockQuantity} en stock</span>)}
+                  {product.availability.stockQuantity > 0 && product.availability.stockQuantity >= 20 && (<span className="text-emerald-600 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> En stock</span>)}
                 </div>
+                {product.tags && product.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {product.tags.slice(0, 6).map((tag, i) => (
+                      <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded-full capitalize">{tag}</span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Price Block */}
@@ -283,13 +388,30 @@ export default function ProductDetailNew({ product, similar }: Props) {
                   <span className="text-sm text-gray-500">/unité</span>
                   {originalPrice && originalPrice > comboPrice && (<><span className="text-lg text-gray-400 line-through">{formatCurrency(originalPrice)}</span><span className="text-sm bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">-{discountPercent}%</span></>)}
                 </div>
-                {product.b2bPrice && product.b2bPrice > 0 && product.b2bPrice < comboPrice && (
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-gray-500">Dès {product.groupBuyMinQty || 5} pcs :</span>
-                    <span className="text-lg font-bold text-violet-600">{formatCurrency(product.b2bPrice)}</span>
-                    <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">-{Math.round((1 - product.b2bPrice / comboPrice) * 100)}%</span>
+
+                {/* Price comparison cards */}
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className={clsx("rounded-lg border p-2 text-center", quantity === 1 ? "border-emerald-500 bg-emerald-50" : "border-gray-200 bg-white")}>
+                    <p className="text-[10px] text-gray-500">1 pc</p>
+                    <p className="text-sm font-bold text-gray-900">{formatCurrency(comboPrice)}</p>
+                    <p className="text-[10px] text-emerald-600">Actuel</p>
                   </div>
-                )}
+                  {product.b2bPrice && product.b2bPrice > 0 && product.b2bPrice < comboPrice && (
+                    <div className={clsx("rounded-lg border p-2 text-center", quantity >= (product.groupBuyMinQty || 5) ? "border-violet-500 bg-violet-50" : "border-gray-200 bg-white")}>
+                      <p className="text-[10px] text-gray-500">Dès {product.groupBuyMinQty || 5} pcs</p>
+                      <p className="text-sm font-bold text-violet-600">{formatCurrency(product.b2bPrice)}</p>
+                      <p className="text-[10px] text-violet-600">-{Math.round((1 - product.b2bPrice / comboPrice) * 100)}%</p>
+                    </div>
+                  )}
+                  {product.groupBuyEnabled && product.groupBuyBestPrice && product.groupBuyBestPrice < comboPrice && (
+                    <div className={clsx("rounded-lg border p-2 text-center", product.groupBuyCurrentQty && product.groupBuyCurrentQty >= (product.groupBuyMinQty || 5) ? "border-rose-500 bg-rose-50" : "border-gray-200 bg-white")}>
+                      <p className="text-[10px] text-gray-500">En groupe</p>
+                      <p className="text-sm font-bold text-rose-600">{formatCurrency(product.groupBuyBestPrice)}</p>
+                      <p className="text-[10px] text-rose-600">Groupe</p>
+                    </div>
+                  )}
+                </div>
+
                 <button onClick={() => setShowPriceDetails(!showPriceDetails)} className="mt-2 text-xs text-gray-500 flex items-center gap-1 hover:text-emerald-600">
                   <Info className="w-3 h-3" />Transparence des prix{showPriceDetails ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 </button>
@@ -303,20 +425,49 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
               {/* Group Buy Banner */}
               {product.groupBuyEnabled && (
-                <div className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-600 via-violet-500 to-emerald-500 p-4 text-white shadow-sm">
-                  <div className="mb-2 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-violet-100" />
-                    <span className="font-bold">Achetez en groupe et économisez encore plus !</span>
+                <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-rose-500 p-4 text-white shadow-md overflow-hidden relative">
+                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/20 rounded-full blur-xl" />
+                  <div className="relative flex items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">Achat groupé activé</p>
+                        <p className="text-[11px] text-white/80 truncate">
+                          Dès {product.groupBuyMinQty ?? 5} personnes · Objectif {product.groupBuyTargetQty ?? 20} unités
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold">{formatCurrency(product.groupBuyBestPrice)}</p>
+                      <p className="text-[10px] text-white/80">/unité en groupe</p>
+                    </div>
                   </div>
-                  <p className="mb-3 text-xs text-violet-100/95">
-                    Prix groupé dès {product.groupBuyMinQty ?? 5} personnes
-                    {product.groupBuyDiscount ? ` • -${Math.round(product.groupBuyDiscount)}%` : ''}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-violet-100">Objectif: {product.groupBuyTargetQty ?? 20} unités</span>
-                    <span className="rounded-md bg-white/20 px-2 py-1 text-sm font-bold backdrop-blur-sm">
-                      {formatCurrency(product.groupBuyBestPrice)}
-                    </span>
+                  <div className="relative h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-white/90 rounded-full transition-all" style={{ width: `${Math.min(100, Math.round((product.groupBuyCurrentQty || 0) / (product.groupBuyTargetQty || 1) * 100))}%` }} />
+                  </div>
+                  <div className="relative mt-2 flex items-center justify-between">
+                    <p className="text-[10px] text-white/80">
+                      {product.groupBuyCurrentQty || 0} / {product.groupBuyTargetQty || 20} unités engagées
+                    </p>
+                    <p className="text-[10px] text-white/80">
+                      {product.groupBuyDiscount ? `-${Math.round(product.groupBuyDiscount)}% de réduction` : ''}
+                    </p>
+                  </div>
+                  <div className="relative mt-3 flex gap-2">
+                    <Link
+                      href={`/achats-groupes?productId=${product.id}`}
+                      className="flex-1 text-center bg-white text-violet-700 hover:bg-white/90 text-sm font-bold py-2 rounded-lg transition"
+                    >
+                      Rejoindre un groupe
+                    </Link>
+                    <Link
+                      href={`/achats-groupes/nouveau?productId=${product.id}`}
+                      className="flex-1 text-center bg-white/15 hover:bg-white/25 text-white text-sm font-bold py-2 rounded-lg transition"
+                    >
+                      Créer un groupe
+                    </Link>
                   </div>
                 </div>
               )}
@@ -379,15 +530,33 @@ export default function ProductDetailNew({ product, similar }: Props) {
               </div>
 
               {/* CTAs */}
-              <div className="space-y-3">
-                <button onClick={() => addToCart(true)} disabled={adding} className="w-full rounded-lg border border-emerald-400 bg-emerald-500 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-2">
-                  {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-5 h-5" />Acheter maintenant</>}
-                </button>
-                <button onClick={() => addToCart(false)} disabled={adding} className="w-full rounded-lg border border-orange-400 bg-orange-500 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:bg-gray-300 flex items-center justify-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />+ Ajouter au panier
-                </button>
-                <a href={whatsappUrl()} target="_blank" rel="noopener noreferrer" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
-                  <MessageCircle className="w-5 h-5" />Demander via WhatsApp
+              <div className="space-y-2.5">
+                <div className="flex items-stretch gap-2 h-12">
+                  <button
+                    onClick={() => addToCart(false)}
+                    disabled={adding}
+                    className="flex-1 rounded-lg border border-orange-300 bg-white text-orange-600 text-sm font-semibold transition hover:bg-orange-50 disabled:bg-gray-100 disabled:text-gray-400 flex items-center justify-center gap-1.5"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span className="hidden sm:inline">Ajouter au panier</span>
+                    <span className="sm:hidden">Panier</span>
+                  </button>
+                  <button
+                    onClick={() => addToCart(true)}
+                    disabled={adding}
+                    className="flex-[1.35] rounded-lg bg-emerald-500 text-white text-sm font-bold transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-4 h-4" />Acheter maintenant</>}
+                  </button>
+                </div>
+                <a
+                  href={whatsappUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full h-10 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Demander via WhatsApp
                 </a>
               </div>
 

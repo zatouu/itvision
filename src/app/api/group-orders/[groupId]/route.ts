@@ -14,6 +14,7 @@ import { readPaymentSettings } from '@/lib/payments/settings'
 import { requireAuth } from '@/lib/jwt'
 import { buildGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
+import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -248,6 +249,17 @@ export async function POST(
     }
     
     await group.save()
+
+    // Créditer les grains de fidélité (best effort)
+    try {
+      await creditGrainsForGroupJoin(auth.userId, groupId)
+      if (objectiveJustReached) {
+        await creditGroupCompleteToParticipants(group)
+      }
+      await updateTierFromBalance(auth.userId)
+    } catch (grainsErr) {
+      console.error('[grains] Erreur crédit grains participation groupe:', grainsErr)
+    }
 
     const createdParticipant: any = group.participants[group.participants.length - 1]
     const chatParticipantId = createdParticipant?._id ? String(createdParticipant._id) : null

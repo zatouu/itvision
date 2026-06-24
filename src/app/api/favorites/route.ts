@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import { requireAuth } from '@/lib/jwt'
+import { creditGrainsForFavorite, updateTierFromBalance } from '@/lib/grains'
 
 function normalizeIds(input: unknown): string[] {
   if (!Array.isArray(input)) return []
@@ -87,11 +88,22 @@ export async function POST(req: NextRequest) {
 
     const current: string[] = Array.isArray(account.favoriteProductIds) ? account.favoriteProductIds : []
     const set = new Set(current)
+    const isNewFavorite = !current.includes(productId)
     set.add(productId)
     const next = Array.from(set).slice(0, 500)
 
     account.favoriteProductIds = next
     await account.save()
+
+    // Créditer les grains de fidélité (best effort)
+    try {
+      if (isNewFavorite) {
+        await creditGrainsForFavorite(auth.userId, productId)
+        await updateTierFromBalance(auth.userId)
+      }
+    } catch (grainsErr) {
+      console.error('[grains] Erreur crédit grains favori:', grainsErr)
+    }
 
     return NextResponse.json({ success: true, favorites: next })
   } catch {

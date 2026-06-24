@@ -11,6 +11,10 @@ import GroupBuySection from '@/components/home/GroupBuySection'
 import PopularProducts from '@/components/home/PopularProducts'
 import CategoryShowcase from '@/components/home/CategoryShowcase'
 import FinalCTABanner from '@/components/home/FinalCTABanner'
+import NewArrivals from '@/components/home/NewArrivals'
+import SourcingOnDemand from '@/components/home/SourcingOnDemand'
+import TrustBadges from '@/components/home/TrustBadges'
+import SocialProofSection from '@/components/home/SocialProofSection'
 import ImageSearchModal from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
 
@@ -51,8 +55,8 @@ export default function MarketHomePage() {
       {/* 3. Grille catégories rapides (12 icônes) */}
       <QuickCategoriesGrid />
 
-      {/* 4. 3 Feature Banners */}
-      <FeatureBanners />
+      {/* 4. Badges de confiance */}
+      <TrustBadges />
 
       {/* 5. Flash Sale */}
       <FlashSaleSection />
@@ -60,13 +64,25 @@ export default function MarketHomePage() {
       {/* 6. Achats groupés actifs */}
       <GroupBuySection />
 
-      {/* 7. Produits populaires multi-cat */}
+      {/* 7. Nouveautés */}
+      <NewArrivals />
+
+      {/* 8. Produits populaires multi-cat */}
       <PopularProducts />
 
-      {/* 8. Categories showcase (6 grands blocs) */}
+      {/* 9. Sourcing à la demande */}
+      <SourcingOnDemand
+        onOpenImageSearch={() => setShowImageSearch(true)}
+        onOpenSourcing={() => setShowSourcing(true)}
+      />
+
+      {/* 10. Categories showcase (6 grands blocs) */}
       <CategoryShowcase />
 
-      {/* 9. CTA final */}
+      {/* 11. Témoignages & preuve sociale */}
+      <SocialProofSection />
+
+      {/* 12. CTA final */}
       <FinalCTABanner />
 
       {/* Modals */}

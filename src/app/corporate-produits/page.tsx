@@ -152,14 +152,19 @@ async function fetchProducts(): Promise<CorporateProduct[]> {
     const docs = await ProductValidated.find({
       isPublished: { $ne: false },
       $or: [
-        { category: { $in: regexes } },
-        { name: { $in: regexes } },
-        { tagline: { $in: regexes } },
-        { tags: { $in: regexes } },
+        { corporateVisible: true },
+        { channels: { $in: ['corporate'] } },
+        // Fallback: produits tech existants avec un prix, en attendant le tagging explicite
+        {
+          $and: [
+            { category: { $in: regexes } },
+            { $or: [{ b2bPrice: { $gt: 0 } }, { price: { $gt: 0 } }] },
+          ],
+        },
       ],
     })
-      .select('name category description tagline image price b2bPrice currency features stockStatus stockQuantity leadTimeDays isFeatured')
-      .sort({ isFeatured: -1, category: 1, name: 1 })
+      .select('name category description tagline image price b2bPrice currency features stockStatus stockQuantity leadTimeDays isFeatured corporateVisible channels')
+      .sort({ isFeatured: -1, corporateVisible: -1, category: 1, name: 1 })
       .limit(80)
       .lean()
 

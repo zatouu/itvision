@@ -11,6 +11,7 @@ import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
+import MarketBottomNav from '@/components/MarketBottomNav'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -885,12 +886,15 @@ export default function ProduitsPage() {
       else items.push({ id: product.id, name: product.name, price: product.price, currency: product.currency || 'FCFA', image: product.image, qty: 1 })
       localStorage.setItem('cart:items', JSON.stringify(items))
       window.dispatchEvent(new CustomEvent('cart:updated'))
-    } catch {}
+      showToast(`${product.name} ajouté au panier`)
+    } catch {
+      showToast('Erreur lors de l\'ajout au panier')
+    }
   }
 
   return (
     <ErrorBoundary>
-      <main className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+      <main className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100 pb-20 md:pb-0">
         <MarketHeader />
         {/* Local cart icon for produits page */}
         <div className="fixed right-4 bottom-4 z-40">
@@ -1115,6 +1119,16 @@ export default function ProduitsPage() {
                 view={viewMode}
                 onViewChange={setViewMode}
                 onOpenMobileFilters={() => setShowFilters(true)}
+                activeFiltersCount={
+                  (debouncedSearch ? 1 : 0) +
+                  (selected.length ? 1 : 0) +
+                  (segment !== 'all' ? 1 : 0) +
+                  (availabilityFilter !== 'all' ? 1 : 0) +
+                  (onlyGroupBuy ? 1 : 0) +
+                  (onlyPrice ? 1 : 0) +
+                  (onlyQuote ? 1 : 0) +
+                  (priceRange ? 1 : 0)
+                }
               />
 
               {/* Loading skeleton */}
@@ -1153,22 +1167,87 @@ export default function ProduitsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filteredProducts.map((product) => (
-                    <Link key={product.id || product._id} href={`/produits/${product.id || product._id}`} className="block bg-white border border-slate-200 rounded-lg p-3 hover:shadow-md transition">
-                      <div className="flex gap-3">
-                        <div className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-slate-50">
-                          <img src={product.image || product.gallery?.[0] || '/file.svg'} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-slate-900 line-clamp-2">{product.name}</h3>
-                          <div className="mt-1 text-xs text-slate-500">{product.rating} ★ · {product.deliveryDays}j</div>
-                          <div className="mt-1 text-base font-bold text-orange-600">
-                            {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                  {filteredProducts.map((product, idx) => {
+                    const p = apiToCatalog(product)
+                    const pid = String(product.id || product._id || '')
+                    const isFavorite = favoriteSet.has(pid)
+                    return (
+                      <div
+                        key={pid}
+                        className="group bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md hover:border-orange-200 transition"
+                      >
+                        <div className="flex gap-4">
+                          <Link href={`/produits/${pid}`} className="relative w-28 h-28 flex-shrink-0 rounded-lg overflow-hidden bg-slate-50">
+                            <img src={product.image || product.gallery?.[0] || '/file.svg'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                            {product.isFeatured && (
+                              <span className="absolute top-1 left-1 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">✨ Nouveau</span>
+                            )}
+                          </Link>
+                          <div className="flex-1 min-w-0 flex flex-col">
+                            <div className="flex items-start justify-between gap-2">
+                              <Link href={`/produits/${pid}`} className="font-semibold text-slate-900 text-sm line-clamp-2 hover:text-orange-600 transition">
+                                {product.name}
+                              </Link>
+                              <button
+                                onClick={(e) => toggleFavoriteFromList(e, pid)}
+                                className="p-1.5 hover:bg-slate-100 rounded-full transition flex-shrink-0"
+                                aria-label="Ajouter aux favoris"
+                              >
+                                <Heart className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                              {product.rating !== undefined && product.rating > 0 && (
+                                <span className="text-xs text-amber-600 font-medium flex items-center gap-0.5">
+                                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> {product.rating.toFixed(1)}
+                                </span>
+                              )}
+                              <span className="text-xs text-slate-500">· {product.deliveryDays}j</span>
+                              <span className="text-xs text-slate-500">· {product.isImported ? 'Import Chine' : 'Stock Dakar'}</span>
+                              {product.groupBuyEnabled && (
+                                <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-medium">👥 Groupe</span>
+                              )}
+                              {product.availabilityStatus === 'in_stock' && (
+                                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">En stock</span>
+                              )}
+                              {product.availabilityStatus === 'preorder' && (
+                                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Sur commande</span>
+                              )}
+                            </div>
+
+                            {product.features && product.features.length > 0 && (
+                              <div className="hidden sm:flex items-center gap-2 mt-2 flex-wrap">
+                                {product.features.slice(0, 3).map((f, i) => (
+                                  <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{f}</span>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="mt-auto pt-2 flex items-center justify-between gap-3">
+                              <div className="text-base font-bold text-orange-600">
+                                {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  href={`/produits/${pid}`}
+                                  className="text-xs font-medium text-slate-600 hover:text-orange-600 transition"
+                                >
+                                  Voir
+                                </Link>
+                                <button
+                                  onClick={() => addToCart(p)}
+                                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"
+                                >
+                                  + Panier
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </Link>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
@@ -1413,6 +1492,7 @@ export default function ProduitsPage() {
       )}
 
       <MarketFooter />
+      <MarketBottomNav />
     </main>
     </ErrorBoundary>
   )
