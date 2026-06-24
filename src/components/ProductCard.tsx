@@ -255,11 +255,12 @@ export default function ProductCard({
       setAdding(true)
       const raw = typeof window !== 'undefined' ? localStorage.getItem('cart:items') : null
       const items = raw ? JSON.parse(raw) : []
-      const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
-      const productName = `${name}-${model || ''}${shippingKey}`
-      const whitespaceRegex = new RegExp('\\s+', 'g')
-      const id = productName.replace(whitespaceRegex, '-').toLowerCase()
-      const existsIndex = items.findIndex((i: any) => i.id === id)
+      const productId = detailHref ? detailHref.split('/').pop() : null
+      if (!productId) {
+        setAdding(false)
+        return
+      }
+      const existsIndex = items.findIndex((i: any) => i.id === productId && i.shipping?.id === activeShipping?.id)
       if (existsIndex >= 0) {
         items[existsIndex].qty += 1
         // Garder le prix principal égal au prix sourcing. Les frais/transport sont stockés séparément.
@@ -283,7 +284,7 @@ export default function ProductCard({
       } else {
         const itemName = model ? `${name} (${model})` : name
         items.push({
-          id,
+          id: productId,
           name: itemName,
           qty: 1,
           // Prix principal = prix sourcing (basePrice). Les frais et le transport sont ajoutés au checkout.
@@ -307,7 +308,7 @@ export default function ProductCard({
         items[lastIndex].insurancePercent = insurancePercent
       }
       localStorage.setItem('cart:items', JSON.stringify(items))
-      trackEvent('add_to_cart', { productId: id })
+      trackEvent('add_to_cart', { productId })
       try {
         window.dispatchEvent(new CustomEvent('cart:updated'))
       } catch {}

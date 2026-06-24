@@ -138,7 +138,6 @@ export default function ProductDetailNew({ product, similar }: Props) {
       if (typeof window === 'undefined') return
       const raw = window.localStorage.getItem('cart:items')
       const items = raw ? JSON.parse(raw) : []
-      const shippingKey = selectedShippingId ? `-${selectedShippingId}` : ''
       const currency = product.pricing.currency
       const selectedList = (product.variantGroups ?? []).flatMap(g => {
         const vid = selectedVariants[g.name]
@@ -146,17 +145,37 @@ export default function ProductDetailNew({ product, similar }: Props) {
         const v = g.variants.find(x => x.id === vid)
         return v ? [{ groupName: g.name, variant: v }] : []
       })
-      if (selectedList.length > 0) {
-        const variantIdsKey = selectedList.map(x => x.variant.id).sort().join('+')
-        const id = `${product.id}-${variantIdsKey}${shippingKey}`
-        const combinedLabel = selectedList.map(x => x.variant.name).join(' · ')
-        const existsIndex = items.findIndex((item: any) => item.id === id)
-        if (existsIndex >= 0) { items[existsIndex].qty += quantity } else { items.push({ id, name: `${product.name} — ${combinedLabel}`, qty: quantity, price: comboPrice, currency, requiresQuote: !!product.requiresQuote, variantIds: selectedList.map(x => x.variant.id), variantLabels: selectedList.map(x => x.variant.name) }) }
+      const variantIds = selectedList.map(x => x.variant.id)
+      const variantLabels = selectedList.map(x => x.variant.name)
+      const dedupeKey = [product.id, ...variantIds.sort(), selectedShippingId || ''].join('|')
+      const existingIndex = items.findIndex((item: any) => {
+        const existingVariantIds = Array.isArray(item.variantIds) ? item.variantIds.slice().sort() : []
+        const itemKey = [item.id, ...existingVariantIds, item.shipping?.id || ''].join('|')
+        return itemKey === dedupeKey
+      })
+      const selectedShipping = product.pricing.shippingOptions?.find((s: any) => s.id === selectedShippingId)
+      const shippingMeta = selectedShipping ? {
+        id: selectedShipping.id,
+        label: selectedShipping.label,
+        durationDays: selectedShipping.durationDays,
+        cost: selectedShipping.cost,
+        currency: selectedShipping.currency
+      } : undefined
+      if (existingIndex >= 0) {
+        items[existingIndex].qty += quantity
       } else {
-        const id = `${product.id}${shippingKey}`
-        const existsIndex = items.findIndex((item: any) => item.id === id)
-        if (existsIndex >= 0) items[existsIndex].qty += quantity
-        else items.push({ id, name: product.name, qty: quantity, price: comboPrice, currency, requiresQuote: !!product.requiresQuote })
+        const combinedLabel = selectedList.map(x => x.variant.name).join(' · ')
+        items.push({
+          id: product.id,
+          name: selectedList.length > 0 ? `${product.name} — ${combinedLabel}` : product.name,
+          qty: quantity,
+          price: comboPrice,
+          currency,
+          requiresQuote: !!product.requiresQuote,
+          variantIds: variantIds.length > 0 ? variantIds : undefined,
+          variantLabels: variantLabels.length > 0 ? variantLabels : undefined,
+          shipping: shippingMeta
+        })
       }
       window.localStorage.setItem('cart:items', JSON.stringify(items))
       window.dispatchEvent(new CustomEvent('cart:updated'))

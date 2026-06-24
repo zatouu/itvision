@@ -5,6 +5,8 @@ export type OrderDomain = 'marketplace' | 'corporate' | 'services'
 export interface IOrderItem {
   id: string
   variantId?: string
+  variantIds?: string[]
+  variantLabels?: string[]
   name: string
   qty: number
   price: number // Prix avec frais inclus
@@ -107,6 +109,8 @@ export interface IOrder extends Document {
 const OrderItemSchema = new Schema<IOrderItem>({
   id: { type: String, required: true },
   variantId: { type: String },
+  variantIds: { type: [String] },
+  variantLabels: { type: [String] },
   name: { type: String, required: true },
   qty: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true },

@@ -15,9 +15,23 @@ import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
 import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
+import mongoose from 'mongoose'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+function extractProductObjectId(itemId: string): string | null {
+  if (!itemId) return null
+  // Composite IDs created by the frontend: productId[-variantKey][-shippingId]
+  // Examples: "69b2dafecd40b2d770a0a398-air_express" or "69b2dafecd40b2d770a0a398-v1+v2-air_express"
+  const parts = itemId.split('-')
+  for (const part of parts) {
+    if (mongoose.Types.ObjectId.isValid(part)) {
+      return part
+    }
+  }
+  return null
 }
 
 function buildSeaFreightMetrics(items: Array<{
@@ -145,7 +159,16 @@ export async function POST(req: NextRequest) {
     await connectDB()
     mongoConnected = true
 
-    const cartProductIds = cart.map((item: any) => String(item.id)).filter(Boolean)
+    const itemProductIdMap = new Map<string, string>()
+    const cartProductIds = cart
+      .map((item: any) => {
+        const rawId = String(item.id || '')
+        const productId = extractProductObjectId(rawId)
+        if (productId) itemProductIdMap.set(rawId, productId)
+        return productId
+      })
+      .filter(Boolean)
+
     const dbProductMap = new Map<string, any>()
     if (cartProductIds.length > 0) {
       const dbProducts = await Product.find({
@@ -158,7 +181,15 @@ export async function POST(req: NextRequest) {
     }
 
     for (const item of cart) {
-      const dbProduct = dbProductMap.get(String(item.id))
+      const rawId = String(item.id || '')
+      const productId = itemProductIdMap.get(rawId)
+      const dbProduct = productId ? dbProductMap.get(productId) : null
+      if (!productId) {
+        return NextResponse.json(
+          { success: false, error: `Identifiant produit invalide: ${item.name || item.id}` },
+          { status: 400 }
+        )
+      }
       if (!dbProduct) {
         return NextResponse.json(
           { success: false, error: `Produit introuvable ou non disponible: ${item.name || item.id}` },
@@ -176,9 +207,11 @@ export async function POST(req: NextRequest) {
 
     // Préparer les items pour le calculateur (prix issus de la DB, jamais du client)
     const calculatorItems = cart.map((item: any) => {
-      const db = dbProductMap.get(String(item.id))
+      const rawId = String(item.id || '')
+      const productId = itemProductIdMap.get(rawId)
+      const db = productId ? dbProductMap.get(productId) : null
       return {
-        id: String(item.id),
+        id: productId || String(item.id),
         name: db?.name || item.name,
         price: db?.price ?? db?.baseCost ?? 0,
         b2bPrice: db?.b2bPrice,
@@ -263,7 +296,9 @@ export async function POST(req: NextRequest) {
       
       items: cart.map((item: any) => {
         const qty = item.qty || 1
-        const db = dbProductMap.get(String(item.id))
+        const rawId = String(item.id || '')
+        const productId = itemProductIdMap.get(rawId)
+        const db = productId ? dbProductMap.get(productId) : null
         const resolved = resolveProductPrice({
           price: db?.price ?? db?.baseCost ?? 0,
           b2bPrice: db?.b2bPrice,
@@ -272,8 +307,10 @@ export async function POST(req: NextRequest) {
           totalCartQty: totalQuantity
         })
         return {
-          id: String(item.id),
+          id: productId || String(item.id),
           variantId: item.variantId,
+          variantIds: item.variantIds,
+          variantLabels: item.variantLabels,
           name: db?.name || item.name,
           qty,
           price: resolved.appliedPrice,
@@ -483,7 +520,9 @@ export async function POST(req: NextRequest) {
     Promise.all(
       cart.map(async (item: any) => {
         if (!item.id) return
-        const dbItem = dbProductMap.get(String(item.id))
+        const rawId = String(item.id || '')
+        const productId = itemProductIdMap.get(rawId)
+        const dbItem = productId ? dbProductMap.get(productId) : null
         if (!dbItem) return
         try {
           const baseUrl = req.nextUrl.origin
