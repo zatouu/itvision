@@ -106,6 +106,7 @@ export default function HeroCarousel() {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
+                  className="flex flex-wrap items-center gap-3"
                 >
                   <Link
                     href={slide.href}
@@ -113,6 +114,12 @@ export default function HeroCarousel() {
                   >
                     {slide.cta}
                     <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/produits"
+                    className="inline-flex items-center gap-2 border border-white/40 text-white px-5 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-colors"
+                  >
+                    Voir le catalogue
                   </Link>
                 </motion.div>
               </div>

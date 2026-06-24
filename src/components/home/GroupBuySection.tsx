@@ -188,6 +188,11 @@ export default function GroupBuySection() {
                       -{discount}%
                     </div>
                   )}
+                  {progress >= 75 && progress < 100 && (
+                    <div className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wide">
+                      Presque plein
+                    </div>
+                  )}
                 </div>
 
                 {/* Content */}
@@ -259,7 +264,7 @@ export default function GroupBuySection() {
                   )}
 
                   <Link
-                    href={`/achats-groupes?product=${item._id}`}
+                    href={`/achats-groupes/${group?.groupId || item._id}`}
                     className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors"
                   >
                     Rejoindre
