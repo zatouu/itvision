@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
+import OrderChat from '@/components/OrderChat'
 import {
   CheckCircle,
   AlertCircle,
@@ -24,7 +25,8 @@ import {
   LogIn,
   UserPlus,
   Megaphone,
-  Bell
+  Bell,
+  RefreshCw
 } from 'lucide-react'
 
 interface OrderDetails {
@@ -1064,6 +1066,13 @@ function OrderConfirmationContent() {
             <Download className="w-5 h-5" />
             Imprimer
           </button>
+          <Link
+            href={`/commandes/${orderId}/retour${token ? `?token=${encodeURIComponent(token)}` : ''}`}
+            className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-amber-300 hover:border-amber-400 text-amber-700 py-4 rounded-xl font-bold transition"
+          >
+            <RefreshCw className="w-5 h-5" />
+            Retour
+          </Link>
           <button
             onClick={() => setClaimModalOpen(true)}
             className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-red-300 hover:border-red-400 text-red-700 py-4 rounded-xl font-bold transition"
@@ -1161,6 +1170,13 @@ function OrderConfirmationContent() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Chat support */}
+        {order && (
+          <div className="max-w-5xl mx-auto px-4 py-8">
+            <OrderChat orderReference={orderId} token={token} />
+          </div>
+        )}
       </div>
     </div>
   )

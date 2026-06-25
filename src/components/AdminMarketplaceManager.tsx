@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import {
   Briefcase,
   Users,
@@ -15,7 +16,9 @@ import {
   UserCheck,
   AlertCircle,
   TrendingUp,
-  Star
+  Star,
+  RefreshCw,
+  MessageCircle
 } from 'lucide-react'
 
 interface MarketplaceActivity {
@@ -75,10 +78,13 @@ export default function AdminMarketplaceManager() {
   const [loadingBids, setLoadingBids] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [filter, setFilter] = useState<'all' | 'open' | 'assigned'>('open')
-
-  useEffect(() => {
-    loadActivities()
-  }, [filter])
+  const [lowStock, setLowStock] = useState<any[]>([])
+  const [outOfStock, setOutOfStock] = useState<any[]>([])
+  const [loadingInventory, setLoadingInventory] = useState(false)
+  const [returnRequests, setReturnRequests] = useState<any[]>([])
+  const [loadingReturns, setLoadingReturns] = useState(false)
+  const [recentChatMessages, setRecentChatMessages] = useState<any[]>([])
+  const [loadingChat, setLoadingChat] = useState(false)
 
   const loadActivities = async () => {
     try {
@@ -97,6 +103,56 @@ export default function AdminMarketplaceManager() {
       setLoading(false)
     }
   }
+
+  const loadInventoryAlerts = async () => {
+    try {
+      setLoadingInventory(true)
+      const response = await fetch('/api/admin/inventory/low-stock', { credentials: 'include' })
+      if (!response.ok) throw new Error('Erreur lors du chargement des alertes stock')
+      const data = await response.json()
+      setLowStock(data.lowStock || [])
+      setOutOfStock(data.outOfStock || [])
+    } catch (error) {
+      console.error('Erreur chargement alertes stock:', error)
+    } finally {
+      setLoadingInventory(false)
+    }
+  }
+
+  const loadReturnRequests = async () => {
+    try {
+      setLoadingReturns(true)
+      const response = await fetch('/api/returns?status=requested', { credentials: 'include' })
+      if (!response.ok) throw new Error('Erreur lors du chargement des retours')
+      const data = await response.json()
+      setReturnRequests(data.returns || [])
+    } catch (error) {
+      console.error('Erreur chargement retours:', error)
+    } finally {
+      setLoadingReturns(false)
+    }
+  }
+
+  const loadRecentChatMessages = async () => {
+    try {
+      setLoadingChat(true)
+      const response = await fetch('/api/admin/order-chat/recent?limit=5', { credentials: 'include' })
+      if (!response.ok) throw new Error('Erreur lors du chargement des messages')
+      const data = await response.json()
+      setRecentChatMessages(data.messages || [])
+    } catch (error) {
+      console.error('Erreur chargement messages chat:', error)
+    } finally {
+      setLoadingChat(false)
+    }
+  }
+
+  useEffect(() => {
+    loadActivities()
+    loadInventoryAlerts()
+    loadReturnRequests()
+    loadRecentChatMessages()
+  }, [filter])
 
   const loadBids = async (activityId: string) => {
     try {
@@ -263,6 +319,107 @@ export default function AdminMarketplaceManager() {
             Actualiser
           </button>
         </div>
+
+        {/* Alertes stock */}
+        {(lowStock.length > 0 || outOfStock.length > 0) && (
+          <div className="mt-4 border-t pt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              Alertes inventaire
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {outOfStock.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm font-semibold text-red-800 mb-2">
+                    Rupture de stock ({outOfStock.length})
+                  </p>
+                  <ul className="space-y-1 max-h-32 overflow-y-auto">
+                    {outOfStock.slice(0, 5).map((p: any) => (
+                      <li key={p.id} className="text-xs text-red-700 flex justify-between">
+                        <span className="truncate flex-1">{p.name}</span>
+                        <span className="font-medium ml-2">{p.stockQuantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {lowStock.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm font-semibold text-amber-800 mb-2">
+                    Stock bas ({lowStock.length})
+                  </p>
+                  <ul className="space-y-1 max-h-32 overflow-y-auto">
+                    {lowStock.slice(0, 5).map((p: any) => (
+                      <li key={p.id} className="text-xs text-amber-700 flex justify-between">
+                        <span className="truncate flex-1">{p.name}</span>
+                        <span className="font-medium ml-2">{p.stockQuantity} rest.</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Retours en attente */}
+        {returnRequests.length > 0 && (
+          <div className="mt-4 border-t pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-amber-600" />
+                Retours en attente ({returnRequests.length})
+              </h3>
+              <Link href="/admin/marketplace/retours" className="text-xs text-emerald-600 hover:underline">
+                Voir tout
+              </Link>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <ul className="space-y-1 max-h-40 overflow-y-auto">
+                {returnRequests.slice(0, 6).map((r: any) => (
+                  <li key={r._id} className="text-xs text-amber-800 flex justify-between items-start gap-2">
+                    <span className="truncate flex-1">
+                      {r.orderReference} — {r.items.length} article{r.items.length > 1 ? 's' : ''}
+                    </span>
+                    <Link
+                      href={`/commandes/${r.orderReference}`}
+                      className="text-amber-700 hover:underline shrink-0"
+                    >
+                      Voir
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Messages support récents */}
+        {recentChatMessages.length > 0 && (
+          <div className="mt-4 border-t pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-emerald-600" />
+                Messages support récents ({recentChatMessages.length})
+              </h3>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <ul className="space-y-2 max-h-40 overflow-y-auto">
+                {recentChatMessages.slice(0, 5).map((m: any) => (
+                  <li key={m._id} className="text-xs text-blue-900">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{m.orderReference}</span>
+                      <span className="text-blue-700 opacity-70">
+                        {new Date(m.createdAt).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="truncate text-blue-800 mt-0.5">{m.text}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Filtres */}
         <div className="flex flex-wrap gap-2">

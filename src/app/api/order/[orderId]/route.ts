@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import crypto from 'crypto'
 import { requireAuth } from '@/lib/jwt'
 import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
+import { restoreProductStock } from '@/lib/inventory'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -25,6 +26,27 @@ function getTrackingTokenMinDate(): Date {
 function getTrackingTokenFromRequest(req: NextRequest): string | null {
   const { searchParams } = new URL(req.url)
   return searchParams.get('token') || searchParams.get('t')
+}
+
+async function restoreOrderStock(order: any) {
+  if (!order || !Array.isArray(order.inventoryReservations) || order.inventoryReservations.length === 0) return
+  for (const reservation of order.inventoryReservations) {
+    if (reservation.restored) continue
+    try {
+      const result = await restoreProductStock(reservation.productId, reservation.qty, reservation.variantIds)
+      if (result.ok) {
+        reservation.restored = true
+      } else {
+        console.error(`[order] Échec restauration stock commande ${order.orderId}:`, result.error)
+      }
+    } catch (err) {
+      console.error(`[order] Exception restauration stock commande ${order.orderId}:`, err)
+    }
+  }
+  await Order.updateOne(
+    { _id: order._id },
+    { inventoryReservations: order.inventoryReservations }
+  )
 }
 
 interface RouteContext {
@@ -198,13 +220,20 @@ export async function PATCH(
 
     console.log(`Commande ${orderId} mise à jour:`, updateData)
 
-    // Reverse grains if order is cancelled/refunded
-    if (['cancelled', 'refunded'].includes(order.status) && order.clientId) {
+    // Reverse grains and restore stock if order is cancelled/refunded
+    if (['cancelled', 'refunded'].includes(order.status)) {
       try {
-        await reverseGrainsForOrder(order.clientId, order._id, `commande ${order.status}`)
-        await updateTierFromBalance(order.clientId)
-      } catch (grainsErr) {
-        console.error('[grains] Erreur reverse grains commande:', grainsErr)
+        await restoreOrderStock(order)
+      } catch (stockErr) {
+        console.error('[inventory] Erreur restauration stock commande:', stockErr)
+      }
+      if (order.clientId) {
+        try {
+          await reverseGrainsForOrder(order.clientId, order._id, `commande ${order.status}`)
+          await updateTierFromBalance(order.clientId)
+        } catch (grainsErr) {
+          console.error('[grains] Erreur reverse grains commande:', grainsErr)
+        }
       }
     }
 
@@ -237,6 +266,16 @@ export async function DELETE(
     }
 
     await connectDB()
+
+    // Restaurer le stock avant suppression
+    const order = await Order.findOne({ orderId }).lean() as any
+    if (order) {
+      try {
+        await restoreOrderStock(order)
+      } catch (stockErr) {
+        console.error('[inventory] Erreur restauration stock avant suppression:', stockErr)
+      }
+    }
 
     // Supprimer la commande
     const result = await Order.deleteOne({ orderId })

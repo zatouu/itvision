@@ -16,6 +16,7 @@ import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
 import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
 import mongoose from 'mongoose'
+import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -196,9 +197,10 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
-      if (dbProduct.stockStatus === 'out_of_stock') {
+      const stockCheck = await checkStockAvailability(productId, item.qty || 1, item.variantIds)
+      if (!stockCheck.ok) {
         return NextResponse.json(
-          { success: false, error: `Le produit "${dbProduct.name}" est actuellement en rupture de stock` },
+          { success: false, error: `${stockCheck.productName || dbProduct.name}: ${stockCheck.reason}` },
           { status: 400 }
         )
       }
@@ -369,6 +371,26 @@ export async function POST(req: NextRequest) {
     })
 
     await orderDoc.save()
+
+    // Décrémenter le stock et enregistrer les réservations d'inventaire (best effort, loggé si erreur)
+    const reservations: any[] = []
+    for (const item of cart) {
+      const rawId = String(item.id || '')
+      const productId = itemProductIdMap.get(rawId)
+      if (!productId) continue
+      const qty = item.qty || 1
+      const variantIds = Array.isArray(item.variantIds) ? item.variantIds : undefined
+      const decrement = await decrementProductStock(productId, qty, variantIds)
+      if (decrement.ok) {
+        reservations.push({ productId, qty, variantIds, restored: false, decrementedAt: new Date() })
+      } else {
+        console.error(`[order] Échec décrémentation stock commande ${orderId}, produit ${productId}:`, decrement.error)
+      }
+    }
+    if (reservations.length > 0) {
+      orderDoc.inventoryReservations = reservations
+      await orderDoc.save()
+    }
 
     // Incrémenter les stats marketplace de l'utilisateur authentifié
     if (auth?.userId) {

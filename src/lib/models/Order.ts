@@ -22,6 +22,14 @@ export interface IOrderItem {
   }
 }
 
+export interface IInventoryReservation {
+  productId: string
+  qty: number
+  variantIds?: string[]
+  restored?: boolean
+  decrementedAt?: Date
+}
+
 export interface IOrderShipping {
   method: string // 'express_3j', 'air_15j', 'maritime_60j'
   totalCost: number
@@ -72,6 +80,7 @@ export interface IOrder extends Document {
   serviceRequestId?: mongoose.Types.ObjectId // services
   
   items: IOrderItem[]
+  inventoryReservations?: IInventoryReservation[]
   fees: IOrderFees                  // Décomposition des frais
   subtotal: number                   // Produits avec frais inclus
   subtotalBeforeDiscounts: number     // Avant réduction quantité
@@ -124,6 +133,14 @@ const OrderItemSchema = new Schema<IOrderItem>({
     cost: { type: Number },
     currency: { type: String }
   }
+}, { _id: false })
+
+const InventoryReservationSchema = new Schema<IInventoryReservation>({
+  productId: { type: String, required: true },
+  qty: { type: Number, required: true, min: 1 },
+  variantIds: { type: [String] },
+  restored: { type: Boolean, default: false },
+  decrementedAt: { type: Date }
 }, { _id: false })
 
 const OrderShippingSchema = new Schema<IOrderShipping>({
@@ -183,6 +200,7 @@ const OrderSchema = new Schema<IOrder>({
   serviceRequestId: { type: mongoose.Schema.Types.ObjectId, sparse: true, index: true },
   
   items: [OrderItemSchema],
+  inventoryReservations: { type: [InventoryReservationSchema], default: [] },
   fees: { type: OrderFeesSchema, required: true },
   subtotal: { type: Number, required: true },
   subtotalBeforeDiscounts: { type: Number, required: true },

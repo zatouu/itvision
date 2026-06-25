@@ -21,6 +21,7 @@ import ProductGallery from './ProductGallery'
 import VariantSelectors from './VariantSelectors'
 import StickyPriceBar from './StickyPriceBar'
 import MobileBottomBar from './MobileBottomBar'
+import ProductReviews from '@/components/ProductReviews'
 
 interface Props { product: ProductDetailData; similar: SimilarProductSummary[] }
 
@@ -153,6 +154,31 @@ export default function ProductDetailNew({ product, similar }: Props) {
         const itemKey = [item.id, ...existingVariantIds, item.shipping?.id || ''].join('|')
         return itemKey === dedupeKey
       })
+
+      // Vérification du stock (frontend, avant appel API)
+      const currentCartQty = items.reduce((sum: number, item: any) => {
+        if (item.id !== product.id) return sum
+        const itemVariantIds = Array.isArray(item.variantIds) ? item.variantIds.slice().sort() : []
+        const sameVariant = itemVariantIds.join('|') === variantIds.slice().sort().join('|')
+        return sameVariant ? sum + (item.qty || 1) : sum
+      }, 0)
+      const totalRequestedQty = currentCartQty + quantity
+      const selectedVariantsWithStock = selectedList
+        .map(x => x.variant.stock)
+        .filter((s): s is number => typeof s === 'number')
+      const variantStock = selectedVariantsWithStock.length > 0
+        ? Math.min(...selectedVariantsWithStock)
+        : null
+      const availableStock = variantStock !== null ? variantStock : (product.availability.stockQuantity || 0)
+      if (product.availability.status === 'out_of_stock' || availableStock <= 0) {
+        addToast('Ce produit est actuellement en rupture de stock', 'error')
+        return
+      }
+      if (totalRequestedQty > availableStock) {
+        addToast(`Stock insuffisant. Disponible: ${availableStock} unité${availableStock > 1 ? 's' : ''} (dont ${currentCartQty} déjà dans le panier)`, 'error')
+        return
+      }
+
       const selectedShipping = product.pricing.shippingOptions?.find((s: any) => s.id === selectedShippingId)
       const shippingMeta = selectedShipping ? {
         id: selectedShipping.id,
@@ -608,6 +634,11 @@ export default function ProductDetailNew({ product, similar }: Props) {
           </div>
 
         </div>
+      </div>
+
+      {/* Reviews */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <ProductReviews productId={product.id} />
       </div>
 
       <MobileBottomBar comboPrice={comboPrice} onWhatsApp={() => window.open(whatsappUrl(), '_blank')} onAddToCart={() => addToCart(false)} onBuyNow={() => addToCart(true)} />
