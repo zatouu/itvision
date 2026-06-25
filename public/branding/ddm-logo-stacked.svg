@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" aria-label="DDM+ Dieund Dal Ma">
+  <!-- Background -->
+  <rect width="160" height="160" fill="white" />
+  <!-- Main wordmark DDM -->
+  <text x="20" y="95" font-family="Georgia, 'Times New Roman', serif" font-weight="900" font-size="72" fill="#0F172A" letter-spacing="-0.02em">DDM</text>
+  <!-- Plus symbol -->
+  <g transform="translate(130, 60)">
+    <rect x="0" y="16" width="24" height="8" rx="3" fill="#10B981"/>
+    <rect x="8" y="4" width="8" height="32" rx="3" fill="#10B981"/>
+  </g>
+  <!-- Divider -->
+  <line x1="20" y1="115" x2="140" y2="115" stroke="#E2E8F0" stroke-width="1"/>
+  <!-- Tagline -->
+  <text x="80" y="140" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-size="13" fill="#64748B" letter-spacing="0.15em" text-anchor="middle">DIEUND DAL MA</text>
+</svg>

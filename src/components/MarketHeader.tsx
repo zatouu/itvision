@@ -12,6 +12,7 @@ import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
 import ThemeToggle from './ThemeToggle'
 import CategoryMegaMenu from './catalog/CategoryMegaMenu'
+import DDMLogo from './branding/DDMLogo'
 
 export default function MarketHeader() {
   const pathname = usePathname()
@@ -95,12 +96,7 @@ export default function MarketHeader() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         {/* Logo */}
         <Link href="/market" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-violet-600">
-            <ShoppingBag className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-lg font-bold text-gray-900 dark:text-white">
-            IT Vision <span className="text-green-600">Plus</span>
-          </span>
+          <DDMLogo variant="horizontal" size="sm" showTagline={false} priority />
         </Link>
 
         {/* Desktop nav */}

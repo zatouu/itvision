@@ -101,8 +101,20 @@ body {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-fraunces), Georgia, serif;
   --font-mono: var(--font-geist-mono);
+  --color-ddm-emerald: #10B981;
+  --color-ddm-emerald-dark: #059669;
+  --color-ddm-emerald-light: #D1FAE5;
+  --color-ddm-purple: #7C3AED;
+  --color-ddm-purple-dark: #6D28D9;
+  --color-ddm-purple-light: #EDE9FE;
+  --color-ddm-navy: #0F172A;
+  --color-ddm-slate: #64748B;
+  --color-ddm-amber: #FBBF24;
+  --color-ddm-orange: #F59E0B;
+  --color-ddm-red: #EF4444;
 }
 
 .dark {

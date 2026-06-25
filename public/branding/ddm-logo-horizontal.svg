@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 60" aria-label="DDM+ Dieund Dal Ma">
+  <text x="10" y="40" font-family="Georgia, 'Times New Roman', serif" font-weight="900" font-size="40" fill="#0F172A" letter-spacing="-0.02em">DDM</text>
+  <g transform="translate(130, 14)">
+    <rect x="0" y="10" width="24" height="6" rx="2" fill="#10B981"/>
+    <rect x="9" y="1" width="6" height="24" rx="2" fill="#10B981"/>
+  </g>
+  <text x="170" y="26" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-size="10" fill="#64748B" letter-spacing="0.12em">DIEUND DAL MA</text>
+</svg>

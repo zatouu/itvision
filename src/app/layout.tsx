@@ -1,12 +1,24 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import PageVisitTracker from '@/components/PageVisitTracker'
 import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
-const inter = Inter({ subsets: ['latin'] })
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['800', '900'],
+  variable: '--font-fraunces',
+  display: 'swap',
+})
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-jakarta',
+  display: 'swap',
+})
 
 export const viewport = {
   themeColor: [
@@ -16,18 +28,18 @@ export const viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'IT Vision Plus — Marketplace Import Chine & Achats Groupés',
+  title: 'DDM+ Marketplace — Import Chine & Achats Groupés',
   manifest: '/manifest.webmanifest',
-  description: 'Marketplace IT Vision Plus : Import direct Chine → Sénégal. Mode, électronique, beauté, maison, auto, sport. Prix usine, achats groupés -45%, livraison Dakar.',
-  keywords: 'marketplace, import Chine Sénégal, achats groupés, mode, électronique, beauté, maison, auto, sport, prix usine, Dakar, IT Vision Plus',
-  authors: [{ name: 'IT Vision Plus' }],
+  description: 'DDM+ Marketplace : Import direct Chine → Sénégal. Mode, électronique, beauté, maison, auto, sport. Prix usine, achats groupés -45%, livraison Dakar.',
+  keywords: 'DDM, Dieund Dal Ma, marketplace, import Chine Sénégal, achats groupés, mode, électronique, beauté, maison, auto, sport, prix usine, Dakar',
+  authors: [{ name: 'DDM+' }],
   icons: {
-    icon: '/Icone.png',
-    shortcut: '/Icone.png',
-    apple: '/apple-touch-icon.png',
+    icon: '/branding/ddm-logo-favicon.svg',
+    shortcut: '/branding/ddm-logo-favicon.svg',
+    apple: '/branding/ddm-logo-favicon.svg',
   },
   openGraph: {
-    title: 'IT Vision Plus — Marketplace Import Chine & Achats Groupés',
+    title: 'DDM+ Marketplace — Import Chine & Achats Groupés',
     description: 'Import direct Chine, livraison Sénégal. Mode, tech, beauté, maison, auto, sport. Achats groupés pour payer moins cher.',
     type: 'website',
   },
@@ -39,8 +51,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className={`${inter.className}`}>
+    <html lang="fr" suppressHydrationWarning className={`${fraunces.variable} ${jakarta.variable}`}>
+      <body className={`${jakarta.className} antialiased`}>
         <SessionProviderClient>
           <ThemeProvider>
             <PageVisitTracker />
