@@ -8,7 +8,21 @@ import Shop from '@/lib/models/Shop'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  await connectMongoose()
+  const staticRoutes: MetadataRoute.Sitemap = [
+    { url: SITE_URL, lastModified: new Date(), priority: 1.0, changeFrequency: 'daily' },
+    { url: `${SITE_URL}/produits`, lastModified: new Date(), priority: 0.9, changeFrequency: 'daily' },
+    { url: `${SITE_URL}/achats-groupes`, lastModified: new Date(), priority: 0.8, changeFrequency: 'daily' },
+    { url: `${SITE_URL}/market/boutiques`, lastModified: new Date(), priority: 0.8, changeFrequency: 'daily' },
+    { url: `${SITE_URL}/panier`, lastModified: new Date(), priority: 0.4, changeFrequency: 'monthly' },
+    { url: `${SITE_URL}/retrouver-ma-commande`, lastModified: new Date(), priority: 0.5, changeFrequency: 'monthly' },
+  ]
+
+  try {
+    await connectMongoose()
+  } catch (err) {
+    console.warn('[sitemap] MongoDB indisponible pendant le build, sitemap minimal généré.')
+    return staticRoutes
+  }
 
   const [products, groupOrders, categories, shops] = await Promise.all([
     Product.find({ status: { $ne: 'deleted' } })
@@ -22,15 +36,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ProductCategory.find().select('slug updatedAt').limit(200).lean(),
     Shop.find({ status: 'active' }).select('slug updatedAt').limit(200).lean()
   ])
-
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: SITE_URL, lastModified: new Date(), priority: 1.0, changeFrequency: 'daily' },
-    { url: `${SITE_URL}/produits`, lastModified: new Date(), priority: 0.9, changeFrequency: 'daily' },
-    { url: `${SITE_URL}/achats-groupes`, lastModified: new Date(), priority: 0.8, changeFrequency: 'daily' },
-    { url: `${SITE_URL}/market/boutiques`, lastModified: new Date(), priority: 0.8, changeFrequency: 'daily' },
-    { url: `${SITE_URL}/panier`, lastModified: new Date(), priority: 0.4, changeFrequency: 'monthly' },
-    { url: `${SITE_URL}/retrouver-ma-commande`, lastModified: new Date(), priority: 0.5, changeFrequency: 'monthly' },
-  ]
 
   const productRoutes = products.map((p: any) => ({
     url: `${SITE_URL}/produits/${String(p._id)}`,
