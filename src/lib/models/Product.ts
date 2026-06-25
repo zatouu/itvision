@@ -28,6 +28,8 @@ export interface IPriceTier {
 
 export interface IProduct extends Document {
   name: string
+  slug?: string
+  shopId?: string
   category?: string
   description?: string
   tagline?: string
@@ -112,6 +114,8 @@ export interface IProduct extends Document {
 
 const ProductSchema = new Schema<IProduct>({
   name: { type: String, required: true, trim: true },
+  slug: { type: String, unique: true, sparse: true, index: true },
+  shopId: { type: Schema.Types.ObjectId, ref: 'Shop', index: true },
   category: { type: String, index: true },
   description: { type: String },
   tagline: { type: String },
@@ -231,9 +235,27 @@ const ProductSchema = new Schema<IProduct>({
   priceAlertThreshold: { type: Number, default: 10 } // 10% par défaut
 }, { timestamps: true })
 
-// Invalide l'embedding d'image si l'image principale change (force un recalcul
-// au prochain passage de la recherche par image ou du backfill admin).
-ProductSchema.pre('save', function (next) {
+function slugify(text: string): string {
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+// Génère un slug SEO-friendly si le nom est modifié ou si le slug est absent
+ProductSchema.pre('save', async function (next) {
+  if (this.isModified('name') || !this.slug) {
+    const base = slugify(this.name)
+    let slug = base
+    let counter = 1
+    while (await mongoose.models.Product.findOne({ slug, _id: { $ne: this._id } }).lean()) {
+      slug = `${base}-${counter++}`
+    }
+    this.slug = slug
+  }
   if (this.isModified('image')) {
     this.imageEmbedding = undefined
     this.embeddingUpdatedAt = undefined

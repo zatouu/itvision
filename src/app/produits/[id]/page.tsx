@@ -10,12 +10,16 @@ import Product from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
+
 const isValidId = (id: string) => mongoose.Types.ObjectId.isValid(id)
 
 const fetchProductById = async (id: string) => {
-  if (!isValidId(id)) return null
   await connectMongoose()
-  return Product.findById(id).lean()
+  if (isValidId(id)) {
+    return Product.findById(id).lean()
+  }
+  return Product.findOne({ slug: id }).lean()
 }
 
 const fetchSimilarProducts = async (product: any) => {
@@ -39,16 +43,35 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   const detail = formatProductDetail(product)
-  const title = `${detail.name} | Catalogue IT Vision`
-  const description = detail.tagline || detail.description || 'Catalogue import Chine & disponibilité Dakar - IT Vision'
+  const title = `${detail.name} — IT Vision Plus Marketplace`
+  const description = detail.tagline || detail.description || 'Achetez ce produit en import direct Chine, livraison Dakar. IT Vision Plus.'
+  const image = detail.image?.startsWith('http') ? detail.image : `${SITE_URL}${detail.image}`
+  const price = detail.pricing?.salePrice ?? detail.pricing?.baseCost ?? 0
+  const currency = detail.currency || 'FCFA'
+  const inStock = detail.availability?.status === 'in_stock' && detail.availability?.stockQuantity > 0
 
   return {
     title,
     description,
+    keywords: [detail.name, detail.category || 'Catalogue', 'import Chine', 'Dakar', 'Sénégal', 'IT Vision Plus'],
+    alternates: { canonical: `${SITE_URL}/produits/${id}` },
     openGraph: {
       title,
       description,
-      images: detail.image ? [{ url: detail.image, width: 1200, height: 630, alt: detail.name }] : undefined
+      url: `${SITE_URL}/produits/${id}`,
+      type: 'website',
+      images: image && image !== `${SITE_URL}/file.svg` ? [{ url: image, width: 1200, height: 630, alt: detail.name }] : undefined
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image && image !== `${SITE_URL}/file.svg` ? [image] : undefined
+    },
+    other: {
+      'product:price:amount': String(price),
+      'product:price:currency': currency,
+      'product:availability': inStock ? 'in stock' : 'preorder'
     }
   }
 }
@@ -65,8 +88,41 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const detail = formatProductDetail(product, shippingRates)
   const similar = formatSimilarProducts(similarRaw, shippingRates)
 
+  const image = detail.image?.startsWith('http') ? detail.image : `${SITE_URL}${detail.image}`
+  const price = detail.pricing?.salePrice ?? detail.pricing?.baseCost ?? 0
+  const inStock = detail.availability?.status === 'in_stock' && detail.availability?.stockQuantity > 0
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: detail.name,
+    image: image === `${SITE_URL}/file.svg` ? undefined : image,
+    description: detail.description ?? detail.tagline ?? undefined,
+    sku: detail.id,
+    brand: {
+      '@type': 'Brand',
+      name: 'IT Vision Plus'
+    },
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE_URL}/produits/${id}`,
+      priceCurrency: detail.currency || 'FCFA',
+      price: String(price),
+      availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
+      seller: {
+        '@type': 'Organization',
+        name: 'IT Vision Plus Marketplace',
+        url: SITE_URL
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <MarketHeader />
       <main>
         <ProductDetailNew product={detail} similar={similar} />

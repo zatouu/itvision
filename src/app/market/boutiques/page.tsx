@@ -1,93 +1,79 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Store, ShieldCheck, PackageSearch, Truck, BadgeCheck, ArrowRight, Sparkles } from 'lucide-react'
+import Image from 'next/image'
+import { Store, BadgeCheck, Package, ArrowRight } from 'lucide-react'
+import { connectMongoose } from '@/lib/mongoose'
+import Shop from '@/lib/models/Shop'
+import Product from '@/lib/models/Product'
+import mongoose from 'mongoose'
 
-const roadmap = [
-  {
-    title: 'Boutiques vérifiées',
-    desc: 'Des espaces marchands pour vendeurs et revendeurs sélectionnés par IT Vision Plus.',
-    icon: Store,
-  },
-  {
-    title: 'Produits contrôlés',
-    desc: 'Catalogue filtré avec contrôle qualité, disponibilité et cohérence prix/logistique.',
-    icon: ShieldCheck,
-  },
-  {
-    title: 'Sourcing Chine',
-    desc: 'Accès à des fournisseurs et produits adaptés au marché sénégalais.',
-    icon: PackageSearch,
-  },
-  {
-    title: 'Livraison encadrée',
-    desc: 'Suivi achat, fret, réception, contrôle et livraison locale depuis un même espace.',
-    icon: Truck,
-  },
-]
+export const metadata: Metadata = {
+  title: 'Boutiques partenaires | IT Vision Plus Marketplace',
+  description: 'Découvrez les boutiques partenaires IT Vision Plus. Produits en stock, import Chine et revendeurs locaux vérifiés.'
+}
 
-export default function MarketBoutiquesPage() {
+export default async function MarketBoutiquesPage() {
+  await connectMongoose()
+  const shops = await Shop.find({ status: 'active' }).sort({ isVerified: -1, name: 1 }).lean()
+  const shopIds = shops.map((s: any) => s._id.toString())
+  const productCounts = await Product.aggregate([
+    { $match: { shopId: { $in: shopIds.map((id: string) => new mongoose.Types.ObjectId(id)) }, isPublished: { $ne: false } } },
+    { $group: { _id: '$shopId', count: { $sum: 1 } } }
+  ])
+  const countsByShop = Object.fromEntries(productCounts.map((c: any) => [String(c._id), c.count]))
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <section className="mx-auto max-w-7xl px-4 py-16">
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
-          <div className="lg:col-span-7">
-            <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-900/40 dark:text-green-300">
-              <Sparkles className="h-3.5 w-3.5" />
-              Prochaine étape marketplace
-            </span>
-            <h1 className="mt-5 text-4xl font-black tracking-tight text-gray-900 dark:text-white md:text-5xl">
-              Des <span className="bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">shops partenaires</span> arrivent bientôt
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300 md:text-lg">
-              La marketplace évolue vers un modèle multi-boutiques : chaque vendeur pourra présenter ses produits, tout en gardant le contrôle qualité, la logistique Chine → Sénégal et le paiement encadré par IT Vision Plus.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/produits" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-500 to-violet-600 px-6 py-3 text-sm font-bold text-white shadow-lg hover:opacity-90">
-                Explorer le catalogue actuel
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/achats-groupes" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
-                Voir les achats groupés
-              </Link>
-            </div>
-          </div>
+    <main className="min-h-screen bg-gray-50 pb-16">
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="mb-10">
+          <h1 className="text-3xl font-bold text-gray-900">Boutiques partenaires</h1>
+          <p className="mt-2 text-gray-600">
+            Découvrez les vendeurs et revendeurs sélectionnés par IT Vision Plus.
+          </p>
+        </div>
 
-          <div className="lg:col-span-5">
-            <div className="rounded-[2rem] border border-green-100 bg-white p-6 shadow-xl shadow-green-500/10 dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-green-600 to-violet-600 p-5 text-white">
-                <Store className="h-9 w-9" />
-                <div>
-                  <p className="text-sm font-semibold text-white/80">Marketplace shops</p>
-                  <p className="text-2xl font-black">En construction</p>
-                </div>
-              </div>
-              <div className="mt-5 grid gap-3">
-                {['Vendeurs vérifiés', 'Gestion boutique', 'Produits import', 'Paiement & livraison'].map((label) => (
-                  <div key={label} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    <BadgeCheck className="h-4 w-4 text-green-600" />
-                    {label}
+        {shops.length === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            Aucune boutique disponible pour le moment.
+          </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {shops.map((shop: any) => {
+              const count = countsByShop[String(shop._id)] || 0
+              return (
+                <Link
+                  key={String(shop._id)}
+                  href={`/boutiques/${shop.slug}`}
+                  className="group block rounded-2xl border border-gray-200 bg-white p-5 transition hover:shadow-lg hover:border-emerald-300"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="h-16 w-16 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                      {shop.logo ? (
+                        <Image src={shop.logo} alt={shop.name} width={64} height={64} className="object-cover w-full h-full" />
+                      ) : (
+                        <Store className="h-7 w-7 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-gray-900 truncate">{shop.name}</h3>
+                        {shop.isVerified && <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{shop.description || 'Boutique IT Vision Plus'}</p>
+                      <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
+                        <Package className="h-3.5 w-3.5" />
+                        <span>{count} produit{count > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="mt-3 flex items-center text-sm font-medium text-emerald-600 group-hover:underline">
+                        Visiter <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </Link>
+              )
+            })}
           </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 pb-16">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {roadmap.map((item) => {
-            const Icon = item.icon
-            return (
-              <div key={item.title} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 dark:bg-green-900/30">
-                  <Icon className="h-6 w-6 text-green-600 dark:text-green-300" />
-                </div>
-                <h2 className="text-base font-black text-gray-900 dark:text-white">{item.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{item.desc}</p>
-              </div>
-            )
-          })}
-        </div>
+        )}
       </section>
     </main>
   )

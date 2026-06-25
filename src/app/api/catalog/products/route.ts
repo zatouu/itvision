@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     const categories = categoryRaw
       ? categoryRaw.split(',').map((s) => s.trim()).filter(Boolean)
       : []
+    const shopId = (searchParams.get('shopId') || '').trim()
 
     const segment = (searchParams.get('segment') || 'all') as 'all' | 'import' | 'in_stock' | 'group_buy'
     const availability = (searchParams.get('availability') || 'all') as 'all' | 'in_stock' | 'preorder' | 'out_of_stock'
@@ -91,6 +92,10 @@ export async function GET(request: NextRequest) {
 
     if (categories.length > 0) {
       match.category = { $in: categories }
+    }
+
+    if (shopId && mongoose.Types.ObjectId.isValid(shopId)) {
+      match.shopId = new mongoose.Types.ObjectId(shopId)
     }
 
     if (availability !== 'all') {
