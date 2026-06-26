@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceReadRateLimiter } from '@/lib/rate-limiter'
 import WalletTransaction from '@/lib/models/WalletTransaction'
 import { getOrCreateWallet, getAppConfig, isPointsModeActive } from '@/lib/wallet'
+import { loadUserWithProfiles } from '@/lib/user-profiles'
 
 export async function GET(request: NextRequest) {
   const rl = applyRateLimit(request, serviceReadRateLimiter)
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
     const wallet = await getOrCreateWallet(String(userId))
     const cfg = await getAppConfig()
     const pointsActive = await isPointsModeActive()
+
+    const profileData = await loadUserWithProfiles(userId)
+    const marketplaceProfile = profileData?.marketplaceProfile
 
     const history = await WalletTransaction.find({ userId })
       .sort({ createdAt: -1 })
@@ -46,6 +50,12 @@ export async function GET(request: NextRequest) {
         description: t.description || null,
         createdAt: t.createdAt,
       })),
+      profile: {
+        loyaltyTier: marketplaceProfile?.loyaltyTier || marketplaceProfile?.marketplaceTier || 'standard',
+        referralBalance: marketplaceProfile?.referralBalance || 0,
+        referralCount: marketplaceProfile?.referralCount || 0,
+        referralCode: marketplaceProfile?.referralCode || '',
+      },
     })
   } catch (e: any) {
     if (e.message === 'Non authentifié') {

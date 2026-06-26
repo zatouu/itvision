@@ -3,6 +3,7 @@ import { verifyAuthServer } from '@/lib/auth-server'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import User from '@/lib/models/User'
+import { loadUserWithProfiles } from '@/lib/user-profiles'
 import { Order } from '@/lib/models/Order'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import ProductValidated from '@/lib/models/Product.validated'
@@ -67,10 +68,11 @@ export default async function ComptePage() {
   await connectDB()
   const userId = new mongoose.Types.ObjectId(auth.user.id)
 
-  const user = await User.findById(userId).lean() as any
-  if (!user) {
+  const profileData = await loadUserWithProfiles(userId)
+  if (!profileData) {
     redirect('/login?redirect=/compte')
   }
+  const { user, marketplaceProfile } = profileData
 
   const existingRewards = await Reward.countDocuments({ active: true })
   if (existingRewards === 0) {
@@ -93,7 +95,7 @@ export default async function ComptePage() {
     Reward.find({ active: true }).sort({ cost: 1 }).lean() as Promise<any[]>,
   ])
 
-  const tier = user.tier || getTierFromBalance(grainsBalance)
+  const tier = marketplaceProfile?.marketplaceTier || marketplaceProfile?.loyaltyTier || user.tier || getTierFromBalance(grainsBalance)
   const nextT = nextTierName(tier)
   const currentThreshold = tierThreshold(tier)
   const nextThreshold = tierThreshold(nextT)
@@ -168,10 +170,10 @@ export default async function ComptePage() {
       status: (user.isActive ? 'active' : 'inactive') as 'active' | 'inactive',
       tier,
       grainsBalance,
-      referralCode: user.referralCode || 'ADMIN2024',
+      referralCode: marketplaceProfile?.referralCode || user.referralCode || 'ADMIN2024',
       referrals: {
-        count: user.referralCount || user.referrals?.length || 0,
-        totalEarned: user.referralBalance || 0,
+        count: marketplaceProfile?.referralCount || user.referralCount || user.referrals?.length || 0,
+        totalEarned: marketplaceProfile?.referralBalance || user.referralBalance || 0,
       },
     },
     stats: {

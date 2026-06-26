@@ -274,16 +274,31 @@ Chaque sous-domaine expose ses routes sous un namespace stable.
 
 | Namespace | Routes | Usage |
 |-----------|--------|-------|
-| `/api/auth/*` | login, register, logout, OTP, refresh, me | Identité commune |
-| `/api/catalog/*` | produits, catégories, search-by-image, pricing | Catalogue public |
-| `/api/market/*` | sourcing, group-orders, orders, payments | Marketplace |
-| `/api/corporate/*` | clients, projects, quotes, invoices, interventions | Corporate |
-| `/api/services/*` | requests, offers, chat, reviews, matching | Xeuy Bi |
-| `/api/admin/*` | seed, backfill, config, users | Administration |
+| `/api/auth/*` | `login`, `register`, `mobile/*`, `me` | Identité commune + création auto des profils |
+| `/api/catalog/*` | produits, catégories, search-by-image, pricing | Catalogue public (legacy) |
+| `/api/market/*` | `products`, `sourcing`, `group-orders`, `orders`, `payments` | Marketplace |
+| `/api/corporate/*` | `products`, `clients`, `projects`, `quotes`, `invoices`, `interventions` | Corporate |
+| `/api/services/*` | `requests`, `providers`, `offers`, `chat`, `reviews`, `matching` | Xeuy Bi |
+| `/api/admin/*` | seed, backfill, config, users, catalog | Administration |
 | `/api/payments/*` | initiate, webhook, release, wallet | Paiements partagés |
 | `/api/upload/*` | images, documents | Uploads partagés |
+| `/api/wallet` | GET | Solde points/cash + données profil marketplace |
+| `/api/client-enterprise/me` | GET, PUT | Profil corporate découplé (`CorporateProfile`) |
 
-**Middleware** : chaque projet Next.js possède son propre middleware. Plus de rewrite magique cross-domaine dans le monolithe.
+### Routes namespaces créées dans cette phase
+
+- `GET /api/corporate/products` — catalogue B2B : filtre `corporateVisible` + `channels: corporate` + fallback.
+- `GET /api/market/products` — catalogue marketplace : filtre `channels: marketplace` + fallback.
+- `GET /api/services/providers` — liste publique des prestataires avec KYC, catégories, zone et stats.
+
+### Profils utilisateurs dans les endpoints
+
+- `loadUserWithProfiles()` dans `src/lib/user-profiles.ts` centralise le chargement des profils.
+- `/api/wallet` expose maintenant `profile.loyaltyTier`, `profile.referralBalance`, `profile.referralCount`, `profile.referralCode` depuis `MarketplaceProfile`.
+- `/api/client-enterprise/me` lit `companyClientId` et les infos d’adresse depuis `CorporateProfile` en plus de `Client`.
+- La page `/compte` utilise `MarketplaceProfile` pour `tier`, `referralCode`, `referralCount` et `referralBalance` (fallback `User` pour la rétro-compatibilité).
+
+**Middleware** : chaque projet Next.js possède son propre middleware. Le monolithe actuel a été refactoré : `src/lib/middleware/{domain,routes,cors,security}.ts`.
 
 ---
 
@@ -422,6 +437,8 @@ OLLAMA_BASE_URL=http://localhost:11434
 - [x] Centraliser l’API publique pricing dans `src/lib/pricing/index.ts`.
 - [x] Créer les namespaces API stables : `/api/corporate/products`, `/api/market/products`, `/api/services/providers`.
 - [x] Refactorer le middleware : extraction de `domain.ts`, `routes.ts`, `cors.ts`, `security.ts` dans `src/lib/middleware/`.
+- [x] Intégrer les profils dans les endpoints existants (`/api/wallet`, `/api/client-enterprise/me`, `/compte`).
+- [x] Documenter les namespaces et l’intégration des profils dans le DAT.
 - [ ] Déplacer le middleware subdomain dans un reverse proxy (Nginx / Vercel) ou garder un middleware par projet.
 
 ### Phase 3 — Séparation des frontends

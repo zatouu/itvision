@@ -72,3 +72,37 @@ export async function createUserProfiles(
 
   return updates
 }
+
+export interface UserWithProfiles {
+  user: any
+  marketplaceProfile: any | null
+  corporateProfile: any | null
+  providerProfile: any | null
+}
+
+/**
+ * Charge un utilisateur avec ses profils découplés par domaine.
+ * Retourne null si l'utilisateur n'existe pas.
+ */
+export async function loadUserWithProfiles(
+  userId: mongoose.Types.ObjectId | string
+): Promise<UserWithProfiles | null> {
+  const userObjectId = new mongoose.Types.ObjectId(String(userId))
+
+  const user = await User.findById(userObjectId).lean()
+  if (!user) return null
+
+  const [marketplaceProfile, corporateProfile, providerProfile] = await Promise.all([
+    user.marketplaceProfileId
+      ? MarketplaceProfile.findById(user.marketplaceProfileId).lean()
+      : MarketplaceProfile.findOne({ userId: userObjectId }).lean(),
+    user.corporateProfileId
+      ? CorporateProfile.findById(user.corporateProfileId).lean()
+      : CorporateProfile.findOne({ userId: userObjectId }).lean(),
+    user.providerProfileId
+      ? ProviderProfile.findById(user.providerProfileId).lean()
+      : ProviderProfile.findOne({ userId: userObjectId }).lean(),
+  ])
+
+  return { user, marketplaceProfile, corporateProfile, providerProfile }
+}

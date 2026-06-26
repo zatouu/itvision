@@ -4,6 +4,8 @@ import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
+import CorporateProfile from '@/lib/models/CorporateProfile'
+import { loadUserWithProfiles } from '@/lib/user-profiles'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,13 +20,14 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     let companyClientId = auth.user.companyClientId
+    const profileData = await loadUserWithProfiles(auth.user.id)
+    const corporateProfile = profileData?.corporateProfile
 
     // Fallback DB si absent du JWT (vieux token)
     if (!companyClientId) {
-      const dbUser = await User.findById(auth.user.id).select('companyClientId').lean() as any
-      if (dbUser?.companyClientId) {
-        companyClientId = String(dbUser.companyClientId)
-      }
+      companyClientId = corporateProfile?.companyClientId
+        ? String(corporateProfile.companyClientId)
+        : (profileData?.user?.companyClientId ? String(profileData.user.companyClientId) : undefined)
     }
 
     if (!companyClientId) {
@@ -35,9 +38,9 @@ export async function GET(request: NextRequest) {
       .select('name company email phone address city country contactPerson notes logo preferences permissions')
       .lean() as any
 
-    const dbUser = await User.findById(auth.user.id)
+    const dbUser = profileData?.user || (await User.findById(auth.user.id)
       .select('name email phone companyClientId')
-      .lean() as any
+      .lean() as any)
 
     return NextResponse.json({
       isEnterprise: true,
@@ -46,12 +49,12 @@ export async function GET(request: NextRequest) {
       userEmail: dbUser?.email || auth.user.email,
       userPhone: dbUser?.phone || null,
       companyClientId,
-      companyName: company?.company || company?.name || 'Votre entreprise',
+      companyName: company?.company || company?.name || corporateProfile?.company || 'Votre entreprise',
       companyEmail: company?.email || null,
       companyPhone: company?.phone || null,
-      companyAddress: company?.address || null,
-      companyCity: company?.city || null,
-      companyCountry: company?.country || 'Sénégal',
+      companyAddress: company?.address || corporateProfile?.address || null,
+      companyCity: company?.city || corporateProfile?.city || null,
+      companyCountry: company?.country || corporateProfile?.country || 'Sénégal',
       companyContactPerson: company?.contactPerson || null,
       companyNotes: company?.notes || null,
       companyLogo: company?.logo || null,
@@ -76,21 +79,20 @@ export async function PUT(request: NextRequest) {
 
     const userId = auth.user.id
     let companyClientId = auth.user.companyClientId
+    const profileData = await loadUserWithProfiles(userId)
+    const corporateProfile = profileData?.corporateProfile
 
     if (!companyClientId) {
-      const dbUser = await User.findById(userId).select('companyClientId').lean() as any
-      if (dbUser?.companyClientId) {
-        companyClientId = String(dbUser.companyClientId)
-      }
+      companyClientId = corporateProfile?.companyClientId
+        ? String(corporateProfile.companyClientId)
+        : (profileData?.user?.companyClientId ? String(profileData.user.companyClientId) : undefined)
     }
 
-    const updates: any = {}
-
-    // Mise à jour utilisateur
-    if (body.userName !== undefined) updates.name = body.userName
-    if (body.userPhone !== undefined) updates.phone = body.userPhone
-    if (Object.keys(updates).length > 0) {
-      await User.findByIdAndUpdate(userId, updates, { new: true })
+    const userUpdates: any = {}
+    if (body.userName !== undefined) userUpdates.name = body.userName
+    if (body.userPhone !== undefined) userUpdates.phone = body.userPhone
+    if (Object.keys(userUpdates).length > 0) {
+      await User.findByIdAndUpdate(userId, userUpdates, { new: true })
     }
 
     // Mise à jour entreprise
@@ -109,6 +111,23 @@ export async function PUT(request: NextRequest) {
       if (Object.keys(companyUpdates).length > 0) {
         await Client.findByIdAndUpdate(new mongoose.Types.ObjectId(companyClientId), companyUpdates, { new: true })
       }
+    }
+
+    // Mise à jour du profil corporate découplé
+    const corporateUpdates: any = {}
+    if (body.companyName !== undefined) corporateUpdates.company = body.companyName
+    if (body.companyAddress !== undefined) corporateUpdates.address = body.companyAddress
+    if (body.companyCity !== undefined) corporateUpdates.city = body.companyCity
+    if (body.companyCountry !== undefined) corporateUpdates.country = body.companyCountry
+    if (companyClientId && corporateProfile && !corporateProfile.companyClientId) {
+      corporateUpdates.companyClientId = new mongoose.Types.ObjectId(companyClientId)
+    }
+    if (Object.keys(corporateUpdates).length > 0) {
+      await CorporateProfile.findOneAndUpdate(
+        { userId: new mongoose.Types.ObjectId(userId) },
+        { $set: corporateUpdates },
+        { new: true, upsert: true }
+      )
     }
 
     return NextResponse.json({ success: true })
