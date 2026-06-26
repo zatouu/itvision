@@ -2,40 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-// Routes publiques (pas de vérification)
-const PUBLIC_ROUTES = [
-  '/login',
-  '/register',
-  '/market/creer-compte',
-  '/forgot-password',
-  '/reset-password',
-  '/retrouver-ma-commande',
-  '/api/auth',
-  '/api/health',
-  '/',
-  '/about',
-  '/services',
-  '/produits',
-  '/corporate-produits',
-  '/contact',
-  '/realisations',
-  '/cgv',
-  '/mentions-legales',
-  '/politique-confidentialite',
-  '/digitalisation',
-  '/domotique',
-  '/maintenance-digital',
-  '/portail-valeur',
-  '/generateur-devis',
-  '/intervention',
-  '/mobile-app',
-  '/gestion-projets',
-]
+import { isMarketDomain, getHost } from '@/lib/middleware/domain'
+import { isPublicRoute, isMarketplaceRoute, isMobileApiRoute, getRequiredRole } from '@/lib/middleware/routes'
+import { handleCorsPreflight, getMobileCorsHeaders, injectCorsHeaders } from '@/lib/middleware/cors'
+import { applySecurityHeaders, applyApiSecurityHeaders } from '@/lib/middleware/security'
 
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; role?: string; companyClientId?: string }> {
   const token = request.cookies.get('auth-token')?.value
-  
+
   if (!token) {
     return { authenticated: false }
   }
@@ -51,74 +25,6 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   }
 }
 
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(route + '/')
-  )
-}
-
-function getRequiredRole(pathname: string): string | null {
-  // Messagerie: accessible à tout utilisateur authentifié
-  if (pathname === '/messages' || pathname.startsWith('/messages/')) {
-    return 'AUTH'
-  }
-
-  // Espace compte catalogue: nécessite un utilisateur authentifié
-  if (pathname === '/compte' || pathname.startsWith('/compte/')) return 'AUTH'
-
-  // Point d'entrée Market vers le compte client
-  if (pathname === '/market/compte' || pathname.startsWith('/market/compte/')) return 'AUTH'
-
-  // Routes admin (y compris celles en dehors de /admin/)
-  const adminRoutes = [
-    '/admin',
-    '/admin-reports',
-    '/admin-factures',
-    '/admin-prix',
-    '/admin-produits',
-    '/validation-rapports',
-    '/workflows'
-  ]
-  
-  for (const route of adminRoutes) {
-    if (pathname === route || pathname.startsWith(route + '/')) {
-      return 'ADMIN'
-    }
-  }
-  
-  if (pathname.startsWith('/client-portal')) return 'CLIENT'
-  if (pathname.startsWith('/tech-interface')) return 'TECHNICIAN'
-  if (pathname.startsWith('/portail-entreprise')) return 'CLIENT_ENTERPRISE'
-  return null
-}
-
-// Routes propres à la marketplace (accessible uniquement sur market.itvisionplus.sn)
-const MARKETPLACE_ROUTES = [
-  '/panier',
-  '/checkout',
-  '/commandes',
-  '/achats-groupes',
-  '/retrouver-ma-commande',
-  '/market',
-  '/payment',
-  '/paiement',
-]
-
-function isMarketplaceRoute(pathname: string): boolean {
-  return MARKETPLACE_ROUTES.some(route =>
-    pathname === route || pathname.startsWith(route + '/')
-  )
-}
-
-function getHost(request: NextRequest): string {
-  return request.headers.get('host') || request.nextUrl.host || ''
-}
-
-function isMarketDomain(request: NextRequest): boolean {
-  const host = getHost(request)
-  return host.startsWith('market.')
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const host = getHost(request)
@@ -132,32 +38,21 @@ export async function middleware(request: NextRequest) {
   ) {
     // Pour les API, on applique juste la protection CSRF
     if (pathname.startsWith('/api/')) {
-
-      // ── CORS pour les routes mobiles (/api/services/*) ──
-      const isMobileRoute = pathname.startsWith('/api/services') || pathname.startsWith('/api/auth/login') || pathname.startsWith('/api/auth/mobile') || pathname.startsWith('/api/auth/referral') || pathname.startsWith('/api/wallet') || pathname.startsWith('/api/notifications') || pathname.startsWith('/api/client/profile') || pathname.startsWith('/api/upload') || pathname.startsWith('/api/payments') || pathname.startsWith('/api/kyc') || pathname === '/api/health'
-      const corsHeaders: Record<string, string> = isMobileRoute ? {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
-        'Access-Control-Max-Age': '86400',
-      } : {}
+      const isMobileRoute = isMobileApiRoute(pathname)
+      const corsHeaders = getMobileCorsHeaders()
 
       // Répondre aux preflight OPTIONS immédiatement
-      if (request.method === 'OPTIONS' && isMobileRoute) {
-        return new NextResponse(null, { status: 204, headers: corsHeaders })
-      }
+      const preflight = handleCorsPreflight(request, isMobileRoute)
+      if (preflight) return preflight
 
       const response = NextResponse.next()
       const csrfResult = csrfProtection.middleware(request)
       if (csrfResult) return csrfResult
 
-      // Headers de sécurité pour API
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-      response.headers.set('Pragma', 'no-cache')
-      response.headers.set('Expires', '0')
+      applyApiSecurityHeaders(response)
 
       // Injecter les headers CORS sur la réponse
-      Object.entries(corsHeaders).forEach(([k, v]) => response.headers.set(k, v))
+      if (isMobileRoute) injectCorsHeaders(response, corsHeaders)
 
       return response
     }
@@ -286,67 +181,6 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
   applySecurityHeaders(response, pathname)
   return response
-}
-
-function applySecurityHeaders(response: NextResponse, pathname: string) {
-  const scriptSrc =
-    process.env.NODE_ENV === 'production'
-      ? "script-src 'self' 'unsafe-inline'"
-      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-
-  const connectSrc =
-    process.env.NODE_ENV === 'production'
-      ? "connect-src 'self' https: wss:"
-      : "connect-src 'self' http: https: ws: wss:"
-
-  // Headers de sécurité essentiels
-  const securityHeaders: Record<string, string> = {
-    'X-XSS-Protection': '1; mode=block',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
-    'Content-Security-Policy': [
-      "default-src 'self'",
-      scriptSrc,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
-      "font-src 'self'",
-      connectSrc,
-      "frame-src 'none'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'"
-    ].join('; '),
-    'X-Application': 'IT-Vision-Plus',
-    'X-Version': '1.0.0'
-  }
-
-  // HSTS en production
-  if (process.env.NODE_ENV === 'production') {
-    securityHeaders['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
-  }
-
-  // Appliquer les headers
-  Object.entries(securityHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value)
-  })
-
-  // Cache control pour les pages sensibles
-  if (
-    pathname.includes('/admin') ||
-    pathname.includes('/login') ||
-    pathname.includes('/register') ||
-    pathname.includes('/market/creer-compte') ||
-    pathname.includes('/market/compte') ||
-    pathname.includes('/client-portal') ||
-    pathname.includes('/tech-interface') ||
-    pathname.includes('/compte') ||
-    pathname.includes('/panier')
-  ) {
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
-    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
-  }
 }
 
 // Configuration des routes où appliquer le middleware

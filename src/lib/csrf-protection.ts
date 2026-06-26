@@ -23,6 +23,13 @@ function generateToken(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function getCsrfCookieDomain(): string | undefined {
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.AUTH_COOKIE_DOMAIN || '.itvisionplus.sn'
+  }
+  return undefined
+}
+
 /**
  * Middleware CSRF - Vérifie les tokens pour les requêtes modifiantes
  */
@@ -123,8 +130,9 @@ export function generateCSRFResponse(request: NextRequest): NextResponse {
   response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: '/',
+    domain: getCsrfCookieDomain(),
     expires
   })
   

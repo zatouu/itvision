@@ -11,7 +11,8 @@ import {
 import { assignPaymentRefsAndNotify } from '@/lib/group-order-helpers'
 import crypto from 'crypto'
 import { readPaymentSettings } from '@/lib/payments/settings'
-import { requireAuth } from '@/lib/jwt'
+import { setAuthCookie } from '@/lib/auth-server'
+import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { buildGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
@@ -70,11 +71,17 @@ export async function POST(
   const { groupId } = await context.params
   
   try {
-    let auth: Awaited<ReturnType<typeof requireAuth>>
+    const body = await req.json()
+    const qty = Number(body?.qty)
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    const phone = typeof body?.phone === 'string' ? body.phone.trim() : ''
+    const email = typeof body?.email === 'string' ? body.email.trim() : undefined
+
+    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string }
     try {
-      auth = await requireAuth(req)
-    } catch {
-      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+      auth = await resolveGuestOrAuthUser(req, { name, phone, email })
+    } catch (e) {
+      return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Non authentifié' }, { status: 401 })
     }
 
     const settings = readPaymentSettings()
@@ -87,12 +94,6 @@ export async function POST(
     const groupRules = settings.groupOrders.rules
 
     await connectDB()
-    
-    const body = await req.json()
-    const qty = Number(body?.qty)
-    const name = typeof body?.name === 'string' ? body.name.trim() : ''
-    const phone = typeof body?.phone === 'string' ? body.phone.trim() : ''
-    const email = typeof body?.email === 'string' ? body.email.trim() : undefined
 
     if (!name || !phone || !Number.isFinite(qty) || !Number.isInteger(qty)) {
       return NextResponse.json(
@@ -325,7 +326,7 @@ export async function POST(
         : []
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Vous avez rejoint l\'achat groupé avec succès',
       group: safeGroup,
@@ -337,9 +338,16 @@ export async function POST(
       chat: {
         token: chatToken,
         participantId: chatParticipantId
-      }
+      },
+      isNewAccount: auth.isNew || false,
     })
-    
+
+    if (auth.token) {
+      setAuthCookie(response, auth.token)
+    }
+
+    return response
+
   } catch (error) {
     console.error('Erreur participation achat groupé:', error)
     return NextResponse.json(

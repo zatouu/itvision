@@ -420,7 +420,8 @@ OLLAMA_BASE_URL=http://localhost:11434
 ### Phase 2 — API et logique métier (en cours)
 
 - [x] Centraliser l’API publique pricing dans `src/lib/pricing/index.ts`.
-- [ ] Créer des namespaces API stables (`/api/corporate/*`, `/api/market/*`, `/api/services/*`).
+- [x] Créer les namespaces API stables : `/api/corporate/products`, `/api/market/products`, `/api/services/providers`.
+- [x] Refactorer le middleware : extraction de `domain.ts`, `routes.ts`, `cors.ts`, `security.ts` dans `src/lib/middleware/`.
 - [ ] Déplacer le middleware subdomain dans un reverse proxy (Nginx / Vercel) ou garder un middleware par projet.
 
 ### Phase 3 — Séparation des frontends

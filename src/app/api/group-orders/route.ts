@@ -7,7 +7,8 @@ import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import type { ShippingMethodId } from '@/lib/logistics'
-import { requireAuth } from '@/lib/jwt'
+import { setAuthCookie } from '@/lib/auth-server'
+import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
@@ -153,13 +154,6 @@ export async function POST(req: NextRequest) {
     const rateLimitResponse = applyRateLimit(req, serviceWriteRateLimiter)
     if (rateLimitResponse) return rateLimitResponse
 
-    let auth: Awaited<ReturnType<typeof requireAuth>>
-    try {
-      auth = await requireAuth(req)
-    } catch {
-      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
-    }
-
     const settings = readPaymentSettings()
     if (!settings.groupOrders.enabled) {
       return NextResponse.json(
@@ -185,18 +179,6 @@ export async function POST(req: NextRequest) {
       creator // { name, phone, email }
     } = body
 
-    const qty = Number(qtyRaw)
-    const deadlineDate = deadline
-      ? new Date(deadline)
-      : new Date(Date.now() + groupRules.defaultDeadlineDays * 24 * 60 * 60 * 1000)
-    const allowedShippingMethods = enabledShippingMethods.length > 0
-      ? enabledShippingMethods
-      : [defaultShippingMethod]
-    const normalizedShippingMethod =
-      typeof shippingMethod === 'string' && allowedShippingMethods.includes(shippingMethod)
-        ? shippingMethod
-        : defaultShippingMethod
-
     const creatorName = asTrimmedString(creator?.name, 80) || ''
     const creatorPhoneRaw = asTrimmedString(creator?.phone, 32) || ''
     const creatorEmail = asTrimmedString(creator?.email, 120)
@@ -208,6 +190,25 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string }
+    try {
+      auth = await resolveGuestOrAuthUser(req, { name: creatorName, phone: creatorPhoneRaw, email: creatorEmail })
+    } catch (e) {
+      return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Non authentifié' }, { status: 401 })
+    }
+
+    const qty = Number(qtyRaw)
+    const deadlineDate = deadline
+      ? new Date(deadline)
+      : new Date(Date.now() + groupRules.defaultDeadlineDays * 24 * 60 * 60 * 1000)
+    const allowedShippingMethods = enabledShippingMethods.length > 0
+      ? enabledShippingMethods
+      : [defaultShippingMethod]
+    const normalizedShippingMethod =
+      typeof shippingMethod === 'string' && allowedShippingMethods.includes(shippingMethod)
+        ? shippingMethod
+        : defaultShippingMethod
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return NextResponse.json(
@@ -473,12 +474,18 @@ export async function POST(req: NextRequest) {
       console.error('Erreur notification:', notifError)
     }
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Achat groupé créé avec succès',
-      group: groupOrder
+      group: groupOrder,
+      isNewAccount: auth.isNew || false,
     }, { status: 201 })
-    
+
+    if (auth.token) {
+      setAuthCookie(response, auth.token)
+    }
+
+    return response
   } catch (error) {
     console.error('Erreur création achat groupé:', error)
     return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useCsrf } from '@/hooks/useCsrf'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -100,8 +101,9 @@ const shippingLabels: Record<string, string> = {
 export default function GroupOrderDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { fetchWithCsrf } = useCsrf()
   const groupId = params.groupId as string
-  
+
   const [group, setGroup] = useState<GroupOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
@@ -177,21 +179,13 @@ export default function GroupOrderDetailPage() {
     
     setJoining(true)
     try {
-      const res = await fetch(`/api/group-orders/${groupId}`, {
+      const res = await fetchWithCsrf(`/api/group-orders/${groupId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(joinForm)
       })
 
-      if (res.status === 401) {
-        const returnUrl = `${window.location.pathname}${window.location.search}`
-        router.push(
-          `/market/creer-compte?redirect=${encodeURIComponent(returnUrl)}&name=${encodeURIComponent(joinForm.name || '')}&phone=${encodeURIComponent(joinForm.phone || '')}&email=${encodeURIComponent(joinForm.email || '')}`
-        )
-        return
-      }
       const data = await res.json()
-      
+
       if (data.success) {
         setNotification({ type: 'success', message: 'Inscription réussie ! Vous serez contacté pour le paiement.' })
 

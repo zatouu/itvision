@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import User from '@/lib/models/User'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
+import { createUserProfiles } from '@/lib/user-profiles'
 
 // Vérifier si l'utilisateur est admin (pour pouvoir attribuer des rôles)
 async function verifyAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
@@ -71,6 +72,11 @@ export async function POST(request: NextRequest) {
       name,
       phone,
       role: finalRole
+    })
+
+    // Créer les profils découplés par domaine
+    await createUserProfiles(created._id, finalRole).catch(profileErr => {
+      console.error('[POST /api/users] Erreur création profils utilisateur:', profileErr)
     })
 
     const user = {
