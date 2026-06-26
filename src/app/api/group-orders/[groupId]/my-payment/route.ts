@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
+import { validatePhone, formatPhone } from '@/lib/payment-service'
 
 function generatePaymentReference(groupId: string, participantPhone: string): string {
   const groupShort = groupId.slice(-6).toUpperCase()
@@ -33,14 +33,14 @@ export async function GET(
       )
     }
 
-    if (!validateSenegalPhone(phone)) {
+    if (!validatePhone(phone)) {
       return NextResponse.json(
-        { error: 'Numéro de téléphone sénégalais invalide (format attendu: 7X XXX XX XX)' },
+        { error: 'Numéro de téléphone invalide' },
         { status: 400 }
       )
     }
 
-    const formattedPhone = formatSenegalPhone(phone)
+    const formattedPhone = formatPhone(phone)
 
     await connectDB()
 
@@ -63,7 +63,7 @@ export async function GET(
 
     // Trouver le participant
     const participantIndex = group.participants.findIndex(
-      (p: any) => formatSenegalPhone(p.phone) === formattedPhone
+      (p: any) => formatPhone(p.phone) === formattedPhone
     )
 
     if (participantIndex === -1) {

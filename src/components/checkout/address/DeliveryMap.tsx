@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import { MapPin, Crosshair } from 'lucide-react'
 import L from 'leaflet'
@@ -14,21 +14,65 @@ const customIcon = L.divIcon({
   popupAnchor: [0, -34],
 })
 
+export interface GeoAddress {
+  display: string
+  neighbourhood?: string
+  suburb?: string
+  city?: string
+  town?: string
+  village?: string
+  county?: string
+  state?: string
+  country?: string
+  road?: string
+  houseNumber?: string
+}
+
 interface DeliveryMapProps {
   coordinates?: { lat: number; lng: number } | null
   onChange: (coords: { lat: number; lng: number }) => void
+  onAddressChange?: (address: GeoAddress) => void
   region?: string
   department?: string
 }
 
 const DEFAULT_CENTER: [number, number] = [14.7167, -17.4677]
 
+async function reverseGeocode(lat: number, lng: number): Promise<GeoAddress | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=fr`
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'ITVisionPlus-Checkout/1.0' }
+    })
+    if (!r.ok) return null
+    const data = await r.json()
+    const addr = data.address || {}
+    return {
+      display: data.display_name || '',
+      neighbourhood: addr.neighbourhood || addr.hamlet || '',
+      suburb: addr.suburb || addr.quarter || addr.city_district || '',
+      city: addr.city || '',
+      town: addr.town || '',
+      village: addr.village || '',
+      county: addr.county || '',
+      state: addr.state || '',
+      country: addr.country || '',
+      road: addr.road || addr.pedestrian || addr.street || '',
+      houseNumber: addr.house_number || '',
+    }
+  } catch {
+    return null
+  }
+}
+
 function LocationMarker({
   position,
   onChange,
+  onAddressChange,
 }: {
   position: [number, number]
   onChange: (coords: { lat: number; lng: number }) => void
+  onAddressChange?: (address: GeoAddress) => void
 }) {
   const map = useMapEvents({
     click(e) {
@@ -42,11 +86,32 @@ function LocationMarker({
     map.setView(position, map.getZoom() || 14)
   }, [position, map])
 
-  return <Marker position={position} icon={customIcon} draggable eventHandlers={{ dragend: (e) => onChange({ lat: e.target.getLatLng().lat, lng: e.target.getLatLng().lng }) }} />
+  const handlePositionChange = useCallback(async (lat: number, lng: number) => {
+    onChange({ lat, lng })
+    const address = await reverseGeocode(lat, lng)
+    if (address) {
+      onAddressChange?.(address)
+    }
+  }, [onChange, onAddressChange])
+
+  return (
+    <Marker
+      position={position}
+      icon={customIcon}
+      draggable
+      eventHandlers={{
+        dragend: (e) => {
+          const { lat, lng } = e.target.getLatLng()
+          handlePositionChange(lat, lng)
+        },
+      }}
+    />
+  )
 }
 
-export default function DeliveryMap({ coordinates, onChange }: DeliveryMapProps) {
+export default function DeliveryMap({ coordinates, onChange, onAddressChange }: DeliveryMapProps) {
   const [mounted, setMounted] = useState(false)
+  const [address, setAddress] = useState<GeoAddress | null>(null)
   const position: [number, number] = coordinates ? [coordinates.lat, coordinates.lng] : DEFAULT_CENTER
 
   useEffect(() => {
@@ -56,9 +121,14 @@ export default function DeliveryMap({ coordinates, onChange }: DeliveryMapProps)
   const handleGeolocate = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
           const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
           onChange(coords)
+          const addr = await reverseGeocode(coords.lat, coords.lng)
+          if (addr) {
+            setAddress(addr)
+            onAddressChange?.(addr)
+          }
         },
         () => {
           alert('Impossible de récupérer votre position.')
@@ -66,6 +136,12 @@ export default function DeliveryMap({ coordinates, onChange }: DeliveryMapProps)
       )
     }
   }
+
+  useEffect(() => {
+    if (coordinates) {
+      reverseGeocode(coordinates.lat, coordinates.lng).then(setAddress)
+    }
+  }, [coordinates?.lat, coordinates?.lng])
 
   if (!mounted) {
     return (
@@ -87,12 +163,19 @@ export default function DeliveryMap({ coordinates, onChange }: DeliveryMapProps)
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <LocationMarker position={position} onChange={onChange} />
+        <LocationMarker
+          position={position}
+          onChange={onChange}
+          onAddressChange={(addr) => {
+            setAddress(addr)
+            onAddressChange?.(addr)
+          }}
+        />
       </MapContainer>
       <div className="absolute bottom-3 left-3 right-3 z-[400] flex items-center justify-between pointer-events-none">
         <div className="bg-white/90 backdrop-blur px-2.5 py-1.5 rounded-lg text-[10px] text-slate-600 flex items-center gap-1 pointer-events-auto shadow-sm">
           <MapPin className="w-3 h-3 text-red-500" />
-          Cliquez ou glissez le marqueur
+          {address ? address.display.slice(0, 55) + (address.display.length > 55 ? '…' : '') : 'Cliquez ou glissez le marqueur'}
         </div>
         <button
           type="button"

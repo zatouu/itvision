@@ -21,6 +21,7 @@ import AddressPreview from '@/components/checkout/address/AddressPreview'
 import DeliveryOptionCard from '@/components/checkout/address/DeliveryOptionCard'
 import { SENEGAL_REGIONS, getDepartments, getQuartiers } from '@/lib/data/senegal-locations'
 import dynamic from 'next/dynamic'
+import type { GeoAddress } from '@/components/checkout/address/DeliveryMap'
 
 const DeliveryMap = dynamic(() => import('@/components/checkout/address/DeliveryMap'), { ssr: false })
 
@@ -105,6 +106,53 @@ export default function AddressPage() {
     setForm(prev => ({ ...prev, department, quartier: '' }))
   }
 
+  const handleAddressFromMap = (address: GeoAddress) => {
+    // Construire la rue
+    const streetParts = [address.houseNumber, address.road].filter(Boolean)
+    const street = streetParts.join(' ')
+
+    // Extraire la zone locale
+    const localArea = [address.suburb, address.neighbourhood].filter(Boolean).join(', ')
+
+    // Matcher la région
+    const regionName = address.state || address.county || ''
+    const matchedRegion = SENEGAL_REGIONS.find(r =>
+      regionName.toLowerCase().includes(r.name.toLowerCase()) ||
+      r.name.toLowerCase().includes(regionName.toLowerCase())
+    )?.name || ''
+
+    // Matcher le département
+    const cityName = address.city || address.town || address.village || ''
+    let matchedDepartment = ''
+    if (matchedRegion) {
+      const departments = getDepartments(matchedRegion)
+      matchedDepartment = departments.find(d =>
+        cityName.toLowerCase().includes(d.toLowerCase()) ||
+        d.toLowerCase().includes(cityName.toLowerCase()) ||
+        (address.county && address.county.toLowerCase().includes(d.toLowerCase()))
+      ) || ''
+    }
+
+    // Matcher le quartier si possible
+    let matchedQuartier = ''
+    if (matchedDepartment) {
+      const quartiers = getQuartiers(matchedDepartment)
+      matchedQuartier = quartiers.find(q =>
+        localArea.toLowerCase().includes(q.toLowerCase()) ||
+        q.toLowerCase().includes(localArea.toLowerCase())
+      ) || ''
+    }
+
+    setForm(prev => ({
+      ...prev,
+      street: street || prev.street,
+      extra: localArea || prev.extra,
+      region: matchedRegion || prev.region,
+      department: matchedDepartment || prev.department,
+      quartier: matchedQuartier || prev.quartier,
+    }))
+  }
+
   const subtotal = useMemo(() => items.reduce((s, it) => s + (it.price || 0) * (it.qty || 1), 0), [items])
   const transport = 9600
   const serviceFees = 0
@@ -115,7 +163,7 @@ export default function AddressPage() {
   const validate = () => {
     const next: Record<string, string> = {}
     if (!form.fullName.trim() || form.fullName.length < 2) next.fullName = 'Nom complet requis'
-    if (!form.phone.trim() || !/^\+221[67]\d{8}$/.test(form.phone)) next.phone = 'Numéro Sénégal invalide (+221 7X XXX XX XX)'
+    if (!form.phone.trim() || !/^\+?[\d\s\-]{8,15}$/.test(form.phone.replace(/\s|-/g, ''))) next.phone = 'Numéro de téléphone invalide'
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = 'Email invalide'
     if (!form.region) next.region = 'Région requise'
     if (!form.department) next.department = 'Département requis'
@@ -333,6 +381,7 @@ export default function AddressPage() {
                 <DeliveryMap
                   coordinates={form.coordinates}
                   onChange={coords => setForm(prev => ({ ...prev, coordinates: coords }))}
+                  onAddressChange={handleAddressFromMap}
                   region={form.region}
                   department={form.department}
                 />

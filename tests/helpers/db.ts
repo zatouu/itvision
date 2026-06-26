@@ -9,6 +9,8 @@ import User from '@/lib/models/User'
 import Technician from '@/lib/models/Technician'
 import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import Product from '@/lib/models/Product.validated'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 import mongoose from 'mongoose'
 
 const DEFAULT_PASSWORD = 'test123'
@@ -138,6 +140,215 @@ export async function cleanupTestData() {
   await connectMongoose()
   await Promise.all([
     Intervention.deleteMany({ title: /^E2E / }),
-    MaintenanceContract.deleteMany({ contractNumber: /^MC-E2E-/ })
+    MaintenanceContract.deleteMany({ contractNumber: /^MC-E2E-/ }),
+    Product.deleteMany({ name: /^E2E-NAMESPACE-/ }),
+    ProviderProfile.deleteMany({ userId: { $in: [] } })
+  ])
+}
+
+export async function createNamespaceTestProducts(): Promise<{
+  marketplaceId: string
+  corporateId: string
+  bothId: string
+  fallbackId: string
+  hiddenId: string
+}> {
+  await connectMongoose()
+
+  const timestamp = Date.now()
+
+  const [marketplace, corporate, both, fallback, hidden] = await Promise.all([
+    Product.create({
+      name: `E2E-NAMESPACE-Marketplace-${timestamp}`,
+      category: 'marketplace-test',
+      price: 10000,
+      currency: 'FCFA',
+      isPublished: true,
+      channels: ['marketplace'],
+      corporateVisible: false,
+      stockStatus: 'in_stock',
+      stockQuantity: 10,
+      deliveryDays: 1,
+      leadTimeDays: 1,
+      features: [],
+      colorOptions: [],
+      variantOptions: [],
+      gallery: [],
+      descriptionImages: [],
+      variantGroups: [],
+      shippingOverrides: [],
+      priceTiers: [],
+      groupBuyEnabled: false,
+      groupBuyMinQty: 1,
+      groupBuyTargetQty: 1,
+      price1688Currency: 'FCFA',
+      exchangeRate: 1
+    }),
+    Product.create({
+      name: `E2E-NAMESPACE-Corporate-${timestamp}`,
+      category: 'caméra',
+      price: 20000,
+      b2bPrice: 18000,
+      currency: 'FCFA',
+      isPublished: true,
+      channels: ['corporate'],
+      corporateVisible: true,
+      stockStatus: 'in_stock',
+      stockQuantity: 10,
+      deliveryDays: 1,
+      leadTimeDays: 1,
+      features: [],
+      colorOptions: [],
+      variantOptions: [],
+      gallery: [],
+      descriptionImages: [],
+      variantGroups: [],
+      shippingOverrides: [],
+      priceTiers: [],
+      groupBuyEnabled: false,
+      groupBuyMinQty: 1,
+      groupBuyTargetQty: 1,
+      price1688Currency: 'FCFA',
+      exchangeRate: 1
+    }),
+    Product.create({
+      name: `E2E-NAMESPACE-Both-${timestamp}`,
+      category: 'switch',
+      price: 15000,
+      b2bPrice: 14000,
+      currency: 'FCFA',
+      isPublished: true,
+      channels: ['marketplace', 'corporate'],
+      corporateVisible: true,
+      stockStatus: 'in_stock',
+      stockQuantity: 10,
+      deliveryDays: 1,
+      leadTimeDays: 1,
+      features: [],
+      colorOptions: [],
+      variantOptions: [],
+      gallery: [],
+      descriptionImages: [],
+      variantGroups: [],
+      shippingOverrides: [],
+      priceTiers: [],
+      groupBuyEnabled: false,
+      groupBuyMinQty: 1,
+      groupBuyTargetQty: 1,
+      price1688Currency: 'FCFA',
+      exchangeRate: 1
+    }),
+    Product.create({
+      name: `E2E-NAMESPACE-Fallback-${timestamp}`,
+      category: 'dahua',
+      price: 25000,
+      b2bPrice: 22000,
+      currency: 'FCFA',
+      isPublished: true,
+      channels: [],
+      corporateVisible: false,
+      stockStatus: 'in_stock',
+      stockQuantity: 10,
+      deliveryDays: 1,
+      leadTimeDays: 1,
+      features: [],
+      colorOptions: [],
+      variantOptions: [],
+      gallery: [],
+      descriptionImages: [],
+      variantGroups: [],
+      shippingOverrides: [],
+      priceTiers: [],
+      groupBuyEnabled: false,
+      groupBuyMinQty: 1,
+      groupBuyTargetQty: 1,
+      price1688Currency: 'FCFA',
+      exchangeRate: 1
+    }),
+    Product.create({
+      name: `E2E-NAMESPACE-Hidden-${timestamp}`,
+      category: 'hidden',
+      price: 30000,
+      currency: 'FCFA',
+      isPublished: false,
+      channels: ['marketplace', 'corporate'],
+      corporateVisible: true,
+      stockStatus: 'in_stock',
+      stockQuantity: 10,
+      deliveryDays: 1,
+      leadTimeDays: 1,
+      features: [],
+      colorOptions: [],
+      variantOptions: [],
+      gallery: [],
+      descriptionImages: [],
+      variantGroups: [],
+      shippingOverrides: [],
+      priceTiers: [],
+      groupBuyEnabled: false,
+      groupBuyMinQty: 1,
+      groupBuyTargetQty: 1,
+      price1688Currency: 'FCFA',
+      exchangeRate: 1
+    })
+  ])
+
+  return {
+    marketplaceId: String(marketplace._id),
+    corporateId: String(corporate._id),
+    bothId: String(both._id),
+    fallbackId: String(fallback._id),
+    hiddenId: String(hidden._id)
+  }
+}
+
+export async function createNamespaceTestProvider(): Promise<{ userId: string; providerId: string }> {
+  await connectMongoose()
+
+  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12)
+  let providerUser = await User.findOne({ email: 'e2e-provider@itvision.sn' }).lean() as any
+  if (!providerUser) {
+    providerUser = await User.create({
+      email: 'e2e-provider@itvision.sn',
+      username: 'e2e_provider',
+      name: 'E2E Provider',
+      passwordHash,
+      role: 'TECHNICIAN',
+      isActive: true,
+      phone: '+221770000002'
+    })
+  }
+
+  const profile = await ProviderProfile.findOneAndUpdate(
+    { userId: providerUser._id },
+    {
+      $set: {
+        userId: providerUser._id,
+        kycVerified: true,
+        serviceCategories: ['vidéosurveillance', 'maintenance'],
+        zone: { city: 'Dakar', region: 'Dakar' },
+        currentLoad: 0,
+        maxConcurrentMissions: 5,
+        providerStats: {
+          completedMissions: 12,
+          cancelledByProvider: 0,
+          cancelledByClient: 1,
+          reliabilityScore: 92,
+          lastUpdatedAt: new Date()
+        }
+      }
+    },
+    { new: true, upsert: true }
+  )
+
+  return { userId: String(providerUser._id), providerId: String(profile._id) }
+}
+
+export async function cleanupNamespaceTestData() {
+  await connectMongoose()
+  await Promise.all([
+    Product.deleteMany({ name: /^E2E-NAMESPACE-/ }),
+    User.deleteMany({ email: 'e2e-provider@itvision.sn' }),
+    ProviderProfile.deleteMany({ userId: { $in: [] } })
   ])
 }

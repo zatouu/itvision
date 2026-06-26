@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
     const phone = normalizePhone(rawPhone)
     if (!phone) {
-      return NextResponse.json({ error: 'Numéro invalide. Sénégal : 77 123 45 67 | Maroc : 06 12 34 56 78' }, { status: 400 })
+      return NextResponse.json({ error: 'Numéro invalide. Exemples : +221 77 123 45 67, +212 6 12 34 56 78, +33 6 12 34 56 78' }, { status: 400 })
     }
 
     // Validation rôle

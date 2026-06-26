@@ -11,7 +11,7 @@ import { setAuthCookie } from '@/lib/auth-server'
 import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
-import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
+import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
 
@@ -217,9 +217,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!validateSenegalPhone(creatorPhoneRaw)) {
+    if (!validatePhone(creatorPhoneRaw)) {
       return NextResponse.json(
-        { success: false, error: 'Numéro de téléphone invalide. Format Sénégal requis.' },
+        { success: false, error: 'Numéro de téléphone invalide.' },
         { status: 400 }
       )
     }
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const creatorPhone = formatSenegalPhone(creatorPhoneRaw)
+    const creatorPhone = formatPhone(creatorPhoneRaw)
 
     if (!Number.isFinite(qty) || !Number.isInteger(qty)) {
       return NextResponse.json(

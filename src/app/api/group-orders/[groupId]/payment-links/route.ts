@@ -8,8 +8,8 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import { 
   generateAllPaymentLinks, 
   generatePaymentInstructionsEmail,
-  validateSenegalPhone,
-  formatSenegalPhone 
+  validatePhone,
+  formatPhone 
 } from '@/lib/payment-service'
 import { emailService } from '@/lib/email-service'
 import { requireAdminApi } from '@/lib/api-auth'
@@ -49,9 +49,9 @@ export async function POST(
     const { phone, email, sendEmail: shouldSendEmail = false } = body
 
     // Validation du téléphone
-    if (!phone || !validateSenegalPhone(phone)) {
+    if (!phone || !validatePhone(phone)) {
       return NextResponse.json(
-        { error: 'Numéro de téléphone sénégalais invalide' },
+        { error: 'Numéro de téléphone invalide' },
         { status: 400 }
       )
     }
@@ -66,9 +66,9 @@ export async function POST(
     }
 
     // Trouver le participant
-    const formattedPhone = formatSenegalPhone(phone)
+    const formattedPhone = formatPhone(phone)
     const participant = group.participants.find(
-      (p: { phone: string }) => formatSenegalPhone(p.phone) === formattedPhone
+      (p: { phone: string }) => formatPhone(p.phone) === formattedPhone
     )
     
     if (!participant) {
@@ -229,9 +229,9 @@ export async function PATCH(
     }
 
     // Trouver et mettre à jour le participant
-    const formattedPhone = formatSenegalPhone(phone)
+    const formattedPhone = formatPhone(phone)
     const participantIndex = group.participants.findIndex(
-      (p: { phone: string }) => formatSenegalPhone(p.phone) === formattedPhone
+      (p: { phone: string }) => formatPhone(p.phone) === formattedPhone
     )
 
     if (participantIndex === -1) {

@@ -501,9 +501,12 @@ export default function AdminProductManager() {
   const [conditionFilter, setConditionFilter] = useState<string>('')
   const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; label: string; count: number }>>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [bulkAction, setBulkAction] = useState<'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category'>(
-    'none'
-  )
+  const [bulkAction, setBulkAction] = useState<
+    'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category' |
+    'set-channel-marketplace' | 'set-channel-corporate' | 'set-channel-xeuy-bi' |
+    'unset-channel-marketplace' | 'unset-channel-corporate' | 'unset-channel-xeuy-bi' |
+    'set-corporate-visible' | 'set-corporate-hidden'
+  >('none')
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
   const [autoPrice, setAutoPrice] = useState(false)
@@ -857,6 +860,15 @@ export default function AdminProductManager() {
     if (bulkAction === 'feature') set.isFeatured = true
     if (bulkAction === 'unfeature') set.isFeatured = false
     if (bulkAction === 'set-category') set.category = bulkCategory
+    if (bulkAction === 'set-corporate-visible') set.corporateVisible = true
+    if (bulkAction === 'set-corporate-hidden') set.corporateVisible = false
+
+    const channelToggle = bulkAction.startsWith('set-channel-') || bulkAction.startsWith('unset-channel-')
+    if (channelToggle) {
+      const channel = bulkAction.replace('set-channel-', '').replace('unset-channel-', '') as 'marketplace' | 'corporate' | 'xeuy-bi'
+      if (bulkAction.startsWith('set-channel-')) set.addChannel = channel
+      else set.removeChannel = channel
+    }
 
     if (bulkAction === 'set-category' && !String(bulkCategory || '').trim()) {
       alert('Veuillez saisir une catégorie (ou laissez vide pour supprimer).')
@@ -872,7 +884,15 @@ export default function AdminProductManager() {
         ? 'Mettre en avant'
         : bulkAction === 'unfeature'
         ? 'Retirer mise en avant'
-        : 'Changer catégorie'
+        : bulkAction === 'set-category'
+        ? 'Changer catégorie'
+        : bulkAction === 'set-corporate-visible'
+        ? 'Rendre visible corporate'
+        : bulkAction === 'set-corporate-hidden'
+        ? 'Masquer corporate'
+        : bulkAction.startsWith('set-channel-')
+        ? `Ajouter canal ${bulkAction.replace('set-channel-', '')}`
+        : `Retirer canal ${bulkAction.replace('unset-channel-', '')}`
 
     if (!confirm(`${label} sur ${selectedCount} produit(s) ?`)) return
 
@@ -2949,7 +2969,7 @@ export default function AdminProductManager() {
           </div>
           <select
             value={bulkAction}
-            onChange={(e) => setBulkAction(e.target.value as any)}
+            onChange={(e) => setBulkAction(e.target.value as typeof bulkAction)}
             className="h-9 rounded-lg border px-2 text-sm"
           >
             <option value="none">Actions…</option>
@@ -2958,6 +2978,18 @@ export default function AdminProductManager() {
             <option value="feature">Mettre en avant</option>
             <option value="unfeature">Retirer mise en avant</option>
             <option value="set-category">Changer catégorie</option>
+            <optgroup label="Canaux">
+              <option value="set-channel-marketplace">+ Canal Marketplace</option>
+              <option value="set-channel-corporate">+ Canal Corporate</option>
+              <option value="set-channel-xeuy-bi">+ Canal Xeuy Bi</option>
+              <option value="unset-channel-marketplace">- Canal Marketplace</option>
+              <option value="unset-channel-corporate">- Canal Corporate</option>
+              <option value="unset-channel-xeuy-bi">- Canal Xeuy Bi</option>
+            </optgroup>
+            <optgroup label="Corporate">
+              <option value="set-corporate-visible">Visible corporate</option>
+              <option value="set-corporate-hidden">Masquer corporate</option>
+            </optgroup>
           </select>
           {bulkAction === 'set-category' && (
             <input
@@ -3034,6 +3066,15 @@ export default function AdminProductManager() {
                           {product.isFeatured && (
                             <span className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">⭐ Mis en avant</span>
                           )}
+                          {(product.channels || []).includes('corporate') || product.corporateVisible ? (
+                            <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Corporate</span>
+                          ) : null}
+                          {(product.channels || []).includes('marketplace') ? (
+                            <span className="text-[10px] text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">Market</span>
+                          ) : null}
+                          {(product.channels || []).includes('xeuy-bi') ? (
+                            <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Xeuy Bi</span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

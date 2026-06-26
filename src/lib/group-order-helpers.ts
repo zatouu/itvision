@@ -5,7 +5,7 @@
  */
 
 import { notifyPaymentWithCheckoutLink } from './group-order-notifications'
-import { formatSenegalPhone } from './payment-service'
+import { formatPhone } from './payment-service'
 
 function generatePaymentReference(groupId: string, participantPhone: string): string {
   const groupShort = groupId.slice(-6).toUpperCase()
@@ -40,7 +40,7 @@ export async function assignPaymentRefsAndNotify(group: any): Promise<number> {
     if (!p.paymentReference) {
       p.paymentReference = generatePaymentReference(
         group.groupId,
-        formatSenegalPhone(p.phone) || p.phone
+        formatPhone(p.phone) || p.phone
       )
       modified = true
     }

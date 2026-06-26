@@ -14,10 +14,16 @@ async function requireManagerRole(request: NextRequest) {
   }
 }
 
+const VALID_CHANNELS = ['marketplace', 'corporate', 'xeuy-bi'] as const
+
 type BulkSet = {
   isPublished?: boolean
   isFeatured?: boolean
   category?: string | null
+  channels?: string[]
+  corporateVisible?: boolean
+  addChannel?: string
+  removeChannel?: string
 }
 
 export async function PATCH(request: NextRequest) {
@@ -44,9 +50,32 @@ export async function PATCH(request: NextRequest) {
 
     const updateSet: Record<string, unknown> = {}
     const updateUnset: Record<string, 1> = {}
+    const updateAddToSet: Record<string, unknown> = {}
+    const updatePull: Record<string, unknown> = {}
 
     if (typeof set.isPublished === 'boolean') updateSet.isPublished = set.isPublished
     if (typeof set.isFeatured === 'boolean') updateSet.isFeatured = set.isFeatured
+    if (typeof set.corporateVisible === 'boolean') updateSet.corporateVisible = set.corporateVisible
+
+    if (Array.isArray(set.channels)) {
+      const clean = set.channels
+        .map((c: any) => (typeof c === 'string' ? c.trim().toLowerCase() : ''))
+        .filter((c: any) => VALID_CHANNELS.includes(c as typeof VALID_CHANNELS[number]))
+      if (clean.length > 0) updateSet.channels = clean
+    }
+
+    if (typeof set.addChannel === 'string') {
+      const c = set.addChannel.trim().toLowerCase()
+      if (VALID_CHANNELS.includes(c as typeof VALID_CHANNELS[number])) {
+        updateAddToSet.channels = c
+      }
+    }
+    if (typeof set.removeChannel === 'string') {
+      const c = set.removeChannel.trim().toLowerCase()
+      if (VALID_CHANNELS.includes(c as typeof VALID_CHANNELS[number])) {
+        updatePull.channels = c
+      }
+    }
 
     if (set.category !== undefined) {
       if (set.category === null) {
@@ -58,13 +87,20 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    if (Object.keys(updateSet).length === 0 && Object.keys(updateUnset).length === 0) {
+    if (
+      Object.keys(updateSet).length === 0 &&
+      Object.keys(updateUnset).length === 0 &&
+      Object.keys(updateAddToSet).length === 0 &&
+      Object.keys(updatePull).length === 0
+    ) {
       return NextResponse.json({ success: false, error: 'Aucun champ à mettre à jour' }, { status: 400 })
     }
 
     const updateDoc: any = {}
     if (Object.keys(updateSet).length) updateDoc.$set = updateSet
     if (Object.keys(updateUnset).length) updateDoc.$unset = updateUnset
+    if (Object.keys(updateAddToSet).length) updateDoc.$addToSet = updateAddToSet
+    if (Object.keys(updatePull).length) updateDoc.$pull = updatePull
 
     const result: any = await Product.updateMany({ _id: { $in: cleanIds } }, updateDoc)
 

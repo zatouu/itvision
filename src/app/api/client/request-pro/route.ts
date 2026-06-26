@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import InAppNotification from '@/lib/models/InAppNotification'
 import { requireAuth } from '@/lib/jwt'
+import { syncUserToProfiles } from '@/lib/user-profiles'
 
 const PRO_ELIGIBILITY_THRESHOLDS = {
   minOrders: 3,
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
       { _id: auth.userId },
       { $set: { proRequestedAt: new Date() } }
     )
+    await syncUserToProfiles(auth.userId)
 
     // Notifier les admins
     try {

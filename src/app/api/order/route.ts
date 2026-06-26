@@ -15,6 +15,7 @@ import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
 import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
+import { syncUserToProfiles } from '@/lib/user-profiles'
 import mongoose from 'mongoose'
 import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
 
@@ -414,6 +415,9 @@ export async function POST(req: NextRequest) {
         } catch (grainsErr) {
           console.error('[grains] Erreur crédit grains commande:', grainsErr)
         }
+
+        // Synchroniser les stats vers le profil marketplace découplé
+        await syncUserToProfiles(auth.userId)
 
         // Vérifier éligibilité Pro si encore standard
         if (updatedUser && updatedUser.marketplaceTier === 'standard') {

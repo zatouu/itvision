@@ -62,41 +62,31 @@ async function sendViaTwilio(to: string, body: string): Promise<boolean> {
 }
 
 /**
- * Normalise un numéro de téléphone (Sénégal +221 ou Maroc +212).
+ * Normalise un numéro de téléphone (Sénégal +221, Maroc +212, ou autre international).
+ * Accepte désormais n'importe quel numéro WhatsApp/friendly (8-15 chiffres).
  * Sénégal : 77 123 45 67, +221771234567, 0771234567
  * Maroc    : 06 12 34 56 78, +212612345678, 0612345678
- * Retourne : +221771234567 ou +212612345678
+ * Autre    : +33612345678, +18001234567, etc.
+ * Retourne : +221771234567, +212612345678, +33612345678...
  */
 export function normalizePhone(phone: string): string | null {
   const cleaned = phone.replace(/[\s\-().]/g, '')
 
+  // Déjà en format international avec + : le garder tel quel
+  if (/^\+\d{8,15}$/.test(cleaned)) return cleaned
+
   // --- SÉNÉGAL +221 ---
-  // Déjà en format international
-  if (/^\+221[7-8]\d{8}$/.test(cleaned)) return cleaned
-
-  // Sans le +
   if (/^221[7-8]\d{8}$/.test(cleaned)) return '+' + cleaned
-
-  // --- MAROC +212 ---
-  // Déjà en format international
-  if (/^\+212[5-7]\d{8}$/.test(cleaned)) return cleaned
-
-  // Sans le +
-  if (/^212[5-7]\d{8}$/.test(cleaned)) return '+' + cleaned
-
-  // --- LOCAL AVEC 0 (10 chiffres) ---
-  // Maroc 05/06/07 en premier (car 07 chevauche le Sénégal)
-  if (/^0[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned.slice(1)
-
-  // Sénégal 07/08 (format rare avec 0)
   if (/^0[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned.slice(1)
-
-  // --- LOCAL SANS 0 (9 chiffres) ---
-  // Sénégal 7X/8X
   if (/^[7-8]\d{8}$/.test(cleaned)) return '+221' + cleaned
 
-  // Maroc 5/6/7 (format rare sans 0)
+  // --- MAROC +212 ---
+  if (/^212[5-7]\d{8}$/.test(cleaned)) return '+' + cleaned
+  if (/^0[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned.slice(1)
   if (/^[5-7]\d{8}$/.test(cleaned)) return '+212' + cleaned
+
+  // --- AUTRE INTERNATIONAL (8-15 chiffres sans +) ---
+  if (/^\d{8,15}$/.test(cleaned)) return '+' + cleaned
 
   return null
 }

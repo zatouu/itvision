@@ -292,7 +292,7 @@ export function generatePaymentInstructionsEmail(
 }
 
 /**
- * Valide un numéro de téléphone sénégalais
+ * Valide un numéro de téléphone sénégalais (strict, pour paiements Wave/OM)
  */
 export function validateSenegalPhone(phone: string): boolean {
   // Formats acceptés: +221 XX XXX XX XX, 221XXXXXXXXX, 7X XXX XX XX, 70/76/77/78 + 7 chiffres
@@ -307,12 +307,22 @@ export function validateSenegalPhone(phone: string): boolean {
 }
 
 /**
+ * Valide n'importe quel numéro de téléphone international (WhatsApp friendly).
+ * Vérifie juste qu'il y a entre 8 et 15 chiffres, avec ou sans +.
+ */
+export function validatePhone(phone: string): boolean {
+  const digits = phone.replace(/[^\d+]/g, '')
+  const withoutPlus = digits.replace(/^\+/, '')
+  return /^\d{8,15}$/.test(withoutPlus)
+}
+
+/**
  * Formate un numéro de téléphone sénégalais
  */
 export function formatSenegalPhone(phone: string): string {
   const cleaned = phone.replace(/\s|-/g, '')
   let number = cleaned
-  
+
   if (number.startsWith('+221')) {
     number = number.slice(4)
   } else if (number.startsWith('221')) {
@@ -320,13 +330,24 @@ export function formatSenegalPhone(phone: string): string {
   } else if (number.startsWith('0')) {
     number = number.slice(1)
   }
-  
+
   // Format: +221 XX XXX XX XX
   if (number.length === 9) {
     return `+221 ${number.slice(0, 2)} ${number.slice(2, 5)} ${number.slice(5, 7)} ${number.slice(7)}`
   }
-  
+
   return phone
+}
+
+/**
+ * Formate un numéro de téléphone générique : supprime espaces/tirets,
+ * ajoute un + si ce n'est pas déjà présent.
+ */
+export function formatPhone(phone: string): string {
+  const cleaned = phone.replace(/\s|-/g, '')
+  if (/^\+\d{8,15}$/.test(cleaned)) return cleaned
+  if (/^\d{8,15}$/.test(cleaned)) return `+${cleaned}`
+  return cleaned
 }
 
 export default {

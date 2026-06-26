@@ -106,3 +106,145 @@ export async function loadUserWithProfiles(
 
   return { user, marketplaceProfile, corporateProfile, providerProfile }
 }
+
+/**
+ * Synchronise les champs legacy du User vers les profils dédiés.
+ * Idéal pour maintenir la cohérence pendant la migration progressive.
+ * Crée le profil s'il n'existe pas.
+ */
+export async function syncUserToProfiles(userId: mongoose.Types.ObjectId | string) {
+  const userObjectId = new mongoose.Types.ObjectId(String(userId))
+  const user = await User.findById(userObjectId).lean() as any
+  if (!user) return
+
+  const profileRefs: Record<string, mongoose.Types.ObjectId> = {}
+
+  // MarketplaceProfile
+  const marketplaceUpdates: Record<string, unknown> = {
+    marketplaceTier: user.marketplaceTier || 'standard',
+    proRequestedAt: user.proRequestedAt,
+    proValidatedAt: user.proValidatedAt,
+    totalMarketplacePurchases: user.totalMarketplacePurchases || 0,
+    marketplaceOrderCount: user.marketplaceOrderCount || 0,
+    favoriteProductIds: user.favoriteProductIds || [],
+    loyaltyTier: user.tier || 'Bronze',
+    referralCode: user.referralCode,
+    referredBy: user.referredBy,
+    referralBalance: user.referralBalance || 0,
+    referralCount: user.referralCount || 0
+  }
+  const marketplaceProfile = await MarketplaceProfile.findOneAndUpdate(
+    { userId: userObjectId },
+    { $set: marketplaceUpdates },
+    { new: true, upsert: true }
+  )
+  if (marketplaceProfile) profileRefs.marketplaceProfileId = marketplaceProfile._id
+
+  // CorporateProfile
+  if (user.company || user.companyClientId || user.address || user.city || user.country) {
+    const corporateProfile = await CorporateProfile.findOneAndUpdate(
+      { userId: userObjectId },
+      {
+        $set: {
+          company: user.company,
+          address: user.address,
+          city: user.city,
+          country: user.country,
+          companyClientId: user.companyClientId
+        }
+      },
+      { new: true, upsert: true }
+    )
+    if (corporateProfile) profileRefs.corporateProfileId = corporateProfile._id
+  }
+
+  // ProviderProfile
+  if (
+    user.role === 'TECHNICIAN' ||
+    user.kycVerified ||
+    user.providerStats?.completedMissions ||
+    user.providerStats?.cancelledByProvider ||
+    user.providerStats?.cancelledByClient
+  ) {
+    const providerProfile = await ProviderProfile.findOneAndUpdate(
+      { userId: userObjectId },
+      {
+        $set: {
+          kycVerified: user.kycVerified || false,
+          providerStats: {
+            completedMissions: user.providerStats?.completedMissions || 0,
+            cancelledByProvider: user.providerStats?.cancelledByProvider || 0,
+            cancelledByClient: user.providerStats?.cancelledByClient || 0,
+            reliabilityScore: user.providerStats?.reliabilityScore ?? 100,
+            lastUpdatedAt: user.providerStats?.lastUpdatedAt
+          }
+        }
+      },
+      { new: true, upsert: true }
+    )
+    if (providerProfile) profileRefs.providerProfileId = providerProfile._id
+  }
+
+  if (Object.keys(profileRefs).length > 0) {
+    await User.findByIdAndUpdate(userObjectId, { $set: profileRefs })
+  }
+
+  return profileRefs
+}
+
+/**
+ * Synchronise les profils dédiés vers les champs legacy du User.
+ * Permet la rétro-compatibilité avec les endpoints et frontends qui lisent encore User.
+ */
+export async function syncProfilesToUser(userId: mongoose.Types.ObjectId | string) {
+  const userObjectId = new mongoose.Types.ObjectId(String(userId))
+  const user = await User.findById(userObjectId).lean() as any
+  if (!user) return
+
+  const data = await loadUserWithProfiles(userObjectId)
+  if (!data) return
+
+  const userUpdates: Record<string, unknown> = {}
+
+  if (data.marketplaceProfile) {
+    const mp = data.marketplaceProfile
+    userUpdates.marketplaceTier = mp.marketplaceTier || 'standard'
+    userUpdates.proRequestedAt = mp.proRequestedAt
+    userUpdates.proValidatedAt = mp.proValidatedAt
+    userUpdates.totalMarketplacePurchases = mp.totalMarketplacePurchases || 0
+    userUpdates.marketplaceOrderCount = mp.marketplaceOrderCount || 0
+    userUpdates.favoriteProductIds = mp.favoriteProductIds || []
+    userUpdates.tier = mp.loyaltyTier || 'Bronze'
+    userUpdates.referralCode = mp.referralCode
+    userUpdates.referredBy = mp.referredBy
+    userUpdates.referralBalance = mp.referralBalance || 0
+    userUpdates.referralCount = mp.referralCount || 0
+  }
+
+  if (data.corporateProfile) {
+    const cp = data.corporateProfile
+    userUpdates.company = cp.company
+    userUpdates.address = cp.address
+    userUpdates.city = cp.city
+    userUpdates.country = cp.country
+    userUpdates.companyClientId = cp.companyClientId
+  }
+
+  if (data.providerProfile) {
+    const pp = data.providerProfile
+    userUpdates.kycVerified = pp.kycVerified || false
+    userUpdates.providerStats = {
+      completedMissions: pp.providerStats?.completedMissions || 0,
+      cancelledByProvider: pp.providerStats?.cancelledByProvider || 0,
+      cancelledByClient: pp.providerStats?.cancelledByClient || 0,
+      reliabilityScore: pp.providerStats?.reliabilityScore ?? 100,
+      lastUpdatedAt: pp.providerStats?.lastUpdatedAt
+    }
+  }
+
+  if (Object.keys(userUpdates).length > 0) {
+    await User.findByIdAndUpdate(userObjectId, { $set: userUpdates })
+  }
+
+  return userUpdates
+}

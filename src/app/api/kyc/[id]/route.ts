@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/jwt'
 import KycRequest from '@/lib/models/KycRequest'
 import User from '@/lib/models/User'
 import { sendPushToUser } from '@/lib/push'
+import { syncUserToProfiles } from '@/lib/user-profiles'
 
 /**
  * Admin endpoint to approve/reject KYC requests.
@@ -36,6 +37,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       // Mark user as verified
       await User.findByIdAndUpdate(kyc.providerId, { kycVerified: true })
+      await syncUserToProfiles(kyc.providerId)
 
       void sendPushToUser(String(kyc.providerId), {
         title: '✅ Profil vérifié !',

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
-import { validateSenegalPhone, formatSenegalPhone } from '@/lib/payment-service'
+import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { requireAdminApi } from '@/lib/api-auth'
 import { 
   notifyGroupJoinConfirmation, 
@@ -116,9 +116,9 @@ export async function POST(
       )
     }
 
-    if (!validateSenegalPhone(phone)) {
+    if (!validatePhone(phone)) {
       return NextResponse.json(
-        { success: false, error: 'Numéro de téléphone sénégalais invalide' },
+        { success: false, error: 'Numéro de téléphone invalide' },
         { status: 400 }
       )
     }
@@ -147,7 +147,7 @@ export async function POST(
       )
     }
 
-    const normalizedPhone = formatSenegalPhone(phone)
+    const normalizedPhone = formatPhone(phone)
 
     // Vérifier si déjà participant (par userId)
     const existingUserParticipant = group.participants.find(
@@ -162,7 +162,7 @@ export async function POST(
 
     // Vérifier si déjà participant (par téléphone, normalisé)
     const existingParticipant = group.participants.find(
-      (p: any) => formatSenegalPhone(p.phone) === normalizedPhone
+      (p: any) => formatPhone(p.phone) === normalizedPhone
     )
     if (existingParticipant) {
       return NextResponse.json(
@@ -398,9 +398,9 @@ export async function PATCH(
     if (body.participantPhone && body.paymentUpdate) {
       const group = await GroupOrder.findOne({ groupId })
       if (group) {
-        const formattedPhone = formatSenegalPhone(body.participantPhone)
+        const formattedPhone = formatPhone(body.participantPhone)
         const participant = group.participants.find(
-          (p: any) => formatSenegalPhone(p.phone) === formattedPhone
+          (p: any) => formatPhone(p.phone) === formattedPhone
         )
         if (participant) {
           if (

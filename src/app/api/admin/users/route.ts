@@ -4,6 +4,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import { resolveUserCategory, type UserCategory } from '@/lib/user-segmentation'
+import { createUserProfiles, syncUserToProfiles } from '@/lib/user-profiles'
 
 // Rôles ayant accès à l'administration
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
@@ -117,6 +118,14 @@ export async function POST(request: NextRequest) {
       companyClientId: normalizedCompanyClientId
     })
 
+    await createUserProfiles(created._id, normalizedRole, {
+      company,
+      address,
+      city,
+      country,
+      companyClientId: normalizedCompanyClientId
+    })
+
     return NextResponse.json({ success: true, user: { id: String(created._id), username, email: created.email, name, phone, avatarUrl: created.avatarUrl, role: created.role } }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
@@ -160,6 +169,7 @@ export async function PUT(request: NextRequest) {
       $set: setData,
       ...(Object.keys(unsetData).length > 0 ? { $unset: unsetData } : {})
     })
+    await syncUserToProfiles(id)
     const updated = await User.findById(id).lean()
     return NextResponse.json({ success: true, user: updated })
   } catch (error) {
