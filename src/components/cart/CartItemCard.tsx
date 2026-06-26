@@ -34,16 +34,16 @@ export default function CartItemCard({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-slate-200 rounded-xl p-3 flex gap-3 h-[140px]"
+      className="bg-white border border-slate-200 rounded-xl p-3 flex gap-3"
     >
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-2 flex-shrink-0">
         <input
           type="checkbox"
           checked={selected}
           onChange={onToggle}
           className="w-4 h-4 accent-ddm-emerald rounded"
         />
-        <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
           {item.image ? (
             <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
           ) : (
@@ -52,16 +52,14 @@ export default function CartItemCard({
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-sm text-slate-900 line-clamp-2">{item.name}</h3>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
+      <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-sm text-slate-900 line-clamp-2 break-words">{item.name}</h3>
+          <p className="text-xs text-slate-500 mt-1 truncate">
             Couleur: {item.color || 'Défaut'} · Taille: {item.size || 'Standard'}
           </p>
-          <p className="text-xs text-slate-500">Vendu par {item.shopName || 'DDM+ Import'}</p>
-          <div className="flex items-center gap-2 mt-1">
+          <p className="text-xs text-slate-500 truncate">Vendu par {item.shopName || 'DDM+ Import'}</p>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
             {item.groupActive && (
               <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-medium rounded flex items-center gap-1">
                 <Users className="w-3 h-3" /> Groupe actif
@@ -75,7 +73,7 @@ export default function CartItemCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             <button
               onClick={() => onQtyChange(Math.max(1, qty - 1))}
@@ -91,14 +89,14 @@ export default function CartItemCard({
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-bold text-ddm-emerald">{formatCurrency(total)}</p>
-            {qty > 1 && <p className="text-[10px] text-slate-400">{formatCurrency(price)} / unité</p>}
+          <div className="text-right min-w-0">
+            <p className="text-sm font-bold text-ddm-emerald whitespace-nowrap">{formatCurrency(total)}</p>
+            {qty > 1 && <p className="text-[10px] text-slate-400 whitespace-nowrap">{formatCurrency(price)} / unité</p>}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-2 border-l border-slate-100 pl-3">
+      <div className="flex flex-col items-center justify-center gap-2 border-l border-slate-100 pl-3 flex-shrink-0">
         {onAddToFavorites && (
           <button onClick={onAddToFavorites} className="p-1.5 text-slate-400 hover:text-red-500 transition">
             <Heart className="w-4 h-4" />

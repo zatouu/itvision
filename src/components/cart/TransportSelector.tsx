@@ -59,8 +59,8 @@ export default function TransportSelector({ value, onChange, options }: Transpor
               </div>
               <p className="text-xs text-slate-500 truncate">{opt.duration}</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-bold text-slate-900">{opt.weightPrice}</p>
+            <div className="text-right min-w-0">
+              <p className="text-sm font-bold text-slate-900 whitespace-nowrap">{opt.weightPrice}</p>
             </div>
           </motion.button>
         )

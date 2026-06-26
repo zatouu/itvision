@@ -553,7 +553,7 @@ export default function PanierPage() {
         <CheckoutStepper currentStep="cart" />
       </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 pb-32">
+      <main className="max-w-6xl mx-auto px-4 py-6 pb-32 overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
           <div>
@@ -598,7 +598,7 @@ export default function PanierPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
           {/* Left column */}
           <div className="space-y-6">
             {/* Select all / delete */}
@@ -685,16 +685,18 @@ export default function PanierPage() {
                     </button>
                   </div>
                 </div>
-                <div
-                  id="suggestions-carousel"
-                  className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  {suggestedProducts.map(product => (
-                    <div key={product._id} className="w-[160px] md:w-[180px] flex-shrink-0 snap-start">
-                      <CompactProductCard product={product} onAdd={addSuggestedToCart} />
-                    </div>
-                  ))}
+                <div className="overflow-hidden max-w-full">
+                  <div
+                    id="suggestions-carousel"
+                    className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
+                    {suggestedProducts.map(product => (
+                      <div key={product._id} className="w-[150px] md:w-[170px] flex-shrink-0 snap-start">
+                        <CompactProductCard product={product} onAdd={addSuggestedToCart} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
             )}
@@ -746,20 +748,22 @@ export default function PanierPage() {
                   <Clock className="w-5 h-5 text-slate-500" />
                   <h3 className="font-bold text-slate-900">Vus récemment</h3>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {recentViewed.slice(0, 6).map((product, idx) => (
-                    <div
-                      key={product.id || idx}
-                      onClick={() => router.push(`/produits/${product.id}`)}
-                      className="w-[140px] flex-shrink-0 bg-white rounded-lg border border-slate-200 p-2 cursor-pointer hover:shadow-md transition"
-                    >
-                      <div className="h-20 bg-slate-100 rounded-lg mb-2 overflow-hidden">
-                        {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-200" />}
+                <div className="overflow-hidden max-w-full">
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentViewed.slice(0, 6).map((product, idx) => (
+                      <div
+                        key={product.id || idx}
+                        onClick={() => router.push(`/produits/${product.id}`)}
+                        className="w-[130px] flex-shrink-0 bg-white rounded-lg border border-slate-200 p-2 cursor-pointer hover:shadow-md transition"
+                      >
+                        <div className="h-20 bg-slate-100 rounded-lg mb-2 overflow-hidden">
+                          {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-200" />}
+                        </div>
+                        <p className="text-xs font-medium text-slate-900 line-clamp-2">{product.name}</p>
+                        <p className="text-xs font-bold text-ddm-emerald mt-1">{formatCurrency(product.price)}</p>
                       </div>
-                      <p className="text-xs font-medium text-slate-900 line-clamp-2">{product.name}</p>
-                      <p className="text-xs font-bold text-ddm-emerald mt-1">{formatCurrency(product.price)}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </section>
             )}

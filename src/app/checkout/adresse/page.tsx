@@ -19,8 +19,10 @@ import SelectField from '@/components/checkout/address/SelectField'
 import TextareaField from '@/components/checkout/address/TextareaField'
 import AddressPreview from '@/components/checkout/address/AddressPreview'
 import DeliveryOptionCard from '@/components/checkout/address/DeliveryOptionCard'
-import DeliveryMap from '@/components/checkout/address/DeliveryMap'
 import { SENEGAL_REGIONS, getDepartments, getQuartiers } from '@/lib/data/senegal-locations'
+import dynamic from 'next/dynamic'
+
+const DeliveryMap = dynamic(() => import('@/components/checkout/address/DeliveryMap'), { ssr: false })
 
 const formatCurrency = (v?: number) =>
   typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-'

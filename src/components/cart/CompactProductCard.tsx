@@ -42,8 +42,8 @@ export default function CompactProductCard({ product, onAdd }: CompactProductCar
         <h3 className="text-xs font-semibold text-slate-900 line-clamp-2 min-h-[2.5em] cursor-pointer" onClick={() => router.push(`/produits/${product._id}`)}>
           {product.name}
         </h3>
-        <div className="mt-auto pt-2 flex items-center justify-between">
-          <span className="text-sm font-bold text-ddm-emerald">{formatCurrency(product.price)}</span>
+        <div className="mt-auto pt-2 flex items-center justify-between gap-1">
+          <span className="text-xs font-bold text-ddm-emerald whitespace-nowrap">{formatCurrency(product.price)}</span>
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onAdd(product)}
