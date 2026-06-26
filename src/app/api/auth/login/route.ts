@@ -7,6 +7,7 @@ import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { signAuthTokenWithExpiry, verifyJwtPayload } from '@/lib/jwt'
 import { resolveUserCategory } from '@/lib/user-segmentation'
+import { setAuthCookie } from '@/lib/auth-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -167,13 +168,7 @@ export async function POST(request: NextRequest) {
       redirectUrl: getRedirectUrl(user.role, companyClientId)
     })
 
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: (remember ? 30 : 7) * 24 * 60 * 60
-    })
+    setAuthCookie(response, token)
 
     return response
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { clearAuthCookie } from '@/lib/auth-server'
 
 function getPublicOrigin(request: NextRequest): string {
   const envOrigin = process.env.NEXT_PUBLIC_SITE_URL
@@ -16,17 +17,6 @@ function getPublicOrigin(request: NextRequest): string {
   const protocol = forwardedProto || request.nextUrl.protocol.replace(':', '')
 
   return `${protocol}://${host}`
-}
-
-function clearAuthCookie(response: NextResponse) {
-  response.cookies.set('auth-token', '', { 
-    httpOnly: true, 
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 0 
-  })
-  return response
 }
 
 export async function POST(request: NextRequest) {

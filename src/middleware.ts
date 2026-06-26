@@ -95,6 +95,7 @@ function getRequiredRole(pathname: string): string | null {
 // Routes propres à la marketplace (accessible uniquement sur market.itvisionplus.sn)
 const MARKETPLACE_ROUTES = [
   '/panier',
+  '/checkout',
   '/commandes',
   '/achats-groupes',
   '/retrouver-ma-commande',

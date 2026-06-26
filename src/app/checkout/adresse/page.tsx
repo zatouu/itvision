@@ -57,11 +57,22 @@ export default function AddressPage() {
   const [whatsappNotif, setWhatsappNotif] = useState(true)
   const [giftWrap, setGiftWrap] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const raw = localStorage.getItem('cart:items')
-    setItems(raw ? JSON.parse(raw) : [])
+    const raw = sessionStorage.getItem('checkout_cart')
+    if (raw) {
+      try {
+        const checkout = JSON.parse(raw)
+        setItems(checkout.items || [])
+      } catch {
+        setItems([])
+      }
+    } else {
+      const rawCart = localStorage.getItem('cart:items')
+      setItems(rawCart ? JSON.parse(rawCart) : [])
+    }
   }, [])
 
   useEffect(() => {
@@ -114,9 +125,75 @@ export default function AddressPage() {
     return Object.keys(next).length === 0
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!validate()) return
-    if (typeof window !== 'undefined') {
+    if (items.length === 0) {
+      alert('Votre panier est vide.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Vérifier si l'utilisateur est authentifié
+      let isAuthenticated = false
+      try {
+        const profileRes = await fetch('/api/client/profile', { credentials: 'include' })
+        isAuthenticated = profileRes.ok
+      } catch {
+        isAuthenticated = false
+      }
+
+      // Si invité, créer un compte tacite avec les infos de livraison
+      if (!isAuthenticated) {
+        const guestRes = await fetch('/api/auth/guest-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: form.fullName,
+            phone: form.phone,
+            email: form.email,
+          }),
+        })
+        const guestData = await guestRes.json()
+        if (!guestRes.ok || !guestData.success) {
+          throw new Error(guestData.error || 'Impossible de créer le compte invité')
+        }
+      }
+
+      const deliveryMethodMap: Record<string, string> = {
+        standard: 'air_15j',
+        pickup: 'air_15j',
+        express: 'express_3j',
+        sea: 'maritime_60j',
+      }
+
+      const payload = {
+        cart: items.map((it: any) => ({ id: it.id, qty: it.qty || 1, name: it.name, variantIds: it.variantIds, variantId: it.variantId, variantLabels: it.variantLabels })),
+        name: form.fullName,
+        phone: form.phone,
+        email: form.email,
+        address: {
+          region: form.region,
+          department: form.department,
+          neighborhood: form.quartier,
+          street: form.street,
+          additionalInfo: form.extra,
+          country: 'Sénégal',
+        },
+        shippingMethod: deliveryMethodMap[selectedDelivery] || 'air_15j',
+      }
+
+      const res = await fetch('/api/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Erreur lors de la création de la commande')
+      }
       sessionStorage.setItem('checkout_address', JSON.stringify({
         ...form,
         deliveryMethod: selectedDelivery,
@@ -124,8 +201,12 @@ export default function AddressPage() {
         whatsappNotif,
         giftWrap,
       }))
+      router.push(`/paiement/checkout/${data.orderId}`)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erreur inconnue')
+    } finally {
+      setLoading(false)
     }
-    router.push('/checkout/paiement')
   }
 
   return (
@@ -303,11 +384,12 @@ export default function AddressPage() {
                 <ChevronLeft className="w-4 h-4" /> Retour au panier
               </Link>
               <motion.button
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: loading ? 1 : 0.98 }}
                 onClick={handleContinue}
-                className="px-8 h-14 bg-ddm-emerald hover:bg-ddm-emerald-dark text-white rounded-xl font-bold shadow-lg shadow-emerald-200 flex items-center gap-2"
+                disabled={loading}
+                className="px-8 h-14 bg-ddm-emerald hover:bg-ddm-emerald-dark disabled:opacity-60 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 flex items-center gap-2"
               >
-                Vérifier la commande <ChevronLeft className="w-4 h-4 rotate-180" />
+                {loading ? 'Création de la commande…' : <>Vérifier la commande <ChevronLeft className="w-4 h-4 rotate-180" /></>}
               </motion.button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import { signAuthTokenWithExpiry } from '@/lib/jwt'
+import { setAuthCookie } from '@/lib/auth-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,13 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true, user: userData, redirectUrl: getRedirectUrl(user.role) })
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: (remember ? 30 : 7) * 24 * 60 * 60
-    })
+    setAuthCookie(response, token)
 
     return response
   } catch (e) {

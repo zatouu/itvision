@@ -4,6 +4,36 @@ import { jwtVerify } from 'jose'
 import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 
+function getAuthCookieDomain(): string | undefined {
+  // En production, partager le cookie entre itvisionplus.sn et *.itvisionplus.sn
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.AUTH_COOKIE_DOMAIN || '.itvisionplus.sn'
+  }
+  return undefined
+}
+
+export function setAuthCookie(response: NextResponse, token: string) {
+  response.cookies.set('auth-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30, // 30 jours
+    domain: getAuthCookieDomain(),
+  })
+}
+
+export function clearAuthCookie(response: NextResponse) {
+  response.cookies.set('auth-token', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+    domain: getAuthCookieDomain(),
+  })
+}
+
 export interface AuthResult {
   isAuthenticated: boolean
   user?: {
