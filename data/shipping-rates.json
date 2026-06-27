@@ -1,0 +1,14 @@
+{
+  "air_express": {
+    "rate": 12000,
+    "minimumCharge": 12000
+  },
+  "air_15": {
+    "rate": 8500,
+    "minimumCharge": 8500
+  },
+  "sea_freight": {
+    "rate": 180000,
+    "minimumCharge": 0
+  }
+}

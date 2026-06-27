@@ -4,6 +4,7 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import { Order } from '@/lib/models/Order'
 import CheckoutInterface from '@/components/payment/CheckoutInterface'
 import CheckoutRelatedProducts from '@/components/payment/CheckoutRelatedProducts'
+import CheckoutStepper from '@/components/cart/CheckoutStepper'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import Link from 'next/link'
 
@@ -144,6 +145,8 @@ export default async function CheckoutPage({ params }: PageProps) {
           </div>
         </div>
       </header>
+
+      <CheckoutStepper currentStep="payment" />
 
       {/* Breadcrumb + Titre */}
       <div className="max-w-5xl mx-auto px-4 pt-6 pb-3">

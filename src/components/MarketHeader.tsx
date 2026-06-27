@@ -96,7 +96,7 @@ export default function MarketHeader() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         {/* Logo */}
         <Link href="/market" className="flex items-center gap-2">
-          <DDMLogo variant="horizontal" size="sm" showTagline={false} priority />
+          <DDMLogo variant="horizontal" size="lg" showTagline={false} priority />
         </Link>
 
         {/* Desktop nav */}

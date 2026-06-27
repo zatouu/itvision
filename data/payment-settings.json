@@ -1,0 +1,42 @@
+{
+  "groupOrders": {
+    "enabled": true,
+    "chatEnabled": true,
+    "paymentLinksEnabled": true,
+    "paymentManagementEnabled": true,
+    "rules": {
+      "defaultMinQty": 10,
+      "defaultTargetQty": 50,
+      "defaultMaxQty": 100,
+      "defaultDeadlineDays": 14,
+      "minJoinQty": 1,
+      "maxJoinQtyPerParticipant": 50,
+      "maxParticipantsPerGroup": 100,
+      "autoFillOnTargetReached": true,
+      "allowedShippingMethods": {
+        "maritime_60j": true,
+        "air_15j": true,
+        "express_3j": true
+      }
+    }
+  },
+  "providers": {
+    "manual": {
+      "waveMerchantPhone": "+221770000000",
+      "orangeMerchantPhone": "+221760000000",
+      "freeMoneyMerchantPhone": "+221780000000",
+      "instructions": "Paiement à la livraison ou retrait au bureau."
+    },
+    "gateway": {
+      "active": false,
+      "provider": "paydunya",
+      "apiKey": "",
+      "apiSecret": "",
+      "merchantId": ""
+    },
+    "escrow": {
+      "enabled": true,
+      "holdPercentage": 100
+    }
+  }
+}
