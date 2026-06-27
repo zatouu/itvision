@@ -4,6 +4,7 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import { Order } from '@/lib/models/Order'
 import CheckoutInterface from '@/components/payment/CheckoutInterface'
 import CheckoutRelatedProducts from '@/components/payment/CheckoutRelatedProducts'
+import CheckoutStepper from '@/components/cart/CheckoutStepper'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import Link from 'next/link'
 
@@ -116,8 +117,11 @@ export default async function CheckoutPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50 pb-8">
+      {/* Stepper */}
+      <CheckoutStepper currentStep="payment" />
+
       {/* Header marketplace */}
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-20">
+      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-[60px] z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/produits" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-600 transition font-medium">

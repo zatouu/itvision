@@ -1,0 +1,35 @@
+{
+  "defaultExchangeRate": 100,
+  "defaultServiceFeeRate": 10,
+  "defaultInsuranceRate": 2.5,
+  "defaultB2BDiscountPercent": 15,
+  "serviceFeeTiers": [
+    {
+      "minAmount": 0,
+      "maxAmount": 500000,
+      "feeRate": 10,
+      "label": "Standard",
+      "description": "Frais standard pour commandes < 500 000 FCFA"
+    },
+    {
+      "minAmount": 500000,
+      "maxAmount": 2000000,
+      "feeRate": 8,
+      "label": "Volume",
+      "description": "Réduction volume pour commandes 500k - 2M FCFA"
+    },
+    {
+      "minAmount": 2000000,
+      "maxAmount": 5000000,
+      "feeRate": 6,
+      "label": "Pro",
+      "description": "Tarif professionnel pour commandes 2M - 5M FCFA"
+    },
+    {
+      "minAmount": 5000000,
+      "feeRate": 5,
+      "label": "Entreprise",
+      "description": "Tarif entreprise pour commandes > 5M FCFA"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+tests/marketplace-qa/reports/
 
 # Uploads (runtime)
 public/uploads/

@@ -1,0 +1,6 @@
+{
+  "minVolumeM3": 0.05,
+  "minBilledWeightKg": 15,
+  "minOrderValueFcfa": 100000,
+  "requireDimensionsOrVolume": true
+}

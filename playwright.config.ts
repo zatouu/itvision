@@ -29,27 +29,37 @@ export default defineConfig({
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {
       name: 'chromium-admin',
+      testIgnore: /marketplace-qa\/.*/,
       use: { ...devices['Desktop Chrome'], storageState: 'tests/.auth/admin.json' },
       dependencies: ['setup'],
     },
     {
       name: 'chromium-client',
+      testIgnore: /marketplace-qa\/.*/,
       use: { ...devices['Desktop Chrome'], storageState: 'tests/.auth/client.json' },
       dependencies: ['setup'],
     },
     {
       name: 'chromium-tech',
+      testIgnore: /marketplace-qa\/.*/,
       use: { ...devices['Desktop Chrome'], storageState: 'tests/.auth/tech.json' },
       dependencies: ['setup'],
     },
     {
       name: 'chromium',
+      testIgnore: /marketplace-qa\/.*/,
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
     {
       name: 'services-mobile',
       testMatch: /services\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // Agent recetteur QA marketplace — anonyme, pas de dépendance setup/DB.
+      name: 'marketplace-qa',
+      testMatch: /marketplace-qa\/.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

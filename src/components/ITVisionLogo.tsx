@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+
+import DDMLogo from './branding/DDMLogo'
 
 interface ITVisionLogoProps {
   className?: string
@@ -6,20 +8,18 @@ interface ITVisionLogoProps {
   animated?: boolean
 }
 
-const ITVisionLogo: React.FC<ITVisionLogoProps> = ({ 
+export default function ITVisionLogo({ 
   className = "", 
   size = 40,
   animated = true // conservé pour compatibilité des appels
-}) => {
+}: ITVisionLogoProps) {
+  const sizeScale = size <= 60 ? 'sm' : size <= 100 ? 'md' : size <= 160 ? 'lg' : 'xl'
   return (
-    <div className={`flex items-center ${className}`}>
-      <img
-        src="/images/Complet avec fond.png"
-        alt="IT Vision"
-        style={{ height: size, width: 'auto' }}
-      />
-    </div>
+    <DDMLogo
+      variant="horizontal"
+      size={sizeScale}
+      className={className}
+      priority={animated}
+    />
   )
 }
-
-export default ITVisionLogo
