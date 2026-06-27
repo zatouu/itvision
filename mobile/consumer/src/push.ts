@@ -20,6 +20,9 @@ function mapPushToStore(title: string, body: string, data: any) {
   } else if (type === 'request:status-changed' || type === 'offer:counter-accepted' || type === 'offer:counter-rejected') {
     kind = 'request-status-changed'
     if (requestId) link = { pathname: `/mission/${requestId}` }
+  } else if (type === 'chat:message') {
+    kind = 'mission-update'
+    if (requestId) link = { pathname: '/mission-chat', params: { id: requestId } }
   } else {
     if (requestId) link = { pathname: `/mission/${requestId}` }
   }
@@ -38,6 +41,22 @@ function getProjectId(): string | undefined {
 }
 
 /**
+ * Configure le handler de notification foreground — à appeler au démarrage (avant login).
+ * Doit être appelé le plus tôt possible pour que les push reçus au premier plan affichent une alerte.
+ */
+export function setupNotificationHandler(): void {
+  if (!isNative) return
+  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  })
+}
+
+/**
  * Enregistre le token push auprès du serveur.
  * Doit être appelé au démarrage de l'app.
  */
@@ -51,15 +70,6 @@ export async function registerPushToken(): Promise<string | null> {
     console.log('[Push] Pas un appareil physique — push désactivé')
     return null
   }
-
-  // Configuration du comportement en foreground
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  })
 
   // Demander la permission
   const { status: existing } = await Notifications.getPermissionsAsync()
@@ -85,7 +95,7 @@ export async function registerPushToken(): Promise<string | null> {
     console.log('[Push] Token récupéré:', token.slice(0, 30) + '...')
 
     const platform = Platform.OS === 'ios' ? 'ios' : 'android'
-    await apiPost('/api/notifications/push-token', { token, platform })
+    await apiPost('/api/notifications/push-token', { token, platform, appType: 'consumer' })
       .then(() => console.log('[Push] Token enregistré côté serveur ✓'))
       .catch(err => console.warn('[Push] Erreur envoi token:', err?.message || err))
 
@@ -149,14 +159,24 @@ export function setupNotificationResponseListener(): () => void {
       case 'offer:new':
         if (data.requestId) router.push(`/request-offers?id=${data.requestId}`)
         break
-      case 'request:status-changed':
+      case 'offer:accepted':
+      case 'payment:held':
         if (data.requestId) router.push(`/mission/${data.requestId}`)
+        break
+      case 'request:status-changed':
+      case 'offer:counter-accepted':
+      case 'offer:counter-rejected':
+        if (data.requestId) router.push(`/mission/${data.requestId}`)
+        break
+      case 'chat:message':
+        if (data.requestId) router.push(`/mission-chat?id=${data.requestId}`)
         break
       case 'request:new':
         router.push('/my-requests')
         break
       default:
-        router.push('/notifications')
+        if (data.requestId) router.push(`/mission/${data.requestId}`)
+        else router.push('/notifications')
     }
   })
 

@@ -156,6 +156,7 @@ export function bindNotificationSocket() {
     const requestId = String(payload?.requestId || '')
     const status = String(payload?.status || '').toLowerCase()
     const map: Record<string, { title: string; body: string }> = {
+      provider_arriving: { title: '🚗 En route', body: 'Vous avez indiqué être en route vers le client.' },
       cancelled: { title: 'Mission annulée par le client', body: 'La mission a été annulée.' },
     }
     const meta = map[status]
@@ -179,9 +180,22 @@ export function bindNotificationSocket() {
     })
   }
 
+  const onChatMessage = (payload: any) => {
+    const requestId = String(payload?.requestId || '')
+    const senderRole = String(payload?.senderRole || '')
+    if (senderRole === 'provider') return
+    pushNotification({
+      kind: 'mission-update',
+      title: '💬 Nouveau message',
+      body: 'Le client vous a envoyé un message.',
+      link: requestId ? { pathname: `/mission-chat`, params: { id: requestId } } : undefined,
+    })
+  }
+
   socket.on('request:new', onRequestNew)
   socket.on('offer:accepted', onOfferAccepted)
   socket.on('offer:rejected', onOfferRejected)
   socket.on('offer:counter', onOfferCounter)
   socket.on('request:status-changed', onStatusChanged)
+  socket.on('chat:message', onChatMessage)
 }

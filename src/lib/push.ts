@@ -10,6 +10,7 @@ interface PushMessage {
   sound?: 'default' | null
   badge?: number
   channelId?: string
+  appType?: 'consumer' | 'provider'
 }
 
 /**
@@ -19,12 +20,14 @@ interface PushMessage {
 export async function sendPushToUser(userId: string, message: PushMessage): Promise<void> {
   try {
     await connectMongoose()
-    const tokens = await PushToken.find({ userId }).select('token').lean()
+    const query: any = { userId }
+    if (message.appType) query.appType = message.appType
+    const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
-      console.warn(`[Push] sendPushToUser(${userId}): aucun token enregistré`)
+      console.warn(`[Push] sendPushToUser(${userId}/${message.appType || 'any'}): aucun token enregistré`)
       return
     }
-    console.log(`[Push] → user ${userId}: ${tokens.length} token(s) — "${message.title}"`)
+    console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
 
     const messages = tokens.map((t: any) => ({
       to: t.token,
@@ -74,7 +77,7 @@ export async function sendPushToUsers(userIds: string[], message: PushMessage): 
 export async function sendPushToAllProviders(message: PushMessage, excludeUserId?: string): Promise<void> {
   try {
     await connectMongoose()
-    const query: any = {}
+    const query: any = { appType: 'provider' }
     if (excludeUserId) query.userId = { $ne: excludeUserId }
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {

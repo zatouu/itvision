@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import ChatMessage from '@/lib/models/ChatMessage'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
+import { sendPushToUser } from '@/lib/push'
 
 // GET /api/services/chat?requestId=xxx — historique des messages
 export async function GET(request: NextRequest) {
@@ -72,6 +73,18 @@ export async function POST(request: NextRequest) {
         senderRole,
         text: msg.text,
         createdAt: msg.createdAt,
+      })
+    }
+
+    // Push notification au destinataire (fire & forget)
+    const recipientId = isClient ? String(sr.assignedProviderId) : String(sr.clientId)
+    const recipientAppType = isClient ? 'provider' : 'consumer'
+    if (recipientId) {
+      void sendPushToUser(recipientId, {
+        title: `💬 ${isClient ? 'Client' : 'Prestataire'}: ${msg.text.slice(0, 50)}`,
+        body: msg.text.slice(0, 100),
+        data: { type: 'chat:message', requestId, senderRole },
+        appType: recipientAppType as 'consumer' | 'provider',
       })
     }
 

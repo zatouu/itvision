@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { apiGet, apiGetRetry } from '../src/api'
 import TabBar from '../src/components/TabBar'
 import { clearAuth, getAuthUser, subscribeAuth } from '../src/auth'
@@ -9,6 +10,7 @@ import { resetSocket } from '../src/socket'
 import LanguagePicker from '../src/components/LanguagePicker'
 
 export default function Profile() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0 })
   const [referral, setReferral] = useState<{ code: string; balance: number; count: number } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,7 @@ export default function Profile() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Mon profil</Text>
+        <Text style={s.headerTitle}>{t('profile.title')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -101,22 +103,22 @@ export default function Profile() {
         )}
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/wallet')}>
-          <Text style={s.menuText}>Mon portefeuille (points)</Text>
+          <Text style={s.menuText}>{t('profile.wallet')}</Text>
           <Text style={s.menuArrow}>→</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/my-requests')}>
-          <Text style={s.menuText}>Mes demandes</Text>
+          <Text style={s.menuText}>{t('home.myRequests')}</Text>
           <Text style={s.menuArrow}>→</Text>
         </TouchableOpacity>
 
         <View style={{ marginVertical: 16 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 8 }}>Langue / Language</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 8 }}>{t('profile.language')}</Text>
           <LanguagePicker />
         </View>
 
         <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); resetSocket(); router.replace('/login') }}>
-          <Text style={s.logoutText}>Déconnexion</Text>
+          <Text style={s.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
 

@@ -16,14 +16,24 @@
   },
   "auth": {
     "loginTitle": "Dalal jàmm ci Xeuy Bi",
-    "loginSub": "Gis sa liggéeykat ci simili yu néew",
-    "phonePlaceholder": "Nimero telefon",
-    "sendCode": "Jot kood bi",
+    "loginSub": "Liggéey yi kër ci Senegaal",
+    "phoneLabel": "Sa nimero telefon",
+    "phonePlaceholder": "77 123 45 67",
+    "sendCode": "Jot kood bi →",
+    "hint": "Dañu la yónnee kood bu saytu ci SMS",
+    "legal": "Bu nga kontine, nangu xëtu Xeuy yi.",
+    "errorPhone": "Nimero bi gaañ (9 sirf minima)",
+    "errorNetwork": "Internet amul",
+    "errorOtp": "Njuumte yónnee OTP",
     "verifyTitle": "Saytu",
     "verifySubPre": "Kood bi dañu ko yónnee ci ",
+    "verifySub": "Duggal kood bi nga jot ci SMS",
     "codePlaceholder": "Kood bu 6 sifr",
     "verify": "Saytu",
+    "verifying": "Di saytu...",
+    "errorVerify": "Kood bi juum walla jeex",
     "resend": "Yónnee kood bi",
+    "devCode": "Kood bu dev",
     "logout": "Génne"
   },
   "home": {
@@ -93,6 +103,44 @@
     "peinture": "Pentur",
     "climatisation": "Klima",
     "securite": "Kaarange"
+  },
+  "notifications": {
+    "title": "Xibaar",
+    "markAllRead": "Màngal lépp di jàng",
+    "empty": "Amul xibaar",
+    "clear": "Far lépp"
+  },
+  "profile": {
+    "title": "Profil",
+    "language": "Làkk",
+    "wallet": "Sama portmonney",
+    "kyc": "Saytu bopp",
+    "help": "Jàppale",
+    "about": "Ci mbirum",
+    "appVersion": "Versioŋ",
+    "memberSince": "Membre bi"
+  },
+  "chat": {
+    "title": "Baat",
+    "placeholder": "Sa baat...",
+    "whatsapp": "WhatsApp",
+    "empty": "Amul baat ba léegi",
+    "send": "Yónnee"
+  },
+  "payment": {
+    "title": "Fay",
+    "escrow": "Fay bu wóor",
+    "escrowSub": "Fay bi denc nañu ko ba misiyoŋ bi jeex",
+    "payNow": "Fay léegi",
+    "insufficientPoints": "Pwéñt yu néew",
+    "recharge": "Yokk"
+  },
+  "wallet": {
+    "title": "Portmonney",
+    "balance": "Solde",
+    "points": "Pwéñt",
+    "history": "Gest",
+    "noHistory": "Amul transaksiyoŋ"
   },
   "offline": {
     "badge": "{{count}} jëf(i) ngay xaar",

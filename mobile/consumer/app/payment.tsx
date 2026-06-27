@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { getAuthUser } from '../src/auth'
 
@@ -24,6 +25,7 @@ type WalletData = {
 }
 
 export default function PaymentScreen() {
+  const { t } = useTranslation()
   const { offerId, amount } = useLocalSearchParams<{ offerId: string; amount: string; requestId: string }>()
   const [selected, setSelected] = useState<Provider | null>(null)
   const [loading, setLoading] = useState(false)
@@ -48,11 +50,11 @@ export default function PaymentScreen() {
     if (!selected || !offerId) return
     if (!hasEnoughEscrowPoints) {
       Alert.alert(
-        'XC insuffisants',
-        `${escrowCost} XC sont requis pour sécuriser ce paiement. Votre solde actuel est de ${wallet?.points || 0} XC.`,
+        t('payment.insufficientPoints'),
+        `${escrowCost} XC ${t('payment.insufficientPoints').toLowerCase()}. ${wallet?.points || 0} XC.`,
         [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Recharger', onPress: () => router.push('/wallet') },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('payment.recharge'), onPress: () => router.push('/wallet') },
         ]
       )
       return
@@ -102,7 +104,7 @@ export default function PaymentScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Paiement sécurisé</Text>
+        <Text style={s.headerTitle}>{t('payment.escrow')}</Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -112,8 +114,8 @@ export default function PaymentScreen() {
           <Text style={s.amountValue}>{Number(amount || 0).toLocaleString('fr-FR')} FCFA</Text>
           <Text style={s.escrowHint}>
             {escrowSelected
-              ? 'Escrow : l’argent est sécurisé jusqu’à la fin de la mission'
-              : 'Paiement direct : pas de frais escrow XC'}
+              ? t('payment.escrowSub')
+              : t('payment.escrowSub')}
           </Text>
           {!walletLoading && escrowEnabled && !escrowMandatory && (
             <TouchableOpacity
@@ -180,7 +182,7 @@ export default function PaymentScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={s.payBtnText}>Payer {Number(amount || 0).toLocaleString('fr-FR')} FCFA</Text>
+            <Text style={s.payBtnText}>{t('payment.payNow')} {Number(amount || 0).toLocaleString('fr-FR')} FCFA</Text>
           )}
         </TouchableOpacity>
       </View>

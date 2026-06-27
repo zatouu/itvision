@@ -186,6 +186,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             title: label,
             body: `${sr.category} — votre mission a changé de statut.`,
             data: { type: 'request:status-changed', requestId: id, status: sr.status },
+            appType: 'consumer',
           })
         }
         // Notifier le provider si c'est le client qui annule
@@ -194,6 +195,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             title: label,
             body: `Le client a modifié le statut de la mission.`,
             data: { type: 'request:status-changed', requestId: id, status: sr.status },
+            appType: 'provider',
           })
         }
       }

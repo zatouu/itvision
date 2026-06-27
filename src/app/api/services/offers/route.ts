@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
       title: '💰 Nouvelle offre reçue',
       body: `${price.toLocaleString('fr-FR')} FCFA — ${comment ? comment.slice(0, 60) : 'Voir l\'offre'}`,
       data: { type: 'offer:new', requestId, offerId: String(created._id) },
+      appType: 'consumer',
     })
 
     return NextResponse.json({ success: true, item: created })

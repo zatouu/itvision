@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { setAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 
@@ -9,6 +10,7 @@ const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 const CODE_LENGTH = 6
 
 export default function VerifyOtp() {
+  const { t } = useTranslation()
   const { phone, _devCode } = useLocalSearchParams<{ phone: string; _devCode?: string }>()
   const [code, setCode] = useState('')
   const [referralCode, setReferralCode] = useState('')
@@ -32,7 +34,7 @@ export default function VerifyOtp() {
       })
       const data = await r.json()
       if (!r.ok) {
-        setErr(data.error || 'Erreur vérification')
+        setErr(data.error || t('auth.errorVerify'))
         setLoading(false)
         return
       }
@@ -43,7 +45,7 @@ export default function VerifyOtp() {
       // Naviguer vers l'accueil
       router.replace('/')
     } catch (e: any) {
-      setErr('Réseau indisponible')
+      setErr(t('auth.errorNetwork'))
     }
     setLoading(false)
   }
@@ -59,14 +61,14 @@ export default function VerifyOtp() {
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
 
-        <Text style={s.title}>Vérification</Text>
+        <Text style={s.title}>{t('auth.verifyTitle')}</Text>
         <Text style={s.subtitle}>
-          Code envoyé au <Text style={s.phoneBold}>{phone}</Text>
+          {t('auth.verifySubPre')}<Text style={s.phoneBold}>{phone}</Text>
         </Text>
 
         {_devCode ? (
           <View style={s.devBanner}>
-            <Text style={s.devText}>🧪 DEV — Code : {_devCode}</Text>
+            <Text style={s.devText}>🧪 {t('auth.devCode')}: {_devCode}</Text>
           </View>
         ) : null}
 
@@ -78,7 +80,7 @@ export default function VerifyOtp() {
             onChangeText={t => setCode(t.replace(/\D/g, '').slice(0, CODE_LENGTH))}
             keyboardType="number-pad"
             maxLength={CODE_LENGTH}
-            placeholder="• • • • • •"
+            placeholder={t('auth.codePlaceholder')}
             placeholderTextColor="#CBD5E1"
             autoComplete="one-time-code"
           />
@@ -101,11 +103,11 @@ export default function VerifyOtp() {
           disabled={loading || code.length !== CODE_LENGTH}
           onPress={verify}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Vérifier</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{t('auth.verify')}</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={resend} style={s.resendBtn}>
-          <Text style={s.resendText}>Renvoyer un code</Text>
+          <Text style={s.resendText}>{t('auth.resend')}</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>

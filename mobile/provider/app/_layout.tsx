@@ -5,9 +5,10 @@ import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
-import { registerPushToken, setupNotificationChannel, setupNotificationResponseListener, setupForegroundNotificationListener } from '../src/push'
-import { loadAuth, subscribeAuth, getAuthUser } from '../src/auth'
-import { initOfflineReplay } from '../src/api'
+import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener } from '../src/push'
+import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
+import { initOfflineReplay, setOnUnauthorized } from '../src/api'
+import { resetSocket } from '../src/socket'
 import { initSentry, setUser, clearUser } from '../src/sentry'
 import '../src/i18n'
 import { loadSavedLanguage } from '../src/i18n'
@@ -19,6 +20,18 @@ export default function Layout(){
   const segments = useSegments()
 
   useEffect(() => { initSentry() }, [])
+
+  // Notification handler — must be set before any notification can arrive
+  useEffect(() => { setupNotificationHandler() }, [])
+
+  // 401 interceptor: auto-logout on token expiry
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      clearAuth()
+      resetSocket()
+      router.replace('/login')
+    })
+  }, [])
 
   // Check OTA updates au boot
   useEffect(() => {
@@ -60,6 +73,12 @@ export default function Layout(){
     }
   }, [ready, loggedIn, segments])
 
+  // Notification response listener — set up early (before login) to catch cold-start taps
+  useEffect(() => {
+    const stopNotifResponse = setupNotificationResponseListener()
+    return () => stopNotifResponse()
+  }, [])
+
   useEffect(() => {
     if (!loggedIn) return
     loadNotifications()
@@ -68,11 +87,9 @@ export default function Layout(){
     setupNotificationChannel()
     registerPushToken()
     const stopQueueReplay = initOfflineReplay()
-    const stopNotifListener = setupNotificationResponseListener()
     const stopForegroundListener = setupForegroundNotificationListener()
     return () => {
       stopQueueReplay()
-      stopNotifListener()
       stopForegroundListener()
     }
   }, [loggedIn])

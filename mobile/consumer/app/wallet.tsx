@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, RefreshControl, Linking } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { getAuthUser } from '../src/auth'
 
@@ -49,6 +50,7 @@ const KIND_LABEL: Record<string, string> = {
 }
 
 export default function Wallet() {
+  const { t } = useTranslation()
   const [data, setData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -131,7 +133,7 @@ export default function Wallet() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Mon portefeuille</Text>
+        <Text style={s.headerTitle}>{t('wallet.title')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -140,7 +142,7 @@ export default function Wallet() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
         <View style={s.balanceCard}>
-          <Text style={s.balanceLabel}>Solde XC</Text>
+          <Text style={s.balanceLabel}>{t('wallet.balance')}</Text>
           <Text style={s.balanceValue}>{data?.points ?? 0}</Text>
           <Text style={s.balanceUnit}>Xeuy Coins</Text>
           {isFree ? (
@@ -202,9 +204,9 @@ export default function Wallet() {
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Historique</Text>
+          <Text style={s.sectionTitle}>{t('wallet.history')}</Text>
           {(!data?.history || data.history.length === 0) ? (
-            <Text style={s.empty}>Aucun mouvement pour le moment.</Text>
+            <Text style={s.empty}>{t('wallet.noHistory')}</Text>
           ) : (
             data.history.map(t => (
               <View key={t.id} style={s.txn}>

@@ -38,6 +38,7 @@ export const MARKETPLACE_ROUTES = [
   '/market',
   '/payment',
   '/paiement',
+  '/grains',
 ]
 
 // Routes API transversales (mobile / app) autorisées en CORS

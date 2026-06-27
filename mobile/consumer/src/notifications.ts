@@ -149,6 +149,7 @@ export function bindNotificationSocket() {
     const status = String(payload?.status || '').toLowerCase()
     if (!status) return
     const map: Record<string, { title: string; body: string }> = {
+      provider_arriving: { title: '🚗 Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
       in_progress: { title: 'Intervention démarrée', body: 'Le prestataire a démarré la mission.' },
       completed: { title: 'Mission terminée', body: 'Votre mission a été clôturée.' },
       cancelled: { title: 'Mission annulée', body: 'La mission a été annulée.' },
@@ -163,7 +164,20 @@ export function bindNotificationSocket() {
     })
   }
 
+  const onChatMessage = (payload: any) => {
+    const requestId = String(payload?.requestId || '')
+    const senderRole = String(payload?.senderRole || '')
+    if (senderRole === 'client') return
+    pushNotification({
+      kind: 'mission-update',
+      title: '💬 Nouveau message',
+      body: 'Le prestataire vous a envoyé un message.',
+      link: requestId ? { pathname: `/mission-chat`, params: { id: requestId } } : undefined,
+    })
+  }
+
   socket.on('user:offer-received', onOfferReceived)
   socket.on('user:request-assigned', onRequestAssigned)
   socket.on('request:status-changed', onStatusChanged)
+  socket.on('chat:message', onChatMessage)
 }

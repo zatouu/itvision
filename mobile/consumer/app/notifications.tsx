@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import TabBar from '../src/components/TabBar'
 import EmptyState from '../src/components/EmptyState'
 import {
@@ -33,6 +34,7 @@ function formatRelative(ts: number): string {
 }
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation()
   const [items, setItems] = useState<Notification[]>([])
   const [, setTick] = useState(0)
 
@@ -65,7 +67,7 @@ export default function NotificationsScreen() {
 
   const handleClear = async () => {
     if (items.length === 0) return
-    const ok = await confirm('Vider les notifications', 'Effacer toutes les notifications ?')
+    const ok = await confirm(t('notifications.clear'), t('notifications.clear'))
     if (!ok) return
     await clearNotifications()
   }
@@ -75,16 +77,16 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Text style={s.title}>Notifications</Text>
+        <Text style={s.title}>{t('notifications.title')}</Text>
         <View style={s.headerActions}>
           {hasUnread && (
             <TouchableOpacity onPress={handleMarkAll} style={s.headerBtn}>
-              <Text style={s.headerBtnText}>Tout lu</Text>
+              <Text style={s.headerBtnText}>{t('notifications.markAllRead')}</Text>
             </TouchableOpacity>
           )}
           {items.length > 0 && (
             <TouchableOpacity onPress={handleClear} style={[s.headerBtn, s.headerBtnDanger]}>
-              <Text style={[s.headerBtnText, s.headerBtnTextDanger]}>Vider</Text>
+              <Text style={[s.headerBtnText, s.headerBtnTextDanger]}>{t('notifications.clear')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -94,8 +96,8 @@ export default function NotificationsScreen() {
         {items.length === 0 ? (
           <EmptyState
             icon="🔔"
-            title="Aucune notification"
-            subtitle="Vos alertes (offres reçues, mises à jour mission) apparaîtront ici."
+            title={t('notifications.empty')}
+            subtitle=""
           />
         ) : (
           items.map(n => {

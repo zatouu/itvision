@@ -62,6 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         title: '✅ Contre-offre acceptée',
         body: `Le prestataire a accepté votre offre de ${offer.price.toLocaleString('fr-FR')} FCFA. Vous pouvez finaliser la mission.`,
         data: { type: 'offer:counter-accepted', offerId, requestId },
+        appType: 'consumer',
       })
 
       return NextResponse.json({ success: true, accepted: true, offer })
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         title: '❌ Contre-offre refusée',
         body: `Le prestataire a refusé votre offre de ${offer.clientCounterPrice?.toLocaleString('fr-FR')} FCFA.`,
         data: { type: 'offer:counter-rejected', offerId, requestId },
+        appType: 'consumer',
       })
 
       return NextResponse.json({ success: true, accepted: false, offer })

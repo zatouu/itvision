@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       title: '💰 Paiement reçu !',
       body: `${payment.amount.toLocaleString('fr-FR')} FCFA envoyés sur votre compte ${payment.provider}.`,
       data: { type: 'payment:released', requestId: String(requestId) },
+      appType: 'provider',
     })
 
     return NextResponse.json({ success: true, payment })

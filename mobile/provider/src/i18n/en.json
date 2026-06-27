@@ -17,13 +17,23 @@
   "auth": {
     "loginTitle": "Welcome to Xeuy Bi Pro",
     "loginSub": "Find jobs near you",
-    "phonePlaceholder": "Phone number",
-    "sendCode": "Get code",
+    "phoneLabel": "Your phone number",
+    "phonePlaceholder": "77 123 45 67",
+    "sendCode": "Get code →",
+    "hint": "We will send you a verification code by SMS",
+    "legal": "By continuing, you agree to Xeuy's terms of use.",
+    "errorPhone": "Number too short (9 digits minimum)",
+    "errorNetwork": "Network unavailable",
+    "errorOtp": "Error sending OTP",
     "verifyTitle": "Verification",
     "verifySubPre": "Code sent to ",
+    "verifySub": "Enter the code received by SMS",
     "codePlaceholder": "6-digit code",
     "verify": "Verify",
+    "verifying": "Verifying...",
+    "errorVerify": "Incorrect or expired code",
     "resend": "Resend code",
+    "devCode": "Dev code",
     "logout": "Log out"
   },
   "home": {
@@ -93,6 +103,36 @@
     "peinture": "Painting",
     "climatisation": "HVAC",
     "securite": "Security"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "clear": "Clear all"
+  },
+  "profile": {
+    "title": "Profile",
+    "language": "Language",
+    "wallet": "My wallet",
+    "kyc": "Identity verification",
+    "help": "Help & Support",
+    "about": "About",
+    "appVersion": "Version",
+    "memberSince": "Member since"
+  },
+  "chat": {
+    "title": "Chat",
+    "placeholder": "Your message...",
+    "whatsapp": "WhatsApp",
+    "empty": "No messages yet",
+    "send": "Send"
+  },
+  "wallet": {
+    "title": "Wallet",
+    "balance": "Balance",
+    "points": "Points",
+    "history": "History",
+    "noHistory": "No transactions"
   },
   "offline": {
     "badge": "{{count}} pending action(s)",

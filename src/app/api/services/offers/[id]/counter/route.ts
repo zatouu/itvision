@@ -70,6 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       title: '💬 Contre-offre reçue',
       body: `Le client propose ${price.toLocaleString('fr-FR')} FCFA au lieu de ${offer.price.toLocaleString('fr-FR')} FCFA`,
       data: { type: 'offer:counter', offerId: String(offer._id), requestId: String(offer.requestId) },
+      appType: 'provider',
     })
 
     return NextResponse.json({ success: true, offer })

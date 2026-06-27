@@ -7,6 +7,20 @@ import { captureError } from './sentry'
 
 const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 
+// ─── 401 unauthorized callback ───────────────────────────────────────────────
+// Set from _layout.tsx to avoid circular dependency (api → socket → api)
+let _onUnauthorized: (() => void) | null = null
+let _unauthorizedFired = false
+
+export function setOnUnauthorized(handler: () => void) {
+  _onUnauthorized = () => {
+    if (_unauthorizedFired) return
+    _unauthorizedFired = true
+    handler()
+    setTimeout(() => { _unauthorizedFired = false }, 3000)
+  }
+}
+
 export function getToken(): string | null { return getAuthToken() }
 export function getBaseUrl(): string { return base }
 
@@ -49,8 +63,11 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
 async function handleStatus(r: Response) {
   if (r.ok) return
   const body = await r.json().catch(() => ({}))
+  if (r.status === 401 && _onUnauthorized) {
+    _onUnauthorized()
+  }
   const msg =
-    r.status === 401 ? 'Non authentifié — token manquant ou expiré'
+    r.status === 401 ? 'Session expirée — veuillez vous reconnecter'
     : r.status === 403 ? 'Accès refusé'
     : r.status === 404 ? 'Ressource introuvable'
     : body.error || `Erreur serveur (${r.status})`

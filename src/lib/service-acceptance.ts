@@ -71,6 +71,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
       ? `Votre offre pour ${sr.category} a été retenue. Le paiement est sécurisé.`
       : `Votre offre pour ${sr.category} a été retenue. Rendez-vous mission.`,
     data: { type: 'offer:accepted', requestId, offerId },
+    appType: 'provider',
   })
 
   if (notifyClientPaymentHeld && typeof amount === 'number') {
@@ -78,6 +79,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
       title: '💳 Paiement sécurisé',
       body: `${amount.toLocaleString('fr-FR')} FCFA en escrow. Le prestataire est notifié.`,
       data: { type: 'payment:held', requestId },
+      appType: 'consumer',
     })
   }
 
@@ -88,6 +90,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
       body: `Un autre prestataire a été choisi pour cette demande.`,
       data: { type: 'offer:rejected', requestId },
       sound: null,
+      appType: 'provider',
     })
   }
 

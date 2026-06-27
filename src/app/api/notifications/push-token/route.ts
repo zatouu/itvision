@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
 
-    const { token, platform } = body as any
+    const { token, platform, appType } = body as any
 
     // Validation token Expo format: ExponentPushToken[...] ou ExpoPushToken[...]
     if (!token || typeof token !== 'string' || (!token.startsWith('ExponentPushToken[') && !token.startsWith('ExpoPushToken['))) {
@@ -19,17 +19,18 @@ export async function POST(request: NextRequest) {
     }
 
     const safePlatform = ['ios', 'android', 'web'].includes(platform) ? platform : 'android'
+    const safeAppType = ['consumer', 'provider'].includes(appType) ? appType : 'consumer'
 
     await connectMongoose()
 
     // Upsert : si le token existe déjà pour ce user, on met à jour
     await PushToken.findOneAndUpdate(
       { token },
-      { userId, token, platform: safePlatform },
+      { userId, token, platform: safePlatform, appType: safeAppType },
       { upsert: true, new: true }
     )
 
-    console.log(`[Push] Token enregistré pour user ${userId} (${safePlatform}): ${token.slice(0, 30)}...`)
+    console.log(`[Push] Token enregistré pour user ${userId} (${safePlatform}/${safeAppType}): ${token.slice(0, 30)}...`)
     return NextResponse.json({ success: true })
   } catch (e: any) {
     if (e.message === 'Non authentifié') {

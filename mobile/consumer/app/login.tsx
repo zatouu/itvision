@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 
 const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 
 export default function Login() {
+  const { t } = useTranslation()
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -14,7 +16,7 @@ export default function Login() {
     setErr(null)
     const cleaned = phone.replace(/[\s\-().]/g, '')
     if (cleaned.length < 9) {
-      setErr('Numéro trop court (9 chiffres minimum)')
+      setErr(t('auth.errorPhone'))
       return
     }
     setLoading(true)
@@ -26,14 +28,13 @@ export default function Login() {
       })
       const data = await r.json()
       if (!r.ok) {
-        setErr(data.error || 'Erreur envoi OTP')
+        setErr(data.error || t('auth.errorOtp'))
         setLoading(false)
         return
       }
-      // Naviguer vers l'écran OTP
       router.push({ pathname: '/verify-otp', params: { phone: data.phone, _devCode: data._devCode || '' } })
     } catch (e: any) {
-      setErr('Réseau indisponible')
+      setErr(t('auth.errorNetwork'))
     }
     setLoading(false)
   }
@@ -46,11 +47,11 @@ export default function Login() {
             <Text style={s.logoText}>X</Text>
           </View>
           <Text style={s.title}>Xeuy Bi</Text>
-          <Text style={s.subtitle}>Services à domicile au Sénégal</Text>
+          <Text style={s.subtitle}>{t('auth.loginSub')}</Text>
         </View>
 
         <View style={s.form}>
-          <Text style={s.label}>Votre numéro de téléphone</Text>
+          <Text style={s.label}>{t('auth.phoneLabel')}</Text>
           <View style={s.phoneRow}>
             <View style={s.prefix}>
               <Text style={s.prefixText}>🇸🇳 +221</Text>
@@ -59,14 +60,14 @@ export default function Login() {
               style={s.phoneInput}
               value={phone}
               onChangeText={setPhone}
-              placeholder="77 123 45 67"
+              placeholder={t('auth.phonePlaceholder')}
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               maxLength={15}
               autoFocus
             />
           </View>
-          <Text style={s.hint}>Nous vous enverrons un code de vérification par SMS</Text>
+          <Text style={s.hint}>{t('auth.hint')}</Text>
 
           {err && <Text style={s.errText}>{err}</Text>}
 
@@ -75,12 +76,12 @@ export default function Login() {
             disabled={loading || phone.replace(/\s/g, '').length < 9}
             onPress={sendOtp}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Recevoir le code →</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{t('auth.sendCode')}</Text>}
           </TouchableOpacity>
         </View>
 
         <Text style={s.legal}>
-          En continuant, vous acceptez les conditions d'utilisation de Xeuy.
+          {t('auth.legal')}
         </Text>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -17,13 +17,23 @@
   "auth": {
     "loginTitle": "Bienvenue sur Xeuy Bi Pro",
     "loginSub": "Trouvez des missions près de chez vous",
-    "phonePlaceholder": "Numéro de téléphone",
-    "sendCode": "Recevoir le code",
+    "phoneLabel": "Votre numéro de téléphone",
+    "phonePlaceholder": "77 123 45 67",
+    "sendCode": "Recevoir le code →",
+    "hint": "Nous vous enverrons un code de vérification par SMS",
+    "legal": "En continuant, vous acceptez les conditions d'utilisation de Xeuy.",
+    "errorPhone": "Numéro trop court (9 chiffres minimum)",
+    "errorNetwork": "Réseau indisponible",
+    "errorOtp": "Erreur envoi OTP",
     "verifyTitle": "Vérification",
     "verifySubPre": "Code envoyé au ",
+    "verifySub": "Entrez le code reçu par SMS",
     "codePlaceholder": "Code à 6 chiffres",
     "verify": "Vérifier",
+    "verifying": "Vérification...",
+    "errorVerify": "Code incorrect ou expiré",
     "resend": "Renvoyer le code",
+    "devCode": "Code de dev",
     "logout": "Déconnexion"
   },
   "home": {
@@ -95,6 +105,36 @@
     "peinture": "Peinture",
     "climatisation": "Climatisation",
     "securite": "Sécurité"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "empty": "Aucune notification",
+    "clear": "Effacer tout"
+  },
+  "profile": {
+    "title": "Profil",
+    "language": "Langue",
+    "wallet": "Mon portefeuille",
+    "kyc": "Vérification d'identité",
+    "help": "Aide & Support",
+    "about": "À propos",
+    "appVersion": "Version",
+    "memberSince": "Membre depuis"
+  },
+  "chat": {
+    "title": "Chat",
+    "placeholder": "Votre message...",
+    "whatsapp": "WhatsApp",
+    "empty": "Aucun message pour le moment",
+    "send": "Envoyer"
+  },
+  "wallet": {
+    "title": "Portefeuille",
+    "balance": "Solde",
+    "points": "Points",
+    "history": "Historique",
+    "noHistory": "Aucune transaction"
   },
   "offline": {
     "badge": "{{count}} action(s) en attente",

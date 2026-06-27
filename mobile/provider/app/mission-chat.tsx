@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
 import { getAuthUser } from '../src/auth'
@@ -15,6 +16,7 @@ type Message = {
 }
 
 export default function MissionChat() {
+  const { t } = useTranslation()
   const { id, clientName, clientPhone } = useLocalSearchParams<{ id: string; clientName?: string; clientPhone?: string }>()
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
@@ -105,11 +107,11 @@ export default function MissionChat() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={st.headerTitle}>{clientName || 'Client'}</Text>
-          <Text style={st.headerSub}>Chat mission</Text>
+          <Text style={st.headerSub}>{t('chat.title')}</Text>
         </View>
         {clientPhone && (
           <TouchableOpacity onPress={openWhatsApp} style={st.waBtn}>
-            <Text style={st.waText}>WhatsApp</Text>
+            <Text style={st.waText}>{t('chat.whatsapp')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -127,7 +129,7 @@ export default function MissionChat() {
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
               <View style={st.empty}>
-                <Text style={st.emptyText}>Aucun message. Commencez la conversation !</Text>
+                <Text style={st.emptyText}>{t('chat.empty')}</Text>
               </View>
             }
           />
@@ -137,7 +139,7 @@ export default function MissionChat() {
         <View style={st.inputRow}>
           <TextInput
             style={st.input}
-            placeholder="Votre message..."
+            placeholder={t('chat.placeholder')}
             placeholderTextColor="#94A3B8"
             value={text}
             onChangeText={setText}
