@@ -12,7 +12,6 @@ const features = [
     cta: 'Essayer',
     href: '/trouver-pour-moi',
     gradient: 'from-violet-600 to-purple-700',
-    image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&h=300&fit=crop',
   },
   {
     title: '🤝 Achats Groupés',
@@ -21,7 +20,6 @@ const features = [
     cta: 'Rejoindre',
     href: '/achats-groupes',
     gradient: 'from-emerald-500 to-green-600',
-    image: 'https://images.unsplash.com/photo-1578575437130-527eed3abb54?w=500&h=300&fit=crop',
   },
   {
     title: '🏭 Sourcing Direct',
@@ -30,7 +28,6 @@ const features = [
     cta: 'Devis 24h',
     href: '/sourcing',
     gradient: 'from-blue-600 to-indigo-700',
-    image: 'https://images.unsplash.com/photo-1586528116311-ad85dd3c4c7a?w=500&h=300&fit=crop',
   },
 ]
 
@@ -48,16 +45,9 @@ export default function FeatureBanners() {
               transition={{ delay: i * 0.1 }}
               whileHover={{ scale: 1.02 }}
             >
-              <Link href={f.href} className="block relative h-[180px] md:h-[200px] rounded-2xl overflow-hidden group shadow-sm hover:shadow-lg transition-shadow">
-                {/* Background image */}
-                <img
-                  src={f.image}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover"
-                  loading="lazy"
-                />
-                {/* Gradient overlay */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${f.gradient} opacity-90`} />
+              <Link href={f.href} className={`block relative h-[180px] md:h-[200px] rounded-2xl overflow-hidden group shadow-sm hover:shadow-lg transition-shadow bg-gradient-to-r ${f.gradient}`}>
+                {/* Subtle pattern overlay */}
+                <div className="absolute inset-0 bg-white/5 pointer-events-none" />
                 {/* Content */}
                 <div className="relative z-10 p-5 h-full flex flex-col justify-between text-white">
                   <div>

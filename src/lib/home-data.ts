@@ -62,14 +62,7 @@ export const heroSlides: HeroSlide[] = [
     cta: 'Voir les offres →',
     href: '/produits?promo=blackfriday',
     gradient: 'from-red-500 via-orange-500 to-amber-500',
-    images: [
-      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1572635196237-14b3f2815032?w=600&h=600&fit=crop',
-    ],
+    images: ['/file.svg', '/file.svg', '/file.svg', '/file.svg', '/file.svg', '/file.svg'],
   },
   {
     title: '🤝 Groupez-vous, économisez',
@@ -77,10 +70,7 @@ export const heroSlides: HeroSlide[] = [
     cta: 'Rejoindre un groupe',
     href: '/achats-groupes',
     gradient: 'from-emerald-500 via-green-500 to-teal-500',
-    images: [
-      'https://images.unsplash.com/photo-1578575437130-527eed3abb54?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1586528116311-ad85dd3c4c7a?w=600&h=600&fit=crop',
-    ],
+    images: ['/file.svg', '/file.svg'],
   },
   {
     title: '📸 Pas trouvé ?',
@@ -88,10 +78,7 @@ export const heroSlides: HeroSlide[] = [
     cta: 'Essayer',
     href: '/trouver-pour-moi',
     gradient: 'from-violet-600 via-purple-600 to-indigo-700',
-    images: [
-      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1565849904461-04a58ad8229c?w=600&h=600&fit=crop',
-    ],
+    images: ['/file.svg', '/file.svg'],
   },
 ]
 
@@ -113,48 +100,48 @@ export const quickCategories: QuickCategory[] = [
 
 // ─── Flash Sale Products ───
 export const flashSaleProducts: HomeProduct[] = [
-  { id: 'f1', name: 'Sac à main premium', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=300&h=300&fit=crop', price: 9900, originalPrice: 19800, currency: 'FCFA', stockLeft: 12, badges: ['-50%'] },
-  { id: 'f2', name: 'Blender multifonction 1000W', image: 'https://images.unsplash.com/photo-1570222094114-28a9d88f14de?w=300&h=300&fit=crop', price: 9900, originalPrice: 19800, currency: 'FCFA', stockLeft: 8, badges: ['-50%'] },
-  { id: 'f3', name: 'Casque gaming surround', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop', price: 7500, originalPrice: 15000, currency: 'FCFA', stockLeft: 23, badges: ['-50%'] },
-  { id: 'f4', name: 'Jouet bébé interactif', image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=300&h=300&fit=crop', price: 5500, originalPrice: 11000, currency: 'FCFA', stockLeft: 45, badges: ['-50%'] },
-  { id: 'f5', name: 'Palette maquillage 18 couleurs', image: 'https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=300&h=300&fit=crop', price: 5500, originalPrice: 11000, currency: 'FCFA', stockLeft: 19, badges: ['-50%'] },
-  { id: 'f6', name: 'Sneakers running homme', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop', price: 7900, originalPrice: 15800, currency: 'FCFA', stockLeft: 6, badges: ['-50%'] },
-  { id: 'f7', name: 'Montre connectée sport', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop', price: 9900, originalPrice: 19800, currency: 'FCFA', stockLeft: 15, badges: ['-50%'] },
-  { id: 'f8', name: 'Sèche-cheveux ionique', image: 'https://images.unsplash.com/photo-1522338242992-e1a43602f88a?w=300&h=300&fit=crop', price: 5500, originalPrice: 11000, currency: 'FCFA', stockLeft: 31, badges: ['-50%'] },
+  { id: 'f1', name: 'Sac à main premium', image: '/file.svg', price: 9900, originalPrice: 19800, currency: 'FCFA', stockLeft: 12, badges: ['-50%'] },
+  { id: 'f2', name: 'Blender multifonction 1000W', image: '/file.svg', price: 9900, originalPrice: 19800, currency: 'FCFA', stockLeft: 8, badges: ['-50%'] },
+  { id: 'f3', name: 'Casque gaming surround', image: '/file.svg', price: 7500, originalPrice: 15000, currency: 'FCFA', stockLeft: 23, badges: ['-50%'] },
+  { id: 'f4', name: 'Jouet bébé interactif', image: '/file.svg', price: 5500, originalPrice: 11000, currency: 'FCFA', stockLeft: 45, badges: ['-50%'] },
+  { id: 'f5', name: 'Palette maquillage 18 couleurs', image: '/file.svg', price: 5500, originalPrice: 11000, currency: 'FCFA', stockLeft: 19, badges: ['-50%'] },
+  { id: 'f6', name: 'Sneakers running homme', image: '/file.svg', price: 7900, originalPrice: 15800, currency: 'FCFA', stockLeft: 6, badges: ['-50%'] },
+  { id: 'f7', name: 'Montre connectée sport', image: '/file.svg', price: 9900, originalPrice: 19800, currency: 'FCFA', stockLeft: 15, badges: ['-50%'] },
+  { id: 'f8', name: 'Sèche-cheveux ionique', image: '/file.svg', price: 5500, originalPrice: 11000, currency: 'FCFA', stockLeft: 31, badges: ['-50%'] },
 ]
 
 export const flashSaleEndTime = new Date(Date.now() + 2 * 60 * 60 * 1000 + 34 * 60 * 1000 + 18 * 1000).toISOString() // 02:34:18 from now
 
 // ─── Active Group Buys ───
 export const activeGroupBuys: HomeGroupBuy[] = [
-  { id: 'g1', productId: 'p1', name: 'Fer à repasser vapeur 2200W', image: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?w=300&h=300&fit=crop', currentPrice: 6100, originalPrice: 11000, currency: 'FCFA', currentQty: 32, targetQty: 50, participants: 8, deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'g2', productId: 'p2', name: 'Set cosmétique 5 pièces', image: 'https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=300&h=300&fit=crop', currentPrice: 2500, originalPrice: 4500, currency: 'FCFA', currentQty: 18, targetQty: 30, participants: 5, deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'g3', productId: 'p3', name: 'Horloge LED digitale 3D', image: 'https://images.unsplash.com/photo-1563861826100-9cb868fdbe1c?w=300&h=300&fit=crop', currentPrice: 6000, originalPrice: 10000, currency: 'FCFA', currentQty: 45, targetQty: 50, participants: 12, deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'g4', productId: 'p4', name: 'GPS tracker véhicule', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=300&h=300&fit=crop', currentPrice: 2455, originalPrice: 4455, currency: 'FCFA', currentQty: 27, targetQty: 40, participants: 6, deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString() },
+  { id: 'g1', productId: 'p1', name: 'Fer à repasser vapeur 2200W', image: '/file.svg', currentPrice: 6100, originalPrice: 11000, currency: 'FCFA', currentQty: 32, targetQty: 50, participants: 8, deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() },
+  { id: 'g2', productId: 'p2', name: 'Set cosmétique 5 pièces', image: '/file.svg', currentPrice: 2500, originalPrice: 4500, currency: 'FCFA', currentQty: 18, targetQty: 30, participants: 5, deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString() },
+  { id: 'g3', productId: 'p3', name: 'Horloge LED digitale 3D', image: '/file.svg', currentPrice: 6000, originalPrice: 10000, currency: 'FCFA', currentQty: 45, targetQty: 50, participants: 12, deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() },
+  { id: 'g4', productId: 'p4', name: 'GPS tracker véhicule', image: '/file.svg', currentPrice: 2455, originalPrice: 4455, currency: 'FCFA', currentQty: 27, targetQty: 40, participants: 6, deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString() },
 ]
 
 // ─── Popular Products (multi-category) ───
 export const popularProducts: HomeProduct[] = [
-  { id: 'p1', name: 'Robe d\'été femme fleurie', image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=300&h=300&fit=crop', price: 8500, currency: 'FCFA', rating: 4.7, soldCount: 120, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p2', name: 'Écouteurs sans fil TWS', image: 'https://images.unsplash.com/photo-1590658268037-6bf10b5aba7b?w=300&h=300&fit=crop', price: 12000, currency: 'FCFA', rating: 4.5, soldCount: 89, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p3', name: 'Sac à main cuir PU', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=300&h=300&fit=crop', price: 15000, originalPrice: 22000, currency: 'FCFA', rating: 4.8, soldCount: 210, badges: ['-30%'], deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p4', name: 'Smartwatch fitness tracker', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop', price: 22000, currency: 'FCFA', rating: 4.6, soldCount: 340, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p5', name: 'Set rouge à lèvres 3 tons', image: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=300&h=300&fit=crop', price: 5500, currency: 'FCFA', rating: 4.3, soldCount: 67, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p6', name: 'Friteuse à air 5L digital', image: 'https://images.unsplash.com/photo-1626147116986-4602762e535a?w=300&h=300&fit=crop', price: 35000, originalPrice: 48000, currency: 'FCFA', rating: 4.9, soldCount: 56, badges: ['-27%'], deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p7', name: 'Sneakers tendance unisexe', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop', price: 18000, currency: 'FCFA', rating: 4.5, soldCount: 198, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p8', name: 'Sac à dos enfant cartoon', image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop', price: 7500, currency: 'FCFA', rating: 4.4, soldCount: 43, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p9', name: 'Sèche-cheveux ionique pro', image: 'https://images.unsplash.com/photo-1522338242992-e1a43602f88a?w=300&h=300&fit=crop', price: 14000, currency: 'FCFA', rating: 4.6, soldCount: 112, deliveryDays: 3, origin: 'Import Chine' },
-  { id: 'p10', name: 'Support téléphone voiture', image: 'https://images.unsplash.com/photo-1605333284018-1d7f879a8c0e?w=300&h=300&fit=crop', price: 3500, currency: 'FCFA', rating: 4.2, soldCount: 256, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p1', name: 'Robe d\'été femme fleurie', image: '/file.svg', price: 8500, currency: 'FCFA', rating: 4.7, soldCount: 120, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p2', name: 'Écouteurs sans fil TWS', image: '/file.svg', price: 12000, currency: 'FCFA', rating: 4.5, soldCount: 89, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p3', name: 'Sac à main cuir PU', image: '/file.svg', price: 15000, originalPrice: 22000, currency: 'FCFA', rating: 4.8, soldCount: 210, badges: ['-30%'], deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p4', name: 'Smartwatch fitness tracker', image: '/file.svg', price: 22000, currency: 'FCFA', rating: 4.6, soldCount: 340, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p5', name: 'Set rouge à lèvres 3 tons', image: '/file.svg', price: 5500, currency: 'FCFA', rating: 4.3, soldCount: 67, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p6', name: 'Friteuse à air 5L digital', image: '/file.svg', price: 35000, originalPrice: 48000, currency: 'FCFA', rating: 4.9, soldCount: 56, badges: ['-27%'], deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p7', name: 'Sneakers tendance unisexe', image: '/file.svg', price: 18000, currency: 'FCFA', rating: 4.5, soldCount: 198, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p8', name: 'Sac à dos enfant cartoon', image: '/file.svg', price: 7500, currency: 'FCFA', rating: 4.4, soldCount: 43, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p9', name: 'Sèche-cheveux ionique pro', image: '/file.svg', price: 14000, currency: 'FCFA', rating: 4.6, soldCount: 112, deliveryDays: 3, origin: 'Import Chine' },
+  { id: 'p10', name: 'Support téléphone voiture', image: '/file.svg', price: 3500, currency: 'FCFA', rating: 4.2, soldCount: 256, deliveryDays: 3, origin: 'Import Chine' },
 ]
 
 // ─── Showcase Categories ───
 export const showcaseCategories: ShowcaseCategory[] = [
-  { label: 'Mode & Vêtements', href: '/produits?cat=mode', image: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=600&h=400&fit=crop', productCount: 2400, color: 'from-pink-500/60' },
-  { label: 'Beauté & Cosmétiques', href: '/produits?cat=beaute', image: 'https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=600&h=400&fit=crop', productCount: 1800, color: 'from-violet-500/60' },
-  { label: 'Maison & Déco', href: '/produits?cat=maison', image: 'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=600&h=400&fit=crop', productCount: 1200, color: 'from-orange-500/60' },
-  { label: 'Électronique', href: '/produits?cat=electronique', image: 'https://images.unsplash.com/photo-1498049860654-af1a5c5668ba?w=600&h=400&fit=crop', productCount: 3500, color: 'from-blue-500/60' },
-  { label: 'Auto & Moto', href: '/produits?cat=auto', image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&h=400&fit=crop', productCount: 900, color: 'from-slate-700/70' },
-  { label: 'Sport & Outdoor', href: '/produits?cat=sport', image: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=600&h=400&fit=crop', productCount: 1500, color: 'from-emerald-500/60' },
+  { label: 'Mode & Vêtements', href: '/produits?cat=mode', image: '/file.svg', productCount: 2400, color: 'from-pink-500/60' },
+  { label: 'Beauté & Cosmétiques', href: '/produits?cat=beaute', image: '/file.svg', productCount: 1800, color: 'from-violet-500/60' },
+  { label: 'Maison & Déco', href: '/produits?cat=maison', image: '/file.svg', productCount: 1200, color: 'from-orange-500/60' },
+  { label: 'Électronique', href: '/produits?cat=electronique', image: '/file.svg', productCount: 3500, color: 'from-blue-500/60' },
+  { label: 'Auto & Moto', href: '/produits?cat=auto', image: '/file.svg', productCount: 900, color: 'from-slate-700/70' },
+  { label: 'Sport & Outdoor', href: '/produits?cat=sport', image: '/file.svg', productCount: 1500, color: 'from-emerald-500/60' },
 ]
 
 // ─── Search Chips ───

@@ -23,16 +23,9 @@ export default function CategoryShowcase() {
             >
               <Link
                 href={cat.href}
-                className="block relative h-[200px] md:h-[280px] rounded-2xl overflow-hidden group"
+                className={`block relative h-[200px] md:h-[280px] rounded-2xl overflow-hidden group bg-gradient-to-t ${cat.color} to-transparent`}
               >
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} to-transparent`} />
-                <div className="absolute inset-0 bg-black/30" />
+                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors" />
                 <div className="absolute bottom-4 left-4 text-white">
                   <h3 className="font-bold text-lg md:text-xl">{cat.label}</h3>
                   <p className="text-sm opacity-90">{cat.productCount.toLocaleString('fr-FR')}+ produits</p>

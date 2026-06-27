@@ -133,7 +133,7 @@ export default function RealizationsSlider() {
           <div 
             className="w-full h-full bg-cover bg-center transition-all duration-700"
             style={{
-              backgroundImage: `url('${currentRealization?.image || ''}'), url('https://images.unsplash.com/photo-${currentRealization?.category === 'team' ? '1571019613454-1cb2f99b2d8b' : '1558618666-fabe5d0cbeb8'}?w=1200&h=400&fit=crop')`
+              backgroundImage: `url('${currentRealization?.image || ''}')`
             }}
           />
         </div>
