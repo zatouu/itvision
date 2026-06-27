@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
-import { isMarketDomain, getHost } from '@/lib/middleware/domain'
+import { isMarketDomain, getHost, isProxyRoutingEnabled } from '@/lib/middleware/domain'
 import { isPublicRoute, isMarketplaceRoute, isMobileApiRoute, getRequiredRole } from '@/lib/middleware/routes'
 import { handleCorsPreflight, getMobileCorsHeaders, injectCorsHeaders } from '@/lib/middleware/cors'
 import { applySecurityHeaders, applyApiSecurityHeaders } from '@/lib/middleware/security'
@@ -60,42 +60,45 @@ export async function middleware(request: NextRequest) {
   }
 
   // ─── ROUTAGE PAR SOUS-DOMAINE ───
+  // En production, Nginx gère les sous-domaines via PROXY_SUBDOMAIN_ROUTING=true.
+  // Le middleware conserve la logique en dev ou en mode autonome.
+  if (!isProxyRoutingEnabled()) {
+    // Sur market.itvisionplus.sn : rediriger les routes non-marketplace vers le site principal
+    if (onMarketDomain) {
+      if (pathname === '/') {
+        const marketHomeUrl = new URL('/market', request.url)
+        return NextResponse.rewrite(marketHomeUrl)
+      }
 
-  // Sur market.itvisionplus.sn : rediriger les routes non-marketplace vers le site principal
-  if (onMarketDomain) {
-    if (pathname === '/') {
-      const marketHomeUrl = new URL('/market', request.url)
-      return NextResponse.rewrite(marketHomeUrl)
+      const isAllowedOnMarket =
+        pathname.startsWith('/login') ||
+        pathname.startsWith('/register') ||
+        pathname.startsWith('/forgot-password') ||
+        pathname.startsWith('/reset-password') ||
+        pathname.startsWith('/api/') ||
+        pathname.startsWith('/produits') ||
+        pathname.startsWith('/compte') ||
+        pathname.startsWith('/messages') ||
+        isMarketplaceRoute(pathname)
+
+      if (!isAllowedOnMarket) {
+        const marketHomeUrl = new URL('/market', request.url)
+        return NextResponse.redirect(marketHomeUrl)
+      }
     }
 
-    const isAllowedOnMarket =
-      pathname.startsWith('/login') ||
-      pathname.startsWith('/register') ||
-      pathname.startsWith('/forgot-password') ||
-      pathname.startsWith('/reset-password') ||
-      pathname.startsWith('/api/') ||
-      pathname.startsWith('/produits') ||
-      pathname.startsWith('/compte') ||
-      pathname.startsWith('/messages') ||
-      isMarketplaceRoute(pathname)
-
-    if (!isAllowedOnMarket) {
-      const marketHomeUrl = new URL('/market', request.url)
-      return NextResponse.redirect(marketHomeUrl)
-    }
-  }
-
-  // Sur itvisionplus.sn : rediriger les routes marketplace vers market.itvisionplus.sn
-  if (!onMarketDomain) {
-    if (isMarketplaceRoute(pathname)) {
-      const marketUrl = new URL(pathname, request.url)
-      marketUrl.host = `market.${host}`
-      return NextResponse.redirect(marketUrl)
-    }
-    // /produits sur le site principal → vitrine corporate B2B/B2C
-    if (pathname === '/produits' || pathname.startsWith('/produits/')) {
-      const corporateUrl = new URL(pathname.replace('/produits', '/corporate-produits'), request.url)
-      return NextResponse.rewrite(corporateUrl)
+    // Sur itvisionplus.sn : rediriger les routes marketplace vers market.itvisionplus.sn
+    if (!onMarketDomain) {
+      if (isMarketplaceRoute(pathname)) {
+        const marketUrl = new URL(pathname, request.url)
+        marketUrl.host = `market.${host}`
+        return NextResponse.redirect(marketUrl)
+      }
+      // /produits sur le site principal → vitrine corporate B2B/B2C
+      if (pathname === '/produits' || pathname.startsWith('/produits/')) {
+        const corporateUrl = new URL(pathname.replace('/produits', '/corporate-produits'), request.url)
+        return NextResponse.rewrite(corporateUrl)
+      }
     }
   }
 

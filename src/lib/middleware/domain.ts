@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server'
 
 export type ProjectDomain = 'corporate' | 'marketplace' | 'services' | 'unknown'
 
+export function isProxyRoutingEnabled(): boolean {
+  return process.env.PROXY_SUBDOMAIN_ROUTING === 'true'
+}
+
 export function getHost(request: NextRequest): string {
   return request.headers.get('host') || request.nextUrl.host || ''
 }

@@ -451,7 +451,9 @@ OLLAMA_BASE_URL=http://localhost:11434
 - [x] Intégrer les profils dans les endpoints existants (`/api/wallet`, `/api/client-enterprise/me`, `/compte`).
 - [x] Ajouter les champs `channels` et `corporateVisible` au `AdminProductManager` + actions groupées.
 - [x] Documenter les namespaces et l’intégration des profils dans le DAT.
-- [ ] Déplacer le middleware subdomain dans un reverse proxy (Nginx / Vercel) ou garder un middleware par projet.
+- [x] Déplacer le middleware subdomain dans un reverse proxy (Nginx / Vercel) ou garder un middleware par projet.
+  - Choix : Nginx reste le reverse proxy en production. Le middleware Next.js conserve la logique en dev via `PROXY_SUBDOMAIN_ROUTING=true` qui désactive les rewrites/redirects.
+  - Config ajoutée : `docker/nginx/production.conf` avec `server` blocks séparés pour `itvisionplus.sn`, `market.itvisionplus.sn`, `services.itvisionplus.sn` / `app.itvisionplus.sn`.
 
 ### Phase 3 — Séparation des frontends
 
