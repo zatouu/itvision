@@ -1,7 +1,8 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import i18n from 'i18next'
 
-interface Props { children: React.ReactNode }
+interface Props { children: React.ReactNode; onReset?: () => void }
 interface State { hasError: boolean; error: string }
 
 export default class ErrorBoundary extends React.Component<Props, State> {
@@ -16,6 +17,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   handleRetry = () => {
+    this.props.onReset?.()
     this.setState({ hasError: false, error: '' })
   }
 
@@ -24,10 +26,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       return (
         <View style={s.container}>
           <Text style={s.icon}>⚠️</Text>
-          <Text style={s.title}>Oups, une erreur est survenue</Text>
+          <Text style={s.title}>{i18n.t('error.title')}</Text>
           <Text style={s.msg}>{this.state.error}</Text>
-          <TouchableOpacity style={s.btn} onPress={this.handleRetry}>
-            <Text style={s.btnText}>Réessayer</Text>
+          <TouchableOpacity style={s.btn} onPress={this.handleRetry} accessibilityRole="button" accessibilityLabel="Réessayer">
+            <Text style={s.btnText}>{i18n.t('error.retry')}</Text>
           </TouchableOpacity>
         </View>
       )

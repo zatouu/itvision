@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Loader2, Sparkles } from 'lucide-react'
+import GrainsHeader from '@/components/grains/GrainsHeader'
 import GrainsHero from '@/components/grains/GrainsHero'
+import QuickActions from '@/components/grains/QuickActions'
 import DailyCheckIn from '@/components/grains/DailyCheckIn'
 import ChallengesGrid from '@/components/grains/ChallengesGrid'
 import PrizeWheel from '@/components/grains/PrizeWheel'
@@ -13,6 +15,7 @@ import MonthlyContest from '@/components/grains/MonthlyContest'
 import VIPTiersLadder from '@/components/grains/VIPTiersLadder'
 import ReferralBanner from '@/components/grains/ReferralBanner'
 import TransactionsHistory from '@/components/grains/TransactionsHistory'
+import EarnMoreCarousel from '@/components/grains/EarnMoreCarousel'
 
 interface DashboardData {
   success: boolean
@@ -138,24 +141,38 @@ export default function GrainsPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <GrainsHeader balance={data.user.balance} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <GrainsHero name={data.user.name} balance={data.user.balance} tier={data.user.tier} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-            <div>
-              <DailyCheckIn
-                checkedInToday={data.checkIn.checkedInToday}
-                streak={data.checkIn.streak}
-                totalDays={data.checkIn.totalDays}
-                onCheckIn={handleCheckIn}
-              />
-              <PrizeWheel canSpinFree={data.wheel.canSpinFree} onSpin={handleSpin} />
+          <QuickActions
+            canSpinFree={data.wheel.canSpinFree}
+            checkedInToday={data.checkIn.checkedInToday}
+            streak={data.checkIn.streak}
+            completedChallenges={data.challenges.filter((c) => c.completed && c.claimed).length}
+            totalChallenges={data.challenges.length}
+          />
+
+          <DailyCheckIn
+            checkedInToday={data.checkIn.checkedInToday}
+            streak={data.checkIn.streak}
+            totalDays={data.checkIn.totalDays}
+            onCheckIn={handleCheckIn}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <PrizeWheel canSpinFree={data.wheel.canSpinFree} onSpin={handleSpin} />
+                <RewardsShop rewards={data.rewards} balance={data.user.balance} onRedeem={handleRedeem} />
+              </div>
               <ChallengesGrid challenges={data.challenges} onClaim={handleClaim} />
-              <RewardsShop rewards={data.rewards} balance={data.user.balance} onRedeem={handleRedeem} />
+              <EarnMoreCarousel />
               <MonthlyContest contest={data.contest} />
             </div>
-            <div>
+            <div className="space-y-6">
               <VIPTiersLadder tiers={data.tiers} balance={data.user.balance} progressToNext={data.progressToNext} />
               <ReferralBanner referralCode={data.user.referralCode} />
               <TransactionsHistory transactions={data.transactions} />

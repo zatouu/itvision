@@ -32,7 +32,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (sr.selectedOfferId) {
       acceptedOffer = await Offer.findById(sr.selectedOfferId).lean()
     }
-    return NextResponse.json({ item: { ...sr, offerCount, pendingOfferCount, acceptedOffer } })
+    let payment = null
+    if (sr.selectedOfferId) {
+      payment = await Payment.findOne({ requestId: id, status: { $in: ['pending', 'held', 'released', 'refunded', 'failed'] } })
+        .select('status provider amount useEscrow').lean()
+    }
+    return NextResponse.json({ item: { ...sr, offerCount, pendingOfferCount, acceptedOffer, payment } })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[GET /api/services/requests/:id]', e)

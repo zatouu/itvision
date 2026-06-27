@@ -4,14 +4,12 @@ import {
   TouchableWithoutFeedback,
   Animated,
   PanResponder,
-  Dimensions,
+  useWindowDimensions,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native'
-
-const SCREEN_H = Dimensions.get('window').height
 
 type Props = {
   visible: boolean
@@ -21,7 +19,8 @@ type Props = {
 }
 
 export default function BottomSheet({ visible, onClose, children, maxHeight }: Props) {
-  const sheetH = maxHeight ?? SCREEN_H * 0.85
+  const { height: screenH } = useWindowDimensions()
+  const sheetH = maxHeight ?? screenH * 0.85
   const translateY = useRef(new Animated.Value(sheetH)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
   const isVisible = useRef(false)
@@ -96,7 +95,7 @@ export default function BottomSheet({ visible, onClose, children, maxHeight }: P
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <TouchableWithoutFeedback onPress={hide}>
+      <TouchableWithoutFeedback onPress={hide} accessibilityLabel="Fermer le panneau" accessibilityRole="button">
         <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]} />
       </TouchableWithoutFeedback>
 

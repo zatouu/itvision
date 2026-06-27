@@ -1,12 +1,22 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Image, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native'
+import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import MapView, { Marker } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
+
+const PAYMENT_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  pending:   { label: '⏳ Paiement en attente',     color: '#92400E', bg: '#FFFBEB' },
+  held:      { label: '🔒 Paiement sécurisé',       color: '#065F46', bg: '#ECFDF5' },
+  released:  { label: '💰 Paiement libéré',         color: '#1E3A8A', bg: '#EFF6FF' },
+  refunded:  { label: '↩️ Paiement remboursé',      color: '#991B1B', bg: '#FEF2F2' },
+  failed:    { label: '❌ Paiement échoué',          color: '#991B1B', bg: '#FEF2F2' },
+}
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   assigned:           { label: 'À démarrer',       color: '#065F46', bg: '#ECFDF5' },
@@ -85,7 +95,7 @@ function hasValidCoords(location: any): location is { coordinates: [number, numb
   )
 }
 
-export default function ActiveMission() {
+function ActiveMission() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
@@ -270,6 +280,14 @@ export default function ActiveMission() {
               <Text style={[s.statusText, { color: st?.color }]}>{st?.label}</Text>
             </View>
 
+            {item.payment && PAYMENT_BADGE[item.payment.status] && (
+              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
+                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
+                  {PAYMENT_BADGE[item.payment.status].label}
+                </Text>
+              </View>
+            )}
+
             {item.status !== 'cancelled' && (
               <View style={s.card}>
                 <Text style={s.cardTitle}>Progression</Text>
@@ -452,3 +470,5 @@ const s = StyleSheet.create({
   mapFallback: { backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0', marginTop: 8 },
   mapFallbackText: { color: '#15803D', fontWeight: '700', fontSize: 14 },
 })
+
+export default withScreenBoundary(ActiveMission, 'ActiveMission')

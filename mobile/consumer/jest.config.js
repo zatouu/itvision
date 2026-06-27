@@ -8,5 +8,7 @@ module.exports = {
     '^@react-native-async-storage/async-storage$': '<rootDir>/src/__mocks__/async-storage.ts',
     '^@react-native-community/netinfo$': '<rootDir>/src/__mocks__/netinfo.ts',
     '^react-native$': '<rootDir>/src/__mocks__/react-native.ts',
+    '^expo-constants$': '<rootDir>/src/__mocks__/expo-constants.ts',
+    '^expo-device$': '<rootDir>/src/__mocks__/expo-device.ts',
   },
 }

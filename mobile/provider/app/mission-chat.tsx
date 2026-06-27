@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
 import { getAuthUser } from '../src/auth'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 type Message = {
   _id: string
@@ -15,7 +16,7 @@ type Message = {
   createdAt: string
 }
 
-export default function MissionChat() {
+function MissionChat() {
   const { t } = useTranslation()
   const { id, clientName, clientPhone } = useLocalSearchParams<{ id: string; clientName?: string; clientPhone?: string }>()
   const [messages, setMessages] = useState<Message[]>([])
@@ -188,3 +189,5 @@ const st = StyleSheet.create({
   sendBtnDisabled: { opacity: 0.3 },
   sendBtnText: { fontSize: 18, color: '#fff' },
 })
+
+export default withScreenBoundary(MissionChat, 'MissionChat')

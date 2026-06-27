@@ -76,21 +76,17 @@ async function handleStatus(r: Response) {
   throw err
 }
 
-export async function apiGet(path: string) {
-  const r = await fetchWithTimeout(base + path, {
-    headers: authHeaders(),
-  })
-  await handleStatus(r)
-  return r.json()
-}
-
-/** GET with retry + backoff for resilient reads */
-export async function apiGetRetry(path: string, maxRetries = 2) {
+export async function apiGet(path: string, maxRetries = 2) {
   const r = await fetchWithRetry(base + path, {
     headers: authHeaders(),
   }, maxRetries)
   await handleStatus(r)
   return r.json()
+}
+
+/** Alias for apiGet — kept for backward compatibility */
+export async function apiGetRetry(path: string, maxRetries = 2) {
+  return apiGet(path, maxRetries)
 }
 
 export async function apiPost(path: string, body: Record<string, unknown>) {
@@ -117,7 +113,7 @@ export async function apiUpload(fileUri: string, filename: string, contentType: 
   if (Platform.OS === 'web') {
     const formData = new FormData()
     const blob = await fetch(fileUri).then(res => res.blob())
-    formData.append('file', blob, filename)
+    ;(formData.append as any)('file', blob, filename)
     formData.append('type', 'requests')
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)

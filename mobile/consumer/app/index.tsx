@@ -11,6 +11,7 @@ import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import EmptyState from '../src/components/EmptyState'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
   created:        { label: 'Publiée',           color: '#2563EB', dot: '#2563EB' },
@@ -41,7 +42,7 @@ function greetingByHour(): string {
   return 'Bonsoir'
 }
 
-export default function Home() {
+function Home() {
   const [recent, setRecent] = useState<any[]>([])
   const [stats, setStats] = useState({ active: 0, offers: 0 })
   const [userName, setUserName] = useState<string>('')
@@ -270,3 +271,5 @@ const s = StyleSheet.create({
   catMonogramText: { fontSize: 14, fontWeight: '800', color: '#fff' },
   catLabel: { fontSize: 11, fontWeight: '600', color: '#374151', textAlign: 'center' },
 })
+
+export default withScreenBoundary(Home, 'Home')

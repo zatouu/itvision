@@ -8,17 +8,19 @@ import { fetchWithCache, cacheClear } from '../src/storage'
 import { confirm } from '../src/confirm'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
+import { SkeletonCard } from '../src/components/Skeleton'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
-const STATUS_OFFER: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  submitted: { label: 'En attente',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
-  accepted:  { label: 'Acceptée',   color: '#065F46', bg: '#ECFDF5', dot: '#16A34A' },
-  rejected:  { label: 'Refusée',    color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
-  withdrawn: { label: 'Retirée',    color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
-  expired:   { label: 'Expirée',    color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
+const STATUS_OFFER: Record<string, { key: string; color: string; bg: string; dot: string }> = {
+  submitted: { key: 'offers.status_submitted',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
+  accepted:  { key: 'offers.status_accepted',   color: '#065F46', bg: '#ECFDF5', dot: '#16A34A' },
+  rejected:  { key: 'offers.status_rejected',    color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
+  withdrawn: { key: 'offers.status_withdrawn',    color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
+  expired:   { key: 'offers.status_expired',    color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
 }
 
 function formatCountdown(ms: number): string {
-  if (!isFinite(ms) || ms <= 0) return 'Expirée'
+  if (!isFinite(ms) || ms <= 0) return ''
   const totalSec = Math.floor(ms / 1000)
   const h = Math.floor(totalSec / 3600)
   const m = Math.floor((totalSec % 3600) / 60)
@@ -28,7 +30,7 @@ function formatCountdown(ms: number): string {
   return `${s}s`
 }
 
-export default function RequestOffers() {
+function RequestOffers() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const [offers, setOffers] = useState<any[]>([])
   const [serviceRequest, setServiceRequest] = useState<any>(null)
@@ -136,8 +138,8 @@ export default function RequestOffers() {
 
   const acceptOffer = async (offerId: string, price: number) => {
     const ok = await confirm(
-      'Confirmer le choix',
-      `Accepter cette offre à ${price.toLocaleString('fr-FR')} FCFA ?`
+      t('offers.confirmTitle'),
+      t('offers.confirmMsg', { price: price.toLocaleString('fr-FR') })
     )
     if (!ok) return
     router.push(`/payment?offerId=${offerId}&amount=${price}&requestId=${id}`)
@@ -154,7 +156,7 @@ export default function RequestOffers() {
     if (!counterOfferId || !counterPrice) return
     const price = Number(counterPrice.replace(/\s/g, ''))
     if (!price || price <= 0) {
-      Alert.alert('Prix invalide', 'Veuillez entrer un prix supérieur à 0')
+      Alert.alert(t('offers.invalidPrice'), t('offers.invalidPriceMsg'))
       return
     }
     setCounterLoading(true)
@@ -167,10 +169,10 @@ export default function RequestOffers() {
       setCounterOfferId(null)
       setCounterPrice('')
       setCounterComment('')
-      Alert.alert('Contre-offre envoyée', 'Le prestataire va être notifié de votre proposition.')
+      Alert.alert(t('offers.counterSent'), t('offers.counterSentMsg'))
       load(true)
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible d\'envoyer la contre-offre')
+      Alert.alert(t('common.error'), e.message || t('offers.counterError'))
     }
     setCounterLoading(false)
   }
@@ -183,7 +185,7 @@ export default function RequestOffers() {
   }, [serviceRequest, id])
 
   const isAssigned = serviceRequest?.status === 'assigned' || serviceRequest?.status === 'in_progress'
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [catMap, setCatMap] = useState<Record<string, { abbr: string; color: string; label: string }>>({})
   useEffect(() => {
     loadCategories().then(cats => {
@@ -200,7 +202,7 @@ export default function RequestOffers() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.title}>Offres reçues</Text>
+        <Text style={s.title}>{t('offers.title')}</Text>
         <View style={s.countBadge}>
           <Text style={s.countText}>{offers.length}</Text>
         </View>
@@ -228,16 +230,20 @@ export default function RequestOffers() {
       <View style={s.rtRow}>
         <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
         <View style={[s.rtDot2, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8', opacity: 0.4 }]} />
-        <Text style={s.rtText}>Mise à jour en temps réel</Text>
+        <Text style={s.rtText}>{t('offers.realtimeUpdate')}</Text>
       </View>
 
       {loading ? (
-        <View style={s.center}><ActivityIndicator size="large" color="#2563EB" /></View>
+        <ScrollView contentContainerStyle={s.list}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScrollView>
       ) : err ? (
         <View style={s.center}>
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
-            <Text style={s.retryTxt}>Réessayer</Text>
+            <Text style={s.retryTxt}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -247,8 +253,8 @@ export default function RequestOffers() {
         >
           {offers.length === 0 ? (
             <View style={s.empty}>
-              <Text style={s.emptyTitle}>Aucune offre pour l'instant</Text>
-              <Text style={s.emptyText}>Les prestataires proches verront votre demande et proposeront leurs prix. Tirez vers le bas pour actualiser.</Text>
+              <Text style={s.emptyTitle}>{t('offers.noOffers')}</Text>
+              <Text style={s.emptyText}>{t('offers.noOffersSub')}</Text>
             </View>
           ) : (
             offers.map(offer => {
@@ -273,19 +279,19 @@ export default function RequestOffers() {
                       <Text style={s.avatarText}>{initials}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.providerName}>{displayName || `Prestataire ${initials}`}</Text>
+                      <Text style={s.providerName}>{displayName || t('offers.providerInitials', { initials })}</Text>
                       <View style={s.chips}>
                         {offer.etaMinutes ? (
-                          <View style={s.chip}><Text style={s.chipText}>⏱ Arr. {offer.etaMinutes} min</Text></View>
+                          <View style={s.chip}><Text style={s.chipText}>{t('offers.arrIn', { min: offer.etaMinutes })}</Text></View>
                         ) : null}
                           {offer.providerRating ? (
                           <View style={s.chipRating}><Text style={s.chipRatingText}>★ {offer.providerRating.avg} ({offer.providerRating.count})</Text></View>
                         ) : null}
                         {offer.providerVerified ? (
-                          <View style={s.chipVerified}><Text style={s.chipVerifiedText}>✓ Vérifié</Text></View>
+                          <View style={s.chipVerified}><Text style={s.chipVerifiedText}>{t('offers.verified')}</Text></View>
                         ) : null}
                         {offer.status === 'submitted' && !isExpired ? (
-                          <View style={s.chipAvail}><Text style={s.chipAvailText}>Disponible</Text></View>
+                          <View style={s.chipAvail}><Text style={s.chipAvailText}>{t('offers.available')}</Text></View>
                         ) : null}
                         {offer.validUntil && !isAccepted && !requestDone ? (
                           <View style={[
@@ -298,7 +304,7 @@ export default function RequestOffers() {
                               isExpired && s.chipExpiredText,
                               !isExpired && validMs < 120_000 && s.chipUrgentText,
                             ]}>
-                              {isExpired ? '⌛ Expirée' : `⏳ ${countdownLabel}`}
+                              {isExpired ? `⌛ ${t('offers.expired')}` : `⏳ ${countdownLabel}`}
                             </Text>
                           </View>
                         ) : null}
@@ -308,7 +314,7 @@ export default function RequestOffers() {
                       <Text style={s.price}>{Number(offer.price).toLocaleString('fr-FR')} FCFA</Text>
                       <View style={[s.badge, { backgroundColor: st.bg }]}>
                         <View style={[s.dot, { backgroundColor: st.dot }]} />
-                        <Text style={[s.badgeText, { color: st.color }]}>{st.label}</Text>
+                        <Text style={[s.badgeText, { color: st.color }]}>{t(st.key)}</Text>
                       </View>
                     </View>
                   </View>
@@ -320,24 +326,24 @@ export default function RequestOffers() {
                   {/* Indicateur de contre-offre */}
                   {offer.clientCounterStatus === 'pending' && (
                     <View style={s.counterPendingBanner}>
-                      <Text style={s.counterPendingText}>💬 Votre contre-offre de {Number(offer.clientCounterPrice).toLocaleString('fr-FR')} FCFA est en attente…</Text>
+                      <Text style={s.counterPendingText}>{t('offers.counterPending', { price: Number(offer.clientCounterPrice).toLocaleString('fr-FR') })}</Text>
                     </View>
                   )}
                   {offer.clientCounterStatus === 'accepted' && (
                     <View style={s.counterAcceptedBanner}>
-                      <Text style={s.counterAcceptedText}>✅ Contre-offre acceptée ! Nouveau prix : {Number(offer.price).toLocaleString('fr-FR')} FCFA</Text>
+                      <Text style={s.counterAcceptedText}>{t('offers.counterAcceptedText', { price: Number(offer.price).toLocaleString('fr-FR') })}</Text>
                       <TouchableOpacity
                         style={s.payNewPriceBtn}
                         onPress={() => acceptOffer(offer._id, offer.price)}
                         activeOpacity={0.85}
                       >
-                        <Text style={s.payNewPriceBtnText}>Payer et confirmer</Text>
+                        <Text style={s.payNewPriceBtnText}>{t('offers.payAndConfirm')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
                   {offer.clientCounterStatus === 'rejected' && (
                     <View style={s.counterRejectedBanner}>
-                      <Text style={s.counterRejectedText}>❌ Le prestataire a refusé votre contre-offre de {Number(offer.clientCounterPrice).toLocaleString('fr-FR')} FCFA</Text>
+                      <Text style={s.counterRejectedText}>{t('offers.counterRejectedText', { price: Number(offer.clientCounterPrice).toLocaleString('fr-FR') })}</Text>
                     </View>
                   )}
 
@@ -348,27 +354,27 @@ export default function RequestOffers() {
                         onPress={() => openCounterModal(offer._id, offer.price)}
                         activeOpacity={0.85}
                       >
-                        <Text style={s.negotiateBtnText}>💬 Négocier</Text>
+                        <Text style={s.negotiateBtnText}>{t('offers.negotiate')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={s.acceptBtn}
                         onPress={() => acceptOffer(offer._id, offer.price)}
                         activeOpacity={0.85}
                       >
-                        <Text style={s.acceptBtnText}>Choisir</Text>
+                        <Text style={s.acceptBtnText}>{t('offers.choose')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
 
                   {isExpired && offer.status !== 'accepted' && offer.status !== 'rejected' && (
                     <View style={s.expiredBanner}>
-                      <Text style={s.expiredText}>⌛ Cette offre a expiré</Text>
+                      <Text style={s.expiredText}>{t('offers.expiredBanner')}</Text>
                     </View>
                   )}
 
                   {isAccepted && (
                     <View style={s.acceptedBanner}>
-                      <Text style={s.acceptedText}>✓ Prestataire notifié — mission en cours</Text>
+                      <Text style={s.acceptedText}>{t('offers.acceptedBanner')}</Text>
                     </View>
                   )}
                 </View>
@@ -387,23 +393,23 @@ export default function RequestOffers() {
       >
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Proposer un autre prix</Text>
-            <Text style={s.modalSubtitle}>Le prestataire recevra votre proposition en temps réel.</Text>
-            <Text style={s.modalLabel}>Votre prix (FCFA)</Text>
+            <Text style={s.modalTitle}>{t('offers.counterModalTitle')}</Text>
+            <Text style={s.modalSubtitle}>{t('offers.counterModalSub')}</Text>
+            <Text style={s.modalLabel}>{t('offers.counterPriceLabel')}</Text>
             <TextInput
               style={s.modalInput}
               value={counterPrice}
               onChangeText={setCounterPrice}
               keyboardType="numeric"
-              placeholder="Ex: 12000"
+              placeholder={t('offers.counterPricePlaceholder')}
               placeholderTextColor="#94A3B8"
             />
-            <Text style={s.modalLabel}>Commentaire (optionnel)</Text>
+            <Text style={s.modalLabel}>{t('offers.counterCommentLabel')}</Text>
             <TextInput
               style={[s.modalInput, { height: 72 }]}
               value={counterComment}
               onChangeText={setCounterComment}
-              placeholder="Ex: C'est urgent, j'accepte 12 000 max"
+              placeholder={t('offers.counterCommentPlaceholder')}
               placeholderTextColor="#94A3B8"
               multiline
               maxLength={200}
@@ -414,7 +420,7 @@ export default function RequestOffers() {
                 onPress={() => setCounterModal(false)}
                 disabled={counterLoading}
               >
-                <Text style={s.modalBtnCancelText}>Annuler</Text>
+                <Text style={s.modalBtnCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.modalBtn, s.modalBtnSend]}
@@ -424,7 +430,7 @@ export default function RequestOffers() {
                 {counterLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={s.modalBtnSendText}>Envoyer</Text>
+                  <Text style={s.modalBtnSendText}>{t('common.send')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -519,3 +525,5 @@ const s = StyleSheet.create({
   modalBtnSend: { backgroundColor: '#0F172A' },
   modalBtnSendText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 })
+
+export default withScreenBoundary(RequestOffers, 'RequestOffers')

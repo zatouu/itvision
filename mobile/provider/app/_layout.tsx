@@ -5,14 +5,13 @@ import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
-import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener } from '../src/push'
+import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized } from '../src/api'
 import { resetSocket } from '../src/socket'
 import { initSentry, setUser, clearUser } from '../src/sentry'
 import '../src/i18n'
 import { loadSavedLanguage } from '../src/i18n'
-import ErrorBoundary from '../src/components/ErrorBoundary'
 
 export default function Layout(){
   const [ready, setReady] = useState(false)
@@ -70,6 +69,8 @@ export default function Layout(){
       router.replace('/login')
     } else if (loggedIn && onAuthScreen) {
       router.replace('/')
+    } else if (loggedIn) {
+      flushPendingNavigation()
     }
   }, [ready, loggedIn, segments])
 
@@ -105,11 +106,9 @@ export default function Layout(){
   }
 
   return (
-    <ErrorBoundary>
-      <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </SafeAreaProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SafeAreaProvider>
   )
 }
 

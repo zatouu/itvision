@@ -3,10 +3,13 @@ import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator,
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued } from '../src/api'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { useTranslation } from 'react-i18next'
 
-const TAGS = ['Ponctuel', 'Propre', 'Professionnel', 'Bon prix', 'Rapide', 'Communicatif']
+const TAG_KEYS = ['tag_punctual', 'tag_clean', 'tag_pro', 'tag_goodPrice', 'tag_fast', 'tag_communicative'] as const
 
-export default function RateMission() {
+function RateMission() {
+  const { t } = useTranslation()
   const { id, providerName } = useLocalSearchParams<{ id: string; providerName?: string }>()
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
@@ -22,7 +25,7 @@ export default function RateMission() {
   }
 
   const submit = async () => {
-    if (rating === 0) { setError('Veuillez donner une note'); return }
+    if (rating === 0) { setError(t('rating.selectRating')); return }
     setLoading(true)
     setError(null)
     try {
@@ -31,10 +34,10 @@ export default function RateMission() {
         rating,
         comment: comment.trim() || undefined,
         tags: selectedTags,
-      }, 'Votre avis sera envoyé dès le retour réseau.')
+      }, t('rating.queuedOffline'))
       setSubmitted(true)
     } catch (e: any) {
-      setError(e.message || 'Erreur lors de l\'envoi')
+      setError(e.message || t('rating.errorSubmit'))
     } finally {
       setLoading(false)
     }
@@ -45,10 +48,10 @@ export default function RateMission() {
       <SafeAreaView style={s.safe}>
         <View style={s.successContainer}>
           <Text style={s.successEmoji}>🎉</Text>
-          <Text style={s.successTitle}>Merci pour votre avis !</Text>
-          <Text style={s.successText}>Votre note aide la communauté Xeuy à s'améliorer.</Text>
-          <TouchableOpacity style={s.btn} onPress={() => router.replace('/')}>
-            <Text style={s.btnText}>Retour à l'accueil</Text>
+          <Text style={s.successTitle}>{t('rating.thanks')}</Text>
+          <Text style={s.successText}>{t('rating.thanksSub')}</Text>
+          <TouchableOpacity style={s.btn} onPress={() => router.back()}>
+            <Text style={s.btnText}>{t('rating.backToMission')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -62,12 +65,12 @@ export default function RateMission() {
           {/* Header */}
           <View style={s.header}>
             <TouchableOpacity onPress={() => router.back()} style={s.skipBtn}>
-              <Text style={s.skipText}>Plus tard</Text>
+              <Text style={s.skipText}>{t('rating.later')}</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={s.title}>Comment s'est passée l'intervention ?</Text>
-          {providerName && <Text style={s.subtitle}>Notez {providerName}</Text>}
+          <Text style={s.title}>{t('rating.howWasIt')}</Text>
+          {providerName && <Text style={s.subtitle}>{t('rating.rateProvider', { name: providerName })}</Text>}
 
           {/* Étoiles */}
           <View style={s.starsRow}>
@@ -78,28 +81,31 @@ export default function RateMission() {
             ))}
           </View>
           <Text style={s.ratingLabel}>
-            {rating === 0 ? 'Appuyez sur une étoile' :
-             rating === 1 ? 'Très insatisfait' :
-             rating === 2 ? 'Insatisfait' :
-             rating === 3 ? 'Correct' :
-             rating === 4 ? 'Satisfait' :
-             'Excellent !'}
+            {rating === 0 ? t('rating.tapStar') :
+             rating === 1 ? t('rating.veryDissatisfied') :
+             rating === 2 ? t('rating.dissatisfied') :
+             rating === 3 ? t('rating.ok') :
+             rating === 4 ? t('rating.satisfied') :
+             t('rating.excellent')}
           </Text>
 
           {/* Tags rapides */}
           {rating >= 3 && (
             <View style={s.tagsSection}>
-              <Text style={s.tagsTitle}>Qu'avez-vous apprécié ? (optionnel)</Text>
+              <Text style={s.tagsTitle}>{t('rating.whatDidYouLike')}</Text>
               <View style={s.tagsRow}>
-                {TAGS.map(tag => (
+                {TAG_KEYS.map(key => {
+                  const tag = t(`rating.${key}`)
+                  return (
                   <TouchableOpacity
-                    key={tag}
+                    key={key}
                     style={[s.tag, selectedTags.includes(tag) && s.tagActive]}
                     onPress={() => toggleTag(tag)}
                   >
                     <Text style={[s.tagText, selectedTags.includes(tag) && s.tagTextActive]}>{tag}</Text>
                   </TouchableOpacity>
-                ))}
+                  )
+                })}
               </View>
             </View>
           )}
@@ -107,7 +113,7 @@ export default function RateMission() {
           {/* Commentaire */}
           <TextInput
             style={s.input}
-            placeholder="Un commentaire ? (optionnel)"
+            placeholder={t('rating.commentPlaceholder')}
             placeholderTextColor="#94A3B8"
             value={comment}
             onChangeText={setComment}
@@ -125,7 +131,7 @@ export default function RateMission() {
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.btnText}>Envoyer mon avis</Text>
+              : <Text style={s.btnText}>{t('rating.submit')}</Text>
             }
           </TouchableOpacity>
         </ScrollView>
@@ -164,3 +170,5 @@ const s = StyleSheet.create({
   successTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A' },
   successText: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 22 },
 })
+
+export default withScreenBoundary(RateMission, 'RateMission')

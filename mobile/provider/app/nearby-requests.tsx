@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Image } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native'
+import { Image } from 'expo-image'
 import BottomSheet from '../src/components/BottomSheet'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
@@ -10,6 +11,7 @@ import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
 import { confirm } from '../src/confirm'
 import { getProviderName } from '../src/user-profile'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { SkeletonCard } from '../src/components/Skeleton'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
@@ -30,7 +32,7 @@ const VALIDITY_OPTIONS: { mins: number; label: string }[] = [
 
 type ViewMode = 'map' | 'list'
 
-export default function NearbyRequests() {
+function NearbyRequests() {
   const [items, setItems] = useState<any[]>([])
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -46,7 +48,7 @@ export default function NearbyRequests() {
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [catMap, setCatMap] = useState<Record<string, { abbr: string; color: string; label: string }>>({})
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function NearbyRequests() {
   const locate = async (): Promise<{ lat: number; lng: number } | null> => {
     const { status } = await Location.requestForegroundPermissionsAsync()
     if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Activez la localisation pour voir les demandes près de vous.')
+      Alert.alert(t('nearby.permissionRequired'), t('nearby.permissionMsg'))
       return lastCoordsRef.current
     }
 
@@ -92,7 +94,7 @@ export default function NearbyRequests() {
       // Si on a déjà eu la "last known", on garde celle-là. Sinon on signale l'erreur.
       if (first) return first
       if (lastCoordsRef.current) return lastCoordsRef.current
-      setErr('Localisation indisponible. Vérifiez le GPS / réseau et réessayez.')
+      setErr(t('nearby.locationError'))
       return null
     }
   }
@@ -123,7 +125,7 @@ export default function NearbyRequests() {
       )
     } catch (e: any) {
       const msg = e?.message || String(e)
-      setErr('Erreur: ' + msg)
+      setErr(t('nearby.loadError', { msg }))
       setLoading(false)
       setRefreshing(false)
     }
@@ -143,7 +145,7 @@ export default function NearbyRequests() {
   useEffect(() => {
     const socket = connectSocket()
     const handleAccepted = (_data: any) => {
-      Alert.alert('Offre acceptée !', 'Un client a choisi votre offre. La mission démarre.')
+      Alert.alert(t('nearby.offerAccepted'), t('nearby.offerAcceptedMsg'))
       const c = coordsRef.current
       if (c) cacheClear(`nearby-${Math.round(c.lat * 10)}-${Math.round(c.lng * 10)}`)
     }
@@ -174,12 +176,12 @@ export default function NearbyRequests() {
         comment,
         validityMinutes,
         providerName: getProviderName(),
-      }, 'Offre enregistrée hors ligne — sera envoyée dès le retour réseau.')
+      }, t('nearby.offerQueuedOffline'))
       setSentId(selected._id)
       setSelected(null)
       setPrice(''); setComment(''); setEta('30'); setValidityMinutes(30)
       if (r) setItems(prev => prev.filter(it => it._id !== selected._id))
-    } catch (e: any) { setErr('Erreur envoi: ' + e.message) }
+    } catch (e: any) { setErr(t('nearby.sendError', { msg: e.message })) }
     setSending(false)
   }
 
@@ -210,7 +212,7 @@ export default function NearbyRequests() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.title}>Demandes proches</Text>
+        <Text style={s.title}>{t('nearby.title')}</Text>
         <TouchableOpacity onPress={async () => { const c = await locate(); await load(c, true) }} style={s.refreshBtn}>
           <Text style={s.refreshIcon}>↻</Text>
         </TouchableOpacity>
@@ -222,14 +224,14 @@ export default function NearbyRequests() {
           style={[s.toggleBtn, viewMode === 'map' && s.toggleBtnActive]}
           onPress={() => setViewMode('map')}
         >
-          <Text style={[s.toggleTxt, viewMode === 'map' && s.toggleTxtActive]}>Carte</Text>
+          <Text style={[s.toggleTxt, viewMode === 'map' && s.toggleTxtActive]}>{t('nearby.map')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.toggleBtn, viewMode === 'list' && s.toggleBtnActive]}
           onPress={() => setViewMode('list')}
         >
           <Text style={[s.toggleTxt, viewMode === 'list' && s.toggleTxtActive]}>
-            Liste {items.length > 0 ? `(${items.length})` : ''}
+            {t('nearby.list')} {items.length > 0 ? `(${items.length})` : ''}
           </Text>
         </TouchableOpacity>
       </View>
@@ -237,7 +239,7 @@ export default function NearbyRequests() {
       {sentId && (
         <View style={s.successBanner}>
           <View style={s.successDot} />
-          <Text style={s.successText}>Offre envoyée avec succès</Text>
+          <Text style={s.successText}>{t('nearby.offerSent')}</Text>
         </View>
       )}
 
@@ -251,7 +253,7 @@ export default function NearbyRequests() {
         <View style={s.center}>
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
-            <Text style={s.retryTxt}>Réessayer</Text>
+            <Text style={s.retryTxt}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : viewMode === 'map' ? (
@@ -259,10 +261,10 @@ export default function NearbyRequests() {
         <View style={s.mapContainer}>
           {Platform.OS === 'web' ? (
             <View style={s.center}>
-              <Text style={s.emptyTitle}>Carte non disponible sur web</Text>
-              <Text style={s.emptyText}>Basculez en mode Liste pour voir les demandes proches.</Text>
+              <Text style={s.emptyTitle}>{t('nearby.mapWeb')}</Text>
+              <Text style={s.emptyText}>{t('nearby.mapWebSub')}</Text>
               <TouchableOpacity style={s.retryBtn} onPress={() => setViewMode('list')}>
-                <Text style={s.retryTxt}>Voir la liste</Text>
+                <Text style={s.retryTxt}>{t('nearby.viewList')}</Text>
               </TouchableOpacity>
             </View>
           ) : coords && mapRegion ? (
@@ -309,7 +311,7 @@ export default function NearbyRequests() {
               {/* Légende */}
               <View style={s.mapLegend}>
                 <View style={s.legendDot} />
-                <Text style={s.legendText}>Zone {RADIUS_KM} km — {items.length} demande{items.length > 1 ? 's' : ''}</Text>
+                <Text style={s.legendText}>{t('nearby.legend', { radius: RADIUS_KM, count: items.length })}</Text>
               </View>
 
               {/* Recentrer */}
@@ -323,7 +325,7 @@ export default function NearbyRequests() {
           ) : (
             <View style={s.center}>
               <ActivityIndicator size="large" color="#059669" />
-              <Text style={s.loadingText}>Localisation en cours…</Text>
+              <Text style={s.loadingText}>{t('nearby.locating')}</Text>
             </View>
           )}
         </View>
@@ -336,8 +338,8 @@ export default function NearbyRequests() {
           {items.length === 0 && (
             <EmptyState
               icon="📍"
-              title="Aucune demande proche"
-              subtitle="Aucune demande dans un rayon de 10 km. Tirez vers le bas pour actualiser."
+              title={t('nearby.noRequests')}
+              subtitle={t('nearby.noRequestsSub')}
             />
           )}
 
@@ -375,9 +377,9 @@ export default function NearbyRequests() {
                 return <VoicePlayer uri={fullUri} />
               })()}
               <View style={s.cardFoot}>
-                {it.budget ? <Text style={s.budget}>Budget: {Number(it.budget).toLocaleString('fr-FR')} FCFA</Text> : <Text style={s.budgetNone}>Budget non précisé</Text>}
+                {it.budget ? <Text style={s.budget}>{t('nearby.budget', { amount: Number(it.budget).toLocaleString('fr-FR') })}</Text> : <Text style={s.budgetNone}>{t('nearby.budgetNone')}</Text>}
                 <TouchableOpacity style={s.offerChip} onPress={() => { setSelected(it); setSentId(null) }}>
-                  <Text style={s.offerChipText}>Faire une offre</Text>
+                  <Text style={s.offerChipText}>{t('nearby.makeOffer')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -387,7 +389,7 @@ export default function NearbyRequests() {
 
       {/* Bottom sheet offre */}
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
-        <Text style={s.modalTitle}>Votre offre</Text>
+        <Text style={s.modalTitle}>{t('nearby.yourOffer')}</Text>
         {selected && (
           <View style={s.modalRecap}>
             <View style={s.modalCatRow}>
@@ -397,19 +399,19 @@ export default function NearbyRequests() {
               <View style={{ flex: 1 }}>
                 <Text style={s.modalCat}>{catMap[selected.category]?.label || selected.category}</Text>
                 {selected._distance ? (
-                  <Text style={s.modalDist}>{distLabel(selected._distance)} de vous</Text>
+                  <Text style={s.modalDist}>{t('nearby.distFromYou', { dist: distLabel(selected._distance) })}</Text>
                 ) : null}
               </View>
             </View>
             {selected.description ? <Text style={s.modalDesc} numberOfLines={2}>{selected.description}</Text> : null}
             {selected.budget ? (
               <View style={{ gap: 6 }}>
-                <Text style={s.modalBudget}>Budget client: {Number(selected.budget).toLocaleString('fr-FR')} FCFA</Text>
+                <Text style={s.modalBudget}>{t('nearby.clientBudget', { amount: Number(selected.budget).toLocaleString('fr-FR') })}</Text>
                 <TouchableOpacity
                   style={s.acceptBudgetBtn}
                   onPress={() => setPrice(String(selected.budget))}
                 >
-                  <Text style={s.acceptBudgetBtnText}>✓ Accepter ce budget</Text>
+                  <Text style={s.acceptBudgetBtnText}>{t('nearby.acceptBudget')}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -417,7 +419,7 @@ export default function NearbyRequests() {
         )}
 
         {/* Prix rapides */}
-        <Text style={s.modalLabel}>Prix (FCFA) *</Text>
+        <Text style={s.modalLabel}>{t('nearby.priceLabel')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {QUICK_PRICES.map(p => (
@@ -427,12 +429,12 @@ export default function NearbyRequests() {
             ))}
           </View>
         </ScrollView>
-        <TextInput style={s.input} value={price} onChangeText={setPrice} placeholder="Prix libre (ex: 12000)" keyboardType="numeric" placeholderTextColor="#9CA3AF" />
+        <TextInput style={s.input} value={price} onChangeText={setPrice} placeholder={t('nearby.pricePlaceholder')} keyboardType="numeric" placeholderTextColor="#9CA3AF" />
 
-        <Text style={s.modalLabel}>Délai d'arrivée (min)</Text>
+        <Text style={s.modalLabel}>{t('nearby.etaLabel')}</Text>
         <TextInput style={s.input} value={eta} onChangeText={setEta} keyboardType="numeric" placeholderTextColor="#9CA3AF" />
 
-        <Text style={s.modalLabel}>Validité de l'offre</Text>
+        <Text style={s.modalLabel}>{t('nearby.validityLabel')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {VALIDITY_OPTIONS.map(v => (
@@ -447,17 +449,17 @@ export default function NearbyRequests() {
           </View>
         </ScrollView>
 
-        <Text style={s.modalLabel}>Message (optionnel)</Text>
-        <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder="Ex: J'ai 5 ans d'expérience..." multiline placeholderTextColor="#9CA3AF" />
+        <Text style={s.modalLabel}>{t('nearby.messageLabel')}</Text>
+        <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder={t('nearby.messagePlaceholder')} multiline placeholderTextColor="#9CA3AF" />
 
         {err && <Text style={s.errText}>{err}</Text>}
 
         <View style={s.modalActions}>
           <TouchableOpacity style={s.cancelBtn} onPress={() => setSelected(null)}>
-            <Text style={s.cancelTxt}>Annuler</Text>
+            <Text style={s.cancelTxt}>{t('common.cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.sendBtn, (!price || sending) && s.sendBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
-            {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.sendTxt}>Envoyer l'offre</Text>}
+            {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.sendTxt}>{t('nearby.sendOfferBtn')}</Text>}
           </TouchableOpacity>
         </View>
       </BottomSheet>
@@ -537,3 +539,5 @@ const s = StyleSheet.create({
   sendBtnDisabled: { opacity: 0.4 },
   sendTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
 })
+
+export default withScreenBoundary(NearbyRequests, 'NearbyRequests')

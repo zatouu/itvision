@@ -7,6 +7,8 @@ import { connectSocket } from '../src/socket'
 import TabBar from '../src/components/TabBar'
 import { SkeletonCard } from '../src/components/Skeleton'
 import EmptyState from '../src/components/EmptyState'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { useTranslation } from 'react-i18next'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   submitted: { label: 'En attente',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
@@ -25,7 +27,8 @@ const MISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: 
   cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: '❌ Mission annulée.' },
 }
 
-export default function MyOffers() {
+function MyOffers() {
+  const { t } = useTranslation()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -45,7 +48,7 @@ export default function MyOffers() {
       const r = await apiGet('/api/services/offers?mine=1')
       setItems(Array.isArray(r?.items) ? r.items : [])
     } catch (e: any) {
-      setErr(e?.message || 'Impossible de charger les offres')
+      setErr(e?.message || t('offers.loadError'))
     } finally {
       busyRef.current = false
       if (isRefresh) setRefreshing(false)
@@ -112,14 +115,12 @@ export default function MyOffers() {
     try {
       const r = await apiPost(`/api/services/offers/${offerId}/counter-response`, { accept })
       Alert.alert(
-        accept ? 'Contre-offre acceptée' : 'Contre-offre refusée',
-        accept
-          ? 'Le prix de votre offre a été mis à jour. Le client peut maintenant payer.'
-          : 'Vous avez refusé la contre-offre du client.'
+        accept ? t('offers.counterAcceptTitle') : t('offers.counterRejectTitle'),
+        accept ? t('offers.counterAcceptMsg') : t('offers.counterRejectMsg')
       )
       load(true)
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de répondre')
+      Alert.alert(t('common.error'), e.message || t('offers.errorRespond'))
     }
     setRespondLoading(null)
   }
@@ -131,7 +132,7 @@ export default function MyOffers() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.title}>Mes offres</Text>
+        <Text style={s.title}>{t('offers.title')}</Text>
         <TouchableOpacity onPress={() => router.push('/nearby-requests')} style={s.addBtn}>
           <Text style={{ fontSize: 18 }}>🗺️</Text>
         </TouchableOpacity>
@@ -142,11 +143,11 @@ export default function MyOffers() {
         <View style={s.statsRow}>
           <View style={s.statCard}>
             <Text style={s.statNum}>{items.length}</Text>
-            <Text style={s.statLabel}>Total</Text>
+            <Text style={s.statLabel}>{t('offers.total')}</Text>
           </View>
           <View style={s.statCard}>
             <Text style={[s.statNum, { color: '#16A34A' }]}>{totalAccepted}</Text>
-            <Text style={s.statLabel}>Acceptées</Text>
+            <Text style={s.statLabel}>{t('offers.accepted')}</Text>
           </View>
           <View style={s.statCard}>
             <Text style={[s.statNum, { color: '#0F172A' }]}>{totalRevenu.toLocaleString('fr-FR')}</Text>
@@ -160,17 +161,17 @@ export default function MyOffers() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Rechercher catégorie, prix, commentaire..."
+            placeholder={t('offers.search')}
             placeholderTextColor="#94A3B8"
             style={s.searchInput}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterChips}>
             {[
-              ['all', 'Toutes'],
-              ['active', 'Actives'],
-              ['pending', 'En attente'],
-              ['counter', `Contre-offres${counterCount > 0 ? ` (${counterCount})` : ''}`],
-              ['done', 'Terminées'],
+              ['all', t('offers.all')],
+              ['active', t('offers.active')],
+              ['pending', t('offers.pending')],
+              ['counter', `${t('offers.counter')}${counterCount > 0 ? ` (${counterCount})` : ''}`],
+              ['done', t('offers.done')],
             ].map(([key, label]) => (
               <TouchableOpacity key={key} style={[s.filterChip, statusFilter === key && s.filterChipActive]} onPress={() => setStatusFilter(key as any)}>
                 <Text style={[s.filterChipText, statusFilter === key && s.filterChipTextActive]}>{label}</Text>
@@ -191,7 +192,7 @@ export default function MyOffers() {
           <Text style={{ fontSize: 40 }}>⚠️</Text>
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
-            <Text style={s.retryTxt}>Réessayer</Text>
+            <Text style={s.retryTxt}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -202,9 +203,9 @@ export default function MyOffers() {
           {filteredItems.length === 0 && (
             <EmptyState
               icon={items.length === 0 ? '📨' : '🔍'}
-              title={items.length === 0 ? 'Aucune offre envoyée' : 'Aucun résultat'}
-              subtitle={items.length === 0 ? 'Parcourez les demandes proches et faites vos premières offres.' : 'Essayez un autre statut ou une autre recherche.'}
-              actionLabel="Voir les demandes"
+              title={items.length === 0 ? t('offers.noOffers') : t('offers.noResult')}
+              subtitle={items.length === 0 ? t('offers.noOffersSub') : t('offers.noResultSub')}
+              actionLabel={t('offers.viewRequests')}
               onAction={() => router.push('/nearby-requests')}
             />
           )}
@@ -251,9 +252,9 @@ export default function MyOffers() {
                 {/* Contre-offre en attente */}
                 {it.status === 'submitted' && it.clientCounterStatus === 'pending' && (
                   <View style={s.counterBanner}>
-                    <Text style={s.counterTitle}>💬 Contre-offre client</Text>
+                    <Text style={s.counterTitle}>💬 {t('offers.counterClient')}</Text>
                     <Text style={s.counterText}>
-                      Le client propose {Number(it.clientCounterPrice).toLocaleString('fr-FR')} FCFA au lieu de {Number(it.price).toLocaleString('fr-FR')} FCFA
+                      {t('offers.counterText', { clientPrice: Number(it.clientCounterPrice).toLocaleString('fr-FR'), price: Number(it.price).toLocaleString('fr-FR') })}
                     </Text>
                     {it.clientCounterComment ? (
                       <Text style={s.counterComment}>« {it.clientCounterComment} »</Text>
@@ -267,7 +268,7 @@ export default function MyOffers() {
                         {respondLoading === it._id ? (
                           <ActivityIndicator size="small" color="#B91C1C" />
                         ) : (
-                          <Text style={s.counterBtnRejectText}>Refuser</Text>
+                          <Text style={s.counterBtnRejectText}>{t('offers.rejectBtn')}</Text>
                         )}
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -278,7 +279,7 @@ export default function MyOffers() {
                         {respondLoading === it._id ? (
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                          <Text style={s.counterBtnAcceptText}>Accepter</Text>
+                          <Text style={s.counterBtnAcceptText}>{t('offers.acceptBtn')}</Text>
                         )}
                       </TouchableOpacity>
                     </View>
@@ -288,12 +289,12 @@ export default function MyOffers() {
                 {/* Indicateur si contre-offre déjà traitée */}
                 {it.status === 'submitted' && it.clientCounterStatus === 'accepted' && (
                   <View style={s.counterAcceptedBanner}>
-                    <Text style={s.counterAcceptedText}>✅ Vous avez accepté la contre-offre à {Number(it.price).toLocaleString('fr-FR')} FCFA</Text>
+                    <Text style={s.counterAcceptedText}>✅ {t('offers.counterAccepted', { price: Number(it.price).toLocaleString('fr-FR') })}</Text>
                   </View>
                 )}
                 {it.status === 'submitted' && it.clientCounterStatus === 'rejected' && (
                   <View style={s.counterRejectedBanner}>
-                    <Text style={s.counterRejectedText}>❌ Vous avez refusé la contre-offre</Text>
+                    <Text style={s.counterRejectedText}>❌ {t('offers.counterRejected')}</Text>
                   </View>
                 )}
 
@@ -372,3 +373,5 @@ const s = StyleSheet.create({
   counterRejectedBanner: { backgroundColor: '#FEF2F2', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FECACA' },
   counterRejectedText: { fontSize: 12, color: '#B91C1C', fontWeight: '600' },
 })
+
+export default withScreenBoundary(MyOffers, 'MyOffers')

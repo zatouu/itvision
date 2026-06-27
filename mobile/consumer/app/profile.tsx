@@ -4,12 +4,13 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiGetRetry } from '../src/api'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import TabBar from '../src/components/TabBar'
 import { clearAuth, getAuthUser, subscribeAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import LanguagePicker from '../src/components/LanguagePicker'
 
-export default function Profile() {
+function Profile() {
   const { t } = useTranslation()
   const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0 })
   const [referral, setReferral] = useState<{ code: string; balance: number; count: number } | null>(null)
@@ -160,3 +161,5 @@ const s = StyleSheet.create({
   logoutBtn: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA', marginTop: 8 },
   logoutText: { color: '#B91C1C', fontWeight: '700', fontSize: 15 },
 })
+
+export default withScreenBoundary(Profile, 'Profile')

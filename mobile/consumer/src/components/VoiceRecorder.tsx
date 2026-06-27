@@ -18,11 +18,14 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60 }: Props
   const [isRecording, setIsRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const pulse = useRef(new Animated.Value(1)).current
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
+      if (pulseLoop.current) { pulseLoop.current.stop(); pulseLoop.current = null }
+      pulse.stopAnimation()
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {})
       }
@@ -31,13 +34,15 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60 }: Props
 
   useEffect(() => {
     if (isRecording) {
-      Animated.loop(
+      pulseLoop.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: 1.3, duration: 500, useNativeDriver: true }),
           Animated.timing(pulse, { toValue: 1, duration: 500, useNativeDriver: true }),
         ])
-      ).start()
+      )
+      pulseLoop.current.start()
     } else {
+      if (pulseLoop.current) { pulseLoop.current.stop(); pulseLoop.current = null }
       pulse.setValue(1)
     }
   }, [isRecording])
@@ -123,16 +128,16 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60 }: Props
           <Text style={s.timer}>{formatTime(elapsed)}</Text>
           <Text style={s.hint}>Enregistrement en cours…</Text>
           <View style={s.actions}>
-            <TouchableOpacity style={s.cancelBtn} onPress={cancelRecording}>
+            <TouchableOpacity style={s.cancelBtn} onPress={cancelRecording} accessibilityRole="button" accessibilityLabel="Annuler l'enregistrement">
               <Text style={s.cancelText}>✕</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.stopBtn} onPress={stopRecording}>
+            <TouchableOpacity style={s.stopBtn} onPress={stopRecording} accessibilityRole="button" accessibilityLabel="Terminer l'enregistrement">
               <Text style={s.stopText}>✓</Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={s.startBtn} onPress={startRecording}>
+        <TouchableOpacity style={s.startBtn} onPress={startRecording} accessibilityRole="button" accessibilityLabel="Enregistrer un message vocal">
           <Text style={s.micIcon}>🎙</Text>
           <Text style={s.startText}>Message vocal (Wolof, Français…)</Text>
         </TouchableOpacity>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
+import { Image } from 'expo-image'
 import * as Location from 'expo-location'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -11,6 +12,7 @@ import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
 import { useTranslation } from 'react-i18next'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 const FALLBACK_CATS = [
   { id: 'electricite', label: 'Électricité', abbr: 'EL', color: '#1D4ED8' },
@@ -32,7 +34,7 @@ function mediaLabel(media: PickedMedia): string {
   return 'Fichier'
 }
 
-export default function CreateRequest() {
+function CreateRequest() {
   const params = useLocalSearchParams<{ category?: string }>()
   const [step, setStep] = useState(1)
   const [category, setCategory] = useState(params.category || '')
@@ -50,7 +52,7 @@ export default function CreateRequest() {
   const [voiceNote, setVoiceNote] = useState<VoiceRecording | null>(null)
   const [cats, setCats] = useState<{ id: string; label: string; abbr: string; color: string }[]>(FALLBACK_CATS)
   const [priceEstimate, setPriceEstimate] = useState<{ median: number; low: number; high: number } | null>(null)
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   useEffect(() => {
     loadCategories().then(loaded => {
@@ -91,7 +93,7 @@ export default function CreateRequest() {
       }
     } catch {
       // GPS obligatoire — guide l'utilisateur à l'activer
-      setErr('GPS requis. Activez la localisation dans les paramètres du téléphone et réessayez.')
+      setErr(t('request.gpsRequired'))
     }
     setLocating(false)
   }
@@ -100,7 +102,7 @@ export default function CreateRequest() {
     try {
       const picked = await pickMedia({ maxFiles: 5 })
       if (picked.length) setMedia(prev => [...prev, ...picked].slice(0, 5))
-    } catch { setErr('Impossible d\'accéder aux médias') }
+    } catch { setErr(t('request.mediaError')) }
   }
 
   const removeMedia = (idx: number) => {
@@ -122,7 +124,7 @@ export default function CreateRequest() {
         const uploadedUrl = typeof res?.staticUrl === 'string' && res.staticUrl
           ? res.staticUrl
           : (typeof res?.url === 'string' ? res.url : null)
-        if (!uploadedUrl) throw new Error('Réponse upload invalide')
+        if (!uploadedUrl) throw new Error(t('request.uploadError'))
         uploadedMedia.push({ url: uploadedUrl, type: m.type })
       }
       // Upload voice note
@@ -149,7 +151,7 @@ export default function CreateRequest() {
         },
         budget: Number(budget.replace(/\s/g, '')) || undefined,
         channel: 'mobile',
-      }, 'Demande enregistrée hors ligne — sera publiée dès le retour réseau.')
+      }, t('request.queuedOffline'))
       await cacheClear('home-requests')
       await cacheClear('my-requests')
       setDone(true)
@@ -161,13 +163,13 @@ export default function CreateRequest() {
     <SafeAreaView style={s.safe}>
       <View style={s.successBox}>
         <View style={s.successCheck}><Text style={s.successCheckText}>✓</Text></View>
-        <Text style={s.successTitle}>Demande publiée</Text>
-        <Text style={s.successSub}>Les prestataires proches vont vous envoyer leurs offres.</Text>
+        <Text style={s.successTitle}>{t('request.published')}</Text>
+        <Text style={s.successSub}>{t('request.publishedSub')}</Text>
         <TouchableOpacity style={s.btn} onPress={() => router.replace('/my-requests')}>
-          <Text style={s.btnText}>Voir mes demandes</Text>
+          <Text style={s.btnText}>{t('request.viewRequests')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { setDone(false); setStep(1); setCategory(''); setDescription(''); setBudget(''); setCoords(null); setMedia([]); setLandmark(''); setAutoAddress(''); setVoiceNote(null) }}>
-          <Text style={s.link}>Nouvelle demande</Text>
+          <Text style={s.link}>{t('request.newOne')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -180,9 +182,9 @@ export default function CreateRequest() {
         <TouchableOpacity onPress={() => step > 1 ? setStep(s2 => s2 - 1) : router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Nouvelle demande</Text>
+        <Text style={s.headerTitle}>{t('request.createTitle')}</Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={s.cancelText}>Annuler</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -199,16 +201,16 @@ export default function CreateRequest() {
         ))}
       </View>
       <View style={s.stepperLabels}>
-        {['Catégorie','Détails','Lieu'].map((lbl, i) => (
-          <Text key={lbl} style={[s.stepperLabel, step === i+1 && s.stepperLabelActive]}>{lbl}</Text>
+        {['request.stepCategory','request.stepDetails','request.stepLocation'].map((lbl, i) => (
+          <Text key={lbl} style={[s.stepperLabel, step === i+1 && s.stepperLabelActive]}>{t(lbl)}</Text>
         ))}
       </View>
 
       {step === 1 ? (
         <>
           <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-            <Text style={s.stepTitle}>Choisissez une catégorie</Text>
-            <Text style={s.stepSub}>Sélectionnez le type de service</Text>
+            <Text style={s.stepTitle}>{t('request.chooseCategory')}</Text>
+            <Text style={s.stepSub}>{t('request.chooseCategorySub')}</Text>
             <View style={s.catGrid}>
               {cats.map(c => (
                 <TouchableOpacity
@@ -237,7 +239,7 @@ export default function CreateRequest() {
               onPress={() => setStep(2)}
               activeOpacity={0.88}
             >
-              <Text style={s.btnText}>Continuer →</Text>
+              <Text style={s.btnText}>{t('request.continueBtn')}</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -245,21 +247,21 @@ export default function CreateRequest() {
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
         {step === 2 && (
           <View style={{ gap: 20 }}>
-            <Text style={s.stepTitle}>Décrivez votre besoin</Text>
+            <Text style={s.stepTitle}>{t('request.describeNeed')}</Text>
             <View>
-              <Text style={s.label}>Description *</Text>
+              <Text style={s.label}>{t('request.description')} *</Text>
               <TextInput
                 style={s.textarea}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Ex: Coupure de courant à l'étage, besoin d'un électricien..."
+                placeholder={t('request.descPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={4}
               />
             </View>
             <View>
-              <Text style={s.label}>Message vocal (optionnel)</Text>
+              <Text style={s.label}>{t('request.voiceNote')}</Text>
               {voiceNote ? (
                 <VoicePlayer uri={voiceNote.uri} durationMs={voiceNote.durationMs} onRemove={() => setVoiceNote(null)} />
               ) : (
@@ -267,11 +269,11 @@ export default function CreateRequest() {
               )}
             </View>
             <View>
-              <Text style={s.label}>Budget estimé (FCFA)</Text>
+              <Text style={s.label}>{t('request.budget')}</Text>
               {priceEstimate && (
                 <View style={s.priceHint}>
                   <Text style={s.priceHintText}>
-                    💡 Prix constaté : {priceEstimate.low.toLocaleString('fr-FR')} – {priceEstimate.high.toLocaleString('fr-FR')} FCFA (médiane {priceEstimate.median.toLocaleString('fr-FR')})
+                    {t('request.priceHint', { low: priceEstimate.low.toLocaleString('fr-FR'), high: priceEstimate.high.toLocaleString('fr-FR'), median: priceEstimate.median.toLocaleString('fr-FR') })}
                   </Text>
                 </View>
               )}
@@ -288,13 +290,13 @@ export default function CreateRequest() {
                 style={s.input}
                 value={budget}
                 onChangeText={setBudget}
-                placeholder="Ou saisir un montant"
+                placeholder={t('request.budgetCustom')}
                 placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
               />
             </View>
             <View>
-              <Text style={s.label}>Photos / Vidéos ({media.length}/5)</Text>
+              <Text style={s.label}>{t('request.media')} ({media.length}/5)</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {media.map((m, i) => (
@@ -324,43 +326,43 @@ export default function CreateRequest() {
               disabled={!description}
               onPress={() => setStep(3)}
             >
-              <Text style={s.btnText}>Continuer →</Text>
+              <Text style={s.btnText}>{t('request.continueBtn')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {step === 3 && (
           <View style={{ gap: 20 }}>
-            <Text style={s.stepTitle}>Votre position</Text>
-            <Text style={s.stepSub}>Les prestataires proches recevront votre demande</Text>
+            <Text style={s.stepTitle}>{t('request.location')}</Text>
+            <Text style={s.stepSub}>{t('request.locationSub')}</Text>
 
             <TouchableOpacity style={s.locBtn} onPress={pickLocation} disabled={locating}>
               {locating ? <ActivityIndicator color="#F59E0B" /> : <Text style={s.locIcon}>📍</Text>}
               <View style={{ flex: 1 }}>
-                <Text style={s.locTitle}>{coords ? 'Position obtenue ✓' : 'Utiliser ma position GPS'}</Text>
+                <Text style={s.locTitle}>{coords ? t('request.positionOk') : t('request.useGps')}</Text>
                 {autoAddress ? <Text style={s.locSub}>{autoAddress}</Text> : coords ? <Text style={s.locSub}>{coords[1].toFixed(4)}, {coords[0].toFixed(4)}</Text> : null}
               </View>
             </TouchableOpacity>
 
             <View>
-              <Text style={s.label}>Repère / Quartier *</Text>
+              <Text style={s.label}>{t('request.landmark')} *</Text>
               <TextInput
                 style={s.input}
                 value={landmark}
                 onChangeText={setLandmark}
-                placeholder="Ex: Près de la mosquée de Mermoz, à côté de l'école..."
+                placeholder={t('request.landmarkPlaceholder')}
                 placeholderTextColor="#9CA3AF"
               />
-              <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>Obligatoire — aide le prestataire à vous trouver</Text>
+              <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>{t('request.landmarkHint')}</Text>
             </View>
 
             {/* Récap */}
             <View style={s.recap}>
-              <RecapRow label="Service" value={cats.find(c => c.id === category)?.label || category} />
-              <RecapRow label="Description" value={description.length > 60 ? description.slice(0, 60) + '…' : description} />
-              {budget ? <RecapRow label="Budget" value={`${budget} FCFA`} /> : null}
-              {media.length ? <RecapRow label="Médias" value={`${media.length} fichier(s)`} /> : null}
-              {voiceNote ? <RecapRow label="Vocal" value={`${Math.round(voiceNote.durationMs / 1000)}s enregistré`} /> : null}
+              <RecapRow label={t('request.recapService')} value={cats.find(c => c.id === category)?.label || category} />
+              <RecapRow label={t('request.recapDescription')} value={description.length > 60 ? description.slice(0, 60) + '…' : description} />
+              {budget ? <RecapRow label={t('request.recapBudget')} value={`${budget} FCFA`} /> : null}
+              {media.length ? <RecapRow label={t('request.recapMedia')} value={t('request.recapMediaValue', { count: media.length })} /> : null}
+              {voiceNote ? <RecapRow label={t('request.recapVoice')} value={t('request.recapVoiceValue', { sec: Math.round(voiceNote.durationMs / 1000) })} /> : null}
             </View>
 
             {err && <Text style={s.errText}>{err}</Text>}
@@ -370,7 +372,7 @@ export default function CreateRequest() {
               disabled={!coords || loading || uploadingMedia}
               onPress={submit}
             >
-              {loading || uploadingMedia ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Publier la demande 🚀</Text>}
+              {loading || uploadingMedia ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{t('request.publish')}</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -457,3 +459,5 @@ const s = StyleSheet.create({
   priceHint: { backgroundColor: '#ECFDF5', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#A7F3D0' },
   priceHintText: { fontSize: 12, color: '#065F46', lineHeight: 18 },
 })
+
+export default withScreenBoundary(CreateRequest, 'CreateRequest')

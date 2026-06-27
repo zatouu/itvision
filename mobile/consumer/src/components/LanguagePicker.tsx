@@ -15,6 +15,9 @@ export default function LanguagePicker() {
             style={[s.chip, active && s.chipActive]}
             onPress={() => changeLanguage(lang.code)}
             activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel={`Langue: ${lang.label}`}
+            accessibilityState={{ selected: active }}
           >
             <Text style={s.flag}>{lang.flag}</Text>
             <Text style={[s.label, active && s.labelActive]}>{lang.label}</Text>

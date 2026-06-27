@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native'
+import { Image } from 'expo-image'
 import { TextInput } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost, apiUpload } from '../src/api'
 import { pickMedia } from '../src/media'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { useTranslation } from 'react-i18next'
 
 type KycStatus = 'none' | 'pending' | 'approved' | 'rejected'
 
-export default function KycScreen() {
+function KycScreen() {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<KycStatus>('none')
   const [rejectionReason, setRejectionReason] = useState('')
   const [loading, setLoading] = useState(true)
@@ -36,12 +40,12 @@ export default function KycScreen() {
     try {
       const picked = await pickMedia({ maxFiles: 1 })
       if (picked.length > 0) setter(picked[0].uri)
-    } catch { Alert.alert('Erreur', 'Impossible de sélectionner l\'image') }
+    } catch { Alert.alert(t('common.error'), t('kyc.uploadError')) }
   }
 
   const submit = async () => {
     if (!fullName.trim() || !trade.trim() || !idFrontUri || !selfieUri) {
-      Alert.alert('Champs manquants', 'Remplissez tous les champs obligatoires.')
+      Alert.alert(t('kyc.missingFields'), t('kyc.missingFieldsMsg'))
       return
     }
     setSubmitting(true)
@@ -70,9 +74,9 @@ export default function KycScreen() {
       })
 
       setStatus('pending')
-      Alert.alert('✅ KYC soumis', 'Votre demande sera traitée dans les 24h.')
+      Alert.alert(t('kyc.submitSuccess'), t('kyc.submitSuccessMsg'))
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de soumettre le KYC')
+      Alert.alert(t('common.error'), e.message || t('kyc.submitError'))
     }
     setSubmitting(false)
   }
@@ -90,10 +94,10 @@ export default function KycScreen() {
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
           <Text style={s.badge}>✅</Text>
-          <Text style={s.statusTitle}>Profil vérifié</Text>
-          <Text style={s.statusSub}>Votre identité a été confirmée. Le badge « Vérifié » est visible sur vos offres.</Text>
+          <Text style={s.statusTitle}>{t('kyc.approved')}</Text>
+          <Text style={s.statusSub}>{t('kyc.approvedMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
-            <Text style={s.btnText}>Retour</Text>
+            <Text style={s.btnText}>{t('kyc.back')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -105,10 +109,10 @@ export default function KycScreen() {
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
           <Text style={s.badge}>⏳</Text>
-          <Text style={s.statusTitle}>Vérification en cours</Text>
-          <Text style={s.statusSub}>Votre dossier est en cours d'examen. Vous serez notifié une fois traité.</Text>
+          <Text style={s.statusTitle}>{t('kyc.pending')}</Text>
+          <Text style={s.statusSub}>{t('kyc.pendingMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
-            <Text style={s.btnText}>Retour</Text>
+            <Text style={s.btnText}>{t('kyc.back')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -121,61 +125,61 @@ export default function KycScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Vérification KYC</Text>
+        <Text style={s.headerTitle}>{t('kyc.title')}</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
         {status === 'rejected' && (
           <View style={s.rejectedBox}>
-            <Text style={s.rejectedTitle}>❌ Dossier refusé</Text>
-            <Text style={s.rejectedReason}>{rejectionReason || 'Documents non conformes'}</Text>
-            <Text style={s.rejectedHint}>Corrigez et renvoyez vos documents ci-dessous.</Text>
+            <Text style={s.rejectedTitle}>{t('kyc.rejected')}</Text>
+            <Text style={s.rejectedReason}>{rejectionReason || t('kyc.rejectedReason')}</Text>
+            <Text style={s.rejectedHint}>{t('kyc.rejectedHint')}</Text>
           </View>
         )}
 
-        <Text style={s.sectionTitle}>Informations personnelles</Text>
+        <Text style={s.sectionTitle}>{t('kyc.personalInfo')}</Text>
         <View style={s.field}>
-          <Text style={s.label}>Nom complet *</Text>
-          <TextInput style={s.input} value={fullName} onChangeText={setFullName} placeholder="Prénom Nom" placeholderTextColor="#9CA3AF" />
+          <Text style={s.label}>{t('kyc.fullName')}</Text>
+          <TextInput style={s.input} value={fullName} onChangeText={setFullName} placeholder={t('kyc.fullNamePlaceholder')} placeholderTextColor="#9CA3AF" />
         </View>
         <View style={s.field}>
-          <Text style={s.label}>Métier *</Text>
-          <TextInput style={s.input} value={trade} onChangeText={setTrade} placeholder="Ex: Électricien, Plombier…" placeholderTextColor="#9CA3AF" />
+          <Text style={s.label}>{t('kyc.trade')}</Text>
+          <TextInput style={s.input} value={trade} onChangeText={setTrade} placeholder={t('kyc.tradePlaceholder')} placeholderTextColor="#9CA3AF" />
         </View>
 
-        <Text style={[s.sectionTitle, { marginTop: 20 }]}>Documents</Text>
+        <Text style={[s.sectionTitle, { marginTop: 20 }]}>{t('kyc.documents')}</Text>
 
         <View style={s.field}>
-          <Text style={s.label}>CNI — Recto *</Text>
+          <Text style={s.label}>{t('kyc.idFront')}</Text>
           <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setIdFrontUri)}>
             {idFrontUri ? (
               <Image source={{ uri: idFrontUri }} style={s.photoPreview} />
             ) : (
-              <Text style={s.photoPlaceholder}>📷 Prendre une photo</Text>
+              <Text style={s.photoPlaceholder}>{t('kyc.takePhoto')}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={s.field}>
-          <Text style={s.label}>CNI — Verso (optionnel)</Text>
+          <Text style={s.label}>{t('kyc.idBack')}</Text>
           <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setIdBackUri)}>
             {idBackUri ? (
               <Image source={{ uri: idBackUri }} style={s.photoPreview} />
             ) : (
-              <Text style={s.photoPlaceholder}>📷 Prendre une photo</Text>
+              <Text style={s.photoPlaceholder}>{t('kyc.takePhoto')}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={s.field}>
-          <Text style={s.label}>Selfie *</Text>
-          <Text style={s.hint}>Photo de vous tenant votre CNI</Text>
+          <Text style={s.label}>{t('kyc.selfie')}</Text>
+          <Text style={s.hint}>{t('kyc.selfieHint')}</Text>
           <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setSelfieUri)}>
             {selfieUri ? (
               <Image source={{ uri: selfieUri }} style={s.photoPreview} />
             ) : (
-              <Text style={s.photoPlaceholder}>🤳 Prendre un selfie</Text>
+              <Text style={s.photoPlaceholder}>{t('kyc.takeSelfie')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -185,7 +189,7 @@ export default function KycScreen() {
           disabled={submitting}
           onPress={submit}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitText}>Soumettre ma vérification</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitText}>{t('kyc.submit')}</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -229,3 +233,5 @@ const s = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })
+
+export default withScreenBoundary(KycScreen, 'KYC')

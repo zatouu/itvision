@@ -8,8 +8,11 @@ import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import { emitGps, onNearbyRequest } from '../src/socket'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { useTranslation } from 'react-i18next'
 
-export default function Home() {
+function Home() {
+  const { t } = useTranslation()
   const [online, setOnline] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hour] = useState(new Date().getHours())
@@ -67,14 +70,14 @@ export default function Home() {
 
   const goNearby = () => {
     if (!online) {
-      Alert.alert('Vous êtes hors ligne', 'Passez en ligne pour recevoir les demandes proches.')
+      Alert.alert(t('home.offlineAlert'), t('home.offlineAlertMsg'))
       return
     }
     setNearbyCount(0)
     router.push('/nearby-requests')
   }
 
-  const greeting = (hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir') + (providerName ? `, ${providerName}` : '')
+  const greeting = (hour < 12 ? t('home.greeting_morning') : hour < 18 ? t('home.greeting_afternoon') : t('home.greeting_evening')) + (providerName ? `, ${providerName}` : '')
 
   return (
     <SafeAreaView style={s.safe}>
@@ -84,7 +87,7 @@ export default function Home() {
         <View style={s.header}>
           <View style={{ flex: 1 }}>
             <Text style={s.appName}>Xeuy Bi Pro</Text>
-            <Text style={s.sub}>{greeting}, prêt à travailler ?</Text>
+            <Text style={s.sub}>{greeting}, {t('home.readyToWork')}</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/notifications')} style={s.bellBtn} accessibilityLabel="Notifications">
             <Text style={s.bellIcon}>🔔</Text>
@@ -99,10 +102,10 @@ export default function Home() {
             <View style={[s.dot, online ? s.dotOnline : s.dotOffline]} />
             <View>
               <Text style={[s.statusTitle, online && s.statusTitleOnline]}>
-                {online ? 'En ligne' : 'Hors ligne'}
+                {online ? t('home.online') : t('home.offline')}
               </Text>
               <Text style={[s.statusSub, online && s.statusSubOnline]}>
-                {online ? 'Visible par les clients proches' : 'Activez pour recevoir des demandes'}
+                {online ? t('home.visibleToClients') : t('home.activateToReceive')}
               </Text>
             </View>
           </View>
@@ -116,22 +119,22 @@ export default function Home() {
         </View>
 
         {/* Actions rapides */}
-        <Text style={s.sectionTitle}>Actions</Text>
+        <Text style={s.sectionTitle}>{t('home.actions')}</Text>
         <View style={s.actions}>
           <TouchableOpacity style={[s.actionCard, s.actionPrimary, !online && s.actionDisabled]} onPress={goNearby} activeOpacity={0.85}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={s.actionTag}><Text style={s.actionTagText}>Nouveautés</Text></View>
+              <View style={s.actionTag}><Text style={s.actionTagText}>{t('home.newBadge')}</Text></View>
               {nearbyCount > 0 && (
                 <View style={s.nearbyBadge}><Text style={s.nearbyBadgeText}>{nearbyCount}</Text></View>
               )}
             </View>
-            <Text style={s.actionTitle}>Demandes proches</Text>
-            <Text style={s.actionSub}>Parcourir et soumettre des offres</Text>
+            <Text style={s.actionTitle}>{t('home.nearbyRequests')}</Text>
+            <Text style={s.actionSub}>{t('home.browseAndOffer')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.actionCard, s.actionSecondary]} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
-            <View style={[s.actionTag, s.actionTagDark]}><Text style={[s.actionTagText, s.actionTagTextDark]}>Suivi</Text></View>
-            <Text style={s.actionTitleDark}>Mes offres envoyées</Text>
-            <Text style={s.actionSubDark}>Acceptées, en attente, refusées</Text>
+            <View style={[s.actionTag, s.actionTagDark]}><Text style={[s.actionTagText, s.actionTagTextDark]}>{t('home.trackingBadge')}</Text></View>
+            <Text style={s.actionTitleDark}>{t('home.myOffersSent')}</Text>
+            <Text style={s.actionSubDark}>{t('home.acceptedPendingRejected')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -139,8 +142,8 @@ export default function Home() {
         <View style={s.tipCard}>
           <View style={s.tipDot} />
           <View style={{ flex: 1 }}>
-            <Text style={s.tipTitle}>Conseil</Text>
-            <Text style={s.tipText}>Proposez un prix compétitif dès les premières minutes pour maximiser vos chances d'être sélectionné.</Text>
+            <Text style={s.tipTitle}>{t('home.tip')}</Text>
+            <Text style={s.tipText}>{t('home.tipText')}</Text>
           </View>
         </View>
 
@@ -191,3 +194,5 @@ const s = StyleSheet.create({
   nearbyBadge: { backgroundColor: '#EF4444', borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   nearbyBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 })
+
+export default withScreenBoundary(Home, 'Home')

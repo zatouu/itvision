@@ -1,28 +1,30 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
 import TabBar from '../src/components/TabBar'
+import { SkeletonCard } from '../src/components/Skeleton'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  created:       { label: 'Publiée',            color: '#2563EB', bg: '#EFF6FF', dot: '#2563EB' },
-  pending_offers:{ label: 'Offres reçues',      color: '#B45309', bg: '#FFFBEB', dot: '#D97706' },
-  assigned:          { label: 'Prestataire trouvé', color: '#065F46', bg: '#ECFDF5', dot: '#059669' },
-  provider_arriving: { label: 'En route',            color: '#0369A1', bg: '#EFF6FF', dot: '#0EA5E9' },
-  in_progress:       { label: 'En cours',            color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED' },
-  completed:     { label: 'Terminée',           color: '#374151', bg: '#F1F5F9', dot: '#64748B' },
-  cancelled:     { label: 'Annulée',            color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
+const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
+  created:       { key: 'requests.status_created',            color: '#2563EB', bg: '#EFF6FF', dot: '#2563EB' },
+  pending_offers:{ key: 'requests.status_pending_offers',      color: '#B45309', bg: '#FFFBEB', dot: '#D97706' },
+  assigned:          { key: 'requests.status_assigned', color: '#065F46', bg: '#ECFDF5', dot: '#059669' },
+  provider_arriving: { key: 'requests.status_provider_arriving',            color: '#0369A1', bg: '#EFF6FF', dot: '#0EA5E9' },
+  in_progress:       { key: 'requests.status_in_progress',            color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED' },
+  completed:     { key: 'requests.status_completed',           color: '#374151', bg: '#F1F5F9', dot: '#64748B' },
+  cancelled:     { key: 'requests.status_cancelled',            color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
 }
 
 type CatEntry = { abbr: string; color: string; label: string }
 
-export default function MyRequests() {
+function MyRequests() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -30,7 +32,7 @@ export default function MyRequests() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'offers' | 'done'>('all')
   const [catMap, setCatMap] = useState<Record<string, CatEntry>>({})
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   useEffect(() => {
     loadCategories().then(cats => {
@@ -62,7 +64,7 @@ export default function MyRequests() {
         }
       )
     } catch (e: any) {
-      setErr('Impossible de charger les demandes')
+      setErr(t('requests.loadError'))
       setLoading(false)
       setRefreshing(false)
     }
@@ -105,14 +107,14 @@ export default function MyRequests() {
           <Text style={s.iconBtnText}>←</Text>
         </TouchableOpacity>
         <View style={s.headerLeft}>
-          <Text style={s.title}>Mes demandes</Text>
+          <Text style={s.title}>{t('requests.title')}</Text>
           {items.length > 0 && (
             <View style={s.headerCount}>
               <Text style={s.headerCountText}>{items.length}</Text>
             </View>
           )}
         </View>
-        <TouchableOpacity onPress={() => router.push('/create-request')} style={s.iconBtn} accessibilityLabel="Créer une demande">
+        <TouchableOpacity onPress={() => router.push('/create-request')} style={s.iconBtn} accessibilityLabel={t('requests.createRequest')}>
           <Text style={s.iconBtnText}>＋</Text>
         </TouchableOpacity>
       </View>
@@ -122,16 +124,16 @@ export default function MyRequests() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Rechercher catégorie, description, budget..."
+            placeholder={t('requests.searchPlaceholder')}
             placeholderTextColor="#94A3B8"
             style={s.searchInput}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterChips}>
             {[
-              ['all', 'Toutes'],
-              ['active', 'Actives'],
-              ['offers', 'Avec offres'],
-              ['done', 'Terminées'],
+              ['all', t('requests.filterAll')],
+              ['active', t('requests.filterActive')],
+              ['offers', t('requests.filterOffers')],
+              ['done', t('requests.filterDone')],
             ].map(([key, label]) => (
               <TouchableOpacity key={key} style={[s.filterChip, statusFilter === key && s.filterChipActive]} onPress={() => setStatusFilter(key as any)}>
                 <Text style={[s.filterChipText, statusFilter === key && s.filterChipTextActive]}>{label}</Text>
@@ -142,13 +144,17 @@ export default function MyRequests() {
       )}
 
       {loading ? (
-        <View style={s.center}><ActivityIndicator size="large" color="#F59E0B" /></View>
+        <ScrollView contentContainerStyle={s.list}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScrollView>
       ) : err ? (
         <View style={s.center}>
           <Text style={s.errIcon}>⚠️</Text>
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
-            <Text style={s.retryText}>Réessayer</Text>
+            <Text style={s.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -159,15 +165,15 @@ export default function MyRequests() {
           {filteredItems.length === 0 && (
             <EmptyState
               icon={items.length === 0 ? '📨' : '🔍'}
-              title={items.length === 0 ? 'Aucune demande' : 'Aucun résultat'}
-              subtitle={items.length === 0 ? 'Publiez votre première demande et recevez des offres en quelques minutes.' : 'Essayez un autre statut ou une autre recherche.'}
-              actionLabel="Créer une demande"
+              title={items.length === 0 ? t('requests.noRequests') : t('requests.noResult')}
+              subtitle={items.length === 0 ? t('requests.noRequestsSub') : t('requests.noResultSub')}
+              actionLabel={t('requests.createRequest')}
               onAction={() => router.push('/create-request')}
             />
           )}
 
           {filteredItems.map(it => {
-            const st = STATUS_CONFIG[it.status] || { label: it.status, color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' }
+            const st = STATUS_CONFIG[it.status] || { key: it.status, color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' }
             const catLabel = catMap[it.category]?.label || it.category
             const title = it.description
               ? `${catLabel} — ${it.description.slice(0, 30)}${it.description.length > 30 ? '…' : ''}`
@@ -202,7 +208,7 @@ export default function MyRequests() {
                         )}
                         <View style={[s.statusBadge, { backgroundColor: st.bg }]}>
                           <View style={[s.statusDot, { backgroundColor: st.dot }]} />
-                          <Text style={[s.statusText, { color: st.color }]}>{st.label}</Text>
+                          <Text style={[s.statusText, { color: st.color }]}>{t(st.key)}</Text>
                         </View>
                       </View>
                     </View>
@@ -274,3 +280,5 @@ const s = StyleSheet.create({
   offerIndicatorText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
   cardArrow: { position: 'absolute', right: 14, top: '50%', fontSize: 20, color: '#CBD5E1', fontWeight: '300' },
 })
+
+export default withScreenBoundary(MyRequests, 'MyRequests')

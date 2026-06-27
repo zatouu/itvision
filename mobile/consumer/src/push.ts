@@ -144,6 +144,16 @@ export function setupForegroundNotificationListener(): () => void {
   return () => subscription.remove()
 }
 
+let pendingNav: string | null = null
+
+export function flushPendingNavigation(): void {
+  if (pendingNav) {
+    const target = pendingNav
+    pendingNav = null
+    router.push(target as any)
+  }
+}
+
 /**
  * Gère le tap sur une notification (quand l'app est en background ou fermée).
  */
@@ -155,30 +165,33 @@ export function setupNotificationResponseListener(): () => void {
     const data = response.notification.request.content.data as any
     if (!data?.type) return
 
-    switch (data.type) {
-      case 'offer:new':
-        if (data.requestId) router.push(`/request-offers?id=${data.requestId}`)
-        break
-      case 'offer:accepted':
-      case 'payment:held':
-        if (data.requestId) router.push(`/mission/${data.requestId}`)
-        break
-      case 'request:status-changed':
-      case 'offer:counter-accepted':
-      case 'offer:counter-rejected':
-        if (data.requestId) router.push(`/mission/${data.requestId}`)
-        break
-      case 'chat:message':
-        if (data.requestId) router.push(`/mission-chat?id=${data.requestId}`)
-        break
-      case 'request:new':
-        router.push('/my-requests')
-        break
-      default:
-        if (data.requestId) router.push(`/mission/${data.requestId}`)
-        else router.push('/notifications')
+    const target = resolveNavTarget(data)
+    if (target) {
+      pendingNav = target
+      flushPendingNavigation()
     }
   })
 
   return () => subscription.remove()
+}
+
+export function resolveNavTarget(data: any): string | null {
+  switch (data.type) {
+    case 'offer:new':
+      return data.requestId ? `/request-offers?id=${data.requestId}` : null
+    case 'offer:accepted':
+    case 'payment:held':
+      return data.requestId ? `/mission/${data.requestId}` : null
+    case 'request:status-changed':
+    case 'offer:counter-accepted':
+    case 'offer:counter-rejected':
+      return data.requestId ? `/mission/${data.requestId}` : null
+    case 'chat:message':
+      return data.requestId ? `/mission-chat?id=${data.requestId}` : null
+    case 'request:new':
+      return '/my-requests'
+    default:
+      if (data.requestId) return `/mission/${data.requestId}`
+      return '/notifications'
+  }
 }

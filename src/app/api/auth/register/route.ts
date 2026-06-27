@@ -11,12 +11,15 @@ const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/sit
 async function verifyCaptchaToken(token: string, remoteIp?: string) {
   const secretKey = process.env.TURNSTILE_SECRET_KEY
 
+  // Captcha opt-in : il n'est imposé que si la clé secrète est configurée.
+  // Sans clé, le widget n'est pas rendu côté client (NEXT_PUBLIC_TURNSTILE_SITE_KEY),
+  // donc on n'exige pas de captcha — sinon l'inscription serait impossible en prod.
   if (!secretKey) {
     if (process.env.NODE_ENV === 'production') {
-      return {
-        success: false,
-        error: 'Captcha non configuré sur le serveur'
-      }
+      console.warn(
+        '[REGISTER] TURNSTILE_SECRET_KEY non configurée : captcha désactivé. ' +
+        'Définissez TURNSTILE_SECRET_KEY (+ NEXT_PUBLIC_TURNSTILE_SITE_KEY) pour l\'activer.'
+      )
     }
     return { success: true }
   }

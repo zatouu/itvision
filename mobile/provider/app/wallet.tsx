@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { getAuthUser } from '../src/auth'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 type WalletData = {
   points: number
@@ -49,7 +50,7 @@ const KIND_LABEL: Record<string, string> = {
   admin_adjust: 'Ajustement',
 }
 
-export default function Wallet() {
+function Wallet() {
   const { t } = useTranslation()
   const [data, setData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -275,3 +276,5 @@ const s = StyleSheet.create({
   txnPos: { color: '#059669' },
   txnNeg: { color: '#DC2626' },
 })
+
+export default withScreenBoundary(Wallet, 'Wallet')

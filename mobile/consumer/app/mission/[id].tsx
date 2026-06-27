@@ -1,11 +1,22 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Image, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native'
+import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import MapView, { Marker } from 'react-native-maps'
 import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { confirm, notify } from '../../src/confirm'
+import { useTranslation } from 'react-i18next'
+
+const PAYMENT_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  pending:   { label: '⏳ Paiement en attente',     color: '#92400E', bg: '#FFFBEB' },
+  held:      { label: '🔒 Paiement sécurisé',       color: '#065F46', bg: '#ECFDF5' },
+  released:  { label: '💰 Paiement libéré',         color: '#1E3A8A', bg: '#EFF6FF' },
+  refunded:  { label: '↩️ Paiement remboursé',      color: '#991B1B', bg: '#FEF2F2' },
+  failed:    { label: '❌ Paiement échoué',          color: '#991B1B', bg: '#FEF2F2' },
+}
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   assigned:           { label: 'Prestataire assigné',  color: '#065F46', bg: '#ECFDF5' },
@@ -84,7 +95,7 @@ function hasValidCoords(location: any): location is { coordinates: [number, numb
   )
 }
 
-export default function MissionDetail() {
+function MissionDetail() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
@@ -93,6 +104,7 @@ export default function MissionDetail() {
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; timestamp: number } | null>(null)
+  const [hasReview, setHasReview] = useState(false)
 
   const load = useCallback(async (isRefresh = false) => {
     if (!requestId) return
@@ -102,6 +114,11 @@ export default function MissionDetail() {
     try {
       const r = await apiGet(`/api/services/requests/${requestId}`)
       setItem(r.item)
+      // Check if already reviewed
+      try {
+        const rev = await apiGet(`/api/services/reviews?requestId=${requestId}`)
+        setHasReview(rev?.count > 0)
+      } catch { setHasReview(false) }
     } catch (e: any) { setErr(e.message) }
     finally {
       if (isRefresh) setRefreshing(false)
@@ -240,6 +257,15 @@ export default function MissionDetail() {
             <View style={[s.statusBanner, { backgroundColor: st?.bg }]}>
               <Text style={[s.statusText, { color: st?.color }]}>{st?.label}</Text>
             </View>
+
+            {/* Statut paiement */}
+            {item.payment && PAYMENT_BADGE[item.payment.status] && (
+              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
+                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
+                  {PAYMENT_BADGE[item.payment.status].label}
+                </Text>
+              </View>
+            )}
 
             {/* Progression mission */}
             {item.status !== 'cancelled' && (
@@ -390,13 +416,16 @@ export default function MissionDetail() {
                   <Text style={s.infoText}>Le prestataire clôture la mission dès la fin de l’intervention.</Text>
                 </>
               )}
-              {item.status === 'completed' && (
+              {item.status === 'completed' && !hasReview && (
                 <TouchableOpacity
                   style={[s.actionBtn, s.rateBtn]}
                   onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)}
                 >
                   <Text style={s.rateBtnText}>⭐ Noter cette intervention</Text>
                 </TouchableOpacity>
+              )}
+              {item.status === 'completed' && hasReview && (
+                <Text style={s.infoText}>✅ Vous avez déjà noté cette intervention.</Text>
               )}
             </View>
           </>
@@ -452,3 +481,5 @@ const s = StyleSheet.create({
   chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8, borderWidth: 1, borderColor: '#BFDBFE' },
   chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
 })
+
+export default withScreenBoundary(MissionDetail, 'MissionDetail')

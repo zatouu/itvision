@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
 
 type WalletData = {
@@ -38,18 +39,18 @@ const OPERATORS: Array<{ id: 'wave' | 'orange_money' | 'free_money'; label: stri
   { id: 'free_money', label: 'Free Money' },
 ]
 
-const KIND_LABEL: Record<string, string> = {
-  welcome: 'Bienvenue',
-  topup: 'Recharge',
-  mission_spend: 'Mission',
-  referral_bonus: 'Parrainage',
-  refund: 'Remboursement',
-  escrow_charge: 'Frais escrow',
-  escrow_refund: 'Remboursement escrow',
-  admin_adjust: 'Ajustement',
+const KIND_KEYS: Record<string, string> = {
+  welcome: 'wallet.kind_welcome',
+  topup: 'wallet.kind_topup',
+  mission_spend: 'wallet.kind_mission_spend',
+  referral_bonus: 'wallet.kind_referral_bonus',
+  refund: 'wallet.kind_refund',
+  escrow_charge: 'wallet.kind_escrow_charge',
+  escrow_refund: 'wallet.kind_escrow_refund',
+  admin_adjust: 'wallet.kind_admin_adjust',
 }
 
-export default function Wallet() {
+function Wallet() {
   const { t } = useTranslation()
   const [data, setData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -63,7 +64,7 @@ export default function Wallet() {
       const r = await apiGetRetry('/api/wallet')
       setData(r)
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible de charger le wallet')
+      Alert.alert(t('common.error'), e?.message || t('wallet.loadError'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -76,17 +77,17 @@ export default function Wallet() {
     const user = getAuthUser()
     const phone = user?.phone
     if (!phone) {
-      Alert.alert('Numéro requis', 'Aucun numéro associé à votre compte.')
+      Alert.alert(t('wallet.phoneRequired'), t('wallet.phoneRequiredMsg'))
       return
     }
     const amountFcfa = selectedPack * (data?.config.fcfaPerPoint || 100)
     Alert.alert(
-      'Confirmer la recharge',
-      `${selectedPack} XC pour ${amountFcfa.toLocaleString('fr-FR')} FCFA via ${OPERATORS.find(o => o.id === selectedOp)?.label}.`,
+      t('wallet.confirmTopup'),
+      t('wallet.confirmTopupMsg', { pack: selectedPack, amount: amountFcfa.toLocaleString('fr-FR'), operator: OPERATORS.find(o => o.id === selectedOp)?.label }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('wallet.cancelBtn'), style: 'cancel' },
         {
-          text: 'Payer',
+          text: t('wallet.pay'),
           onPress: async () => {
             setTopupLoading(true)
             try {
@@ -96,18 +97,18 @@ export default function Wallet() {
                 phone,
               })
               if (r?.confirmed) {
-                Alert.alert('Recharge réussie', `${selectedPack} XC crédités. Nouveau solde : ${r.balance} XC.`)
+                Alert.alert(t('wallet.topupSuccess'), t('wallet.topupSuccessMsg', { pack: selectedPack, balance: r.balance }))
               } else if (r?.checkoutUrl) {
                 const supported = await Linking.canOpenURL(r.checkoutUrl)
                 if (supported) {
                   await Linking.openURL(r.checkoutUrl)
                 } else {
-                  Alert.alert('Lien de paiement', r.checkoutUrl)
+                  Alert.alert(t('wallet.paymentLink'), r.checkoutUrl)
                 }
               }
               await load()
             } catch (e: any) {
-              Alert.alert('Échec', e?.message || 'La recharge a échoué')
+              Alert.alert(t('wallet.topupFailed'), e?.message || t('wallet.topupFailedMsg'))
             } finally {
               setTopupLoading(false)
             }
@@ -144,10 +145,10 @@ export default function Wallet() {
         <View style={s.balanceCard}>
           <Text style={s.balanceLabel}>{t('wallet.balance')}</Text>
           <Text style={s.balanceValue}>{data?.points ?? 0}</Text>
-          <Text style={s.balanceUnit}>Xeuy Coins</Text>
+          <Text style={s.balanceUnit}>{t('wallet.points')}</Text>
           {isFree ? (
             <View style={s.freeBadge}>
-              <Text style={s.freeBadgeText}>Cumulez des XC et gagnez des récompenses</Text>
+              <Text style={s.freeBadgeText}>{t('wallet.freeBadgeText')}</Text>
             </View>
           ) : (
             <View style={s.modeBadge}>
@@ -159,16 +160,16 @@ export default function Wallet() {
         <View style={s.lifetimeRow}>
           <View style={s.lifetimeCard}>
             <Text style={s.lifetimeNum}>{data?.lifetimePointsEarned ?? 0}</Text>
-            <Text style={s.lifetimeLabel}>Gagnés</Text>
+            <Text style={s.lifetimeLabel}>{t('wallet.earned')}</Text>
           </View>
           <View style={s.lifetimeCard}>
             <Text style={s.lifetimeNum}>{data?.lifetimePointsSpent ?? 0}</Text>
-            <Text style={s.lifetimeLabel}>Utilisés</Text>
+            <Text style={s.lifetimeLabel}>{t('wallet.used')}</Text>
           </View>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Acheter des XC</Text>
+          <Text style={s.sectionTitle}>{t('wallet.buyXC')}</Text>
           <View style={s.packRow}>
             {PACKS.map(p => (
               <TouchableOpacity
@@ -199,7 +200,7 @@ export default function Wallet() {
           <TouchableOpacity style={s.payBtn} onPress={onTopup} disabled={topupLoading}>
             {topupLoading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.payText}>Payer {(selectedPack * (data?.config.fcfaPerPoint || 100)).toLocaleString('fr-FR')} FCFA</Text>}
+              : <Text style={s.payText}>{t('wallet.payBtn', { amount: (selectedPack * (data?.config.fcfaPerPoint || 100)).toLocaleString('fr-FR') })}</Text>}
           </TouchableOpacity>
         </View>
 
@@ -208,15 +209,15 @@ export default function Wallet() {
           {(!data?.history || data.history.length === 0) ? (
             <Text style={s.empty}>{t('wallet.noHistory')}</Text>
           ) : (
-            data.history.map(t => (
-              <View key={t.id} style={s.txn}>
+            data.history.map(txn => (
+              <View key={txn.id} style={s.txn}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.txnKind}>{KIND_LABEL[t.kind] || t.kind}</Text>
-                  {!!t.description && <Text style={s.txnDesc}>{t.description}</Text>}
-                  <Text style={s.txnDate}>{new Date(t.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+                  <Text style={s.txnKind}>{t(KIND_KEYS[txn.kind] || txn.kind)}</Text>
+                  {!!txn.description && <Text style={s.txnDesc}>{txn.description}</Text>}
+                  <Text style={s.txnDate}>{new Date(txn.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
                 </View>
-                <Text style={[s.txnPoints, t.points >= 0 ? s.txnPos : s.txnNeg]}>
-                  {t.points >= 0 ? '+' : ''}{t.points}
+                <Text style={[s.txnPoints, txn.points >= 0 ? s.txnPos : s.txnNeg]}>
+                  {txn.points >= 0 ? '+' : ''}{txn.points}
                 </Text>
               </View>
             ))
@@ -271,3 +272,5 @@ const s = StyleSheet.create({
   txnPos: { color: '#059669' },
   txnNeg: { color: '#DC2626' },
 })
+
+export default withScreenBoundary(Wallet, 'Wallet')

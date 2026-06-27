@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiPost } from '../src/api'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
 import { getAuthUser } from '../src/auth'
 
@@ -15,7 +16,7 @@ type Message = {
   createdAt: string
 }
 
-export default function MissionChat() {
+function MissionChat() {
   const { t } = useTranslation()
   const { id, providerName, providerPhone } = useLocalSearchParams<{ id: string; providerName?: string; providerPhone?: string }>()
   const [messages, setMessages] = useState<Message[]>([])
@@ -188,3 +189,5 @@ const st = StyleSheet.create({
   sendBtnDisabled: { opacity: 0.3 },
   sendBtnText: { fontSize: 18, color: '#fff' },
 })
+
+export default withScreenBoundary(MissionChat, 'MissionChat')

@@ -149,6 +149,16 @@ export function setupForegroundNotificationListener(): () => void {
   return () => subscription.remove()
 }
 
+let pendingNav: string | null = null
+
+export function flushPendingNavigation(): void {
+  if (pendingNav) {
+    const target = pendingNav
+    pendingNav = null
+    router.push(target as any)
+  }
+}
+
 /**
  * Gère le tap sur une notification (background / app fermée).
  */
@@ -160,34 +170,34 @@ export function setupNotificationResponseListener(): () => void {
     const data = response.notification.request.content.data as any
     if (!data?.type) return
 
-    switch (data.type) {
-      case 'request:new':
-        router.push('/nearby-requests')
-        break
-      case 'offer:accepted':
-        if (data.requestId) router.push(`/active-mission/${data.requestId}`)
-        else router.push('/my-offers')
-        break
-      case 'offer:rejected':
-        router.push('/my-offers')
-        break
-      case 'offer:counter':
-        router.push('/my-offers')
-        break
-      case 'payment:released':
-        if (data.requestId) router.push(`/active-mission/${data.requestId}`)
-        break
-      case 'request:status-changed':
-        if (data.requestId) router.push(`/active-mission/${data.requestId}`)
-        break
-      case 'chat:message':
-        if (data.requestId) router.push(`/mission-chat?id=${data.requestId}`)
-        break
-      default:
-        if (data.requestId) router.push(`/active-mission/${data.requestId}`)
-        else router.push('/notifications')
+    const target = resolveNavTarget(data)
+    if (target) {
+      pendingNav = target
+      flushPendingNavigation()
     }
   })
 
   return () => subscription.remove()
+}
+
+export function resolveNavTarget(data: any): string | null {
+  switch (data.type) {
+    case 'request:new':
+      return '/nearby-requests'
+    case 'offer:accepted':
+      return data.requestId ? `/active-mission/${data.requestId}` : '/my-offers'
+    case 'offer:rejected':
+      return '/my-offers'
+    case 'offer:counter':
+      return '/my-offers'
+    case 'payment:released':
+      return data.requestId ? `/active-mission/${data.requestId}` : null
+    case 'request:status-changed':
+      return data.requestId ? `/active-mission/${data.requestId}` : null
+    case 'chat:message':
+      return data.requestId ? `/mission-chat?id=${data.requestId}` : null
+    default:
+      if (data.requestId) return `/active-mission/${data.requestId}`
+      return '/notifications'
+  }
 }

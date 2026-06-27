@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
 
 type Provider = 'wave' | 'orange_money' | 'free_money'
@@ -24,7 +25,7 @@ type WalletData = {
   }
 }
 
-export default function PaymentScreen() {
+function PaymentScreen() {
   const { t } = useTranslation()
   const { offerId, amount } = useLocalSearchParams<{ offerId: string; amount: string; requestId: string }>()
   const [selected, setSelected] = useState<Provider | null>(null)
@@ -32,6 +33,8 @@ export default function PaymentScreen() {
   const [wallet, setWallet] = useState<WalletData | null>(null)
   const [walletLoading, setWalletLoading] = useState(true)
   const [useEscrow, setUseEscrow] = useState(true)
+  const [polling, setPolling] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const user = getAuthUser()
   const escrowEnabled = !!wallet?.config?.escrowEnabled
   const escrowMandatory = !!wallet?.config?.escrowMandatory
@@ -45,6 +48,13 @@ export default function PaymentScreen() {
       .catch(() => setWallet(null))
       .finally(() => setWalletLoading(false))
   }, [])
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    setPolling(false)
+  }, [])
+
+  useEffect(() => () => stopPolling(), [stopPolling])
 
   const initiate = async () => {
     if (!selected || !offerId) return
@@ -68,30 +78,46 @@ export default function PaymentScreen() {
         useEscrow: escrowSelected,
       })
       if (res.checkoutUrl) {
-        // Open Wave/OM payment page
         const supported = await Linking.canOpenURL(res.checkoutUrl)
         if (supported) {
           await Linking.openURL(res.checkoutUrl)
         } else {
-          Alert.alert('Lien de paiement', res.checkoutUrl)
+          Alert.alert(t('payment.paymentLink'), res.checkoutUrl)
         }
       }
-      // In dev mode, payment is instant
-      if (res.payment?.status === 'held' || res.payment?.status === 'pending') {
+      if (res.payment?.status === 'held') {
         Alert.alert(
-          '✅ Paiement initié',
+          '✅ ' + t('payment.initiated'),
           escrowSelected
-            ? `${Number(amount).toLocaleString('fr-FR')} FCFA en escrow.\nLe prestataire est notifié.`
-            : `${Number(amount).toLocaleString('fr-FR')} FCFA payé.\nLe prestataire est notifié.`,
-          [{ text: 'OK', onPress: () => router.back() }]
+            ? t('payment.escrowHeld', { amount: Number(amount).toLocaleString('fr-FR') })
+            : t('payment.paid', { amount: Number(amount).toLocaleString('fr-FR') }),
+          [{ text: t('common.ok'), onPress: () => router.back() }]
         )
+      } else if (res.payment?.status === 'pending') {
+        setPolling(true)
+        pollRef.current = setInterval(async () => {
+          try {
+            const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
+            if (r.item?.status === 'assigned' || r.item?.status === 'provider_arriving') {
+              stopPolling()
+              Alert.alert(
+                '✅ ' + t('payment.initiated'),
+                escrowSelected
+                  ? t('payment.escrowHeld', { amount: Number(amount).toLocaleString('fr-FR') })
+                  : t('payment.paid', { amount: Number(amount).toLocaleString('fr-FR') }),
+                [{ text: t('common.ok'), onPress: () => router.back() }]
+              )
+            }
+          } catch { /* keep polling */ }
+        }, 5000)
+        setTimeout(() => stopPolling(), 120000)
       }
     } catch (e: any) {
       Alert.alert(
-        'Erreur',
-        e.message || 'Impossible d\'initier le paiement',
+        t('common.error'),
+        e.message || t('payment.initError'),
         e?.message?.toLowerCase?.().includes('solde points insuffisant')
-          ? [{ text: 'Recharger', onPress: () => router.push('/wallet') }, { text: 'OK' }]
+          ? [{ text: t('payment.recharge'), onPress: () => router.push('/wallet') }, { text: t('common.ok') }]
           : undefined
       )
     }
@@ -110,7 +136,7 @@ export default function PaymentScreen() {
 
       <View style={s.body}>
         <View style={s.amountBox}>
-          <Text style={s.amountLabel}>Montant</Text>
+          <Text style={s.amountLabel}>{t('payment.amount')}</Text>
           <Text style={s.amountValue}>{Number(amount || 0).toLocaleString('fr-FR')} FCFA</Text>
           <Text style={s.escrowHint}>
             {escrowSelected
@@ -127,8 +153,8 @@ export default function PaymentScreen() {
                 {escrowSelected && <Text style={s.checkCircleText}>✓</Text>}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.escrowChoiceTitle}>Sécuriser avec escrow</Text>
-                <Text style={s.escrowChoiceSub}>Optionnel • frais {wallet?.config?.escrowCostPoints || 0} XC</Text>
+                <Text style={s.escrowChoiceTitle}>{t('payment.secureWithEscrow')}</Text>
+                <Text style={s.escrowChoiceSub}>{t('payment.optionalFee', { n: wallet?.config?.escrowCostPoints || 0 })}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -138,28 +164,28 @@ export default function PaymentScreen() {
                 <Text style={s.checkCircleText}>✓</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.escrowChoiceTitle}>Escrow obligatoire</Text>
-                <Text style={s.escrowChoiceSub}>Frais {wallet?.config?.escrowCostPoints || 0} XC</Text>
+                <Text style={s.escrowChoiceTitle}>{t('payment.escrowMandatory')}</Text>
+                <Text style={s.escrowChoiceSub}>{t('payment.fee', { n: wallet?.config?.escrowCostPoints || 0 })}</Text>
               </View>
             </View>
           )}
           <View style={s.escrowRow}>
             <Text style={s.escrowCost}>
               {walletLoading
-                ? 'Vérification du wallet...'
+                ? t('payment.checkingWallet')
                 : escrowCost > 0
-                  ? `Frais escrow : ${escrowCost} XC • Solde : ${wallet?.points || 0} XC`
-                  : escrowEnabled ? 'Escrow non sélectionné' : 'Escrow indisponible'}
+                  ? t('payment.escrowFeeBalance', { fee: escrowCost, balance: wallet?.points || 0 })
+                  : escrowEnabled ? t('payment.escrowNotSelected') : t('payment.escrowUnavailable')}
             </Text>
             {!walletLoading && !hasEnoughEscrowPoints && (
               <TouchableOpacity onPress={() => router.push('/wallet')} style={s.topupBtn}>
-                <Text style={s.topupText}>Recharger</Text>
+                <Text style={s.topupText}>{t('payment.recharge')}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        <Text style={s.sectionTitle}>Choisissez votre moyen de paiement</Text>
+        <Text style={s.sectionTitle}>{t('payment.chooseMethod')}</Text>
 
         {PROVIDERS.map(p => (
           <TouchableOpacity
@@ -179,8 +205,11 @@ export default function PaymentScreen() {
           disabled={!selected || loading || walletLoading}
           onPress={initiate}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
+          {loading || polling ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator color="#fff" />
+              <Text style={[s.payBtnText, { fontSize: 13 }]}>{polling ? t('payment.polling') : t('common.loading')}</Text>
+            </View>
           ) : (
             <Text style={s.payBtnText}>{t('payment.payNow')} {Number(amount || 0).toLocaleString('fr-FR')} FCFA</Text>
           )}
@@ -232,3 +261,5 @@ const s = StyleSheet.create({
   payBtnDisabled: { opacity: 0.5 },
   payBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })
+
+export default withScreenBoundary(PaymentScreen, 'Payment')

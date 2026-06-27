@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import TabBar from '../src/components/TabBar'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import EmptyState from '../src/components/EmptyState'
 import {
   Notification,
@@ -33,7 +34,7 @@ function formatRelative(ts: number): string {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
 }
 
-export default function NotificationsScreen() {
+function NotificationsScreen() {
   const { t } = useTranslation()
   const [items, setItems] = useState<Notification[]>([])
   const [, setTick] = useState(0)
@@ -152,3 +153,5 @@ const s = StyleSheet.create({
   cardBody: { fontSize: 13, color: '#475569', lineHeight: 18 },
   unreadDot: { position: 'absolute', top: 14, right: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB' },
 })
+
+export default withScreenBoundary(NotificationsScreen, 'Notifications')
