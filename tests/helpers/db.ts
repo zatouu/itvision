@@ -141,8 +141,7 @@ export async function cleanupTestData() {
   await Promise.all([
     Intervention.deleteMany({ title: /^E2E / }),
     MaintenanceContract.deleteMany({ contractNumber: /^MC-E2E-/ }),
-    Product.deleteMany({ name: /^E2E-NAMESPACE-/ }),
-    ProviderProfile.deleteMany({ userId: { $in: [] } })
+    Product.deleteMany({ name: /^E2E-NAMESPACE-/ })
   ])
 }
 
@@ -346,9 +345,12 @@ export async function createNamespaceTestProvider(): Promise<{ userId: string; p
 
 export async function cleanupNamespaceTestData() {
   await connectMongoose()
+  const providerUser = await User.findOne({ email: 'e2e-provider@itvision.sn' }).lean() as any
   await Promise.all([
     Product.deleteMany({ name: /^E2E-NAMESPACE-/ }),
     User.deleteMany({ email: 'e2e-provider@itvision.sn' }),
-    ProviderProfile.deleteMany({ userId: { $in: [] } })
+    providerUser
+      ? ProviderProfile.deleteMany({ userId: providerUser._id })
+      : Promise.resolve()
   ])
 }

@@ -77,7 +77,7 @@ function LocationMarker({
   const map = useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng
-      onChange({ lat, lng })
+      handlePositionChange(lat, lng)
       map.setView([lat, lng], map.getZoom())
     },
   })
@@ -130,8 +130,12 @@ export default function DeliveryMap({ coordinates, onChange, onAddressChange }: 
             onAddressChange?.(addr)
           }
         },
-        () => {
-          alert('Impossible de récupérer votre position.')
+        (err) => {
+          if (err?.code === 1) {
+            alert('Veuillez autoriser la géolocalisation dans les paramètres de votre navigateur.')
+          } else {
+            alert('Impossible de récupérer votre position. Vérifiez que le GPS est activé et que le site est en HTTPS.')
+          }
         }
       )
     }
@@ -139,7 +143,12 @@ export default function DeliveryMap({ coordinates, onChange, onAddressChange }: 
 
   useEffect(() => {
     if (coordinates) {
-      reverseGeocode(coordinates.lat, coordinates.lng).then(setAddress)
+      reverseGeocode(coordinates.lat, coordinates.lng).then((addr) => {
+        if (addr) {
+          setAddress(addr)
+          onAddressChange?.(addr)
+        }
+      })
     }
   }, [coordinates?.lat, coordinates?.lng])
 

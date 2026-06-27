@@ -106,6 +106,8 @@ export default function AddressPage() {
     setForm(prev => ({ ...prev, department, quartier: '' }))
   }
 
+  const normalizeRegion = (name: string) => name.toLowerCase().replace(/\b(region|región|département|department|arrondissement)\b/g, '').trim()
+
   const handleAddressFromMap = (address: GeoAddress) => {
     // Construire la rue
     const streetParts = [address.houseNumber, address.road].filter(Boolean)
@@ -114,33 +116,36 @@ export default function AddressPage() {
     // Extraire la zone locale
     const localArea = [address.suburb, address.neighbourhood].filter(Boolean).join(', ')
 
-    // Matcher la région
-    const regionName = address.state || address.county || ''
-    const matchedRegion = SENEGAL_REGIONS.find(r =>
-      regionName.toLowerCase().includes(r.name.toLowerCase()) ||
-      r.name.toLowerCase().includes(regionName.toLowerCase())
-    )?.name || ''
+    // Matcher la région (Nominatim retourne parfois "Dakar Region" ou "Thiès")
+    const regionName = normalizeRegion(address.state || address.county || '')
+    const cityName = normalizeRegion(address.city || address.town || address.village || '')
+    const searchRegion = regionName || cityName
+
+    const matchedRegion = SENEGAL_REGIONS.find(r => {
+      const rName = r.name.toLowerCase()
+      return searchRegion.includes(rName) || rName.includes(searchRegion)
+    })?.name || ''
 
     // Matcher le département
-    const cityName = address.city || address.town || address.village || ''
     let matchedDepartment = ''
     if (matchedRegion) {
       const departments = getDepartments(matchedRegion)
-      matchedDepartment = departments.find(d =>
-        cityName.toLowerCase().includes(d.toLowerCase()) ||
-        d.toLowerCase().includes(cityName.toLowerCase()) ||
-        (address.county && address.county.toLowerCase().includes(d.toLowerCase()))
-      ) || ''
+      matchedDepartment = departments.find(d => {
+        const dName = d.toLowerCase()
+        return cityName.includes(dName) || dName.includes(cityName) ||
+          (regionName && regionName.includes(dName)) ||
+          (address.county && normalizeRegion(address.county).includes(dName))
+      }) || ''
     }
 
     // Matcher le quartier si possible
     let matchedQuartier = ''
     if (matchedDepartment) {
       const quartiers = getQuartiers(matchedDepartment)
-      matchedQuartier = quartiers.find(q =>
-        localArea.toLowerCase().includes(q.toLowerCase()) ||
-        q.toLowerCase().includes(localArea.toLowerCase())
-      ) || ''
+      matchedQuartier = quartiers.find(q => {
+        const qName = q.toLowerCase()
+        return localArea.toLowerCase().includes(qName) || qName.includes(localArea.toLowerCase())
+      }) || ''
     }
 
     setForm(prev => ({
