@@ -457,7 +457,10 @@ OLLAMA_BASE_URL=http://localhost:11434
 
 ### Phase 3 — Séparation des frontends
 
-- [ ] Extraire `corporate-produits` et pages corporate dans `itvisionplus-sn/`.
+- [x] Extraire `corporate-produits` et pages corporate dans `itvisionplus-sn/`.
+  - `itvisionplus-sn/` créé avec `package.json`, `tsconfig.json`, `next.config.mjs`.
+  - `itvisionplus-sn/app/produits/page.tsx` consomme `GET /api/corporate/products`.
+  - `corporate-produits/page.tsx` du projet principal est maintenant API-driven (`/api/corporate/products`).
 - [ ] Extraire `market`, `produits`, `achats-groupes` dans `market-itvisionplus-sn/`.
 - [ ] Garder `xeuy-bi-app/` comme app Expo indépendante.
 
