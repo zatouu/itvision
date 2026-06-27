@@ -1,0 +1,163 @@
+{
+  "generatedAt": "2026-06-27T00:38:43.337Z",
+  "baseURL": "http://market.localhost:3000",
+  "routesVisited": 10,
+  "totalIssues": 23,
+  "summary": {
+    "critical": 1,
+    "high": 7,
+    "medium": 2,
+    "low": 11,
+    "info": 2
+  },
+  "issues": [
+    {
+      "severity": "high",
+      "category": "network",
+      "route": "/",
+      "message": "Requête réseau échouée",
+      "detail": "GET https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=600&h=400&fit=crop — net::ERR_BLOCKED_BY_ORB"
+    },
+    {
+      "severity": "low",
+      "category": "seo",
+      "route": "/",
+      "message": "Aucun <h1> sur la page"
+    },
+    {
+      "severity": "high",
+      "category": "broken-image",
+      "route": "/",
+      "message": "Image cassée (naturalWidth=0)",
+      "detail": "https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=600&h=400&fit=crop"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/",
+      "message": "4 image(s) sans attribut alt",
+      "detail": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=600&fit=crop | https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=600&fit=crop | https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&h=600&fit=crop | https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&h=600&fit=crop"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "info",
+      "category": "http",
+      "route": "/produits",
+      "message": "Réponse HTTP 401",
+      "detail": "GET http://market.localhost:3000/api/auth/login"
+    },
+    {
+      "severity": "high",
+      "category": "console",
+      "route": "/produits",
+      "message": "Erreur console",
+      "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "severity": "low",
+      "category": "seo",
+      "route": "/produits",
+      "message": "Aucun <h1> sur la page"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/produits",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "critical",
+      "category": "js-error",
+      "route": "/achats-groupes/nouveau",
+      "message": "Exception JavaScript non gérée",
+      "detail": "Invalid or unexpected token"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/achats-groupes/nouveau",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/panier",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/login",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/register",
+      "message": "2 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "high",
+      "category": "network",
+      "route": "/ (sourcing)",
+      "message": "Requête réseau échouée",
+      "detail": "GET https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=600&h=400&fit=crop — net::ERR_BLOCKED_BY_ORB"
+    },
+    {
+      "severity": "medium",
+      "category": "flow",
+      "route": "/ (sourcing)",
+      "message": "Aucun déclencheur de sourcing trouvé sur la home"
+    },
+    {
+      "severity": "info",
+      "category": "http",
+      "route": "/produits (flow)",
+      "message": "Réponse HTTP 401",
+      "detail": "GET http://market.localhost:3000/api/auth/login"
+    },
+    {
+      "severity": "high",
+      "category": "console",
+      "route": "/produits (flow)",
+      "message": "Erreur console",
+      "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "severity": "high",
+      "category": "network",
+      "route": "/produits/favoris",
+      "message": "Requête réseau échouée",
+      "detail": "GET http://market.localhost:3000/api/auth/login — net::ERR_ABORTED"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/produits/favoris",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "high",
+      "category": "flow",
+      "route": "/produits/favoris",
+      "message": "Aucun bouton \"Ajouter au panier\" sur la fiche produit"
+    },
+    {
+      "severity": "low",
+      "category": "accessibility",
+      "route": "/panier (flow)",
+      "message": "1 bouton(s) sans nom accessible"
+    },
+    {
+      "severity": "medium",
+      "category": "flow",
+      "route": "/achats-groupes (flow)",
+      "message": "Aucun groupe d’achat cliquable (catalogue vide ou liens absents)"
+    }
+  ]
+}
