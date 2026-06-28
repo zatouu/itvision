@@ -24,7 +24,11 @@
     "codePlaceholder": "Kood bu 6 sifr",
     "verify": "Saytu",
     "resend": "Yónnee kood bi",
-    "logout": "Génne"
+    "logout": "Génne",
+    "or": "màn",
+    "googleSignIn": "Kontine ak Google",
+    "googleNotConfigured": "Google Sign-In kenn",
+    "googleError": "Njuumte Google Sign-In"
   },
   "home": {
     "greeting_morning": "Jàmm ngeen fanaan",

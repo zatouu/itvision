@@ -4,9 +4,7 @@
     "slug": "xeuy-consumer",
     "scheme": "xeuyconsumer",
     "version": "1.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -68,14 +66,14 @@
       "bundler": "metro"
     },
     "updates": {
-      "url": "https://u.expo.dev/c735fe72-f764-4847-9e1d-2342ff1cbfc8",
+      "url": "https://u.expo.dev/8d36eb20-d9bf-4621-8874-beea87bd3162",
       "checkAutomatically": "ON_LOAD"
     },
     "extra": {
       "eas": {
-        "projectId": "c735fe72-f764-4847-9e1d-2342ff1cbfc8"
+        "projectId": "8d36eb20-d9bf-4621-8874-beea87bd3162"
       }
     },
-    "owner": "xeuy"
+    "owner": "zatou"
   }
 }

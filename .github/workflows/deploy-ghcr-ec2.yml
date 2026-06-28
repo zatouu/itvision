@@ -139,9 +139,10 @@ jobs:
             echo "TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" >> .env.ec2
             echo "ALLOW_TEST_CODES=${{ secrets.ALLOW_TEST_CODES }}" >> .env.ec2
             echo "PAYMENTS_MOCK=${{ secrets.PAYMENTS_MOCK }}" >> .env.ec2
+            echo "OTP_FREE_MODE=${{ secrets.OTP_FREE_MODE }}" >> .env.ec2
+            echo "EXPO_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}" >> .env.ec2
             
             
-
             # Login au registre GHCR (méthode sécurisée avec stdin)
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} --password-stdin
             

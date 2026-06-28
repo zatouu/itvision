@@ -4,13 +4,13 @@ import OtpCode from '@/lib/models/OtpCode'
 import { sendSms, normalizePhone } from '@/lib/sms'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
 
-// Rate limit strict : 5 envois OTP par 15 min par IP
-const otpSendLimiter = new RateLimiter(15 * 60 * 1000, 5)
+// Rate limit : 5 envois OTP par 15 min par IP (30 en free mode pour éviter blocage derrière proxy)
+const isFreeMode = process.env.OTP_FREE_MODE === 'true' || process.env.ALLOW_TEST_CODES === 'true' || (process.env.SMS_PROVIDER || 'console') === 'console'
+const otpSendLimiter = new RateLimiter(15 * 60 * 1000, isFreeMode ? 30 : 5)
 
 const OTP_LENGTH = 6
-const OTP_TTL_MIN = 5
+const OTP_TTL_MIN = isFreeMode ? 30 : 5
 const TEST_CODE = '000000'
-const isTestMode = process.env.ALLOW_TEST_CODES === 'true' || (process.env.SMS_PROVIDER || 'console') === 'console'
 
 function generateOtp(): string {
   const digits = '0123456789'
@@ -48,32 +48,45 @@ export async function POST(request: NextRequest) {
 
     await connectMongoose()
 
-    // Vérifier s'il y a un OTP récent non expiré (anti-spam)
-    const recent = await OtpCode.findOne({
-      phone,
-      expiresAt: { $gt: new Date() },
-      verified: false,
-    }).sort({ createdAt: -1 })
+    // Anti-spam : 1 min entre envois (désactivé en free mode)
+    if (!isFreeMode) {
+      const recent = await OtpCode.findOne({
+        phone,
+        expiresAt: { $gt: new Date() },
+        verified: false,
+      }).sort({ createdAt: -1 })
 
-    if (recent) {
-      const ageMs = Date.now() - new Date(recent.createdAt).getTime()
-      if (ageMs < 60_000) {
-        // Moins d'1 minute depuis le dernier envoi
-        return NextResponse.json(
-          { error: 'Un code vient d\'être envoyé. Attendez 1 minute.' },
-          { status: 429 }
-        )
+      if (recent) {
+        const ageMs = Date.now() - new Date(recent.createdAt).getTime()
+        if (ageMs < 60_000) {
+          return NextResponse.json(
+            { error: 'Un code vient d\'être envoyé. Attendez 1 minute.' },
+            { status: 429 }
+          )
+        }
       }
     }
 
-    // En mode test, utiliser le code fixe pour simplifier les tests terrain
-    const code = isTestMode ? TEST_CODE : generateOtp()
+    // En free mode, utiliser le code fixe 000000 — pas d'envoi SMS
+    const code = isFreeMode ? TEST_CODE : generateOtp()
     const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
 
     // Sauvegarder en DB
     await OtpCode.create({ phone, code, role, expiresAt })
 
-    // Envoyer le SMS
+    if (isFreeMode) {
+      // Pas d'envoi SMS en free mode — on retourne directement le code
+      console.log(`[OTP FREE MODE] ${phone} → code: ${code}`)
+      return NextResponse.json({
+        success: true,
+        phone,
+        expiresIn: OTP_TTL_MIN * 60,
+        _devCode: code,
+        isFreeMode: true,
+      })
+    }
+
+    // Envoyer le SMS (production)
     const sent = await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
 
     if (!sent) {
@@ -87,8 +100,6 @@ export async function POST(request: NextRequest) {
       success: true,
       phone,
       expiresIn: OTP_TTL_MIN * 60,
-      // En mode test (pas de SMS reel), on expose le code pour faciliter les tests terrain
-      ...(isTestMode ? { _devCode: code, isTestMode: true } : {}),
     })
   } catch (err) {
     console.error('[POST /api/auth/mobile/send-otp]', err)

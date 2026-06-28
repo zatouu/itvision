@@ -4,9 +4,7 @@
     "slug": "Xeuy-provider",
     "scheme": "xeuyprovider",
     "version": "1.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -63,14 +61,14 @@
       "bundler": "metro"
     },
     "updates": {
-      "url": "https://u.expo.dev/30c35b9c-cc94-492f-9978-a1f10809b532",
+      "url": "https://u.expo.dev/61a16319-5cc9-4a6a-896e-e995f732271a",
       "checkAutomatically": "ON_LOAD"
     },
     "extra": {
       "eas": {
-        "projectId": "30c35b9c-cc94-492f-9978-a1f10809b532"
+        "projectId": "61a16319-5cc9-4a6a-896e-e995f732271a"
       }
     },
-    "owner": "xeuy"
+    "owner": "zatou"
   }
 }

@@ -1,14 +1,57 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as WebBrowser from 'expo-web-browser'
+import * as Google from 'expo-auth-session/providers/google'
+import { setAuth } from '../src/auth'
+import { resetSocket } from '../src/socket'
+
+WebBrowser.maybeCompleteAuthSession()
 
 const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || ''
 
 export default function Login() {
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID,
+    scopes: ['openid', 'email', 'profile'],
+  })
+
+  useEffect(() => {
+    if (response?.type === 'success' && response.authentication?.idToken) {
+      (async () => {
+        setOauthLoading(true)
+        setErr(null)
+        try {
+          const r = await fetch(`${base}/api/auth/mobile/oauth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: 'google', idToken: response.authentication!.idToken, role: 'PROVIDER' }),
+          })
+          const data = await r.json()
+          if (!r.ok) {
+            setErr(data.error || 'Erreur Google Sign-In')
+            setOauthLoading(false)
+            return
+          }
+          await setAuth(data.token, data.user)
+          resetSocket()
+          router.replace('/')
+        } catch (e: any) {
+          setErr('Réseau indisponible')
+        }
+        setOauthLoading(false)
+      })()
+    } else if (response?.type === 'error') {
+      setErr('Erreur Google Sign-In')
+    }
+  }, [response])
 
   const sendOtp = async () => {
     setErr(null)
@@ -35,6 +78,15 @@ export default function Login() {
       setErr('Réseau indisponible')
     }
     setLoading(false)
+  }
+
+  const googleSignIn = async () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setErr('Google Sign-In non configuré')
+      return
+    }
+    setErr(null)
+    await promptAsync()
   }
 
   return (
@@ -74,7 +126,30 @@ export default function Login() {
             disabled={loading || phone.replace(/\s/g, '').length < 9}
             onPress={sendOtp}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Recevoir le code →</Text>}
+            {loading ? <ActivityIndicator color="#0F172A" /> : <Text style={s.btnText}>Recevoir le code →</Text>}
+          </TouchableOpacity>
+
+          <View style={s.divider}>
+            <View style={s.dividerLine} />
+            <Text style={s.dividerText}>ou</Text>
+            <View style={s.dividerLine} />
+          </View>
+
+          <TouchableOpacity
+            style={s.googleBtn}
+            disabled={oauthLoading || !request}
+            onPress={googleSignIn}
+          >
+            {oauthLoading ? (
+              <ActivityIndicator color="#3C4043" />
+            ) : (
+              <>
+                <View style={s.googleIcon}>
+                  <Text style={s.googleIconG}>G</Text>
+                </View>
+                <Text style={s.googleBtnText}>Continuer avec Google</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -106,4 +181,11 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.35 },
   btnText: { color: '#0F172A', fontSize: 16, fontWeight: '700' },
   legal: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginTop: 32, lineHeight: 16 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+  dividerText: { fontSize: 13, color: '#94A3B8', marginHorizontal: 12, fontWeight: '500' },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 12, padding: 15, borderWidth: 1.5, borderColor: '#E2E8F0' },
+  googleBtnText: { fontSize: 15, fontWeight: '600', color: '#3C4043' },
+  googleIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#4285F4' },
+  googleIconG: { fontSize: 13, fontWeight: '800', color: '#4285F4' },
 })

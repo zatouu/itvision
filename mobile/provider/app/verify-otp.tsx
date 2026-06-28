@@ -63,7 +63,8 @@ export default function VerifyOtp() {
 
         {_devCode ? (
           <View style={s.devBanner}>
-            <Text style={s.devText}>🧪 DEV — Code : {_devCode}</Text>
+            <Text style={s.devText}>🧪 Code de test : {_devCode}</Text>
+            <Text style={s.devSubText}>Saisissez ce code pour vous connecter</Text>
           </View>
         ) : null}
 
@@ -117,8 +118,9 @@ const s = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
   subtitle: { fontSize: 15, color: '#64748B', marginBottom: 24, lineHeight: 22 },
   phoneBold: { fontWeight: '700', color: '#0F172A' },
-  devBanner: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginBottom: 20 },
-  devText: { fontSize: 14, fontWeight: '700', color: '#92400E', textAlign: 'center' },
+  devBanner: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 14, marginBottom: 20, borderWidth: 2, borderColor: '#F59E0B' },
+  devText: { fontSize: 16, fontWeight: '800', color: '#92400E', textAlign: 'center' },
+  devSubText: { fontSize: 12, color: '#92400E', textAlign: 'center', marginTop: 4, fontWeight: '500' },
   codeBox: { marginBottom: 24 },
   codeInput: {
     borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 16, padding: 20,

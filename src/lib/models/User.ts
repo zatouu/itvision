@@ -41,6 +41,8 @@ export interface IUser extends Document {
   referrals?: mongoose.Types.ObjectId[]
   referralBalance?: number
   referralCount?: number
+  oauthProvider?: 'google' | 'facebook' | 'apple'
+  oauthId?: string
   // Provider reliability stats (utilisés pour le ranking et l'affichage côté client)
   providerStats?: {
     completedMissions: number
@@ -91,6 +93,8 @@ const UserSchema = new Schema<IUser>({
   referrals: { type: [Schema.Types.ObjectId], default: [], index: true },
   referralBalance: { type: Number, default: 0, min: 0 },
   referralCount: { type: Number, default: 0, min: 0 },
+  oauthProvider: { type: String, enum: ['google', 'facebook', 'apple'], index: true },
+  oauthId: { type: String, index: true },
   providerStats: {
     completedMissions: { type: Number, default: 0, min: 0 },
     cancelledByProvider: { type: Number, default: 0, min: 0 },

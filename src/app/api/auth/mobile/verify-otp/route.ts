@@ -10,10 +10,12 @@ import { creditPoints, getAppConfig } from '@/lib/wallet'
 import { creditGrainsForReferralSignup, updateTierFromBalance } from '@/lib/grains'
 import { createUserProfiles } from '@/lib/user-profiles'
 
-// Rate limit : 10 tentatives de vérification par 15 min par IP
-const otpVerifyLimiter = new RateLimiter(15 * 60 * 1000, 10)
+// Rate limit : 10 tentatives par 15 min (50 en free mode)
+const isFreeMode = process.env.OTP_FREE_MODE === 'true' || process.env.ALLOW_TEST_CODES === 'true' || (process.env.SMS_PROVIDER || 'console') === 'console'
+const otpVerifyLimiter = new RateLimiter(15 * 60 * 1000, isFreeMode ? 50 : 10)
 
-const MAX_ATTEMPTS = 5
+const MAX_ATTEMPTS = isFreeMode ? 20 : 5
+const TEST_CODE = '000000'
 
 export async function POST(request: NextRequest) {
   const rl = applyRateLimit(request, otpVerifyLimiter)
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Incrémenter les tentatives
     otp.attempts += 1
 
-    if (otp.code !== code) {
+    if (otp.code !== code && !(isFreeMode && code === TEST_CODE)) {
       await otp.save()
       const remaining = MAX_ATTEMPTS - otp.attempts
       return NextResponse.json(

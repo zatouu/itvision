@@ -24,7 +24,11 @@
     "codePlaceholder": "Code à 6 chiffres",
     "verify": "Vérifier",
     "resend": "Renvoyer le code",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "or": "ou",
+    "googleSignIn": "Continuer avec Google",
+    "googleNotConfigured": "Google Sign-In non configuré",
+    "googleError": "Erreur Google Sign-In"
   },
   "home": {
     "greeting_morning": "Bonjour",
