@@ -10,7 +10,9 @@ const otpSendLimiter = new RateLimiter(15 * 60 * 1000, 5)
 const OTP_LENGTH = 6
 const OTP_TTL_MIN = 5
 const TEST_CODE = '000000'
-const isTestMode = process.env.ALLOW_TEST_CODES === 'true' || (process.env.SMS_PROVIDER || 'console') === 'console'
+const isFreeMode = process.env.OTP_FREE_MODE === 'true' ||
+  process.env.ALLOW_TEST_CODES === 'true' ||
+  (process.env.SMS_PROVIDER || 'console') === 'console'
 
 function generateOtp(): string {
   const digits = '0123456789'
@@ -66,15 +68,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // En mode test, utiliser le code fixe pour simplifier les tests terrain
-    const code = isTestMode ? TEST_CODE : generateOtp()
+    // En mode test/free, utiliser le code fixe pour simplifier les tests terrain
+    const code = isFreeMode ? TEST_CODE : generateOtp()
     const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
 
     // Sauvegarder en DB
     await OtpCode.create({ phone, code, role, expiresAt })
 
-    // Envoyer le SMS
-    const sent = await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
+    // En mode test/free, on ne part pas de SMS réel (console log uniquement)
+    const sent = isFreeMode
+      ? true
+      : await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
 
     if (!sent) {
       return NextResponse.json(
@@ -87,8 +91,8 @@ export async function POST(request: NextRequest) {
       success: true,
       phone,
       expiresIn: OTP_TTL_MIN * 60,
-      // En mode test (pas de SMS reel), on expose le code pour faciliter les tests terrain
-      ...(isTestMode ? { _devCode: code, isTestMode: true } : {}),
+      // En mode test/free (pas de SMS reel), on expose le code pour faciliter les tests terrain
+      ...(isFreeMode ? { _devCode: code, isFreeMode: true } : {}),
     })
   } catch (err) {
     console.error('[POST /api/auth/mobile/send-otp]', err)
