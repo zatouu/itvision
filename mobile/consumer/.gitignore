@@ -12,5 +12,4 @@ web-build/
 *.mobileprovision
 *.orig.*
 ios/
-android/
 .DS_Store
