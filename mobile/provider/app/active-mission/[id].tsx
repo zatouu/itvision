@@ -10,13 +10,14 @@ import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom 
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
+import i18n from '../../src/i18n'
 
-const PAYMENT_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  pending:   { label: '⏳ Paiement en attente',     color: '#92400E', bg: '#FFFBEB' },
-  held:      { label: '🔒 Paiement sécurisé',       color: '#065F46', bg: '#ECFDF5' },
-  released:  { label: '💰 Paiement libéré',         color: '#1E3A8A', bg: '#EFF6FF' },
-  refunded:  { label: '↩️ Paiement remboursé',      color: '#991B1B', bg: '#FEF2F2' },
-  failed:    { label: '❌ Paiement échoué',          color: '#991B1B', bg: '#FEF2F2' },
+const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
+  pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: '#FFFBEB' },
+  held:      { key: 'mission.paymentHeld',     color: '#065F46', bg: '#ECFDF5' },
+  released:  { key: 'mission.paymentReleased', color: '#1E3A8A', bg: '#EFF6FF' },
+  refunded:  { key: 'mission.paymentRefunded', color: '#991B1B', bg: '#FEF2F2' },
+  failed:    { key: 'mission.paymentFailed',   color: '#991B1B', bg: '#FEF2F2' },
 }
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
@@ -51,15 +52,15 @@ function normalizeId(value: string | string[] | undefined): string | null {
 
 function formatMoney(value: unknown): string {
   const amount = Number(value)
-  if (!Number.isFinite(amount) || amount < 0) return 'Non renseigné'
-  return `${amount.toLocaleString('fr-FR')} FCFA`
+  if (!Number.isFinite(amount) || amount < 0) return i18n.t('mission.notProvided')
+  return `${amount.toLocaleString()} FCFA`
 }
 
 function formatDateTime(value: unknown): string {
-  if (!value) return 'Non renseignée'
+  if (!value) return i18n.t('mission.notProvided')
   const d = new Date(String(value))
-  if (Number.isNaN(d.getTime())) return 'Non renseignée'
-  return d.toLocaleString('fr-FR')
+  if (Number.isNaN(d.getTime())) return i18n.t('mission.notProvided')
+  return d.toLocaleString()
 }
 
 function formatElapsed(startedAt: unknown, endedAt?: unknown): string {
@@ -218,27 +219,27 @@ function ActiveMission() {
       const r = await apiPatchQueued(
         `/api/services/requests/${requestId}`,
         { status: nextStatus },
-        'Changement de statut enregistré — sera envoyé dès le retour réseau.'
+        t('mission.offlineStatusChange')
       )
       if (r) await load(true)
-    } catch (e: any) { notify('Erreur', e.message) }
+    } catch (e: any) { notify(t('common.error'), e.message) }
     finally { setUpdating(false) }
   }
 
   const handleArriving = async () => {
-    const ok = await confirm('En route', 'Confirmer que vous êtes en route ?')
+    const ok = await confirm(t('mission.arrivingTitle'), t('mission.arrivingMsg'))
     if (!ok) return
     doUpdateStatus('provider_arriving')
   }
 
   const handleStart = async () => {
-    const ok = await confirm('Démarrer', 'Confirmer le démarrage de la mission ?')
+    const ok = await confirm(t('mission.startTitle'), t('mission.startMsg'))
     if (!ok) return
     doUpdateStatus('in_progress')
   }
 
   const handleComplete = async () => {
-    const ok = await confirm('Terminer', 'Marquer cette mission comme terminée ?')
+    const ok = await confirm(t('mission.completeTitle'), t('mission.completeMsg'))
     if (!ok) return
     doUpdateStatus('completed')
   }
@@ -250,7 +251,7 @@ function ActiveMission() {
   if (!requestId) return (
     <SafeAreaView style={s.safe}>
       <View style={s.centerBlock}>
-        <Text style={s.err}>Mission invalide</Text>
+        <Text style={s.err}>{t('mission.invalid')}</Text>
       </View>
     </SafeAreaView>
   )
@@ -258,18 +259,18 @@ function ActiveMission() {
   const openMedia = async (url?: string) => {
     const mediaUrl = resolveMediaUrl(url)
     if (!mediaUrl) {
-      notify('Média indisponible', 'Lien du média invalide')
+      notify(t('mission.mediaUnavailable'), t('mission.invalidMediaLink'))
       return
     }
     try {
       const canOpen = await Linking.canOpenURL(mediaUrl)
       if (!canOpen) {
-        notify('Média indisponible', 'Impossible d’ouvrir ce lien')
+        notify(t('mission.mediaUnavailable'), t('mission.cannotOpenLink'))
         return
       }
       await Linking.openURL(mediaUrl)
     } catch {
-      notify('Média indisponible', 'Impossible d’ouvrir ce média')
+      notify(t('mission.mediaUnavailable'), t('mission.cannotOpenMedia'))
     }
   }
 
@@ -281,7 +282,7 @@ function ActiveMission() {
   const lng = hasCoords ? Number(loc.coordinates[0]) : 0
   const locationAddress = typeof item?.location?.address === 'string' ? item.location.address : undefined
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
-  const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : 'Non renseignée'
+  const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
 
   return (
     <SafeAreaView style={s.safe}>
@@ -289,7 +290,7 @@ function ActiveMission() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Mission active</Text>
+        <Text style={s.headerTitle}>{t('mission.activeTitle')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -325,14 +326,14 @@ function ActiveMission() {
             {item.payment && PAYMENT_BADGE[item.payment.status] && (
               <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
                 <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
-                  {PAYMENT_BADGE[item.payment.status].label}
+                  {t(PAYMENT_BADGE[item.payment.status].key)}
                 </Text>
               </View>
             )}
 
             {item.status !== 'cancelled' && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>Progression</Text>
+                <Text style={s.cardTitle}>{t('mission.progress')}</Text>
                 <View style={s.timeline}>
                   {FLOW_STEPS.map((step, idx) => {
                     const state = getStepState(item.status, step.key)
@@ -359,40 +360,40 @@ function ActiveMission() {
             )}
 
             <View style={s.card}>
-              <Text style={s.cardTitle}>Détails mission</Text>
+              <Text style={s.cardTitle}>{t('mission.detailsTitle')}</Text>
               <View style={s.detailRow}>
-                <Text style={s.detailLabel}>Référence</Text>
+                <Text style={s.detailLabel}>{t('mission.reference')}</Text>
                 <Text style={s.detailValue}>#{missionRef}</Text>
               </View>
               <View style={s.detailRow}>
-                <Text style={s.detailLabel}>Catégorie</Text>
-                <Text style={s.detailValue}>{item.category || 'Non renseignée'}</Text>
+                <Text style={s.detailLabel}>{t('mission.category')}</Text>
+                <Text style={s.detailValue}>{item.category || t('mission.notProvided')}</Text>
               </View>
               <View style={s.detailRow}>
-                <Text style={s.detailLabel}>Budget client</Text>
+                <Text style={s.detailLabel}>{t('mission.clientBudget')}</Text>
                 <Text style={s.detailValue}>{formatMoney(item.budget)}</Text>
               </View>
               <View style={s.detailRow}>
-                <Text style={s.detailLabel}>Créée le</Text>
+                <Text style={s.detailLabel}>{t('mission.createdAt')}</Text>
                 <Text style={s.detailValue}>{formatDateTime(item.createdAt)}</Text>
               </View>
               <View style={s.detailRow}>
-                <Text style={s.detailLabel}>Votre offre</Text>
-                <Text style={s.detailValue}>{offer ? `${formatMoney(offer.price)} · ETA ${etaLabel}` : 'Non disponible'}</Text>
+                <Text style={s.detailLabel}>{t('mission.yourOffer')}</Text>
+                <Text style={s.detailValue}>{offer ? `${formatMoney(offer.price)} · ETA ${etaLabel}` : t('mission.notAvailable')}</Text>
               </View>
             </View>
 
             {/* Client / Demande */}
             <View style={s.card}>
-              <Text style={s.cardTitle}>Demande</Text>
-              <Text style={s.descText}>{item.description || '—'}</Text>
-              {item.budget ? <Text style={s.meta}>Budget estimé: {item.budget.toLocaleString('fr-FR')} FCFA</Text> : null}
+              <Text style={s.cardTitle}>{t('mission.request')}</Text>
+              <Text style={s.descText}>{item.description || t('mission.noDescription')}</Text>
+              {item.budget ? <Text style={s.meta}>{t('mission.estimatedBudget', { budget: item.budget.toLocaleString() })}</Text> : null}
             </View>
 
             {/* Médias */}
             {item.media && item.media.length > 0 && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>Médias client</Text>
+                <Text style={s.cardTitle}>{t('mission.clientMedia')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     {item.media.map((m: any, i: number) => {
@@ -405,7 +406,7 @@ function ActiveMission() {
                         : (
                             <TouchableOpacity key={i} style={s.mediaFile} onPress={() => openMedia(m?.url)}>
                               <Text style={s.mediaFileType}>{getMediaLabel(m?.type)}</Text>
-                              <Text style={s.mediaFileText} numberOfLines={2}>{m?.title || 'Ouvrir le média'}</Text>
+                              <Text style={s.mediaFileText} numberOfLines={2}>{m?.title || t('mission.openMedia')}</Text>
                             </TouchableOpacity>
                           )
                     })}
@@ -417,7 +418,7 @@ function ActiveMission() {
             {/* Carte */}
             {hasCoords && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>Adresse client</Text>
+                <Text style={s.cardTitle}>{t('mission.clientAddress')}</Text>
                 <Text style={s.meta}>{locationAddress || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}</Text>
                 <MapView
                   style={{ width: '100%', height: 220, borderRadius: 12, marginTop: 8 }}
@@ -439,7 +440,7 @@ function ActiveMission() {
                 style={s.chatBtn}
                 onPress={() => router.push(`/mission-chat?id=${requestId}`)}
               >
-                <Text style={s.chatBtnText}>💬 Contacter le client</Text>
+                <Text style={s.chatBtnText}>{t('mission.contactClient')}</Text>
               </TouchableOpacity>
             )}
 
@@ -447,17 +448,17 @@ function ActiveMission() {
             <View style={{ gap: 10, marginTop: 8 }}>
               {item.status === 'assigned' && (
                 <TouchableOpacity style={[s.actionBtn, s.arrivingBtn]} onPress={handleArriving} disabled={updating}>
-                  <Text style={s.arrivingBtnText}>🚗 Je suis en route</Text>
+                  <Text style={s.arrivingBtnText}>{t('mission.arrivingBtn')}</Text>
                 </TouchableOpacity>
               )}
               {item.status === 'provider_arriving' && (
                 <TouchableOpacity style={[s.actionBtn, s.startBtn]} onPress={handleStart} disabled={updating}>
-                  <Text style={s.startBtnText}>Démarrer la mission</Text>
+                  <Text style={s.startBtnText}>{t('mission.startBtn')}</Text>
                 </TouchableOpacity>
               )}
               {item.status === 'in_progress' && (
                 <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={handleComplete} disabled={updating}>
-                  <Text style={s.completeBtnText}>Terminer la mission</Text>
+                  <Text style={s.completeBtnText}>{t('mission.completeBtn')}</Text>
                 </TouchableOpacity>
               )}
             </View>

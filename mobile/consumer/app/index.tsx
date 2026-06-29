@@ -195,13 +195,13 @@ function Home() {
 
         {recent.length > 0 && (
           <TouchableOpacity style={s.seeAllBtn} onPress={() => router.push('/my-requests')}>
-            <Text style={s.seeAllText}>Voir toutes mes demandes</Text>
+            <Text style={s.seeAllText}>{t('home.seeAllRequests')}</Text>
           </TouchableOpacity>
         )}
 
         {/* Catégories */}
         <View style={s.sectionRow}>
-          <Text style={s.sectionTitle}>Catégories</Text>
+          <Text style={s.sectionTitle}>{t('home.categories')}</Text>
         </View>
         <View style={s.catGrid}>
           {cats.map(c => (

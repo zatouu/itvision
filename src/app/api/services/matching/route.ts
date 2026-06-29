@@ -3,6 +3,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
 
+const REQUEST_TTL_HOURS = 2 // doit rester aligné avec /api/services/requests
+
 type NearQuery = {
   lng: number
   lat: number
@@ -59,18 +61,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Auto-expire les demandes expirées (paresseux)
+    // Auto-expire les demandes expirées (paresseux), y compris les anciennes sans expiresAt (legacy)
     const now = new Date()
+    const legacyCutoff = new Date(now.getTime() - REQUEST_TTL_HOURS * 60 * 60 * 1000)
     await ServiceRequest.updateMany(
       {
         status: { $in: ['created', 'pending_offers'] },
-        expiresAt: { $ne: null, $lt: now },
+        $or: [
+          { expiresAt: { $lt: now } },
+          { expiresAt: null, createdAt: { $lt: legacyCutoff } },
+        ],
       },
       { $set: { status: 'expired', expiredAt: now } }
     ).catch(() => {})
 
     const statusFilter = { status: { $in: ['created', 'pending_offers'] } }
-    const expiryFilter = { $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: now } }] }
+    // Une demande legacy (sans expiresAt) n'est valide que si elle est plus récente que le TTL
+    const expiryFilter = { $or: [{ expiresAt: { $gt: now } }, { expiresAt: null, createdAt: { $gte: legacyCutoff } }] }
     const catFilter = q.category ? { category: q.category } : {}
     const mineFilter = q.excludeMine ? { clientId: { $ne: userId } } : {}
 

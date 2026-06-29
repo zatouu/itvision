@@ -216,8 +216,8 @@ function MyRequests() {
                       <Text style={s.desc} numberOfLines={2}>{it.description}</Text>
                     ) : null}
                     <Text style={s.meta}>
-                      {it.createdAt ? new Date(it.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : ''}
-                      {it.budget ? ` • ${Number(it.budget).toLocaleString('fr-FR')} FCFA` : ''}
+                      {it.createdAt ? new Date(it.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''}
+                      {it.budget ? ` • ${Number(it.budget).toLocaleString()} FCFA` : ''}
                     </Text>
                   </View>
                   <Text style={s.cardArrow}>›</Text>

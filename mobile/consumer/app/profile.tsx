@@ -56,49 +56,49 @@ function Profile() {
       <ScrollView contentContainerStyle={s.body}>
         <View style={s.avatarBox}>
           <View style={s.avatar}>
-            <Text style={s.avatarText}>{user?.name ? user.name.slice(0, 2).toUpperCase() : 'CL'}</Text>
+            <Text style={s.avatarText}>{user?.name ? user.name.slice(0, 2).toUpperCase() : t('profile.defaultName').slice(0, 2).toUpperCase()}</Text>
           </View>
-          <Text style={s.name}>{user?.name || 'Client'}</Text>
+          <Text style={s.name}>{user?.name || t('profile.defaultName')}</Text>
           <Text style={s.phone}>{user?.phone || ''}</Text>
         </View>
 
         <View style={s.statsRow}>
           <View style={s.statCard}>
             <Text style={s.statNum}>{stats.total}</Text>
-            <Text style={s.statLabel}>Demandes</Text>
+            <Text style={s.statLabel}>{t('profile.statRequests')}</Text>
           </View>
           <View style={s.statCard}>
             <Text style={s.statNum}>{stats.completed}</Text>
-            <Text style={s.statLabel}>Terminées</Text>
+            <Text style={s.statLabel}>{t('profile.statCompleted')}</Text>
           </View>
           <View style={s.statCard}>
             <Text style={s.statNum}>{stats.cancelled}</Text>
-            <Text style={s.statLabel}>Annulées</Text>
+            <Text style={s.statLabel}>{t('profile.statCancelled')}</Text>
           </View>
         </View>
 
         {/* Referral card */}
         {user?.referralCode && (
           <View style={s.referralCard}>
-            <Text style={s.referralTitle}>Parrainage</Text>
-            <Text style={s.referralSubtitle}>Partagez votre code et gagnez 1 000 FCFA par ami qui complète sa première mission</Text>
+            <Text style={s.referralTitle}>{t('profile.referralTitle')}</Text>
+            <Text style={s.referralSubtitle}>{t('profile.referralSubtitle')}</Text>
             <View style={s.referralCodeBox}>
               <Text style={s.referralCode}>{user.referralCode}</Text>
               <TouchableOpacity
                 style={s.referralShareBtn}
-                onPress={() => Share.share({ message: `Rejoins-moi sur Xeuy Bi ! Utilise mon code ${user.referralCode} et gagne 1 000 FCFA. Télécharge l'app ici : https://xeuy.sn` })}
+                onPress={() => Share.share({ message: t('profile.referralShareMessage', { code: user.referralCode }) })}
               >
-                <Text style={s.referralShareText}>Partager</Text>
+                <Text style={s.referralShareText}>{t('profile.referralShare')}</Text>
               </TouchableOpacity>
             </View>
             <View style={s.referralRow}>
               <View style={s.referralStat}>
                 <Text style={s.referralStatNum}>{user.referralBalance || 0} FCFA</Text>
-                <Text style={s.referralStatLabel}>Gagnés</Text>
+                <Text style={s.referralStatLabel}>{t('profile.referralEarned')}</Text>
               </View>
               <View style={s.referralStat}>
                 <Text style={s.referralStatNum}>{referral?.count || 0}</Text>
-                <Text style={s.referralStatLabel}>Parrainages</Text>
+                <Text style={s.referralStatLabel}>{t('profile.referralCount')}</Text>
               </View>
             </View>
           </View>

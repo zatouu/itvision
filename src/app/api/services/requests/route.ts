@@ -25,12 +25,19 @@ export async function GET(request: NextRequest) {
       q.clientId = userId
     }
 
-    // Auto-expiration paresseuse: marque "expired" toute demande non assignée dont expiresAt est dépassé
+    // Auto-expiration paresseuse: marque "expired" toute demande non assignée dont expiresAt est dépassé.
+    // On gère aussi les anciennes demandes créées AVANT l'ajout du champ expiresAt (legacy):
+    // dans ce cas on se base sur l'âge via createdAt.
     const now = new Date()
+    const legacyCutoff = new Date(now.getTime() - REQUEST_TTL_HOURS * 60 * 60 * 1000)
     await ServiceRequest.updateMany(
       {
         status: { $in: ['created', 'pending_offers'] },
-        expiresAt: { $ne: null, $lt: now },
+        $or: [
+          { expiresAt: { $lt: now } },
+          // expiresAt null OU absent (legacy) → expirer si la demande est plus vieille que le TTL
+          { expiresAt: null, createdAt: { $lt: legacyCutoff } },
+        ],
       },
       { $set: { status: 'expired', expiredAt: now } }
     ).catch(() => {})
