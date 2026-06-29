@@ -3,10 +3,27 @@ import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import emailService from '@/lib/email-service'
-import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
+import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { createUserProfiles } from '@/lib/user-profiles'
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com', 'guerrillamail.com', 'tempmail.com', 'tempmail.net',
+  'throwaway.email', 'trashmail.com', 'trashmail.net', 'fakeinbox.com',
+  '10minutemail.com', '10minutemail.net', 'yopmail.com', 'getnada.com',
+  'maildrop.cc', 'dispostable.com', 'sharklasers.com', 'guerrillamail.net',
+  'spam4.me', 'mailnesia.com', 'tempmailo.com', 'tempr.email',
+  'burnermail.io', 'mohmal.com', 'tmpmail.org', 'tmpmail.net',
+  'moakt.com', 'mailtemp.top', 'emailondeck.com', 'temp-mail.org',
+])
+
+const MIN_FORM_FILL_TIME_MS = 3000 // 3 secondes minimum pour remplir le formulaire
+
+function isDisposableEmail(email: string): boolean {
+  const domain = email.split('@')[1]?.toLowerCase()
+  return domain ? DISPOSABLE_EMAIL_DOMAINS.has(domain) : false
+}
 
 async function verifyCaptchaToken(token: string, remoteIp?: string) {
   const secretKey = process.env.TURNSTILE_SECRET_KEY
@@ -104,14 +121,28 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
 
-    // Rate limiting pour les inscriptions
-    const limited = applyRateLimit(request, authRateLimiter)
+    // Rate limiting strict pour les inscriptions (3 par 15min par IP)
+    const limited = applyRateLimit(request, registerRateLimiter)
     if (limited) return limited
 
-    const { email, password, name, phone, role = 'CLIENT', captchaToken = '' } = await request.json()
+    const { email, password, name, phone, role = 'CLIENT', captchaToken = '', website = '', formLoadTime = 0 } = await request.json()
 
     const forwardedFor = request.headers.get('x-forwarded-for') || ''
     const remoteIp = forwardedFor.split(',')[0]?.trim() || undefined
+
+    // Honeypot : si le champ caché 'website' est rempli, c'est un bot
+    if (website) {
+      console.warn('[REGISTER] Honeypot triggered — bot detected:', { email, ip: remoteIp })
+      return NextResponse.json({ error: 'Inscription invalide' }, { status: 400 })
+    }
+
+    // Check temps de soumission : un humain met au moins quelques secondes
+    const elapsed = Date.now() - Number(formLoadTime)
+    if (formLoadTime && elapsed < MIN_FORM_FILL_TIME_MS) {
+      console.warn('[REGISTER] Form submitted too fast — likely bot:', { email, elapsedMs: elapsed, ip: remoteIp })
+      return NextResponse.json({ error: 'Soumission trop rapide. Veuillez réessayer.' }, { status: 400 })
+    }
+
     const captchaCheck = await verifyCaptchaToken(String(captchaToken || ''), remoteIp)
     if (!captchaCheck.success) {
       return NextResponse.json({
@@ -130,6 +161,14 @@ export async function POST(request: NextRequest) {
     if (!validateEmail(email)) {
       return NextResponse.json({ 
         error: 'Format d\'email invalide' 
+      }, { status: 400 })
+    }
+
+    // Blocage des emails jetables (anti-bot)
+    if (isDisposableEmail(email)) {
+      console.warn('[REGISTER] Disposable email blocked:', { email, ip: remoteIp })
+      return NextResponse.json({ 
+        error: 'Les adresses email temporaires ne sont pas autorisées' 
       }, { status: 400 })
     }
 

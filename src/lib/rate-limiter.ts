@@ -11,10 +11,12 @@ export class RateLimiter {
   private store: RateLimitStore = {}
   private windowMs: number
   public maxRequests: number
+  private keyByIpOnly: boolean
 
-  constructor(windowMs: number = 15 * 60 * 1000, maxRequests: number = 100) {
+  constructor(windowMs: number = 15 * 60 * 1000, maxRequests: number = 100, keyByIpOnly: boolean = false) {
     this.windowMs = windowMs
     this.maxRequests = maxRequests
+    this.keyByIpOnly = keyByIpOnly
     
     // Nettoyer les entrées expirées toutes les 5 minutes
     setInterval(() => {
@@ -23,11 +25,14 @@ export class RateLimiter {
   }
 
   private getKey(request: NextRequest): string {
-    // Utiliser l'IP + User-Agent comme clé unique
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
                request.headers.get('x-real-ip') || 
                request.headers.get('cf-connecting-ip') || // Cloudflare
                'unknown'
+    if (this.keyByIpOnly) {
+      return ip
+    }
+    // Utiliser l'IP + User-Agent comme clé unique
     const userAgent = request.headers.get('user-agent') || 'unknown'
     return `${ip}:${userAgent.substring(0, 50)}`
   }
@@ -86,6 +91,7 @@ export class RateLimiter {
 
 // Instances pour différents types d'endpoints
 export const authRateLimiter = new RateLimiter(15 * 60 * 1000, 5) // 5 tentatives de login par 15 min
+export const registerRateLimiter = new RateLimiter(15 * 60 * 1000, 3, true) // 3 inscriptions par 15 min par IP
 export const apiRateLimiter = new RateLimiter(15 * 60 * 1000, 100) // 100 requêtes API par 15 min
 export const uploadRateLimiter = new RateLimiter(60 * 60 * 1000, 10) // 10 uploads par heure
 export const serviceWriteRateLimiter = new RateLimiter(15 * 60 * 1000, 10) // 10 créations requêtes/offres par 15 min

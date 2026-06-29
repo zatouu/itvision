@@ -49,6 +49,8 @@ export default function RegisterPage() {
   const [captchaToken, setCaptchaToken] = useState('')
   const [captchaWidgetId, setCaptchaWidgetId] = useState<string | number | null>(null)
   const [captchaError, setCaptchaError] = useState('')
+  const [honeypot, setHoneypot] = useState('')
+  const [formLoadTime] = useState(() => Date.now())
 
   useEffect(() => {
     try {
@@ -194,7 +196,9 @@ export default function RegisterPage() {
           phone: formData.phone.trim() || undefined,
           password: formData.password,
           role: formData.role,
-          captchaToken
+          captchaToken,
+          website: honeypot,
+          formLoadTime,
         }),
       })
 
@@ -283,6 +287,18 @@ export default function RegisterPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Honeypot anti-bot — caché pour les humains, visible pour les bots */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', opacity: 0, pointerEvents: 'none' }} aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+              />
+            </div>
             {/* Nom complet */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
