@@ -58,7 +58,7 @@ export default function PrizeWheel({ canSpinFree, onSpin }: PrizeWheelProps) {
         <h2 className="text-lg font-bold text-slate-900">Tentez votre chance !</h2>
       </div>
 
-      <div className="relative w-56 h-56 sm:w-64 sm:h-64 mx-auto mb-4">
+      <div className="relative w-48 h-48 sm:w-56 sm:h-56 lg:w-60 lg:h-60 mx-auto mb-4">
         <motion.div
           className="w-full h-full rounded-full border-8 border-slate-100 shadow-2xl relative overflow-hidden"
           animate={{ rotate: rotation }}
@@ -83,8 +83,8 @@ export default function PrizeWheel({ canSpinFree, onSpin }: PrizeWheelProps) {
                 <span
                   className={`absolute font-bold text-white drop-shadow text-center ${opt.big ? 'text-[9px]' : 'text-[10px]'}`}
                   style={{
-                    transform: `rotate(${angle + 90}deg) translateX(78px) rotate(-${angle + 90}deg)`,
-                    width: '54px',
+                    transform: `rotate(${angle + 90}deg) translateX(64px) rotate(-${angle + 90}deg)`,
+                    width: '48px',
                     lineHeight: 1,
                   }}
                 >

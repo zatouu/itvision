@@ -98,7 +98,7 @@ export default function GrainsHero({
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+      <div className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
         {stats.map((stat) => (
           <div key={stat.label} className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 border border-white/20 text-center">
             <div className="flex items-center justify-center gap-1.5 mb-1 opacity-80">

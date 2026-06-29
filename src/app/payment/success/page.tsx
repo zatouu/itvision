@@ -37,7 +37,7 @@ function PaymentSuccessContent() {
         setPayment(data)
         setLoading(false)
 
-        if ((data?.status === 'paid' || data?.status === 'completed') && data?.type === 'order') {
+        if (data?.status === 'paid' || data?.status === 'completed') {
           window.localStorage.removeItem('cart:items')
           window.dispatchEvent(new CustomEvent('cart:updated'))
         }

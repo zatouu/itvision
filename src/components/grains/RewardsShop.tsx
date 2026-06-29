@@ -94,7 +94,7 @@ export default function RewardsShop({ rewards, balance, onRedeem }: RewardsShopP
         ))}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-4 gap-3">
         {filtered.map((reward, idx) => {
           const canAfford = balance >= reward.cost
           const badge = typeBadge(reward.type)

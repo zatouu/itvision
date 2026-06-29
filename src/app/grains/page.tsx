@@ -143,7 +143,7 @@ export default function GrainsPage() {
     <main className="min-h-screen bg-slate-50 pb-24 overflow-x-hidden">
       <GrainsHeader balance={data.user.balance} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="max-w-full xl:max-w-6xl mx-auto px-2 sm:px-3 lg:px-4 xl:px-6 py-5 sm:py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <GrainsHero name={data.user.name} balance={data.user.balance} tier={data.user.tier} />
 
@@ -162,9 +162,9 @@ export default function GrainsPage() {
             onCheckIn={handleCheckIn}
           />
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-            <div className="space-y-6 min-w-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] 2xl:grid-cols-[1fr_320px] gap-5">
+            <div className="space-y-5 min-w-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <PrizeWheel canSpinFree={data.wheel.canSpinFree} onSpin={handleSpin} />
                 <RewardsShop rewards={data.rewards} balance={data.user.balance} onRedeem={handleRedeem} />
               </div>
@@ -172,7 +172,7 @@ export default function GrainsPage() {
               <EarnMoreCarousel />
               <MonthlyContest contest={data.contest} />
             </div>
-            <div className="space-y-6 min-w-0">
+            <div className="space-y-5 min-w-0">
               <VIPTiersLadder tiers={data.tiers} balance={data.user.balance} progressToNext={data.progressToNext} />
               <ReferralBanner referralCode={data.user.referralCode} />
               <TransactionsHistory transactions={data.transactions} />

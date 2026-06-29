@@ -66,14 +66,13 @@
       "bundler": "metro"
     },
     "updates": {
-      "url": "https://u.expo.dev/c735fe72-f764-4847-9e1d-2342ff1cbfc8",
       "checkAutomatically": "ON_LOAD"
     },
     "extra": {
       "eas": {
-        "projectId": "c735fe72-f764-4847-9e1d-2342ff1cbfc8"
+        "projectId": ""
       }
     },
-    "owner": "xeuy"
+    "owner": "zatou"
   }
 }

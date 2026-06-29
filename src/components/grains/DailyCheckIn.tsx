@@ -56,7 +56,7 @@ export default function DailyCheckIn({ checkedInToday, streak, totalDays, onChec
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
         {DAYS.map((day, idx) => {
           const isPast = idx < todayIndex
           const isToday = idx === todayIndex && !checked
