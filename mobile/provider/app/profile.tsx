@@ -9,6 +9,7 @@ import { subscribeProfile } from '../src/user-profile'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { clearAuth, getAuthUser, subscribeAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
+import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
 
 function Profile() {
@@ -131,7 +132,7 @@ function Profile() {
           <LanguagePicker />
         </View>
 
-        <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); resetSocket(); router.replace('/login') }}>
+        <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); resetSocket(); resetNotificationBinding(); router.replace('/login') }}>
           <Text style={s.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>

@@ -18,19 +18,19 @@ const PAYMENT_BADGE: Record<string, { label: string; color: string; bg: string }
   failed:    { label: '❌ Paiement échoué',          color: '#991B1B', bg: '#FEF2F2' },
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  assigned:           { label: 'Prestataire assigné',  color: '#065F46', bg: '#ECFDF5' },
-  provider_arriving:  { label: 'En route',              color: '#0369A1', bg: '#E0F2FE' },
-  in_progress:        { label: 'Mission en cours',      color: '#5B21B6', bg: '#F5F3FF' },
-  completed:          { label: 'Terminée',             color: '#374151', bg: '#F1F5F9' },
-  cancelled:          { label: 'Annulée',              color: '#991B1B', bg: '#FEF2F2' },
+const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
+  assigned:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
+  provider_arriving:  { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
+  in_progress:        { key: 'mission.inProgress',         color: '#5B21B6', bg: '#F5F3FF' },
+  completed:          { key: 'mission.completed',          color: '#374151', bg: '#F1F5F9' },
+  cancelled:          { key: 'mission.cancelled',          color: '#991B1B', bg: '#FEF2F2' },
 }
 
 const FLOW_STEPS = [
-  { key: 'assigned', label: 'Prestataire assigné' },
-  { key: 'provider_arriving', label: 'En route vers vous' },
-  { key: 'in_progress', label: 'Intervention en cours' },
-  { key: 'completed', label: 'Mission terminée' },
+  { key: 'assigned', labelKey: 'mission.step_assigned' },
+  { key: 'provider_arriving', labelKey: 'mission.step_arriving' },
+  { key: 'in_progress', labelKey: 'mission.step_in_progress' },
+  { key: 'completed', labelKey: 'mission.step_completed' },
 ] as const
 
 function getStepState(currentStatus: string, stepKey: string): 'done' | 'active' | 'todo' {
@@ -59,6 +59,21 @@ function formatDateTime(value: unknown): string {
   const d = new Date(String(value))
   if (Number.isNaN(d.getTime())) return 'Non renseignée'
   return d.toLocaleString('fr-FR')
+}
+
+function formatElapsed(startedAt: unknown, endedAt?: unknown): string {
+  const start = new Date(String(startedAt))
+  if (Number.isNaN(start.getTime())) return ''
+  const end = endedAt ? new Date(String(endedAt)) : new Date()
+  if (Number.isNaN(end.getTime()) || end < start) return ''
+  const diffSec = Math.floor((end.getTime() - start.getTime()) / 1000)
+  if (diffSec < 60) return `${diffSec}s`
+  const m = Math.floor(diffSec / 60)
+  const s = diffSec % 60
+  if (m < 60) return `${m}min ${s}s`
+  const h = Math.floor(m / 60)
+  const remM = m % 60
+  return `${h}h ${remM}min`
 }
 
 function isImageMedia(type: unknown, url: unknown): boolean {
@@ -96,6 +111,7 @@ function hasValidCoords(location: any): location is { coordinates: [number, numb
 }
 
 function MissionDetail() {
+  const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
@@ -105,6 +121,14 @@ function MissionDetail() {
   const [err, setErr] = useState<string | null>(null)
   const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; timestamp: number } | null>(null)
   const [hasReview, setHasReview] = useState(false)
+  const [, setTick] = useState(0)
+
+  // Timer: refresh elapsed display every second while mission is in_progress
+  useEffect(() => {
+    if (item?.status !== 'in_progress') return
+    const interval = setInterval(() => setTick(v => v + 1), 1000)
+    return () => clearInterval(interval)
+  }, [item?.status])
 
   const load = useCallback(async (isRefresh = false) => {
     if (!requestId) return
@@ -241,7 +265,7 @@ function MissionDetail() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Ma mission</Text>
+        <Text style={s.headerTitle}>{t('mission.myMission')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -255,8 +279,25 @@ function MissionDetail() {
           <>
             {/* Statut */}
             <View style={[s.statusBanner, { backgroundColor: st?.bg }]}>
-              <Text style={[s.statusText, { color: st?.color }]}>{st?.label}</Text>
+              <Text style={[s.statusText, { color: st?.color }]}>{st ? t(st.key) : ''}</Text>
             </View>
+
+            {/* Durée écoulée si mission en cours */}
+            {item.status === 'in_progress' && item.startedAt && (
+              <View style={[s.statusBanner, { backgroundColor: '#F5F3FF' }]}>
+                <Text style={[s.statusText, { color: '#5B21B6' }]}>
+                  ⏱ {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
+                </Text>
+              </View>
+            )}
+            {/* Durée totale si mission terminée */}
+            {item.status === 'completed' && item.startedAt && item.completedAt && (
+              <View style={[s.statusBanner, { backgroundColor: '#F1F5F9' }]}>
+                <Text style={[s.statusText, { color: '#374151' }]}>
+                  ⏱ {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
+                </Text>
+              </View>
+            )}
 
             {/* Statut paiement */}
             {item.payment && PAYMENT_BADGE[item.payment.status] && (
@@ -288,7 +329,7 @@ function MissionDetail() {
                           s.timelineLabel,
                           state === 'active' && s.timelineLabelActive,
                           state === 'done' && s.timelineLabelDone,
-                        ]}>{step.label}</Text>
+                        ]}>{t(step.labelKey)}</Text>
                       </View>
                     )
                   })}

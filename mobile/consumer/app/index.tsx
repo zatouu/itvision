@@ -34,12 +34,12 @@ const FALLBACK_CATS: CatItem[] = [
   { id: 'securite', label: 'Sécurité', abbr: 'SE', color: '#065F46' },
 ]
 
-function greetingByHour(): string {
+function greetingByHour(t: any): string {
   const h = new Date().getHours()
-  if (h < 5) return 'Bonne nuit'
-  if (h < 12) return 'Bonjour'
-  if (h < 18) return 'Bon après-midi'
-  return 'Bonsoir'
+  if (h < 5) return t('home.greeting_night')
+  if (h < 12) return t('home.greeting_morning')
+  if (h < 18) return t('home.greeting_afternoon')
+  return t('home.greeting_evening')
 }
 
 function Home() {
@@ -48,7 +48,7 @@ function Home() {
   const [userName, setUserName] = useState<string>('')
   const [loadingRecent, setLoadingRecent] = useState(true)
   const [cats, setCats] = useState<CatItem[]>(FALLBACK_CATS)
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const applyItems = useCallback((items: any[]) => {
     setRecent(items.slice(0, 3))
@@ -109,15 +109,15 @@ function Home() {
 
         {/* Greeting */}
         <View style={s.greeting}>
-          <Text style={s.greetTitle}>{greetingByHour()}{userName ? `, ${userName}` : ''}</Text>
-          <Text style={s.greetSub}>Que souhaitez-vous réparer aujourd'hui ?</Text>
+          <Text style={s.greetTitle}>{greetingByHour(t)}{userName ? `, ${userName}` : ''}</Text>
+          <Text style={s.greetSub}>{t('home.greetSub')}</Text>
         </View>
 
         {/* CTA Principal */}
         <TouchableOpacity style={s.ctaCard} onPress={() => router.push('/create-request')} activeOpacity={0.88}>
           <View style={s.ctaLeft}>
-            <Text style={s.ctaTitle}>Publier une demande</Text>
-            <Text style={s.ctaSub}>Recevez des offres en quelques minutes</Text>
+            <Text style={s.ctaTitle}>{t('home.publishRequest')}</Text>
+            <Text style={s.ctaSub}>{t('home.publishRequestSub')}</Text>
           </View>
           <View style={s.ctaPlus}>
             <Text style={s.ctaPlusText}>+</Text>
@@ -127,18 +127,18 @@ function Home() {
         {/* Stats chips */}
         <View style={s.statsRow}>
           <TouchableOpacity style={s.statChip} onPress={() => router.push('/my-requests')}>
-            <Text style={s.statText}>{stats.active} demande{stats.active > 1 ? 's' : ''} active{stats.active > 1 ? 's' : ''}</Text>
+            <Text style={s.statText}>{stats.active === 1 ? t('home.activeRequests', { count: stats.active }) : t('home.activeRequests', { count: stats.active })}</Text>
             <View style={s.statDotBlue} />
           </TouchableOpacity>
           <TouchableOpacity style={s.statChip} onPress={() => router.push('/my-requests')}>
-            <Text style={s.statText}>{stats.offers} offre{stats.offers > 1 ? 's' : ''} reçue{stats.offers > 1 ? 's' : ''}</Text>
+            <Text style={s.statText}>{stats.offers === 1 ? t('home.offersReceived', { count: stats.offers }) : t('home.offersReceived', { count: stats.offers })}</Text>
             <View style={s.statDotAmber} />
           </TouchableOpacity>
         </View>
 
         {/* Activité récente */}
         <View style={s.sectionRow}>
-          <Text style={s.sectionTitle}>Activité récente</Text>
+          <Text style={s.sectionTitle}>{t('home.recentActivity')}</Text>
         </View>
 
         {loadingRecent && recent.length === 0 ? (
@@ -149,9 +149,9 @@ function Home() {
         ) : recent.length === 0 ? (
           <EmptyState
             icon="📢"
-            title="Aucune demande en cours"
-            subtitle="Publiez votre première demande et recevez des offres de prestataires proches en quelques minutes."
-            actionLabel="Créer une demande"
+            title={t('home.noRequestsTitle')}
+            subtitle={t('home.noRequestsSub')}
+            actionLabel={t('home.createRequest')}
             onAction={() => router.push('/create-request')}
           />
         ) : (

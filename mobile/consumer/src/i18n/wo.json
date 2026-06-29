@@ -40,10 +40,21 @@
     "greeting_morning": "Jàmm ngeen fanaan",
     "greeting_afternoon": "Naka ngeen def",
     "greeting_evening": "Naka ngeen def",
+    "greeting_night": "Jàmm ngeen fanaan",
+    "greetSub": "Lan nga bëgg def léegi?",
     "newRequest": "Laaj bu bees",
     "myRequests": "Samay laaj",
     "recentActivity": "Lu amoon dëg",
-    "noActivity": "Amul dara bu bees"
+    "noActivity": "Amul dara bu bees",
+    "publishRequest": "Yónnee laaj",
+    "publishRequestSub": "Jot ofri ci simili",
+    "activeRequests": "{{count}} laaj bu am",
+    "activeRequests_plural": "{{count}} laaj yu am",
+    "offersReceived": "{{count}} ofri bu ñu jot",
+    "offersReceived_plural": "{{count}} ofri yi ñu jot",
+    "noRequestsTitle": "Amul laaj bu am",
+    "noRequestsSub": "Yónnee sa laaj bu jëkk ak jot ofri yi liggéeykat yi jege léegi.",
+    "createRequest": "Sos laaj"
   },
   "request": {
     "createTitle": "Laaj bu bees",
@@ -149,13 +160,22 @@
   },
   "mission": {
     "title": "Misiyoŋ bi",
+    "myMission": "Sama misiyoŋ",
     "arriving": "Mii ñëw",
     "inProgress": "Dafay liggéey",
     "completed": "Jeexna",
     "cancelled": "Dañu ko bayyil",
+    "assigned": "Prestataire tànnu",
     "cancelMission": "Bayyil misiyoŋ bi",
     "chat": "Bind baat",
-    "rate": "Dimbali ci sa xel"
+    "rate": "Dimbali ci sa xel",
+    "progress": "Yàgg",
+    "elapsed": "⏱ Misiyoŋ dafay liggéey bad {{duration}}",
+    "totalDuration": "⏱ Yàgg bu ëpp: {{duration}}",
+    "step_assigned": "Prestataire tànnu",
+    "step_arriving": "Mii ñëw",
+    "step_in_progress": "Liggéey bi dafay dox",
+    "step_completed": "Misiyoŋ jeex"
   },
   "rating": {
     "title": "Dimbali ci sa xel",
@@ -196,7 +216,13 @@
     "title": "Xibaar",
     "markAllRead": "Màngal lépp di jàng",
     "empty": "Amul xibaar",
-    "clear": "Far lépp"
+    "clear": "Far lépp",
+    "kind_offer": "Ofri",
+    "kind_mission": "Misiyoŋ",
+    "kind_info": "Xibaar",
+    "ago_seconds": "Bi {{count}}s",
+    "ago_minutes": "Bi {{count}} min",
+    "ago_hours": "Bi {{count}} j"
   },
   "profile": {
     "title": "Profil",

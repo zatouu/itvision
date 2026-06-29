@@ -40,10 +40,21 @@
     "greeting_morning": "Good morning",
     "greeting_afternoon": "Good afternoon",
     "greeting_evening": "Good evening",
+    "greeting_night": "Good night",
+    "greetSub": "What would you like to fix today?",
     "newRequest": "New request",
     "myRequests": "My requests",
     "recentActivity": "Recent activity",
-    "noActivity": "No recent activity"
+    "noActivity": "No recent activity",
+    "publishRequest": "Post a request",
+    "publishRequestSub": "Get offers in minutes",
+    "activeRequests": "{{count}} active request",
+    "activeRequests_plural": "{{count}} active requests",
+    "offersReceived": "{{count}} offer received",
+    "offersReceived_plural": "{{count}} offers received",
+    "noRequestsTitle": "No active requests",
+    "noRequestsSub": "Post your first request and get offers from nearby providers in minutes.",
+    "createRequest": "Create a request"
   },
   "request": {
     "createTitle": "New request",
@@ -149,13 +160,22 @@
   },
   "mission": {
     "title": "Active mission",
+    "myMission": "My mission",
     "arriving": "On the way",
     "inProgress": "In progress",
     "completed": "Completed",
     "cancelled": "Cancelled",
+    "assigned": "Provider assigned",
     "cancelMission": "Cancel mission",
     "chat": "Send a message",
-    "rate": "Rate this service"
+    "rate": "Rate this service",
+    "progress": "Progress",
+    "elapsed": "⏱ Mission ongoing for {{duration}}",
+    "totalDuration": "⏱ Total duration: {{duration}}",
+    "step_assigned": "Provider assigned",
+    "step_arriving": "On the way to you",
+    "step_in_progress": "Service in progress",
+    "step_completed": "Mission completed"
   },
   "rating": {
     "title": "Rate this service",
@@ -196,7 +216,13 @@
     "title": "Notifications",
     "markAllRead": "Mark all as read",
     "empty": "No notifications",
-    "clear": "Clear all"
+    "clear": "Clear all",
+    "kind_offer": "Offer",
+    "kind_mission": "Mission",
+    "kind_info": "Info",
+    "ago_seconds": "{{count}}s ago",
+    "ago_minutes": "{{count}} min ago",
+    "ago_hours": "{{count}}h ago"
   },
   "profile": {
     "title": "Profile",

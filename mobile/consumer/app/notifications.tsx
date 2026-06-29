@@ -16,22 +16,22 @@ import {
 } from '../src/notifications'
 import { confirm } from '../src/confirm'
 
-const KIND_META: Record<Notification['kind'], { tag: string; color: string; bg: string }> = {
-  'offer-received':         { tag: 'Offre',     color: '#B45309', bg: '#FFFBEB' },
-  'request-assigned':       { tag: 'Mission',   color: '#065F46', bg: '#ECFDF5' },
-  'request-status-changed': { tag: 'Mission',   color: '#5B21B6', bg: '#F5F3FF' },
-  'mission-update':         { tag: 'Mission',   color: '#1E293B', bg: '#F1F5F9' },
+const KIND_META: Record<Notification['kind'], { tagKey: string; color: string; bg: string }> = {
+  'offer-received':         { tagKey: 'notifications.kind_offer',       color: '#B45309', bg: '#FFFBEB' },
+  'request-assigned':       { tagKey: 'notifications.kind_mission',     color: '#065F46', bg: '#ECFDF5' },
+  'request-status-changed': { tagKey: 'notifications.kind_mission',     color: '#5B21B6', bg: '#F5F3FF' },
+  'mission-update':         { tagKey: 'notifications.kind_mission',     color: '#1E293B', bg: '#F1F5F9' },
 }
 
-function formatRelative(ts: number): string {
+function formatRelative(ts: number, t: any): string {
   const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000))
-  if (diffSec < 60) return `Il y a ${diffSec}s`
+  if (diffSec < 60) return t('notifications.ago_seconds', { count: diffSec })
   const diffMin = Math.round(diffSec / 60)
-  if (diffMin < 60) return `Il y a ${diffMin} min`
+  if (diffMin < 60) return t('notifications.ago_minutes', { count: diffMin })
   const diffH = Math.round(diffMin / 60)
-  if (diffH < 24) return `Il y a ${diffH} h`
+  if (diffH < 24) return t('notifications.ago_hours', { count: diffH })
   const d = new Date(ts)
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' })
 }
 
 function NotificationsScreen() {
@@ -102,7 +102,7 @@ function NotificationsScreen() {
           />
         ) : (
           items.map(n => {
-            const meta = KIND_META[n.kind] ?? { tag: 'Info', color: '#475569', bg: '#F1F5F9' }
+            const meta = KIND_META[n.kind] ?? { tagKey: 'notifications.kind_info', color: '#475569', bg: '#F1F5F9' }
             return (
               <TouchableOpacity
                 key={n.id}
@@ -112,9 +112,9 @@ function NotificationsScreen() {
               >
                 <View style={s.cardTop}>
                   <View style={[s.tag, { backgroundColor: meta.bg }]}>
-                    <Text style={[s.tagText, { color: meta.color }]}>{meta.tag}</Text>
+                    <Text style={[s.tagText, { color: meta.color }]}>{t(meta.tagKey)}</Text>
                   </View>
-                  <Text style={s.time}>{formatRelative(n.createdAt)}</Text>
+                  <Text style={s.time}>{formatRelative(n.createdAt, t)}</Text>
                 </View>
                 <Text style={s.cardTitle}>{n.title}</Text>
                 <Text style={s.cardBody}>{n.body}</Text>

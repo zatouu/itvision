@@ -9,7 +9,7 @@ import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
 const MAX_BUDGET = 10_000_000
-const REQUEST_TTL_HOURS = 24 // une demande non assignée expire après 24h
+const REQUEST_TTL_HOURS = 2 // une demande non assignée expire après 2h
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const mine = searchParams.get('mine')
     const q: any = {}
     if (status) q.status = status
+    else q.status = { $ne: 'expired' } // masquer les demandes expirées par défaut
     if (mine === '1') {
       const { userId } = await requireAuth(request)
       q.clientId = userId

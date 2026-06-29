@@ -116,11 +116,21 @@ export async function clearNotifications(): Promise<void> {
 
 let wsBound = false
 
+/** Reset le flag de binding (à appeler après resetSocket / logout). */
+export function resetNotificationBinding() {
+  wsBound = false
+}
+
 /** À appeler une fois (depuis _layout) pour brancher les events WS au store. */
 export function bindNotificationSocket() {
   if (wsBound) return
   wsBound = true
   const socket = connectSocket()
+
+  // Rejoindre la room provider-{userId} pour recevoir les events ciblés
+  const joinProvider = () => socket.emit('join-provider-channel')
+  if (socket.connected) joinProvider()
+  else socket.once('connect', joinProvider)
 
   const onRequestNew = (payload: any) => {
     const category = typeof payload?.category === 'string' ? payload.category : null
@@ -192,10 +202,10 @@ export function bindNotificationSocket() {
     })
   }
 
-  socket.on('request:new', onRequestNew)
+  socket.on('request:nearby', onRequestNew)
   socket.on('offer:accepted', onOfferAccepted)
   socket.on('offer:rejected', onOfferRejected)
   socket.on('offer:counter', onOfferCounter)
-  socket.on('request:status-changed', onStatusChanged)
+  socket.on('mission:status-changed', onStatusChanged)
   socket.on('chat:message', onChatMessage)
 }

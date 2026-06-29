@@ -117,6 +117,11 @@ export async function clearNotifications(): Promise<void> {
 
 let wsBound = false
 
+/** Reset le flag de binding (à appeler après resetSocket / logout). */
+export function resetNotificationBinding() {
+  wsBound = false
+}
+
 /** À appeler une fois (depuis _layout) pour brancher les events WS au store. */
 export function bindNotificationSocket() {
   if (wsBound) return

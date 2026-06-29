@@ -3,7 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet, Alert } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { bindNotificationSocket, loadNotifications } from '../src/notifications'
+import { bindNotificationSocket, loadNotifications, resetNotificationBinding } from '../src/notifications'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized } from '../src/api'
@@ -28,6 +28,7 @@ export default function Layout(){
     setOnUnauthorized(() => {
       clearAuth()
       resetSocket()
+      resetNotificationBinding()
       router.replace('/login')
     })
   }, [])

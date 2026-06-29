@@ -40,10 +40,21 @@
     "greeting_morning": "Bonjour",
     "greeting_afternoon": "Bon après-midi",
     "greeting_evening": "Bonsoir",
+    "greeting_night": "Bonne nuit",
+    "greetSub": "Que souhaitez-vous réparer aujourd'hui ?",
     "newRequest": "Nouvelle demande",
     "myRequests": "Mes demandes",
     "recentActivity": "Activité récente",
-    "noActivity": "Aucune activité récente"
+    "noActivity": "Aucune activité récente",
+    "publishRequest": "Publier une demande",
+    "publishRequestSub": "Recevez des offres en quelques minutes",
+    "activeRequests": "{{count}} demande active",
+    "activeRequests_plural": "{{count}} demandes actives",
+    "offersReceived": "{{count}} offre reçue",
+    "offersReceived_plural": "{{count}} offres reçues",
+    "noRequestsTitle": "Aucune demande en cours",
+    "noRequestsSub": "Publiez votre première demande et recevez des offres de prestataires proches en quelques minutes.",
+    "createRequest": "Créer une demande"
   },
   "request": {
     "createTitle": "Nouvelle demande",
@@ -149,13 +160,22 @@
   },
   "mission": {
     "title": "Mission en cours",
+    "myMission": "Ma mission",
     "arriving": "En route",
     "inProgress": "En cours",
     "completed": "Terminée",
     "cancelled": "Annulée",
+    "assigned": "Prestataire assigné",
     "cancelMission": "Annuler la mission",
     "chat": "Envoyer un message",
-    "rate": "Noter cette intervention"
+    "rate": "Noter cette intervention",
+    "progress": "Progression",
+    "elapsed": "⏱ Mission en cours depuis {{duration}}",
+    "totalDuration": "⏱ Durée totale: {{duration}}",
+    "step_assigned": "Prestataire assigné",
+    "step_arriving": "En route vers vous",
+    "step_in_progress": "Intervention en cours",
+    "step_completed": "Mission terminée"
   },
   "rating": {
     "title": "Notez cette intervention",
@@ -196,7 +216,13 @@
     "title": "Notifications",
     "markAllRead": "Tout marquer comme lu",
     "empty": "Aucune notification",
-    "clear": "Effacer tout"
+    "clear": "Effacer tout",
+    "kind_offer": "Offre",
+    "kind_mission": "Mission",
+    "kind_info": "Info",
+    "ago_seconds": "Il y a {{count}}s",
+    "ago_minutes": "Il y a {{count}} min",
+    "ago_hours": "Il y a {{count}} h"
   },
   "profile": {
     "title": "Profil",

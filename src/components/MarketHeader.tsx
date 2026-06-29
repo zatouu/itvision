@@ -146,9 +146,9 @@ export default function MarketHeader() {
             </Link>
           )}
           <Link
-            href="/wallet"
+            href="/grains"
             className="flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-violet-50/50 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100/60 transition-colors whitespace-nowrap"
-            title="Wallet SEL"
+            title="Mes Grains"
           >
             <Gem className="h-3.5 w-3.5" />
             <span className="whitespace-nowrap">
