@@ -140,7 +140,7 @@ export default function GrainsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-24">
+    <main className="min-h-screen bg-slate-50 pb-24 overflow-x-hidden">
       <GrainsHeader balance={data.user.balance} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -162,8 +162,8 @@ export default function GrainsPage() {
             onCheckIn={handleCheckIn}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+            <div className="space-y-6 min-w-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <PrizeWheel canSpinFree={data.wheel.canSpinFree} onSpin={handleSpin} />
                 <RewardsShop rewards={data.rewards} balance={data.user.balance} onRedeem={handleRedeem} />
@@ -172,7 +172,7 @@ export default function GrainsPage() {
               <EarnMoreCarousel />
               <MonthlyContest contest={data.contest} />
             </div>
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               <VIPTiersLadder tiers={data.tiers} balance={data.user.balance} progressToNext={data.progressToNext} />
               <ReferralBanner referralCode={data.user.referralCode} />
               <TransactionsHistory transactions={data.transactions} />

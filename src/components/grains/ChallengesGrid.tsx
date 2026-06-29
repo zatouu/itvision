@@ -66,7 +66,7 @@ export default function ChallengesGrid({ challenges, onClaim }: ChallengesGridPr
         <h2 className="text-lg font-bold text-slate-900">Défis - Gagnez des Grains en explorant</h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
         {challenges.map((challenge, idx) => {
           const Icon = ICONS[challenge.icon] || Gift
           const percent = Math.min(100, Math.round((challenge.progress / challenge.targetCount) * 100))

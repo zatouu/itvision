@@ -43,15 +43,15 @@ export default function GrainsHero({
 
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-teal-500 to-amber-500 text-white p-6 sm:p-8 mb-6">
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {[...Array(24)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute text-sm"
-            initial={{ y: -20, x: Math.random() * 800, opacity: 0, rotate: Math.random() * 360 }}
-            animate={{ y: 400, opacity: [0, 1, 0], rotate: Math.random() * 360 }}
-            transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 4 }}
-            style={{ left: `${Math.random() * 100}%` }}
+            initial={{ y: -20, opacity: 0, rotate: (i * 47) % 360 }}
+            animate={{ y: 400, opacity: [0, 1, 0], rotate: ((i * 47) % 360) + 180 }}
+            transition={{ duration: 3 + ((i * 7) % 4), repeat: Infinity, delay: ((i * 13) % 40) / 10 }}
+            style={{ left: `${(i * 29) % 100}%` }}
           >
             {['✦', '★', '●', '✧'][i % 4]}
           </motion.div>

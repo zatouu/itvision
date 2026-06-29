@@ -33,10 +33,10 @@ export default function EarnMoreCarousel() {
         <h2 className="text-lg font-bold text-slate-900">Comment gagner plus de Grains ?</h2>
       </div>
 
-      <div className="relative group">
+      <div className="relative group px-2">
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 z-10 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -68,7 +68,7 @@ export default function EarnMoreCarousel() {
 
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 z-10 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

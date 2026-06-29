@@ -66,7 +66,7 @@ export default function VIPTiersLadder({ tiers, balance, progressToNext }: VIPTi
         <p className="text-xs text-slate-300 mt-1 text-right">{progressToNext}%</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
+      <div className="grid grid-cols-3 gap-2 mb-5">
         {(currentTier.benefits || ['Avantages exclusifs', 'Bonus Grains', 'Livraison prioritaire']).slice(0, 3).map((b, i) => (
           <div key={i} className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-2">
             <Sparkles className="w-3 h-3 text-amber-400" />

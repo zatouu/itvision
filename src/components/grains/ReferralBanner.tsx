@@ -55,21 +55,21 @@ export default function ReferralBanner({ referralCode }: ReferralBannerProps) {
       <div className="grid grid-cols-3 gap-2 mb-3">
         <button
           onClick={shareWhatsApp}
-          className="flex items-center justify-center gap-2 py-2 rounded-xl bg-emerald-400/30 hover:bg-emerald-400/50 transition text-sm font-medium"
+          className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-emerald-400/30 hover:bg-emerald-400/50 transition text-xs font-medium"
         >
-          <MessageCircle className="w-4 h-4" /> WhatsApp
+          <MessageCircle className="w-4 h-4" /> <span>WhatsApp</span>
         </button>
         <button
           onClick={shareSms}
-          className="flex items-center justify-center gap-2 py-2 rounded-xl bg-white/20 hover:bg-white/30 transition text-sm font-medium"
+          className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-white/20 hover:bg-white/30 transition text-xs font-medium"
         >
-          <MessageCircle className="w-4 h-4" /> SMS
+          <MessageCircle className="w-4 h-4" /> <span>SMS</span>
         </button>
         <button
           onClick={copy}
-          className="flex items-center justify-center gap-2 py-2 rounded-xl bg-white/20 hover:bg-white/30 transition text-sm font-medium"
+          className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-white/20 hover:bg-white/30 transition text-xs font-medium"
         >
-          <Link2 className="w-4 h-4" /> Lien
+          <Link2 className="w-4 h-4" /> <span>Lien</span>
         </button>
       </div>
 
