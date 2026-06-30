@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { View, Text, ActivityIndicator, StyleSheet, Alert } from 'react-native'
+import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications, resetNotificationBinding } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
-import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation } from '../src/push'
+import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized } from '../src/api'
 import { resetSocket } from '../src/socket'
@@ -20,8 +20,12 @@ export default function Layout(){
 
   useEffect(() => { initSentry() }, [])
 
-  // Notification handler — must be set before any notification can arrive
-  useEffect(() => { setupNotificationHandler() }, [])
+  // Notification handler + channel (requis avant toute réception, surtout Android)
+  useEffect(() => {
+    setupNotificationHandler()
+    registerBackgroundPushTask()
+    if (Platform.OS === 'android') setupNotificationChannel()
+  }, [])
 
   // 401 interceptor: auto-logout on token expiry
   useEffect(() => {
@@ -78,6 +82,14 @@ export default function Layout(){
   // Notification response listener — set up early (before login) to catch cold-start taps
   useEffect(() => {
     const stopNotifResponse = setupNotificationResponseListener()
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications')
+    Notifications.getLastNotificationResponseAsync()
+      .then(response => {
+        if (response?.notification?.request?.content?.data) {
+          navigateFromPushData(response.notification.request.content.data as any)
+        }
+      })
+      .catch(() => { /* ignore */ })
     return () => stopNotifResponse()
   }, [])
 
@@ -86,13 +98,22 @@ export default function Layout(){
     loadNotifications()
     bindNotificationSocket()
     loadProfile()
-    setupNotificationChannel()
+    if (Platform.OS !== 'android') setupNotificationChannel()
     registerPushToken()
     const stopQueueReplay = initOfflineReplay()
     const stopForegroundListener = setupForegroundNotificationListener()
+
+    const appStateSub = AppState.addEventListener('change', next => {
+      if (next === 'active') {
+        console.log('[Push] App au premier plan — re-vérification token')
+        registerPushToken().catch(() => {})
+      }
+    })
+
     return () => {
       stopQueueReplay()
       stopForegroundListener()
+      appStateSub.remove()
     }
   }, [loggedIn])
 

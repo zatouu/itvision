@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
         paymentRef: externalId,
       })
 
-      // Push notification (fire & forget)
+      // Push notification
       const { sendPushToUser } = await import('@/lib/push')
-      void sendPushToUser(topup.userId, {
+      await sendPushToUser(topup.userId, {
         title: '💳 Recharge confirmée',
         body: `${topup.points} points crédités. Solde: ${balance} pts.`,
         data: { type: 'wallet:topped-up', points: topup.points, balance },
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       await topup.save()
 
       const { sendPushToUser } = await import('@/lib/push')
-      void sendPushToUser(topup.userId, {
+      await sendPushToUser(topup.userId, {
         title: '❌ Recharge échouée',
         body: `Le paiement de ${topup.amountFcfa.toLocaleString('fr-FR')} FCFA a échoué. Réessayez.`,
         data: { type: 'wallet:topup-failed', topupId: String(topup._id) },

@@ -2,8 +2,9 @@ import { connectMongoose } from './mongoose'
 import PushToken from './models/PushToken'
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts'
 
-interface PushMessage {
+export interface PushMessage {
   title: string
   body: string
   data?: Record<string, any>
@@ -13,11 +14,158 @@ interface PushMessage {
   appType?: 'consumer' | 'provider'
 }
 
+export interface PushResult {
+  success: boolean
+  tokenCount: number
+  deliveredCount: number
+  error?: string
+}
+
+interface ExpoPushReceipt {
+  status: 'ok' | 'error'
+  id?: string
+  message?: string
+  details?: { error?: string; fault?: string }
+}
+
+interface ExpoPushTicket {
+  status: 'ok' | 'error'
+  id?: string
+  message?: string
+  details?: { error?: string; fault?: string }
+}
+
+/**
+ * Envoie un batch de messages à Expo Push et analyse les réponses.
+ * Supprime immédiatement les tokens invalides (DeviceNotRegistered) et vérifie
+ * les receipts asynchrones pour les tickets acceptés.
+ * Retourne le nombre de tickets acceptés.
+ */
+async function sendExpoBatch(messages: Array<{ to: string;[key: string]: any }>): Promise<number> {
+  if (!messages.length) return 0
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10000)
+  try {
+    const res = await fetch(EXPO_PUSH_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+      },
+      body: JSON.stringify(messages),
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      console.error(`[Push] Expo HTTP ${res.status}: ${text.slice(0, 200)}`)
+      return 0
+    }
+
+    const data = (await res.json().catch(() => null)) as { data?: ExpoPushTicket[] } | null
+    const tickets = data?.data || []
+
+    const tokensToRemove: string[] = []
+    const ticketIds: string[] = []
+    const tokenByTicketId = new Map<string, string>()
+    let delivered = 0
+    tickets.forEach((ticket, idx) => {
+      const token = messages[idx]?.to
+      if (ticket.status === 'ok') {
+        delivered++
+        if (ticket.id && token) {
+          ticketIds.push(ticket.id)
+          tokenByTicketId.set(ticket.id, token)
+        }
+        console.log(`[Push] ✅ token ${idx + 1}/${messages.length} accepté (ticket ${ticket.id})`)
+      } else {
+        const errorCode = ticket.details?.error
+        console.warn(`[Push] ❌ token ${idx + 1}/${messages.length} erreur: ${ticket.message} (${errorCode})`)
+        if (errorCode === 'DeviceNotRegistered' && token) {
+          tokensToRemove.push(token)
+        }
+      }
+    })
+
+    if (tokensToRemove.length) {
+      await PushToken.deleteMany({ token: { $in: tokensToRemove } })
+      console.log(`[Push] 🗑️ ${tokensToRemove.length} token(s) invalide(s) supprimé(s)`)
+    }
+    // Vérifier les receipts pour nettoyer les tokens devenus invalides après envoi
+    if (ticketIds.length) {
+      void checkReceipts(ticketIds, tokenByTicketId)
+    }
+    return delivered
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error('[Push] Expo timeout (10s)')
+    } else {
+      console.error('[Push] Erreur envoi:', err.message)
+    }
+    return 0
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Accepte à la fois les tokens Expo (ExpoPushToken[...]) et les tokens natifs FCM
+ * (longue chaîne alphanumérique) qui peuvent être retournés par les apps bare workflow.
+ */
+export function isValidPushToken(token: string): boolean {
+  if (!token || typeof token !== 'string' || token.length > 400) return false
+  if (token.startsWith('ExpoPushToken[') || token.startsWith('ExponentPushToken[')) return true
+  // FCM native token (bare workflow / custom native builds)
+  if (/^[A-Za-z0-9_-]{100,}$/.test(token)) return true
+  // iOS native device token
+  if (/^[a-f0-9]{64}$/i.test(token)) return true
+  return false
+}
+
+/**
+ * Vérifie les receipts Expo pour retirer les tokens invalides.
+ * Fire-and-forget : ne bloque pas la réponse au client.
+ */
+async function checkReceipts(ticketIds: string[], tokenMap: Map<string, string>) {
+  if (!ticketIds.length) return
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10000)
+  try {
+    const res = await fetch(EXPO_RECEIPTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ ids: ticketIds }),
+      signal: controller.signal,
+    })
+    if (!res.ok) return
+    const data = (await res.json().catch(() => null)) as { data?: Record<string, ExpoPushReceipt> } | null
+    const receipts = data?.data || {}
+    const toRemove: string[] = []
+    for (const [id, receipt] of Object.entries(receipts)) {
+      if (receipt.status === 'error' && receipt.details?.error === 'DeviceNotRegistered') {
+        const token = tokenMap.get(id)
+        if (token) toRemove.push(token)
+      }
+    }
+    if (toRemove.length) {
+      await PushToken.deleteMany({ token: { $in: toRemove } })
+      console.log(`[Push] 🗑️ ${toRemove.length} token(s) invalide(s) supprimé(s) via receipts`)
+    }
+  } catch (err: any) {
+    console.warn('[Push] Receipt check failed:', err.message)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * Envoie une push notification à tous les appareils d'un utilisateur.
  * Utilise l'API Expo Push (gratuit, pas de clé nécessaire pour Expo tokens).
  */
-export async function sendPushToUser(userId: string, message: PushMessage): Promise<void> {
+export async function sendPushToUser(userId: string, message: PushMessage): Promise<PushResult> {
   try {
     await connectMongoose()
     const query: any = { userId }
@@ -25,7 +173,7 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
       console.warn(`[Push] sendPushToUser(${userId}/${message.appType || 'any'}): aucun token enregistré`)
-      return
+      return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token enregistré pour cet utilisateur' }
     }
     console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
 
@@ -37,44 +185,32 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
       sound: message.sound ?? 'default',
       badge: message.badge,
       channelId: message.channelId || 'default',
+      priority: 'high',
     }))
 
-    // Expo accepte des batches de 100 max
     const chunks = chunkArray(messages, 100)
-    for (const chunk of chunks) {
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 5000)
-      await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip, deflate',
-        },
-        body: JSON.stringify(chunk),
-        signal: controller.signal,
-      }).catch(err => console.error('[Push] Erreur envoi:', err.message))
-      .finally(() => clearTimeout(timer))
-    }
-  } catch (err) {
+    let delivered = 0
+    for (const chunk of chunks) delivered += await sendExpoBatch(chunk)
+    return { success: delivered > 0, tokenCount: tokens.length, deliveredCount: delivered }
+  } catch (err: any) {
     console.error('[Push] sendPushToUser error:', err)
+    return { success: false, tokenCount: 0, deliveredCount: 0, error: err.message || 'Erreur envoi push' }
   }
 }
 
 /**
  * Envoie une push notification à plusieurs utilisateurs.
  */
-export async function sendPushToUsers(userIds: string[], message: PushMessage): Promise<void> {
-  // Paralléliser par user
-  await Promise.allSettled(userIds.map(uid => sendPushToUser(uid, message)))
+export async function sendPushToUsers(userIds: string[], message: PushMessage): Promise<PushResult[]> {
+  const results = await Promise.allSettled(userIds.map(uid => sendPushToUser(uid, message)))
+  return results.map(r => r.status === 'fulfilled' ? r.value : { success: false, tokenCount: 0, deliveredCount: 0, error: String(r.reason) })
 }
 
 /**
  * Envoie une push à tous les providers online (pour request:new).
- * On récupère tous les tokens de la room `providers-online` via les tokens stockés.
  * Fallback : on envoie à TOUS les providers qui ont un token enregistré.
  */
-export async function sendPushToAllProviders(message: PushMessage, excludeUserId?: string): Promise<void> {
+export async function sendPushToAllProviders(message: PushMessage, excludeUserId?: string): Promise<PushResult> {
   try {
     await connectMongoose()
     const query: any = { appType: 'provider' }
@@ -82,7 +218,7 @@ export async function sendPushToAllProviders(message: PushMessage, excludeUserId
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
       console.warn('[Push] sendPushToAllProviders: aucun token enregistré côté serveur. Le provider a-t-il bien accordé la permission ?')
-      return
+      return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token provider enregistré' }
     }
     console.log(`[Push] → broadcast ${tokens.length} provider(s) — "${message.title}"`)
 
@@ -93,25 +229,16 @@ export async function sendPushToAllProviders(message: PushMessage, excludeUserId
       data: message.data || {},
       sound: message.sound ?? 'default',
       channelId: message.channelId || 'services',
+      priority: 'high',
     }))
 
     const chunks = chunkArray(messages, 100)
-    for (const chunk of chunks) {
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 5000)
-      await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(chunk),
-        signal: controller.signal,
-      }).catch(err => console.error('[Push] Erreur broadcast:', err.message))
-      .finally(() => clearTimeout(timer))
-    }
-  } catch (err) {
+    let delivered = 0
+    for (const chunk of chunks) delivered += await sendExpoBatch(chunk)
+    return { success: delivered > 0, tokenCount: tokens.length, deliveredCount: delivered }
+  } catch (err: any) {
     console.error('[Push] sendPushToAllProviders error:', err)
+    return { success: false, tokenCount: 0, deliveredCount: 0, error: err.message || 'Erreur broadcast push' }
   }
 }
 

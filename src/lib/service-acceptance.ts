@@ -65,7 +65,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
     })
   }
 
-  void sendPushToUser(providerId, {
+  await sendPushToUser(providerId, {
     title: securePayment ? '✅ Offre acceptée + paiement sécurisé !' : '✅ Offre acceptée !',
     body: securePayment
       ? `Votre offre pour ${sr.category} a été retenue. Le paiement est sécurisé.`
@@ -75,7 +75,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
   })
 
   if (notifyClientPaymentHeld && typeof amount === 'number') {
-    void sendPushToUser(clientId, {
+    await sendPushToUser(clientId, {
       title: '💳 Paiement sécurisé',
       body: `${amount.toLocaleString('fr-FR')} FCFA en escrow. Le prestataire est notifié.`,
       data: { type: 'payment:held', requestId },
@@ -85,7 +85,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
 
   const loserIds = losingOffers.map((lo: any) => String(lo.providerId))
   if (loserIds.length > 0) {
-    void sendPushToUsers(loserIds, {
+    await sendPushToUsers(loserIds, {
       title: 'Offre non retenue',
       body: `Un autre prestataire a été choisi pour cette demande.`,
       data: { type: 'offer:rejected', requestId },

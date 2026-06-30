@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet } from '../src/api'
+import { apiGet, apiPatch } from '../src/api'
+import { confirm, notify } from '../src/confirm'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
 import TabBar from '../src/components/TabBar'
@@ -69,6 +70,18 @@ function MyRequests() {
       setRefreshing(false)
     }
   }, [])
+
+  const handleCancel = async (id: string) => {
+    const ok = await confirm(t('requests.cancelRequestConfirm'), t('requests.cancelRequestMsg'))
+    if (!ok) return
+    try {
+      await apiPatch(`/api/services/requests/${id}`, { status: 'cancelled' })
+      notify(t('requests.cancelRequestSuccess'), '')
+      await load(true)
+    } catch (e: any) {
+      notify(t('common.error'), e.message || 'Erreur')
+    }
+  }
 
   useEffect(() => { load() }, [])
 
@@ -219,6 +232,15 @@ function MyRequests() {
                       {it.createdAt ? new Date(it.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''}
                       {it.budget ? ` • ${Number(it.budget).toLocaleString()} FCFA` : ''}
                     </Text>
+                    {['created', 'pending_offers'].includes(it.status) && (
+                      <TouchableOpacity
+                        style={s.cancelBtn}
+                        onPress={() => handleCancel(it._id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={s.cancelBtnText}>{t('requests.cancelRequest')}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                   <Text style={s.cardArrow}>›</Text>
                 </View>
@@ -278,6 +300,8 @@ const s = StyleSheet.create({
   btnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   offerIndicator: { backgroundColor: '#FFFBEB', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#FDE68A' },
   offerIndicatorText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
+  cancelBtn: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+  cancelBtnText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },
   cardArrow: { position: 'absolute', right: 14, top: '50%', fontSize: 20, color: '#CBD5E1', fontWeight: '300' },
 })
 

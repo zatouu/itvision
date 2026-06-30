@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         console.error('[webhook] Erreur remboursement points escrow', refundErr)
       }
 
-      void sendPushToUser(String(payment.clientId), {
+      await sendPushToUser(String(payment.clientId), {
         title: '❌ Paiement échoué',
         body: `Le paiement de ${payment.amount.toLocaleString('fr-FR')} FCFA a échoué. Réessayez.`,
         data: { type: 'payment:failed', requestId: String(payment.requestId) },

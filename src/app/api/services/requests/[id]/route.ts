@@ -187,7 +187,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (label) {
         // Notifier le client si c'est le provider qui change
         if (isProvider && sr.clientId) {
-          void sendPushToUser(String(sr.clientId), {
+          await sendPushToUser(String(sr.clientId), {
             title: label,
             body: `${sr.category} — votre mission a changé de statut.`,
             data: { type: 'request:status-changed', requestId: id, status: sr.status },
@@ -196,7 +196,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
         // Notifier le provider si c'est le client qui annule
         if (isClient && sr.assignedProviderId) {
-          void sendPushToUser(String(sr.assignedProviderId), {
+          await sendPushToUser(String(sr.assignedProviderId), {
             title: label,
             body: `Le client a modifié le statut de la mission.`,
             data: { type: 'request:status-changed', requestId: id, status: sr.status },

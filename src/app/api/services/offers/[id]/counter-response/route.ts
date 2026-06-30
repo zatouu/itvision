@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
       }
 
-      void sendPushToUser(clientId, {
+      await sendPushToUser(clientId, {
         title: '✅ Contre-offre acceptée',
         body: `Le prestataire a accepté votre offre de ${offer.price.toLocaleString('fr-FR')} FCFA. Vous pouvez finaliser la mission.`,
         data: { type: 'offer:counter-accepted', offerId, requestId },
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
       }
 
-      void sendPushToUser(clientId, {
+      await sendPushToUser(clientId, {
         title: '❌ Contre-offre refusée',
         body: `Le prestataire a refusé votre offre de ${offer.clientCounterPrice?.toLocaleString('fr-FR')} FCFA.`,
         data: { type: 'offer:counter-rejected', offerId, requestId },

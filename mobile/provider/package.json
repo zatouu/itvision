@@ -30,6 +30,7 @@
     "expo-notifications": "~0.28.9",
     "expo-router": "~3.5.17",
     "expo-status-bar": "~1.12.1",
+    "expo-task-manager": "~11.8.2",
     "expo-updates": "~0.25.0",
     "i18next": "^26.3.0",
     "nativewind": "^2.0.11",

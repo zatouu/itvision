@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import MapView, { Marker } from 'react-native-maps'
+import { LiveRouteMap } from '../../src/components/LiveRouteMap'
 import * as Location from 'expo-location'
 import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
@@ -122,6 +122,7 @@ function ActiveMission() {
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [, setTick] = useState(0)
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
 
   // Timer: refresh elapsed display every second while mission is in_progress
   useEffect(() => {
@@ -184,7 +185,7 @@ function ActiveMission() {
   }, [requestId])
 
   useEffect(() => {
-    if (!requestId || item?.status !== 'provider_arriving') return
+    if (!requestId || !['provider_arriving', 'in_progress'].includes(item?.status || '')) return
     let cancelled = false
     let timer: ReturnType<typeof setInterval> | null = null
 
@@ -194,17 +195,19 @@ function ActiveMission() {
         if (perm.status !== 'granted' || cancelled) return
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
         if (cancelled) return
-        emitProviderLocation(requestId, {
+        const location = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           heading: pos.coords.heading,
           speed: pos.coords.speed,
-        })
+        }
+        setCurrentLocation(location)
+        emitProviderLocation(requestId, location)
       } catch {}
     }
 
     publishLocation()
-    timer = setInterval(publishLocation, 10000)
+    timer = setInterval(publishLocation, 5000)
 
     return () => {
       cancelled = true
@@ -418,19 +421,13 @@ function ActiveMission() {
             {/* Carte */}
             {hasCoords && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.clientAddress')}</Text>
-                <Text style={s.meta}>{locationAddress || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}</Text>
-                <MapView
-                  style={{ width: '100%', height: 220, borderRadius: 12, marginTop: 8 }}
-                  initialRegion={{
-                    latitude: lat,
-                    longitude: lng,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
-                  }}
-                >
-                  <Marker coordinate={{ latitude: lat, longitude: lng }} />
-                </MapView>
+                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
+                <LiveRouteMap
+                  destination={{ lat, lng }}
+                  destinationLabel={locationAddress}
+                  providerLocation={currentLocation || undefined}
+                  status={item.status}
+                />
               </View>
             )}
 

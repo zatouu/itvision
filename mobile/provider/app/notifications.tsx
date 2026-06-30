@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -15,6 +15,8 @@ import {
   subscribeNotifications,
 } from '../src/notifications'
 import { confirm } from '../src/confirm'
+import { apiPost } from '../src/api'
+import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
 
 const KIND_META: Record<Notification['kind'], { tagKey: string; color: string; bg: string }> = {
   'request-new':     { tagKey: 'notifications.kind_request',  color: '#1D4ED8', bg: '#EFF6FF' },
@@ -39,6 +41,42 @@ function NotificationsScreen() {
   const { t } = useTranslation()
   const [items, setItems] = useState<Notification[]>([])
   const [, setTick] = useState(0)
+  const [diagRunning, setDiagRunning] = useState(false)
+
+  const runDiagnostics = async () => {
+    setDiagRunning(true)
+    try {
+      const status = await getPushTokenStatus()
+      const localId = await scheduleLocalNotification('Test local Xeuy Bi Pro', 'Cette notification locale prouve que canal + permissions fonctionnent.', { type: 'test:local' })
+
+      let backendResult = 'Non testé'
+      try {
+        const r = await apiPost('/api/notifications/test-push', { appType: 'provider' })
+        backendResult = r.success
+          ? `OK (${r.result?.deliveredCount ?? 0}/${r.result?.tokenCount ?? 0} tokens)`
+          : `KO: ${r.result?.error || r.message || 'Échec'}`
+      } catch (e: any) {
+        backendResult = `Erreur API: ${e?.message || e}`
+      }
+
+      Alert.alert(
+        'Diagnostics notifications',
+        `Permission: ${status.permission ? '✅' : '❌'}\n` +
+        `Plateforme: ${status.platform}\n` +
+        `Token: ${status.token ? status.token.slice(0, 30) + '...' : 'AUCUN'}\n` +
+        `ProjectId: ${status.projectId || 'N/A'}\n` +
+        `Erreur token: ${status.error || 'Aucune'}\n` +
+        `Notification locale: ${localId ? '✅ programmée' : '❌ échec'}\n` +
+        `Test backend: ${backendResult}`,
+        [
+          { text: 'Réenregistrer token', onPress: () => { void registerPushToken() } },
+          { text: 'OK', style: 'cancel' },
+        ]
+      )
+    } finally {
+      setDiagRunning(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -80,6 +118,9 @@ function NotificationsScreen() {
       <View style={s.header}>
         <Text style={s.title}>{t('notifications.title')}</Text>
         <View style={s.headerActions}>
+          <TouchableOpacity onPress={runDiagnostics} disabled={diagRunning} style={[s.headerBtn, s.headerBtnDebug]}>
+            {diagRunning ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={s.headerBtnText}>Tester</Text>}
+          </TouchableOpacity>
           {hasUnread && (
             <TouchableOpacity onPress={handleMarkAll} style={s.headerBtn}>
               <Text style={s.headerBtnText}>{t('notifications.markAllRead')}</Text>
@@ -137,6 +178,7 @@ const s = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: 8 },
   headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: '#F1F5F9' },
   headerBtnDanger: { backgroundColor: '#FEF2F2' },
+  headerBtnDebug: { backgroundColor: '#E0F2FE' },
   headerBtnText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
   headerBtnTextDanger: { color: '#B91C1C' },
   body: { padding: 16, gap: 10, paddingBottom: 32 },

@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Push notification au provider
-    void sendPushToUser(String(offer.providerId), {
+    await sendPushToUser(String(offer.providerId), {
       title: '💬 Contre-offre reçue',
       body: `Le client propose ${price.toLocaleString('fr-FR')} FCFA au lieu de ${offer.price.toLocaleString('fr-FR')} FCFA`,
       data: { type: 'offer:counter', offerId: String(offer._id), requestId: String(offer.requestId) },

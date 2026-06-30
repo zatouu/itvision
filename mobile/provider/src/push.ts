@@ -1,6 +1,9 @@
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
+import * as Notifications from 'expo-notifications'
+import * as TaskManager from 'expo-task-manager'
+import * as Device from 'expo-device'
 import { apiPost } from './api'
 import { pushNotification, NotificationKind } from './notifications'
 
@@ -47,20 +50,76 @@ function getProjectId(): string | undefined {
   )
 }
 
+export interface PushTokenStatus {
+  token: string | null
+  projectId?: string
+  platform: 'ios' | 'android' | 'web'
+  permission: boolean
+  error?: string
+}
+
 /**
  * Configure le handler de notification foreground — à appeler au démarrage (avant login).
  * Doit être appelé le plus tôt possible pour que les push reçus au premier plan affichent une alerte.
  */
 export function setupNotificationHandler(): void {
   if (!isNative) return
-  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
+      priority: Notifications.AndroidNotificationPriority.MAX,
     }),
   })
+}
+
+/**
+ * Récupère le statut du token push (permission + token + projectId) sans l'envoyer au serveur.
+ * Utile pour l'écran de diagnostics.
+ */
+async function requestPushPermission(): Promise<boolean> {
+  if (!isNative) return false
+  const { status: existing } = await Notifications.getPermissionsAsync()
+  if (existing === 'granted') return true
+  const { status } = await Notifications.requestPermissionsAsync()
+  return status === 'granted'
+}
+
+export async function getPushTokenStatus(): Promise<PushTokenStatus> {
+  if (!isNative) {
+    return { token: null, platform: 'web', permission: false, error: 'Push non disponible sur web' }
+  }
+
+  if (!Device.isDevice) {
+    return { token: null, platform: 'web', permission: false, error: 'Simulateur — push désactivé' }
+  }
+
+  const platform = Platform.OS === 'ios' ? 'ios' : 'android'
+  const { status: existing } = await Notifications.getPermissionsAsync()
+  if (existing !== 'granted') {
+    return { token: null, platform, permission: false, error: 'Permission notifications refusée' }
+  }
+
+  try {
+    const projectId = getProjectId()
+    if (!projectId) {
+      return { token: null, platform, permission: true, error: 'projectId EAS introuvable' }
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId })
+    return { token: tokenData.data, projectId, platform, permission: true }
+  } catch (err: any) {
+    // Fallback : token natif FCM/apns si Expo Push Service échoue (bare build custom)
+    try {
+      const native = await Notifications.getDevicePushTokenAsync()
+      if (native?.data) {
+        return { token: String(native.data), projectId: getProjectId(), platform, permission: true }
+      }
+    } catch (nativeErr: any) {
+      console.warn('[Push] Fallback native token failed:', nativeErr.message)
+    }
+    return { token: null, platform, permission: true, error: err?.message || 'Erreur récupération token' }
+  }
 }
 
 /**
@@ -70,43 +129,48 @@ export function setupNotificationHandler(): void {
 export async function registerPushToken(): Promise<string | null> {
   if (!isNative) return null
 
-  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
-  const Device = require('expo-device') as typeof import('expo-device')
-
-  if (!Device.isDevice) {
-    console.log('[Push] Pas un appareil physique — push désactivé')
+  const permitted = await requestPushPermission()
+  if (!permitted) {
+    console.log('[Push] Permission refusée — token non enregistré')
     return null
   }
 
-  const { status: existing } = await Notifications.getPermissionsAsync()
-  let finalStatus = existing
-  if (finalStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    finalStatus = status
-  }
-  if (finalStatus !== 'granted') {
-    console.log('[Push] Permission refusée')
+  const status = await getPushTokenStatus()
+  if (!status.token) {
+    console.warn('[Push] Impossible d\'obtenir un token:', status.error)
     return null
   }
 
   try {
-    const projectId = getProjectId()
-    if (!projectId) {
-      console.warn('[Push] projectId introuvable (Constants.expoConfig.extra.eas.projectId manquant)')
-      return null
-    }
-    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId })
-    const token = tokenData.data
-    console.log('[Push] Token récupéré:', token.slice(0, 30) + '...')
-
-    const platform = Platform.OS === 'ios' ? 'ios' : 'android'
-    await apiPost('/api/notifications/push-token', { token, platform, appType: 'provider' })
-      .then(() => console.log('[Push] Token enregistré côté serveur ✓'))
-      .catch(err => console.warn('[Push] Erreur envoi token:', err?.message || err))
-
-    return token
+    await apiPost('/api/notifications/push-token', {
+      token: status.token,
+      platform: status.platform,
+      appType: 'provider',
+    })
+    console.log('[Push] Token enregistré côté serveur ✓', status.token.slice(0, 30))
+    return status.token
   } catch (err: any) {
-    console.error('[Push] Erreur récupération token:', err?.message || err)
+    console.warn('[Push] Erreur envoi token:', err?.message || err)
+    return null
+  }
+}
+
+/**
+ * Programme une notification locale immédiatement pour vérifier que le plumbing
+ * d'affichage (channel, handler, permission) fonctionne sur le device.
+ */
+export async function scheduleLocalNotification(title = 'Test local Pro', body = 'Si tu vois cette notification, le canal et les permissions fonctionnent.', data: any = { type: 'test:local' }): Promise<string | null> {
+  if (!isNative) return null
+
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: { title, body, data, sound: 'default' },
+      trigger: { seconds: 1 },
+    })
+    console.log('[Push] Notification locale programmée:', id)
+    return id
+  } catch (err: any) {
+    console.error('[Push] Erreur notification locale:', err?.message || err)
     return null
   }
 }
@@ -117,7 +181,6 @@ export async function registerPushToken(): Promise<string | null> {
 export async function setupNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return
 
-  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
   await Notifications.setNotificationChannelAsync('default', {
     name: 'Général',
     importance: Notifications.AndroidImportance.HIGH,
@@ -139,7 +202,6 @@ export async function setupNotificationChannel(): Promise<void> {
 export function setupForegroundNotificationListener(): () => void {
   if (!isNative) return () => {}
 
-  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
   const subscription = Notifications.addNotificationReceivedListener(notification => {
     const content = notification.request.content
     const data = content.data as any
@@ -151,11 +213,23 @@ export function setupForegroundNotificationListener(): () => void {
 
 let pendingNav: string | null = null
 
+export function setPendingNavigation(target: string): void {
+  pendingNav = target
+}
+
 export function flushPendingNavigation(): void {
   if (pendingNav) {
     const target = pendingNav
     pendingNav = null
     router.push(target as any)
+  }
+}
+
+export function navigateFromPushData(data: any): void {
+  const target = resolveNavTarget(data)
+  if (target) {
+    setPendingNavigation(target)
+    flushPendingNavigation()
   }
 }
 
@@ -165,16 +239,10 @@ export function flushPendingNavigation(): void {
 export function setupNotificationResponseListener(): () => void {
   if (!isNative) return () => {}
 
-  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
   const subscription = Notifications.addNotificationResponseReceivedListener(response => {
     const data = response.notification.request.content.data as any
     if (!data?.type) return
-
-    const target = resolveNavTarget(data)
-    if (target) {
-      pendingNav = target
-      flushPendingNavigation()
-    }
+    navigateFromPushData(data)
   })
 
   return () => subscription.remove()
@@ -199,5 +267,44 @@ export function resolveNavTarget(data: any): string | null {
     default:
       if (data.requestId) return `/active-mission/${data.requestId}`
       return '/notifications'
+  }
+}
+
+const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK'
+
+/**
+ * Tâche de fond : enregistrer les notifications push dans le store in-app
+ * même quand l'application est tuée (Android/iOS).
+ */
+if (isNative) {
+  TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, (body: any) => {
+    try {
+      const notification = body?.data?.notification ?? body?.notification ?? body?.data ?? body
+      const requestContent = notification?.request?.content ?? notification?.content ?? notification
+      const title = String(requestContent?.title || '')
+      const bodyText = String(requestContent?.body || '')
+      const data = requestContent?.data ?? notification?.data ?? {}
+      if (title || bodyText) {
+        mapPushToStore(title, bodyText, data)
+      }
+    } catch (err) {
+      console.error('[Push] Background task error:', err)
+    }
+  })
+}
+
+/**
+ * Enregistre la tâche de fond pour les push (doit être appelé au démarrage).
+ * Utilise l'API expo-notifications dédiée (Notifications.registerTaskAsync).
+ */
+export async function registerBackgroundPushTask(): Promise<void> {
+  if (!isNative) return
+  try {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_NOTIFICATION_TASK)
+    if (isRegistered) return
+    await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK)
+    console.log('[Push] Background task registered ✓')
+  } catch (err: any) {
+    console.warn('[Push] Background task registration failed:', err.message)
   }
 }

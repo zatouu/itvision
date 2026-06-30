@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Push notification au consumer (fire & forget)
-    void sendPushToUser(String(sr.clientId), {
+    // Push notification au consumer
+    await sendPushToUser(String(sr.clientId), {
       title: '💰 Nouvelle offre reçue',
       body: `${price.toLocaleString('fr-FR')} FCFA — ${comment ? comment.slice(0, 60) : 'Voir l\'offre'}`,
       data: { type: 'offer:new', requestId, offerId: String(created._id) },

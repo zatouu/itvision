@@ -158,7 +158,11 @@
     "status_provider_arriving": "On the way",
     "status_in_progress": "In progress",
     "status_completed": "Completed",
-    "status_cancelled": "Cancelled"
+    "status_cancelled": "Cancelled",
+    "cancelRequest": "Cancel request",
+    "cancelRequestConfirm": "Cancel this request?",
+    "cancelRequestMsg": "No provider has been chosen yet. You can republish it later.",
+    "cancelRequestSuccess": "Request cancelled"
   },
   "mission": {
     "title": "Active mission",
@@ -201,6 +205,10 @@
     "providerMarkerTitle": "Provider",
     "providerMarkerDesc": "Real-time position",
     "providerTracking": "🚗 Provider on the way — live position update",
+    "routeLoading": "Calculating route...",
+    "distance": "Distance",
+    "eta": "Estimated time",
+    "clientAddress": "Client address",
     "providerCloses": "The provider will close the mission once the service is done.",
     "rateMission": "⭐ Rate this service",
     "alreadyRated": "✅ You already rated this service.",

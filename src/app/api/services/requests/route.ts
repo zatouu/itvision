@@ -131,8 +131,8 @@ export async function POST(request: NextRequest) {
       }, 10) // 10 km radius
     }
 
-    // Push notification à tous les providers (fire & forget)
-    sendPushToAllProviders({
+    // Push notification à tous les providers
+    await sendPushToAllProviders({
       title: '🔔 Nouvelle demande',
       body: `${created.category} — ${(created.description || '').slice(0, 80) || 'Sans description'}`,
       data: { type: 'request:new', requestId: String(created._id) },

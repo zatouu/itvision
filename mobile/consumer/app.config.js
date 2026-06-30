@@ -8,6 +8,13 @@ module.exports = ({ config }) => {
   }
   return {
     ...config,
+    extra: {
+      ...config.extra,
+      eas: {
+        ...(config.extra?.eas || {}),
+        projectId: (config.extra?.eas?.projectId) || process.env.EXPO_PUBLIC_PROJECT_ID,
+      },
+    },
     android: {
       ...config.android,
       config: {

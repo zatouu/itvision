@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await User.findByIdAndUpdate(kyc.providerId, { kycVerified: true })
       await syncUserToProfiles(kyc.providerId)
 
-      void sendPushToUser(String(kyc.providerId), {
+      await sendPushToUser(String(kyc.providerId), {
         title: '✅ Profil vérifié !',
         body: 'Votre KYC a été approuvé. Vous avez maintenant le badge Vérifié.',
         data: { type: 'kyc:approved' },
@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       kyc.reviewedAt = new Date()
       await kyc.save()
 
-      void sendPushToUser(String(kyc.providerId), {
+      await sendPushToUser(String(kyc.providerId), {
         title: '❌ KYC refusé',
         body: kyc.rejectionReason,
         data: { type: 'kyc:rejected' },

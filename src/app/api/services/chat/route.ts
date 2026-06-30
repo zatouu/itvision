@@ -63,24 +63,28 @@ export async function POST(request: NextRequest) {
       text: text.trim().slice(0, 1000),
     })
 
+    // Push notification au destinataire (fire & forget)
+    const recipientId = isClient ? String(sr.assignedProviderId) : String(sr.clientId)
+    const recipientAppType = isClient ? 'provider' : 'consumer'
+
     // Émettre via WebSocket
     const io = (global as any).io
     if (io) {
-      io.to(`mission-${requestId}`).emit('chat:message', {
+      const payload = {
         _id: msg._id,
         requestId,
         senderId: userId,
         senderRole,
         text: msg.text,
         createdAt: msg.createdAt,
-      })
+      }
+      io.to(`mission-${requestId}`).emit('chat:message', payload)
+      // Émettre aussi dans la room personnelle du destinataire pour les notifications in-app
+      // même lorsque l'utilisateur n'est pas sur l'écran de chat
+      io.to(`${isClient ? 'provider' : 'user'}-${recipientId}`).emit('chat:message', payload)
     }
-
-    // Push notification au destinataire (fire & forget)
-    const recipientId = isClient ? String(sr.assignedProviderId) : String(sr.clientId)
-    const recipientAppType = isClient ? 'provider' : 'consumer'
     if (recipientId) {
-      void sendPushToUser(recipientId, {
+      await sendPushToUser(recipientId, {
         title: `💬 ${isClient ? 'Client' : 'Prestataire'}: ${msg.text.slice(0, 50)}`,
         body: msg.text.slice(0, 100),
         data: { type: 'chat:message', requestId, senderRole },

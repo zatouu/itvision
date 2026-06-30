@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import MapView, { Marker } from 'react-native-maps'
+import { LiveRouteMap } from '../../src/components/LiveRouteMap'
 import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
@@ -120,7 +120,7 @@ function MissionDetail() {
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; timestamp: number } | null>(null)
+  const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; heading?: number | null; timestamp: number } | null>(null)
   const [hasReview, setHasReview] = useState(false)
   const [, setTick] = useState(0)
 
@@ -180,6 +180,7 @@ function MissionDetail() {
       setProviderLocation({
         lat: Number(data.lat),
         lng: Number(data.lng),
+        heading: data.heading ?? null,
         timestamp: Number(data.timestamp) || Date.now(),
       })
     }
@@ -416,30 +417,13 @@ function MissionDetail() {
             {/* Carte */}
             {hasCoords && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.location')}</Text>
-                <Text style={s.meta}>{loc?.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}</Text>
-                <MapView
-                  style={{ width: '100%', height: 220, borderRadius: 12 }}
-                  initialRegion={{
-                    latitude: lat,
-                    longitude: lng,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
-                  }}
-                >
-                  <Marker coordinate={{ latitude: lat, longitude: lng }} />
-                  {providerLocation && (
-                    <Marker
-                      coordinate={{ latitude: providerLocation.lat, longitude: providerLocation.lng }}
-                      title={t('mission.providerMarkerTitle')}
-                      description={t('mission.providerMarkerDesc')}
-                      pinColor="#2563EB"
-                    />
-                  )}
-                </MapView>
-                {providerLocation && item.status === 'provider_arriving' && (
-                  <Text style={s.trackingText}>{t('mission.providerTracking')}</Text>
-                )}
+                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
+                <LiveRouteMap
+                  destination={{ lat, lng }}
+                  destinationLabel={loc?.address}
+                  providerLocation={providerLocation || undefined}
+                  status={item.status}
+                />
               </View>
             )}
 

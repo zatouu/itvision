@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import PushToken from '@/lib/models/PushToken'
 import { requireAuth } from '@/lib/jwt'
+import { isValidPushToken } from '@/lib/push'
+
+export async function GET(request: NextRequest) {
+  try {
+    const { userId } = await requireAuth(request)
+    await connectMongoose()
+    const tokens = await PushToken.find({ userId }).select('token platform appType createdAt updatedAt').lean()
+    return NextResponse.json({
+      tokens: tokens.map((t: any) => ({
+        token: String(t.token).slice(0, 30) + '...',
+        platform: t.platform,
+        appType: t.appType,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      })),
+    })
+  } catch (e: any) {
+    if (e.message === 'Non authentifié') {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+    console.error('[GET /api/notifications/push-token]', e)
+    return NextResponse.json({ error: 'Erreur liste tokens' }, { status: 500 })
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +37,8 @@ export async function POST(request: NextRequest) {
 
     const { token, platform, appType } = body as any
 
-    // Validation token Expo format: ExponentPushToken[...] ou ExpoPushToken[...]
-    if (!token || typeof token !== 'string' || (!token.startsWith('ExponentPushToken[') && !token.startsWith('ExpoPushToken['))) {
+    // Accepte les tokens Expo et les tokens natifs FCM/apns (bare builds)
+    if (!isValidPushToken(token)) {
       return NextResponse.json({ error: 'Token push invalide' }, { status: 400 })
     }
 

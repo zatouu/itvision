@@ -158,7 +158,11 @@
     "status_provider_arriving": "En route",
     "status_in_progress": "En cours",
     "status_completed": "Terminée",
-    "status_cancelled": "Annulée"
+    "status_cancelled": "Annulée",
+    "cancelRequest": "Annuler la demande",
+    "cancelRequestConfirm": "Annuler cette demande ?",
+    "cancelRequestMsg": "Aucun prestataire n'a encore été choisi. Vous pouvez la republier plus tard.",
+    "cancelRequestSuccess": "Demande annulée"
   },
   "mission": {
     "title": "Mission en cours",
@@ -201,6 +205,10 @@
     "providerMarkerTitle": "Prestataire",
     "providerMarkerDesc": "Position en temps réel",
     "providerTracking": "🚗 Prestataire en route — position mise à jour en direct",
+    "routeLoading": "Calcul de l'itinéraire...",
+    "distance": "Distance",
+    "eta": "Temps estimé",
+    "clientAddress": "Adresse client",
     "providerCloses": "Le prestataire clôture la mission dès la fin de l’intervention.",
     "rateMission": "⭐ Noter cette intervention",
     "alreadyRated": "✅ Vous avez déjà noté cette intervention.",

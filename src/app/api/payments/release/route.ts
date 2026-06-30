@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     await payment.save()
 
     // Notify provider
-    void sendPushToUser(String(payment.providerId), {
+    await sendPushToUser(String(payment.providerId), {
       title: '💰 Paiement reçu !',
       body: `${payment.amount.toLocaleString('fr-FR')} FCFA envoyés sur votre compte ${payment.provider}.`,
       data: { type: 'payment:released', requestId: String(requestId) },

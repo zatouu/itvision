@@ -158,7 +158,11 @@
     "status_provider_arriving": "Mii ñëw",
     "status_in_progress": "Diy liggéey",
     "status_completed": "Jeex",
-    "status_cancelled": "Ëpp"
+    "status_cancelled": "Ëpp",
+    "cancelRequest": "Bayyil laaj bi",
+    "cancelRequestConfirm": "Bayyil laaj bi?",
+    "cancelRequestMsg": "Amul kenn liggéeykat buñu tànn. Mëna nga ko yónnee ci kanam.",
+    "cancelRequestSuccess": "Laaj bi dañu ko bayyil"
   },
   "mission": {
     "title": "Misiyoŋ bi",
@@ -201,6 +205,10 @@
     "providerMarkerTitle": "Ligeykaat",
     "providerMarkerDesc": "Pozisiyoŋ ci simili",
     "providerTracking": "🚗 Ligeykaat mii ñëw — pozisiyoŋ ci simili",
+    "routeLoading": "Xayma yoon...",
+    "distance": "Yoon",
+    "eta": "Tangaay bu xayma",
+    "clientAddress": "Adrëse kiliyã",
     "providerCloses": "Ligeykaat bi dafay jeex misiyoŋ bi bu liggéey bi jeex.",
     "rateMission": "⭐ Dimbali liggéey bi",
     "alreadyRated": "✅ Dimbal nga liggéey bi.",
@@ -209,9 +217,9 @@
     "cancelConfirmMsg": "Wóolu ko dëgg dëgg?",
     "offlineAction": "Jëfandikoo dafay aw — dina yónnee bu internetu dafay dëgg.",
     "mediaUnavailable": "Média bu nekkul",
-    "invalidMediaLink": "Lien média bu baaxul",
-    "cannotOpenLink": "Mënuma ubbil lien bi",
-    "cannotOpenMedia": "Mënuma ubbil média bi"
+    "invalidMediaLink": "Lien média bi baaxul",
+    "cannotOpenLink": "Mënuma ubbi lien bi",
+    "cannotOpenMedia": "Mënuma ubbi média bi"
   },
   "rating": {
     "title": "Dimbali ci sa xel",
