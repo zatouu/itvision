@@ -63,6 +63,7 @@ export default function MarketCreateAccountPage() {
   const captchaContainerId = 'turnstile-market-register-form'
 
   const [returnTo, setReturnTo] = useState<string | null>(null)
+  const [referralCode, setReferralCode] = useState<string | undefined>(undefined)
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -93,6 +94,8 @@ export default function MarketCreateAccountPage() {
       const name = params.get('name')
       const email = params.get('email')
       const phone = params.get('phone')
+      const ref = params.get('ref') || params.get('referral') || params.get('referralCode')
+      if (ref) setReferralCode(ref)
 
       setFormData(prev => ({
         ...prev,
@@ -211,7 +214,8 @@ export default function MarketCreateAccountPage() {
           phone: formData.phone.trim() || undefined,
           password: formData.password,
           role: 'CLIENT',
-          captchaToken
+          captchaToken,
+          ...(referralCode ? { referredBy: referralCode } : {})
         })
       })
 

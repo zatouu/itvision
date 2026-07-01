@@ -951,3 +951,17 @@
 {"name":"worker","pid":184,"phase":"FAIL_BUILD","buildId":"444ba9cf-2473-4cff-a5e9-acfaf131c044","level":30,"marker":"START_PHASE","msg":"Start phase: FAIL_BUILD","time":"2026-06-30T00:21:45.046Z","v":0,"logId":"019f15e7-41d6-7c8f-9930-1d41f566a2e2"}
 {"name":"worker","pid":184,"phase":"FAIL_BUILD","buildId":"444ba9cf-2473-4cff-a5e9-acfaf131c044","level":50,"msg":"Build failed: Gradle build failed with unknown error. See logs for the \"Run gradlew\" phase for more information.","time":"2026-06-30T00:21:45.046Z","v":0,"logId":"019f15e7-41d6-7c8f-9930-1d42ed10f6b3"}
 {"name":"worker","pid":184,"phase":"FAIL_BUILD","buildId":"444ba9cf-2473-4cff-a5e9-acfaf131c044","level":30,"marker":"END_PHASE","result":"failed","msg":"End phase: FAIL_BUILD","time":"2026-06-30T00:21:45.047Z","v":0,"logId":"019f15e7-41d7-7eb6-a2cb-0ad92000f388"}
+C : \ U s e r s \ A S U S \ A p p D a t a \ R o a m i n g \ n p m \ e a s . c m d   :   “ÿ à   e a s - c l i @ 2 0 . 5 . 0   i s   n o w   a v a i l a b l e .  
+ A t   l i n e : 1   c h a r : 1  
+ +   C : \ U s e r s \ A S U S \ A p p D a t a \ R o a m i n g \ n p m \ e a s . c m d   b u i l d   - - p r o f i l e   e c 2   - - p l a t f   . . .  
+ +   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~  
+         +   C a t e g o r y I n f o                     :   N o t S p e c i f i e d :   ( “ÿ à   e a s - c l i @ 2 0 . 5 . 0   i s   n o w   a v a i l a b l e . : S t r i n g )   [ ] ,   R e m o t e E x c e p t i o n  
+         +   F u l l y Q u a l i f i e d E r r o r I d   :   N a t i v e C o m m a n d E r r o r  
+    
+ T o   u p g r a d e ,   r u n :  
+ n p m   i n s t a l l   - g   e a s - c l i  
+ P r o c e e d i n g   w i t h   o u t d a t e d   v e r s i o n .  
+  
+ R u n   t h i s   c o m m a n d   i n s i d e   a   p r o j e c t   d i r e c t o r y .  
+         E r r o r :   b u i l d   c o m m a n d   f a i l e d .  
+ 

@@ -71,6 +71,7 @@ export async function middleware(request: NextRequest) {
     const isAllowedOnMarket =
       pathname.startsWith('/login') ||
       pathname.startsWith('/register') ||
+      pathname.startsWith('/register-corporate') ||
       pathname.startsWith('/forgot-password') ||
       pathname.startsWith('/reset-password') ||
       pathname.startsWith('/api/') ||

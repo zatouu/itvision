@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     const limited = applyRateLimit(request, registerRateLimiter)
     if (limited) return limited
 
-    const { email, password, name, phone, role = 'CLIENT', captchaToken = '', website = '', formLoadTime = 0 } = await request.json()
+    const { email, password, name, phone, role = 'CLIENT', captchaToken = '', website = '', formLoadTime = 0, referredBy = '' } = await request.json()
 
     const forwardedFor = request.headers.get('x-forwarded-for') || ''
     const remoteIp = forwardedFor.split(',')[0]?.trim() || undefined
@@ -178,12 +178,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: passwordError }, { status: 400 })
     }
 
-    // Validation du rôle
-    const validRoles = ['CLIENT', 'TECHNICIAN', 'ADMIN']
-    if (!validRoles.includes(role.toUpperCase())) {
-      return NextResponse.json({ 
-        error: 'Rôle invalide' 
-      }, { status: 400 })
+    // Inscription publique : seul le rôle CLIENT (marketplace) est autorisé.
+    // Les comptes TECHNICIAN et ADMIN sont créés via des processus internes/admin.
+    const normalizedRole = role.toUpperCase()
+    if (normalizedRole !== 'CLIENT') {
+      return NextResponse.json({
+        error: 'Rôle non autorisé pour l\'inscription publique'
+      }, { status: 403 })
     }
 
     // Vérifier si l'email existe déjà
@@ -208,6 +209,9 @@ export async function POST(request: NextRequest) {
     // Hasher le mot de passe
     const passwordHash = await bcrypt.hash(password, 12)
 
+    // Nettoyer le code de parrainage
+    const normalizedReferral = typeof referredBy === 'string' ? referredBy.toUpperCase().trim() : undefined
+
     // Créer l'utilisateur
     const newUser = new User({
       username,
@@ -217,7 +221,8 @@ export async function POST(request: NextRequest) {
       phone: phone?.trim() || undefined,
       role: role.toUpperCase(),
       isActive: true,
-      loginAttempts: 0
+      loginAttempts: 0,
+      ...(normalizedReferral ? { referredBy: normalizedReferral } : {})
     })
 
     await newUser.save()

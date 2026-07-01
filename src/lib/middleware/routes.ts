@@ -3,6 +3,7 @@ export const PUBLIC_ROUTES = [
   '/login',
   '/register',
   '/market/creer-compte',
+  '/register-corporate',
   '/forgot-password',
   '/reset-password',
   '/retrouver-ma-commande',

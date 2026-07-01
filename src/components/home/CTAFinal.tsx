@@ -41,7 +41,7 @@ export default function CTAFinal() {
 
             <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
               <Link
-                href="/register"
+                href="/market/creer-compte"
                 className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 px-6 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg"
               >
                 Créer un compte

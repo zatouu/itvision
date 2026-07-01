@@ -366,7 +366,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
   }
 
   const shareLink = () => {
-    const url = `${window.location.origin}/register?ref=${user.referralCode}`
+    const url = `${window.location.origin}/market/creer-compte?ref=${user.referralCode}`
     navigator.clipboard.writeText(url).then(() => addToast('Lien de parrainage copié !', 'success'))
   }
 

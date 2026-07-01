@@ -22,7 +22,7 @@ export default function FinalCTABanner() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/register?role=client"
+                href="/market/creer-compte"
                 className="inline-flex items-center justify-center bg-white text-slate-900 px-8 py-3 rounded-full font-bold hover:bg-slate-50 transition-colors"
               >
                 Créer un compte
