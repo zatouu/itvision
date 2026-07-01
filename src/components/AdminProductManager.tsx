@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage, Share2 } from 'lucide-react'
 import { defaultProductCategories } from '@/lib/data/default-categories'
+import { CategorySelect } from '@/components/admin/CategorySelect'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -766,8 +767,27 @@ export default function AdminProductManager() {
   const onSave = async () => {
     if (!editing) return
     setSaveError(null)
+
+    // Validation basique
+    if (!editing.name.trim()) {
+      setSaveError('Le nom du produit est requis')
+      return
+    }
+    if (!editing.category?.trim()) {
+      setSaveError('La catégorie est requise')
+      return
+    }
+    const hasAnyPrice =
+      typeof editing.baseCost === 'number' && editing.baseCost > 0 ||
+      typeof editing.price1688 === 'number' && editing.price1688 > 0 ||
+      typeof editing.price === 'number' && editing.price > 0
+    if (!hasAnyPrice && !editing.requiresQuote) {
+      setSaveError('Renseignez un prix, un coût de base ou cochez "Sur devis"')
+      return
+    }
+
     setSaving(true)
-    
+
     try {
       const method = editing._id ? 'PATCH' : 'POST'
       const payload: Record<string, unknown> = {
@@ -871,7 +891,7 @@ export default function AdminProductManager() {
     }
 
     if (bulkAction === 'set-category' && !String(bulkCategory || '').trim()) {
-      alert('Veuillez saisir une catégorie (ou laissez vide pour supprimer).')
+      alert('Veuillez choisir une catégorie dans la liste.')
       return
     }
 
@@ -1138,25 +1158,37 @@ export default function AdminProductManager() {
             Fiche produit
           </div>
           <div className="mt-4 space-y-3">
-            <input
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Nom du produit"
-              value={editing.name}
-              onChange={e => setEditing({ ...editing, name: e.target.value })}
-            />
-            <input
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Accroche / bénéfice principal"
-              value={editing.tagline || ''}
-              onChange={e => setEditing({ ...editing, tagline: e.target.value })}
-            />
-            <input
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Catégorie (ex: Vidéosurveillance)"
-              value={editing.category || ''}
-              list="admin-product-categories"
-              onChange={e => setEditing({ ...editing, category: e.target.value })}
-            />
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">Nom du produit *</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Ex: Caméra Hikvision 4MP PoE"
+                value={editing.name}
+                onChange={e => setEditing({ ...editing, name: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">Accroche / bénéfice principal</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Ex: Surveillance HD, vision nocturne 30m, installation plug & play"
+                value={editing.tagline || ''}
+                onChange={e => setEditing({ ...editing, tagline: e.target.value })}
+              />
+            </label>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Catégorie *</label>
+              <CategorySelect
+                value={editing.category || ''}
+                options={categoryOptions}
+                onChange={(val) => setEditing({ ...editing, category: val })}
+                placeholder="Choisir une catégorie"
+                showSubCategories={true}
+                showCounts={true}
+                allowEmpty={false}
+                className="w-full"
+              />
+            </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="space-y-1">
@@ -1265,38 +1297,6 @@ export default function AdminProductManager() {
             <label className="inline-flex items-center gap-2">
               <input type="checkbox" checked={!!editing.isFeatured} onChange={e => setEditing({ ...editing, isFeatured: e.target.checked })} />
               Mettre en avant
-            </label>
-          </div>
-
-          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <div className="text-xs font-semibold text-blue-800 mb-2">Canaux de distribution</div>
-            <div className="flex flex-wrap gap-4">
-              {(['marketplace', 'corporate', 'xeuy-bi'] as const).map((channel) => (
-                <label key={channel} className="inline-flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={(editing.channels || []).includes(channel)}
-                    onChange={(e) => {
-                      const current = new Set(editing.channels || [])
-                      if (e.target.checked) {
-                        current.add(channel)
-                      } else {
-                        current.delete(channel)
-                      }
-                      setEditing({ ...editing, channels: Array.from(current) as Product['channels'] })
-                    }}
-                  />
-                  <span className="capitalize">{channel === 'xeuy-bi' ? 'Xeuy Bi (pièces)' : channel}</span>
-                </label>
-              ))}
-            </div>
-            <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={!!editing.corporateVisible}
-                onChange={(e) => setEditing({ ...editing, corporateVisible: e.target.checked })}
-              />
-              <span className="font-medium text-blue-900">Visible sur le catalogue corporate (itvisionplus.sn/produits)</span>
             </label>
           </div>
         </div>
@@ -1418,6 +1418,41 @@ export default function AdminProductManager() {
               />
             </label>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
+            <Share2 className="h-4 w-4" />
+            Canaux de distribution
+          </div>
+          <div className="mt-4 flex flex-wrap gap-4">
+            {(['marketplace', 'corporate', 'xeuy-bi'] as const).map((channel) => (
+              <label key={channel} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={(editing.channels || []).includes(channel)}
+                  onChange={(e) => {
+                    const current = new Set(editing.channels || [])
+                    if (e.target.checked) {
+                      current.add(channel)
+                    } else {
+                      current.delete(channel)
+                    }
+                    setEditing({ ...editing, channels: Array.from(current) as Product['channels'] })
+                  }}
+                />
+                <span className="capitalize">{channel === 'xeuy-bi' ? 'Xeuy Bi (pièces)' : channel}</span>
+              </label>
+            ))}
+          </div>
+          <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={!!editing.corporateVisible}
+              onChange={(e) => setEditing({ ...editing, corporateVisible: e.target.checked })}
+            />
+            <span className="font-medium text-blue-900">Visible sur le catalogue corporate (itvisionplus.sn/produits)</span>
+          </label>
         </div>
       </div>
     )
@@ -1875,9 +1910,10 @@ export default function AdminProductManager() {
               />
             </label>
           </div>
-          <div className="mt-4 flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
-            <label className="inline-flex items-center gap-2 text-sm">
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-start gap-3">
               <input
+                id="autoPrice"
                 type="checkbox"
                 checked={autoPrice}
                 onChange={e => {
@@ -1890,14 +1926,28 @@ export default function AdminProductManager() {
                     }
                   }
                 }}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               />
-              Calcul automatique du prix public (coût + marge)
-            </label>
-            {autoPrice && typeof suggestedPrice === 'number' && (
-              <span className="text-sm font-semibold text-emerald-600">
-                Suggestion: {formatCurrency(suggestedPrice, editing.currency)}
-              </span>
-            )}
+              <div className="flex-1">
+                <label htmlFor="autoPrice" className="block text-sm font-medium text-gray-900 cursor-pointer">
+                  Calcul automatique du prix public
+                </label>
+                <p className="text-xs text-gray-500">
+                  Le prix public se met à jour automatiquement à partir du coût fournisseur, de la marge, des frais de service et de l&apos;assurance.
+                </p>
+                {autoPrice && typeof suggestedPrice === 'number' && (
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-700">
+                    <Calculator className="h-4 w-4" />
+                    Prix calculé : {formatCurrency(suggestedPrice, editing.currency)}
+                  </div>
+                )}
+                {autoPrice && suggestedPrice === undefined && (
+                  <div className="mt-2 text-xs text-amber-600">
+                    Renseignez un coût fournisseur ou un prix source pour activer le calcul.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           {/* Indicateur de validation du prix */}
           {!editing.requiresQuote && !editing.price && !editing.b2bPrice && !editing.baseCost && !editing.price1688 && (
@@ -2795,12 +2845,6 @@ export default function AdminProductManager() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <datalist id="admin-product-categories">
-        {categoryOptions.map((it) => (
-          <option key={it.category} value={it.category} label={it.label} />
-        ))}
-      </datalist>
-
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Gestion des Produits</h1>
@@ -2904,12 +2948,20 @@ export default function AdminProductManager() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher par nom" className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
-        <input
+        <CategorySelect
           value={category}
-          onChange={e => setCategory(e.target.value)}
+          options={categoryOptions}
+          onChange={(val) => {
+            setCategory(val)
+            setTimeout(() => refresh(), 0)
+          }}
           placeholder="Catégorie"
-          list="admin-product-categories"
-          className="w-48 border rounded-lg px-3 py-2 text-sm"
+          showSubCategories={true}
+          showCounts={true}
+          allowEmpty={true}
+          emptyLabel="Toutes les catégories"
+          size="sm"
+          className="w-48"
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -2992,12 +3044,16 @@ export default function AdminProductManager() {
             </optgroup>
           </select>
           {bulkAction === 'set-category' && (
-            <input
+            <CategorySelect
               value={bulkCategory}
-              onChange={(e) => setBulkCategory(e.target.value)}
+              options={categoryOptions}
+              onChange={(val) => setBulkCategory(val)}
               placeholder="Nouvelle catégorie"
-              list="admin-product-categories"
-              className="h-9 w-52 rounded-lg border px-3 text-sm"
+              showSubCategories={true}
+              showCounts={true}
+              allowEmpty={false}
+              size="sm"
+              className="w-52"
             />
           )}
           <button
@@ -3204,6 +3260,38 @@ export default function AdminProductManager() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+            <div className="px-6 pt-6">
+              <div className="flex items-center justify-between">
+                {[
+                  { id: 'info', label: 'Fiche', subTabs: ['info'] },
+                  { id: 'details', label: 'Détails & médias', subTabs: ['details', 'media'] },
+                  { id: 'pricing', label: 'Tarifs', subTabs: ['pricing'] },
+                  { id: 'options', label: 'Options avancées', subTabs: ['variants', 'groupbuy', 'import'] }
+                ].map((step, index, arr) => {
+                  const isActive = step.subTabs.includes(activeTab)
+                  const currentStepIndex = arr.findIndex((s) => s.subTabs.includes(activeTab))
+                  const isCompleted = currentStepIndex > index
+                  return (
+                    <div key={step.id} className="flex flex-1 items-center">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(step.subTabs[0] as ProductTab)}
+                        className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition ${isActive ? 'bg-emerald-50 text-emerald-700' : isCompleted ? 'text-emerald-600' : 'text-gray-400'}`}
+                      >
+                        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isActive ? 'bg-emerald-600 text-white' : isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {isCompleted ? '✓' : index + 1}
+                        </span>
+                        <span className="hidden sm:inline">{step.label}</span>
+                      </button>
+                      {index < arr.length - 1 && (
+                        <div className={`mx-2 h-px flex-1 ${isCompleted ? 'bg-emerald-300' : 'bg-gray-200'}`} />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="flex flex-col gap-6 px-6 py-6 md:flex-row">
               <nav className="flex flex-wrap gap-3 md:w-64 md:flex-col">
                 {tabs.map(tab => {
@@ -3244,24 +3332,50 @@ export default function AdminProductManager() {
                   </div>
                 )}
                 
-                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                    onClick={() => { setEditing(null); setSaveError(null) }}
-                    disabled={saving}
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    onClick={onSave}
-                    disabled={saving}
-                  >
-                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {saving ? 'Enregistrement...' : 'Enregistrer'}
-                  </button>
+                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                      onClick={() => {
+                        const idx = tabs.findIndex((t) => t.id === activeTab)
+                        if (idx > 0) setActiveTab(tabs[idx - 1].id)
+                      }}
+                      disabled={saving || tabs.findIndex((t) => t.id === activeTab) === 0}
+                    >
+                      ← Précédent
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                      onClick={() => {
+                        const idx = tabs.findIndex((t) => t.id === activeTab)
+                        if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1].id)
+                      }}
+                      disabled={saving || tabs.findIndex((t) => t.id === activeTab) === tabs.length - 1}
+                    >
+                      Suivant →
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                      onClick={() => { setEditing(null); setSaveError(null) }}
+                      disabled={saving}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      onClick={onSave}
+                      disabled={saving}
+                    >
+                      {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {saving ? 'Enregistrement...' : 'Enregistrer'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
