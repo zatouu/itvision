@@ -27,8 +27,10 @@ export default function BottomSheet({ visible, onClose, children, maxHeight }: P
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, g) => g.dy > 4,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 4,
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) translateY.setValue(g.dy)
       },
@@ -113,6 +115,8 @@ export default function BottomSheet({ visible, onClose, children, maxHeight }: P
             bounces={false}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
           >
             {children}
           </ScrollView>

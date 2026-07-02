@@ -498,19 +498,17 @@ function NearbyRequests() {
 
         {/* Validité */}
         <Text style={s.offerSectionLabel}>{t('nearby.validityLabel')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {VALIDITY_OPTIONS.map(v => (
-              <TouchableOpacity
-                key={v.mins}
-                style={[s.priceChip, validityMinutes === v.mins && s.priceChipActive]}
-                onPress={() => setValidityMinutes(v.mins)}
-              >
-                <Text style={[s.priceChipTxt, validityMinutes === v.mins && s.priceChipTxtActive]}>{v.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {VALIDITY_OPTIONS.map(v => (
+            <TouchableOpacity
+              key={v.mins}
+              style={[s.priceChip, validityMinutes === v.mins && s.priceChipActive]}
+              onPress={() => setValidityMinutes(v.mins)}
+            >
+              <Text style={[s.priceChipTxt, validityMinutes === v.mins && s.priceChipTxtActive]}>{v.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Sécurité */}
         <View style={s.secureBox}>
@@ -521,8 +519,9 @@ function NearbyRequests() {
         {err && <Text style={s.errText}>{err}</Text>}
 
         <TouchableOpacity style={[s.sendOfferBtn, (!price || sending) && s.sendOfferBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
-          {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.sendOfferBtnText}>{t('nearby.sendOfferBtn')} →</Text>}
+          {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.sendOfferBtnText}>{t('nearby.sendOfferBtn')}</Text>}
         </TouchableOpacity>
+        <View style={{ height: 24 }} />
       </BottomSheet>
     </SafeAreaView>
   )

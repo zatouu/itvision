@@ -10,10 +10,10 @@ interface TabBarProps {
 }
 
 const TABS: { key: TabKey; label: string; icon: string; route: string }[] = [
-  { key: 'home',          label: 'Accueil',       icon: '⌂', route: '/' },
-  { key: 'requests',      label: 'Demandes',      icon: '☰', route: '/my-requests' },
-  { key: 'notifications', label: 'Notifications', icon: '🔔', route: '/notifications' },
-  { key: 'profile',       label: 'Profil',        icon: '○', route: '/profile' },
+  { key: 'home',          label: 'Accueil',       icon: 'Acc', route: '/' },
+  { key: 'requests',      label: 'Demandes',      icon: 'Dem', route: '/my-requests' },
+  { key: 'notifications', label: 'Notifications', icon: 'Not', route: '/notifications' },
+  { key: 'profile',       label: 'Profil',        icon: 'Pr', route: '/profile' },
 ]
 
 export default function TabBar({ active }: TabBarProps) {
@@ -52,7 +52,7 @@ export default function TabBar({ active }: TabBarProps) {
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
           >
-            <View style={s.iconWrap}>
+            <View style={[s.iconWrap, isActive && s.iconWrapActive]}>
               <Text style={isActive ? s.iconActive : s.icon}>{tab.icon}</Text>
               {showBadge && (
                 <View style={s.badge}>
@@ -71,9 +71,10 @@ export default function TabBar({ active }: TabBarProps) {
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingBottom: 6, paddingTop: 6 },
   item: { flex: 1, alignItems: 'center', paddingTop: 4, paddingBottom: 2 },
-  iconWrap: { position: 'relative' },
-  icon: { fontSize: 20, color: '#94A3B8' },
-  iconActive: { fontSize: 20, color: '#0F172A' },
+  iconWrap: { position: 'relative', width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  iconWrapActive: { backgroundColor: '#0F172A' },
+  icon: { fontSize: 13, fontWeight: '700', color: '#94A3B8' },
+  iconActive: { fontSize: 13, fontWeight: '700', color: '#fff' },
   label: { fontSize: 10, color: '#94A3B8', marginTop: 2, fontWeight: '500' },
   labelActive: { fontSize: 10, color: '#0F172A', marginTop: 2, fontWeight: '700' },
   badge: { position: 'absolute', top: -4, right: -10, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },

@@ -20,11 +20,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 }
 
 const MISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; banner: string }> = {
-  assigned:          { label: 'À démarrer',     color: '#065F46', bg: '#ECFDF5', dot: '#16A34A', banner: '✅ Le client vous a sélectionné. Préparez-vous !' },
-  provider_arriving: { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: '🚗 Vous êtes en route vers le client.' },
-  in_progress:       { label: 'En cours',       color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED', banner: '🛠️ Mission en cours.' },
-  completed:         { label: 'Terminée',       color: '#374151', bg: '#F1F5F9', dot: '#6B7280', banner: '✅ Mission terminée avec succès.' },
-  cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: '❌ Mission annulée.' },
+  assigned:          { label: 'À démarrer',     color: '#065F46', bg: '#ECFDF5', dot: '#16A34A', banner: 'Le client vous a sélectionné. Préparez-vous !' },
+  provider_arriving: { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
+  in_progress:       { label: 'En cours',       color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED', banner: 'Mission en cours.' },
+  completed:         { label: 'Terminée',       color: '#374151', bg: '#F1F5F9', dot: '#6B7280', banner: 'Mission terminée avec succès.' },
+  cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: 'Mission annulée.' },
 }
 
 function MyOffers() {

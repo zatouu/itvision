@@ -127,7 +127,8 @@ function Home() {
     router.push('/nearby-requests')
   }
 
-  const greeting = greetingByHour(t) + (providerName ? `, ${providerName}` : '')
+  const isPhoneName = (name: string) => /^[\d\s+\-]+$/.test(name)
+  const greeting = greetingByHour(t) + (providerName && !isPhoneName(providerName) ? `, ${providerName}` : '')
 
   return (
     <SafeAreaView style={s.safe}>
