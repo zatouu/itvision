@@ -38,10 +38,8 @@ async function persist() {
   }
 }
 
-export async function loadNotifications(): Promise<Notification[]> {
-  if (loaded) return cache
-  if (loadingPromise) return loadingPromise
-  loadingPromise = (async () => {
+async function doLoad(): Promise<Notification[]> {
+  if (!loaded) {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY)
       cache = raw ? (JSON.parse(raw) as Notification[]) : []
@@ -49,13 +47,15 @@ export async function loadNotifications(): Promise<Notification[]> {
       cache = []
     }
     loaded = true
-    return cache
-  })()
-  try {
-    return await loadingPromise
-  } finally {
-    loadingPromise = null
   }
+  return cache
+}
+
+export async function loadNotifications(): Promise<Notification[]> {
+  if (loaded) return cache
+  if (loadingPromise) return loadingPromise
+  loadingPromise = doLoad().finally(() => { loadingPromise = null })
+  return loadingPromise
 }
 
 export function subscribeNotifications(fn: (items: Notification[]) => void): () => void {
@@ -122,16 +122,6 @@ export async function clearNotifications(): Promise<void> {
   emit()
 }
 
-export async function deleteNotification(id: string): Promise<void> {
-  await loadNotifications()
-  const next = cache.filter(n => n.id !== id)
-  if (next.length !== cache.length) {
-    cache = next
-    await persist()
-    emit()
-  }
-}
-
 let wsBound = false
 
 /** Reset le flag de binding (à appeler après resetSocket / logout). */
@@ -184,7 +174,7 @@ export function bindNotificationSocket() {
     const requestId = String(payload?.requestId || '')
     const status = String(payload?.status || '').toLowerCase()
     const map: Record<string, { title: string; body: string }> = {
-      provider_arriving: { title: 'En route', body: 'Vous avez indiqué être en route vers le client.' },
+      provider_arriving: { title: '🚗 En route', body: 'Vous avez indiqué être en route vers le client.' },
       cancelled: { title: 'Mission annulée par le client', body: 'La mission a été annulée.' },
     }
     const meta = map[status]
@@ -202,7 +192,7 @@ export function bindNotificationSocket() {
     const price = Number(payload?.clientCounterPrice || 0)
     pushNotification({
       kind: 'offer-counter',
-      title: 'Contre-offre client',
+      title: '💬 Contre-offre client',
       body: price > 0 ? `Le client propose ${price.toLocaleString('fr-FR')} FCFA` : 'Le client a fait une contre-offre',
       link: { pathname: '/my-offers' },
     })
@@ -214,7 +204,7 @@ export function bindNotificationSocket() {
     if (senderRole === 'provider') return
     pushNotification({
       kind: 'mission-update',
-      title: 'Nouveau message',
+      title: '💬 Nouveau message',
       body: 'Le client vous a envoyé un message.',
       link: requestId ? { pathname: `/mission-chat`, params: { id: requestId } } : undefined,
     })
