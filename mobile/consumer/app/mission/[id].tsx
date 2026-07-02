@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Animated, Platform } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -234,6 +234,25 @@ function MissionDetail() {
     </SafeAreaView>
   )
 
+  if (err && !item) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.centerBlock}>
+        <Text style={s.err}>{err}</Text>
+        <TouchableOpacity style={s.retryBtn} onPress={() => load(true)}>
+          <Text style={s.retryText}>{t('common.retry')}</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  )
+
+  if (!item) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.centerBlock}>
+        <ActivityIndicator color="#0F172A" />
+      </View>
+    </SafeAreaView>
+  )
+
   const openMedia = async (url?: string) => {
     const mediaUrl = resolveMediaUrl(url)
     if (!mediaUrl) {
@@ -261,251 +280,327 @@ function MissionDetail() {
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
   const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
 
+  const statusMini = (st ? t(st.key) : '').replace(/^./, c => c.toUpperCase())
+
   return (
     <SafeAreaView style={s.safe}>
+      {/* Header transparent */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('mission.myMission')}</Text>
-        <View style={{ width: 36 }} />
+        <View style={s.headerCenter}>
+          <Text style={s.headerTitle}>{t('mission.myMission')}</Text>
+          <Text style={s.headerRef}>#{missionRef}</Text>
+        </View>
+        <View style={[s.headerStatus, { backgroundColor: st?.bg || '#F1F5F9' }]}>
+          <View style={[s.headerDot, { backgroundColor: st?.color || '#94A3B8' }]} />
+          <Text style={[s.headerStatusText, { color: st?.color || '#64748B' }]}>{statusMini}</Text>
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={s.body}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-      >
-        {err && <Text style={s.err}>{err}</Text>}
+      {err && <Text style={s.err}>{err}</Text>}
 
-        {item && (
-          <>
-            {/* Statut */}
-            <View style={[s.statusBanner, { backgroundColor: st?.bg }]}>
-              <Text style={[s.statusText, { color: st?.color }]}>{st ? t(st.key) : ''}</Text>
+      {/* Carte en haut */}
+      {hasCoords && (
+        <View style={s.mapContainer}>
+          <LiveRouteMap
+            destination={{ lat, lng }}
+            destinationLabel={loc?.address}
+            providerLocation={providerLocation || undefined}
+            status={item.status}
+          />
+          {/* ETA floating pill */}
+          {item.status === 'provider_arriving' && (
+            <View style={s.etaPill}>
+              <Text style={s.etaPillText}>{t('mission.arriving')} • {etaLabel}</Text>
             </View>
+          )}
+        </View>
+      )}
 
-            {/* Durée écoulée si mission en cours */}
-            {item.status === 'in_progress' && item.startedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F5F3FF' }]}>
-                <Text style={[s.statusText, { color: '#5B21B6' }]}>
-                  ⏱ {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
-                </Text>
-              </View>
-            )}
-            {/* Durée totale si mission terminée */}
-            {item.status === 'completed' && item.startedAt && item.completedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F1F5F9' }]}>
-                <Text style={[s.statusText, { color: '#374151' }]}>
-                  ⏱ {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
-                </Text>
-              </View>
-            )}
-
-            {/* Statut paiement */}
-            {item.payment && PAYMENT_BADGE[item.payment.status] && (
-              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
-                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
-                  {t(PAYMENT_BADGE[item.payment.status].key)}
-                </Text>
-              </View>
-            )}
-
-            {/* Progression mission */}
-            {item.status !== 'cancelled' && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.progress')}</Text>
-                <View style={s.timeline}>
-                  {FLOW_STEPS.map((step, idx) => {
-                    const state = getStepState(item.status, step.key)
-                    return (
-                      <View key={step.key} style={s.timelineRow}>
-                        <View style={s.timelineLeft}>
-                          <View style={[
-                            s.timelineDot,
-                            state === 'done' && s.timelineDotDone,
-                            state === 'active' && s.timelineDotActive,
-                          ]} />
-                          {idx < FLOW_STEPS.length - 1 && <View style={s.timelineLine} />}
+      {/* Bottom sheet */}
+      <View style={s.bottomSheet}>
+        <View style={s.bottomSheetHandle} />
+        <ScrollView
+          contentContainerStyle={s.sheetBody}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#F59E0B" />}
+        >
+          {item && (
+            <>
+              {/* Timeline horizontale */}
+              {item.status !== 'cancelled' && (
+                <View style={s.timelineCard}>
+                  <View style={s.timelineTrack}>
+                    {FLOW_STEPS.map((step, idx) => {
+                      const state = getStepState(item.status, step.key)
+                      const isLast = idx === FLOW_STEPS.length - 1
+                      return (
+                        <View key={step.key} style={s.timelineStep}>
+                          <View style={s.timelineStepTop}>
+                            <View style={[
+                              s.timelineCircle,
+                              state === 'done' && s.timelineCircleDone,
+                              state === 'active' && s.timelineCircleActive,
+                            ]}>
+                              {state === 'done' && <Text style={s.timelineCheck}>V</Text>}
+                              {state === 'active' && <View style={s.timelinePulse} />}
+                            </View>
+                            {!isLast && (
+                              <View style={[
+                                s.timelineConnector,
+                                state === 'done' && s.timelineConnectorDone,
+                              ]} />
+                            )}
+                          </View>
+                          <Text style={[
+                            s.timelineLabel,
+                            state === 'active' && s.timelineLabelActive,
+                            state === 'done' && s.timelineLabelDone,
+                          ]}>{t(step.labelKey)}</Text>
                         </View>
-                        <Text style={[
-                          s.timelineLabel,
-                          state === 'active' && s.timelineLabelActive,
-                          state === 'done' && s.timelineLabelDone,
-                        ]}>{t(step.labelKey)}</Text>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* ETA card */}
+              {item.status === 'provider_arriving' && (
+                <View style={s.etaCard}>
+                  <View style={[s.etaIcon, { backgroundColor: '#ECFDF5' }]}>
+                    <Text style={[s.etaIconText, { color: '#16A34A' }]}>H</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.etaTitle}>{t('mission.arrivingIn', { min: etaLabel })}</Text>
+                    <Text style={s.etaSub}>{loc?.address || t('mission.notProvided')}</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Provider */}
+              {offer && (
+                <View style={s.card}>
+                  <View style={s.cardHeader}>
+                    <Text style={s.cardTitle}>{t('mission.provider')}</Text>
+                    {offer.providerRating ? (
+                      <View style={s.ratingBadge}>
+                        <Text style={s.ratingText}>N {offer.providerRating.avg} ({offer.providerRating.count})</Text>
                       </View>
-                    )
-                  })}
+                    ) : null}
+                  </View>
+                  <View style={s.providerRow}>
+                    <View style={s.providerAvatar}>
+                      <Text style={s.providerAvatarText}>{(offer.providerName || t('mission.defaultProvider')).slice(0, 2)}</Text>
+                    </View>
+                    <View style={s.providerInfo}>
+                      <Text style={s.providerName}>{offer.providerName || t('mission.defaultProvider')}</Text>
+                      <Text style={s.providerMeta}>{formatMoney(offer.price)} · {t('mission.eta')} {etaLabel}</Text>
+                    </View>
+                    {['assigned', 'provider_arriving', 'in_progress'].includes(item.status) && (
+                      <View style={s.providerActions}>
+                        <TouchableOpacity
+                          style={s.phoneBtn}
+                          onPress={() => offer.providerPhone && Linking.openURL(`tel:${offer.providerPhone}`)}
+                        >
+                          <Text style={s.phoneBtnText}>A</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={s.chatIconBtn}
+                          onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}`)}
+                        >
+                          <Text style={s.chatIconText}>M</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{t('mission.detailsTitle')}</Text>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.reference')}</Text>
-                <Text style={s.detailValue}>#{missionRef}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.category')}</Text>
-                <Text style={s.detailValue}>{item.category || t('mission.notProvided')}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.budget')}</Text>
-                <Text style={s.detailValue}>{formatMoney(item.budget)}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.createdAt')}</Text>
-                <Text style={s.detailValue}>{formatDateTime(item.createdAt)}</Text>
-              </View>
-            </View>
-
-            {/* Provider */}
-            {offer && (
+              {/* Détails */}
               <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.provider')}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={s.providerAvatar}>
-                    <Text style={s.providerAvatarText}>{(offer.providerName || t('mission.defaultProvider')).slice(0,2)}</Text>
-                  </View>
-                  <View>
-                    <Text style={s.providerName}>{offer.providerName || t('mission.defaultProvider')}</Text>
-                    <Text style={s.providerMeta}>{formatMoney(offer.price)} · ETA {etaLabel}</Text>
-                  </View>
+                <Text style={s.cardTitle}>{t('mission.detailsTitle')}</Text>
+                <View style={s.detailRow}>
+                  <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>#</Text></View>
+                  <Text style={s.detailLabel}>{t('mission.reference')}</Text>
+                  <Text style={s.detailValue}>#{missionRef}</Text>
                 </View>
-                {['assigned', 'provider_arriving', 'in_progress'].includes(item.status) && (
+                <View style={s.detailRow}>
+                  <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>C</Text></View>
+                  <Text style={s.detailLabel}>{t('mission.category')}</Text>
+                  <Text style={s.detailValue}>{item.category || t('mission.notProvided')}</Text>
+                </View>
+                <View style={s.detailRow}>
+                  <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>P</Text></View>
+                  <Text style={s.detailLabel}>{t('mission.budget')}</Text>
+                  <Text style={s.detailValue}>{formatMoney(item.budget)}</Text>
+                </View>
+                <View style={s.detailRow}>
+                  <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>D</Text></View>
+                  <Text style={s.detailLabel}>{t('mission.createdAt')}</Text>
+                  <Text style={s.detailValue}>{formatDateTime(item.createdAt)}</Text>
+                </View>
+              </View>
+
+              {/* Description */}
+              <View style={s.card}>
+                <Text style={s.cardTitle}>{t('mission.description')}</Text>
+                <Text style={s.descText}>{item.description || t('mission.noDescription')}</Text>
+              </View>
+
+              {/* Médias */}
+              {item.media && item.media.length > 0 && (
+                <View style={s.card}>
+                  <Text style={s.cardTitle}>{t('mission.media')}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      {item.media.map((m: any, i: number) => {
+                        const mediaUrl = resolveMediaUrl(m?.url)
+                        const asImage = mediaUrl && isImageMedia(m?.type, mediaUrl)
+                        return asImage
+                          ? (
+                              <Image key={i} source={{ uri: mediaUrl }} style={s.mediaThumb} />
+                            )
+                          : (
+                              <TouchableOpacity key={i} style={s.mediaFile} onPress={() => openMedia(m?.url)}>
+                                <Text style={s.mediaFileType}>{getMediaLabel(m?.type)}</Text>
+                                <Text style={s.mediaFileText} numberOfLines={2}>{m?.title || t('mission.openMedia')}</Text>
+                              </TouchableOpacity>
+                            )
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Actions */}
+              <View style={s.actions}>
+                {item.status === 'assigned' && (
+                  <TouchableOpacity style={[s.actionBtn, s.cancelAction]} onPress={handleCancel} disabled={updating}>
+                    <Text style={s.cancelActionText}>{t('mission.cancelMission')}</Text>
+                  </TouchableOpacity>
+                )}
+                {item.status === 'in_progress' && (
+                  <>
+                    <TouchableOpacity style={[s.actionBtn, s.cancelAction]} onPress={handleCancel} disabled={updating}>
+                      <Text style={s.cancelActionText}>{t('mission.cancelMission')}</Text>
+                    </TouchableOpacity>
+                    <Text style={s.infoText}>{t('mission.providerCloses')}</Text>
+                  </>
+                )}
+                {item.status === 'completed' && !hasReview && (
                   <TouchableOpacity
-                    style={s.chatBtn}
-                    onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}`)}
+                    style={[s.actionBtn, s.rateAction]}
+                    onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)}
                   >
-                    <Text style={s.chatBtnText}>{t('mission.sendMessage')}</Text>
+                    <Text style={s.rateActionText}>{t('mission.rateMission')}</Text>
+                  </TouchableOpacity>
+                )}
+                {item.status === 'completed' && hasReview && (
+                  <View style={s.doneBox}>
+                    <Text style={s.doneText}>{t('mission.alreadyRated')}</Text>
+                  </View>
+                )}
+                {['assigned', 'provider_arriving', 'in_progress'].includes(item.status) && (
+                  <TouchableOpacity style={s.reportLink} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)}>
+                    <Text style={s.reportLinkText}>{t('mission.reportProblem')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
-            )}
-
-            {/* Description */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{t('mission.description')}</Text>
-              <Text style={s.descText}>{item.description || t('mission.noDescription')}</Text>
-            </View>
-
-            {/* Médias */}
-            {item.media && item.media.length > 0 && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.media')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {item.media.map((m: any, i: number) => {
-                      const mediaUrl = resolveMediaUrl(m?.url)
-                      const asImage = mediaUrl && isImageMedia(m?.type, mediaUrl)
-                      return asImage
-                        ? (
-                            <Image key={i} source={{ uri: mediaUrl }} style={s.mediaThumb} />
-                          )
-                        : (
-                            <TouchableOpacity key={i} style={s.mediaFile} onPress={() => openMedia(m?.url)}>
-                              <Text style={s.mediaFileType}>{getMediaLabel(m?.type)}</Text>
-                              <Text style={s.mediaFileText} numberOfLines={2}>{m?.title || t('mission.openMedia')}</Text>
-                            </TouchableOpacity>
-                          )
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Carte */}
-            {hasCoords && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
-                <LiveRouteMap
-                  destination={{ lat, lng }}
-                  destinationLabel={loc?.address}
-                  providerLocation={providerLocation || undefined}
-                  status={item.status}
-                />
-              </View>
-            )}
-
-            {/* Actions */}
-            <View style={{ gap: 10, marginTop: 8 }}>
-              {item.status === 'assigned' && (
-                <TouchableOpacity style={[s.actionBtn, s.cancelBtn]} onPress={handleCancel} disabled={updating}>
-                  <Text style={s.cancelBtnText}>{t('mission.cancelMission')}</Text>
-                </TouchableOpacity>
-              )}
-              {item.status === 'in_progress' && (
-                <>
-                  <TouchableOpacity style={[s.actionBtn, s.cancelBtn]} onPress={handleCancel} disabled={updating}>
-                    <Text style={s.cancelBtnText}>{t('mission.cancelMission')}</Text>
-                  </TouchableOpacity>
-                  <Text style={s.infoText}>{t('mission.providerCloses')}</Text>
-                </>
-              )}
-              {item.status === 'completed' && !hasReview && (
-                <TouchableOpacity
-                  style={[s.actionBtn, s.rateBtn]}
-                  onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)}
-                >
-                  <Text style={s.rateBtnText}>{t('mission.rateMission')}</Text>
-                </TouchableOpacity>
-              )}
-              {item.status === 'completed' && hasReview && (
-                <Text style={s.infoText}>{t('mission.alreadyRated')}</Text>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
+      </View>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  safe: { flex: 1, backgroundColor: '#F5F6FA' },
+  header: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 14 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
+  backIcon: { fontSize: 18, color: '#111827', fontWeight: '600' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A', textShadowColor: 'rgba(255,255,255,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  headerRef: { fontSize: 12, color: '#64748B', fontWeight: '600', marginTop: 2, textShadowColor: 'rgba(255,255,255,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: 'transparent' },
+  headerDot: { width: 7, height: 7, borderRadius: 4 },
+  headerStatusText: { fontSize: 11, fontWeight: '800' },
   centerBlock: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: 20, paddingBottom: 40, gap: 16 },
-  err: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
-  statusBanner: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center' },
-  statusText: { fontSize: 14, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: '#E2E8F0' },
-  cardTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
-  descText: { fontSize: 14, color: '#374151', lineHeight: 22 },
-  meta: { fontSize: 13, color: '#64748B' },
-  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  detailLabel: { fontSize: 13, color: '#64748B' },
-  detailValue: { flex: 1, textAlign: 'right', fontSize: 13, color: '#1E293B', fontWeight: '600' },
-  providerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
-  providerAvatarText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  providerName: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  providerMeta: { fontSize: 13, color: '#64748B' },
-  timeline: { gap: 8 },
-  timelineRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  timelineLeft: { width: 20, alignItems: 'center' },
-  timelineDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#CBD5E1', marginTop: 2 },
-  timelineDotDone: { backgroundColor: '#16A34A' },
-  timelineDotActive: { backgroundColor: '#2563EB' },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginTop: 4, marginBottom: -4 },
-  timelineLabel: { fontSize: 13, color: '#94A3B8', paddingBottom: 10 },
-  timelineLabelActive: { color: '#1E293B', fontWeight: '700' },
-  timelineLabelDone: { color: '#15803D', fontWeight: '600' },
-  mediaThumb: { width: 100, height: 100, borderRadius: 10 },
-  mediaFile: { width: 140, height: 100, borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#F8FAFC', padding: 10, justifyContent: 'center', gap: 4 },
-  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
-  mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 16 },
-  trackingText: { fontSize: 12, color: '#2563EB', fontWeight: '700', marginTop: 8 },
+  err: { color: '#DC2626', fontSize: 13, textAlign: 'center', marginBottom: 8, marginTop: 70 },
+  retryBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#111827', borderRadius: 12 },
+  retryText: { color: '#fff', fontWeight: '700' },
+
+  mapContainer: { flex: 1, marginTop: -20, backgroundColor: '#E2E8F0' },
+  etaPill: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  etaPillText: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
+
+  bottomSheet: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '52%', backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, shadowColor: '#0F172A', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 12 },
+  bottomSheetHandle: { width: 44, height: 5, borderRadius: 3, backgroundColor: '#E2E8F0', alignSelf: 'center', marginTop: 10 },
+  sheetBody: { padding: 16, paddingBottom: 48, gap: 14 },
+
+  etaCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  etaIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  etaIconText: { fontSize: 20, fontWeight: '800' },
+  etaTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A', marginBottom: 2 },
+  etaSub: { fontSize: 13, color: '#64748B' },
+
+  timelineCard: { backgroundColor: '#fff', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#E2E8F0' },
+  timelineTrack: { flexDirection: 'row', alignItems: 'flex-start' },
+  timelineStep: { flex: 1, alignItems: 'center' },
+  timelineStepTop: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  timelineCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#F1F5F9', borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  timelineCircleDone: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  timelineCircleActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  timelineCheck: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  timelinePulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' },
+  timelineConnector: { flex: 1, height: 3, backgroundColor: '#E2E8F0', marginHorizontal: 4 },
+  timelineConnectorDone: { backgroundColor: '#16A34A' },
+  timelineLabel: { fontSize: 11, color: '#94A3B8', marginTop: 8, textAlign: 'center', lineHeight: 14 },
+  timelineLabelActive: { color: '#0F172A', fontWeight: '800' },
+  timelineLabelDone: { color: '#15803D', fontWeight: '700' },
+
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, gap: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 },
+  descText: { fontSize: 15, color: '#374151', lineHeight: 23 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  detailIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  detailIconText: { fontSize: 13, fontWeight: '800', color: '#64748B' },
+  detailLabel: { flex: 1, fontSize: 14, color: '#64748B' },
+  detailValue: { fontSize: 14, color: '#0F172A', fontWeight: '700' },
+
+  providerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  providerAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
+  providerAvatarText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  providerInfo: { flex: 1, gap: 3 },
+  providerName: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  providerMeta: { fontSize: 13, color: '#64748B', fontWeight: '600' },
+  providerActions: { flexDirection: 'row', gap: 8 },
+  phoneBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ECFDF5', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BBF7D0' },
+  phoneBtnText: { fontSize: 16, color: '#16A34A', fontWeight: '700' },
+  chatIconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  chatIconText: { fontSize: 16, color: '#1D4ED8', fontWeight: '700' },
+  ratingBadge: { backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#FDE68A' },
+  ratingText: { color: '#92400E', fontSize: 12, fontWeight: '800' },
+
+  mediaThumb: { width: 110, height: 110, borderRadius: 14 },
+  mediaFile: { width: 150, height: 110, borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC', padding: 12, justifyContent: 'center', gap: 6 },
+  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '800', textTransform: 'uppercase' },
+  mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 17 },
+  mapBox: { borderRadius: 16, overflow: 'hidden', height: 220 },
+
+  actions: { gap: 10, marginTop: 8 },
+  actionBtn: { borderRadius: 16, padding: 17, alignItems: 'center' },
+  cancelAction: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#FECACA' },
+  cancelActionText: { color: '#B91C1C', fontWeight: '800', fontSize: 15 },
+  rateAction: { backgroundColor: '#F59E0B' },
+  rateActionText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   infoText: { fontSize: 12, color: '#64748B', textAlign: 'center' },
-  actionBtn: { borderRadius: 12, padding: 16, alignItems: 'center' },
-  cancelBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
-  cancelBtnText: { color: '#B91C1C', fontWeight: '700', fontSize: 15 },
-  rateBtn: { backgroundColor: '#FFFBEB', borderWidth: 1.5, borderColor: '#FDE68A' },
-  rateBtnText: { color: '#92400E', fontWeight: '700', fontSize: 15 },
-  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8, borderWidth: 1, borderColor: '#BFDBFE' },
-  chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
+  doneBox: { backgroundColor: '#ECFDF5', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#A7F3D0' },
+  doneText: { color: '#065F46', fontSize: 14, fontWeight: '700' },
+  reportLink: { alignItems: 'center', paddingVertical: 8 },
+  reportLinkText: { fontSize: 13, color: '#64748B', fontWeight: '700', textDecorationLine: 'underline' },
 })
 
 export default withScreenBoundary(MissionDetail, 'MissionDetail')

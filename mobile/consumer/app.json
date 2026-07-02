@@ -24,7 +24,6 @@
     },
     "android": {
       "package": "com.xeuy.xeuy",
-      "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
@@ -46,6 +45,7 @@
       ]
     },
     "plugins": [
+      "./plugins/withGoogleServicesJson",
       "expo-location",
       [
         "expo-av",

@@ -23,6 +23,7 @@ const MAX_KEEP = 60
 
 let cache: Notification[] = []
 let loaded = false
+let loadingPromise: Promise<Notification[]> | null = null
 const listeners = new Set<(items: Notification[]) => void>()
 
 function emit() {
@@ -38,7 +39,9 @@ async function persist() {
 }
 
 export async function loadNotifications(): Promise<Notification[]> {
-  if (!loaded) {
+  if (loaded) return cache
+  if (loadingPromise) return loadingPromise
+  loadingPromise = (async () => {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY)
       cache = raw ? (JSON.parse(raw) as Notification[]) : []
@@ -46,8 +49,13 @@ export async function loadNotifications(): Promise<Notification[]> {
       cache = []
     }
     loaded = true
+    return cache
+  })()
+  try {
+    return await loadingPromise
+  } finally {
+    loadingPromise = null
   }
-  return cache
 }
 
 export function subscribeNotifications(fn: (items: Notification[]) => void): () => void {
@@ -115,6 +123,16 @@ export async function clearNotifications(): Promise<void> {
   emit()
 }
 
+export async function deleteNotification(id: string): Promise<void> {
+  await loadNotifications()
+  const next = cache.filter(n => n.id !== id)
+  if (next.length !== cache.length) {
+    cache = next
+    await persist()
+    emit()
+  }
+}
+
 let wsBound = false
 
 /** Reset le flag de binding (à appeler après resetSocket / logout). */
@@ -154,7 +172,7 @@ export function bindNotificationSocket() {
     const status = String(payload?.status || '').toLowerCase()
     if (!status) return
     const map: Record<string, { title: string; body: string }> = {
-      provider_arriving: { title: '🚗 Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
+      provider_arriving: { title: 'Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
       in_progress: { title: 'Intervention démarrée', body: 'Le prestataire a démarré la mission.' },
       completed: { title: 'Mission terminée', body: 'Votre mission a été clôturée.' },
       cancelled: { title: 'Mission annulée', body: 'La mission a été annulée.' },
@@ -175,7 +193,7 @@ export function bindNotificationSocket() {
     if (senderRole === 'client') return
     pushNotification({
       kind: 'mission-update',
-      title: '💬 Nouveau message',
+      title: 'Nouveau message',
       body: 'Le prestataire vous a envoyé un message.',
       link: requestId ? { pathname: `/mission-chat`, params: { id: requestId } } : undefined,
     })

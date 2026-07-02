@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Animated, Platform } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -259,6 +259,25 @@ function ActiveMission() {
     </SafeAreaView>
   )
 
+  if (err && !item) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.centerBlock}>
+        <Text style={s.err}>{err}</Text>
+        <TouchableOpacity style={s.retryBtn} onPress={() => load(true)}>
+          <Text style={s.retryText}>{t('common.retry')}</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  )
+
+  if (!item) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.centerBlock}>
+        <ActivityIndicator color="#0F172A" />
+      </View>
+    </SafeAreaView>
+  )
+
   const openMedia = async (url?: string) => {
     const mediaUrl = resolveMediaUrl(url)
     if (!mediaUrl) {
@@ -287,68 +306,95 @@ function ActiveMission() {
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
   const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
 
+  const heroSubtitle = (() => {
+    if (item.status === 'cancelled') return t('mission.cancelledSub') || ''
+    if (item.status === 'completed') return t('mission.completedSub') || ''
+    if (item.status === 'in_progress') return t('mission.inProgressSub') || ''
+    if (item.status === 'provider_arriving') return t('mission.arrivingSub') || ''
+    return t('mission.assignedSub') || ''
+  })()
+
+  const elapsed = item.status === 'in_progress' && item.startedAt
+    ? `${t('mission.elapsedLabel')} ${formatElapsed(item.startedAt)}`
+    : item.status === 'completed' && item.startedAt && item.completedAt
+    ? `${t('mission.totalDurationLabel')} ${formatElapsed(item.startedAt, item.completedAt)}`
+    : null
+
+  const statusMini = (st ? t(st.key) : '').replace(/^./, c => c.toUpperCase())
+
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('mission.activeTitle')}</Text>
-        <View style={{ width: 36 }} />
+        <View style={s.headerCenter}>
+          <Text style={s.headerTitle}>{t('mission.activeTitle')}</Text>
+          <Text style={s.headerRef}>#{missionRef}</Text>
+        </View>
+        <View style={[s.headerStatus, { backgroundColor: st?.bg || '#F1F5F9' }]}>
+          <View style={[s.headerDot, { backgroundColor: st?.color || '#94A3B8' }]} />
+          <Text style={[s.headerStatusText, { color: st?.color || '#64748B' }]}>{statusMini}</Text>
+        </View>
       </View>
 
       <ScrollView
         contentContainerStyle={s.body}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#F59E0B" />}
       >
         {err && <Text style={s.err}>{err}</Text>}
 
         {item && (
           <>
-            <View style={[s.statusBanner, { backgroundColor: st?.bg }]}>
-              <Text style={[s.statusText, { color: st?.color }]}>{st ? t(st.key) : ''}</Text>
+            {/* Hero statut */}
+            <View style={[s.heroCard, { backgroundColor: st?.bg || '#F1F5F9' }]}>
+              <View style={s.heroTop}>
+                <View style={[s.heroIcon, { backgroundColor: st?.color || '#64748B' }]}>
+                  <Text style={s.heroIconText}>M</Text>
+                </View>
+                <View style={s.heroInfo}>
+                  <Text style={[s.heroStatus, { color: st?.color || '#0F172A' }]}>{st ? t(st.key) : ''}</Text>
+                  {heroSubtitle ? <Text style={s.heroSub}>{heroSubtitle}</Text> : null}
+                </View>
+              </View>
+              {elapsed && (
+                <View style={s.heroTime}>
+                  <Text style={s.heroTimeText}>{elapsed}</Text>
+                </View>
+              )}
+              {item.payment && PAYMENT_BADGE[item.payment.status] && (
+                <View style={[s.heroPayment, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
+                  <Text style={[s.heroPaymentText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
+                    {t(PAYMENT_BADGE[item.payment.status].key)}
+                  </Text>
+                </View>
+              )}
             </View>
 
-            {/* Durée écoulée si mission en cours */}
-            {item.status === 'in_progress' && item.startedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F5F3FF' }]}>
-                <Text style={[s.statusText, { color: '#5B21B6' }]}>
-                  ⏱ {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
-                </Text>
-              </View>
-            )}
-            {/* Durée totale si mission terminée */}
-            {item.status === 'completed' && item.startedAt && item.completedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F1F5F9' }]}>
-                <Text style={[s.statusText, { color: '#374151' }]}>
-                  ⏱ {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
-                </Text>
-              </View>
-            )}
-
-            {item.payment && PAYMENT_BADGE[item.payment.status] && (
-              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
-                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
-                  {t(PAYMENT_BADGE[item.payment.status].key)}
-                </Text>
-              </View>
-            )}
-
+            {/* Timeline horizontale */}
             {item.status !== 'cancelled' && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.progress')}</Text>
-                <View style={s.timeline}>
+              <View style={s.timelineCard}>
+                <View style={s.timelineTrack}>
                   {FLOW_STEPS.map((step, idx) => {
                     const state = getStepState(item.status, step.key)
+                    const isLast = idx === FLOW_STEPS.length - 1
                     return (
-                      <View key={step.key} style={s.timelineRow}>
-                        <View style={s.timelineLeft}>
+                      <View key={step.key} style={s.timelineStep}>
+                        <View style={s.timelineStepTop}>
                           <View style={[
-                            s.timelineDot,
-                            state === 'done' && s.timelineDotDone,
-                            state === 'active' && s.timelineDotActive,
-                          ]} />
-                          {idx < FLOW_STEPS.length - 1 && <View style={s.timelineLine} />}
+                            s.timelineCircle,
+                            state === 'done' && s.timelineCircleDone,
+                            state === 'active' && s.timelineCircleActive,
+                          ]}>
+                            {state === 'done' && <Text style={s.timelineCheck}>✓</Text>}
+                            {state === 'active' && <View style={s.timelinePulse} />}
+                          </View>
+                          {!isLast && (
+                            <View style={[
+                              s.timelineConnector,
+                              state === 'done' && s.timelineConnectorDone,
+                            ]} />
+                          )}
                         </View>
                         <Text style={[
                           s.timelineLabel,
@@ -362,27 +408,33 @@ function ActiveMission() {
               </View>
             )}
 
+            {/* Détails */}
             <View style={s.card}>
               <Text style={s.cardTitle}>{t('mission.detailsTitle')}</Text>
               <View style={s.detailRow}>
+                <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>#</Text></View>
                 <Text style={s.detailLabel}>{t('mission.reference')}</Text>
                 <Text style={s.detailValue}>#{missionRef}</Text>
               </View>
               <View style={s.detailRow}>
+                <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>C</Text></View>
                 <Text style={s.detailLabel}>{t('mission.category')}</Text>
                 <Text style={s.detailValue}>{item.category || t('mission.notProvided')}</Text>
               </View>
               <View style={s.detailRow}>
+                <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>B</Text></View>
                 <Text style={s.detailLabel}>{t('mission.clientBudget')}</Text>
                 <Text style={s.detailValue}>{formatMoney(item.budget)}</Text>
               </View>
               <View style={s.detailRow}>
+                <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>D</Text></View>
                 <Text style={s.detailLabel}>{t('mission.createdAt')}</Text>
                 <Text style={s.detailValue}>{formatDateTime(item.createdAt)}</Text>
               </View>
               <View style={s.detailRow}>
+                <View style={[s.detailIcon, { backgroundColor: '#F1F5F9' }]}><Text style={s.detailIconText}>O</Text></View>
                 <Text style={s.detailLabel}>{t('mission.yourOffer')}</Text>
-                <Text style={s.detailValue}>{offer ? `${formatMoney(offer.price)} · ETA ${etaLabel}` : t('mission.notAvailable')}</Text>
+                <Text style={s.detailValue}>{offer ? `${formatMoney(offer.price)} · ${t('mission.eta')} ${etaLabel}` : t('mission.notAvailable')}</Text>
               </View>
             </View>
 
@@ -398,7 +450,7 @@ function ActiveMission() {
               <View style={s.card}>
                 <Text style={s.cardTitle}>{t('mission.clientMedia')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
                     {item.media.map((m: any, i: number) => {
                       const mediaUrl = resolveMediaUrl(m?.url)
                       const asImage = mediaUrl && isImageMedia(m?.type, mediaUrl)
@@ -422,12 +474,14 @@ function ActiveMission() {
             {hasCoords && (
               <View style={s.card}>
                 <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
-                <LiveRouteMap
-                  destination={{ lat, lng }}
-                  destinationLabel={locationAddress}
-                  providerLocation={currentLocation || undefined}
-                  status={item.status}
-                />
+                <View style={s.mapBox}>
+                  <LiveRouteMap
+                    destination={{ lat, lng }}
+                    destinationLabel={locationAddress}
+                    providerLocation={currentLocation || undefined}
+                    status={item.status}
+                  />
+                </View>
               </View>
             )}
 
@@ -442,20 +496,20 @@ function ActiveMission() {
             )}
 
             {/* Actions */}
-            <View style={{ gap: 10, marginTop: 8 }}>
+            <View style={s.actions}>
               {item.status === 'assigned' && (
-                <TouchableOpacity style={[s.actionBtn, s.arrivingBtn]} onPress={handleArriving} disabled={updating}>
-                  <Text style={s.arrivingBtnText}>{t('mission.arrivingBtn')}</Text>
+                <TouchableOpacity style={[s.actionBtn, s.arrivingAction]} onPress={handleArriving} disabled={updating}>
+                  <Text style={s.arrivingActionText}>{t('mission.arrivingBtn')}</Text>
                 </TouchableOpacity>
               )}
               {item.status === 'provider_arriving' && (
-                <TouchableOpacity style={[s.actionBtn, s.startBtn]} onPress={handleStart} disabled={updating}>
-                  <Text style={s.startBtnText}>{t('mission.startBtn')}</Text>
+                <TouchableOpacity style={[s.actionBtn, s.startAction]} onPress={handleStart} disabled={updating}>
+                  <Text style={s.startActionText}>{t('mission.startBtn')}</Text>
                 </TouchableOpacity>
               )}
               {item.status === 'in_progress' && (
-                <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={handleComplete} disabled={updating}>
-                  <Text style={s.completeBtnText}>{t('mission.completeBtn')}</Text>
+                <TouchableOpacity style={[s.actionBtn, s.completeAction]} onPress={handleComplete} disabled={updating}>
+                  <Text style={s.completeActionText}>{t('mission.completeBtn')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -468,47 +522,75 @@ function ActiveMission() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  backIcon: { fontSize: 18, color: '#111827', fontWeight: '600' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  headerRef: { fontSize: 12, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
+  headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: 'transparent' },
+  headerDot: { width: 7, height: 7, borderRadius: 4 },
+  headerStatusText: { fontSize: 11, fontWeight: '800' },
   centerBlock: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: 20, paddingBottom: 40, gap: 16 },
-  err: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
-  statusBanner: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center' },
-  statusText: { fontSize: 14, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  cardTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
-  descText: { fontSize: 14, color: '#374151', lineHeight: 22 },
-  meta: { fontSize: 13, color: '#64748B' },
-  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  detailLabel: { fontSize: 13, color: '#64748B' },
-  detailValue: { flex: 1, textAlign: 'right', fontSize: 13, color: '#1E293B', fontWeight: '600' },
-  timeline: { gap: 8 },
-  timelineRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  timelineLeft: { width: 20, alignItems: 'center' },
-  timelineDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#CBD5E1', marginTop: 2 },
-  timelineDotDone: { backgroundColor: '#16A34A' },
-  timelineDotActive: { backgroundColor: '#2563EB' },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginTop: 4, marginBottom: -4 },
-  timelineLabel: { fontSize: 13, color: '#94A3B8', paddingBottom: 10 },
-  timelineLabelActive: { color: '#1E293B', fontWeight: '700' },
-  timelineLabelDone: { color: '#15803D', fontWeight: '600' },
-  mediaThumb: { width: 100, height: 100, borderRadius: 10 },
-  mediaFile: { width: 140, height: 100, borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#F8FAFC', padding: 10, justifyContent: 'center', gap: 4 },
-  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
-  mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 16 },
-  actionBtn: { borderRadius: 12, padding: 16, alignItems: 'center' },
-  startBtn: { backgroundColor: '#0F172A' },
-  startBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  completeBtn: { backgroundColor: '#16A34A' },
-  completeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
-  chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
-  arrivingBtn: { backgroundColor: '#E0F2FE', borderWidth: 1, borderColor: '#7DD3FC' },
-  arrivingBtnText: { color: '#0369A1', fontWeight: '700', fontSize: 15 },
-  mapFallback: { backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0', marginTop: 8 },
-  mapFallbackText: { color: '#15803D', fontWeight: '700', fontSize: 14 },
+  body: { padding: 16, paddingBottom: 40, gap: 14 },
+  err: { color: '#DC2626', fontSize: 13, textAlign: 'center', marginBottom: 8 },
+  retryBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#111827', borderRadius: 12 },
+  retryText: { color: '#fff', fontWeight: '700' },
+
+  heroCard: { borderRadius: 20, padding: 18, gap: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  heroIconText: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  heroInfo: { flex: 1, gap: 2 },
+  heroStatus: { fontSize: 18, fontWeight: '800' },
+  heroSub: { fontSize: 13, color: '#475569', lineHeight: 18 },
+  heroTime: { backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'flex-start' },
+  heroTimeText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  heroPayment: { borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'flex-start' },
+  heroPaymentText: { fontSize: 12, fontWeight: '700' },
+
+  timelineCard: { backgroundColor: '#fff', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#E2E8F0' },
+  timelineTrack: { flexDirection: 'row', alignItems: 'flex-start' },
+  timelineStep: { flex: 1, alignItems: 'center' },
+  timelineStepTop: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  timelineCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#F1F5F9', borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  timelineCircleDone: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  timelineCircleActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  timelineCheck: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  timelinePulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' },
+  timelineConnector: { flex: 1, height: 3, backgroundColor: '#E2E8F0', marginHorizontal: 4 },
+  timelineConnectorDone: { backgroundColor: '#16A34A' },
+  timelineLabel: { fontSize: 11, color: '#94A3B8', marginTop: 8, textAlign: 'center', lineHeight: 14 },
+  timelineLabelActive: { color: '#0F172A', fontWeight: '800' },
+  timelineLabelDone: { color: '#15803D', fontWeight: '700' },
+
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, gap: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 },
+  descText: { fontSize: 15, color: '#374151', lineHeight: 23 },
+  meta: { fontSize: 13, color: '#64748B', marginTop: 4 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  detailIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  detailIconText: { fontSize: 13, fontWeight: '800', color: '#64748B' },
+  detailLabel: { flex: 1, fontSize: 14, color: '#64748B' },
+  detailValue: { fontSize: 14, color: '#0F172A', fontWeight: '700' },
+
+  mediaThumb: { width: 110, height: 110, borderRadius: 14 },
+  mediaFile: { width: 150, height: 110, borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC', padding: 12, justifyContent: 'center', gap: 6 },
+  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '800', textTransform: 'uppercase' },
+  mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 17 },
+  mapBox: { borderRadius: 16, overflow: 'hidden', height: 220 },
+
+  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 14, padding: 15, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  chatBtnText: { color: '#1D4ED8', fontWeight: '800', fontSize: 15 },
+
+  actions: { gap: 10, marginTop: 8 },
+  actionBtn: { borderRadius: 16, padding: 17, alignItems: 'center' },
+  arrivingAction: { backgroundColor: '#0F172A' },
+  arrivingActionText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  startAction: { backgroundColor: '#0F172A' },
+  startActionText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  completeAction: { backgroundColor: '#16A34A' },
+  completeActionText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 })
 
 export default withScreenBoundary(ActiveMission, 'ActiveMission')

@@ -74,6 +74,7 @@ function RequestOffers() {
 
   const [wsConnected, setWsConnected] = useState(false)
   const [now, setNow] = useState<number>(Date.now())
+  const [filter, setFilter] = useState<'recommended' | 'cheapest' | 'fastest' | 'bestRated'>('recommended')
   // Contre-offre modal
   const [counterModal, setCounterModal] = useState(false)
   const [counterOfferId, setCounterOfferId] = useState<string | null>(null)
@@ -136,6 +137,37 @@ function RequestOffers() {
   const getInitials = (id: string) =>
     (id || '').slice(0, 2).toUpperCase() || 'XX'
 
+  const sortedOffers = (() => {
+    const list = [...offers]
+    switch (filter) {
+      case 'cheapest':
+        return list.sort((a, b) => Number(a.price) - Number(b.price))
+      case 'fastest':
+        return list.sort((a, b) => Number(a.etaMinutes || Infinity) - Number(b.etaMinutes || Infinity))
+      case 'bestRated':
+        return list.sort((a, b) => (Number(b.providerRating?.avg) || 0) - (Number(a.providerRating?.avg) || 0))
+      default:
+        // Recommandé : équilibre prix/rating/eta
+        return list.sort((a, b) => {
+          const score = (o: any) => {
+            const rating = Number(o.providerRating?.avg) || 0
+            const price = Number(o.price) || Infinity
+            const eta = Number(o.etaMinutes) || 60
+            return rating * 10 - price / 5000 - eta / 5
+          }
+          return score(b) - score(a)
+        })
+    }
+  })()
+
+  const bestChoiceId = (() => {
+    if (offers.length === 0) return null
+    if (filter === 'cheapest') return sortedOffers[0]._id
+    if (filter === 'fastest') return sortedOffers[0]._id
+    if (filter === 'bestRated') return sortedOffers[0]._id
+    return sortedOffers[0]._id
+  })()
+
   const acceptOffer = async (offerId: string, price: number) => {
     const ok = await confirm(
       t('offers.confirmTitle'),
@@ -150,6 +182,14 @@ function RequestOffers() {
     setCounterPrice(String(Math.round(currentPrice * 0.85)))
     setCounterComment('')
     setCounterModal(true)
+  }
+
+  const viewProfile = (offer: any) => {
+    Alert.alert(
+      offer.providerName || t('offers.providerProfile'),
+      [offer.providerRating ? `${t('offers.rating')}: ${offer.providerRating.avg} (${offer.providerRating.count})` : t('offers.noRating'), offer.providerVerified ? t('offers.verifiedFull') : '', offer.comment || ''].filter(Boolean).join('\n'),
+      [{ text: t('common.close') }]
+    )
   }
 
   const sendCounterOffer = async () => {
@@ -202,10 +242,11 @@ function RequestOffers() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.title}>{t('offers.title')}</Text>
-        <View style={s.countBadge}>
-          <Text style={s.countText}>{offers.length}</Text>
+        <View style={s.headerCenter}>
+          <Text style={s.title}>{t('offers.title')}</Text>
+          <Text style={s.subtitle}>{offers.length} {offers.length === 1 ? 'offre' : 'offres'}</Text>
         </View>
+        <View style={{ width: 36 }} />
       </View>
 
       {/* Fiche demande */}
@@ -217,10 +258,9 @@ function RequestOffers() {
           <View style={{ flex: 1 }}>
             <Text style={s.reqTitle}>
               {catMap[serviceRequest.category]?.label || serviceRequest.category}
-              {serviceRequest.description ? ` — ${serviceRequest.description.slice(0, 30)}` : ''}
             </Text>
             <Text style={s.reqMeta}>
-              {[serviceRequest.location?.address, serviceRequest.budget ? `Budget ${Number(serviceRequest.budget).toLocaleString('fr-FR')} FCFA` : null].filter(Boolean).join(' • ')}
+              {[serviceRequest.location?.address, serviceRequest.budget ? `${Number(serviceRequest.budget).toLocaleString('fr-FR')} FCFA` : null].filter(Boolean).join(' • ')}
             </Text>
           </View>
         </View>
@@ -229,9 +269,26 @@ function RequestOffers() {
       {/* Indicateur temps réel */}
       <View style={s.rtRow}>
         <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
-        <View style={[s.rtDot2, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8', opacity: 0.4 }]} />
-        <Text style={s.rtText}>{t('offers.realtimeUpdate')}</Text>
+        <Text style={s.rtText}>
+          {offers.length} {offers.length === 1 ? t('offers.offerReceived') : t('offers.offersReceived')} • {t('offers.realtimeUpdate')}
+        </Text>
       </View>
+
+      {/* Filtres */}
+      {offers.length > 0 && !loading && (
+        <View style={s.filterRow}>
+          {(['recommended', 'cheapest', 'fastest', 'bestRated'] as const).map(f => (
+            <TouchableOpacity
+              key={f}
+              style={[s.filterBtn, filter === f && s.filterBtnActive]}
+              onPress={() => setFilter(f)}
+              activeOpacity={0.85}
+            >
+              <Text style={[s.filterBtnText, filter === f && s.filterBtnTextActive]}>{t(`offers.filter_${f}`)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {loading ? (
         <ScrollView contentContainerStyle={s.list}>
@@ -249,7 +306,7 @@ function RequestOffers() {
       ) : (
         <ScrollView
           contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#2563EB" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#F59E0B" />}
         >
           {offers.length === 0 ? (
             <View style={s.empty}>
@@ -257,11 +314,10 @@ function RequestOffers() {
               <Text style={s.emptyText}>{t('offers.noOffersSub')}</Text>
             </View>
           ) : (
-            offers.map(offer => {
+            sortedOffers.map(offer => {
               const st = STATUS_OFFER[offer.status] || STATUS_OFFER.submitted
               const isAccepted = offer.status === 'accepted'
               const isRejected = offer.status === 'rejected'
-              // Expiration
               const validMs = offer.validUntil ? new Date(offer.validUntil).getTime() - now : Infinity
               const isExpired = offer.status === 'expired' || (offer.status === 'submitted' && validMs <= 0)
               const countdownLabel = formatCountdown(validMs)
@@ -271,46 +327,36 @@ function RequestOffers() {
                 : getInitials(offer.providerId || offer._id)
               const avatarColors = ['#1D4ED8','#0369A1','#6D28D9','#0891B2','#065F46','#92400E']
               const avatarColor = avatarColors[(initials.charCodeAt(0) + (initials.charCodeAt(1) || 0)) % avatarColors.length]
+              const isBest = bestChoiceId === offer._id && offer.status === 'submitted' && !isExpired
               return (
                 <View key={offer._id} style={[s.card, isAccepted && s.cardAccepted, isRejected && s.cardRejected]}>
-                  {/* Ligne prestataire */}
-                  <View style={s.providerRow}>
+                  {isBest && (
+                    <View style={s.bestChoiceBadge}>
+                      <Text style={s.bestChoiceText}>{t('offers.bestChoice')}</Text>
+                    </View>
+                  )}
+                  <View style={s.cardTop}>
                     <View style={[s.avatar, { backgroundColor: avatarColor }]}>
                       <Text style={s.avatarText}>{initials}</Text>
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={s.providerInfo}>
                       <Text style={s.providerName}>{displayName || t('offers.providerInitials', { initials })}</Text>
                       <View style={s.chips}>
-                        {offer.etaMinutes ? (
-                          <View style={s.chip}><Text style={s.chipText}>{t('offers.arrIn', { min: offer.etaMinutes })}</Text></View>
-                        ) : null}
-                          {offer.providerRating ? (
-                          <View style={s.chipRating}><Text style={s.chipRatingText}>★ {offer.providerRating.avg} ({offer.providerRating.count})</Text></View>
+                        {offer.providerRating ? (
+                          <View style={s.chipRating}><Text style={s.chipRatingText}>N {offer.providerRating.avg} ({offer.providerRating.count})</Text></View>
                         ) : null}
                         {offer.providerVerified ? (
                           <View style={s.chipVerified}><Text style={s.chipVerifiedText}>{t('offers.verified')}</Text></View>
                         ) : null}
+                        {offer.etaMinutes ? (
+                          <View style={s.chip}><Text style={s.chipText}>{t('offers.arrIn', { min: offer.etaMinutes })}</Text></View>
+                        ) : null}
                         {offer.status === 'submitted' && !isExpired ? (
                           <View style={s.chipAvail}><Text style={s.chipAvailText}>{t('offers.available')}</Text></View>
                         ) : null}
-                        {offer.validUntil && !isAccepted && !requestDone ? (
-                          <View style={[
-                            s.chip,
-                            isExpired && s.chipExpired,
-                            !isExpired && validMs < 120_000 && s.chipUrgent,
-                          ]}>
-                            <Text style={[
-                              s.chipText,
-                              isExpired && s.chipExpiredText,
-                              !isExpired && validMs < 120_000 && s.chipUrgentText,
-                            ]}>
-                              {isExpired ? `⌛ ${t('offers.expired')}` : `⏳ ${countdownLabel}`}
-                            </Text>
-                          </View>
-                        ) : null}
                       </View>
                     </View>
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <View style={{ alignItems: 'flex-end' }}>
                       <Text style={s.price}>{Number(offer.price).toLocaleString('fr-FR')} FCFA</Text>
                       <View style={[s.badge, { backgroundColor: st.bg }]}>
                         <View style={[s.dot, { backgroundColor: st.dot }]} />
@@ -319,11 +365,18 @@ function RequestOffers() {
                     </View>
                   </View>
 
+                  {offer.validUntil && !isAccepted && !requestDone ? (
+                    <View style={[s.countdown, isExpired && s.countdownExpired, !isExpired && validMs < 120_000 && s.countdownUrgent]}>
+                      <Text style={[s.countdownText, isExpired && s.countdownExpiredText, !isExpired && validMs < 120_000 && s.countdownUrgentText]}>
+                        {isExpired ? t('offers.expired') : `${t('offers.expiresIn') || 'Expire dans'} ${countdownLabel}`}
+                      </Text>
+                    </View>
+                  ) : null}
+
                   {offer.comment ? (
                     <Text style={s.comment} numberOfLines={3}>{offer.comment}</Text>
                   ) : null}
 
-                  {/* Indicateur de contre-offre */}
                   {offer.clientCounterStatus === 'pending' && (
                     <View style={s.counterPendingBanner}>
                       <Text style={s.counterPendingText}>{t('offers.counterPending', { price: Number(offer.clientCounterPrice).toLocaleString('fr-FR') })}</Text>
@@ -350,11 +403,11 @@ function RequestOffers() {
                   {!isAssigned && offer.status === 'submitted' && !isExpired && !offer.clientCounterStatus && (
                     <View style={s.actionRow}>
                       <TouchableOpacity
-                        style={s.negotiateBtn}
-                        onPress={() => openCounterModal(offer._id, offer.price)}
+                        style={s.profileBtn}
+                        onPress={() => viewProfile(offer)}
                         activeOpacity={0.85}
                       >
-                        <Text style={s.negotiateBtnText}>{t('offers.negotiate')}</Text>
+                        <Text style={s.profileBtnText}>{t('offers.viewProfile')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={s.acceptBtn}
@@ -393,6 +446,7 @@ function RequestOffers() {
       >
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
+            <View style={s.modalHandle} />
             <Text style={s.modalTitle}>{t('offers.counterModalTitle')}</Text>
             <Text style={s.modalSubtitle}>{t('offers.counterModalSub')}</Text>
             <Text style={s.modalLabel}>{t('offers.counterPriceLabel')}</Text>
@@ -406,7 +460,7 @@ function RequestOffers() {
             />
             <Text style={s.modalLabel}>{t('offers.counterCommentLabel')}</Text>
             <TextInput
-              style={[s.modalInput, { height: 72 }]}
+              style={[s.modalInput, { height: 80 }]}
               value={counterComment}
               onChangeText={setCounterComment}
               placeholder={t('offers.counterCommentPlaceholder')}
@@ -442,88 +496,102 @@ function RequestOffers() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F1F5F9' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff' },
-  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 16, color: '#0F172A' },
-  title: { fontSize: 17, fontWeight: '700', color: '#0F172A', letterSpacing: -0.2 },
-  countBadge: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  countText: { fontSize: 13, fontWeight: '800', color: '#fff' },
-  requestCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  reqMonogram: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  reqMonogramText: { fontSize: 12, fontWeight: '800', color: '#fff' },
-  reqTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', lineHeight: 19 },
-  reqMeta: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  rtRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#fff' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  backIcon: { fontSize: 18, color: '#0F172A', fontWeight: '600' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  title: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  subtitle: { fontSize: 12, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
+  requestCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  reqMonogram: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  reqMonogramText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  reqTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A', lineHeight: 20 },
+  reqMeta: { fontSize: 13, color: '#64748B', marginTop: 2 },
+  rtRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   rtDot: { width: 7, height: 7, borderRadius: 4 },
-  rtDot2: { width: 5, height: 5, borderRadius: 3 },
-  rtText: { fontSize: 12, color: '#64748B', fontWeight: '500' },
+  rtText: { fontSize: 12, color: '#64748B', fontWeight: '600' },
   list: { padding: 16, gap: 12, paddingBottom: 32 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: '#E2E8F0' },
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 16, gap: 12, borderWidth: 1, borderColor: '#E2E8F0' },
   cardAccepted: { borderColor: '#16A34A', borderWidth: 2 },
   cardRejected: { opacity: 0.55 },
-  providerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avatarText: { fontSize: 14, fontWeight: '800', color: '#fff' },
-  providerName: { fontSize: 14, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
-  price: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-  badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  avatarText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  providerInfo: { flex: 1, gap: 6 },
+  providerName: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
+  price: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  badgeText: { fontSize: 11, fontWeight: '600' },
-  chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { backgroundColor: '#F1F5F9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#E2E8F0' },
-  chipText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
-  chipAvail: { backgroundColor: '#F0FDF4', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#BBF7D0' },
-  chipAvailText: { fontSize: 11, color: '#15803D', fontWeight: '600' },
-  chipRating: { backgroundColor: '#FFFBEB', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#FDE68A' },
-  chipRatingText: { fontSize: 11, color: '#92400E', fontWeight: '700' },
-  chipVerified: { backgroundColor: '#EFF6FF', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#BFDBFE' },
-  chipVerifiedText: { fontSize: 11, color: '#1D4ED8', fontWeight: '700' },
-  chipUrgent: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  chipUrgentText: { color: '#B91C1C' },
-  chipExpired: { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' },
-  chipExpiredText: { color: '#94A3B8' },
-  expiredBanner: { backgroundColor: '#F1F5F9', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#E2E8F0' },
-  expiredText: { fontSize: 13, color: '#64748B', fontWeight: '600', textAlign: 'center' },
-  comment: { fontSize: 13, color: '#475569', lineHeight: 19, fontStyle: 'italic' },
-  acceptBtn: { backgroundColor: '#0F172A', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 4 },
-  acceptBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  acceptedBanner: { backgroundColor: '#F0FDF4', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0' },
-  acceptedText: { fontSize: 13, color: '#15803D', fontWeight: '600' },
+  badgeText: { fontSize: 11, fontWeight: '700' },
+  chips: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  chip: { backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  chipText: { fontSize: 11, color: '#64748B', fontWeight: '700' },
+  chipAvail: { backgroundColor: '#F0FDF4', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#BBF7D0' },
+  chipAvailText: { fontSize: 11, color: '#15803D', fontWeight: '700' },
+  chipRating: { backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#FDE68A' },
+  chipRatingText: { fontSize: 11, color: '#92400E', fontWeight: '800' },
+  chipVerified: { backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#BFDBFE' },
+  chipVerifiedText: { fontSize: 11, color: '#1D4ED8', fontWeight: '800' },
+  countdown: { backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#E2E8F0' },
+  countdownExpired: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  countdownUrgent: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  countdownText: { fontSize: 12, color: '#64748B', fontWeight: '700' },
+  countdownExpiredText: { color: '#B91C1C' },
+  countdownUrgentText: { color: '#B91C1C' },
+  expiredBanner: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FECACA' },
+  expiredText: { fontSize: 13, color: '#B91C1C', fontWeight: '700', textAlign: 'center' },
+  comment: { fontSize: 14, color: '#475569', lineHeight: 21 },
+  acceptBtn: { flex: 1.2, backgroundColor: '#0F172A', borderRadius: 14, padding: 15, alignItems: 'center' },
+  acceptBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  acceptedBanner: { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#BBF7D0' },
+  acceptedText: { fontSize: 13, color: '#15803D', fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errText: { fontSize: 14, color: '#64748B', textAlign: 'center' },
-  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#0F172A', borderRadius: 10 },
-  retryTxt: { color: '#fff', fontWeight: '600' },
+  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#0F172A', borderRadius: 12 },
+  retryTxt: { color: '#fff', fontWeight: '700' },
   empty: { alignItems: 'center', paddingTop: 48, gap: 12 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
   emptyText: { fontSize: 13, color: '#94A3B8', textAlign: 'center', lineHeight: 20, maxWidth: 280 },
 
+  // ── Filtres & meilleur choix ──
+  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  filterBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: '#F1F5F9' },
+  filterBtnActive: { backgroundColor: '#0F172A' },
+  filterBtnText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  filterBtnTextActive: { color: '#fff' },
+  bestChoiceBadge: { alignSelf: 'flex-start', backgroundColor: '#ECFDF5', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10, borderWidth: 1, borderColor: '#BBF7D0' },
+  bestChoiceText: { fontSize: 11, fontWeight: '800', color: '#16A34A' },
+
   // ── Contre-offre ──
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  negotiateBtn: { flex: 1, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#BFDBFE' },
-  negotiateBtnText: { color: '#1D4ED8', fontSize: 14, fontWeight: '700' },
-  counterPendingBanner: { backgroundColor: '#FFFBEB', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FDE68A' },
-  counterPendingText: { fontSize: 13, color: '#92400E', fontWeight: '600' },
-  counterAcceptedBanner: { backgroundColor: '#F0FDF4', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0', gap: 8 },
-  counterAcceptedText: { fontSize: 13, color: '#15803D', fontWeight: '600' },
-  payNewPriceBtn: { backgroundColor: '#059669', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 4 },
-  payNewPriceBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  counterRejectedBanner: { backgroundColor: '#FEF2F2', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FECACA' },
-  counterRejectedText: { fontSize: 13, color: '#B91C1C', fontWeight: '600' },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
+  profileBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 15, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
+  profileBtnText: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
+  negotiateBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 15, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
+  negotiateBtnText: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
+  counterPendingBanner: { backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FDE68A' },
+  counterPendingText: { fontSize: 13, color: '#92400E', fontWeight: '700' },
+  counterAcceptedBanner: { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#BBF7D0', gap: 10 },
+  counterAcceptedText: { fontSize: 13, color: '#15803D', fontWeight: '700' },
+  payNewPriceBtn: { backgroundColor: '#059669', borderRadius: 12, padding: 12, alignItems: 'center' },
+  payNewPriceBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  counterRejectedBanner: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FECACA' },
+  counterRejectedText: { fontSize: 13, color: '#B91C1C', fontWeight: '700' },
 
   // ── Modal contre-offre ──
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, gap: 12, paddingBottom: 40 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12, paddingBottom: 48 },
+  modalHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
   modalSubtitle: { fontSize: 13, color: '#64748B', marginBottom: 4 },
   modalLabel: { fontSize: 13, fontWeight: '700', color: '#374151', marginTop: 4 },
-  modalInput: { backgroundColor: '#F8FAFC', borderRadius: 10, borderWidth: 1.5, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#0F172A' },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  modalBtn: { flex: 1, borderRadius: 10, padding: 14, alignItems: 'center' },
+  modalInput: { backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1.5, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#0F172A' },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  modalBtn: { flex: 1, borderRadius: 14, padding: 15, alignItems: 'center' },
   modalBtnCancel: { backgroundColor: '#F1F5F9' },
-  modalBtnCancelText: { color: '#475569', fontSize: 14, fontWeight: '700' },
+  modalBtnCancelText: { color: '#475569', fontSize: 15, fontWeight: '800' },
   modalBtnSend: { backgroundColor: '#0F172A' },
-  modalBtnSendText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  modalBtnSendText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 })
 
 export default withScreenBoundary(RequestOffers, 'RequestOffers')
