@@ -252,6 +252,53 @@
     "cashConfirmMsg": "Confirm you received {{amount}} FCFA in cash from the client.",
     "cashConfirmed": "✅ Cash payment confirmed"
   },
+  "providerNearby": {
+    "request": "Request detail",
+    "notFound": "Request not found",
+    "posted": "Posted",
+    "urgent": "Urgent",
+    "location": "Intervention location",
+    "description": "Description",
+    "media": "Photos / audio",
+    "details": "Mission details",
+    "budget": "Estimated budget",
+    "reference": "Reference",
+    "payment": "Payment",
+    "cashOrMobile": "Cash or mobile money",
+    "client": "Client",
+    "verifiedClient": "Verified client",
+    "trust": "Trust",
+    "askQuestion": "Ask a question",
+    "makeOffer": "Make an offer"
+  },
+  "providerOffer": {
+    "title": "Make an offer",
+    "yourPrice": "Your price",
+    "average": "Market average: {{amount}} FCFA",
+    "eta": "Estimated arrival time",
+    "message": "Optional message",
+    "messagePlaceholder": "Describe your intervention, included material...",
+    "includesTravel": "Travel included",
+    "includesMaterial": "Material included",
+    "availableNow": "Available now",
+    "sendOffer": "Send offer"
+  },
+  "providerWallet": {
+    "title": "Wallet",
+    "available": "Available balance",
+    "nextTransfer": "Next transfer estimated tomorrow",
+    "activeAccount": "Active account",
+    "today": "Today",
+    "week": "Week",
+    "month": "Month",
+    "withdraw": "Withdraw earnings",
+    "addMethod": "Add payment method",
+    "recentHistory": "Recent history",
+    "seeAll": "See all",
+    "debit": "Debit",
+    "transferInfo": "Withdrawals processed within 24h",
+    "transferInfoSub": "You will be notified when the transfer is sent."
+  },
   "offline": {
     "badge": "{{count}} pending action(s)",
     "queued": "Saved offline — will be sent when network returns."

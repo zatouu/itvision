@@ -15,7 +15,9 @@ export type OfferStatus =
   | 'expired'
   | 'countered'
 
-export type Provider = 'wave' | 'orange_money' | 'free_money'
+export type UserRole = 'client' | 'provider'
+
+export type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 
 export interface ServiceRequest {
   _id: string
@@ -110,4 +112,86 @@ export interface ServiceReview {
   comment?: string
   tags?: string[]
   createdAt: string
+}
+
+export interface CounterOffer {
+  _id: string
+  offerId: string
+  requestId: string
+  proposedBy: 'client' | 'provider'
+  amount: number
+  expiresAt: string
+  message?: string
+  status: 'pending' | 'accepted' | 'rejected' | 'expired'
+  createdAt: string
+}
+
+export interface Mission extends ServiceRequest {
+  acceptedOffer?: Offer
+  provider?: ProviderProfile
+  payment?: { status: string; amount: number }
+  review?: ServiceReview
+}
+
+export interface ProviderProfile {
+  _id: string
+  name: string
+  phone?: string
+  role: 'provider'
+  trade?: string
+  category?: string
+  rating: { avg: number; count: number }
+  missionsCount: number
+  verified: boolean
+  about?: string
+  specialties?: string[]
+  portfolio?: { id: string; url: string; label: string; beforeAfter?: boolean }[]
+  recentReviews?: ServiceReview[]
+  avatarUrl?: string
+  isOnline?: boolean
+  location?: { lat: number; lng: number }
+}
+
+export interface ClientProfile {
+  _id: string
+  name: string
+  phone?: string
+  role: 'client'
+  avatarUrl?: string
+  savedAddresses?: Address[]
+}
+
+export interface Address {
+  id: string
+  label: string
+  street?: string
+  city?: string
+  area?: string
+  coordinates?: { lat: number; lng: number }
+  instructions?: string
+  floor?: string
+  door?: string
+}
+
+export type NotificationType = 'offer' | 'message' | 'mission' | 'payment' | 'system'
+
+export interface NotificationItem {
+  id: string
+  type: NotificationType
+  title: string
+  body: string
+  read: boolean
+  data?: Record<string, unknown>
+  createdAt: string
+}
+
+export interface WalletEntry {
+  id: string
+  kind: 'income' | 'commission' | 'withdrawal' | 'topup'
+  amount: number
+  currency: 'FCFA'
+  status: 'available' | 'pending' | 'debit'
+  label: string
+  date: string
+  requestId?: string
 }

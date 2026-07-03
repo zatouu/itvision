@@ -252,6 +252,53 @@
     "cashConfirmMsg": "Confirmez avoir reçu {{amount}} FCFA en espèces du client.",
     "cashConfirmed": "✅ Paiement cash confirmé"
   },
+  "providerNearby": {
+    "request": "Détail de la demande",
+    "notFound": "Demande introuvable",
+    "posted": "Publiée",
+    "urgent": "Urgent",
+    "location": "Lieu d'intervention",
+    "description": "Description",
+    "media": "Photos / audio",
+    "details": "Détails de la mission",
+    "budget": "Budget estimé",
+    "reference": "Référence",
+    "payment": "Paiement",
+    "cashOrMobile": "Cash ou mobile money",
+    "client": "Client",
+    "verifiedClient": "Client vérifié",
+    "trust": "Confiance",
+    "askQuestion": "Poser une question",
+    "makeOffer": "Faire une offre"
+  },
+  "providerOffer": {
+    "title": "Faire une offre",
+    "yourPrice": "Votre prix",
+    "average": "Prix moyen du marché : {{amount}} FCFA",
+    "eta": "Temps d'arrivée estimé",
+    "message": "Message optionnel",
+    "messagePlaceholder": "Précisez votre intervention, matériel inclus...",
+    "includesTravel": "Déplacement inclus",
+    "includesMaterial": "Matériel inclus",
+    "availableNow": "Disponible immédiatement",
+    "sendOffer": "Envoyer l'offre"
+  },
+  "providerWallet": {
+    "title": "Portefeuille",
+    "available": "Solde disponible",
+    "nextTransfer": "Prochain virement estimé demain",
+    "activeAccount": "Compte actif",
+    "today": "Aujourd'hui",
+    "week": "Semaine",
+    "month": "Mois",
+    "withdraw": "Retirer mes gains",
+    "addMethod": "Ajouter un moyen de paiement",
+    "recentHistory": "Historique récent",
+    "seeAll": "Voir tout",
+    "debit": "Débit",
+    "transferInfo": "Les retraits sont traités sous 24 h",
+    "transferInfoSub": "Vous serez notifié dès l'envoi du virement."
+  },
   "offline": {
     "badge": "{{count}} action(s) en attente",
     "queued": "Enregistré hors ligne — sera envoyé dès le retour réseau."

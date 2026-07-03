@@ -252,6 +252,53 @@
     "cashConfirmMsg": "Dëggal dafa am {{amount}} FCFA cash ci käy-kat bi.",
     "cashConfirmed": "✅ Fay cash bi dëggal"
   },
+  "providerNearby": {
+    "request": "Benn benn yi",
+    "notFound": "Benn benn yi amul",
+    "posted": "Dafay wax",
+    "urgent": "Dëgg-dëgg",
+    "location": "Benn bi ñu dem",
+    "description": "Dëggal",
+    "media": "Foto / audio",
+    "details": "Benn benn yi",
+    "budget": "Budget bu ñu xool",
+    "reference": "Référence",
+    "payment": "Fay",
+    "cashOrMobile": "Cash walla mobile money",
+    "client": "Käy-kat",
+    "verifiedClient": "Käy-kat bu wóor",
+    "trust": "Wóor",
+    "askQuestion": "Laaj benn laaj",
+    "makeOffer": "Def benn offre"
+  },
+  "providerOffer": {
+    "title": "Def benn offre",
+    "yourPrice": "Sa prix",
+    "average": "Prix bu amul: {{amount}} FCFA",
+    "eta": "Waxtu bu ñu jëm",
+    "message": "Bataaxal bu sañ-sañ",
+    "messagePlaceholder": "Waxal ci sa liggéey, matériél bu dëgg...",
+    "includesTravel": "Demb ak dem dëgg",
+    "includesMaterial": "Matériél dëgg",
+    "availableNow": "Am na léegi",
+    "sendOffer": "Yónnee offre bi"
+  },
+  "providerWallet": {
+    "title": "Portmonney",
+    "available": "Solde bu am",
+    "nextTransfer": "Virement bu ci ñaari bes",
+    "activeAccount": "Compte bu am",
+    "today": "Tay",
+    "week": "Ayubés",
+    "month": "Weer",
+    "withdraw": "Jële sama xaalis",
+    "addMethod": "Yokk benn anam fay",
+    "recentHistory": "Historique bu bees",
+    "seeAll": "Xool yépp",
+    "debit": "Débit",
+    "transferInfo": "Retraits yi ñu wax ci 24h",
+    "transferInfoSub": "Dinañu la xam bu virement bi yónnee."
+  },
   "offline": {
     "badge": "{{count}} jëf(i) ngay xaar",
     "queued": "Denc nañu ko — dinañu ko yónnee bu internet bi dellu."

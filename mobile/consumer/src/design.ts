@@ -1,16 +1,23 @@
 export const colors = {
   // Backgrounds
   bg: '#F4F6F9',
+  backgroundPrimary: '#F4F6F9',
+  backgroundSecondary: '#FFFFFF',
   surface: '#FFFFFF',
   // Primary / emerald
   primary: '#0F7B4F',
+  brandGreen: '#0F7B4F',
+  brandGreenDark: '#065F3A',
   primaryDark: '#065F3A',
   primaryLight: '#E6F4EC',
+  brandGreenLight: '#E6F4EC',
   // Secondary / navy
   navy: '#0A1628',
+  brandNavy: '#0A1628',
   navyLight: '#1E293B',
   // Text
   text: '#0F172A',
+  textPrimary: '#0F172A',
   textSecondary: '#64748B',
   textMuted: '#94A3B8',
   // States
@@ -31,7 +38,15 @@ export const colors = {
   security: '#166534',
   // Misc
   border: '#E2E8F0',
+  borderLight: '#E2E8F0',
   shadow: '#000000',
+  // Category aliases
+  categoryElectricity: '#2563EB',
+  categoryPlumbing: '#0891B2',
+  categoryCarpentry: '#EA580C',
+  categoryPainting: '#7C3AED',
+  categoryCooling: '#06B6D4',
+  categorySecurity: '#166534',
 }
 
 export const spacing = {
@@ -49,18 +64,29 @@ export const radius = {
   md: 12,
   lg: 16,
   xl: 20,
+  '2xl': 24,
+  '3xl': 28,
+  full: 999,
   pill: 999,
 }
 
 export const typography = {
   xs: { fontSize: 10, lineHeight: 12 },
   sm: { fontSize: 12, lineHeight: 16 },
+  caption: { fontSize: 12, lineHeight: 16 },
   base: { fontSize: 14, lineHeight: 20 },
+  body: { fontSize: 14, lineHeight: 20 },
+  bodySmall: { fontSize: 12, lineHeight: 16 },
   md: { fontSize: 16, lineHeight: 22 },
   lg: { fontSize: 18, lineHeight: 24 },
   xl: { fontSize: 20, lineHeight: 28 },
+  h3: { fontSize: 20, lineHeight: 28 },
   xxl: { fontSize: 24, lineHeight: 32 },
+  h2: { fontSize: 24, lineHeight: 32 },
   xxxl: { fontSize: 32, lineHeight: 40 },
+  h1: { fontSize: 32, lineHeight: 40 },
+  display: { fontSize: 36, lineHeight: 44 },
+  button: { fontSize: 16, lineHeight: 22 },
   weight: {
     normal: '400' as const,
     medium: '500' as const,
@@ -79,11 +105,17 @@ export const shadows = {
 
 export const categoryMeta: Record<string, { color: string; bg: string; label: string }> = {
   electricite: { color: colors.electricity, bg: '#EFF6FF', label: 'Électricité' },
+  electricity: { color: colors.electricity, bg: '#EFF6FF', label: 'Électricité' },
   plomberie: { color: colors.plumbing, bg: '#E0F2FE', label: 'Plomberie' },
+  plumbing: { color: colors.plumbing, bg: '#E0F2FE', label: 'Plomberie' },
   menuiserie: { color: colors.carpentry, bg: '#FFF7ED', label: 'Menuiserie' },
+  carpentry: { color: colors.carpentry, bg: '#FFF7ED', label: 'Menuiserie' },
   peinture: { color: colors.painting, bg: '#F5F3FF', label: 'Peinture' },
+  painting: { color: colors.painting, bg: '#F5F3FF', label: 'Peinture' },
   climatisation: { color: colors.airConditioning, bg: '#ECFEFF', label: 'Climatisation' },
+  cooling: { color: colors.airConditioning, bg: '#ECFEFF', label: 'Climatisation' },
   securite: { color: colors.security, bg: '#F0FDF4', label: 'Sécurité' },
+  security: { color: colors.security, bg: '#F0FDF4', label: 'Sécurité' },
 }
 
 export const getCategoryMeta = (key?: string) => categoryMeta[(key || '').toLowerCase()] || { color: colors.navy, bg: '#F1F5F9', label: key || 'Service' }

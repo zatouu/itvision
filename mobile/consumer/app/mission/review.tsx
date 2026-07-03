@@ -1,0 +1,233 @@
+import { useState } from 'react'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import AppHeader from '../../src/components/AppHeader'
+import SuccessBanner from '../../src/components/SuccessBanner'
+import Button from '../../src/components/Button'
+import StickyBottomBar from '../../src/components/StickyBottomBar'
+import { colors, spacing, radius, shadows, typography } from '../../src/design'
+import { mockMission, mockProviders } from '../../src/mock'
+
+const TAGS = ['Ponctuel', 'Professionnel', 'Rapide', 'Travail propre', 'Bon prix', 'Communicatif']
+const ACTIONS = [
+  { key: 'invoice', icon: '🧾', label: 'downloadInvoice' },
+  { key: 'rebook', icon: '🔄', label: 'rebook' },
+  { key: 'tip', icon: '💰', label: 'leaveTip' },
+  { key: 'dispute', icon: '🛡️', label: 'reportDispute' },
+]
+
+export default function MissionReview() {
+  const { t } = useTranslation()
+  const [rating, setRating] = useState(5)
+  const [selectedTags, setSelectedTags] = useState<string[]>(['Professionnel', 'Rapide'])
+  const [comment, setComment] = useState('')
+
+  const provider = mockMission.provider || mockProviders[0]
+  const initials = provider.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <AppHeader title={t('clientReview.title')} onBack={() => router.back()} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
+        <SuccessBanner
+          title={t('clientReview.successTitle')}
+          subtitle={t('clientReview.successSub')}
+          icon="✅"
+        />
+
+        <View style={s.providerCard}>
+          <View style={s.avatar}>
+            <Text style={s.avatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>{provider.name}</Text>
+            <Text style={s.trade}>{provider.trade}</Text>
+            <View style={s.arrivalRow}>
+              <Text style={s.arrivalIcon}>⏱</Text>
+              <Text style={s.arrivalText}>{t('clientReview.arrivedIn', { minutes: 18 })}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={s.question}>{t('clientReview.question')}</Text>
+
+        <View style={s.stars}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <TouchableOpacity key={i} onPress={() => setRating(i + 1)} activeOpacity={0.7}>
+              <Text style={[s.star, i < rating && s.starActive]}>★</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={s.tags}>
+          {TAGS.map(tag => (
+            <TouchableOpacity
+              key={tag}
+              onPress={() => toggleTag(tag)}
+              style={[s.tag, selectedTags.includes(tag) && s.tagActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.tagText, selectedTags.includes(tag) && s.tagTextActive]}>{tag}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={s.commentBox}>
+          <Text style={s.commentIcon}>💬</Text>
+          <TextInput
+            value={comment}
+            onChangeText={setComment}
+            placeholder={t('clientReview.commentPlaceholder')}
+            multiline
+            numberOfLines={4}
+            style={s.commentInput}
+            textAlignVertical="top"
+          />
+          <Text style={s.commentCounter}>{comment.length}/500</Text>
+        </View>
+
+        <View style={s.actionsList}>
+          {ACTIONS.map(action => (
+            <TouchableOpacity key={action.key} style={s.actionRow} activeOpacity={0.85}>
+              <View style={s.actionIconCircle}>
+                <Text style={s.actionIcon}>{action.icon}</Text>
+              </View>
+              <Text style={s.actionLabel}>{t(`clientReview.${action.label}`)}</Text>
+              <Text style={s.actionArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      <StickyBottomBar>
+        <Button
+          title={t('clientReview.submit')}
+          onPress={() => router.back()}
+          fullWidth
+          size="lg"
+          icon={<Text style={{ color: colors.surface, fontSize: 16 }}>✈</Text>}
+        />
+      </StickyBottomBar>
+    </SafeAreaView>
+  )
+}
+
+const s = StyleSheet.create({
+  providerCard: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 18, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  name: { fontSize: typography.lg.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  trade: { fontSize: typography.base.fontSize, color: colors.textSecondary, marginTop: 2 },
+  arrivalRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  arrivalIcon: { fontSize: 14 },
+  arrivalText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any },
+  question: {
+    textAlign: 'center',
+    marginTop: spacing.xl,
+    fontSize: typography.lg.fontSize,
+    fontWeight: typography.weight.extrabold as any,
+    color: colors.text,
+  },
+  stars: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  star: { fontSize: 44, color: '#E2E8F0' },
+  starActive: { color: colors.warning },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  tag: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tagActive: { backgroundColor: colors.successLight, borderColor: colors.success },
+  tagText: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
+  tagTextActive: { color: colors.success, fontWeight: typography.weight.extrabold as any },
+  commentBox: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 120,
+  },
+  commentIcon: { fontSize: 18, marginBottom: spacing.sm },
+  commentInput: {
+    flex: 1,
+    fontSize: typography.base.fontSize,
+    color: colors.text,
+    minHeight: 80,
+  },
+  commentCounter: {
+    textAlign: 'right',
+    fontSize: typography.xs.fontSize,
+    color: colors.textMuted,
+  },
+  actionsList: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  actionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionIcon: { fontSize: 16 },
+  actionLabel: { flex: 1, fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.bold as any },
+  actionArrow: { fontSize: 22, color: colors.textSecondary },
+})
