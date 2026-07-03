@@ -12,6 +12,7 @@ import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
 import { useTranslation } from 'react-i18next'
+import { ArrowLeft, X, Check, MapPin, Plus } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 const FALLBACK_CATS = [
@@ -162,7 +163,7 @@ function CreateRequest() {
   if (done) return (
     <SafeAreaView style={s.safe}>
       <View style={s.successBox}>
-        <View style={s.successCheck}><Text style={s.successCheckText}>✓</Text></View>
+        <View style={s.successCheck}><Check size={40} color="#fff" /></View>
         <Text style={s.successTitle}>{t('request.published')}</Text>
         <Text style={s.successSub}>{t('request.publishedSub')}</Text>
         <TouchableOpacity style={s.btn} onPress={() => router.replace('/my-requests')}>
@@ -180,7 +181,7 @@ function CreateRequest() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => step > 1 ? setStep(s2 => s2 - 1) : router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={20} color="#111827" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('request.createTitle')}</Text>
         <TouchableOpacity onPress={() => router.back()}>
@@ -221,7 +222,7 @@ function CreateRequest() {
                 >
                   {category === c.id && (
                     <View style={s.checkmark}>
-                      <Text style={s.checkmarkText}>✔</Text>
+                      <Check size={14} color="#fff" />
                     </View>
                   )}
                   <View style={[s.catMonogram, { backgroundColor: c.color }]}>
@@ -309,13 +310,13 @@ function CreateRequest() {
                             </View>
                           )}
                       <TouchableOpacity style={s.mediaRemove} onPress={() => removeMedia(i)}>
-                        <Text style={s.mediaRemoveText}>×</Text>
+                        <X size={12} color="#fff" />
                       </TouchableOpacity>
                     </View>
                   ))}
                   {media.length < 5 && (
                     <TouchableOpacity style={s.mediaAddBtn} onPress={addMedia}>
-                      <Text style={s.mediaAddText}>+</Text>
+                      <Plus size={32} color="#64748B" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -337,7 +338,7 @@ function CreateRequest() {
             <Text style={s.stepSub}>{t('request.locationSub')}</Text>
 
             <TouchableOpacity style={s.locBtn} onPress={pickLocation} disabled={locating}>
-              {locating ? <ActivityIndicator color="#F59E0B" /> : <Text style={s.locIcon}>📍</Text>}
+              {locating ? <ActivityIndicator color="#F59E0B" /> : <MapPin size={22} color="#F59E0B" />}
               <View style={{ flex: 1 }}>
                 <Text style={s.locTitle}>{coords ? t('request.positionOk') : t('request.useGps')}</Text>
                 {autoAddress ? <Text style={s.locSub}>{autoAddress}</Text> : coords ? <Text style={s.locSub}>{coords[1].toFixed(4)}, {coords[0].toFixed(4)}</Text> : null}
@@ -395,7 +396,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
+  backIcon: { color: '#111827' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
   cancelText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingTop: 8 },
@@ -416,7 +417,7 @@ const s = StyleSheet.create({
   catCard: { width: '47%', backgroundColor: '#fff', borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0', position: 'relative', gap: 6 },
   catCardActive: { borderColor: '#0F172A', borderWidth: 2 },
   checkmark: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
-  checkmarkText: { fontSize: 11, color: '#fff', fontWeight: '700' },
+  checkmarkText: { color: '#fff' },
   catMonogram: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   catMonogramText: { fontSize: 16, fontWeight: '800', color: '#fff' },
   catLabel: { fontSize: 14, fontWeight: '700', color: '#374151' },
@@ -434,7 +435,7 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.35 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
   locBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1.5, borderColor: '#E2E8F0' },
-  locIcon: { fontSize: 22 },
+  locIcon: { color: '#F59E0B' },
   locTitle: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
   locSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   recap: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 12, borderWidth: 1, borderColor: '#E5E7EB' },
@@ -444,7 +445,7 @@ const s = StyleSheet.create({
   errText: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
   successBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   successCheck: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  successCheckText: { fontSize: 32, color: '#fff', fontWeight: '300' },
+  successCheckText: { color: '#fff' },
   successTitle: { fontSize: 22, fontWeight: '700', color: '#0F172A' },
   successSub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 22, maxWidth: 280 },
   link: { color: '#2563EB', fontWeight: '600', fontSize: 14, marginTop: 4 },
@@ -453,9 +454,9 @@ const s = StyleSheet.create({
   mediaFileBox: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
   mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
   mediaRemove: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  mediaRemoveText: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 18 },
+  mediaRemoveText: { color: '#fff' },
   mediaAddBtn: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#F1F5F9', borderWidth: 1.5, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
-  mediaAddText: { fontSize: 28, color: '#64748B', fontWeight: '300' },
+  mediaAddText: { color: '#64748B' },
   priceHint: { backgroundColor: '#ECFDF5', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#A7F3D0' },
   priceHintText: { fontSize: 12, color: '#065F46', lineHeight: 18 },
 })

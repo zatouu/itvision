@@ -16,6 +16,7 @@ import {
 } from '../src/notifications'
 import { confirm } from '../src/confirm'
 import { apiPost } from '../src/api'
+import { Bell } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
 
 const KIND_META: Record<Notification['kind'], { tagKey: string; color: string; bg: string }> = {
@@ -60,12 +61,12 @@ function NotificationsScreen() {
 
       Alert.alert(
         'Diagnostics notifications',
-        `Permission: ${status.permission ? '✅' : '❌'}\n` +
+        `Permission: ${status.permission ? 'OK' : 'KO'}\n` +
         `Plateforme: ${status.platform}\n` +
         `Token: ${status.token ? status.token.slice(0, 30) + '...' : 'AUCUN'}\n` +
         `ProjectId: ${status.projectId || 'N/A'}\n` +
         `Erreur token: ${status.error || 'Aucune'}\n` +
-        `Notification locale: ${localId ? '✅ programmée' : '❌ échec'}\n` +
+        `Notification locale: ${localId ? 'OK programmée' : 'KO échec'}\n` +
         `Test backend: ${backendResult}`,
         [
           { text: 'Réenregistrer token', onPress: () => { void registerPushToken() } },
@@ -137,7 +138,7 @@ function NotificationsScreen() {
       <ScrollView contentContainerStyle={s.body}>
         {items.length === 0 ? (
           <EmptyState
-            icon="🔔"
+            icon={<Bell size={32} color="#94A3B8" />}
             title={t('notifications.empty')}
             subtitle=""
           />

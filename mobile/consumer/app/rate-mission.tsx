@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
+import { Star, PartyPopper } from 'lucide-react-native'
 
 const TAG_KEYS = ['tag_punctual', 'tag_clean', 'tag_pro', 'tag_goodPrice', 'tag_fast', 'tag_communicative'] as const
 
@@ -47,7 +48,7 @@ function RateMission() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.successContainer}>
-          <Text style={s.successEmoji}>🎉</Text>
+          <PartyPopper size={64} color="#F59E0B" />
           <Text style={s.successTitle}>{t('rating.thanks')}</Text>
           <Text style={s.successText}>{t('rating.thanksSub')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -76,7 +77,7 @@ function RateMission() {
           <View style={s.starsRow}>
             {[1, 2, 3, 4, 5].map(n => (
               <TouchableOpacity key={n} onPress={() => setRating(n)} style={s.starBtn}>
-                <Text style={[s.star, n <= rating && s.starActive]}>★</Text>
+                <Star size={44} color={n <= rating ? '#F59E0B' : '#E2E8F0'} fill={n <= rating ? '#F59E0B' : 'transparent'} />
               </TouchableOpacity>
             ))}
           </View>
@@ -150,7 +151,7 @@ const s = StyleSheet.create({
   subtitle: { fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24 },
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 },
   starBtn: { padding: 4 },
-  star: { fontSize: 44, color: '#E2E8F0' },
+  star: { color: '#E2E8F0' },
   starActive: { color: '#F59E0B' },
   ratingLabel: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, fontWeight: '500' },
   tagsSection: { marginBottom: 20 },
@@ -166,7 +167,7 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  successEmoji: { fontSize: 64 },
+  successEmoji: { color: '#F59E0B' },
   successTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A' },
   successText: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 22 },
 })

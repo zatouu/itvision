@@ -12,6 +12,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import { colors, spacing, radius, shadows, typography } from '../src/design'
+import { Bell, MapPin, FileText, Briefcase, Banknote, ChevronRight } from 'lucide-react-native'
 
 function Home() {
   const { t } = useTranslation()
@@ -97,7 +98,7 @@ function Home() {
             <Text style={s.greeting}>{greeting}</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
-            <Text style={s.iconBtnText}>N</Text>
+            <Bell size={18} color={colors.text} />
             <View style={s.notifDot} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn}>
@@ -131,7 +132,7 @@ function Home() {
           <KpiCard
             value={nearbyCount}
             label="Demandes proches"
-            icon="P"
+            icon={<MapPin size={22} color={colors.info} />}
             iconBg="#EFF6FF"
             iconColor={colors.info}
             onPress={goNearby}
@@ -139,7 +140,7 @@ function Home() {
           <KpiCard
             value={pendingOffers}
             label="Offres en attente"
-            icon="O"
+            icon={<FileText size={22} color={colors.warning} />}
             iconBg="#FFF7ED"
             iconColor={colors.warning}
             onPress={() => router.push('/my-offers')}
@@ -149,14 +150,14 @@ function Home() {
           <KpiCard
             value={activeMission}
             label="Mission en cours"
-            icon="M"
+            icon={<Briefcase size={22} color={colors.success} />}
             iconBg="#F0FDF4"
             iconColor={colors.success}
           />
           <KpiCard
             value={formatMoney(dailyRevenue)}
             label="Revenus du jour"
-            icon="R"
+            icon={<Banknote size={22} color={colors.navy} />}
             iconBg="#F1F5F9"
             iconColor={colors.navy}
           />
@@ -168,21 +169,21 @@ function Home() {
           <View style={s.actionHeroTag}><Text style={s.actionHeroTagText}>Nouveautés</Text></View>
           <Text style={s.actionHeroTitle}>Demandes proches</Text>
           <Text style={s.actionHeroSub}>9 demandes autour de vous</Text>
-          <View style={s.actionHeroArrow}><Text style={s.actionHeroArrowText}>›</Text></View>
+          <View style={s.actionHeroArrow}><ChevronRight size={20} color="#fff" /></View>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.actionRow} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
           <View style={s.actionRowTag}><Text style={s.actionRowTagText}>Suivi</Text></View>
           <Text style={s.actionRowTitle}>Mes offres envoyées</Text>
           <Text style={s.actionRowSub}>3 acceptées, 2 en attente</Text>
-          <Text style={s.actionRowArrow}>›</Text>
+          <ChevronRight size={22} color={colors.textMuted} />
         </TouchableOpacity>
 
         <TouchableOpacity style={s.actionRow} activeOpacity={0.85}>
           <View style={[s.actionRowTag, { backgroundColor: '#EFF6FF' }]}><Text style={[s.actionRowTagText, { color: colors.info }]}>Conseil</Text></View>
           <Text style={s.actionRowTitle}>Répondez en moins de 3 min</Text>
           <Text style={s.actionRowSub}>pour augmenter vos chances</Text>
-          <Text style={s.actionRowArrow}>›</Text>
+          <ChevronRight size={22} color={colors.textMuted} />
         </TouchableOpacity>
       </ScrollView>
 
@@ -196,7 +197,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
   greeting: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
   iconBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
-  iconBtnText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  iconBtnText: { color: colors.text },
   notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
   avatarBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary },
   avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary },
@@ -219,13 +220,13 @@ const s = StyleSheet.create({
   actionHeroTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: '#fff', marginBottom: 2 },
   actionHeroSub: { fontSize: 14, color: '#94A3B8' },
   actionHeroArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -14, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  actionHeroArrowText: { fontSize: 20, color: '#fff', fontWeight: typography.weight.extrabold as any, lineHeight: 22 },
+  actionHeroArrowText: { color: '#fff' },
   actionRow: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, position: 'relative', ...shadows.sm },
   actionRowTag: { alignSelf: 'flex-start', backgroundColor: '#F1F5F9', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.sm },
   actionRowTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary },
   actionRowTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: 2 },
   actionRowSub: { fontSize: 13, color: colors.textSecondary },
-  actionRowArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -10, fontSize: 22, color: colors.textMuted, fontWeight: typography.weight.extrabold as any },
+  actionRowArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -10, color: colors.textMuted },
 })
 
 export default withScreenBoundary(Home, 'Home')

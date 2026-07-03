@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
+import { ArrowLeft, Check, Waves, Circle, Banknote } from 'lucide-react-native'
 
 type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 
@@ -16,11 +17,11 @@ function getProviderLabel(t: any, id: Provider) {
   return 'Wave'
 }
 
-const PROVIDERS: { id: Provider; icon: string; color: string }[] = [
-  { id: 'wave', icon: '🌊', color: '#1DC3F0' },
-  { id: 'orange_money', icon: '🟠', color: '#FF6600' },
-  { id: 'free_money', icon: '🟢', color: '#00A651' },
-  { id: 'cash', icon: '💵', color: '#16A34A' },
+const PROVIDERS: { id: Provider; icon: React.ReactNode; color: string }[] = [
+  { id: 'wave', icon: <Waves size={26} color="#1DC3F0" />, color: '#1DC3F0' },
+  { id: 'orange_money', icon: <Circle size={26} color="#FF6600" fill="#FF6600" />, color: '#FF6600' },
+  { id: 'free_money', icon: <Circle size={26} color="#00A651" fill="#00A651" />, color: '#00A651' },
+  { id: 'cash', icon: <Banknote size={26} color="#16A34A" />, color: '#16A34A' },
 ]
 
 const DEPOSIT_RATE = 0.25
@@ -111,7 +112,7 @@ function PaymentScreen() {
       }
       if (res.payment?.status === 'held') {
         Alert.alert(
-          '✅ ' + t('payment.initiated'),
+          t('payment.initiated'),
           isCash
             ? t('payment.cashInitiated', { amount: totalAmount.toLocaleString('fr-FR') })
             : paymentMode === 'deposit'
@@ -127,7 +128,7 @@ function PaymentScreen() {
             if (r.item?.status === 'assigned' || r.item?.status === 'provider_arriving') {
               stopPolling()
               Alert.alert(
-                '✅ ' + t('payment.initiated'),
+                t('payment.initiated'),
                 paymentMode === 'deposit'
                   ? t('payment.depositInitiated', { deposit: depositAmount.toLocaleString('fr-FR'), balance: balanceAmount.toLocaleString('fr-FR') })
                   : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') }),
@@ -154,7 +155,7 @@ function PaymentScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('payment.escrow')}</Text>
         <View style={{ width: 28 }} />
@@ -184,7 +185,7 @@ function PaymentScreen() {
               activeOpacity={0.85}
             >
               <View style={[s.checkCircle, escrowSelected && s.checkCircleActive]}>
-                {escrowSelected && <Text style={s.checkCircleText}>✓</Text>}
+                {escrowSelected && <Check size={14} color="#fff" />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.escrowChoiceTitle}>{t('payment.secureWithEscrow')}</Text>
@@ -195,7 +196,7 @@ function PaymentScreen() {
           {!walletLoading && escrowEnabled && escrowMandatory && (
             <View style={[s.escrowChoice, s.escrowChoiceActive]}>
               <View style={[s.checkCircle, s.checkCircleActive]}>
-                <Text style={s.checkCircleText}>✓</Text>
+                <Check size={14} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.escrowChoiceTitle}>{t('payment.escrowMandatory')}</Text>
@@ -247,9 +248,9 @@ function PaymentScreen() {
             onPress={() => setSelected(p.id)}
             activeOpacity={0.8}
           >
-            <Text style={s.providerIcon}>{p.icon}</Text>
+            {p.icon}
             <Text style={s.providerLabel}>{getProviderLabel(t, p.id)}</Text>
-            {selected === p.id && <Text style={[s.checkMark, { color: p.color }]}>✓</Text>}
+            {selected === p.id && <Check size={22} color={p.color} />}
           </TouchableOpacity>
         ))}
 
@@ -282,7 +283,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
   },
-  backIcon: { fontSize: 22, color: '#0F172A' },
+  backIcon: { color: '#0F172A' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A' },
   body: { flex: 1, padding: 20, gap: 20 },
   amountBox: {
@@ -295,7 +296,7 @@ const s = StyleSheet.create({
   escrowChoiceActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#94A3B8', alignItems: 'center', justifyContent: 'center' },
   checkCircleActive: { backgroundColor: '#059669', borderColor: '#059669' },
-  checkCircleText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  checkCircleText: { color: '#fff' },
   escrowChoiceTitle: { fontSize: 13, color: '#0F172A', fontWeight: '800' },
   escrowChoiceSub: { fontSize: 11, color: '#64748B', marginTop: 2 },
   escrowRow: { marginTop: 8, alignItems: 'center', gap: 8 },
@@ -318,9 +319,9 @@ const s = StyleSheet.create({
     padding: 16, borderRadius: 14, backgroundColor: '#fff',
     borderWidth: 2, borderColor: '#E2E8F0',
   },
-  providerIcon: { fontSize: 26 },
+  providerIcon: { },
   providerLabel: { fontSize: 16, fontWeight: '600', color: '#0F172A', flex: 1 },
-  checkMark: { fontSize: 22, fontWeight: '700' },
+  checkMark: { },
   payBtn: {
     backgroundColor: '#059669', borderRadius: 14, padding: 16,
     alignItems: 'center', marginTop: 'auto',

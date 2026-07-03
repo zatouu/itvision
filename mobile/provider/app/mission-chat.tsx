@@ -7,6 +7,7 @@ import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
 import { getAuthUser } from '../src/auth'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { ArrowLeft, Send } from 'lucide-react-native'
 
 type Message = {
   _id: string
@@ -104,7 +105,7 @@ function MissionChat() {
       {/* Header */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-          <Text style={st.backIcon}>←</Text>
+          <ArrowLeft size={18} color="#0F172A" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={st.headerTitle}>{clientName || 'Client'}</Text>
@@ -153,7 +154,7 @@ function MissionChat() {
             onPress={sendMessage}
             disabled={!text.trim() || sending}
           >
-            <Text style={st.sendBtnText}>➤</Text>
+            <Send size={18} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -165,7 +166,7 @@ const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 16, color: '#0F172A' },
+  backIcon: { color: '#0F172A' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
   headerSub: { fontSize: 12, color: '#64748B' },
   waBtn: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#DCFCE7', borderRadius: 8, borderWidth: 1, borderColor: '#BBF7D0' },
@@ -187,7 +188,7 @@ const st = StyleSheet.create({
   input: { flex: 1, borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: '#0F172A', maxHeight: 100, backgroundColor: '#F8FAFC' },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.3 },
-  sendBtnText: { fontSize: 18, color: '#fff' },
+  sendBtnText: { color: '#fff' },
 })
 
 export default withScreenBoundary(MissionChat, 'MissionChat')

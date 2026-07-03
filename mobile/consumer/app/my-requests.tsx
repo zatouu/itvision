@@ -12,6 +12,7 @@ import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { ArrowLeft, Plus, AlertTriangle, Inbox, Search, ChevronRight } from 'lucide-react-native'
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   created:       { key: 'requests.status_created',            color: '#2563EB', bg: '#EFF6FF', dot: '#2563EB' },
@@ -117,7 +118,7 @@ function MyRequests() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} accessibilityLabel="Retour">
-          <Text style={s.iconBtnText}>←</Text>
+          <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
         <View style={s.headerLeft}>
           <Text style={s.title}>{t('requests.title')}</Text>
@@ -128,7 +129,7 @@ function MyRequests() {
           )}
         </View>
         <TouchableOpacity onPress={() => router.push('/create-request')} style={s.iconBtn} accessibilityLabel={t('requests.createRequest')}>
-          <Text style={s.iconBtnText}>＋</Text>
+          <Plus size={20} color="#0F172A" />
         </TouchableOpacity>
       </View>
 
@@ -164,7 +165,7 @@ function MyRequests() {
         </ScrollView>
       ) : err ? (
         <View style={s.center}>
-          <Text style={s.errIcon}>⚠️</Text>
+          <AlertTriangle size={36} color="#F59E0B" />
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
             <Text style={s.retryText}>{t('common.retry')}</Text>
@@ -177,7 +178,7 @@ function MyRequests() {
         >
           {filteredItems.length === 0 && (
             <EmptyState
-              icon={items.length === 0 ? '📨' : '🔍'}
+              icon={items.length === 0 ? <Inbox size={32} color="#94A3B8" /> : <Search size={32} color="#94A3B8" />}
               title={items.length === 0 ? t('requests.noRequests') : t('requests.noResult')}
               subtitle={items.length === 0 ? t('requests.noRequestsSub') : t('requests.noResultSub')}
               actionLabel={t('requests.createRequest')}
@@ -242,7 +243,7 @@ function MyRequests() {
                       </TouchableOpacity>
                     )}
                   </View>
-                  <Text style={s.cardArrow}>›</Text>
+                  <ChevronRight size={20} color="#CBD5E1" />
                 </View>
               </TouchableOpacity>
             )
@@ -263,7 +264,7 @@ const s = StyleSheet.create({
   headerCountText: { fontSize: 13, fontWeight: '700', color: '#2563EB' },
   headerActions: { flexDirection: 'row', gap: 8 },
   iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  iconBtnText: { fontSize: 18, color: '#0F172A' },
+  iconBtnText: { color: '#0F172A' },
   title: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
   filters: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, gap: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   searchInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: '#0F172A', fontSize: 14 },
@@ -288,7 +289,7 @@ const s = StyleSheet.create({
   offerCountBadge: { backgroundColor: '#F97316', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, minWidth: 20, alignItems: 'center' },
   offerCountText: { fontSize: 11, fontWeight: '800', color: '#fff' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  errIcon: { fontSize: 36 },
+  errIcon: { color: '#F59E0B' },
   errText: { fontSize: 14, color: '#64748B', textAlign: 'center' },
   retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#0F172A', borderRadius: 10 },
   retryText: { color: '#fff', fontWeight: '600' },
@@ -302,7 +303,7 @@ const s = StyleSheet.create({
   offerIndicatorText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
   cancelBtn: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
   cancelBtnText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },
-  cardArrow: { position: 'absolute', right: 14, top: '50%', fontSize: 20, color: '#CBD5E1', fontWeight: '300' },
+  cardArrow: { position: 'absolute', right: 14, top: '50%', color: '#CBD5E1' },
 })
 
 export default withScreenBoundary(MyRequests, 'MyRequests')

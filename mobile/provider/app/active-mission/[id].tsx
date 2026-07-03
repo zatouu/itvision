@@ -11,6 +11,7 @@ import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
+import { ArrowLeft, Clock, MessageCircle, CheckCircle } from 'lucide-react-native'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
   pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: '#FFFBEB' },
@@ -305,12 +306,13 @@ function ActiveMission() {
   const locationAddress = typeof item?.location?.address === 'string' ? item.location.address : undefined
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
   const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
+  const hasValidMedia = Array.isArray(item?.media) && item.media.length > 0 && item.media.some((m: any) => m?.url || m?.uri)
 
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={20} color="#111827" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('mission.activeTitle')}</Text>
         <View style={{ width: 36 }} />
@@ -331,17 +333,23 @@ function ActiveMission() {
             {/* Durée écoulée si mission en cours */}
             {item.status === 'in_progress' && item.startedAt && (
               <View style={[s.statusBanner, { backgroundColor: '#F5F3FF' }]}>
-                <Text style={[s.statusText, { color: '#5B21B6' }]}>
-                  ⏱ {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Clock size={16} color="#5B21B6" />
+                  <Text style={[s.statusText, { color: '#5B21B6' }]}>
+                    {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
+                  </Text>
+                </View>
               </View>
             )}
             {/* Durée totale si mission terminée */}
             {item.status === 'completed' && item.startedAt && item.completedAt && (
               <View style={[s.statusBanner, { backgroundColor: '#F1F5F9' }]}>
-                <Text style={[s.statusText, { color: '#374151' }]}>
-                  ⏱ {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Clock size={16} color="#374151" />
+                  <Text style={[s.statusText, { color: '#374151' }]}>
+                    {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -435,12 +443,12 @@ function ActiveMission() {
             </View>
 
             {/* Médias */}
-            {item.media && item.media.length > 0 && (
+            {hasValidMedia && (
               <View style={s.card}>
                 <Text style={s.cardTitle}>{t('mission.clientMedia')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {item.media.map((m: any, i: number) => {
+                    {item.media.filter((m: any) => m?.url || m?.uri).map((m: any, i: number) => {
                       const mediaUrl = resolveMediaUrl(m?.url)
                       const asImage = mediaUrl && isImageMedia(m?.type, mediaUrl)
                       return asImage
@@ -465,6 +473,7 @@ function ActiveMission() {
                 style={s.chatBtn}
                 onPress={() => router.push(`/mission-chat?id=${requestId}`)}
               >
+                <MessageCircle size={18} color="#1D4ED8" />
                 <Text style={s.chatBtnText}>{t('mission.contactClient')}</Text>
               </TouchableOpacity>
             )}
@@ -488,7 +497,8 @@ function ActiveMission() {
               )}
               {item.payment?.provider === 'cash' && item.payment?.status === 'held' && item.status === 'completed' && (
                 <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={confirmCashReceived} disabled={updating}>
-                  <Text style={s.completeBtnText}>✅ Confirmer le cash reçu</Text>
+                  <CheckCircle size={18} color="#fff" />
+                  <Text style={s.completeBtnText}>Confirmer le cash reçu</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -503,7 +513,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
+  backIcon: { color: '#111827' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
   centerBlock: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   body: { padding: 20, paddingBottom: 40, gap: 16 },
@@ -531,12 +541,12 @@ const s = StyleSheet.create({
   mediaFile: { width: 140, height: 100, borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#F8FAFC', padding: 10, justifyContent: 'center', gap: 4 },
   mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
   mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 16 },
-  actionBtn: { borderRadius: 12, padding: 16, alignItems: 'center' },
+  actionBtn: { borderRadius: 12, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   startBtn: { backgroundColor: '#0F172A' },
   startBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   completeBtn: { backgroundColor: '#16A34A' },
   completeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
   arrivingBtn: { backgroundColor: '#E0F2FE', borderWidth: 1, borderColor: '#7DD3FC' },
   arrivingBtnText: { color: '#0369A1', fontWeight: '700', fontSize: 15 },

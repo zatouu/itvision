@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
+import { ArrowLeft, Plus } from 'lucide-react-native'
+import { colors } from '../src/design'
 
 type WalletData = {
   points: number
@@ -132,7 +134,7 @@ function Wallet() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={18} color="#111827" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('wallet.title')}</Text>
         <View style={{ width: 36 }} />
@@ -216,9 +218,16 @@ function Wallet() {
                   {!!txn.description && <Text style={s.txnDesc}>{txn.description}</Text>}
                   <Text style={s.txnDate}>{new Date(txn.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
                 </View>
-                <Text style={[s.txnPoints, txn.points >= 0 ? s.txnPos : s.txnNeg]}>
-                  {txn.points >= 0 ? '+' : ''}{txn.points}
-                </Text>
+                <View style={s.txnPoints}>
+                  {txn.points >= 0 ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <Plus size={14} color={colors.success} />
+                      <Text style={[s.txnPointsText, s.txnPos]}>{txn.points}</Text>
+                    </View>
+                  ) : (
+                    <Text style={[s.txnPointsText, s.txnNeg]}>{txn.points}</Text>
+                  )}
+                </View>
               </View>
             ))
           )}
@@ -232,7 +241,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
+  backIcon: { color: '#111827' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
   body: { padding: 20, gap: 18 },
   balanceCard: { backgroundColor: '#065F46', borderRadius: 18, padding: 24, alignItems: 'center', gap: 2 },
@@ -268,7 +277,8 @@ const s = StyleSheet.create({
   txnKind: { fontSize: 14, fontWeight: '700', color: '#111827' },
   txnDesc: { fontSize: 12, color: '#64748B', marginTop: 2 },
   txnDate: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
-  txnPoints: { fontSize: 16, fontWeight: '800' },
+  txnPoints: { },
+  txnPointsText: { fontSize: 16, fontWeight: '800' },
   txnPos: { color: '#059669' },
   txnNeg: { color: '#DC2626' },
 })

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { setAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
+import { ArrowLeft, FlaskConical } from 'lucide-react-native'
 
 const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 const CODE_LENGTH = 6
@@ -55,7 +56,7 @@ export default function VerifyOtp() {
     <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={20} color="#111827" />
         </TouchableOpacity>
 
         <Text style={s.title}>{t('auth.verifyTitle')}</Text>
@@ -65,7 +66,10 @@ export default function VerifyOtp() {
 
         {_devCode ? (
           <View style={s.devBanner}>
-            <Text style={s.devText}>🧪 {t('auth.devCode')}: {_devCode}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <FlaskConical size={16} color="#92400E" />
+              <Text style={s.devText}>{t('auth.devCode')}: {_devCode}</Text>
+            </View>
           </View>
         ) : null}
 
@@ -115,7 +119,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   container: { flex: 1, padding: 24, paddingTop: 16 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  backIcon: { fontSize: 20, color: '#111827' },
+  backIcon: { color: '#111827' },
   title: { fontSize: 26, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
   subtitle: { fontSize: 15, color: '#64748B', marginBottom: 24, lineHeight: 22 },
   phoneBold: { fontWeight: '700', color: '#0F172A' },

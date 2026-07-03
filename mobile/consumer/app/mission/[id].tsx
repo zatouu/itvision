@@ -10,6 +10,7 @@ import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/sock
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
+import { ArrowLeft, Share as ShareIcon, Check, Star, Phone, MessageCircle, Truck } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
@@ -291,11 +292,11 @@ function MissionDetail() {
           {/* Floating header */}
           <View style={s.floatingHeader}>
             <TouchableOpacity onPress={() => router.back()} style={s.floatingBtn}>
-              <Text style={s.floatingBtnText}>←</Text>
+              <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
             <Text style={s.floatingTitle}>Suivi</Text>
             <TouchableOpacity style={s.floatingBtn}>
-              <Text style={s.floatingBtnText}>↑</Text>
+              <ShareIcon size={18} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -309,7 +310,7 @@ function MissionDetail() {
         <View style={s.noMap}>
           <View style={s.header}>
             <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-              <Text style={s.backIcon}>←</Text>
+              <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
             <Text style={s.headerTitle}>Suivi</Text>
             <View style={{ width: 36 }} />
@@ -335,7 +336,7 @@ function MissionDetail() {
               return (
                 <View key={step} style={s.timelineStep}>
                   <View style={[s.timelineDot, state === 'done' && s.timelineDotDone, state === 'active' && s.timelineDotActive]}>
-                    {state === 'done' && <Text style={s.timelineCheck}>✓</Text>}
+                    {state === 'done' && <Check size={14} color={colors.surface} />}
                   </View>
                   <Text style={[s.timelineLabel, state === 'active' && s.timelineLabelActive]}>{stepLabels[step]}</Text>
                   {idx < stepOrder.length - 1 && <View style={[s.timelineLine, idx < currentStepIdx && s.timelineLineDone]} />}
@@ -349,22 +350,22 @@ function MissionDetail() {
             <View style={s.providerCard}>
               <View style={s.providerAvatar}>
                 <Text style={s.providerAvatarText}>{providerInitials}</Text>
-                <View style={s.verifiedBadge}><Text style={s.verifiedText}>V</Text></View>
+                <View style={s.verifiedBadge}><Check size={10} color={colors.surface} /></View>
               </View>
               <View style={s.providerInfo}>
                 <Text style={s.providerName}>{offer.providerName || 'Prestataire'}</Text>
                 <View style={s.providerRow}>
-                  <Text style={s.star}>★</Text>
+                  <Star size={12} color={colors.warning} fill={colors.warning} />
                   <Text style={s.providerRating}>{offer.providerRating?.avg || 4.9}</Text>
                   <Text style={s.providerMeta}> · Électricien</Text>
                 </View>
               </View>
               <View style={s.providerActions}>
                 <TouchableOpacity style={s.actionIconBtn} onPress={() => offer.providerPhone && Linking.openURL(`tel:${offer.providerPhone}`)}>
-                  <Text style={s.actionIconText}>T</Text>
+                  <Phone size={18} color={colors.success} />
                 </TouchableOpacity>
                 <TouchableOpacity style={s.actionIconBtn} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}`)}>
-                  <Text style={s.actionIconText}>M</Text>
+                  <MessageCircle size={18} color={colors.success} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -373,7 +374,7 @@ function MissionDetail() {
           {/* ETA card */}
           <View style={s.etaCard}>
             <View style={[s.etaIcon, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[s.etaIconText, { color: colors.primary }]}>C</Text>
+              <Truck size={22} color={colors.primary} />
             </View>
             <View style={s.etaInfo}>
               <Text style={s.etaTitle}>Arrive dans {etaDisplay}</Text>
@@ -441,7 +442,7 @@ const s = StyleSheet.create({
   mapContainer: { flex: 1, position: 'relative' },
   floatingHeader: { position: 'absolute', top: 16, left: spacing.lg, right: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
   floatingBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
-  floatingBtnText: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  floatingBtnText: { color: colors.text },
   floatingTitle: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text },
   etaPill: { position: 'absolute', top: 72, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.lg, zIndex: 10 },
   etaPillDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
@@ -449,7 +450,7 @@ const s = StyleSheet.create({
   noMap: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: colors.text },
+  backIcon: { color: colors.text },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   noMapText: { textAlign: 'center', color: colors.textSecondary, marginTop: 40 },
   sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.md, paddingHorizontal: spacing.lg, maxHeight: '48%', ...shadows.xl },
@@ -462,7 +463,7 @@ const s = StyleSheet.create({
   timelineDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   timelineDotDone: { backgroundColor: colors.success, borderColor: colors.success },
   timelineDotActive: { backgroundColor: colors.success, borderColor: colors.success },
-  timelineCheck: { fontSize: 12, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  timelineCheck: { color: colors.surface },
   timelineLine: { position: 'absolute', top: 13, left: '50%', right: '-50%', height: 2, backgroundColor: colors.border, zIndex: -1 },
   timelineLineDone: { backgroundColor: colors.success },
   timelineLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4, fontWeight: typography.weight.medium as any },
@@ -471,19 +472,19 @@ const s = StyleSheet.create({
   providerAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   providerAvatarText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
   verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg },
-  verifiedText: { fontSize: 10, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  verifiedText: { color: colors.surface },
   providerInfo: { flex: 1 },
   providerName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
   providerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 2 },
-  star: { fontSize: 12, color: colors.warning },
+  star: { color: colors.warning },
   providerRating: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
   providerMeta: { fontSize: 13, color: colors.textSecondary },
   providerActions: { flexDirection: 'row', gap: spacing.sm },
   actionIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
-  actionIconText: { fontSize: 14, color: colors.success, fontWeight: typography.weight.extrabold as any },
+  actionIconText: { color: colors.success },
   etaCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
   etaIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  etaIconText: { fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  etaIconText: { color: colors.primary },
   etaInfo: { flex: 1 },
   etaTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
   etaSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },

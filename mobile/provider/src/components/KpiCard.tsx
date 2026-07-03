@@ -15,7 +15,7 @@ export default function KpiCard({ value, label, icon, iconBg, iconColor, onPress
     return (
       <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[s.card, shadows.sm]}>
         <View style={[s.icon, { backgroundColor: iconBg }]}>
-          <Text style={[s.iconText, { color: iconColor }]}>{icon}</Text>
+          {icon}
         </View>
         <View style={s.text}>
           <Text style={s.value}>{value}</Text>
@@ -27,7 +27,7 @@ export default function KpiCard({ value, label, icon, iconBg, iconColor, onPress
   return (
     <View style={[s.card, shadows.sm]}>
       <View style={[s.icon, { backgroundColor: iconBg }]}>
-        <Text style={[s.iconText, { color: iconColor }]}>{icon}</Text>
+        {icon}
       </View>
       <View style={s.text}>
         <Text style={s.value}>{value}</Text>
@@ -54,7 +54,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: 18, fontWeight: typography.weight.extrabold as any },
+  iconText: { },
   text: { flex: 1 },
   value: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },
   label: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },

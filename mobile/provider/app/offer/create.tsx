@@ -8,6 +8,7 @@ import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
 import { mockRequests } from '../../src/mock'
+import { Minus, Plus } from 'lucide-react-native'
 import type { ServiceRequest } from '../../src/types'
 
 const ETA_OPTIONS = [15, 30, 45, 60]
@@ -46,14 +47,14 @@ export default function CreateOffer() {
           <Text style={s.priceLabel}>{t('providerOffer.yourPrice')}</Text>
           <View style={s.priceInputRow}>
             <TouchableOpacity style={s.priceBtn} onPress={() => setPrice((p: number) => Math.max(1000, p - 500))}>
-              <Text style={s.priceBtnText}>−</Text>
+              <Minus size={24} color={colors.text} />
             </TouchableOpacity>
             <View style={s.priceDisplay}>
               <Text style={s.priceValue}>{price.toLocaleString('fr-FR').replace(/\s/g, ' ')}</Text>
               <Text style={s.priceCurrency}>FCFA</Text>
             </View>
             <TouchableOpacity style={s.priceBtn} onPress={() => setPrice((p: number) => p + 500)}>
-              <Text style={s.priceBtnText}>+</Text>
+              <Plus size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
           <Text style={s.average}>{t('providerOffer.average', { amount: average.toLocaleString('fr-FR') })}</Text>
@@ -180,7 +181,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  priceBtnText: { fontSize: 24, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  priceBtnText: { color: colors.text },
   priceDisplay: { alignItems: 'center', minWidth: 160 },
   priceValue: {
     fontSize: 36,

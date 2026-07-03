@@ -11,6 +11,7 @@ import { clearAuth, getAuthUser, subscribeAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
+import { ArrowLeft, ChevronRight } from 'lucide-react-native'
 
 function Profile() {
   const { t } = useTranslation()
@@ -55,7 +56,7 @@ function Profile() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={18} color="#111827" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('profile.title')}</Text>
         <View style={{ width: 36 }} />
@@ -114,17 +115,17 @@ function Profile() {
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/wallet')}>
           <Text style={s.menuText}>{t('profile.wallet')}</Text>
-          <Text style={s.menuArrow}>→</Text>
+          <ChevronRight size={18} color="#94A3B8" />
         </TouchableOpacity>
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/my-offers')}>
           <Text style={s.menuText}>{t('offers.title')}</Text>
-          <Text style={s.menuArrow}>→</Text>
+          <ChevronRight size={18} color="#94A3B8" />
         </TouchableOpacity>
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/kyc')}>
           <Text style={s.menuText}>{t('profile.kyc')}</Text>
-          <Text style={s.menuArrow}>→</Text>
+          <ChevronRight size={18} color="#94A3B8" />
         </TouchableOpacity>
 
         <View style={{ marginVertical: 16 }}>
@@ -146,7 +147,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
+  backIcon: { color: '#111827' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
   body: { padding: 20, gap: 20 },
   avatarBox: { alignItems: 'center', gap: 8, marginVertical: 16 },
@@ -160,7 +161,7 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 12, color: '#64748B', marginTop: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
   menuText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
-  menuArrow: { fontSize: 16, color: '#94A3B8' },
+  menuArrow: { color: '#94A3B8' },
   referralCard: { backgroundColor: '#FEF3C7', borderRadius: 14, padding: 18, borderWidth: 1.5, borderColor: '#FDE68A', gap: 10 },
   referralTitle: { fontSize: 16, fontWeight: '800', color: '#92400E' },
   referralSubtitle: { fontSize: 12, color: '#B45309', lineHeight: 18 },

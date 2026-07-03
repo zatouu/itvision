@@ -8,6 +8,7 @@ import { apiGet, apiPost, apiUpload } from '../src/api'
 import { pickMedia } from '../src/media'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
+import { ArrowLeft, CheckCircle2, Clock } from 'lucide-react-native'
 
 type KycStatus = 'none' | 'pending' | 'approved' | 'rejected'
 
@@ -93,7 +94,7 @@ function KycScreen() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <Text style={s.badge}>✅</Text>
+          <CheckCircle2 size={48} color="#16A34A" />
           <Text style={s.statusTitle}>{t('kyc.approved')}</Text>
           <Text style={s.statusSub}>{t('kyc.approvedMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -108,7 +109,7 @@ function KycScreen() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <Text style={s.badge}>⏳</Text>
+          <Clock size={48} color="#F59E0B" />
           <Text style={s.statusTitle}>{t('kyc.pending')}</Text>
           <Text style={s.statusSub}>{t('kyc.pendingMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -123,7 +124,7 @@ function KycScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('kyc.title')}</Text>
         <View style={{ width: 28 }} />
@@ -203,10 +204,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
   },
-  backIcon: { fontSize: 22, color: '#0F172A' },
+  backIcon: { color: '#0F172A' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A' },
   body: { padding: 20, gap: 12, paddingBottom: 40 },
-  badge: { fontSize: 48 },
+  badge: { color: '#0F172A' },
   statusTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A' },
   statusSub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
   btn: { backgroundColor: '#0F172A', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 8 },

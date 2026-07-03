@@ -18,6 +18,7 @@ import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/catego
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
+import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck } from 'lucide-react-native'
 
 const RADIUS_KM = 10
 
@@ -217,11 +218,11 @@ function NearbyRequests() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.title}>{t('nearby.title')}</Text>
         <TouchableOpacity onPress={async () => { const c = await locate(); await load(c, true) }} style={s.refreshBtn}>
-          <Text style={s.refreshIcon}>↻</Text>
+          <RefreshCw size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -326,7 +327,7 @@ function NearbyRequests() {
                 style={s.recenterBtn}
                 onPress={() => mapRef.current?.animateToRegion(mapRegion, 400)}
               >
-                <Text style={s.recenterIcon}>◎</Text>
+                <Crosshair size={20} color={colors.success} />
               </TouchableOpacity>
             </>
           ) : (
@@ -344,7 +345,7 @@ function NearbyRequests() {
         >
           {items.length === 0 && (
             <EmptyState
-              icon="📍"
+              icon={<MapPin size={32} color="#94A3B8" />}
               title={t('nearby.noRequests')}
               subtitle={t('nearby.noRequestsSub')}
             />
@@ -398,11 +399,11 @@ function NearbyRequests() {
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
         <View style={s.modalHeader}>
           <TouchableOpacity onPress={() => setSelected(null)} style={s.modalBackBtn}>
-            <Text style={s.modalBackIcon}>←</Text>
+            <ArrowLeft size={18} color={colors.text} />
           </TouchableOpacity>
           <Text style={s.modalTitle}>Faire une offre</Text>
           <TouchableOpacity onPress={() => setSelected(null)} style={s.modalCloseBtn}>
-            <Text style={s.modalCloseIcon}>×</Text>
+            <X size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -429,14 +430,14 @@ function NearbyRequests() {
           <Text style={s.modalSectionLabel}>Votre prix</Text>
           <View style={s.priceInputRow}>
             <TouchableOpacity style={s.priceAdjustBtn} onPress={() => setPrice(String(Math.max(0, (Number(price) || 0) - 1000)))}>
-              <Text style={s.priceAdjustBtnText}>−</Text>
+              <Minus size={24} color={colors.text} />
             </TouchableOpacity>
             <View style={s.priceDisplay}>
               <Text style={s.priceDisplayText}>{Number(price || 0).toLocaleString('fr-FR')}</Text>
               <Text style={s.priceDisplayUnit}>FCFA</Text>
             </View>
             <TouchableOpacity style={s.priceAdjustBtn} onPress={() => setPrice(String((Number(price) || 0) + 1000))}>
-              <Text style={s.priceAdjustBtnText}>+</Text>
+              <Plus size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
           <Text style={s.priceHint}>Prix moyen constaté : 8 000 - 15 000 FCFA</Text>
@@ -483,7 +484,7 @@ function NearbyRequests() {
 
           {/* Sécurité */}
           <View style={s.secureBox}>
-            <Text style={s.secureIcon}>S</Text>
+            <ShieldCheck size={18} color={colors.info} />
             <Text style={s.secureText}>Paiement sécurisé via Xeuy</Text>
           </View>
 
@@ -504,10 +505,10 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md, backgroundColor: colors.surface },
   backBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  backIcon: { color: colors.text },
   title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
   refreshBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  refreshIcon: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  refreshIcon: { color: colors.text },
   toggleBar: { flexDirection: 'row', backgroundColor: colors.bg, margin: spacing.md, borderRadius: radius.lg, padding: 3, gap: 3 },
   toggleBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: radius.md },
   toggleBtnActive: { backgroundColor: colors.surface, ...shadows.sm },
@@ -525,7 +526,7 @@ const s = StyleSheet.create({
   legendDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success, opacity: 0.7 },
   legendText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },
   recenterBtn: { position: 'absolute', bottom: 24, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
-  recenterIcon: { fontSize: 20, color: colors.success },
+  recenterIcon: { color: colors.success },
   loadingText: { fontSize: 13, color: colors.textSecondary, marginTop: 8 },
   list: { padding: spacing.md, gap: spacing.md, paddingBottom: 32 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: 10, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
@@ -552,9 +553,9 @@ const s = StyleSheet.create({
   // Modal offre
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
   modalBackBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  modalBackIcon: { fontSize: 18, color: colors.text },
+  modalBackIcon: { color: colors.text },
   modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  modalCloseIcon: { fontSize: 24, color: colors.text, lineHeight: 24 },
+  modalCloseIcon: { color: colors.text },
   modalTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
   modalRecap: { backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.md, gap: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg },
   modalCatRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -568,7 +569,7 @@ const s = StyleSheet.create({
   modalSectionLabel: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.md, marginTop: spacing.lg },
   priceInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.sm },
   priceAdjustBtn: { width: 48, height: 48, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  priceAdjustBtnText: { fontSize: 24, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  priceAdjustBtnText: { color: colors.text },
   priceDisplay: { flex: 1, alignItems: 'center' },
   priceDisplayText: { fontSize: 32, fontWeight: typography.weight.extrabold as any, color: colors.text },
   priceDisplayUnit: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.extrabold as any },
@@ -585,7 +586,7 @@ const s = StyleSheet.create({
   optionSwitchThumb: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface },
   optionSwitchThumbActive: { transform: [{ translateX: 22 }] },
   secureBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.infoLight, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg },
-  secureIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.info, color: colors.surface, textAlign: 'center', lineHeight: 24, fontSize: 12, fontWeight: typography.weight.extrabold as any },
+  secureIcon: { color: colors.info },
   secureText: { flex: 1, fontSize: 13, color: colors.info, fontWeight: typography.weight.extrabold as any },
   sendOfferBtn: { backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, alignItems: 'center', marginTop: spacing.md },
   sendOfferBtnDisabled: { opacity: 0.45 },

@@ -1,5 +1,6 @@
 import { View, Text, Image, StyleSheet } from 'react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
+import { Check, Star } from 'lucide-react-native'
 
 type ProviderCardProps = {
   name: string
@@ -23,13 +24,13 @@ export default function ProviderCard({ name, rating, jobCount, jobLabel, special
         )}
         {verified && (
           <View style={s.badge}>
-            <Text style={s.badgeText}>V</Text>
+            <Check size={10} color={colors.surface} />
           </View>
         )}
       </View>
       <Text style={s.name} numberOfLines={1}>{name}</Text>
       <View style={s.row}>
-        <Text style={s.star}>★</Text>
+        <Star size={12} color={colors.warning} fill={colors.warning} />
         <Text style={s.rating}>{rating}</Text>
       </View>
       <Text style={s.meta}>{specialty}</Text>
@@ -52,10 +53,10 @@ const s = StyleSheet.create({
   image: { width: 56, height: 56, borderRadius: 28 },
   initials: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
   badge: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
-  badgeText: { fontSize: 10, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  badgeText: { color: colors.surface },
   name: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2, gap: 2 },
-  star: { fontSize: 12, color: colors.warning },
+  star: { color: colors.warning },
   rating: { fontSize: 12, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
   meta: { fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 1 },
 })

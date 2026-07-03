@@ -9,6 +9,7 @@ import { SkeletonCard } from '../src/components/Skeleton'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
+import { ArrowLeft, Map, AlertTriangle, Inbox, Search, MessageSquare, CheckCircle2, XCircle, Truck, Wrench } from 'lucide-react-native'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   submitted: { label: 'En attente',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
@@ -20,11 +21,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 }
 
 const MISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; banner: string }> = {
-  assigned:          { label: 'À démarrer',     color: '#065F46', bg: '#ECFDF5', dot: '#16A34A', banner: '✅ Le client vous a sélectionné. Préparez-vous !' },
-  provider_arriving: { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: '🚗 Vous êtes en route vers le client.' },
-  in_progress:       { label: 'En cours',       color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED', banner: '🛠️ Mission en cours.' },
-  completed:         { label: 'Terminée',       color: '#374151', bg: '#F1F5F9', dot: '#6B7280', banner: '✅ Mission terminée avec succès.' },
-  cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: '❌ Mission annulée.' },
+  assigned:          { label: 'À démarrer',     color: '#065F46', bg: '#ECFDF5', dot: '#16A34A', banner: 'Le client vous a sélectionné. Préparez-vous !' },
+  provider_arriving: { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
+  in_progress:       { label: 'En cours',       color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED', banner: 'Mission en cours.' },
+  completed:         { label: 'Terminée',       color: '#374151', bg: '#F1F5F9', dot: '#6B7280', banner: 'Mission terminée avec succès.' },
+  cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: 'Mission annulée.' },
 }
 
 function MyOffers() {
@@ -130,11 +131,11 @@ function MyOffers() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={18} color="#0F172A" />
         </TouchableOpacity>
         <Text style={s.title}>{t('offers.title')}</Text>
         <TouchableOpacity onPress={() => router.push('/nearby-requests')} style={s.addBtn}>
-          <Text style={{ fontSize: 18 }}>🗺️</Text>
+          <Map size={18} color="#0F172A" />
         </TouchableOpacity>
       </View>
 
@@ -189,7 +190,7 @@ function MyOffers() {
         </ScrollView>
       ) : err ? (
         <View style={s.center}>
-          <Text style={{ fontSize: 40 }}>⚠️</Text>
+          <AlertTriangle size={40} color="#F59E0B" />
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
             <Text style={s.retryTxt}>{t('common.retry')}</Text>
@@ -202,7 +203,7 @@ function MyOffers() {
         >
           {filteredItems.length === 0 && (
             <EmptyState
-              icon={items.length === 0 ? '📨' : '🔍'}
+              icon={items.length === 0 ? <Inbox size={32} color="#94A3B8" /> : <Search size={32} color="#94A3B8" />}
               title={items.length === 0 ? t('offers.noOffers') : t('offers.noResult')}
               subtitle={items.length === 0 ? t('offers.noOffersSub') : t('offers.noResultSub')}
               actionLabel={t('offers.viewRequests')}
@@ -252,7 +253,10 @@ function MyOffers() {
                 {/* Contre-offre en attente */}
                 {it.status === 'submitted' && it.clientCounterStatus === 'pending' && (
                   <View style={s.counterBanner}>
-                    <Text style={s.counterTitle}>💬 {t('offers.counterClient')}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MessageSquare size={14} color="#1D4ED8" />
+                      <Text style={s.counterTitle}>{t('offers.counterClient')}</Text>
+                    </View>
                     <Text style={s.counterText}>
                       {t('offers.counterText', { clientPrice: Number(it.clientCounterPrice).toLocaleString('fr-FR'), price: Number(it.price).toLocaleString('fr-FR') })}
                     </Text>
@@ -289,18 +293,31 @@ function MyOffers() {
                 {/* Indicateur si contre-offre déjà traitée */}
                 {it.status === 'submitted' && it.clientCounterStatus === 'accepted' && (
                   <View style={s.counterAcceptedBanner}>
-                    <Text style={s.counterAcceptedText}>✅ {t('offers.counterAccepted', { price: Number(it.price).toLocaleString('fr-FR') })}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <CheckCircle2 size={14} color="#15803D" />
+                      <Text style={s.counterAcceptedText}>{t('offers.counterAccepted', { price: Number(it.price).toLocaleString('fr-FR') })}</Text>
+                    </View>
                   </View>
                 )}
                 {it.status === 'submitted' && it.clientCounterStatus === 'rejected' && (
                   <View style={s.counterRejectedBanner}>
-                    <Text style={s.counterRejectedText}>❌ {t('offers.counterRejected')}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <XCircle size={14} color="#B91C1C" />
+                      <Text style={s.counterRejectedText}>{t('offers.counterRejected')}</Text>
+                    </View>
                   </View>
                 )}
 
                 {it.status === 'accepted' && missionSt && (
                   <View style={[s.acceptedBanner, { backgroundColor: missionSt.bg, borderColor: missionSt.color + '33' }]}>
-                    <Text style={[s.acceptedText, { color: missionSt.color }]}>{missionSt.banner}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {it.requestStatus === 'assigned' && <CheckCircle2 size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'provider_arriving' && <Truck size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'in_progress' && <Wrench size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'completed' && <CheckCircle2 size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'cancelled' && <XCircle size={14} color={missionSt.color} />}
+                      <Text style={[s.acceptedText, { color: missionSt.color }]}>{missionSt.banner}</Text>
+                    </View>
                   </View>
                 )}
               </TouchableOpacity>
@@ -318,7 +335,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F1F5F9' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff' },
   backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 16, color: '#0F172A' },
+  backIcon: { color: '#0F172A' },
   title: { flex: 1, fontSize: 17, fontWeight: '700', color: '#0F172A', letterSpacing: -0.2 },
   addBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },

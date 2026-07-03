@@ -15,6 +15,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import Logo from '../src/components/Logo'
 import ProviderCard from '../src/components/ProviderCard'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
+import { Bell, User, Plus, Inbox, ChevronRight } from 'lucide-react-native'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
   created:        { label: 'Publiée',           color: '#2563EB', dot: '#2563EB' },
@@ -107,11 +108,15 @@ function Home() {
           </View>
           <View style={s.headerRight}>
             <TouchableOpacity style={s.iconBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">
-              <Text style={s.iconBtnText}>N</Text>
+              <Bell size={18} color={colors.text} />
               <View style={s.notifDot} />
             </TouchableOpacity>
             <TouchableOpacity style={s.avatarBtn} onPress={() => router.push('/profile')} accessibilityLabel="Profil">
-              <Text style={s.avatarText}>{userName ? userName.slice(0, 2).toUpperCase() : '??'}</Text>
+              {userName ? (
+                <Text style={s.avatarText}>{userName.slice(0, 2).toUpperCase()}</Text>
+              ) : (
+                <User size={18} color={colors.surface} />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -131,7 +136,7 @@ function Home() {
             <Text style={s.ctaSub}>Recevez des offres en quelques minutes</Text>
           </View>
           <View style={s.ctaPlus}>
-            <Text style={s.ctaPlusText}>+</Text>
+            <Plus size={28} color={colors.surface} />
           </View>
         </TouchableOpacity>
 
@@ -186,7 +191,7 @@ function Home() {
         ) : recent.length === 0 ? (
           <View style={{ marginHorizontal: spacing.lg }}>
             <EmptyState
-              icon="R"
+              icon={<Inbox size={32} color="#94A3B8" />}
               title={t('home.noRequestsTitle')}
               subtitle={t('home.noRequestsSub')}
               actionLabel={t('home.createRequest')}
@@ -226,7 +231,7 @@ function Home() {
                     <Text style={[s.recentStatusText, { color: st.color }]}>{st.label}</Text>
                   </View>
                 </View>
-                <Text style={s.recentArrow}>›</Text>
+                <ChevronRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
             )
           })
@@ -259,7 +264,7 @@ const s = StyleSheet.create({
   appName: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.3 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconBtn: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
-  iconBtnText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  iconBtnText: { color: colors.text },
   notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
   avatarBtn: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
@@ -271,7 +276,7 @@ const s = StyleSheet.create({
   ctaTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 4 },
   ctaSub: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
   ctaPlus: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md },
-  ctaPlusText: { fontSize: 28, color: colors.surface, lineHeight: 32, fontWeight: typography.weight.extrabold as any },
+  ctaPlusText: { color: colors.surface },
   statsRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.md, marginBottom: spacing.xxl },
   statChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   statText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text, flex: 1 },
@@ -290,7 +295,7 @@ const s = StyleSheet.create({
   recentStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   recentDot: { width: 6, height: 6, borderRadius: 3 },
   recentStatusText: { fontSize: 12, fontWeight: typography.weight.semibold as any },
-  recentArrow: { fontSize: 20, color: colors.textMuted },
+  recentArrow: { color: colors.textMuted },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 10 },
   catCard: { width: '31%', backgroundColor: colors.surface, borderRadius: radius.lg, paddingVertical: spacing.lg, paddingHorizontal: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   catMonogram: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },

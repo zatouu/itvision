@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { SkeletonCard } from '../src/components/Skeleton'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
+import { ArrowLeft, Star, Clock, Hourglass } from 'lucide-react-native'
 
 const STATUS_OFFER: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   submitted: { key: 'offers.status_submitted',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
@@ -201,7 +202,7 @@ function RequestOffers() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.title}>{t('offers.title')}</Text>
         <View style={s.countBadge}>
@@ -286,7 +287,7 @@ function RequestOffers() {
                           <View style={s.chip}><Text style={s.chipText}>{t('offers.arrIn', { min: offer.etaMinutes })}</Text></View>
                         ) : null}
                           {offer.providerRating ? (
-                          <View style={s.chipRating}><Text style={s.chipRatingText}>★ {offer.providerRating.avg} ({offer.providerRating.count})</Text></View>
+                          <View style={s.chipRating}><Text style={s.chipRatingText}><Star size={11} color={colors.warning} fill={colors.warning} /> {offer.providerRating.avg} ({offer.providerRating.count})</Text></View>
                         ) : null}
                         {offer.providerVerified ? (
                           <View style={s.chipVerified}><Text style={s.chipVerifiedText}>{t('offers.verified')}</Text></View>
@@ -305,7 +306,7 @@ function RequestOffers() {
                               isExpired && s.chipExpiredText,
                               !isExpired && validMs < 120_000 && s.chipUrgentText,
                             ]}>
-                              {isExpired ? `⌛ ${t('offers.expired')}` : `⏳ ${countdownLabel}`}
+                              {isExpired ? <Hourglass size={11} color={colors.textMuted} /> : <Clock size={11} color={colors.textSecondary} />} {isExpired ? t('offers.expired') : countdownLabel}
                             </Text>
                           </View>
                         ) : null}
@@ -446,7 +447,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
   backBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  backIcon: { color: colors.text },
   title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.2 },
   countBadge: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   countText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
