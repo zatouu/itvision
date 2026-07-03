@@ -58,7 +58,8 @@
         {
           "appName": "Xeuy Bi Pro"
         }
-      ]
+      ],
+      "./plugins/withGoogleServicesJson"
     ],
     "web": {
       "bundler": "metro"

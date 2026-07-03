@@ -61,7 +61,8 @@
           "sounds": [],
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "./plugins/withGoogleServicesJson"
     ],
     "web": {
       "bundler": "metro"
