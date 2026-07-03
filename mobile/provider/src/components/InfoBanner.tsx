@@ -1,24 +1,24 @@
 import { View, Text, StyleSheet } from 'react-native'
+import { Info, CheckCircle2, AlertTriangle } from 'lucide-react-native'
 import { colors, radius, spacing, typography } from '../design'
 
 type Props = {
-  icon?: string
   title?: string
   text: string
   variant?: 'info' | 'success' | 'warning'
 }
 
 const variants = {
-  info: { bg: colors.infoLight, color: colors.info, icon: 'ℹ️' },
-  success: { bg: colors.successLight, color: colors.success, icon: '✅' },
-  warning: { bg: colors.warningLight, color: colors.warning, icon: '⚠️' },
+  info: { bg: colors.infoLight, color: colors.info, Icon: Info },
+  success: { bg: colors.successLight, color: colors.success, Icon: CheckCircle2 },
+  warning: { bg: colors.warningLight, color: colors.warning, Icon: AlertTriangle },
 }
 
-export default function InfoBanner({ icon, title, text, variant = 'info' }: Props) {
+export default function InfoBanner({ title, text, variant = 'info' }: Props) {
   const v = variants[variant]
   return (
     <View style={[s.banner, { backgroundColor: v.bg }]}>
-      <Text style={s.icon}>{icon || v.icon}</Text>
+      <v.Icon size={18} color={v.color} />
       <View style={s.text}>
         {title ? <Text style={[s.title, { color: v.color }]}>{title}</Text> : null}
         <Text style={[s.body, { color: v.color }]}>{text}</Text>

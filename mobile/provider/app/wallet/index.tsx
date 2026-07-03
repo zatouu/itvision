@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StatusChip from '../../src/components/StatusChip'
+import { Wallet as WalletIcon, Calendar, CalendarDays, CalendarRange, ArrowUpRight, CreditCard, Zap, Minus, Banknote, Check, Info } from 'lucide-react-native'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
 import { mockWalletHistory } from '../../src/mock'
 import type { WalletEntry } from '../../src/types'
@@ -28,39 +29,40 @@ export default function Wallet() {
               <Text style={s.balanceSub}>{t('providerWallet.nextTransfer')}</Text>
             </View>
             <View style={s.walletIcon}>
-              <Text style={s.walletIconText}>👛</Text>
+              <WalletIcon size={28} color={colors.surface} />
             </View>
           </View>
           <View style={s.statusPill}>
-            <Text style={s.statusPillText}>✓ {t('providerWallet.activeAccount')}</Text>
+            <Check size={14} color={colors.surface} />
+            <Text style={s.statusPillText}>{t('providerWallet.activeAccount')}</Text>
           </View>
         </View>
 
         <View style={s.kpiGrid}>
           <View style={s.kpiCard}>
-            <Text style={s.kpiIcon}>📅</Text>
+            <Calendar size={20} color={colors.primary} style={{ marginBottom: spacing.sm }} />
             <Text style={s.kpiValue}>{format(TODAY)}</Text>
             <Text style={s.kpiLabel}>{t('providerWallet.today')}</Text>
           </View>
           <View style={s.kpiCard}>
-            <Text style={s.kpiIcon}>📆</Text>
+            <CalendarDays size={20} color={colors.primary} style={{ marginBottom: spacing.sm }} />
             <Text style={s.kpiValue}>{format(WEEK)}</Text>
             <Text style={s.kpiLabel}>{t('providerWallet.week')}</Text>
           </View>
           <View style={s.kpiCard}>
-            <Text style={s.kpiIcon}>🗓️</Text>
+            <CalendarRange size={20} color={colors.primary} style={{ marginBottom: spacing.sm }} />
             <Text style={s.kpiValue}>{format(MONTH)}</Text>
             <Text style={s.kpiLabel}>{t('providerWallet.month')}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={s.withdrawBtn} activeOpacity={0.85}>
-          <Text style={s.withdrawIcon}>↗</Text>
+          <ArrowUpRight size={18} color={colors.surface} />
           <Text style={s.withdrawText}>{t('providerWallet.withdraw')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.addMethodBtn} activeOpacity={0.85}>
-          <Text style={s.addMethodIcon}>💳</Text>
+          <CreditCard size={18} color={colors.primary} />
           <Text style={s.addMethodText}>{t('providerWallet.addMethod')}</Text>
         </TouchableOpacity>
 
@@ -75,9 +77,7 @@ export default function Wallet() {
           {mockWalletHistory.map((item: WalletEntry) => (
             <View key={item.id} style={s.historyRow}>
               <View style={[s.historyIcon, item.kind === 'commission' && s.historyIconRed, item.kind === 'withdrawal' && s.historyIconRed]}>
-                <Text style={s.historyIconText}>
-                  {item.kind === 'income' ? '⚡' : item.kind === 'commission' ? '−' : '↗'}
-                </Text>
+                {item.kind === 'income' ? <Zap size={18} color={colors.success} /> : item.kind === 'commission' ? <Minus size={18} color={colors.danger} /> : <Banknote size={18} color={colors.danger} />}
               </View>
               <View style={s.historyText}>
                 <Text style={s.historyLabel}>{item.label}</Text>
@@ -98,7 +98,7 @@ export default function Wallet() {
         </View>
 
         <View style={s.infoCard}>
-          <Text style={s.infoIcon}>ℹ️</Text>
+          <Info size={18} color={colors.info} />
           <View style={{ flex: 1 }}>
             <Text style={s.infoTitle}>{t('providerWallet.transferInfo')}</Text>
             <Text style={s.infoText}>{t('providerWallet.transferInfoSub')}</Text>
@@ -135,9 +135,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  walletIconText: { fontSize: 24 },
   statusPill: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: spacing.md,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: radius.pill,
@@ -160,7 +162,7 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
   },
-  kpiIcon: { fontSize: 20, marginBottom: spacing.sm },
+  kpiIcon: { marginBottom: spacing.sm },
   kpiValue: {
     fontSize: typography.lg.fontSize,
     fontWeight: typography.weight.extrabold as any,
@@ -178,7 +180,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  withdrawIcon: { fontSize: 18, color: colors.surface },
   withdrawText: { fontSize: typography.md.fontSize, color: colors.surface, fontWeight: typography.weight.extrabold as any },
   addMethodBtn: {
     marginHorizontal: spacing.lg,
@@ -193,7 +194,6 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.primary,
   },
-  addMethodIcon: { fontSize: 18 },
   addMethodText: { fontSize: typography.md.fontSize, color: colors.primary, fontWeight: typography.weight.extrabold as any },
   sectionHeader: {
     flexDirection: 'row',
@@ -234,7 +234,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   historyIconRed: { backgroundColor: colors.dangerLight },
-  historyIconText: { fontSize: 16, color: colors.success, fontWeight: typography.weight.extrabold as any },
+  historyIconText: { color: colors.success, fontWeight: typography.weight.extrabold as any },
   historyText: { flex: 1, gap: 2 },
   historyLabel: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   historyDate: { fontSize: typography.xs.fontSize, color: colors.textMuted },
@@ -251,7 +251,6 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  infoIcon: { fontSize: 18 },
   infoTitle: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.info },
   infoText: { fontSize: typography.sm.fontSize, color: colors.info, marginTop: 2 },
 })

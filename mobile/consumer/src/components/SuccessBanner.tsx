@@ -1,17 +1,17 @@
 import { View, Text, StyleSheet } from 'react-native'
+import { CheckCircle2 } from 'lucide-react-native'
 import { colors, radius, spacing, typography } from '../design'
 
 type Props = {
   title: string
   subtitle?: string
-  icon?: string
 }
 
-export default function SuccessBanner({ title, subtitle, icon = '✅' }: Props) {
+export default function SuccessBanner({ title, subtitle }: Props) {
   return (
     <View style={s.banner}>
       <View style={s.iconCircle}>
-        <Text style={s.icon}>{icon}</Text>
+        <CheckCircle2 size={28} color={colors.surface} />
       </View>
       <View style={s.text}>
         <Text style={s.title}>{title}</Text>

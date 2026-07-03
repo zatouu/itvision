@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import SuccessBanner from '../../src/components/SuccessBanner'
 import Button from '../../src/components/Button'
+import { Check, ClipboardList, Home, Bell, Tag, Banknote, MapPin, Clock } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
 import { mockRequests } from '../../src/mock'
 
@@ -20,7 +21,7 @@ export default function RequestPublished() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={s.hero}>
           <View style={s.checkCircle}>
-            <Text style={s.checkIcon}>✓</Text>
+            <Check size={40} color={colors.surface} />
           </View>
           <View style={s.sparkleLeft}>
             <Text style={s.chip}>EL</Text>
@@ -45,15 +46,24 @@ export default function RequestPublished() {
           </View>
           <View style={s.summaryRows}>
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>🏷 {t('clientRequest.reference')}</Text>
+              <View style={s.summaryLabelRow}>
+                <Tag size={16} color={colors.textSecondary} />
+                <Text style={s.summaryLabel}>{t('clientRequest.reference')}</Text>
+              </View>
               <Text style={s.summaryValue}>#{ref}</Text>
             </View>
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>💰 {t('clientRequest.budget')}</Text>
+              <View style={s.summaryLabelRow}>
+                <Banknote size={16} color={colors.textSecondary} />
+                <Text style={s.summaryLabel}>{t('clientRequest.budget')}</Text>
+              </View>
               <Text style={s.summaryValue}>{request.budget?.toLocaleString('fr-FR')} FCFA</Text>
             </View>
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>📍 {t('clientRequest.location')}</Text>
+              <View style={s.summaryLabelRow}>
+                <MapPin size={16} color={colors.textSecondary} />
+                <Text style={s.summaryLabel}>{t('clientRequest.location')}</Text>
+              </View>
               <Text style={s.summaryValue}>{request.address}</Text>
             </View>
           </View>
@@ -66,7 +76,7 @@ export default function RequestPublished() {
 
         <View style={s.etaCard}>
           <View style={s.etaIcon}>
-            <Text style={s.etaIconText}>⏱</Text>
+            <Clock size={24} color={colors.success} />
           </View>
           <View>
             <Text style={s.etaLabel}>{t('clientRequest.avgTime')}</Text>
@@ -80,16 +90,16 @@ export default function RequestPublished() {
             onPress={() => router.push('/offers/req1')}
             fullWidth
             size="lg"
-            icon={<Text style={{ color: colors.surface, fontSize: 16 }}>📋</Text>}
+            icon={<ClipboardList size={18} color={colors.surface} />}
           />
           <TouchableOpacity style={s.homeBtn} onPress={() => router.replace('/')} activeOpacity={0.85}>
-            <Text style={s.homeIcon}>🏠</Text>
+            <Home size={18} color={colors.primary} />
             <Text style={s.homeText}>{t('clientRequest.backHome')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={s.notifyRow}>
-          <Text style={s.notifyIcon}>🔔</Text>
+          <Bell size={16} color={colors.textSecondary} />
           <Text style={s.notifyText}>{t('clientRequest.notifyOnOffer')}</Text>
         </View>
       </ScrollView>
@@ -116,7 +126,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkIcon: { fontSize: 40, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  checkIcon: { color: colors.surface },
   sparkleLeft: { position: 'absolute', top: 10, left: -30, transform: [{ rotate: '-15deg' }] },
   sparkleRight: { position: 'absolute', top: 20, right: -30, transform: [{ rotate: '15deg' }] },
   sparkleBottom: { position: 'absolute', bottom: -10, right: -10, transform: [{ rotate: '10deg' }] },
@@ -173,6 +183,7 @@ const s = StyleSheet.create({
   summaryRows: { gap: spacing.sm },
   summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
   summaryLabel: { fontSize: typography.base.fontSize, color: colors.textSecondary },
+  summaryLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   summaryValue: { fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.extrabold as any },
   searchingPill: {
     alignSelf: 'center',
@@ -222,7 +233,7 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.primary,
   },
-  homeIcon: { fontSize: 18 },
+  homeIcon: { color: colors.primary },
   homeText: { fontSize: typography.md.fontSize, color: colors.primary, fontWeight: typography.weight.extrabold as any },
   notifyRow: {
     flexDirection: 'row',
@@ -231,6 +242,6 @@ const s = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.lg,
   },
-  notifyIcon: { fontSize: 16 },
+  notifyIcon: { color: colors.textSecondary },
   notifyText: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
 })

@@ -81,3 +81,61 @@ export function onNearbyRequest(cb: (data: any) => void): () => void {
   s.on('request:nearby', cb)
   return () => { s.off('request:nearby', cb) }
 }
+
+export function joinOffersRoom(requestId: string) {
+  const s = connectSocket()
+  s.emit('join-offers-room', requestId)
+}
+
+export function leaveOffersRoom(requestId: string) {
+  socket?.emit('leave-offers-room', requestId)
+}
+
+export function joinNearbyRoom(lat: number, lng: number, radiusKm = 10) {
+  const s = connectSocket()
+  s.emit('join-nearby-room', { lat, lng, radiusKm })
+}
+
+export function leaveNearbyRoom() {
+  socket?.emit('leave-nearby-room')
+}
+
+export function emitMissionStatus(requestId: string, status: string) {
+  socket?.emit('mission:status_updated', { requestId, status })
+}
+
+export function onMissionStatus(callback: (data: { requestId: string; status: string }) => void) {
+  const s = connectSocket()
+  s.on('mission:status_updated', callback)
+  return () => { s.off('mission:status_updated', callback) }
+}
+
+export function onProviderLocation(callback: (data: { requestId: string; lat: number; lng: number }) => void) {
+  const s = connectSocket()
+  s.on('mission:provider_location', callback)
+  return () => { s.off('mission:provider_location', callback) }
+}
+
+export function onNewOffer(callback: (offer: any) => void) {
+  const s = connectSocket()
+  s.on('offer:new', callback)
+  return () => { s.off('offer:new', callback) }
+}
+
+export function onCounterOffer(callback: (offer: any) => void) {
+  const s = connectSocket()
+  s.on('offer:counter', callback)
+  return () => { s.off('offer:counter', callback) }
+}
+
+export function onNotification(callback: (notification: any) => void) {
+  const s = connectSocket()
+  s.on('notification:new', callback)
+  return () => { s.off('notification:new', callback) }
+}
+
+export function onChatMessage(callback: (message: any) => void) {
+  const s = connectSocket()
+  s.on('chat:message', callback)
+  return () => { s.off('chat:message', callback) }
+}

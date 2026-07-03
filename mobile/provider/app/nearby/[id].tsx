@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
+import { MapPin, Mic, Check, MessageCircle } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import ScreenContainer from '../../src/components/ScreenContainer'
@@ -57,7 +58,7 @@ export default function NearbyRequestDetail() {
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t('providerNearby.location')}</Text>
           <View style={s.locationRow}>
-            <Text style={s.locationIcon}>📍</Text>
+            <MapPin size={18} color={colors.textSecondary} />
             <Text style={s.locationText}>{request.address}</Text>
           </View>
         </View>
@@ -78,7 +79,7 @@ export default function NearbyRequestDetail() {
                       <Image source={{ uri: m.url }} style={s.thumbImage} />
                     ) : (
                       <View style={s.audioThumb}>
-                        <Text style={s.audioIcon}>🎤</Text>
+                        <Mic size={28} color={colors.primary} />
                       </View>
                     )}
                   </View>
@@ -113,7 +114,8 @@ export default function NearbyRequestDetail() {
             <Text style={s.clientSub}>{t('providerNearby.verifiedClient')}</Text>
           </View>
           <View style={s.trustBadge}>
-            <Text style={s.trustText}>✓ {t('providerNearby.trust')}</Text>
+            <Check size={12} color={colors.success} />
+            <Text style={s.trustText}>{t('providerNearby.trust')}</Text>
           </View>
         </View>
       </ScrollView>
@@ -223,6 +225,9 @@ const s = StyleSheet.create({
   clientName: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   clientSub: { fontSize: typography.sm.fontSize, color: colors.textSecondary, marginTop: 2 },
   trustBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.successLight,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,

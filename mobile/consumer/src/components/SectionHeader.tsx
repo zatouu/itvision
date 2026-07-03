@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { colors, spacing, typography } from '../design'
 
 type Props = {
@@ -15,7 +16,7 @@ export default function SectionHeader({ title, action, onAction, compact }: Prop
       {action ? (
         <TouchableOpacity onPress={onAction} style={s.action} activeOpacity={0.7}>
           <Text style={s.actionText}>{action}</Text>
-          <Text style={s.actionText}>›</Text>
+          <ChevronRight size={16} color={colors.primary} />
         </TouchableOpacity>
       ) : null}
     </View>

@@ -4,15 +4,16 @@ import { router } from 'expo-router'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
 import { colors, radius, spacing, typography } from '../design'
 
-export type TabKey = 'home' | 'offers' | 'notifications' | 'profile'
+export type TabKey = 'home' | 'requests' | 'offers' | 'notifications' | 'profile'
 
 interface TabBarProps {
   active: TabKey
 }
 
 const TABS: { key: TabKey; label: string; icon: string; route: string }[] = [
-  { key: 'home',          label: 'Tableau',       icon: '⌂', route: '/' },
-  { key: 'offers',        label: 'Mes offres',    icon: '≡', route: '/my-offers' },
+  { key: 'home',          label: 'Accueil',       icon: '⌂', route: '/' },
+  { key: 'requests',      label: 'Demandes',      icon: '≡', route: '/my-requests' },
+  { key: 'offers',        label: 'Offres',        icon: '≡', route: '/my-offers' },
   { key: 'notifications', label: 'Notifications', icon: 'N', route: '/notifications' },
   { key: 'profile',       label: 'Profil',        icon: '○', route: '/profile' },
 ]

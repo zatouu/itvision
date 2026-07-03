@@ -5,9 +5,10 @@ import { Audio } from 'expo-av'
 type Props = {
   uri: string
   durationMs?: number
+  onRemove?: () => void
 }
 
-export default function VoicePlayer({ uri, durationMs }: Props) {
+export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const soundRef = useRef<Audio.Sound | null>(null)
@@ -71,6 +72,11 @@ export default function VoicePlayer({ uri, durationMs }: Props) {
         </View>
         <Text style={s.duration}>{durationMs ? formatTime(durationMs) : '—'}</Text>
       </View>
+      {onRemove && (
+        <TouchableOpacity style={s.removeBtn} onPress={onRemove}>
+          <Text style={s.removeText}>×</Text>
+        </TouchableOpacity>
+      )}
     </View>
   )
 }
@@ -94,4 +100,9 @@ const s = StyleSheet.create({
     height: '100%', borderRadius: 3, backgroundColor: '#059669',
   },
   duration: { fontSize: 11, color: '#065F46', fontVariant: ['tabular-nums'] },
+  removeBtn: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: '#FEE2E2',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  removeText: { fontSize: 16, color: '#DC2626', fontWeight: '700' },
 })

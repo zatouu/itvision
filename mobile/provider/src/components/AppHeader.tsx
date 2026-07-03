@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ArrowLeft, Bell } from 'lucide-react-native'
 import { colors, spacing, typography } from '../design'
 
 type Props = {
@@ -20,7 +21,7 @@ export default function AppHeader({ title, onBack, right, showBell, onBell, badg
       <View style={s.side}>
         {onBack ? (
           <TouchableOpacity onPress={onBack} style={s.iconBtn} activeOpacity={0.8}>
-            <Text style={s.icon}>←</Text>
+            <ArrowLeft size={22} color={colors.text} />
           </TouchableOpacity>
         ) : (
           left || <View style={s.placeholder} />
@@ -31,7 +32,7 @@ export default function AppHeader({ title, onBack, right, showBell, onBell, badg
         {right}
         {showBell ? (
           <TouchableOpacity onPress={onBell} style={s.iconBtn} activeOpacity={0.8}>
-            <Text style={s.icon}>🔔</Text>
+            <Bell size={22} color={colors.text} />
             {badge ? (
               <View style={s.badge}>
                 <Text style={s.badgeText}>{badge > 9 ? '9+' : badge}</Text>

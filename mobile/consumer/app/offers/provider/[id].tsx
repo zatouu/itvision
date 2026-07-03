@@ -8,6 +8,7 @@ import AppHeader from '../../../src/components/AppHeader'
 import StickyBottomBar from '../../../src/components/StickyBottomBar'
 import Button from '../../../src/components/Button'
 import StatusChip from '../../../src/components/StatusChip'
+import { Check, Star, ShieldCheck, Zap, Wrench, Circle, MessageCircle, Clock, ChevronRight } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../../src/design'
 import { mockProviders, mockOffers } from '../../../src/mock'
 
@@ -40,7 +41,7 @@ export default function ProviderDetail() {
             <Text style={s.avatarText}>{initials}</Text>
             {provider.verified ? (
               <View style={s.verified}>
-                <Text style={s.verifiedText}>✓</Text>
+                <Check size={12} color={colors.surface} />
               </View>
             ) : null}
           </View>
@@ -48,7 +49,7 @@ export default function ProviderDetail() {
             <Text style={s.name}>{provider.name}</Text>
             <Text style={s.trade}>{provider.trade}</Text>
             <View style={s.ratingRow}>
-              <Text style={s.star}>★</Text>
+              <Star size={14} color={colors.warning} fill={colors.warning} />
               <Text style={s.rating}>{provider.rating.avg} ({provider.rating.count} avis)</Text>
             </View>
           </View>
@@ -60,14 +61,15 @@ export default function ProviderDetail() {
 
         {provider.verified ? (
           <View style={s.verifiedPill}>
-            <Text style={s.verifiedPillText}>✓ {t('clientProvider.verifiedKyc')}</Text>
+            <ShieldCheck size={14} color={colors.success} />
+            <Text style={s.verifiedPillText}>{t('clientProvider.verifiedKyc')}</Text>
           </View>
         ) : null}
 
         <View style={s.badges}>
-          <StatusChip label={t('clientProvider.fast')} icon="⚡" variant="primary" small />
-          <StatusChip label={t('clientProvider.materialIncluded')} icon="🧰" variant="info" small />
-          <StatusChip label={t('clientProvider.availableNow')} icon="🟢" variant="success" small />
+          <StatusChip label={t('clientProvider.fast')} icon={<Zap size={12} color={colors.primary} />} variant="primary" small />
+          <StatusChip label={t('clientProvider.materialIncluded')} icon={<Wrench size={12} color={colors.info} />} variant="info" small />
+          <StatusChip label={t('clientProvider.availableNow')} icon={<Circle size={10} color={colors.success} fill={colors.success} />} variant="success" small />
         </View>
 
         <View style={s.section}>
@@ -118,7 +120,7 @@ export default function ProviderDetail() {
                   <Text style={s.reviewName}>{review.reviewerId}</Text>
                   <View style={s.reviewStars}>
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <Text key={i} style={[s.reviewStar, i < review.rating && s.reviewStarActive]}>★</Text>
+                      <Star key={i} size={12} color={i < review.rating ? colors.warning : colors.border} fill={i < review.rating ? colors.warning : 'transparent'} />
                     ))}
                   </View>
                 </View>
@@ -130,7 +132,7 @@ export default function ProviderDetail() {
         </View>
 
         <TouchableOpacity style={s.contactBtn} activeOpacity={0.85}>
-          <Text style={s.contactIcon}>💬</Text>
+          <MessageCircle size={18} color={colors.text} />
           <Text style={s.contactText}>{t('clientProvider.contact')}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -185,11 +187,11 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  verifiedText: { fontSize: 12, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  verifiedText: { color: colors.surface },
   name: { fontSize: typography.xl.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   trade: { fontSize: typography.base.fontSize, color: colors.textSecondary, marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
-  star: { fontSize: 14, color: colors.warning },
+  star: { color: colors.warning },
   rating: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
   missionsBox: { alignItems: 'center' },
   missionsValue: { fontSize: typography.xxl.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.primary },
@@ -203,7 +205,7 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  verifiedPillText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any },
+  verifiedPillText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any, marginLeft: 4 },
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -260,7 +262,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  contactIcon: { fontSize: 18 },
+  contactIcon: { color: colors.text },
   contactText: { fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.extrabold as any },
   reviewCard: {
     backgroundColor: colors.surface,
@@ -282,8 +284,6 @@ const s = StyleSheet.create({
   reviewAvatarText: { fontSize: 12, color: colors.surface, fontWeight: typography.weight.extrabold as any },
   reviewName: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   reviewStars: { flexDirection: 'row', gap: 2 },
-  reviewStar: { fontSize: 12, color: colors.border },
-  reviewStarActive: { color: colors.warning },
   reviewDate: { marginLeft: 'auto', fontSize: typography.xs.fontSize, color: colors.textMuted },
   reviewComment: { fontSize: typography.sm.fontSize, color: colors.textSecondary, lineHeight: 18 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

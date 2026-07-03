@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StatusChip from '../../src/components/StatusChip'
 import Button from '../../src/components/Button'
+import { Star, Check, Clock, ChevronRight, SlidersHorizontal } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
 import { mockOffers, mockRequests } from '../../src/mock'
 import type { Offer } from '../../src/types'
@@ -78,12 +79,12 @@ export default function OffersReceived() {
                 <View style={s.cardHeader}>
                   <View style={s.avatar}>
                     <Text style={s.avatarText}>{initials}</Text>
-                    {offer.providerVerified ? <View style={s.verified}><Text style={s.verifiedText}>✓</Text></View> : null}
+                    {offer.providerVerified ? <View style={s.verified}><Check size={9} color={colors.surface} /></View> : null}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.name}>{offer.providerName}</Text>
                     <View style={s.ratingRow}>
-                      <Text style={s.star}>★</Text>
+                      <Star size={14} color={colors.warning} fill={colors.warning} />
                       <Text style={s.rating}>{offer.providerRating?.avg} ({offer.providerRating?.count})</Text>
                     </View>
                   </View>
@@ -94,7 +95,7 @@ export default function OffersReceived() {
                 </View>
                 <Text style={s.message}>{offer.message}</Text>
                 <View style={s.metaRow}>
-                  <StatusChip label={`⏱ ${offer.etaMinutes} min`} variant="neutral" small />
+                  <StatusChip label={`${offer.etaMinutes} min`} icon={<Clock size={12} color={colors.textSecondary} />} variant="neutral" small />
                   <StatusChip label={t('clientOffers.verified')} variant="success" small />
                 </View>
                 <View style={s.actions}>
@@ -122,6 +123,7 @@ export default function OffersReceived() {
           onPress={() => {}}
           fullWidth
           size="lg"
+          icon={<SlidersHorizontal size={18} color={colors.text} />}
         />
       </View>
     </SafeAreaView>
@@ -218,10 +220,10 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  verifiedText: { fontSize: 9, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  verifiedText: { color: colors.surface },
   name: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  star: { fontSize: 12, color: colors.warning },
+  star: { color: colors.warning },
   rating: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
   priceBox: { alignItems: 'flex-end' },
   price: { fontSize: typography.xl.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },

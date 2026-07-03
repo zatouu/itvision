@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Dimensions } from 'react-native'
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { MapPin, Crosshair, Check, ChevronRight, Building2, MessageSquare } from 'lucide-react-native'
 import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
@@ -31,7 +33,7 @@ export default function RequestLocation() {
             return (
               <View key={step} style={s.step}>
                 <View style={[s.stepDot, active && s.stepDotActive, done && s.stepDotDone]}>
-                  <Text style={[s.stepNumber, (active || done) && s.stepNumberActive]}>{done ? '✓' : idx + 1}</Text>
+                  {done ? <Check size={14} color={colors.surface} /> : <Text style={[s.stepNumber, (active || done) && s.stepNumberActive]}>{idx + 1}</Text>}
                 </View>
                 <Text style={[s.stepLabel, active && s.stepLabelActive]}>{step}</Text>
                 {idx < STEPS.length - 1 && <View style={[s.stepLine, done && s.stepLineDone]} />}
@@ -44,7 +46,7 @@ export default function RequestLocation() {
         <Text style={s.subtitle}>{t('clientRequest.whereSub')}</Text>
 
         <View style={s.searchRow}>
-          <Text style={s.searchIcon}>📍</Text>
+          <MapPin size={18} color={colors.textSecondary} />
           <TextInput
             value={address}
             onChangeText={setAddress}
@@ -54,21 +56,34 @@ export default function RequestLocation() {
         </View>
 
         <TouchableOpacity style={s.useLocationBtn} activeOpacity={0.85}>
-          <Text style={s.useLocationIcon}>🎯</Text>
+          <Crosshair size={18} color={colors.primary} />
           <Text style={s.useLocationText}>{t('clientRequest.useLocation')}</Text>
         </TouchableOpacity>
 
         <View style={s.mapCard}>
-          <View style={s.mapPlaceholder}>
-            <Text style={s.mapLabel}>DAKAR</Text>
-          </View>
+          <MapView
+            provider={PROVIDER_DEFAULT}
+            style={s.map}
+            initialRegion={{
+              latitude: 14.7167,
+              longitude: -17.4677,
+              latitudeDelta: 0.015,
+              longitudeDelta: 0.0121,
+            }}
+          >
+            <Marker
+              coordinate={{ latitude: 14.7167, longitude: -17.4677 }}
+              title={address}
+              description={street}
+            />
+          </MapView>
           <View style={s.mapOverlay}>
-            <Text style={s.mapOverlayIcon}>📍</Text>
+            <MapPin size={20} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={s.mapOverlayTitle}>{address}</Text>
               <Text style={s.mapOverlaySub}>{street}</Text>
             </View>
-            <Text style={s.mapOverlayArrow}>›</Text>
+            <ChevronRight size={20} color={colors.textSecondary} />
           </View>
         </View>
 
@@ -81,13 +96,13 @@ export default function RequestLocation() {
               onPress={() => { setSelectedSaved(addr.id); setAddress(addr.label); setStreet(addr.street || '') }}
               activeOpacity={0.8}
             >
-              <Text style={s.savedIcon}>📍</Text>
+              <MapPin size={18} color={colors.textSecondary} />
               <View style={{ flex: 1 }}>
                 <Text style={s.savedLabel}>{addr.label}</Text>
                 <Text style={s.savedSub}>{addr.street}</Text>
               </View>
               <View style={[s.radio, selectedSaved === addr.id && s.radioActive]}>
-                {selectedSaved === addr.id && <Text style={s.radioCheck}>✓</Text>}
+                {selectedSaved === addr.id && <Check size={12} color={colors.surface} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -96,7 +111,7 @@ export default function RequestLocation() {
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t('clientRequest.accessInfo')}</Text>
           <View style={s.inputRow}>
-            <Text style={s.inputIcon}>🏢</Text>
+            <Building2 size={18} color={colors.textSecondary} />
             <TextInput
               value={building}
               onChangeText={setBuilding}
@@ -105,7 +120,7 @@ export default function RequestLocation() {
             />
           </View>
           <View style={s.inputRow}>
-            <Text style={s.inputIcon}>💬</Text>
+            <MessageSquare size={18} color={colors.textSecondary} />
             <TextInput
               value={instructions}
               onChangeText={setInstructions}
@@ -196,7 +211,6 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.sm,
   },
-  searchIcon: { fontSize: 18 },
   searchInput: { flex: 1, fontSize: typography.base.fontSize, color: colors.text },
   useLocationBtn: {
     flexDirection: 'row',
@@ -211,7 +225,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  useLocationIcon: { fontSize: 18 },
   useLocationText: { fontSize: typography.base.fontSize, color: colors.primary, fontWeight: typography.weight.extrabold as any },
   mapCard: {
     marginHorizontal: spacing.lg,
@@ -223,13 +236,10 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.sm,
   },
-  mapPlaceholder: {
+  map: {
     height: 220,
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
   },
-  mapLabel: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: '#94A3B8' },
   mapOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -263,7 +273,6 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
   savedRowActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  savedIcon: { fontSize: 18 },
   savedLabel: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   savedSub: { fontSize: typography.sm.fontSize, color: colors.textSecondary, marginTop: 2 },
   radio: {
@@ -289,7 +298,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  inputIcon: { fontSize: 18 },
   input: { flex: 1, fontSize: typography.base.fontSize, color: colors.text },
   toggleRow: {
     flexDirection: 'row',

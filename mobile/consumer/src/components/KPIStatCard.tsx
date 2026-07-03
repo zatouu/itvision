@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
 
 type Props = {
-  icon?: string
+  icon?: React.ReactNode
   label: string
   value: string | number
   sub?: string
@@ -22,7 +22,7 @@ export default function KPIStatCard({ icon, label, value, sub, accent = 'green',
   return (
     <View style={[s.card, shadows.sm, compact && s.compact]}>
       <View style={[s.iconCircle, { backgroundColor: a.bg }]}>
-        <Text style={[s.icon, { color: a.color }]}>{icon || '•'}</Text>
+        {icon ? <View style={{ alignItems: 'center', justifyContent: 'center' }}>{icon}</View> : <View style={[s.fallbackDot, { backgroundColor: a.color }]} />}
       </View>
       <Text style={s.value}>{value}</Text>
       <Text style={s.label}>{label}</Text>
@@ -50,7 +50,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  icon: { fontSize: 16 },
+  fallbackDot: { width: 8, height: 8, borderRadius: 4 },
   value: {
     fontSize: typography.xl.fontSize,
     fontWeight: typography.weight.extrabold as any,

@@ -7,15 +7,16 @@ import AppHeader from '../../src/components/AppHeader'
 import SuccessBanner from '../../src/components/SuccessBanner'
 import Button from '../../src/components/Button'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
+import { Star, Clock, MessageSquare, Receipt, RotateCcw, Banknote, ShieldAlert, ChevronRight, Send, Check } from 'lucide-react-native'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
 import { mockMission, mockProviders } from '../../src/mock'
 
 const TAGS = ['Ponctuel', 'Professionnel', 'Rapide', 'Travail propre', 'Bon prix', 'Communicatif']
 const ACTIONS = [
-  { key: 'invoice', icon: '🧾', label: 'downloadInvoice' },
-  { key: 'rebook', icon: '🔄', label: 'rebook' },
-  { key: 'tip', icon: '💰', label: 'leaveTip' },
-  { key: 'dispute', icon: '🛡️', label: 'reportDispute' },
+  { key: 'invoice', icon: <Receipt size={18} color={colors.text} />, label: 'downloadInvoice' },
+  { key: 'rebook', icon: <RotateCcw size={18} color={colors.text} />, label: 'rebook' },
+  { key: 'tip', icon: <Banknote size={18} color={colors.text} />, label: 'leaveTip' },
+  { key: 'dispute', icon: <ShieldAlert size={18} color={colors.text} />, label: 'reportDispute' },
 ]
 
 export default function MissionReview() {
@@ -38,7 +39,6 @@ export default function MissionReview() {
         <SuccessBanner
           title={t('clientReview.successTitle')}
           subtitle={t('clientReview.successSub')}
-          icon="✅"
         />
 
         <View style={s.providerCard}>
@@ -49,7 +49,7 @@ export default function MissionReview() {
             <Text style={s.name}>{provider.name}</Text>
             <Text style={s.trade}>{provider.trade}</Text>
             <View style={s.arrivalRow}>
-              <Text style={s.arrivalIcon}>⏱</Text>
+              <Clock size={14} color={colors.success} />
               <Text style={s.arrivalText}>{t('clientReview.arrivedIn', { minutes: 18 })}</Text>
             </View>
           </View>
@@ -60,7 +60,7 @@ export default function MissionReview() {
         <View style={s.stars}>
           {Array.from({ length: 5 }).map((_, i) => (
             <TouchableOpacity key={i} onPress={() => setRating(i + 1)} activeOpacity={0.7}>
-              <Text style={[s.star, i < rating && s.starActive]}>★</Text>
+              <Star size={44} color={i < rating ? colors.warning : '#E2E8F0'} fill={i < rating ? colors.warning : 'transparent'} />
             </TouchableOpacity>
           ))}
         </View>
@@ -79,7 +79,7 @@ export default function MissionReview() {
         </View>
 
         <View style={s.commentBox}>
-          <Text style={s.commentIcon}>💬</Text>
+          <MessageSquare size={18} color={colors.textSecondary} />
           <TextInput
             value={comment}
             onChangeText={setComment}
@@ -96,10 +96,10 @@ export default function MissionReview() {
           {ACTIONS.map(action => (
             <TouchableOpacity key={action.key} style={s.actionRow} activeOpacity={0.85}>
               <View style={s.actionIconCircle}>
-                <Text style={s.actionIcon}>{action.icon}</Text>
+                {action.icon}
               </View>
               <Text style={s.actionLabel}>{t(`clientReview.${action.label}`)}</Text>
-              <Text style={s.actionArrow}>›</Text>
+              <ChevronRight size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>
@@ -111,7 +111,7 @@ export default function MissionReview() {
           onPress={() => router.back()}
           fullWidth
           size="lg"
-          icon={<Text style={{ color: colors.surface, fontSize: 16 }}>✈</Text>}
+          icon={<Send size={18} color={colors.surface} />}
         />
       </StickyBottomBar>
     </SafeAreaView>
@@ -144,7 +144,7 @@ const s = StyleSheet.create({
   name: { fontSize: typography.lg.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   trade: { fontSize: typography.base.fontSize, color: colors.textSecondary, marginTop: 2 },
   arrivalRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  arrivalIcon: { fontSize: 14 },
+  arrivalIcon: { color: colors.success },
   arrivalText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any },
   question: {
     textAlign: 'center',
@@ -159,7 +159,7 @@ const s = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.md,
   },
-  star: { fontSize: 44, color: '#E2E8F0' },
+  star: { color: '#E2E8F0' },
   starActive: { color: colors.warning },
   tags: {
     flexDirection: 'row',
@@ -190,7 +190,7 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     minHeight: 120,
   },
-  commentIcon: { fontSize: 18, marginBottom: spacing.sm },
+  commentIcon: { color: colors.textSecondary, marginBottom: spacing.sm },
   commentInput: {
     flex: 1,
     fontSize: typography.base.fontSize,
@@ -227,7 +227,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionIcon: { fontSize: 16 },
+  actionIcon: { color: colors.text },
   actionLabel: { flex: 1, fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.bold as any },
-  actionArrow: { fontSize: 22, color: colors.textSecondary },
+  actionArrow: { color: colors.textSecondary },
 })

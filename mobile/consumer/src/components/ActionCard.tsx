@@ -1,10 +1,11 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
 
 type Props = {
   title: string
   subtitle?: string
-  icon?: string
+  icon?: React.ReactNode
   variant?: 'navy' | 'white' | 'green'
   onPress?: () => void
   badge?: string | number
@@ -22,7 +23,7 @@ export default function ActionCard({ title, subtitle, icon, variant = 'white', o
     >
       <View style={s.content}>
         <View style={[s.iconCircle, isNavy && s.iconCircleNavy, isGreen && s.iconCircleGreen]}>
-          <Text style={s.icon}>{icon || '•'}</Text>
+          {icon ? <View style={s.icon}>{icon}</View> : <View style={s.fallbackDot} />}
         </View>
         <View style={s.text}>
           <Text style={[s.title, isNavy && s.lightText, isGreen && s.lightText]}>{title}</Text>
@@ -34,7 +35,7 @@ export default function ActionCard({ title, subtitle, icon, variant = 'white', o
           <Text style={[s.badgeText, (isNavy || isGreen) && s.badgeTextDark]}>{badge}</Text>
         </View>
       ) : (
-        <Text style={[s.chevron, (isNavy || isGreen) && s.lightText]}>›</Text>
+        <ChevronRight size={22} color={isNavy || isGreen ? colors.surface : colors.textSecondary} />
       )}
     </TouchableOpacity>
   )
@@ -65,7 +66,8 @@ const s = StyleSheet.create({
   },
   iconCircleNavy: { backgroundColor: colors.navyLight },
   iconCircleGreen: { backgroundColor: 'rgba(255,255,255,0.2)' },
-  icon: { fontSize: 20 },
+  icon: { alignItems: 'center', justifyContent: 'center' },
+  fallbackDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.textMuted },
   text: { flex: 1, gap: 2 },
   title: { fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   subtitle: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
