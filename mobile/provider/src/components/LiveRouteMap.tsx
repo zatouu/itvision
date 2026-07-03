@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native'
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
 
 export interface RouteInfo {
@@ -16,11 +16,34 @@ export interface LiveRouteMapProps {
   providerLocation?: { lat: number; lng: number; heading?: number | null } | null
   status?: string
   mode?: 'driving' | 'walking' | 'bicycling'
+  onRouteInfo?: (info: { distance: string; duration: string; distanceValue: number; durationValue: number }) => void
 }
 
-/**
- * Décode une polyline Google encodée en tableau de coordonnées {lat,lng}.
- */
+const ROUTE_REFRESH_MIN_MS = 20000
+const DEGS_TO_RADS = Math.PI / 180
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const dLat = (b.lat - a.lat) * DEGS_TO_RADS
+  const dLng = (b.lng - a.lng) * DEGS_TO_RADS
+  const lat1 = a.lat * DEGS_TO_RADS
+  const lat2 = b.lat * DEGS_TO_RADS
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * 6371 * Math.asin(Math.sqrt(x))
+}
+
+function formatKm(meters: number) {
+  if (meters < 1000) return `${Math.round(meters)} m`
+  return `${(meters / 1000).toFixed(1)} km`
+}
+
+function formatDuration(seconds: number) {
+  if (seconds < 60) return '< 1 min'
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`
+  const h = Math.floor(seconds / 3600)
+  const m = Math.round((seconds % 3600) / 60)
+  return m > 0 ? `${h} h ${m} min` : `${h} h`
+}
+
 function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   const points: Array<{ lat: number; lng: number }> = []
   let index = 0
@@ -62,71 +85,143 @@ export function LiveRouteMap({
   providerLocation,
   status,
   mode = 'driving',
+  onRouteInfo,
 }: LiveRouteMapProps) {
   const { t } = useTranslation()
   const mapRef = useRef<MapView>(null)
   const [route, setRoute] = useState<RouteInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const lastFetchAt = useRef(0)
+  const pendingFetch = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const headingAnim = useRef(new Animated.Value(0)).current
 
   const activeOrigin = useMemo(() => {
     if (providerLocation) return { lat: providerLocation.lat, lng: providerLocation.lng }
     return origin || null
   }, [providerLocation, origin])
 
+  const animatedCoordinate = useMemo(() => {
+    const init = activeOrigin || destination
+    return new AnimatedRegion({
+      latitude: init.lat,
+      longitude: init.lng,
+      latitudeDelta: 0,
+      longitudeDelta: 0,
+    })
+  }, [])
+
   const hasRoute = !!route?.polyline?.length
+  const isTracking = status === 'provider_arriving' || status === 'in_progress' || status === 'assigned'
+  const showVehicle = isTracking && activeOrigin
 
-  useEffect(() => {
-    if (!activeOrigin) return
-    let cancelled = false
-    const fetchRoute = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-        if (!apiKey) throw new Error('Google Maps API key missing')
-        const url =
-          `https://maps.googleapis.com/maps/api/directions/json` +
-          `?origin=${activeOrigin.lat},${activeOrigin.lng}` +
-          `&destination=${destination.lat},${destination.lng}` +
-          `&mode=${mode}&key=${apiKey}`
-        const res = await fetch(url)
-        const data = await res.json()
-        if (data.status !== 'OK' || !data.routes?.length) {
-          throw new Error(data.status || 'Aucun itinéraire')
-        }
-        const leg = data.routes[0].legs[0]
-        const encoded = data.routes[0].overview_polyline?.points || ''
-        if (!cancelled) {
-          setRoute({
-            polyline: decodePolyline(encoded),
-            distance: { text: leg.distance?.text || '', value: leg.distance?.value || 0 },
-            duration: { text: leg.duration?.text || '', value: leg.duration?.value || 0 },
-          })
-        }
-      } catch (e: any) {
-        if (!cancelled) setError(e.message || t('common.error'))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    fetchRoute()
-    return () => { cancelled = true }
-  }, [activeOrigin?.lat, activeOrigin?.lng, destination.lat, destination.lng, mode])
-
-  useEffect(() => {
-    if (!mapRef.current || !activeOrigin) return
-    const coords = [
-      { latitude: activeOrigin.lat, longitude: activeOrigin.lng },
+  const fitToRoute = useCallback(() => {
+    if (!mapRef.current) return
+    const coords: Array<{ latitude: number; longitude: number }> = [
       { latitude: destination.lat, longitude: destination.lng },
     ]
+    if (activeOrigin) {
+      coords.push({ latitude: activeOrigin.lat, longitude: activeOrigin.lng })
+    } else if (route?.polyline?.length) {
+      coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
+    }
     mapRef.current.fitToCoordinates(coords, {
-      edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+      edgePadding: { top: 60, right: 60, bottom: 120, left: 60 },
       animated: true,
     })
   }, [activeOrigin, destination, route])
 
-  const isTracking = status === 'provider_arriving' || status === 'in_progress'
+  const fetchRoute = useCallback(async () => {
+    if (!activeOrigin) return
+    const now = Date.now()
+    if (now - lastFetchAt.current < ROUTE_REFRESH_MIN_MS) {
+      if (pendingFetch.current) clearTimeout(pendingFetch.current)
+      pendingFetch.current = setTimeout(() => fetchRoute(), ROUTE_REFRESH_MIN_MS - (now - lastFetchAt.current))
+      return
+    }
+    lastFetchAt.current = now
+    setLoading(true)
+    setError(null)
+    try {
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+      if (!apiKey) throw new Error('Google Maps API key missing')
+      const url =
+        `https://maps.googleapis.com/maps/api/directions/json` +
+        `?origin=${activeOrigin.lat},${activeOrigin.lng}` +
+        `&destination=${destination.lat},${destination.lng}` +
+        `&mode=${mode}&key=${apiKey}`
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.status !== 'OK' || !data.routes?.length) {
+        throw new Error(data.status || 'Aucun itinéraire')
+      }
+      const leg = data.routes[0].legs[0]
+      const encoded = data.routes[0].overview_polyline?.points || ''
+      const newRoute = {
+        polyline: decodePolyline(encoded),
+        distance: { text: leg.distance?.text || '', value: leg.distance?.value || 0 },
+        duration: { text: leg.duration?.text || '', value: leg.duration?.value || 0 },
+      }
+      setRoute(newRoute)
+      if (onRouteInfo) {
+        onRouteInfo({
+          distance: newRoute.distance.text || formatKm(newRoute.distance.value),
+          duration: newRoute.duration.text || formatDuration(newRoute.duration.value),
+          distanceValue: newRoute.distance.value,
+          durationValue: newRoute.duration.value,
+        })
+      }
+    } catch (e: any) {
+      const dist = haversineKm(activeOrigin, destination)
+      const durationSec = Math.round((dist / 30) * 3600)
+      const fallback = { distance: formatKm(dist * 1000), duration: formatDuration(durationSec), distanceValue: Math.round(dist * 1000), durationValue: durationSec }
+      setError(e.message || t('common.error'))
+      if (onRouteInfo) onRouteInfo(fallback)
+    } finally {
+      setLoading(false)
+    }
+  }, [activeOrigin, destination, mode, onRouteInfo, t])
+
+  useEffect(() => {
+    if (!activeOrigin) return
+    let cancelled = false
+    const schedule = () => {
+      if (cancelled) return
+      fetchRoute()
+      pendingFetch.current = setTimeout(schedule, ROUTE_REFRESH_MIN_MS)
+    }
+    schedule()
+    return () => {
+      cancelled = true
+      if (pendingFetch.current) clearTimeout(pendingFetch.current)
+    }
+  }, [activeOrigin, fetchRoute])
+
+  useEffect(() => {
+    if (activeOrigin) {
+      (animatedCoordinate as any).timing({
+        latitude: activeOrigin.lat,
+        longitude: activeOrigin.lng,
+        latitudeDelta: 0,
+        longitudeDelta: 0,
+        duration: 1000,
+        useNativeDriver: false,
+      }).start()
+    }
+    fitToRoute()
+  }, [activeOrigin, animatedCoordinate, fitToRoute])
+
+  useEffect(() => {
+    if (providerLocation?.heading == null) return
+    const heading = Number(providerLocation.heading)
+    if (!Number.isFinite(heading)) return
+    Animated.spring(headingAnim, { toValue: heading, useNativeDriver: true, friction: 5 }).start()
+  }, [providerLocation?.heading, headingAnim])
+
+  useEffect(() => {
+    if (!route || !mapRef.current || !activeOrigin) return
+    fitToRoute()
+  }, [route, activeOrigin, fitToRoute])
 
   return (
     <View style={s.container}>
@@ -152,19 +247,14 @@ export function LiveRouteMap({
           </View>
         </Marker>
 
-        {activeOrigin && (
-          <Marker coordinate={{ latitude: activeOrigin.lat, longitude: activeOrigin.lng }}>
-            <View style={[
-              s.vehicleMarker,
-              Number.isFinite(Number(providerLocation?.heading))
-                ? { transform: [{ rotate: `${Number(providerLocation?.heading)}deg` }] }
-                : undefined,
-            ]}>
+        {showVehicle && (
+          <Marker.Animated coordinate={animatedCoordinate as any}>
+            <Animated.View style={[s.vehicleMarker, { transform: [{ rotate: headingAnim.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }] }]}>
               <View style={s.vehicleIcon}>
                 <Text style={s.vehicleIconText}>🚗</Text>
               </View>
-            </View>
-          </Marker>
+            </Animated.View>
+          </Marker.Animated>
         )}
 
         {hasRoute && (
@@ -190,7 +280,7 @@ export function LiveRouteMap({
           </View>
         )}
 
-        {!loading && error && (
+        {!loading && error && !route && (
           <View style={[s.badge, s.errorBadge]}>
             <Text style={s.errorText}>{error}</Text>
           </View>
@@ -199,14 +289,21 @@ export function LiveRouteMap({
         {!loading && route && isTracking && (
           <View style={s.statsCard}>
             <View style={s.stat}>
-              <Text style={s.statValue}>{route.distance.text}</Text>
+              <Text style={s.statValue}>{route.distance.text || formatKm(route.distance.value)}</Text>
               <Text style={s.statLabel}>{t('mission.distance')}</Text>
             </View>
             <View style={s.statDivider} />
             <View style={s.stat}>
-              <Text style={s.statValue}>{route.duration.text}</Text>
+              <Text style={s.statValue}>{route.duration.text || formatDuration(route.duration.value)}</Text>
               <Text style={s.statLabel}>{t('mission.eta')}</Text>
             </View>
+          </View>
+        )}
+
+        {!loading && isTracking && !activeOrigin && (
+          <View style={[s.badge, s.loadingBadge]}>
+            <ActivityIndicator size="small" color="#2563EB" />
+            <Text style={s.loadingText}>{t('mission.waitingProviderLocation')}</Text>
           </View>
         )}
       </View>

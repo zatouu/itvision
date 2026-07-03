@@ -123,6 +123,7 @@ function ActiveMission() {
   const [err, setErr] = useState<string | null>(null)
   const [, setTick] = useState(0)
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
 
   // Timer: refresh elapsed display every second while mission is in_progress
   useEffect(() => {
@@ -425,9 +426,16 @@ function ActiveMission() {
                 <LiveRouteMap
                   destination={{ lat, lng }}
                   destinationLabel={locationAddress}
+                  origin={currentLocation || undefined}
                   providerLocation={currentLocation || undefined}
                   status={item.status}
+                  onRouteInfo={setRouteInfo}
                 />
+                {routeInfo && (
+                  <View style={s.routeInfo}>
+                    <Text style={s.routeInfoText}>{routeInfo.distance} · {routeInfo.duration}</Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -509,6 +517,8 @@ const s = StyleSheet.create({
   arrivingBtnText: { color: '#0369A1', fontWeight: '700', fontSize: 15 },
   mapFallback: { backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0', marginTop: 8 },
   mapFallbackText: { color: '#15803D', fontWeight: '700', fontSize: 14 },
+  routeInfo: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginTop: 8 },
+  routeInfoText: { color: '#1E293B', fontWeight: '700', fontSize: 14 },
 })
 
 export default withScreenBoundary(ActiveMission, 'ActiveMission')

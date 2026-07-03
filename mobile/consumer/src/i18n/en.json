@@ -206,6 +206,7 @@
     "providerMarkerDesc": "Real-time position",
     "providerTracking": "🚗 Provider on the way — live position update",
     "routeLoading": "Calculating route...",
+    "waitingProviderLocation": "Waiting for provider location...",
     "distance": "Distance",
     "eta": "Estimated time",
     "clientAddress": "Client address",

@@ -206,6 +206,7 @@
     "providerMarkerDesc": "Position en temps réel",
     "providerTracking": "🚗 Prestataire en route — position mise à jour en direct",
     "routeLoading": "Calcul de l'itinéraire...",
+    "waitingProviderLocation": "En attente de la position du prestataire...",
     "distance": "Distance",
     "eta": "Temps estimé",
     "clientAddress": "Adresse client",

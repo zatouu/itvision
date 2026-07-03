@@ -159,6 +159,7 @@
     "openMedia": "Ouvrir le média",
     "clientAddress": "Adresse client",
     "routeLoading": "Calcul de l'itinéraire...",
+    "waitingProviderLocation": "En attente de votre position...",
     "distance": "Distance",
     "eta": "Temps estimé",
     "contactClient": "💬 Contacter le client",

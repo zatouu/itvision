@@ -122,6 +122,7 @@ function MissionDetail() {
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; heading?: number | null; timestamp: number } | null>(null)
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
   const [hasReview, setHasReview] = useState(false)
   const [, setTick] = useState(0)
 
@@ -263,7 +264,8 @@ function MissionDetail() {
   const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
 
   const providerInitials = (offer?.providerName || 'P').slice(0, 2).toUpperCase()
-  const etaDisplay = etaLabel
+  const etaDisplay = routeInfo?.duration || etaLabel
+  const distanceDisplay = routeInfo?.distance || t('mission.notProvided')
   const stepLabels: Record<string, string> = { assigned: 'Assigné', provider_arriving: 'En route', in_progress: 'Sur place', completed: 'Terminée' }
   const stepOrder = ['assigned', 'provider_arriving', 'in_progress', 'completed']
   const currentStepIdx = stepOrder.indexOf(item?.status || 'assigned')
@@ -277,6 +279,7 @@ function MissionDetail() {
             destinationLabel={loc?.address}
             providerLocation={providerLocation || undefined}
             status={item?.status || 'assigned'}
+            onRouteInfo={setRouteInfo}
           />
 
           {/* Floating header */}
@@ -293,7 +296,7 @@ function MissionDetail() {
           {/* Floating ETA pill */}
           <View style={s.etaPill}>
             <View style={s.etaPillDot} />
-            <Text style={s.etaPillText}>En route · Arrive dans {etaDisplay}</Text>
+            <Text style={s.etaPillText}>En route · {distanceDisplay} · {etaDisplay}</Text>
           </View>
         </View>
       ) : (
@@ -368,7 +371,7 @@ function MissionDetail() {
             </View>
             <View style={s.etaInfo}>
               <Text style={s.etaTitle}>Arrive dans {etaDisplay}</Text>
-              <Text style={s.etaSub}>{loc?.address || 'À 1.2 km de chez vous'}</Text>
+              <Text style={s.etaSub}>{distanceDisplay} · {loc?.address || t('mission.notProvided')}</Text>
             </View>
           </View>
 
