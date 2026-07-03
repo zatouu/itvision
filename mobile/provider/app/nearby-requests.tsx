@@ -17,6 +17,7 @@ import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
+import { colors, radius, spacing, typography, shadows } from '../src/design'
 
 const RADIUS_KM = 10
 
@@ -44,6 +45,9 @@ function NearbyRequests() {
   const [eta, setEta] = useState('30')
   const [comment, setComment] = useState('')
   const [validityMinutes, setValidityMinutes] = useState<number>(30)
+  const [travelIncluded, setTravelIncluded] = useState(true)
+  const [materialIncluded, setMaterialIncluded] = useState(false)
+  const [availableNow, setAvailableNow] = useState(true)
   const [sending, setSending] = useState(false)
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -176,10 +180,13 @@ function NearbyRequests() {
         comment,
         validityMinutes,
         providerName: getProviderName(),
+        travelIncluded,
+        materialIncluded,
+        availableNow,
       }, t('nearby.offerQueuedOffline'))
       setSentId(selected._id)
       setSelected(null)
-      setPrice(''); setComment(''); setEta('30'); setValidityMinutes(30)
+      setPrice(''); setComment(''); setEta('30'); setValidityMinutes(30); setTravelIncluded(true); setMaterialIncluded(false); setAvailableNow(true)
       if (r) setItems(prev => prev.filter(it => it._id !== selected._id))
     } catch (e: any) { setErr(t('nearby.sendError', { msg: e.message })) }
     setSending(false)
@@ -389,155 +396,200 @@ function NearbyRequests() {
 
       {/* Bottom sheet offre */}
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
-        <Text style={s.modalTitle}>{t('nearby.yourOffer')}</Text>
-        {selected && (
-          <View style={s.modalRecap}>
-            <View style={s.modalCatRow}>
-              <View style={[s.catMonogram, { backgroundColor: catMap[selected.category]?.color || '#475569' }]}>
-                <Text style={s.catMonogramText}>{catMap[selected.category]?.abbr || selected.category?.slice(0,2).toUpperCase()}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.modalCat}>{catMap[selected.category]?.label || selected.category}</Text>
-                {selected._distance ? (
-                  <Text style={s.modalDist}>{t('nearby.distFromYou', { dist: distLabel(selected._distance) })}</Text>
-                ) : null}
-              </View>
-            </View>
-            {selected.description ? <Text style={s.modalDesc} numberOfLines={2}>{selected.description}</Text> : null}
-            {selected.budget ? (
-              <View style={{ gap: 6 }}>
-                <Text style={s.modalBudget}>{t('nearby.clientBudget', { amount: Number(selected.budget).toLocaleString('fr-FR') })}</Text>
-                <TouchableOpacity
-                  style={s.acceptBudgetBtn}
-                  onPress={() => setPrice(String(selected.budget))}
-                >
-                  <Text style={s.acceptBudgetBtnText}>{t('nearby.acceptBudget')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-        )}
-
-        {/* Prix rapides */}
-        <Text style={s.modalLabel}>{t('nearby.priceLabel')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {QUICK_PRICES.map(p => (
-              <TouchableOpacity key={p} style={[s.priceChip, price === String(p) && s.priceChipActive]} onPress={() => setPrice(String(p))}>
-                <Text style={[s.priceChipTxt, price === String(p) && s.priceChipTxtActive]}>{p.toLocaleString('fr-FR')}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-        <TextInput style={s.input} value={price} onChangeText={setPrice} placeholder={t('nearby.pricePlaceholder')} keyboardType="numeric" placeholderTextColor="#9CA3AF" />
-
-        <Text style={s.modalLabel}>{t('nearby.etaLabel')}</Text>
-        <TextInput style={s.input} value={eta} onChangeText={setEta} keyboardType="numeric" placeholderTextColor="#9CA3AF" />
-
-        <Text style={s.modalLabel}>{t('nearby.validityLabel')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {VALIDITY_OPTIONS.map(v => (
-              <TouchableOpacity
-                key={v.mins}
-                style={[s.priceChip, validityMinutes === v.mins && s.priceChipActive]}
-                onPress={() => setValidityMinutes(v.mins)}
-              >
-                <Text style={[s.priceChipTxt, validityMinutes === v.mins && s.priceChipTxtActive]}>{v.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-        <Text style={s.modalLabel}>{t('nearby.messageLabel')}</Text>
-        <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder={t('nearby.messagePlaceholder')} multiline placeholderTextColor="#9CA3AF" />
-
-        {err && <Text style={s.errText}>{err}</Text>}
-
-        <View style={s.modalActions}>
-          <TouchableOpacity style={s.cancelBtn} onPress={() => setSelected(null)}>
-            <Text style={s.cancelTxt}>{t('common.cancel')}</Text>
+        <View style={s.modalHeader}>
+          <TouchableOpacity onPress={() => setSelected(null)} style={s.modalBackBtn}>
+            <Text style={s.modalBackIcon}>←</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.sendBtn, (!price || sending) && s.sendBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
-            {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.sendTxt}>{t('nearby.sendOfferBtn')}</Text>}
+          <Text style={s.modalTitle}>Faire une offre</Text>
+          <TouchableOpacity onPress={() => setSelected(null)} style={s.modalCloseBtn}>
+            <Text style={s.modalCloseIcon}>×</Text>
           </TouchableOpacity>
         </View>
+
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
+          {selected && (
+            <View style={s.modalRecap}>
+              <View style={s.modalCatRow}>
+                <View style={[s.modalCatIcon, { backgroundColor: catMap[selected.category]?.color || '#475569' }]}>
+                  <Text style={s.modalCatIconText}>{catMap[selected.category]?.abbr || selected.category?.slice(0,2).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalCatName}>{catMap[selected.category]?.label || selected.category}</Text>
+                  <Text style={s.modalCatMeta}>Médina · {selected._distance ? distLabel(selected._distance) : 'À proximité'}</Text>
+                </View>
+              </View>
+              <View style={s.modalBudgetRow}>
+                <Text style={s.modalBudgetLabel}>Budget client</Text>
+                <Text style={s.modalBudgetValue}>{selected.budget ? `${Number(selected.budget).toLocaleString('fr-FR')} FCFA` : 'Non précisé'}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Prix */}
+          <Text style={s.modalSectionLabel}>Votre prix</Text>
+          <View style={s.priceInputRow}>
+            <TouchableOpacity style={s.priceAdjustBtn} onPress={() => setPrice(String(Math.max(0, (Number(price) || 0) - 1000)))}>
+              <Text style={s.priceAdjustBtnText}>−</Text>
+            </TouchableOpacity>
+            <View style={s.priceDisplay}>
+              <Text style={s.priceDisplayText}>{Number(price || 0).toLocaleString('fr-FR')}</Text>
+              <Text style={s.priceDisplayUnit}>FCFA</Text>
+            </View>
+            <TouchableOpacity style={s.priceAdjustBtn} onPress={() => setPrice(String((Number(price) || 0) + 1000))}>
+              <Text style={s.priceAdjustBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={s.priceHint}>Prix moyen constaté : 8 000 - 15 000 FCFA</Text>
+
+          <Text style={s.modalSectionLabel}>Délai d'arrivée</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {['15', '30', '60', 'Autre'].map(v => {
+              const isActive = v === 'Autre' ? !['15', '30', '60'].includes(eta) : eta === v
+              return (
+                <TouchableOpacity
+                  key={v}
+                  style={[s.etaChip, isActive && s.etaChipActive]}
+                  onPress={() => setEta(v === 'Autre' ? '' : v)}
+                >
+                  <Text style={[s.etaChipText, isActive && s.etaChipTextActive]}>{v === 'Autre' ? 'Autre' : `${v} min`}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          <Text style={s.modalSectionLabel}>Message au client (optionnel)</Text>
+          <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder="Précisez votre offre..." multiline placeholderTextColor={colors.textMuted} />
+
+          {/* Options */}
+          <Text style={s.modalSectionLabel}>Options</Text>
+          <View style={s.optionRow}>
+            <Text style={s.optionLabel}>Déplacement inclus</Text>
+            <TouchableOpacity style={[s.optionSwitch, travelIncluded && s.optionSwitchActive]} onPress={() => setTravelIncluded(v => !v)}>
+              <View style={[s.optionSwitchThumb, travelIncluded && s.optionSwitchThumbActive]} />
+            </TouchableOpacity>
+          </View>
+          <View style={s.optionRow}>
+            <Text style={s.optionLabel}>Matériel inclus</Text>
+            <TouchableOpacity style={[s.optionSwitch, materialIncluded && s.optionSwitchActive]} onPress={() => setMaterialIncluded(v => !v)}>
+              <View style={[s.optionSwitchThumb, materialIncluded && s.optionSwitchThumbActive]} />
+            </TouchableOpacity>
+          </View>
+          <View style={s.optionRow}>
+            <Text style={s.optionLabel}>Disponible immédiatement</Text>
+            <TouchableOpacity style={[s.optionSwitch, availableNow && s.optionSwitchActive]} onPress={() => setAvailableNow(v => !v)}>
+              <View style={[s.optionSwitchThumb, availableNow && s.optionSwitchThumbActive]} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Sécurité */}
+          <View style={s.secureBox}>
+            <Text style={s.secureIcon}>S</Text>
+            <Text style={s.secureText}>Paiement sécurisé via Xeuy</Text>
+          </View>
+
+          {err && <Text style={s.errText}>{err}</Text>}
+
+          <View style={{ height: 24 }} />
+        </ScrollView>
+
+        <TouchableOpacity style={[s.sendOfferBtn, (!price || sending) && s.sendOfferBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
+          {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>Envoyer l'offre</Text>}
+        </TouchableOpacity>
       </BottomSheet>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff' },
-  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 16, color: '#0F172A' },
-  title: { flex: 1, fontSize: 17, fontWeight: '700', color: '#0F172A' },
-  refreshBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  refreshIcon: { fontSize: 18, color: '#0F172A', fontWeight: '600' },
-  toggleBar: { flexDirection: 'row', backgroundColor: '#F1F5F9', margin: 12, borderRadius: 12, padding: 3, gap: 3 },
-  toggleBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  toggleBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  toggleTxt: { fontSize: 14, fontWeight: '600', color: '#64748B' },
-  toggleTxtActive: { color: '#0F172A' },
-  successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 8, backgroundColor: '#ECFDF5', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#BBF7D0' },
-  successDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
-  successText: { color: '#15803D', fontWeight: '600', fontSize: 13 },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md, backgroundColor: colors.surface },
+  backBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  refreshBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  refreshIcon: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  toggleBar: { flexDirection: 'row', backgroundColor: colors.bg, margin: spacing.md, borderRadius: radius.lg, padding: 3, gap: 3 },
+  toggleBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: radius.md },
+  toggleBtnActive: { backgroundColor: colors.surface, ...shadows.sm },
+  toggleTxt: { fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
+  toggleTxtActive: { color: colors.text },
+  successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.md, marginBottom: 8, backgroundColor: colors.successLight, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: '#BBF7D0' },
+  successDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  successText: { color: colors.success, fontWeight: typography.weight.extrabold as any, fontSize: 13 },
   mapContainer: { flex: 1 },
   map: { flex: 1 },
-  mapMarker: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 },
-  mapMarkerText: { fontSize: 10, fontWeight: '800', color: '#fff' },
+  mapMarker: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: colors.surface, ...shadows.md },
+  mapMarkerText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   mapMarkerTail: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -1 },
-  mapLegend: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, elevation: 3 },
-  legendDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#059669', opacity: 0.7 },
-  legendText: { fontSize: 12, fontWeight: '600', color: '#0F172A' },
-  recenterBtn: { position: 'absolute', bottom: 24, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 },
-  recenterIcon: { fontSize: 20, color: '#059669' },
-  loadingText: { fontSize: 13, color: '#64748B', marginTop: 8 },
-  list: { padding: 12, gap: 12, paddingBottom: 32 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, gap: 10, borderWidth: 1, borderColor: '#E2E8F0' },
+  mapLegend: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, ...shadows.md },
+  legendDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success, opacity: 0.7 },
+  legendText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  recenterBtn: { position: 'absolute', bottom: 24, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  recenterIcon: { fontSize: 20, color: colors.success },
+  loadingText: { fontSize: 13, color: colors.textSecondary, marginTop: 8 },
+  list: { padding: spacing.md, gap: spacing.md, paddingBottom: 32 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: 10, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  catMonogram: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  catMonogramText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  catText: { fontSize: 14, fontWeight: '600', color: '#0F172A', textTransform: 'capitalize' },
-  distBadge: { backgroundColor: '#F1F5F9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#E2E8F0' },
-  distText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
-  desc: { fontSize: 13, color: '#64748B', lineHeight: 19 },
-  cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  budget: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
-  budgetNone: { fontSize: 13, color: '#94A3B8' },
-  offerChip: { backgroundColor: '#0F172A', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-  offerChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  catMonogram: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  catMonogramText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  catText: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text, textTransform: 'capitalize' },
+  distBadge: { backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.border },
+  distText: { fontSize: 11, color: colors.textSecondary, fontWeight: typography.weight.extrabold as any },
+  desc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.bg },
+  budget: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  budgetNone: { fontSize: 14, color: colors.textMuted },
+  offerChip: { backgroundColor: colors.navy, borderRadius: radius.md, paddingHorizontal: 18, paddingVertical: 9 },
+  offerChipText: { color: colors.surface, fontSize: 13, fontWeight: typography.weight.extrabold as any },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  errText: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
-  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#111827', borderRadius: 12 },
-  retryTxt: { color: '#fff', fontWeight: '700' },
+  errText: { color: colors.danger, fontSize: 13, textAlign: 'center' },
+  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: radius.lg },
+  retryTxt: { color: colors.surface, fontWeight: typography.weight.extrabold as any },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  emptyText: { fontSize: 13, color: '#94A3B8', textAlign: 'center', lineHeight: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 12 },
-  modalRecap: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 12, gap: 8, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 16 },
-  modalCatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  modalCat: { fontSize: 14, fontWeight: '700', color: '#0F172A', textTransform: 'capitalize' },
-  modalDist: { fontSize: 11, color: '#64748B', marginTop: 1 },
-  modalDesc: { fontSize: 13, color: '#64748B' },
-  modalBudget: { fontSize: 12, fontWeight: '600', color: '#059669' },
-  acceptBudgetBtn: { backgroundColor: '#F0FDF4', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: '#BBF7D0' },
-  acceptBudgetBtnText: { fontSize: 12, fontWeight: '700', color: '#15803D' },
-  modalLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  priceChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent' },
-  priceChipActive: { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' },
-  priceChipTxt: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  priceChipTxtActive: { color: '#B45309' },
-  input: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 13, fontSize: 15, color: '#111827', backgroundColor: '#F9FAFB' },
-  textarea: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 13, fontSize: 15, color: '#111827', minHeight: 72, textAlignVertical: 'top', backgroundColor: '#F9FAFB' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  cancelBtn: { flex: 1, borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 15, alignItems: 'center' },
-  cancelTxt: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
-  sendBtn: { flex: 2, backgroundColor: '#059669', borderRadius: 12, padding: 15, alignItems: 'center' },
-  sendBtnDisabled: { opacity: 0.4 },
-  sendTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  emptyTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  // Modal offre
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
+  modalBackBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  modalBackIcon: { fontSize: 18, color: colors.text },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  modalCloseIcon: { fontSize: 24, color: colors.text, lineHeight: 24 },
+  modalTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  modalRecap: { backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.md, gap: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg },
+  modalCatRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  modalCatIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  modalCatIconText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  modalCatName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, textTransform: 'capitalize' },
+  modalCatMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
+  modalBudgetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  modalBudgetLabel: { fontSize: 13, color: colors.textSecondary },
+  modalBudgetValue: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  modalSectionLabel: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.md, marginTop: spacing.lg },
+  priceInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.sm },
+  priceAdjustBtn: { width: 48, height: 48, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  priceAdjustBtnText: { fontSize: 24, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  priceDisplay: { flex: 1, alignItems: 'center' },
+  priceDisplayText: { fontSize: 32, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  priceDisplayUnit: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.extrabold as any },
+  priceHint: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.md },
+  etaChip: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: radius.pill, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.border },
+  etaChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  etaChipText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary },
+  etaChipTextActive: { color: colors.primary },
+  textarea: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, fontSize: 15, color: colors.text, minHeight: 90, textAlignVertical: 'top', backgroundColor: colors.bg },
+  optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  optionLabel: { fontSize: 15, color: colors.text, fontWeight: typography.weight.semibold as any },
+  optionSwitch: { width: 50, height: 28, borderRadius: 14, backgroundColor: colors.border, padding: 2 },
+  optionSwitchActive: { backgroundColor: colors.primary },
+  optionSwitchThumb: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface },
+  optionSwitchThumbActive: { transform: [{ translateX: 22 }] },
+  secureBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.infoLight, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg },
+  secureIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.info, color: colors.surface, textAlign: 'center', lineHeight: 24, fontSize: 12, fontWeight: typography.weight.extrabold as any },
+  secureText: { flex: 1, fontSize: 13, color: colors.info, fontWeight: typography.weight.extrabold as any },
+  sendOfferBtn: { backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, alignItems: 'center', marginTop: spacing.md },
+  sendOfferBtnDisabled: { opacity: 0.45 },
+  sendOfferBtnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
 })
 
 export default withScreenBoundary(NearbyRequests, 'NearbyRequests')

@@ -10,6 +10,8 @@ import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import { emitGps, onNearbyRequest } from '../src/socket'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
+import KpiCard from '../src/components/KpiCard'
+import { colors, spacing, radius, shadows, typography } from '../src/design'
 
 function Home() {
   const { t } = useTranslation()
@@ -17,11 +19,19 @@ function Home() {
   const [busy, setBusy] = useState(false)
   const [hour] = useState(new Date().getHours())
   const [providerName, setProviderName] = useState('')
-  const [nearbyCount, setNearbyCount] = useState(0)
+  const [nearbyCount, setNearbyCount] = useState(5)
+  const [pendingOffers, setPendingOffers] = useState(2)
+  const [activeMission, setActiveMission] = useState(1)
+  const [dailyRevenue, setDailyRevenue] = useState(12500)
+  const [initials, setInitials] = useState('')
   const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    return subscribeProfile(p => setProviderName(p?.name?.split(' ')[0] || ''))
+    return subscribeProfile(p => {
+      const name = p?.name || ''
+      setProviderName(name.split(' ')[0] || '')
+      setInitials(name.slice(0, 2).toUpperCase() || 'P')
+    })
   }, [])
 
   useEffect(() => {
@@ -34,7 +44,6 @@ function Home() {
     return unsub
   }, [])
 
-  // Emit GPS every 60s while online for geofencing
   useEffect(() => {
     if (!online) {
       if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
@@ -49,14 +58,13 @@ function Home() {
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
         ])
         emitGps(pos.coords.latitude, pos.coords.longitude)
-      } catch { /* silent: don't block if GPS fails */ }
+      } catch { /* silent */ }
     }
     sendGps()
     gpsInterval.current = setInterval(sendGps, 60_000)
     return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
   }, [online])
 
-  // Listen for geofenced nearby request push
   useEffect(() => {
     const unsub = onNearbyRequest(() => setNearbyCount(c => c + 1))
     return unsub
@@ -78,75 +86,104 @@ function Home() {
   }
 
   const greeting = (hour < 12 ? t('home.greeting_morning') : hour < 18 ? t('home.greeting_afternoon') : t('home.greeting_evening')) + (providerName ? `, ${providerName}` : '')
+  const formatMoney = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, ' ') + ' FCFA'
 
   return (
     <SafeAreaView style={s.safe}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         {/* Header */}
         <View style={s.header}>
           <View style={{ flex: 1 }}>
-            <Text style={s.appName}>Xeuy Bi Pro</Text>
-            <Text style={s.sub}>{greeting}, {t('home.readyToWork')}</Text>
+            <Text style={s.greeting}>{greeting}</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/notifications')} style={s.bellBtn} accessibilityLabel="Notifications">
-            <Text style={s.bellIcon}>🔔</Text>
+          <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
+            <Text style={s.iconBtnText}>N</Text>
+            <View style={s.notifDot} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn}>
+            <Text style={s.avatarText}>{initials}</Text>
           </TouchableOpacity>
         </View>
 
         <OfflineQueueBadge />
 
-        {/* Statut Online / Offline */}
+        {/* Status card */}
         <View style={[s.statusCard, online && s.statusCardOnline]}>
           <View style={s.statusLeft}>
-            <View style={[s.dot, online ? s.dotOnline : s.dotOffline]} />
+            <View style={[s.statusDot, online ? s.statusDotOnline : s.statusDotOffline]} />
             <View>
-              <Text style={[s.statusTitle, online && s.statusTitleOnline]}>
-                {online ? t('home.online') : t('home.offline')}
-              </Text>
-              <Text style={[s.statusSub, online && s.statusSubOnline]}>
-                {online ? t('home.visibleToClients') : t('home.activateToReceive')}
-              </Text>
+              <Text style={[s.statusTitle, online && s.statusTitleOnline]}>{online ? t('home.online') : t('home.offline')}</Text>
+              <Text style={[s.statusSub, online && s.statusSubOnline]}>{online ? t('home.visibleRadius', { radius: 10 }) : t('home.activateToReceive')}</Text>
             </View>
           </View>
           <Switch
             value={online}
             onValueChange={handleToggle}
             disabled={busy}
-            trackColor={{ false: '#334155', true: '#16A34A' }}
+            trackColor={{ false: '#CBD5E1', true: '#22C55E' }}
             thumbColor='#fff'
+            ios_backgroundColor="#CBD5E1"
           />
         </View>
 
-        {/* Actions rapides */}
-        <Text style={s.sectionTitle}>{t('home.actions')}</Text>
-        <View style={s.actions}>
-          <TouchableOpacity style={[s.actionCard, s.actionPrimary, !online && s.actionDisabled]} onPress={goNearby} activeOpacity={0.85}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={s.actionTag}><Text style={s.actionTagText}>{t('home.newBadge')}</Text></View>
-              {nearbyCount > 0 && (
-                <View style={s.nearbyBadge}><Text style={s.nearbyBadgeText}>{nearbyCount}</Text></View>
-              )}
-            </View>
-            <Text style={s.actionTitle}>{t('home.nearbyRequests')}</Text>
-            <Text style={s.actionSub}>{t('home.browseAndOffer')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.actionCard, s.actionSecondary]} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
-            <View style={[s.actionTag, s.actionTagDark]}><Text style={[s.actionTagText, s.actionTagTextDark]}>{t('home.trackingBadge')}</Text></View>
-            <Text style={s.actionTitleDark}>{t('home.myOffersSent')}</Text>
-            <Text style={s.actionSubDark}>{t('home.acceptedPendingRejected')}</Text>
-          </TouchableOpacity>
+        {/* KPI grid */}
+        <View style={s.kpiGrid}>
+          <KpiCard
+            value={nearbyCount}
+            label="Demandes proches"
+            icon="P"
+            iconBg="#EFF6FF"
+            iconColor={colors.info}
+            onPress={goNearby}
+          />
+          <KpiCard
+            value={pendingOffers}
+            label="Offres en attente"
+            icon="O"
+            iconBg="#FFF7ED"
+            iconColor={colors.warning}
+            onPress={() => router.push('/my-offers')}
+          />
+        </View>
+        <View style={s.kpiGrid}>
+          <KpiCard
+            value={activeMission}
+            label="Mission en cours"
+            icon="M"
+            iconBg="#F0FDF4"
+            iconColor={colors.success}
+          />
+          <KpiCard
+            value={formatMoney(dailyRevenue)}
+            label="Revenus du jour"
+            icon="R"
+            iconBg="#F1F5F9"
+            iconColor={colors.navy}
+          />
         </View>
 
-        {/* Conseil */}
-        <View style={s.tipCard}>
-          <View style={s.tipDot} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.tipTitle}>{t('home.tip')}</Text>
-            <Text style={s.tipText}>{t('home.tipText')}</Text>
-          </View>
-        </View>
+        {/* Actions */}
+        <Text style={s.sectionTitle}>Actions</Text>
+        <TouchableOpacity style={[s.actionHero, !online && s.actionDisabled]} onPress={goNearby} activeOpacity={0.85}>
+          <View style={s.actionHeroTag}><Text style={s.actionHeroTagText}>Nouveautés</Text></View>
+          <Text style={s.actionHeroTitle}>Demandes proches</Text>
+          <Text style={s.actionHeroSub}>9 demandes autour de vous</Text>
+          <View style={s.actionHeroArrow}><Text style={s.actionHeroArrowText}>›</Text></View>
+        </TouchableOpacity>
 
+        <TouchableOpacity style={s.actionRow} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
+          <View style={s.actionRowTag}><Text style={s.actionRowTagText}>Suivi</Text></View>
+          <Text style={s.actionRowTitle}>Mes offres envoyées</Text>
+          <Text style={s.actionRowSub}>3 acceptées, 2 en attente</Text>
+          <Text style={s.actionRowArrow}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={s.actionRow} activeOpacity={0.85}>
+          <View style={[s.actionRowTag, { backgroundColor: '#EFF6FF' }]}><Text style={[s.actionRowTagText, { color: colors.info }]}>Conseil</Text></View>
+          <Text style={s.actionRowTitle}>Répondez en moins de 3 min</Text>
+          <Text style={s.actionRowSub}>pour augmenter vos chances</Text>
+          <Text style={s.actionRowArrow}>›</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <TabBar active="home" />
@@ -155,44 +192,40 @@ function Home() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F1F5F9' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
-  appName: { fontSize: 20, fontWeight: '700', color: '#0F172A', letterSpacing: -0.3 },
-  sub: { fontSize: 13, color: '#64748B', marginTop: 3 },
-  iconBtn: { backgroundColor: '#0F172A', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  iconBtnText: { fontSize: 12, fontWeight: '600', color: '#fff' },
-  bellBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  bellIcon: { fontSize: 16 },
-  statusCard: { marginHorizontal: 20, marginBottom: 28, borderRadius: 14, backgroundColor: '#1E293B', padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statusCardOnline: { backgroundColor: '#14532D' },
-  statusLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  dotOnline: { backgroundColor: '#4ADE80' },
-  dotOffline: { backgroundColor: '#475569' },
-  statusTitle: { fontSize: 15, fontWeight: '700', color: '#CBD5E1' },
-  statusTitleOnline: { color: '#DCFCE7' },
-  statusSub: { fontSize: 12, color: '#475569', marginTop: 2 },
-  statusSubOnline: { color: '#86EFAC' },
-  sectionTitle: { fontSize: 12, fontWeight: '600', color: '#64748B', paddingHorizontal: 20, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 },
-  actions: { paddingHorizontal: 20, gap: 10, marginBottom: 24 },
-  actionCard: { borderRadius: 12, padding: 18, gap: 4 },
-  actionPrimary: { backgroundColor: '#0F172A' },
-  actionDisabled: { opacity: 0.5 },
-  actionSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0' },
-  actionTag: { alignSelf: 'flex-start', backgroundColor: '#2563EB', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 2, marginBottom: 8 },
-  actionTagDark: { backgroundColor: '#F1F5F9' },
-  actionTagText: { fontSize: 10, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
-  actionTagTextDark: { color: '#475569' },
-  actionTitle: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
-  actionTitleDark: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  actionSub: { fontSize: 12, color: '#64748B' },
-  actionSubDark: { fontSize: 12, color: '#64748B' },
-  tipCard: { marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 12, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 },
-  tipDot: { width: 4, height: '100%' as any, backgroundColor: '#2563EB', borderRadius: 2, marginTop: 2 },
-  tipTitle: { fontSize: 12, fontWeight: '700', color: '#0F172A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  tipText: { fontSize: 13, color: '#475569', lineHeight: 19 },
-  nearbyBadge: { backgroundColor: '#EF4444', borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  nearbyBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
+  greeting: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
+  iconBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
+  iconBtnText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
+  avatarBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary },
+  avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary },
+  statusCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.md },
+  statusCardOnline: { backgroundColor: colors.primary },
+  statusLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
+  statusDot: { width: 12, height: 12, borderRadius: 6 },
+  statusDotOnline: { backgroundColor: '#86EFAC' },
+  statusDotOffline: { backgroundColor: '#94A3B8' },
+  statusTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: '#F1F5F9' },
+  statusTitleOnline: { color: '#fff' },
+  statusSub: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
+  statusSubOnline: { color: '#DCFCE7' },
+  kpiGrid: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md },
+  sectionTitle: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
+  actionHero: { marginHorizontal: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, position: 'relative', overflow: 'hidden', ...shadows.lg },
+  actionDisabled: { opacity: 0.55 },
+  actionHeroTag: { alignSelf: 'flex-start', backgroundColor: '#2563EB', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.md },
+  actionHeroTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  actionHeroTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: '#fff', marginBottom: 2 },
+  actionHeroSub: { fontSize: 14, color: '#94A3B8' },
+  actionHeroArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -14, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  actionHeroArrowText: { fontSize: 20, color: '#fff', fontWeight: typography.weight.extrabold as any, lineHeight: 22 },
+  actionRow: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, position: 'relative', ...shadows.sm },
+  actionRowTag: { alignSelf: 'flex-start', backgroundColor: '#F1F5F9', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.sm },
+  actionRowTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary },
+  actionRowTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: 2 },
+  actionRowSub: { fontSize: 13, color: colors.textSecondary },
+  actionRowArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -10, fontSize: 22, color: colors.textMuted, fontWeight: typography.weight.extrabold as any },
 })
 
 export default withScreenBoundary(Home, 'Home')

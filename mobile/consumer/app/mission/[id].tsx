@@ -10,6 +10,7 @@ import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/sock
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
+import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
   pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: '#FFFBEB' },
@@ -228,8 +229,8 @@ function MissionDetail() {
 
   if (!requestId) return (
     <SafeAreaView style={s.safe}>
-      <View style={s.centerBlock}>
-        <Text style={s.err}>{t('mission.invalid')}</Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: colors.danger, fontSize: 14 }}>{t('mission.invalid')}</Text>
       </View>
     </SafeAreaView>
   )
@@ -261,251 +262,198 @@ function MissionDetail() {
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
   const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
 
+  const providerInitials = (offer?.providerName || 'P').slice(0, 2).toUpperCase()
+  const etaDisplay = etaLabel
+  const stepLabels: Record<string, string> = { assigned: 'Assigné', provider_arriving: 'En route', in_progress: 'Sur place', completed: 'Terminée' }
+  const stepOrder = ['assigned', 'provider_arriving', 'in_progress', 'completed']
+  const currentStepIdx = stepOrder.indexOf(item?.status || 'assigned')
+
   return (
     <SafeAreaView style={s.safe}>
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('mission.myMission')}</Text>
-        <View style={{ width: 36 }} />
+      {hasCoords ? (
+        <View style={s.mapContainer}>
+          <LiveRouteMap
+            destination={{ lat, lng }}
+            destinationLabel={loc?.address}
+            providerLocation={providerLocation || undefined}
+            status={item?.status || 'assigned'}
+          />
+
+          {/* Floating header */}
+          <View style={s.floatingHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={s.floatingBtn}>
+              <Text style={s.floatingBtnText}>←</Text>
+            </TouchableOpacity>
+            <Text style={s.floatingTitle}>Suivi</Text>
+            <TouchableOpacity style={s.floatingBtn}>
+              <Text style={s.floatingBtnText}>↑</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Floating ETA pill */}
+          <View style={s.etaPill}>
+            <View style={s.etaPillDot} />
+            <Text style={s.etaPillText}>En route · Arrive dans {etaDisplay}</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={s.noMap}>
+          <View style={s.header}>
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+              <Text style={s.backIcon}>←</Text>
+            </TouchableOpacity>
+            <Text style={s.headerTitle}>Suivi</Text>
+            <View style={{ width: 36 }} />
+          </View>
+          <Text style={s.noMapText}>Aucune position disponible</Text>
+        </View>
+      )}
+
+      {/* Bottom sheet */}
+      <View style={s.sheet}>
+        <View style={s.handle} />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+          {/* Status badge */}
+          <View style={s.statusBadge}>
+            <View style={s.statusBadgeDot} />
+            <Text style={s.statusBadgeText}>En route vers vous</Text>
+          </View>
+
+          {/* Timeline */}
+          <View style={s.timeline}>
+            {stepOrder.map((step, idx) => {
+              const state = idx < currentStepIdx ? 'done' : idx === currentStepIdx ? 'active' : 'todo'
+              return (
+                <View key={step} style={s.timelineStep}>
+                  <View style={[s.timelineDot, state === 'done' && s.timelineDotDone, state === 'active' && s.timelineDotActive]}>
+                    {state === 'done' && <Text style={s.timelineCheck}>✓</Text>}
+                  </View>
+                  <Text style={[s.timelineLabel, state === 'active' && s.timelineLabelActive]}>{stepLabels[step]}</Text>
+                  {idx < stepOrder.length - 1 && <View style={[s.timelineLine, idx < currentStepIdx && s.timelineLineDone]} />}
+                </View>
+              )
+            })}
+          </View>
+
+          {/* Provider card */}
+          {offer && (
+            <View style={s.providerCard}>
+              <View style={s.providerAvatar}>
+                <Text style={s.providerAvatarText}>{providerInitials}</Text>
+                <View style={s.verifiedBadge}><Text style={s.verifiedText}>V</Text></View>
+              </View>
+              <View style={s.providerInfo}>
+                <Text style={s.providerName}>{offer.providerName || 'Prestataire'}</Text>
+                <View style={s.providerRow}>
+                  <Text style={s.star}>★</Text>
+                  <Text style={s.providerRating}>{offer.providerRating?.avg || 4.9}</Text>
+                  <Text style={s.providerMeta}> · Électricien</Text>
+                </View>
+              </View>
+              <View style={s.providerActions}>
+                <TouchableOpacity style={s.actionIconBtn} onPress={() => offer.providerPhone && Linking.openURL(`tel:${offer.providerPhone}`)}>
+                  <Text style={s.actionIconText}>T</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.actionIconBtn} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}`)}>
+                  <Text style={s.actionIconText}>M</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ETA card */}
+          <View style={s.etaCard}>
+            <View style={[s.etaIcon, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[s.etaIconText, { color: colors.primary }]}>C</Text>
+            </View>
+            <View style={s.etaInfo}>
+              <Text style={s.etaTitle}>Arrive dans {etaDisplay}</Text>
+              <Text style={s.etaSub}>{loc?.address || 'À 1.2 km de chez vous'}</Text>
+            </View>
+          </View>
+
+          {/* Details */}
+          <View style={s.detailsCard}>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>Référence</Text>
+              <Text style={s.detailValue}>#{missionRef}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>Prix convenu</Text>
+              <Text style={s.detailValue}>{formatMoney(offer?.price)}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>Service</Text>
+              <Text style={s.detailValue}>{item?.category || 'Électricité'}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={s.reportLink}>
+            <Text style={s.reportLinkText}>Signaler un problème</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
-
-      <ScrollView
-        contentContainerStyle={s.body}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-      >
-        {err && <Text style={s.err}>{err}</Text>}
-
-        {item && (
-          <>
-            {/* Statut */}
-            <View style={[s.statusBanner, { backgroundColor: st?.bg }]}>
-              <Text style={[s.statusText, { color: st?.color }]}>{st ? t(st.key) : ''}</Text>
-            </View>
-
-            {/* Durée écoulée si mission en cours */}
-            {item.status === 'in_progress' && item.startedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F5F3FF' }]}>
-                <Text style={[s.statusText, { color: '#5B21B6' }]}>
-                  ⏱ {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
-                </Text>
-              </View>
-            )}
-            {/* Durée totale si mission terminée */}
-            {item.status === 'completed' && item.startedAt && item.completedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F1F5F9' }]}>
-                <Text style={[s.statusText, { color: '#374151' }]}>
-                  ⏱ {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
-                </Text>
-              </View>
-            )}
-
-            {/* Statut paiement */}
-            {item.payment && PAYMENT_BADGE[item.payment.status] && (
-              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
-                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
-                  {t(PAYMENT_BADGE[item.payment.status].key)}
-                </Text>
-              </View>
-            )}
-
-            {/* Progression mission */}
-            {item.status !== 'cancelled' && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.progress')}</Text>
-                <View style={s.timeline}>
-                  {FLOW_STEPS.map((step, idx) => {
-                    const state = getStepState(item.status, step.key)
-                    return (
-                      <View key={step.key} style={s.timelineRow}>
-                        <View style={s.timelineLeft}>
-                          <View style={[
-                            s.timelineDot,
-                            state === 'done' && s.timelineDotDone,
-                            state === 'active' && s.timelineDotActive,
-                          ]} />
-                          {idx < FLOW_STEPS.length - 1 && <View style={s.timelineLine} />}
-                        </View>
-                        <Text style={[
-                          s.timelineLabel,
-                          state === 'active' && s.timelineLabelActive,
-                          state === 'done' && s.timelineLabelDone,
-                        ]}>{t(step.labelKey)}</Text>
-                      </View>
-                    )
-                  })}
-                </View>
-              </View>
-            )}
-
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{t('mission.detailsTitle')}</Text>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.reference')}</Text>
-                <Text style={s.detailValue}>#{missionRef}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.category')}</Text>
-                <Text style={s.detailValue}>{item.category || t('mission.notProvided')}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.budget')}</Text>
-                <Text style={s.detailValue}>{formatMoney(item.budget)}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.createdAt')}</Text>
-                <Text style={s.detailValue}>{formatDateTime(item.createdAt)}</Text>
-              </View>
-            </View>
-
-            {/* Provider */}
-            {offer && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.provider')}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={s.providerAvatar}>
-                    <Text style={s.providerAvatarText}>{(offer.providerName || t('mission.defaultProvider')).slice(0,2)}</Text>
-                  </View>
-                  <View>
-                    <Text style={s.providerName}>{offer.providerName || t('mission.defaultProvider')}</Text>
-                    <Text style={s.providerMeta}>{formatMoney(offer.price)} · ETA {etaLabel}</Text>
-                  </View>
-                </View>
-                {['assigned', 'provider_arriving', 'in_progress'].includes(item.status) && (
-                  <TouchableOpacity
-                    style={s.chatBtn}
-                    onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}`)}
-                  >
-                    <Text style={s.chatBtnText}>{t('mission.sendMessage')}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {/* Description */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{t('mission.description')}</Text>
-              <Text style={s.descText}>{item.description || t('mission.noDescription')}</Text>
-            </View>
-
-            {/* Médias */}
-            {item.media && item.media.length > 0 && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.media')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {item.media.map((m: any, i: number) => {
-                      const mediaUrl = resolveMediaUrl(m?.url)
-                      const asImage = mediaUrl && isImageMedia(m?.type, mediaUrl)
-                      return asImage
-                        ? (
-                            <Image key={i} source={{ uri: mediaUrl }} style={s.mediaThumb} />
-                          )
-                        : (
-                            <TouchableOpacity key={i} style={s.mediaFile} onPress={() => openMedia(m?.url)}>
-                              <Text style={s.mediaFileType}>{getMediaLabel(m?.type)}</Text>
-                              <Text style={s.mediaFileText} numberOfLines={2}>{m?.title || t('mission.openMedia')}</Text>
-                            </TouchableOpacity>
-                          )
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Carte */}
-            {hasCoords && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
-                <LiveRouteMap
-                  destination={{ lat, lng }}
-                  destinationLabel={loc?.address}
-                  providerLocation={providerLocation || undefined}
-                  status={item.status}
-                />
-              </View>
-            )}
-
-            {/* Actions */}
-            <View style={{ gap: 10, marginTop: 8 }}>
-              {item.status === 'assigned' && (
-                <TouchableOpacity style={[s.actionBtn, s.cancelBtn]} onPress={handleCancel} disabled={updating}>
-                  <Text style={s.cancelBtnText}>{t('mission.cancelMission')}</Text>
-                </TouchableOpacity>
-              )}
-              {item.status === 'in_progress' && (
-                <>
-                  <TouchableOpacity style={[s.actionBtn, s.cancelBtn]} onPress={handleCancel} disabled={updating}>
-                    <Text style={s.cancelBtnText}>{t('mission.cancelMission')}</Text>
-                  </TouchableOpacity>
-                  <Text style={s.infoText}>{t('mission.providerCloses')}</Text>
-                </>
-              )}
-              {item.status === 'completed' && !hasReview && (
-                <TouchableOpacity
-                  style={[s.actionBtn, s.rateBtn]}
-                  onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)}
-                >
-                  <Text style={s.rateBtnText}>{t('mission.rateMission')}</Text>
-                </TouchableOpacity>
-              )}
-              {item.status === 'completed' && hasReview && (
-                <Text style={s.infoText}>{t('mission.alreadyRated')}</Text>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { fontSize: 18, color: '#111827' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  centerBlock: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: 20, paddingBottom: 40, gap: 16 },
-  err: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
-  statusBanner: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center' },
-  statusText: { fontSize: 14, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: '#E2E8F0' },
-  cardTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
-  descText: { fontSize: 14, color: '#374151', lineHeight: 22 },
-  meta: { fontSize: 13, color: '#64748B' },
-  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  detailLabel: { fontSize: 13, color: '#64748B' },
-  detailValue: { flex: 1, textAlign: 'right', fontSize: 13, color: '#1E293B', fontWeight: '600' },
-  providerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
-  providerAvatarText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  providerName: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  providerMeta: { fontSize: 13, color: '#64748B' },
-  timeline: { gap: 8 },
-  timelineRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  timelineLeft: { width: 20, alignItems: 'center' },
-  timelineDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#CBD5E1', marginTop: 2 },
-  timelineDotDone: { backgroundColor: '#16A34A' },
-  timelineDotActive: { backgroundColor: '#2563EB' },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginTop: 4, marginBottom: -4 },
-  timelineLabel: { fontSize: 13, color: '#94A3B8', paddingBottom: 10 },
-  timelineLabelActive: { color: '#1E293B', fontWeight: '700' },
-  timelineLabelDone: { color: '#15803D', fontWeight: '600' },
-  mediaThumb: { width: 100, height: 100, borderRadius: 10 },
-  mediaFile: { width: 140, height: 100, borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#F8FAFC', padding: 10, justifyContent: 'center', gap: 4 },
-  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
-  mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 16 },
-  trackingText: { fontSize: 12, color: '#2563EB', fontWeight: '700', marginTop: 8 },
-  infoText: { fontSize: 12, color: '#64748B', textAlign: 'center' },
-  actionBtn: { borderRadius: 12, padding: 16, alignItems: 'center' },
-  cancelBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
-  cancelBtnText: { color: '#B91C1C', fontWeight: '700', fontSize: 15 },
-  rateBtn: { backgroundColor: '#FFFBEB', borderWidth: 1.5, borderColor: '#FDE68A' },
-  rateBtnText: { color: '#92400E', fontWeight: '700', fontSize: 15 },
-  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8, borderWidth: 1, borderColor: '#BFDBFE' },
-  chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  mapContainer: { flex: 1, position: 'relative' },
+  floatingHeader: { position: 'absolute', top: 16, left: spacing.lg, right: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
+  floatingBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  floatingBtnText: { fontSize: 18, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  floatingTitle: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  etaPill: { position: 'absolute', top: 72, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.lg, zIndex: 10 },
+  etaPillDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
+  etaPillText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  noMap: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  backIcon: { fontSize: 18, color: colors.text },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
+  noMapText: { textAlign: 'center', color: colors.textSecondary, marginTop: 40 },
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.md, paddingHorizontal: spacing.lg, maxHeight: '60%', ...shadows.xl },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
+  statusBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  statusBadgeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#86EFAC' },
+  statusBadgeText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  timeline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg },
+  timelineStep: { flex: 1, alignItems: 'center', position: 'relative' },
+  timelineDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  timelineDotDone: { backgroundColor: colors.success, borderColor: colors.success },
+  timelineDotActive: { backgroundColor: colors.success, borderColor: colors.success },
+  timelineCheck: { fontSize: 12, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  timelineLine: { position: 'absolute', top: 13, left: '50%', right: '-50%', height: 2, backgroundColor: colors.border, zIndex: -1 },
+  timelineLineDone: { backgroundColor: colors.success },
+  timelineLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4, fontWeight: typography.weight.medium as any },
+  timelineLabelActive: { color: colors.text, fontWeight: typography.weight.extrabold as any },
+  providerCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  providerAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  providerAvatarText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg },
+  verifiedText: { fontSize: 10, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  providerInfo: { flex: 1 },
+  providerName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  providerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 2 },
+  star: { fontSize: 12, color: colors.warning },
+  providerRating: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
+  providerMeta: { fontSize: 13, color: colors.textSecondary },
+  providerActions: { flexDirection: 'row', gap: spacing.sm },
+  actionIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
+  actionIconText: { fontSize: 14, color: colors.success, fontWeight: typography.weight.extrabold as any },
+  etaCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  etaIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  etaIconText: { fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  etaInfo: { flex: 1 },
+  etaTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  etaSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  detailsCard: { backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
+  detailLabel: { fontSize: 14, color: colors.textSecondary },
+  detailValue: { fontSize: 14, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  reportLink: { alignItems: 'center', paddingVertical: spacing.md },
+  reportLinkText: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.semibold as any, textDecorationLine: 'underline' },
 })
 
 export default withScreenBoundary(MissionDetail, 'MissionDetail')
