@@ -224,6 +224,12 @@ function MissionDetail() {
     doUpdateStatus('cancelled')
   }
 
+  const payBalance = () => {
+    const offer = item?.acceptedOffer
+    if (!offer || !item?.payment) return
+    router.push(`/payment?offerId=${offer._id}&amount=${offer.price}&requestId=${requestId}&phase=balance`)
+  }
+
   if (loading && !item) return (
     <SafeAreaView style={s.safe}><ActivityIndicator style={{ marginTop: 40 }} color="#0F172A" /></SafeAreaView>
   )
@@ -389,6 +395,36 @@ function MissionDetail() {
               <Text style={s.detailLabel}>Service</Text>
               <Text style={s.detailValue}>{item?.category || 'Électricité'}</Text>
             </View>
+            {item?.payment && (
+              <View style={s.paymentSummary}>
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>Paiement</Text>
+                  <Text style={[s.detailValue, { textTransform: 'capitalize' }]}>{item.payment.provider === 'cash' ? 'Cash sur place' : item.payment.provider.replace('_', ' ')} · {item.payment.phase === 'deposit' ? 'dépôt' : item.payment.phase === 'balance' ? 'solde' : 'total'}</Text>
+                </View>
+                {item.payment.depositAmount > 0 && (
+                  <View style={s.detailRow}>
+                    <Text style={s.detailLabel}>Dépôt payé</Text>
+                    <Text style={s.detailValue}>{formatMoney(item.payment.depositAmount)}</Text>
+                  </View>
+                )}
+                {item.payment.balanceAmount > 0 && item.payment.phase === 'deposit' && item.payment.status === 'held' && (
+                  <View style={s.detailRow}>
+                    <Text style={s.detailLabel}>Solde à payer</Text>
+                    <Text style={s.detailValue}>{formatMoney(item.payment.balanceAmount)}</Text>
+                  </View>
+                )}
+                <View style={[s.paymentBadge, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || '#F1F5F9' }]}>
+                  <Text style={[s.paymentBadgeText, { color: PAYMENT_BADGE[item.payment.status]?.color || '#64748B' }]}>
+                    {t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
+                  </Text>
+                </View>
+                {item.payment.phase === 'deposit' && item.payment.status === 'held' && item.status !== 'cancelled' && item.status !== 'completed' && (
+                  <TouchableOpacity style={s.payBalanceBtn} onPress={payBalance}>
+                    <Text style={s.payBalanceBtnText}>{t('payment.payBalance')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           <TouchableOpacity style={s.reportLink}>
@@ -416,7 +452,7 @@ const s = StyleSheet.create({
   backIcon: { fontSize: 18, color: colors.text },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   noMapText: { textAlign: 'center', color: colors.textSecondary, marginTop: 40 },
-  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.md, paddingHorizontal: spacing.lg, maxHeight: '60%', ...shadows.xl },
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.md, paddingHorizontal: spacing.lg, maxHeight: '48%', ...shadows.xl },
   handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
   statusBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
   statusBadgeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#86EFAC' },
@@ -455,6 +491,11 @@ const s = StyleSheet.create({
   detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
   detailLabel: { fontSize: 14, color: colors.textSecondary },
   detailValue: { fontSize: 14, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  paymentSummary: { marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
+  paymentBadge: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginTop: spacing.sm },
+  paymentBadgeText: { fontSize: 12, fontWeight: typography.weight.extrabold as any },
+  payBalanceBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.md },
+  payBalanceBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   reportLink: { alignItems: 'center', paddingVertical: spacing.md },
   reportLinkText: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.semibold as any, textDecorationLine: 'underline' },
 })

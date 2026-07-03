@@ -136,20 +136,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           }
         }
 
-        // ─── Auto-refund escrow points si paiement en held ───
+        // ─── Gestion du deposit / pénalité client ───
         try {
           const heldPayment = await Payment.findOne({ requestId: id, status: 'held' })
           if (heldPayment) {
-            heldPayment.status = 'refunded'
-            heldPayment.refundedAt = now
-            await heldPayment.save()
-            const escrowCost = heldPayment.escrowPointsCharged || 0
-            if (escrowCost > 0) {
-              await refundEscrowPoints(String(heldPayment.clientId), String(id), escrowCost)
+            // Client annule après provider_arriving → le deposit est conservé comme pénalité
+            const clientLateCancellation = isClient && prevStatus === 'provider_arriving'
+            if (clientLateCancellation && heldPayment.depositAmount > 0) {
+              heldPayment.status = 'released'
+              heldPayment.releasedAt = now
+              await heldPayment.save()
+              // Notify provider
+              void sendPushToUser(String(sr.assignedProviderId), {
+                title: '💰 Dépôt de garantie reçu',
+                body: `${heldPayment.depositAmount.toLocaleString('fr-FR')} FCFA conservés suite à l'annulation tardive du client.`,
+                data: { type: 'payment:released', requestId: String(id) },
+                appType: 'provider',
+              })
+            } else {
+              // Sinon remboursement complet (provider annule ou client annule avant trajet)
+              heldPayment.status = 'refunded'
+              heldPayment.refundedAt = now
+              await heldPayment.save()
+              const escrowCost = heldPayment.escrowPointsCharged || 0
+              if (escrowCost > 0) {
+                await refundEscrowPoints(String(heldPayment.clientId), String(id), escrowCost)
+              }
             }
           }
         } catch (refundErr) {
-          console.error('[PATCH cancel] auto-refund escrow', refundErr)
+          console.error('[PATCH cancel] auto-refund/release deposit', refundErr)
         }
       }
     }

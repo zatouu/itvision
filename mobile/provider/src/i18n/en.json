@@ -247,6 +247,11 @@
     "freeBadgeText": "Earn XC and get rewards",
     "cancelBtn": "Cancel"
   },
+  "payment": {
+    "cashConfirmTitle": "Cash received?",
+    "cashConfirmMsg": "Confirm you received {{amount}} FCFA in cash from the client.",
+    "cashConfirmed": "✅ Cash payment confirmed"
+  },
   "offline": {
     "badge": "{{count}} pending action(s)",
     "queued": "Saved offline — will be sent when network returns."

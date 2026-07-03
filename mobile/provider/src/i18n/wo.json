@@ -247,6 +247,11 @@
     "freeBadgeText": "Jot XC ngir yilif ay keur",
     "cancelBtn": "Bayyil"
   },
+  "payment": {
+    "cashConfirmTitle": "Cash jëfandikoo na?",
+    "cashConfirmMsg": "Dëggal dafa am {{amount}} FCFA cash ci käy-kat bi.",
+    "cashConfirmed": "✅ Fay cash bi dëggal"
+  },
   "offline": {
     "badge": "{{count}} jëf(i) ngay xaar",
     "queued": "Denc nañu ko — dinañu ko yónnee bu internet bi dellu."

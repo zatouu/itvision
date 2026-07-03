@@ -247,6 +247,11 @@
     "freeBadgeText": "Cumulez des XC et gagnez des récompenses",
     "cancelBtn": "Annuler"
   },
+  "payment": {
+    "cashConfirmTitle": "Cash reçu ?",
+    "cashConfirmMsg": "Confirmez avoir reçu {{amount}} FCFA en espèces du client.",
+    "cashConfirmed": "✅ Paiement cash confirmé"
+  },
   "offline": {
     "badge": "{{count}} action(s) en attente",
     "queued": "Enregistré hors ligne — sera envoyé dès le retour réseau."

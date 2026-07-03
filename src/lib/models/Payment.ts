@@ -1,7 +1,8 @@
 import { Schema, model, models } from 'mongoose'
 
 export type PaymentStatus = 'pending' | 'held' | 'released' | 'refunded' | 'failed'
-export type PaymentProvider = 'wave' | 'orange_money' | 'free_money'
+export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash'
+export type PaymentPhase = 'deposit' | 'balance' | 'full'
 
 const PaymentSchema = new Schema({
   requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true },
@@ -9,8 +10,11 @@ const PaymentSchema = new Schema({
   clientId: { type: String, required: true },
   providerId: { type: String, required: true },
   amount: { type: Number, required: true, min: 100 },
+  depositAmount: { type: Number, default: 0, min: 0 },
+  balanceAmount: { type: Number, default: 0, min: 0 },
   currency: { type: String, default: 'XOF' },
-  provider: { type: String, enum: ['wave', 'orange_money', 'free_money'], required: true },
+  provider: { type: String, enum: ['wave', 'orange_money', 'free_money', 'cash'], required: true },
+  phase: { type: String, enum: ['deposit', 'balance', 'full'], default: 'full' },
   status: { type: String, enum: ['pending', 'held', 'released', 'refunded', 'failed'], default: 'pending' },
   useEscrow: { type: Boolean, default: true },
   // Provider-specific reference IDs

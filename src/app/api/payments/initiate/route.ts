@@ -8,18 +8,24 @@ import { initiatePayment, InitiateResult, PaymentProvider } from '@/lib/payment'
 import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wallet'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 
-const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money']
+const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
+
+const DEPOSIT_RATE = 0.25
+const MIN_DEPOSIT = 1000
 
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
     const { userId } = await requireAuth(request)
     const body = await request.json()
-    const { offerId, provider, clientPhone } = body
+    const { offerId, provider, clientPhone, phase = 'full' } = body
 
     if (!offerId || !provider || !VALID_PROVIDERS.includes(provider)) {
-      return NextResponse.json({ error: 'offerId et provider (wave|orange_money|free_money) requis' }, { status: 400 })
+      return NextResponse.json({ error: 'offerId et provider (wave|orange_money|free_money|cash) requis' }, { status: 400 })
+    }
+    if (!['deposit', 'balance', 'full'].includes(phase)) {
+      return NextResponse.json({ error: 'phase doit être deposit, balance ou full' }, { status: 400 })
     }
 
     // Vérifier l'offre et la demande
@@ -64,13 +70,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const amount = offer.price
+    const totalAmount = offer.price
+    const depositAmount = phase === 'deposit'
+      ? Math.max(Math.round(totalAmount * DEPOSIT_RATE), MIN_DEPOSIT)
+      : 0
+    const balanceAmount = totalAmount - depositAmount
+    const amountToPayNow = provider === 'cash'
+      ? totalAmount
+      : (phase === 'deposit' ? depositAmount : phase === 'balance' ? balanceAmount : totalAmount)
     const description = `Xeuy – ${sr.category} #${String(sr._id).slice(-6)}`
     const phone = clientPhone || ''
 
     // ── Débit points escrow client ──
     const cfg = await getAppConfig()
-    const useEscrow = cfg.escrow.enabled && (cfg.escrow.mandatory || body.useEscrow !== false)
+    const useEscrow = provider !== 'cash' && cfg.escrow.enabled && (cfg.escrow.mandatory || body.useEscrow !== false)
     const escrowCost = useEscrow ? cfg.monetization.escrowCostPoints : 0
     let escrowPointsCharged = 0
     if (escrowCost > 0) {
@@ -84,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Appeler le provider
     let result: InitiateResult
     try {
-      result = await initiatePayment(provider, amount, phone, description)
+      result = await initiatePayment(provider, amountToPayNow, phone, description)
     } catch (paymentErr) {
       if (escrowPointsCharged > 0) {
         await refundEscrowPoints(String(userId), String(sr._id), escrowPointsCharged).catch((refundErr) => {
@@ -110,9 +123,12 @@ export async function POST(request: NextRequest) {
         offerId: offer._id,
         clientId: userId,
         providerId: offer.providerId,
-        amount,
+        amount: totalAmount,
+        depositAmount,
+        balanceAmount,
         provider,
-        status: 'pending',
+        phase: provider === 'cash' ? 'full' : phase,
+        status: provider === 'cash' ? 'held' : 'pending',
         useEscrow,
         externalId: result.externalId,
         checkoutUrl: result.checkoutUrl,
@@ -127,25 +143,30 @@ export async function POST(request: NextRequest) {
       throw createErr
     }
 
-    if (isDev) {
+    if (isDev || provider === 'cash') {
       payment.status = 'held'
       payment.heldAt = new Date()
       await payment.save()
-      await acceptOfferForRequest({
-        serviceRequest: sr,
-        offer,
-        securePayment: useEscrow,
-        notifyClientPaymentHeld: useEscrow,
-        amount,
-      })
+      if (phase !== 'balance') {
+        await acceptOfferForRequest({
+          serviceRequest: sr,
+          offer,
+          securePayment: useEscrow,
+          notifyClientPaymentHeld: useEscrow,
+          amount: totalAmount,
+        })
+      }
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       payment,
       checkoutUrl: result.checkoutUrl,
       useEscrow,
       escrowPointsCharged,
+      depositAmount,
+      balanceAmount,
+      totalAmount,
     })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })

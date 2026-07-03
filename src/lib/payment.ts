@@ -9,7 +9,7 @@
  * In dev mode, all calls are mocked with instant success.
  */
 
-export type PaymentProvider = 'wave' | 'orange_money' | 'free_money'
+export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 
 export interface InitiateResult {
   success: boolean
@@ -181,6 +181,22 @@ async function freeRelease(externalId: string, amount: number, providerPhone: st
   return { success: true }
 }
 
+// ──── CASH ────────────────────────────────────────────────────────────────────
+
+async function cashInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
+  if (isDev) {
+    console.log(`[Payment/Cash] DEV: cash payment registered for ${amount} XOF`)
+  }
+  return { success: true, externalId: `cash_${Date.now()}` }
+}
+
+async function cashRelease(externalId: string, _amount: number, _providerPhone: string): Promise<ReleaseResult> {
+  if (isDev) {
+    console.log(`[Payment/Cash] DEV: cash release ${externalId}`)
+  }
+  return { success: true }
+}
+
 // ──── PUBLIC API ──────────────────────────────────────────────────────────────
 
 export async function initiatePayment(
@@ -193,6 +209,7 @@ export async function initiatePayment(
     case 'wave': return waveInitiate(amount, clientPhone, description)
     case 'orange_money': return omInitiate(amount, clientPhone, description)
     case 'free_money': return freeInitiate(amount, clientPhone, description)
+    case 'cash': return cashInitiate(amount, clientPhone, description)
   }
 }
 
@@ -206,5 +223,6 @@ export async function releasePayment(
     case 'wave': return waveRelease(externalId, amount, providerPhone)
     case 'orange_money': return omRelease(externalId, amount, providerPhone)
     case 'free_money': return freeRelease(externalId, amount, providerPhone)
+    case 'cash': return cashRelease(externalId, amount, providerPhone)
   }
 }

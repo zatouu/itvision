@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
 import * as Location from 'expo-location'
-import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
+import { apiGet, apiPost, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
@@ -248,6 +248,24 @@ function ActiveMission() {
     doUpdateStatus('completed')
   }
 
+  const confirmCashReceived = async () => {
+    if (!requestId) return
+    const ok = await confirm(t('payment.cashConfirmTitle'), t('payment.cashConfirmMsg', { amount: formatMoney(item?.payment?.amount) }))
+    if (!ok) return
+    setUpdating(true)
+    try {
+      const r = await apiPost('/api/payments/release', { requestId })
+      if (r?.success) {
+        notify(t('payment.cashConfirmed'), r.releasedAmount ? `${Number(r.releasedAmount).toLocaleString()} FCFA enregistrés.` : '')
+        await load(true)
+      }
+    } catch (e: any) {
+      notify(t('common.error'), e.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   if (loading && !item) return (
     <SafeAreaView style={s.safe}><ActivityIndicator style={{ marginTop: 40 }} color="#0F172A" /></SafeAreaView>
   )
@@ -327,11 +345,33 @@ function ActiveMission() {
               </View>
             )}
 
-            {item.payment && PAYMENT_BADGE[item.payment.status] && (
-              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status].bg }]}>
-                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status].color }]}>
-                  {t(PAYMENT_BADGE[item.payment.status].key)}
+            {item.payment && (
+              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || '#F1F5F9' }]}>
+                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status]?.color || '#64748B' }]}>
+                  {t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
+                  {item.payment.provider === 'cash' ? ' · Cash' : ''}
+                  {item.payment.phase === 'deposit' ? ` · Dépôt ${formatMoney(item.payment.depositAmount)} / Solde ${formatMoney(item.payment.balanceAmount)}` : ''}
                 </Text>
+              </View>
+            )}
+
+            {/* Carte */}
+            {hasCoords && (
+              <View style={s.card}>
+                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
+                <LiveRouteMap
+                  destination={{ lat, lng }}
+                  destinationLabel={locationAddress}
+                  origin={currentLocation || undefined}
+                  providerLocation={currentLocation || undefined}
+                  status={item.status}
+                  onRouteInfo={setRouteInfo}
+                />
+                {routeInfo && (
+                  <View style={s.routeInfo}>
+                    <Text style={s.routeInfoText}>{routeInfo.distance} · {routeInfo.duration}</Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -419,26 +459,6 @@ function ActiveMission() {
               </View>
             )}
 
-            {/* Carte */}
-            {hasCoords && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
-                <LiveRouteMap
-                  destination={{ lat, lng }}
-                  destinationLabel={locationAddress}
-                  origin={currentLocation || undefined}
-                  providerLocation={currentLocation || undefined}
-                  status={item.status}
-                  onRouteInfo={setRouteInfo}
-                />
-                {routeInfo && (
-                  <View style={s.routeInfo}>
-                    <Text style={s.routeInfoText}>{routeInfo.distance} · {routeInfo.duration}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
             {/* Chat */}
             {['assigned', 'provider_arriving', 'in_progress'].includes(item.status) && (
               <TouchableOpacity
@@ -464,6 +484,11 @@ function ActiveMission() {
               {item.status === 'in_progress' && (
                 <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={handleComplete} disabled={updating}>
                   <Text style={s.completeBtnText}>{t('mission.completeBtn')}</Text>
+                </TouchableOpacity>
+              )}
+              {item.payment?.provider === 'cash' && item.payment?.status === 'held' && item.status === 'completed' && (
+                <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={confirmCashReceived} disabled={updating}>
+                  <Text style={s.completeBtnText}>✅ Confirmer le cash reçu</Text>
                 </TouchableOpacity>
               )}
             </View>

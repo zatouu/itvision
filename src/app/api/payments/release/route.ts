@@ -9,7 +9,8 @@ import { sendPushToUser } from '@/lib/push'
 
 /**
  * Release escrow payment to provider when mission is completed.
- * Called automatically when status → completed, or manually by client.
+ * Called automatically when status → completed, or manually by client/provider.
+ * For deposit mode, only the held deposit is released. The balance is handled separately.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -24,8 +25,9 @@ export async function POST(request: NextRequest) {
     const sr = await ServiceRequest.findById(requestId)
     if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
 
-    // Seul le client ou le système peut release
-    if (String(sr.clientId) !== String(userId)) {
+    const isClient = String(sr.clientId) === String(userId)
+    const isProvider = String(sr.assignedProviderId) === String(userId)
+    if (!isClient && !isProvider) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
@@ -38,6 +40,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Aucun paiement en escrow trouvé' }, { status: 404 })
     }
 
+    // Amount to release: deposit only if phase was deposit, else full amount
+    const releaseAmount = payment.phase === 'deposit' ? payment.depositAmount : payment.amount
+    if (releaseAmount <= 0) {
+      return NextResponse.json({ error: 'Montant à libérer invalide' }, { status: 400 })
+    }
+
     // Get provider phone for payout
     const provider = await User.findById(payment.providerId).select('phone').lean()
     const providerPhone = (provider as any)?.phone || ''
@@ -45,7 +53,7 @@ export async function POST(request: NextRequest) {
     const result = await releasePayment(
       payment.provider as any,
       payment.externalId,
-      payment.amount,
+      releaseAmount,
       providerPhone,
     )
 
@@ -60,12 +68,12 @@ export async function POST(request: NextRequest) {
     // Notify provider
     await sendPushToUser(String(payment.providerId), {
       title: '💰 Paiement reçu !',
-      body: `${payment.amount.toLocaleString('fr-FR')} FCFA envoyés sur votre compte ${payment.provider}.`,
+      body: `${releaseAmount.toLocaleString('fr-FR')} FCFA envoyés sur votre compte ${payment.provider}.`,
       data: { type: 'payment:released', requestId: String(requestId) },
       appType: 'provider',
     })
 
-    return NextResponse.json({ success: true, payment })
+    return NextResponse.json({ success: true, payment, releasedAmount: releaseAmount })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/payments/release]', e)
