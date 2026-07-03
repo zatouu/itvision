@@ -54,7 +54,7 @@ export default function Login() {
           <Text style={s.label}>{t('auth.phoneLabel')}</Text>
           <View style={s.phoneRow}>
             <View style={s.prefix}>
-              <Text style={s.prefixText}>🇸🇳 +221</Text>
+              <Text style={s.prefixText}>+221</Text>
             </View>
             <TextInput
               style={s.phoneInput}
