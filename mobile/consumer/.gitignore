@@ -14,3 +14,4 @@ web-build/
 ios/
 android/
 .DS_Store
+google-services.json
