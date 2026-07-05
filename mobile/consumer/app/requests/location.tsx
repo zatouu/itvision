@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Dimensions } from 'react-native'
+import { useState, useEffect, useCallback } from 'react'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Dimensions, Alert } from 'react-native'
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
+import * as Location from 'expo-location'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -9,18 +10,50 @@ import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
+import { reverseGeocode } from '../../src/geocode'
 import { mockAddresses } from '../../src/mock'
 
 const STEPS = ['Catégorie', 'Détails', 'Lieu']
 
 export default function RequestLocation() {
   const { t } = useTranslation()
-  const [address, setAddress] = useState('Médina, Dakar')
-  const [street, setStreet] = useState('Rue 12, près de la mosquée')
+  const [address, setAddress] = useState('')
+  const [street, setStreet] = useState('')
   const [building, setBuilding] = useState('')
   const [instructions, setInstructions] = useState('')
   const [saveAddress, setSaveAddress] = useState(false)
-  const [selectedSaved, setSelectedSaved] = useState<string | null>('a1')
+  const [selectedSaved, setSelectedSaved] = useState<string | null>(null)
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [loadingLocation, setLoadingLocation] = useState(false)
+
+  const useMyLocation = useCallback(async () => {
+    setLoadingLocation(true)
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), 'Permission de localisation requise')
+        return
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      const { latitude, longitude } = pos.coords
+      setCoords({ lat: latitude, lng: longitude })
+      const geo = await reverseGeocode(latitude, longitude)
+      if (geo) {
+        const parts = [geo.neighbourhood, geo.suburb, geo.city].filter(Boolean)
+        setAddress(parts.join(', ') || geo.display.split(',').slice(0, 3).join(','))
+      } else {
+        setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
+      }
+    } catch {
+      Alert.alert(t('common.error'), t('request.gpsRequired'))
+    } finally {
+      setLoadingLocation(false)
+    }
+  }, [t])
+
+  useEffect(() => {
+    useMyLocation()
+  }, [useMyLocation])
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -55,9 +88,11 @@ export default function RequestLocation() {
           />
         </View>
 
-        <TouchableOpacity style={s.useLocationBtn} activeOpacity={0.85}>
-          <Crosshair size={18} color={colors.primary} />
-          <Text style={s.useLocationText}>{t('clientRequest.useLocation')}</Text>
+        <TouchableOpacity style={s.useLocationBtn} activeOpacity={0.85} onPress={useMyLocation} disabled={loadingLocation}>
+          <Crosshair size={18} color={loadingLocation ? colors.textMuted : colors.primary} />
+          <Text style={[s.useLocationText, loadingLocation && { color: colors.textMuted }]}>
+            {loadingLocation ? t('clientRequest.locating') : t('clientRequest.useLocation')}
+          </Text>
         </TouchableOpacity>
 
         <View style={s.mapCard}>
@@ -65,17 +100,20 @@ export default function RequestLocation() {
             provider={PROVIDER_DEFAULT}
             style={s.map}
             initialRegion={{
-              latitude: 14.7167,
-              longitude: -17.4677,
+              latitude: coords?.lat ?? 14.7167,
+              longitude: coords?.lng ?? -17.4677,
               latitudeDelta: 0.015,
               longitudeDelta: 0.0121,
             }}
+            region={coords ? { latitude: coords.lat, longitude: coords.lng, latitudeDelta: 0.015, longitudeDelta: 0.0121 } : undefined}
           >
-            <Marker
-              coordinate={{ latitude: 14.7167, longitude: -17.4677 }}
-              title={address}
-              description={street}
-            />
+            {coords && (
+              <Marker
+                coordinate={{ latitude: coords.lat, longitude: coords.lng }}
+                title={address}
+                description={street}
+              />
+            )}
           </MapView>
           <View style={s.mapOverlay}>
             <MapPin size={20} color={colors.primary} />
