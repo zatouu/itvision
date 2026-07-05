@@ -117,7 +117,9 @@ function NotificationsScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Text style={s.title}>{t('notifications.title')}</Text>
+        <View style={s.headerTop}>
+          <Text style={s.title}>{t('notifications.title')}</Text>
+        </View>
         <View style={s.headerActions}>
           <TouchableOpacity onPress={runDiagnostics} disabled={diagRunning} style={[s.headerBtn, s.headerBtnDebug]}>
             {diagRunning ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={s.headerBtnText}>Tester</Text>}
@@ -174,9 +176,10 @@ function NotificationsScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff' },
-  title: { flex: 1, fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
-  headerActions: { flexDirection: 'row', gap: 8 },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff', gap: 12 },
+  headerTop: { flexDirection: 'row', alignItems: 'center' },
+  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
+  headerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: '#F1F5F9' },
   headerBtnDanger: { backgroundColor: '#FEF2F2' },
   headerBtnDebug: { backgroundColor: '#E0F2FE' },
