@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../src/socket'
 import { fetchWithCache, cacheClear } from '../src/storage'
@@ -76,6 +77,7 @@ function RequestOffers() {
 
   const [wsConnected, setWsConnected] = useState(false)
   const [now, setNow] = useState<number>(Date.now())
+  const [viewerLocations, setViewerLocations] = useState<Record<string, { lat: number; lng: number; name?: string; providerId?: string; lastSeen: number }>>({})
   // Contre-offre modal
   const [counterModal, setCounterModal] = useState(false)
   const [counterOfferId, setCounterOfferId] = useState<string | null>(null)
@@ -108,6 +110,19 @@ function RequestOffers() {
     const handleCounterAccepted = () => { load(true) }
     const handleCounterRejected = () => { load(true) }
     const handleOfferUpdated = () => { load(true) }
+    const handleProviderLocation = (data: any) => {
+      if (!Number.isFinite(Number(data?.lat)) || !Number.isFinite(Number(data?.lng))) return
+      setViewerLocations(prev => ({
+        ...prev,
+        [data.providerId || data.socketId || 'unknown']: {
+          lat: Number(data.lat),
+          lng: Number(data.lng),
+          name: data.providerName,
+          providerId: data.providerId,
+          lastSeen: Number(data.timestamp) || Date.now(),
+        },
+      }))
+    }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
@@ -116,14 +131,29 @@ function RequestOffers() {
     socket.on('offer:counter-accepted', handleCounterAccepted)
     socket.on('offer:counter-rejected', handleCounterRejected)
     socket.on('offer:updated', handleOfferUpdated)
+    socket.on('provider:location', handleProviderLocation)
 
     // Fallback: auto-refresh toutes les 10s si WS déconnecté
     const interval = setInterval(() => {
       if (!socket.connected) load(true)
     }, 10000)
+    // Nettoyage des viewers inactifs (> 60s)
+    const cleanup = setInterval(() => {
+      const cutoff = Date.now() - 60_000
+      setViewerLocations(prev => {
+        const next: typeof prev = {}
+        let changed = false
+        Object.entries(prev).forEach(([key, v]) => {
+          if (v.lastSeen >= cutoff) next[key] = v
+          else changed = true
+        })
+        return changed ? next : prev
+      })
+    }, 10_000)
 
     return () => {
       clearInterval(interval)
+      clearInterval(cleanup)
       leaveRequestRoom(id)
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
@@ -132,6 +162,7 @@ function RequestOffers() {
       socket.off('offer:counter-accepted', handleCounterAccepted)
       socket.off('offer:counter-rejected', handleCounterRejected)
       socket.off('offer:updated', handleOfferUpdated)
+      socket.off('provider:location', handleProviderLocation)
     }
   }, [id, load])
 
@@ -227,6 +258,52 @@ function RequestOffers() {
           </View>
         </View>
       )}
+
+      {/* Carte live des prestataires qui consultent la demande (style InDriver) */}
+      {serviceRequest?.location?.lat && serviceRequest?.location?.lng && !requestDone ? (
+        <View style={s.mapWrap}>
+          <View style={s.mapHeader}>
+            <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
+            <Text style={s.mapTitle}>{t('offers.liveViewers', { count: Object.keys(viewerLocations).length })}</Text>
+          </View>
+          {Platform.OS === 'web' ? (
+            <View style={s.mapPlaceholder}>
+              <Text style={s.mapPlaceholderText}>{t('offers.mapWebViewers')}</Text>
+            </View>
+          ) : (
+            <MapView
+              provider={PROVIDER_DEFAULT}
+              style={s.map}
+              initialRegion={{
+                latitude: serviceRequest.location.lat,
+                longitude: serviceRequest.location.lng,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+              }}
+            >
+              {/* Position de la demande */}
+              <Marker
+                coordinate={{ latitude: serviceRequest.location.lat, longitude: serviceRequest.location.lng }}
+                title={t('offers.requestLocation')}
+                pinColor={colors.primary}
+              />
+              {/* Prestataires en cours de consultation */}
+              {Object.entries(viewerLocations).map(([key, v]) => (
+                <Marker
+                  key={key}
+                  coordinate={{ latitude: v.lat, longitude: v.lng }}
+                  title={v.name || t('offers.viewer')}
+                  description={t('offers.viewerNearBy')}
+                >
+                  <View style={s.viewerMarker}>
+                    <Text style={s.viewerMarkerText}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                </Marker>
+              ))}
+            </MapView>
+          )}
+        </View>
+      ) : null}
 
       {/* Indicateur temps réel */}
       <View style={s.rtRow}>
@@ -460,6 +537,14 @@ const s = StyleSheet.create({
   rtDot: { width: 7, height: 7, borderRadius: 4 },
   rtDot2: { width: 5, height: 5, borderRadius: 3 },
   rtText: { fontSize: 12, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  mapWrap: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.sm },
+  mapHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mapTitle: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text, flex: 1 },
+  map: { width: '100%', height: 220 },
+  mapPlaceholder: { width: '100%', height: 220, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
+  viewerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.success, borderWidth: 2, borderColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  viewerMarkerText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   list: { padding: spacing.lg, gap: spacing.md, paddingBottom: 32 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: 10, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   cardAccepted: { borderColor: colors.success, borderWidth: 2 },

@@ -1,23 +1,106 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import { useEffect, useState, useCallback } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
-import { MapPin, Mic, Check, MessageCircle } from 'lucide-react-native'
+import * as Location from 'expo-location'
+import { MapPin, Mic, Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
-import ScreenContainer from '../../src/components/ScreenContainer'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import StatusChip from '../../src/components/StatusChip'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
-import { mockRequests } from '../../src/mock'
-import type { ServiceRequest } from '../../src/types'
+import { apiGet } from '../../src/api'
+import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation } from '../../src/socket'
+
+const DEGS_TO_RADS = Math.PI / 180
+function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const dLat = (b.lat - a.lat) * DEGS_TO_RADS
+  const dLng = (b.lng - a.lng) * DEGS_TO_RADS
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * DEGS_TO_RADS) * Math.cos(b.lat * DEGS_TO_RADS) * Math.sin(dLng / 2) ** 2
+  return 2 * 6371000 * Math.asin(Math.sqrt(x))
+}
 
 export default function NearbyRequestDetail() {
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const [request] = useState<ServiceRequest | undefined>(() => mockRequests.find((r: ServiceRequest) => r._id === id))
+  const [request, setRequest] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null)
+
+  const load = useCallback(async () => {
+    if (!id) return
+    setLoading(true)
+    try {
+      const r = await apiGet(`/api/services/requests/${id}`)
+      setRequest(r.item || r)
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message || t('nearby.loadError'))
+    } finally {
+      setLoading(false)
+    }
+  }, [id, t])
+
+  useEffect(() => { load() }, [load])
+
+  // Localisation provider + room + émission position temps réel
+  useEffect(() => {
+    if (!id) return
+    let mounted = true
+    let locInterval: any = null
+
+    const startLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') return
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        const { latitude, longitude } = loc.coords
+        if (!mounted) return
+        setMyLocation({ lat: latitude, lng: longitude })
+        const socket = connectSocket()
+        joinRequestRoom(id)
+        emitProviderLocation(id, { lat: latitude, lng: longitude })
+        locInterval = setInterval(async () => {
+          try {
+            const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+            if (mounted) {
+              setMyLocation({ lat: fresh.coords.latitude, lng: fresh.coords.longitude })
+              emitProviderLocation(id, { lat: fresh.coords.latitude, lng: fresh.coords.longitude })
+            }
+          } catch {}
+        }, 10_000)
+      } catch {}
+    }
+    startLocation()
+
+    return () => {
+      mounted = false
+      if (locInterval) clearInterval(locInterval)
+      leaveRequestRoom(id)
+    }
+  }, [id])
+
+  const distLabel = (m?: number) => {
+    if (!m && m !== 0) return ''
+    if (m < 1000) return `${Math.round(m)} m`
+    return `${(m / 1000).toFixed(1)} km`
+  }
+
+  const distance = request?.location?.lat && request?.location?.lng && myLocation
+    ? haversineM(myLocation, request.location)
+    : undefined
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <AppHeader title={t('providerNearby.request')} onBack={() => router.back()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   if (!request) {
     return (
@@ -31,9 +114,8 @@ export default function NearbyRequestDetail() {
   }
 
   const meta = getCategoryMeta(request.category)
-  const postedAt = new Date(request.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-  const initials = 'CL'
-  const distance = '1.2 km'
+  const postedAt = request.createdAt ? new Date(request.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''
+  const initials = (request.clientName || 'CL').slice(0, 2).toUpperCase()
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -45,13 +127,13 @@ export default function NearbyRequestDetail() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.category}>{meta.label}</Text>
-            <Text style={s.subCategory}>{request.subCategory || request.description.slice(0, 40)}</Text>
+            <Text style={s.subCategory}>{request.subCategory || request.description?.slice(0, 40)}</Text>
           </View>
         </View>
 
         <View style={s.pills}>
           <StatusChip label={`${t('providerNearby.posted')} ${postedAt}`} variant="neutral" small />
-          <StatusChip label={distance} variant="info" small />
+          {distance !== undefined ? <StatusChip label={distLabel(distance)} variant="info" small /> : null}
           <StatusChip label={t('providerNearby.urgent')} variant="warning" small />
         </View>
 
@@ -59,13 +141,13 @@ export default function NearbyRequestDetail() {
           <Text style={s.sectionTitle}>{t('providerNearby.location')}</Text>
           <View style={s.locationRow}>
             <MapPin size={18} color={colors.textSecondary} />
-            <Text style={s.locationText}>{request.address}</Text>
+            <Text style={s.locationText}>{request.location?.address || request.address || ''}</Text>
           </View>
         </View>
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t('providerNearby.description')}</Text>
-          <Text style={s.description}>{request.description}</Text>
+          <Text style={s.description}>{request.description || '—'}</Text>
         </View>
 
         {request.media && request.media.length > 0 ? (
@@ -73,10 +155,10 @@ export default function NearbyRequestDetail() {
             <Text style={s.sectionTitle}>{t('providerNearby.media')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                {request.media.map((m, i) => (
+                {request.media.map((m: any, i: number) => (
                   <View key={i} style={s.thumb}>
-                    {m.type === 'image' ? (
-                      <Image source={{ uri: m.url }} style={s.thumbImage} />
+                    {m.type === 'image' || !m.type ? (
+                      <Image source={{ uri: m.url || m.uri }} style={s.thumbImage} />
                     ) : (
                       <View style={s.audioThumb}>
                         <Mic size={28} color={colors.primary} />
@@ -93,11 +175,11 @@ export default function NearbyRequestDetail() {
           <Text style={s.sectionTitle}>{t('providerNearby.details')}</Text>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('providerNearby.budget')}</Text>
-            <Text style={s.detailValue}>{request.budget?.toLocaleString('fr-FR')} FCFA</Text>
+            <Text style={s.detailValue}>{request.budget ? `${Number(request.budget).toLocaleString('fr-FR')} FCFA` : t('providerNearby.budgetNone')}</Text>
           </View>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('providerNearby.reference')}</Text>
-            <Text style={s.detailValue}>#{request._id.slice(-6).toUpperCase()}</Text>
+            <Text style={s.detailValue}>#{String(request._id).slice(-6).toUpperCase()}</Text>
           </View>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('providerNearby.payment')}</Text>

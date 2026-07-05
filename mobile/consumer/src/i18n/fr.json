@@ -137,7 +137,12 @@
     "status_rejected": "Refusée",
     "status_expired": "Expirée",
     "status_withdrawn": "Retirée",
-    "status_cancelled": "Annulée"
+    "status_cancelled": "Annulée",
+    "liveViewers": "{{count}} prestataire(s) consulte(nt) votre demande",
+    "mapWebViewers": "Carte live indisponible sur le web. Ouvrez l'app mobile pour voir les prestataires proches en temps réel.",
+    "requestLocation": "Votre demande",
+    "viewer": "Prestataire",
+    "viewerNearBy": "Consulte votre demande"
   },
   "requests": {
     "title": "Mes demandes",
