@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native'
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
+import { Navigation } from 'lucide-react-native'
 
 export interface RouteInfo {
   polyline: Array<{ lat: number; lng: number }>
@@ -20,6 +21,7 @@ export interface LiveRouteMapProps {
 }
 
 const ROUTE_REFRESH_MIN_MS = 20000
+const ROUTE_REFETCH_MIN_MOVE_M = 80
 const DEGS_TO_RADS = Math.PI / 180
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -93,6 +95,7 @@ export function LiveRouteMap({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const lastFetchAt = useRef(0)
+  const lastFetchOrigin = useRef<{ lat: number; lng: number } | null>(null)
   const pendingFetch = useRef<ReturnType<typeof setTimeout> | null>(null)
   const headingAnim = useRef(new Animated.Value(0)).current
 
@@ -139,6 +142,11 @@ export function LiveRouteMap({
       pendingFetch.current = setTimeout(() => fetchRoute(), ROUTE_REFRESH_MIN_MS - (now - lastFetchAt.current))
       return
     }
+    // Économie API : ne pas refetch si le prestataire n'a presque pas bougé depuis le dernier itinéraire réussi
+    if (lastFetchOrigin.current) {
+      const movedM = haversineKm(lastFetchOrigin.current, activeOrigin) * 1000
+      if (movedM < ROUTE_REFETCH_MIN_MOVE_M) return
+    }
     lastFetchAt.current = now
     setLoading(true)
     setError(null)
@@ -163,6 +171,7 @@ export function LiveRouteMap({
         duration: { text: leg.duration?.text || '', value: leg.duration?.value || 0 },
       }
       setRoute(newRoute)
+      lastFetchOrigin.current = { lat: activeOrigin.lat, lng: activeOrigin.lng }
       if (onRouteInfo) {
         onRouteInfo({
           distance: newRoute.distance.text || formatKm(newRoute.distance.value),
@@ -251,7 +260,7 @@ export function LiveRouteMap({
           <Marker.Animated coordinate={animatedCoordinate as any}>
             <Animated.View style={[s.vehicleMarker, { transform: [{ rotate: headingAnim.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }] }]}>
               <View style={s.vehicleIcon}>
-                <Text style={s.vehicleIconText}>🚗</Text>
+                <Navigation size={18} color="#FFFFFF" fill="#FFFFFF" />
               </View>
             </Animated.View>
           </Marker.Animated>
@@ -434,8 +443,5 @@ const s = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
-  },
-  vehicleIconText: {
-    fontSize: 18,
   },
 })

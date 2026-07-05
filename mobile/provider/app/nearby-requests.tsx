@@ -416,7 +416,7 @@ function NearbyRequests() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalCatName}>{catMap[selected.category]?.label || selected.category}</Text>
-                  <Text style={s.modalCatMeta}>Médina · {selected._distance ? distLabel(selected._distance) : 'À proximité'}</Text>
+                  <Text style={s.modalCatMeta}>{selected.location?.address || 'À proximité'}{selected._distance ? ` · ${distLabel(selected._distance)}` : ''}</Text>
                 </View>
               </View>
               <View style={s.modalBudgetRow}>

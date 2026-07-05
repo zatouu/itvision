@@ -15,6 +15,7 @@ type Message = {
   senderRole: 'client' | 'provider'
   text: string
   createdAt: string
+  pending?: boolean
 }
 
 function MissionChat() {
@@ -51,6 +52,13 @@ function MissionChat() {
     const handleMessage = (msg: Message) => {
       setMessages(prev => {
         if (prev.some(m => m._id === msg._id)) return prev
+        // Réconcilie un message optimiste local (même texte, encore pending)
+        const optimisticIdx = prev.findIndex(m => m.pending && m.text === msg.text && m.senderRole === msg.senderRole)
+        if (optimisticIdx >= 0) {
+          const next = [...prev]
+          next[optimisticIdx] = msg
+          return next
+        }
         return [...prev, msg]
       })
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100)
@@ -68,9 +76,22 @@ function MissionChat() {
     if (!trimmed || sending || !id) return
     setSending(true)
     setText('')
+    // Affichage optimiste immédiat (style WhatsApp)
+    const optimistic: Message = {
+      _id: `local-${Date.now()}`,
+      senderId: myId,
+      senderRole: 'client',
+      text: trimmed,
+      createdAt: new Date().toISOString(),
+      pending: true,
+    }
+    setMessages(prev => [...prev, optimistic])
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)
     try {
       await apiPost('/api/services/chat', { requestId: id, text: trimmed })
     } catch (e: any) {
+      // Retire le message optimiste et restaure le texte
+      setMessages(prev => prev.filter(m => m._id !== optimistic._id))
       setText(trimmed)
       console.warn('[Chat] Erreur envoi:', e.message)
     } finally {
@@ -93,9 +114,9 @@ function MissionChat() {
   const renderMessage = ({ item }: { item: Message }) => {
     const isMe = item.senderId === myId || item.senderRole === 'client'
     return (
-      <View style={[st.bubble, isMe ? st.bubbleMe : st.bubbleThem]}>
+      <View style={[st.bubble, isMe ? st.bubbleMe : st.bubbleThem, item.pending && st.bubblePending]}>
         <Text style={[st.bubbleText, isMe ? st.bubbleTextMe : st.bubbleTextThem]}>{item.text}</Text>
-        <Text style={[st.time, isMe ? st.timeMe : st.timeThem]}>{formatTime(item.createdAt)}</Text>
+        <Text style={[st.time, isMe ? st.timeMe : st.timeThem]}>{item.pending ? '⏳' : formatTime(item.createdAt)}</Text>
       </View>
     )
   }
@@ -178,6 +199,7 @@ const st = StyleSheet.create({
   bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 2 },
   bubbleMe: { alignSelf: 'flex-end', backgroundColor: '#0F172A', borderBottomRightRadius: 4 },
   bubbleThem: { alignSelf: 'flex-start', backgroundColor: '#fff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  bubblePending: { opacity: 0.6 },
   bubbleText: { fontSize: 14, lineHeight: 20 },
   bubbleTextMe: { color: '#fff' },
   bubbleTextThem: { color: '#1E293B' },

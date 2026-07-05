@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -10,7 +10,7 @@ import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/sock
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Share as ShareIcon, Check, Star, Phone, MessageCircle, Truck } from 'lucide-react-native'
+import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
@@ -275,7 +275,31 @@ function MissionDetail() {
   const distanceDisplay = routeInfo?.distance || t('mission.notProvided')
   const stepLabels: Record<string, string> = { assigned: 'Assigné', provider_arriving: 'En route', in_progress: 'Sur place', completed: 'Terminée' }
   const stepOrder = ['assigned', 'provider_arriving', 'in_progress', 'completed']
-  const currentStepIdx = stepOrder.indexOf(item?.status || 'assigned')
+  const status = item?.status || 'assigned'
+  const currentStepIdx = stepOrder.indexOf(status)
+  const categoryLabel = item?.category ? String(item.category).charAt(0).toUpperCase() + String(item.category).slice(1) : null
+  const ratingAvg = Number(offer?.providerRating?.avg)
+  const hasRating = Number.isFinite(ratingAvg) && ratingAvg > 0
+
+  const STATUS_BANNER: Record<string, { label: string; color: string; dot: string }> = {
+    assigned:          { label: 'Prestataire assigné',   color: colors.success, dot: '#86EFAC' },
+    provider_arriving: { label: 'En route vers vous',     color: colors.success, dot: '#86EFAC' },
+    in_progress:       { label: 'Intervention en cours',  color: '#5B21B6',      dot: '#C4B5FD' },
+    completed:         { label: 'Mission terminée',       color: '#334155',      dot: '#CBD5E1' },
+    cancelled:         { label: 'Mission annulée',        color: '#991B1B',      dot: '#FCA5A5' },
+  }
+  const banner = STATUS_BANNER[status] || STATUS_BANNER.assigned
+  const isTracking = status === 'assigned' || status === 'provider_arriving'
+  const canCancel = status === 'assigned' || status === 'provider_arriving'
+  const canRate = status === 'completed' && !hasReview
+
+  const shareMission = async () => {
+    try {
+      await Share.share({
+        message: `Mission Xeuy Bi #${missionRef} — ${categoryLabel || 'Service'}${loc?.address ? ` à ${loc.address}` : ''}`,
+      })
+    } catch { /* annulé par l'utilisateur */ }
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -295,16 +319,18 @@ function MissionDetail() {
               <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
             <Text style={s.floatingTitle}>Suivi</Text>
-            <TouchableOpacity style={s.floatingBtn}>
-              <ShareIcon size={18} color={colors.text} />
+            <TouchableOpacity style={s.floatingBtn} onPress={shareMission}>
+              <Share2 size={18} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           {/* Floating ETA pill */}
-          <View style={s.etaPill}>
-            <View style={s.etaPillDot} />
-            <Text style={s.etaPillText}>En route · {distanceDisplay} · {etaDisplay}</Text>
-          </View>
+          {isTracking && (
+            <View style={s.etaPill}>
+              <View style={s.etaPillDot} />
+              <Text style={s.etaPillText}>En route · {distanceDisplay} · {etaDisplay}</Text>
+            </View>
+          )}
         </View>
       ) : (
         <View style={s.noMap}>
@@ -324,9 +350,9 @@ function MissionDetail() {
         <View style={s.handle} />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
           {/* Status badge */}
-          <View style={s.statusBadge}>
-            <View style={s.statusBadgeDot} />
-            <Text style={s.statusBadgeText}>En route vers vous</Text>
+          <View style={[s.statusBadge, { backgroundColor: banner.color }]}>
+            <View style={[s.statusBadgeDot, { backgroundColor: banner.dot }]} />
+            <Text style={s.statusBadgeText}>{banner.label}</Text>
           </View>
 
           {/* Timeline */}
@@ -355,32 +381,60 @@ function MissionDetail() {
               <View style={s.providerInfo}>
                 <Text style={s.providerName}>{offer.providerName || 'Prestataire'}</Text>
                 <View style={s.providerRow}>
-                  <Star size={12} color={colors.warning} fill={colors.warning} />
-                  <Text style={s.providerRating}>{offer.providerRating?.avg || 4.9}</Text>
-                  <Text style={s.providerMeta}> · Électricien</Text>
+                  {hasRating && (
+                    <>
+                      <Star size={12} color={colors.warning} fill={colors.warning} />
+                      <Text style={s.providerRating}>{ratingAvg.toFixed(1)}</Text>
+                    </>
+                  )}
+                  {categoryLabel && <Text style={s.providerMeta}>{hasRating ? ' · ' : ''}{categoryLabel}</Text>}
                 </View>
               </View>
               <View style={s.providerActions}>
                 <TouchableOpacity style={s.actionIconBtn} onPress={() => offer.providerPhone && Linking.openURL(`tel:${offer.providerPhone}`)}>
                   <Phone size={18} color={colors.success} />
                 </TouchableOpacity>
-                <TouchableOpacity style={s.actionIconBtn} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}`)}>
+                <TouchableOpacity style={s.actionIconBtn} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}${offer.providerPhone ? `&providerPhone=${encodeURIComponent(offer.providerPhone)}` : ''}`)}>
                   <MessageCircle size={18} color={colors.success} />
                 </TouchableOpacity>
               </View>
             </View>
           )}
 
-          {/* ETA card */}
-          <View style={s.etaCard}>
-            <View style={[s.etaIcon, { backgroundColor: colors.primaryLight }]}>
-              <Truck size={22} color={colors.primary} />
+          {/* ETA / progression card */}
+          {isTracking && (
+            <View style={s.etaCard}>
+              <View style={[s.etaIcon, { backgroundColor: colors.primaryLight }]}>
+                <Truck size={22} color={colors.primary} />
+              </View>
+              <View style={s.etaInfo}>
+                <Text style={s.etaTitle}>Arrive dans {etaDisplay}</Text>
+                <Text style={s.etaSub}>{distanceDisplay} · {loc?.address || t('mission.notProvided')}</Text>
+              </View>
             </View>
-            <View style={s.etaInfo}>
-              <Text style={s.etaTitle}>Arrive dans {etaDisplay}</Text>
-              <Text style={s.etaSub}>{distanceDisplay} · {loc?.address || t('mission.notProvided')}</Text>
+          )}
+          {status === 'in_progress' && item?.startedAt && (
+            <View style={s.etaCard}>
+              <View style={[s.etaIcon, { backgroundColor: '#F5F3FF' }]}>
+                <Clock size={22} color="#5B21B6" />
+              </View>
+              <View style={s.etaInfo}>
+                <Text style={s.etaTitle}>En cours depuis {formatElapsed(item.startedAt)}</Text>
+                <Text style={s.etaSub}>{loc?.address || t('mission.notProvided')}</Text>
+              </View>
             </View>
-          </View>
+          )}
+          {status === 'completed' && (
+            <View style={s.etaCard}>
+              <View style={[s.etaIcon, { backgroundColor: colors.successLight }]}>
+                <CheckCircle2 size={22} color={colors.success} />
+              </View>
+              <View style={s.etaInfo}>
+                <Text style={s.etaTitle}>Mission terminée</Text>
+                <Text style={s.etaSub}>{item?.startedAt && item?.completedAt ? `Durée : ${formatElapsed(item.startedAt, item.completedAt)}` : (loc?.address || '')}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Details */}
           <View style={s.detailsCard}>
@@ -394,7 +448,7 @@ function MissionDetail() {
             </View>
             <View style={s.detailRow}>
               <Text style={s.detailLabel}>Service</Text>
-              <Text style={s.detailValue}>{item?.category || 'Électricité'}</Text>
+              <Text style={s.detailValue}>{categoryLabel || t('mission.notProvided')}</Text>
             </View>
             {item?.payment && (
               <View style={s.paymentSummary}>
@@ -428,9 +482,19 @@ function MissionDetail() {
             )}
           </View>
 
-          <TouchableOpacity style={s.reportLink}>
-            <Text style={s.reportLinkText}>Signaler un problème</Text>
-          </TouchableOpacity>
+          {canRate && (
+            <TouchableOpacity style={s.rateBtn} onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)}>
+              <Star size={18} color={colors.surface} fill={colors.surface} />
+              <Text style={s.rateBtnText}>Noter cette intervention</Text>
+            </TouchableOpacity>
+          )}
+
+          {canCancel && (
+            <TouchableOpacity style={s.cancelBtn} onPress={handleCancel} disabled={updating}>
+              <XCircle size={16} color={colors.danger} />
+              <Text style={s.cancelBtnText}>{t('mission.cancelBtn', 'Annuler la mission')}</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -497,8 +561,10 @@ const s = StyleSheet.create({
   paymentBadgeText: { fontSize: 12, fontWeight: typography.weight.extrabold as any },
   payBalanceBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.md },
   payBalanceBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  reportLink: { alignItems: 'center', paddingVertical: spacing.md },
-  reportLinkText: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.semibold as any, textDecorationLine: 'underline' },
+  rateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
+  rateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.semibold as any },
 })
 
 export default withScreenBoundary(MissionDetail, 'MissionDetail')

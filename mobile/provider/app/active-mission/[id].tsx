@@ -11,7 +11,7 @@ import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Clock, MessageCircle, CheckCircle } from 'lucide-react-native'
+import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation } from 'lucide-react-native'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
   pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: '#FFFBEB' },
@@ -303,6 +303,15 @@ function ActiveMission() {
   const hasCoords = hasValidCoords(loc)
   const lat = hasCoords ? Number(loc.coordinates[1]) : 0
   const lng = hasCoords ? Number(loc.coordinates[0]) : 0
+
+  const openNavigation = () => {
+    if (!hasCoords) return
+    const destination = `${lat},${lng}`
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`
+    Linking.openURL(url).catch(() => {
+      notify(t('common.error'), 'Impossible d\'ouvrir la navigation')
+    })
+  }
   const locationAddress = typeof item?.location?.address === 'string' ? item.location.address : undefined
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
   const etaLabel = Number.isFinite(Number(offer?.etaMinutes)) ? `${Math.max(0, Math.round(Number(offer?.etaMinutes)))} min` : t('mission.notProvided')
@@ -379,6 +388,12 @@ function ActiveMission() {
                   <View style={s.routeInfo}>
                     <Text style={s.routeInfoText}>{routeInfo.distance} · {routeInfo.duration}</Text>
                   </View>
+                )}
+                {['assigned', 'provider_arriving'].includes(item.status) && (
+                  <TouchableOpacity style={s.navBtn} onPress={openNavigation}>
+                    <Navigation size={18} color="#fff" />
+                    <Text style={s.navBtnText}>Naviguer vers le client</Text>
+                  </TouchableOpacity>
                 )}
               </View>
             )}
@@ -554,6 +569,8 @@ const s = StyleSheet.create({
   mapFallbackText: { color: '#15803D', fontWeight: '700', fontSize: 14 },
   routeInfo: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginTop: 8 },
   routeInfoText: { color: '#1E293B', fontWeight: '700', fontSize: 14 },
+  navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2563EB', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
+  navBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 })
 
 export default withScreenBoundary(ActiveMission, 'ActiveMission')
