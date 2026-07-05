@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
+import ProductCategory from '@/lib/models/ProductCategory'
 import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { defaultProductCategories } from '@/lib/data/default-categories'
 import mongoose from 'mongoose'
 
 const DEFAULT_EXCHANGE_RATE = 100
@@ -30,6 +32,33 @@ const computeVolumeM3 = (product: any): number | null => {
   if (!lengthCm || !widthCm || !heightCm) return null
   const volume = (lengthCm * widthCm * heightCm) / 1_000_000
   return Number.isFinite(volume) ? Number(volume.toFixed(4)) : null
+}
+
+async function expandCategorySlugs(slugs: string[]): Promise<string[]> {
+  try {
+    const dbCategories = await ProductCategory.find({ isActive: true }).lean()
+    const categories = dbCategories.length > 0
+      ? dbCategories
+      : defaultProductCategories.map((c) => ({
+          slug: c.id,
+          subCategories: (c.subCategories || []).map((s) => ({ slug: s.id }))
+        })) as any
+
+    const expanded = new Set<string>()
+    for (const slug of slugs) {
+      expanded.add(slug)
+      const parent = categories.find((c: any) => c.slug === slug)
+      if (parent?.subCategories?.length) {
+        for (const sub of parent.subCategories) {
+          expanded.add(sub.slug)
+        }
+      }
+    }
+    return Array.from(expanded)
+  } catch (error) {
+    console.error('expandCategorySlugs error', error)
+    return slugs
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -91,7 +120,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (categories.length > 0) {
-      match.category = { $in: categories }
+      const expandedCategories = await expandCategorySlugs(categories)
+      match.category = { $in: expandedCategories }
     }
 
     if (shopId && mongoose.Types.ObjectId.isValid(shopId)) {

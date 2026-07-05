@@ -1,6 +1,7 @@
-import { Text, View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
+import { Text, View, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Platform } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import * as Location from 'expo-location'
+import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
@@ -15,7 +16,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import Logo from '../src/components/Logo'
 import ProviderCard from '../src/components/ProviderCard'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
-import { Bell, User, Plus, Inbox, ChevronRight } from 'lucide-react-native'
+import { Bell, User, Plus, Inbox, ChevronRight, MapPin, Crosshair } from 'lucide-react-native'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
   created:        { label: 'Publiée',           color: '#2563EB', dot: '#2563EB' },
@@ -52,6 +53,8 @@ function Home() {
   const [userName, setUserName] = useState<string>('')
   const [loadingRecent, setLoadingRecent] = useState(true)
   const [cats, setCats] = useState<CatItem[]>(FALLBACK_CATS)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapLoading, setMapLoading] = useState(false)
   const { t, i18n } = useTranslation()
 
   const applyItems = useCallback((items: any[]) => {
@@ -88,10 +91,24 @@ function Home() {
         if (name) setUserName(name.split(' ')[0])
       })
       .catch(() => { /* silencieux */ })
+    // Charger la position de l'utilisateur pour la carte home
+    setMapLoading(true)
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then(pos => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      })
+      .catch(() => { /* permission refusée ou indisponible */ })
+      .finally(() => setMapLoading(false))
+    // Charger les prestataires recommandés
+    setLoadingRecommended(true)
+    apiGet('/api/services/providers/top?limit=10')
+      .then((res: any) => { if (res?.providers) setRecommended(res.providers) })
+      .catch(() => {})
+      .finally(() => setLoadingRecommended(false))
   }, [loadRecent])
 
-  // TODO: remplacer par un vrai endpoint /api/services/providers/top quand le backend l'exposera
   const [recommended, setRecommended] = useState<any[]>([])
+  const [loadingRecommended, setLoadingRecommended] = useState(false)
 
   return (
     <SafeAreaView style={s.safe}>
@@ -147,6 +164,75 @@ function Home() {
             <View style={s.statDot}><View style={[s.statDotInner, { backgroundColor: colors.warning }]} /></View>
             <Text style={s.statText}>{stats.offers} offres reçues</Text>
             {stats.offers > 0 && <View style={s.newBadge}><Text style={s.newBadgeText}>NEW</Text></View>}
+          </TouchableOpacity>
+        </View>
+
+        {/* Carte autour de vous */}
+        <View style={s.sectionRow}>
+          <Text style={s.sectionTitle}>{t('home.nearbyMap')}</Text>
+          <TouchableOpacity onPress={() => loadRecent()}>
+            <Crosshair size={16} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={s.mapCard}>
+          {Platform.OS === 'web' ? (
+            <View style={s.mapPlaceholder}>
+              <MapPin size={32} color="#94A3B8" />
+              <Text style={s.mapPlaceholderText}>{t('home.mapWeb')}</Text>
+            </View>
+          ) : mapLoading || !userLocation ? (
+            <View style={s.mapPlaceholder}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={s.mapPlaceholderText}>{mapLoading ? t('home.locating') : t('home.locationNeeded')}</Text>
+            </View>
+          ) : (
+            <MapView
+              provider={PROVIDER_DEFAULT}
+              style={s.map}
+              initialRegion={{
+                latitude: userLocation.lat,
+                longitude: userLocation.lng,
+                latitudeDelta: 0.04,
+                longitudeDelta: 0.04,
+              }}
+              showsUserLocation
+              showsMyLocationButton={false}
+              showsCompass={false}
+            >
+              <Circle
+                center={{ latitude: userLocation.lat, longitude: userLocation.lng }}
+                radius={1500}
+                strokeColor="rgba(37,99,235,0.4)"
+                fillColor="rgba(37,99,235,0.06)"
+                strokeWidth={2}
+              />
+              {recent
+                .filter(it => it.location?.coordinates?.length === 2 && !['completed', 'cancelled'].includes(it.status))
+                .map(it => {
+                  const catMatch = cats.find(c => c.id === it.category)
+                  const color = catMatch?.color || '#475569'
+                  const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
+                  return (
+                    <Marker
+                      key={it._id}
+                      coordinate={{ latitude: it.location.coordinates[1], longitude: it.location.coordinates[0] }}
+                      onPress={() => router.push({ pathname: '/request-offers', params: { id: it._id } })}
+                    >
+                      <View style={[s.mapMarker, { backgroundColor: color }]}>
+                        <Text style={s.mapMarkerText}>{abbr}</Text>
+                      </View>
+                    </Marker>
+                  )
+                })}
+            </MapView>
+          )}
+          <TouchableOpacity
+            style={s.mapFab}
+            onPress={() => router.push('/create-request')}
+            activeOpacity={0.88}
+          >
+            <Plus size={18} color={colors.surface} />
+            <Text style={s.mapFabText}>{t('home.newRequest')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -242,7 +328,15 @@ function Home() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
               {recommended.map((p, i) => (
-                <ProviderCard key={i} {...p} />
+                <ProviderCard
+                  key={i}
+                  name={p.name}
+                  rating={p.rating?.avg ?? 0}
+                  jobCount={p.completedMissions ?? 0}
+                  jobLabel={t('home.missions')}
+                  specialty={p.rating?.count ? `${p.rating.count} avis` : t('home.newProvider')}
+                  verified={p.completedMissions > 0}
+                />
               ))}
             </ScrollView>
           </>
@@ -294,6 +388,14 @@ const s = StyleSheet.create({
   recentDot: { width: 6, height: 6, borderRadius: 3 },
   recentStatusText: { fontSize: 12, fontWeight: typography.weight.semibold as any },
   recentArrow: { color: colors.textMuted },
+  mapCard: { marginHorizontal: spacing.lg, height: 220, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  map: { ...StyleSheet.absoluteFillObject },
+  mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.bg },
+  mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
+  mapMarker: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFF', ...shadows.md },
+  mapMarkerText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  mapFab: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.navy, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, ...shadows.md },
+  mapFabText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 10 },
   catCard: { width: '31%', backgroundColor: colors.surface, borderRadius: radius.lg, paddingVertical: spacing.lg, paddingHorizontal: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   catMonogram: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },

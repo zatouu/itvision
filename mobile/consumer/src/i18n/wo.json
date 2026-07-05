@@ -56,7 +56,13 @@
     "noRequestsSub": "Yónnee sa laaj bu jëkk ak jot ofri yi liggéeykat yi jege léegi.",
     "createRequest": "Sos laaj",
     "seeAllRequests": "Xool laaj yi yëpp",
-    "categories": "Kàttan yi"
+    "categories": "Kàttan yi",
+    "nearbyMap": "Ci sa wàll",
+    "mapWeb": "Kàrt bi dafay maniku web",
+    "locating": "Ngi am kàrt...",
+    "locationNeeded": "Doxal sa localisation ngir gis kàrt bi",
+    "missions": "mission yi",
+    "newProvider": "Liggéykat bu bees"
   },
   "request": {
     "createTitle": "Laaj bu bees",
@@ -83,6 +89,7 @@
     "newOne": "Laaj bu bees",
     "stepCategory": "Mbir",
     "stepDetails": "Xibaar",
+    "details": "Xibaar yi",
     "stepLocation": "Palaas",
     "gpsRequired": "GPS soxla. Suqali pozisiyoŋ ci sa telefon te jéemaat.",
     "mediaError": "Maneesul jot nataal yi",

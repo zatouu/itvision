@@ -11,6 +11,16 @@ export interface SubCategory {
   label_en?: string
 }
 
+export interface Attribute {
+  slug: string
+  type: 'text' | 'number' | 'select' | 'boolean'
+  label_fr: string
+  label_wo?: string
+  label_en?: string
+  options?: string[]
+  required?: boolean
+}
+
 export interface ServiceCategory {
   slug: string
   label_fr: string
@@ -21,6 +31,8 @@ export interface ServiceCategory {
   icon?: string
   order: number
   subCategories: SubCategory[]
+  requiredAttributes?: Attribute[]
+  optionalAttributes?: Attribute[]
 }
 
 // Hardcoded fallback (offline / first boot)
@@ -79,4 +91,11 @@ export function getSubCategoryLabel(sub: SubCategory, lang: string): string {
   if (lang === 'wo' && sub.label_wo) return sub.label_wo
   if (lang === 'en' && sub.label_en) return sub.label_en
   return sub.label_fr
+}
+
+/** Get attribute label for current locale */
+export function getAttributeLabel(attr: Attribute, lang: string): string {
+  if (lang === 'wo' && attr.label_wo) return attr.label_wo
+  if (lang === 'en' && attr.label_en) return attr.label_en
+  return attr.label_fr
 }

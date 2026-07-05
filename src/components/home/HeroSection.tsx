@@ -7,12 +7,12 @@ import { useRouter } from 'next/navigation'
 import { Search, Camera, FileText, ChevronRight, Upload } from 'lucide-react'
 
 const CATEGORIES = [
-  { name: 'Vidéosurveillance', href: '/produits?category=Vidéosurveillance' },
-  { name: 'Contrôle d\'accès', href: '/produits?category=Contrôle+d\'accès' },
-  { name: 'Réseau', href: '/produits?category=Réseau' },
-  { name: 'Alarmes', href: '/produits?category=Alarmes' },
-  { name: 'Domotique', href: '/produits?category=Domotique' },
-  { name: 'Énergie solaire', href: '/produits?category=Énergie' },
+  { name: 'Sécurité', href: '/produits?category=securite' },
+  { name: 'Vidéosurveillance', href: '/produits?category=videosurveillance' },
+  { name: 'Contrôle d\'accès', href: '/produits?category=controle-acces' },
+  { name: 'Informatique', href: '/produits?category=informatique' },
+  { name: 'Réseau', href: '/produits?category=reseau-informatique' },
+  { name: 'Domotique', href: '/produits?category=domotique' },
   { name: 'Import Chine', href: '/produits?segment=import' },
   { name: 'Déstockage', href: '/produits?segment=in_stock' },
 ]

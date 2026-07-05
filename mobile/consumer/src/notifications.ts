@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { connectSocket } from './socket'
+import { scheduleLocalNotification } from './push'
 
 export type NotificationKind =
   | 'offer-received'
@@ -95,6 +96,13 @@ export async function pushNotification(input: Omit<Notification, 'id' | 'created
   cache = [notif, ...cache].slice(0, MAX_KEEP)
   await persist()
   emit()
+
+  // Also surface a local system notification so the user sees it even when the app is foreground
+  try {
+    await scheduleLocalNotification(input.title, input.body, { type: input.kind, link: input.link })
+  } catch {
+    // best-effort: local notification is not critical
+  }
 }
 
 export async function markAllRead(): Promise<void> {

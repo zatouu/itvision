@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
-    const { category, description, media, location, budget, channel } = body as any
+    const { category, description, media, location, budget, channel, attributes } = body as any
 
     // Validation catégorie
     const validCategories = await getActiveCategorySlugs()
@@ -106,12 +106,17 @@ export async function POST(request: NextRequest) {
     const safeMedia = Array.isArray(media) ? media.filter((m: any) => m && typeof m.url === 'string').slice(0, 10) : []
     // Validation channel
     const safeChannel = ['web', 'mobile', 'callcenter'].includes(channel) ? channel : 'mobile'
+    // Validation attributes
+    const safeAttributes = attributes && typeof attributes === 'object' && !Array.isArray(attributes)
+      ? Object.fromEntries(Object.entries(attributes).filter(([k, v]) => typeof k === 'string' && v !== undefined))
+      : {}
 
     const expiresAt = new Date(Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000)
     const created = await ServiceRequest.create({
       clientId: userId, category,
       description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
       media: safeMedia, location, budget: safeBudget, channel: safeChannel,
+      attributes: safeAttributes,
       expiresAt,
     })
 

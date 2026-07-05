@@ -56,7 +56,13 @@
     "noRequestsSub": "Post your first request and get offers from nearby providers in minutes.",
     "createRequest": "Create a request",
     "seeAllRequests": "See all my requests",
-    "categories": "Categories"
+    "categories": "Categories",
+    "nearbyMap": "Around you",
+    "mapWeb": "Map not available on web",
+    "locating": "Locating...",
+    "locationNeeded": "Enable location to see the map",
+    "missions": "missions",
+    "newProvider": "New provider"
   },
   "request": {
     "createTitle": "New request",
@@ -83,6 +89,7 @@
     "newOne": "New request",
     "stepCategory": "Category",
     "stepDetails": "Details",
+    "details": "Request details",
     "stepLocation": "Location",
     "gpsRequired": "GPS required. Enable location in your phone settings and try again.",
     "mediaError": "Could not access media",

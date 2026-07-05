@@ -15,7 +15,13 @@ export async function GET(_request: NextRequest) {
       .lean()
 
     return NextResponse.json(
-      { categories },
+      {
+        categories: categories.map((c: any) => ({
+          ...c,
+          requiredAttributes: c.requiredAttributes || [],
+          optionalAttributes: c.optionalAttributes || [],
+        })),
+      },
       { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
     )
   } catch (e) {

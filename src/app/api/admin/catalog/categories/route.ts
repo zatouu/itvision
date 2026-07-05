@@ -43,21 +43,35 @@ export async function POST(request: NextRequest) {
     const color = typeof body?.color === 'string' && body.color.trim() ? body.color.trim() : DEFAULT_COLOR
     const description = typeof body?.description === 'string' ? body.description.trim() : ''
 
+    // Parse subcategories if provided; otherwise preserve existing ones
+    const providedSubCategories = Array.isArray(body?.subCategories)
+      ? body.subCategories
+          .map((s: any) => ({
+            slug: slugify(String(s?.slug || '')),
+            name: String(s?.name || '').trim(),
+            labelFr: String(s?.labelFr || s?.name || '').trim(),
+            icon: typeof s?.icon === 'string' && s.icon.trim() ? s.icon.trim() : 'tag'
+          }))
+          .filter((s: any) => s.slug && s.name)
+      : undefined
+
+    const updateSet: any = {
+      slug,
+      name,
+      labelFr: name,
+      icon,
+      color,
+      description,
+      order,
+      isActive: true,
+    }
+    if (providedSubCategories !== undefined) {
+      updateSet.subCategories = providedSubCategories
+    }
+
     const category = await ProductCategory.findOneAndUpdate(
       { slug },
-      {
-        $set: {
-          slug,
-          name,
-          labelFr: name,
-          icon,
-          color,
-          description,
-          order,
-          isActive: true,
-          subCategories: [],
-        },
-      },
+      { $set: updateSet },
       {
         upsert: true,
         new: true,

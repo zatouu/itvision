@@ -22,6 +22,7 @@ const ServiceRequestSchema = new Schema({
   location: { type: GeoPointSchema, required: true },
   budget: { type: Number, min: 0 },
   channel: { type: String, enum: ['web', 'pwa', 'mobile', 'whatsapp', 'callcenter'], default: 'web' },
+  attributes: { type: Schema.Types.Mixed, default: {} },
   status: { type: String, enum: ['created','pending_offers','assigned','provider_arriving','in_progress','completed','cancelled','expired'], default: 'created' },
   assignedProviderId: { type: Schema.Types.ObjectId, ref: 'User' },
   selectedOfferId: { type: Schema.Types.ObjectId, ref: 'Offer' },

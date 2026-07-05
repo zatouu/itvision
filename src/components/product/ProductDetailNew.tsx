@@ -470,8 +470,8 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
               {/* Group Buy Banner */}
               {product.groupBuyEnabled && (
-                <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-rose-500 p-4 text-white shadow-md overflow-hidden relative">
-                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/20 rounded-full blur-xl" />
+                <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-slate-800 via-violet-700 to-indigo-600 p-4 text-white shadow-md overflow-hidden relative">
+                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl" />
                   <div className="relative flex items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-9 h-9 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
@@ -575,32 +575,32 @@ export default function ProductDetailNew({ product, similar }: Props) {
               </div>
 
               {/* CTAs */}
-              <div className="space-y-2.5">
-                <div className="flex items-stretch gap-2 h-12">
+              <div className="space-y-2">
+                <div className="flex items-stretch gap-2 h-9">
                   <button
                     onClick={() => addToCart(false)}
                     disabled={adding}
-                    className="flex-1 rounded-lg border border-orange-300 bg-white text-orange-600 text-sm font-semibold transition hover:bg-orange-50 disabled:bg-gray-100 disabled:text-gray-400 flex items-center justify-center gap-1.5"
+                    className="flex-1 rounded-lg border border-orange-300 bg-white text-orange-600 text-xs font-medium transition hover:bg-orange-50 disabled:bg-gray-100 disabled:text-gray-400 flex items-center justify-center gap-1"
                   >
-                    <ShoppingCart className="w-4 h-4" />
+                    <ShoppingCart className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Ajouter au panier</span>
                     <span className="sm:hidden">Panier</span>
                   </button>
                   <button
                     onClick={() => addToCart(true)}
                     disabled={adding}
-                    className="flex-[1.35] rounded-lg bg-emerald-500 text-white text-sm font-bold transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-1.5 shadow-sm"
+                    className="flex-[1.35] rounded-lg bg-emerald-500 text-white text-xs font-semibold transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-1 shadow-sm"
                   >
-                    {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-4 h-4" />Acheter maintenant</>}
+                    {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-3.5 h-3.5" />Acheter maintenant</>}
                   </button>
                 </div>
                 <a
                   href={whatsappUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full h-10 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition"
+                  className="w-full h-8 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition"
                 >
-                  <MessageCircle className="w-4 h-4" />
+                  <MessageCircle className="w-3.5 h-3.5" />
                   Demander via WhatsApp
                 </a>
               </div>

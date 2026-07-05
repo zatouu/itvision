@@ -4,7 +4,7 @@ import MarketFooter from '@/components/MarketFooter'
 import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, CheckCircle, ArrowRight, Package, ArrowUpDown, Grid, List, X, GitCompare, Sparkles, Clock, Users, Heart, ChevronDown, ChevronUp, SlidersHorizontal, LayoutGrid, Search, Truck } from 'lucide-react'
 import CatalogProductCard from '@/components/catalog/CatalogProductCard'
 import CatalogToolbar from '@/components/catalog/CatalogToolbar'
-import CategoryPillsScroller from '@/components/catalog/CategoryPillsScroller'
+import CategoryPillsScroller, { type PillCategory } from '@/components/catalog/CategoryPillsScroller'
 import PromoStrip from '@/components/catalog/PromoStrip'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
@@ -183,8 +183,17 @@ export default function ProduitsPage() {
   const [onlyGroupBuy, setOnlyGroupBuy] = useState(false)
   const [segment, setSegment] = useState<'all' | 'import' | 'in_stock' | 'group_buy'>('all')
   const [showFilters, setShowFilters] = useState(false)
-  const [activePill, setActivePill] = useState('Tous')
   const [products, setProducts] = useState<ApiProduct[]>([])
+  const [pillCategories, setPillCategories] = useState<PillCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+
+  const activePill = useMemo(() => {
+    if (selected.length === 0) return 'tous'
+    if (selected.length === 1 && pillCategories.some(c => c.slug === selected[0])) return selected[0]
+    return ''
+  }, [selected, pillCategories])
+
+  const getCategoryName = (slug: string) => pillCategories.find(c => c.slug === slug)?.name || slug
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' | 'rating-desc' | 'groupbuy-discount-desc'>('default')
@@ -238,6 +247,42 @@ export default function ProduitsPage() {
   }, [])
 
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds])
+
+  // Charger les catégories dynamiques depuis l'API
+  useEffect(() => {
+    let cancelled = false
+    async function loadCategories() {
+      try {
+        const res = await fetch('/api/catalog/categories')
+        const data = await res.json().catch(() => ({}))
+        if (!cancelled && data?.success && Array.isArray(data.items)) {
+          const colorFor = (name: string) => {
+            const map: Record<string, string> = {
+              sécurité: 'emerald', securite: 'emerald',
+              informatique: 'blue',
+              domotique: 'orange',
+              électronique: 'violet', electronique: 'violet',
+              mobilier: 'amber',
+              packs: 'pink', 'packs-cadeaux': 'pink',
+            }
+            return map[name.toLowerCase()] || 'slate'
+          }
+          const pills: PillCategory[] = data.items.map((c: any) => ({
+            name: c.labelFr || c.name,
+            slug: c.slug,
+            color: colorFor(c.labelFr || c.name || c.slug),
+          }))
+          setPillCategories(pills)
+        }
+      } catch {
+        // ignore: les pills par défaut s'afficheront grâce à CategoryPillsScroller
+      } finally {
+        if (!cancelled) setCategoriesLoading(false)
+      }
+    }
+    loadCategories()
+    return () => { cancelled = true }
+  }, [])
 
   const toggleFavoriteFromList = (e: React.MouseEvent, productId: string) => {
     e.preventDefault()
@@ -927,10 +972,10 @@ export default function ProduitsPage() {
               <Link href="/" className="hover:text-slate-700">Accueil</Link>
               <span>{'>'}</span>
               <span className="text-slate-700 font-medium">Catalogue</span>
-              {activePill !== 'Tous' && (
+              {activePill && activePill !== 'tous' && (
                 <>
                   <span>{'>'}</span>
-                  <span className="text-slate-700 font-medium">{activePill}</span>
+                  <span className="text-slate-700 font-medium">{getCategoryName(activePill)}</span>
                 </>
               )}
             </div>
@@ -938,18 +983,14 @@ export default function ProduitsPage() {
         </div>
         {/* Category pills scroller */}
         <CategoryPillsScroller
-          categories={['Tous','Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine','Bébé','Animaux','Outils']}
+          categories={pillCategories}
           active={activePill}
+          loading={categoriesLoading}
           onSelect={(cat) => {
-            setActivePill(cat)
-            if (cat === 'Tous') {
+            if (cat.slug === 'tous') {
               setSelected([])
             } else {
-              const map: Record<string,string> = {
-                Mode:'mode', Beauté:'beaute', Maison:'maison', Électronique:'electronique',
-                Auto:'auto', Sport:'sport', Cuisine:'cuisine', Bébé:'bebe', Animaux:'animaux', Outils:'outils'
-              }
-              setSelected(map[cat] ? [map[cat]] : [])
+              setSelected([cat.slug])
             }
           }}
         />
@@ -989,20 +1030,19 @@ export default function ProduitsPage() {
                 {(() => {
                   const activeFilters = []
                   if (debouncedSearch) activeFilters.push({key:'search',label:`"${debouncedSearch}"`})
-                  if (selected.length) activeFilters.push({key:'category',label:`Cat: ${selected.join(', ')}`})
+                  if (selected.length) activeFilters.push({key:'category',label:`Cat: ${selected.map(getCategoryName).join(', ')}`})
                   if (onlyGroupBuy) activeFilters.push({key:'group',label:'Achat groupé'})
                   if (onlyPrice) activeFilters.push({key:'price',label:'Avec prix'})
                   if (onlyQuote) activeFilters.push({key:'quote',label:'Sur devis'})
                   if (segment !== 'all') activeFilters.push({key:'segment',label:`Seg: ${segment}`})
                   if (availabilityFilter !== 'all') activeFilters.push({key:'avail',label:`Dispo: ${availabilityFilter}`})
                   if (priceRange) activeFilters.push({key:'priceRange',label:`Prix: ${priceRange.min}-${priceRange.max}`})
-                  if (activePill !== 'Tous') activeFilters.push({key:'pill',label:`Cat: ${activePill}`})
                   return activeFilters.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-slate-600">Filtres actifs</span>
                         <button onClick={() => {
-                          setSearch(''); setDebouncedSearch(''); setSelected([]); setOnlyGroupBuy(false); setOnlyPrice(false); setOnlyQuote(false); setSegment('all'); setAvailabilityFilter('all'); setPriceRange(null); setActivePill('Tous')
+                          setSearch(''); setDebouncedSearch(''); setSelected([]); setOnlyGroupBuy(false); setOnlyPrice(false); setOnlyQuote(false); setSegment('all'); setAvailabilityFilter('all'); setPriceRange(null)
                         }} className="text-xs text-violet-600 hover:underline">Réinitialiser</button>
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -1017,7 +1057,6 @@ export default function ProduitsPage() {
                               case 'segment': setSegment('all'); break
                               case 'avail': setAvailabilityFilter('all'); break
                               case 'priceRange': setPriceRange(null); break
-                              case 'pill': setActivePill('Tous'); break
                             }
                           }} className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-2 py-1 flex items-center gap-1">
                             {f.label} <X className="w-3 h-3" />
@@ -1053,21 +1092,27 @@ export default function ProduitsPage() {
                     <span>Catégories</span>
                   </div>
                   <div className="space-y-1.5">
-                    {[
-                      { name: 'Mode',         slug: 'mode',         dot: 'bg-emerald-400' },
-                      { name: 'Beauté',       slug: 'beaute',       dot: 'bg-pink-400' },
-                      { name: 'Maison',       slug: 'maison',       dot: 'bg-amber-400' },
-                      { name: 'Électronique', slug: 'electronique', dot: 'bg-blue-400' },
-                      { name: 'Auto',         slug: 'auto',         dot: 'bg-red-400' },
-                      { name: 'Sport',        slug: 'sport',        dot: 'bg-cyan-400' },
-                      { name: 'Cuisine',      slug: 'cuisine',      dot: 'bg-orange-400' },
-                    ].map(({ name, slug, dot }) => (
-                      <label key={name} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
-                        <input type="checkbox" checked={selected.includes(slug)} onChange={() => setSelected(prev => prev.includes(slug) ? prev.filter(c => c !== slug) : [...prev, slug])} className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
-                        <span className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${selected.includes(slug) ? dot : 'bg-slate-200'}`} />
-                        <span className="flex-1">{name}</span>
-                      </label>
-                    ))}
+                    {pillCategories.map((cat) => {
+                      const dotClass = {
+                        emerald: 'bg-emerald-400',
+                        blue: 'bg-blue-400',
+                        pink: 'bg-pink-400',
+                        amber: 'bg-amber-400',
+                        red: 'bg-red-400',
+                        cyan: 'bg-cyan-400',
+                        orange: 'bg-orange-400',
+                        violet: 'bg-violet-400',
+                        green: 'bg-green-400',
+                        slate: 'bg-slate-400'
+                      }[cat.color || 'slate'] || 'bg-orange-400'
+                      return (
+                        <label key={cat.slug} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
+                          <input type="checkbox" checked={selected.includes(cat.slug)} onChange={() => setSelected(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])} className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+                          <span className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${selected.includes(cat.slug) ? dotClass : 'bg-slate-200'}`} />
+                          <span className="flex-1">{cat.name}</span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </div>
                 {/* Disponibilité */}
@@ -1290,12 +1335,12 @@ export default function ProduitsPage() {
             <div className="bg-white border rounded-xl p-3">
               <h4 className="font-medium text-gray-900 mb-2">Catégories</h4>
               <div className="space-y-1 text-sm max-h-56 overflow-auto pr-1">
-                {['Mode','Beauté','Maison','Électronique','Auto','Sport','Cuisine'].map((cat)=> (
-                  <label key={cat} className="flex items-center gap-2">
-                    <input type="checkbox" checked={selected.includes(cat.toLowerCase())} onChange={(e)=>{
-                      setSelected((prev)=> e.target.checked ? [...prev, cat.toLowerCase()] : prev.filter(id=>id!==cat.toLowerCase()))
+                {pillCategories.map((cat)=> (
+                  <label key={cat.slug} className="flex items-center gap-2">
+                    <input type="checkbox" checked={selected.includes(cat.slug)} onChange={(e)=>{
+                      setSelected((prev)=> e.target.checked ? [...prev, cat.slug] : prev.filter(id=>id!==cat.slug))
                     }} />
-                    <span>{cat}</span>
+                    <span>{cat.name}</span>
                   </label>
                 ))}
               </div>

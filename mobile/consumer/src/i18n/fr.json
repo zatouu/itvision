@@ -56,7 +56,13 @@
     "noRequestsSub": "Publiez votre première demande et recevez des offres de prestataires proches en quelques minutes.",
     "createRequest": "Créer une demande",
     "seeAllRequests": "Voir toutes mes demandes",
-    "categories": "Catégories"
+    "categories": "Catégories",
+    "nearbyMap": "Autour de vous",
+    "mapWeb": "Carte non disponible sur le web",
+    "locating": "Localisation en cours...",
+    "locationNeeded": "Activez la localisation pour voir la carte",
+    "missions": "missions",
+    "newProvider": "Nouveau prestataire"
   },
   "request": {
     "createTitle": "Nouvelle demande",
@@ -83,6 +89,7 @@
     "newOne": "Nouvelle demande",
     "stepCategory": "Catégorie",
     "stepDetails": "Détails",
+    "details": "Détails de la demande",
     "stepLocation": "Lieu",
     "gpsRequired": "GPS requis. Activez la localisation dans les paramètres du téléphone et réessayez.",
     "mediaError": "Impossible d'accéder aux médias",

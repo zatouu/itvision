@@ -19,7 +19,7 @@ export const defaultProductCategories: DefaultProductCategory[] = [
     id: 'securite',
     name: 'Sécurité',
     description: 'Vidéosurveillance, contrôle d\'accès et alarmes',
-    icon: '�️',
+    icon: '🛡️',
     margin: 0,
     isActive: true,
     subCategories: [
@@ -32,7 +32,7 @@ export const defaultProductCategories: DefaultProductCategory[] = [
     id: 'informatique',
     name: 'Informatique & Bureautique',
     description: 'Réseau, périphériques, accessoires et connectique',
-    icon: '�',
+    icon: '💻',
     margin: 0,
     isActive: true,
     subCategories: [
@@ -61,7 +61,7 @@ export const defaultProductCategories: DefaultProductCategory[] = [
     id: 'electronique',
     name: 'Électronique grand public',
     description: 'Smartphones, audio, vidéo et accessoires électroniques',
-    icon: '�',
+    icon: '📱',
     margin: 0,
     isActive: true,
     subCategories: [
@@ -79,7 +79,7 @@ export const defaultProductCategories: DefaultProductCategory[] = [
     isActive: true,
     subCategories: [
       { id: 'mobilier-technique', name: 'Mobilier technique', icon: '🪑' },
-      { id: 'racks-baies', name: 'Racks & Baies', icon: '�️' }
+      { id: 'racks-baies', name: 'Racks & Baies', icon: '🗄️' }
     ]
   },
   {

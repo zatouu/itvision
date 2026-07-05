@@ -17,6 +17,7 @@ export interface LiveRouteMapProps {
   providerLocation?: { lat: number; lng: number; heading?: number | null } | null
   status?: string
   mode?: 'driving' | 'walking' | 'bicycling'
+  height?: number
   onRouteInfo?: (info: { distance: string; duration: string; distanceValue: number; durationValue: number }) => void
 }
 
@@ -87,6 +88,7 @@ export function LiveRouteMap({
   providerLocation,
   status,
   mode = 'driving',
+  height = 280,
   onRouteInfo,
 }: LiveRouteMapProps) {
   const { t } = useTranslation()
@@ -98,41 +100,57 @@ export function LiveRouteMap({
   const lastFetchOrigin = useRef<{ lat: number; lng: number } | null>(null)
   const pendingFetch = useRef<ReturnType<typeof setTimeout> | null>(null)
   const headingAnim = useRef(new Animated.Value(0)).current
+  // Stable AnimatedRegion so the marker can be animated without re-creating the native marker
+  const animatedRegion = useRef(
+    new AnimatedRegion({ latitude: destination.lat, longitude: destination.lng, latitudeDelta: 0, longitudeDelta: 0 })
+  ).current
+  const lastHeading = useRef(0)
+  const fitToRouteLock = useRef(false)
 
   const activeOrigin = useMemo(() => {
     if (providerLocation) return { lat: providerLocation.lat, lng: providerLocation.lng }
     return origin || null
   }, [providerLocation, origin])
 
-  const animatedCoordinate = useMemo(() => {
-    const init = activeOrigin || destination
-    return new AnimatedRegion({
-      latitude: init.lat,
-      longitude: init.lng,
-      latitudeDelta: 0,
-      longitudeDelta: 0,
-    })
-  }, [])
-
   const hasRoute = !!route?.polyline?.length
   const isTracking = status === 'provider_arriving' || status === 'in_progress' || status === 'assigned'
   const showVehicle = isTracking && activeOrigin
 
-  const fitToRoute = useCallback(() => {
-    if (!mapRef.current) return
-    const coords: Array<{ latitude: number; longitude: number }> = [
-      { latitude: destination.lat, longitude: destination.lng },
-    ]
-    if (activeOrigin) {
-      coords.push({ latitude: activeOrigin.lat, longitude: activeOrigin.lng })
-    } else if (route?.polyline?.length) {
-      coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
+  const computeRouteFallback = useCallback(() => {
+    if (!activeOrigin) return null
+    const dist = haversineKm(activeOrigin, destination)
+    const distanceM = Math.round(dist * 1000)
+    const durationSec = Math.round((dist / 30) * 3600)
+    return {
+      distance: formatKm(distanceM),
+      duration: formatDuration(durationSec),
+      distanceValue: distanceM,
+      durationValue: durationSec,
     }
-    mapRef.current.fitToCoordinates(coords, {
-      edgePadding: { top: 60, right: 60, bottom: 120, left: 60 },
-      animated: true,
-    })
-  }, [activeOrigin, destination, route])
+  }, [activeOrigin, destination])
+
+  const fitToRoute = useCallback(
+    async (animated = true) => {
+      if (!mapRef.current || fitToRouteLock.current) return
+      fitToRouteLock.current = true
+      // small delay to avoid concurrent fitToCoordinates calls on Android
+      await new Promise(resolve => setTimeout(resolve, 50))
+      const coords: Array<{ latitude: number; longitude: number }> = [
+        { latitude: destination.lat, longitude: destination.lng },
+      ]
+      if (activeOrigin) {
+        coords.push({ latitude: activeOrigin.lat, longitude: activeOrigin.lng })
+      } else if (route?.polyline?.length) {
+        coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
+      }
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: 60, right: 60, bottom: 120, left: 60 },
+        animated,
+      })
+      fitToRouteLock.current = false
+    },
+    [activeOrigin, destination, route]
+  )
 
   const fetchRoute = useCallback(async () => {
     if (!activeOrigin) return
@@ -142,7 +160,7 @@ export function LiveRouteMap({
       pendingFetch.current = setTimeout(() => fetchRoute(), ROUTE_REFRESH_MIN_MS - (now - lastFetchAt.current))
       return
     }
-    // Économie API : ne pas refetch si le prestataire n'a presque pas bougé depuis le dernier itinéraire réussi
+    // Save API quota: skip refetch if provider barely moved since last successful route
     if (lastFetchOrigin.current) {
       const movedM = haversineKm(lastFetchOrigin.current, activeOrigin) * 1000
       if (movedM < ROUTE_REFETCH_MIN_MOVE_M) return
@@ -152,7 +170,10 @@ export function LiveRouteMap({
     setError(null)
     try {
       const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-      if (!apiKey) throw new Error('Google Maps API key missing')
+      if (!apiKey) {
+        // Silent fallback: keep a straight-line distance/ETA, no polyline
+        throw new Error('Google Maps API key missing')
+      }
       const url =
         `https://maps.googleapis.com/maps/api/directions/json` +
         `?origin=${activeOrigin.lat},${activeOrigin.lng}` +
@@ -181,16 +202,22 @@ export function LiveRouteMap({
         })
       }
     } catch (e: any) {
-      const dist = haversineKm(activeOrigin, destination)
-      const durationSec = Math.round((dist / 30) * 3600)
-      const fallback = { distance: formatKm(dist * 1000), duration: formatDuration(durationSec), distanceValue: Math.round(dist * 1000), durationValue: durationSec }
-      setError(e.message || t('common.error'))
-      if (onRouteInfo) onRouteInfo(fallback)
+      // Do not surface API-key / quota errors as a permanent error badge
+      const isApiKeyMissing = e?.message?.toLowerCase().includes('api key missing')
+      const fallback = computeRouteFallback()
+      if (!isApiKeyMissing) {
+        setError(e.message || t('common.error'))
+      }
+      setRoute(null)
+      if (fallback && onRouteInfo) {
+        onRouteInfo(fallback)
+      }
     } finally {
       setLoading(false)
     }
-  }, [activeOrigin, destination, mode, onRouteInfo, t])
+  }, [activeOrigin, destination, mode, onRouteInfo, t, computeRouteFallback])
 
+  // Schedule route refresh every ROUTE_REFRESH_MIN_MS while tracking
   useEffect(() => {
     if (!activeOrigin) return
     let cancelled = false
@@ -206,124 +233,131 @@ export function LiveRouteMap({
     }
   }, [activeOrigin, fetchRoute])
 
+  // Animate provider marker position with short, smooth transitions
   useEffect(() => {
-    if (activeOrigin) {
-      (animatedCoordinate as any).timing({
-        latitude: activeOrigin.lat,
-        longitude: activeOrigin.lng,
-        latitudeDelta: 0,
-        longitudeDelta: 0,
-        duration: 1000,
-        useNativeDriver: false,
-      }).start()
-    }
-    fitToRoute()
-  }, [activeOrigin, animatedCoordinate, fitToRoute])
+    if (!activeOrigin) return
+    animatedRegion.timing({
+      latitude: activeOrigin.lat,
+      longitude: activeOrigin.lng,
+      latitudeDelta: 0,
+      longitudeDelta: 0,
+      duration: 800,
+      useNativeDriver: false,
+      easing: (x: number) => x,
+    } as any).start()
+  }, [activeOrigin, animatedRegion])
 
+  // Animate heading using the shortest rotation path
   useEffect(() => {
     if (providerLocation?.heading == null) return
     const heading = Number(providerLocation.heading)
     if (!Number.isFinite(heading)) return
-    Animated.spring(headingAnim, { toValue: heading, useNativeDriver: true, friction: 5 }).start()
+    const prev = lastHeading.current
+    const delta = ((heading - prev + 540) % 360) - 180
+    const next = prev + delta
+    lastHeading.current = next
+    Animated.spring(headingAnim, { toValue: next, useNativeDriver: true, friction: 6, tension: 40 }).start()
   }, [providerLocation?.heading, headingAnim])
 
+  // Fit map when route or active origin changes significantly
   useEffect(() => {
-    if (!route || !mapRef.current || !activeOrigin) return
-    fitToRoute()
-  }, [route, activeOrigin, fitToRoute])
+    if (!mapRef.current) return
+    fitToRoute(true)
+  }, [route, fitToRoute])
+
+  const fallbackStats = computeRouteFallback()
 
   return (
-    <View style={s.container}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_DEFAULT}
-        style={s.map}
-        initialRegion={{
-          latitude: destination.lat,
-          longitude: destination.lng,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        }}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        mapType="standard"
-      >
-        <Marker coordinate={{ latitude: destination.lat, longitude: destination.lng }}>
-          <View style={s.destinationMarker}>
-            <View style={s.destinationDot} />
-            <View style={s.destinationPin} />
-          </View>
-        </Marker>
+    <View style={[s.outerContainer, { height }]}>
+      <View style={s.container}>
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_DEFAULT}
+          style={s.map}
+          initialRegion={{
+            latitude: destination.lat,
+            longitude: destination.lng,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          mapType="standard"
+        >
+          <Marker coordinate={{ latitude: destination.lat, longitude: destination.lng }}>
+            <View style={s.destinationMarker}>
+              <View style={s.destinationDot} />
+              <View style={s.destinationPin} />
+            </View>
+          </Marker>
 
-        {showVehicle && (
-          <Marker.Animated coordinate={animatedCoordinate as any}>
-            <Animated.View style={[s.vehicleMarker, { transform: [{ rotate: headingAnim.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }] }]}>
-              <View style={s.vehicleIcon}>
-                <Navigation size={18} color="#FFFFFF" fill="#FFFFFF" />
+          {showVehicle && (
+            <Marker.Animated coordinate={animatedRegion as any}>
+              <Animated.View style={[s.vehicleMarker, { transform: [{ rotate: headingAnim.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }] }]}>
+                <View style={s.vehicleIcon}>
+                  <Navigation size={18} color="#FFFFFF" fill="#FFFFFF" />
+                </View>
+              </Animated.View>
+            </Marker.Animated>
+          )}
+
+          {hasRoute && (
+            <Polyline
+              coordinates={route.polyline.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+              strokeColor="#2563EB"
+              strokeWidth={5}
+            />
+          )}
+        </MapView>
+
+        <View style={s.overlay} pointerEvents="none">
+          {destinationLabel ? (
+            <View style={s.badge}>
+              <Text style={s.badgeText} numberOfLines={1}>{destinationLabel}</Text>
+            </View>
+          ) : null}
+
+          {loading && (
+            <View style={[s.badge, s.loadingBadge]}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={s.loadingText}>{t('mission.routeLoading')}</Text>
+            </View>
+          )}
+
+          {!loading && error && !route && (
+            <View style={[s.badge, s.errorBadge]}>
+              <Text style={s.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {!loading && isTracking && activeOrigin && fallbackStats && (
+            <View style={s.statsCard}>
+              <View style={s.stat}>
+                <Text style={s.statValue}>{route?.distance?.text || formatKm(route?.distance?.value || fallbackStats.distanceValue)}</Text>
+                <Text style={s.statLabel}>{t('mission.distance')}</Text>
               </View>
-            </Animated.View>
-          </Marker.Animated>
-        )}
-
-        {hasRoute && (
-          <Polyline
-            coordinates={route.polyline.map(p => ({ latitude: p.lat, longitude: p.lng }))}
-            strokeColor="#2563EB"
-            strokeWidth={5}
-          />
-        )}
-      </MapView>
-
-      <View style={s.overlay} pointerEvents="none">
-        {destinationLabel ? (
-          <View style={s.badge}>
-            <Text style={s.badgeText} numberOfLines={1}>{destinationLabel}</Text>
-          </View>
-        ) : null}
-
-        {loading && (
-          <View style={[s.badge, s.loadingBadge]}>
-            <ActivityIndicator size="small" color="#2563EB" />
-            <Text style={s.loadingText}>{t('mission.routeLoading')}</Text>
-          </View>
-        )}
-
-        {!loading && error && !route && (
-          <View style={[s.badge, s.errorBadge]}>
-            <Text style={s.errorText}>{error}</Text>
-          </View>
-        )}
-
-        {!loading && route && isTracking && (
-          <View style={s.statsCard}>
-            <View style={s.stat}>
-              <Text style={s.statValue}>{route.distance.text || formatKm(route.distance.value)}</Text>
-              <Text style={s.statLabel}>{t('mission.distance')}</Text>
+              <View style={s.statDivider} />
+              <View style={s.stat}>
+                <Text style={s.statValue}>{route?.duration?.text || formatDuration(route?.duration?.value || fallbackStats.durationValue)}</Text>
+                <Text style={s.statLabel}>{t('mission.eta')}</Text>
+              </View>
             </View>
-            <View style={s.statDivider} />
-            <View style={s.stat}>
-              <Text style={s.statValue}>{route.duration.text || formatDuration(route.duration.value)}</Text>
-              <Text style={s.statLabel}>{t('mission.eta')}</Text>
-            </View>
-          </View>
-        )}
-
-        {!loading && isTracking && !activeOrigin && (
-          <View style={[s.badge, s.loadingBadge]}>
-            <ActivityIndicator size="small" color="#2563EB" />
-            <Text style={s.loadingText}>{t('mission.waitingProviderLocation')}</Text>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     </View>
   )
 }
 
 const s = StyleSheet.create({
+  outerContainer: {
+    width: '100%',
+    minHeight: 200,
+  },
   container: {
     width: '100%',
-    height: 280,
+    height: '100%',
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#E2E8F0',

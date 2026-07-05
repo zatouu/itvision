@@ -1,32 +1,137 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import { useState, useEffect, useCallback } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StatusChip from '../../src/components/StatusChip'
-import { Wallet as WalletIcon, Calendar, CalendarDays, CalendarRange, ArrowUpRight, CreditCard, Zap, Minus, Banknote, Check, Info } from 'lucide-react-native'
+import { Wallet as WalletIcon, ArrowUpRight, Zap, Minus, Banknote, Check, Info, X } from 'lucide-react-native'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
-import { mockWalletHistory } from '../../src/mock'
-import type { WalletEntry } from '../../src/types'
+import { apiGet, apiPost } from '../../src/api'
+import { getAuthUser } from '../../src/auth'
 
-const TODAY = 12500
-const WEEK = 68000
-const MONTH = 214000
-const BALANCE = 48500
+const OPERATORS: Array<{ id: 'wave' | 'orange_money' | 'free_money'; label: string }> = [
+  { id: 'wave', label: 'Wave' },
+  { id: 'orange_money', label: 'Orange Money' },
+  { id: 'free_money', label: 'Free Money' },
+]
+
+const KIND_META: Record<string, { labelKey: string; icon: any; positive?: boolean }> = {
+  topup: { labelKey: 'providerWallet.kindTopup', icon: Zap, positive: true },
+  mission_spend: { labelKey: 'providerWallet.kindMission', icon: Minus, positive: false },
+  admin_adjust: { labelKey: 'providerWallet.kindAdjust', icon: Banknote, positive: true },
+  refund: { labelKey: 'providerWallet.kindRefund', icon: Banknote, positive: true },
+  escrow_refund: { labelKey: 'providerWallet.kindEscrowRefund', icon: Banknote, positive: true },
+  escrow_charge: { labelKey: 'providerWallet.kindEscrowCharge', icon: Minus, positive: false },
+  withdrawal: { labelKey: 'providerWallet.kindWithdrawal', icon: ArrowUpRight, positive: false },
+}
+
+type WalletData = {
+  cashBalance: number
+  escrow: number
+  lifetimePointsEarned: number
+  lifetimePointsSpent: number
+  history: Array<{
+    id: string
+    kind: string
+    points: number
+    balanceAfter: number
+    description: string | null
+    createdAt: string
+  }>
+  profile?: {
+    loyaltyTier?: string
+    referralBalance?: number
+  }
+}
 
 export default function Wallet() {
   const { t } = useTranslation()
+  const [data, setData] = useState<WalletData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
+  const [amount, setAmount] = useState('')
+  const [operator, setOperator] = useState<'wave' | 'orange_money' | 'free_money'>('wave')
+  const [phone, setPhone] = useState('')
+  const [withdrawLoading, setWithdrawLoading] = useState(false)
   const format = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, ' ')
+
+  const load = useCallback(async () => {
+    try {
+      const r = await apiGet('/api/wallet')
+      setData(r)
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message || t('providerWallet.loadError'))
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [t])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const onWithdraw = async () => {
+    const user = getAuthUser()
+    const userPhone = user?.phone
+    const numeric = Number(amount.replace(/\s/g, ''))
+    if (!Number.isFinite(numeric) || numeric < 1000) {
+      Alert.alert(t('providerWallet.invalidAmount'), t('providerWallet.minAmount'))
+      return
+    }
+    if (!phone.trim() || phone.trim().length < 8) {
+      Alert.alert(t('providerWallet.invalidPhone'), t('providerWallet.phoneRequired'))
+      return
+    }
+    setWithdrawLoading(true)
+    try {
+      const r: any = await apiPost('/api/wallet/withdraw', {
+        amount: numeric,
+        method: operator,
+        phone: phone.trim() || userPhone,
+      })
+      if (r?.success) {
+        Alert.alert(t('providerWallet.withdrawSuccess'), t('providerWallet.withdrawSuccessMsg', { amount: format(numeric) }))
+        setWithdrawOpen(false)
+        setAmount('')
+        setPhone('')
+        await load()
+      } else {
+        Alert.alert(t('providerWallet.withdrawFailed'), r?.error || t('providerWallet.withdrawFailedMsg'))
+      }
+    } catch (e: any) {
+      Alert.alert(t('providerWallet.withdrawFailed'), e?.message || t('providerWallet.withdrawFailedMsg'))
+    } finally {
+      setWithdrawLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    )
+  }
+
+  const balance = data?.cashBalance ?? 0
+  const escrow = data?.escrow ?? 0
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <AppHeader title={t('providerWallet.title')} showBell onBell={() => {}} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
+      >
         <View style={s.balanceCard}>
           <View style={s.balanceHeader}>
             <View>
               <Text style={s.balanceLabel}>{t('providerWallet.available')}</Text>
-              <Text style={s.balanceValue}>{format(BALANCE)} <Text style={s.currency}>FCFA</Text></Text>
-              <Text style={s.balanceSub}>{t('providerWallet.nextTransfer')}</Text>
+              <Text style={s.balanceValue}>{format(balance)} <Text style={s.currency}>FCFA</Text></Text>
+              <Text style={s.balanceSub}>{t('providerWallet.escrow', { amount: format(escrow) })}</Text>
             </View>
             <View style={s.walletIcon}>
               <WalletIcon size={28} color={colors.surface} />
@@ -38,63 +143,50 @@ export default function Wallet() {
           </View>
         </View>
 
-        <View style={s.kpiGrid}>
-          <View style={s.kpiCard}>
-            <Calendar size={20} color={colors.primary} style={{ marginBottom: spacing.sm }} />
-            <Text style={s.kpiValue}>{format(TODAY)}</Text>
-            <Text style={s.kpiLabel}>{t('providerWallet.today')}</Text>
-          </View>
-          <View style={s.kpiCard}>
-            <CalendarDays size={20} color={colors.primary} style={{ marginBottom: spacing.sm }} />
-            <Text style={s.kpiValue}>{format(WEEK)}</Text>
-            <Text style={s.kpiLabel}>{t('providerWallet.week')}</Text>
-          </View>
-          <View style={s.kpiCard}>
-            <CalendarRange size={20} color={colors.primary} style={{ marginBottom: spacing.sm }} />
-            <Text style={s.kpiValue}>{format(MONTH)}</Text>
-            <Text style={s.kpiLabel}>{t('providerWallet.month')}</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity style={s.withdrawBtn} activeOpacity={0.85}>
+        <TouchableOpacity style={s.withdrawBtn} activeOpacity={0.85} onPress={() => setWithdrawOpen(true)}>
           <ArrowUpRight size={18} color={colors.surface} />
           <Text style={s.withdrawText}>{t('providerWallet.withdraw')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.addMethodBtn} activeOpacity={0.85}>
-          <CreditCard size={18} color={colors.primary} />
-          <Text style={s.addMethodText}>{t('providerWallet.addMethod')}</Text>
-        </TouchableOpacity>
-
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>{t('providerWallet.recentHistory')}</Text>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={s.sectionAction}>{t('providerWallet.seeAll')}</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={s.historyList}>
-          {mockWalletHistory.map((item: WalletEntry) => (
-            <View key={item.id} style={s.historyRow}>
-              <View style={[s.historyIcon, item.kind === 'commission' && s.historyIconRed, item.kind === 'withdrawal' && s.historyIconRed]}>
-                {item.kind === 'income' ? <Zap size={18} color={colors.success} /> : item.kind === 'commission' ? <Minus size={18} color={colors.danger} /> : <Banknote size={18} color={colors.danger} />}
-              </View>
-              <View style={s.historyText}>
-                <Text style={s.historyLabel}>{item.label}</Text>
-                <Text style={s.historyDate}>{new Date(item.date).toLocaleDateString('fr-FR')}</Text>
-              </View>
-              <View style={s.historyRight}>
-                <Text style={[s.historyAmount, item.amount < 0 && s.historyAmountRed]}>
-                  {item.amount > 0 ? '+' : ''}{format(item.amount)} FCFA
-                </Text>
-                <StatusChip
-                  label={item.status === 'available' ? t('providerWallet.available') : t('providerWallet.debit')}
-                  variant={item.status === 'available' ? 'success' : 'danger'}
-                  small
-                />
-              </View>
+          {(!data?.history || data.history.length === 0) ? (
+            <View style={s.emptyRow}>
+              <Text style={s.emptyText}>{t('providerWallet.noHistory')}</Text>
             </View>
-          ))}
+          ) : (
+            data.history.map((item) => {
+              const meta = KIND_META[item.kind] || { labelKey: item.kind, icon: Banknote }
+              const Icon = meta.icon
+              const positive = meta.positive ?? item.points >= 0
+              const fcfa = item.points * 100
+              return (
+                <View key={item.id} style={s.historyRow}>
+                  <View style={[s.historyIcon, !positive && s.historyIconRed]}>
+                    <Icon size={18} color={positive ? colors.success : colors.danger} />
+                  </View>
+                  <View style={s.historyText}>
+                    <Text style={s.historyLabel}>{t(meta.labelKey)}</Text>
+                    {!!item.description && <Text style={s.historyDesc}>{item.description}</Text>}
+                    <Text style={s.historyDate}>{new Date(item.createdAt).toLocaleDateString('fr-FR')}</Text>
+                  </View>
+                  <View style={s.historyRight}>
+                    <Text style={[s.historyAmount, !positive && s.historyAmountRed]}>
+                      {positive ? '+' : ''}{format(fcfa)} FCFA
+                    </Text>
+                    <StatusChip
+                      label={positive ? t('providerWallet.credit') : t('providerWallet.debit')}
+                      variant={positive ? 'success' : 'danger'}
+                      small
+                    />
+                  </View>
+                </View>
+              )
+            })
+          )}
         </View>
 
         <View style={s.infoCard}>
@@ -105,6 +197,54 @@ export default function Wallet() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal visible={withdrawOpen} animationType="slide" transparent>
+        <View style={s.modalOverlay}>
+          <View style={s.modalSheet}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>{t('providerWallet.withdraw')}</Text>
+              <TouchableOpacity onPress={() => setWithdrawOpen(false)}>
+                <X size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.modalLabel}>{t('providerWallet.amount')}</Text>
+            <TextInput
+              style={s.input}
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder={t('providerWallet.amountPlaceholder')}
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={s.modalLabel}>{t('providerWallet.operator')}</Text>
+            <View style={s.opRow}>
+              {OPERATORS.map(op => (
+                <TouchableOpacity
+                  key={op.id}
+                  style={[s.op, operator === op.id && s.opActive]}
+                  onPress={() => setOperator(op.id)}
+                >
+                  <Text style={[s.opText, operator === op.id && s.opTextActive]}>{op.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={s.modalLabel}>{t('providerWallet.phone')}</Text>
+            <TextInput
+              style={s.input}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder={t('providerWallet.phonePlaceholder')}
+              placeholderTextColor={colors.textMuted}
+            />
+            <TouchableOpacity style={s.modalBtn} onPress={onWithdraw} disabled={withdrawLoading}>
+              {withdrawLoading
+                ? <ActivityIndicator color={colors.surface} />
+                : <Text style={s.modalBtnText}>{t('providerWallet.confirmWithdraw')}</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -147,28 +287,6 @@ const s = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   statusPillText: { fontSize: typography.sm.fontSize, color: colors.surface, fontWeight: typography.weight.extrabold as any },
-  kpiGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-  },
-  kpiCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  kpiIcon: { marginBottom: spacing.sm },
-  kpiValue: {
-    fontSize: typography.lg.fontSize,
-    fontWeight: typography.weight.extrabold as any,
-    color: colors.text,
-  },
-  kpiLabel: { fontSize: typography.xs.fontSize, color: colors.textSecondary, marginTop: 2 },
   withdrawBtn: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.xl,
@@ -181,20 +299,6 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   withdrawText: { fontSize: typography.md.fontSize, color: colors.surface, fontWeight: typography.weight.extrabold as any },
-  addMethodBtn: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  addMethodText: { fontSize: typography.md.fontSize, color: colors.primary, fontWeight: typography.weight.extrabold as any },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,7 +312,6 @@ const s = StyleSheet.create({
     fontWeight: typography.weight.extrabold as any,
     color: colors.text,
   },
-  sectionAction: { fontSize: typography.sm.fontSize, color: colors.primary, fontWeight: typography.weight.semibold as any },
   historyList: {
     marginHorizontal: spacing.lg,
     backgroundColor: colors.surface,
@@ -234,13 +337,15 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   historyIconRed: { backgroundColor: colors.dangerLight },
-  historyIconText: { color: colors.success, fontWeight: typography.weight.extrabold as any },
   historyText: { flex: 1, gap: 2 },
   historyLabel: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  historyDesc: { fontSize: typography.xs.fontSize, color: colors.textSecondary, marginTop: 2 },
   historyDate: { fontSize: typography.xs.fontSize, color: colors.textMuted },
   historyRight: { alignItems: 'flex-end', gap: 4 },
   historyAmount: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.success },
   historyAmountRed: { color: colors.danger },
+  emptyRow: { padding: spacing.lg, alignItems: 'center' },
+  emptyText: { fontSize: typography.sm.fontSize, color: colors.textMuted },
   infoCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -253,4 +358,58 @@ const s = StyleSheet.create({
   },
   infoTitle: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.info },
   infoText: { fontSize: typography.sm.fontSize, color: colors.info, marginTop: 2 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  modalTitle: { fontSize: typography.lg.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  modalLabel: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.base.fontSize,
+    color: colors.text,
+  },
+  opRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  op: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  opActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  opText: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.bold as any, color: colors.text },
+  opTextActive: { color: colors.surface },
+  modalBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  modalBtnText: { color: colors.surface, fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any },
 })

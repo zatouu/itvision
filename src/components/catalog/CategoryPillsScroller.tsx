@@ -2,36 +2,32 @@
 
 import {
   Search,
-  Shirt,
-  Sparkles,
+  Shield,
+  Laptop,
   Home,
-  Monitor,
-  Car,
-  Dumbbell,
-  UtensilsCrossed,
-  Baby,
-  PawPrint,
-  Wrench,
+  Smartphone,
+  Armchair,
+  Gift,
+  Package,
+  LucideIcon,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 
-const defaultPills = [
-  'Tous', 'Mode', 'Beauté', 'Maison', 'Électronique', 'Auto', 'Sport', 'Cuisine', 'Bébé', 'Animaux', 'Outils'
-]
-
-const pillConfig: Record<string, { icon: LucideIcon; color: string }> = {
-  Tous:         { icon: Search,           color: 'blue' },
-  Mode:         { icon: Shirt,            color: 'emerald' },
-  Beauté:       { icon: Sparkles,         color: 'pink' },
-  Maison:       { icon: Home,             color: 'amber' },
-  Électronique: { icon: Monitor,          color: 'blue' },
-  Auto:         { icon: Car,              color: 'red' },
-  Sport:        { icon: Dumbbell,         color: 'cyan' },
-  Cuisine:      { icon: UtensilsCrossed, color: 'orange' },
-  Bébé:         { icon: Baby,             color: 'violet' },
-  Animaux:      { icon: PawPrint,         color: 'green' },
-  Outils:       { icon: Wrench,           color: 'slate' },
+export interface PillCategory {
+  name: string
+  slug: string
+  icon?: LucideIcon
+  color?: string
 }
+
+const defaultPills: PillCategory[] = [
+  { name: 'Tous', slug: 'tous', icon: Search, color: 'blue' },
+  { name: 'Sécurité', slug: 'securite', icon: Shield, color: 'emerald' },
+  { name: 'Informatique', slug: 'informatique', icon: Laptop, color: 'blue' },
+  { name: 'Domotique', slug: 'domotique', icon: Home, color: 'orange' },
+  { name: 'Électronique', slug: 'electronique', icon: Smartphone, color: 'violet' },
+  { name: 'Mobilier', slug: 'mobilier', icon: Armchair, color: 'amber' },
+  { name: 'Packs', slug: 'packs-cadeaux', icon: Gift, color: 'pink' },
+]
 
 const colorMap: Record<string, { bg: string; border: string; text: string; activeBg: string; activeBorder: string; activeText: string }> = {
   blue:    { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-600',    activeBg: 'bg-blue-100',    activeBorder: 'border-blue-300',    activeText: 'text-blue-700' },
@@ -47,25 +43,35 @@ const colorMap: Record<string, { bg: string; border: string; text: string; activ
 }
 
 interface Props {
-  categories?: string[]
+  categories?: PillCategory[]
   active: string
-  onSelect: (cat: string) => void
+  onSelect: (category: PillCategory) => void
+  loading?: boolean
 }
 
-export default function CategoryPillsScroller({ categories, active, onSelect }: Props) {
-  const pills = categories ?? defaultPills
+export default function CategoryPillsScroller({ categories, active, onSelect, loading }: Props) {
+  const source = categories && categories.length > 0 ? categories : defaultPills
+  const hasTous = source.some(c => c.slug === 'tous')
+  const pills = hasTous ? source : [{ name: 'Tous', slug: 'tous', icon: Search, color: 'blue' }, ...source]
   return (
     <div className="border-b border-slate-100 bg-white">
       <div className="container mx-auto px-4">
         <div className="flex gap-2 overflow-x-auto pb-2 pt-2 scrollbar-hide justify-center">
+          {loading && pills.length === 0 && (
+            <div className="flex gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-7 w-24 rounded-full bg-slate-100 animate-pulse" />
+              ))}
+            </div>
+          )}
           {pills.map((cat) => {
-            const isActive = active === cat
-            const config = pillConfig[cat] ?? { icon: Search, color: 'slate' }
-            const colors = colorMap[config.color] ?? colorMap.slate
-            const Icon = config.icon
+            const isActive = active === cat.slug
+            const color = cat.color || 'slate'
+            const Icon = cat.icon || Package
+            const colors = colorMap[color] ?? colorMap.slate
             return (
               <button
-                key={cat}
+                key={cat.slug}
                 onClick={() => onSelect(cat)}
                 className={`whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-full border transition-all flex-shrink-0 flex items-center gap-1.5 ${
                   isActive
@@ -74,7 +80,7 @@ export default function CategoryPillsScroller({ categories, active, onSelect }: 
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {cat}
+                {cat.name}
               </button>
             )
           })}

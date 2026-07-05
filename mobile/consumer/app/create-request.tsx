@@ -10,7 +10,7 @@ import { pickMedia, PickedMedia } from '../src/media'
 import { reverseGeocode } from '../src/geocode'
 import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
-import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
+import { loadCategories, getCategoryLabel, getAttributeLabel, ServiceCategory, Attribute } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, X, Check, MapPin, Plus } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
@@ -51,8 +51,9 @@ function CreateRequest() {
   const [landmark, setLandmark] = useState('')
   const [autoAddress, setAutoAddress] = useState('')
   const [voiceNote, setVoiceNote] = useState<VoiceRecording | null>(null)
-  const [cats, setCats] = useState<{ id: string; label: string; abbr: string; color: string }[]>(FALLBACK_CATS)
+  const [cats, setCats] = useState<{ id: string; label: string; abbr: string; color: string; requiredAttributes?: Attribute[]; optionalAttributes?: Attribute[] }[]>(FALLBACK_CATS)
   const [priceEstimate, setPriceEstimate] = useState<{ median: number; low: number; high: number } | null>(null)
+  const [attributes, setAttributes] = useState<Record<string, string | number | boolean>>({})
   const { t, i18n } = useTranslation()
 
   useEffect(() => {
@@ -62,10 +63,12 @@ function CreateRequest() {
         label: getCategoryLabel(c, i18n.language),
         abbr: c.abbr,
         color: c.color,
+        requiredAttributes: c.requiredAttributes,
+        optionalAttributes: c.optionalAttributes,
       })))
     }).catch(() => {})
     Location.requestForegroundPermissionsAsync()
-  }, [])
+  }, [i18n.language])
 
   // Fetch price estimate when category + coords are ready
   useEffect(() => {
@@ -75,6 +78,19 @@ function CreateRequest() {
       .then((res: any) => { if (res.estimate) setPriceEstimate(res.estimate) })
       .catch(() => {})
   }, [category, coords])
+
+  // Reset dynamic attributes when category changes
+  useEffect(() => {
+    setAttributes({})
+  }, [category])
+
+  const areRequiredAttributesFilled = () => {
+    const required = cats.find(c => c.id === category)?.requiredAttributes || []
+    return required.every(attr => {
+      const value = attributes[attr.slug]
+      return value !== undefined && value !== '' && value !== false
+    })
+  }
 
   const pickLocation = async () => {
     setLocating(true)
@@ -152,6 +168,7 @@ function CreateRequest() {
         },
         budget: Number(budget.replace(/\s/g, '')) || undefined,
         channel: 'mobile',
+        attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
       }, t('request.queuedOffline'))
       await cacheClear('home-requests')
       await cacheClear('my-requests')
@@ -261,6 +278,12 @@ function CreateRequest() {
                 numberOfLines={4}
               />
             </View>
+            <DynamicAttributes
+              category={cats.find(c => c.id === category)}
+              values={attributes}
+              onChange={setAttributes}
+              lang={i18n.language}
+            />
             <View>
               <Text style={s.label}>{t('request.voiceNote')}</Text>
               {voiceNote ? (
@@ -323,8 +346,8 @@ function CreateRequest() {
               </ScrollView>
             </View>
             <TouchableOpacity
-              style={[s.btn, !description && s.btnDisabled]}
-              disabled={!description}
+              style={[s.btn, (!description || !areRequiredAttributesFilled()) && s.btnDisabled]}
+              disabled={!description || !areRequiredAttributesFilled()}
               onPress={() => setStep(3)}
             >
               <Text style={s.btnText}>{t('request.continueBtn')}</Text>
@@ -388,6 +411,75 @@ function RecapRow({ label, value }: { label: string; value: string }) {
     <View style={s.recapRow}>
       <Text style={s.recapLabel}>{label}</Text>
       <Text style={s.recapValue}>{value}</Text>
+    </View>
+  )
+}
+
+function DynamicAttributes({
+  category,
+  values,
+  onChange,
+  lang,
+}: {
+  category?: { id: string; requiredAttributes?: Attribute[]; optionalAttributes?: Attribute[] }
+  values: Record<string, string | number | boolean>
+  onChange: (v: Record<string, string | number | boolean>) => void
+  lang: string
+}) {
+  const { t } = useTranslation()
+  const all = [
+    ...(category?.requiredAttributes || []),
+    ...(category?.optionalAttributes || []),
+  ]
+  if (all.length === 0) return null
+
+  const setValue = (slug: string, value: string | number | boolean) => {
+    onChange({ ...values, [slug]: value })
+  }
+
+  return (
+    <View style={{ gap: 16 }}>
+      <Text style={s.label}>{t('request.details')}</Text>
+      {all.map(attr => {
+        const label = getAttributeLabel(attr, lang)
+        const value = values[attr.slug]
+        return (
+          <View key={attr.slug}>
+            <Text style={s.attrLabel}>{label}{attr.required ? ' *' : ''}</Text>
+            {attr.type === 'select' ? (
+              <View style={s.attrOptions}>
+                {(attr.options || []).map(opt => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[s.attrOption, value === opt && s.attrOptionActive]}
+                    onPress={() => setValue(attr.slug, opt)}
+                  >
+                    <Text style={[s.attrOptionText, value === opt && s.attrOptionTextActive]}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : attr.type === 'boolean' ? (
+              <TouchableOpacity
+                style={[s.attrToggle, value === true && s.attrToggleActive]}
+                onPress={() => setValue(attr.slug, value !== true)}
+              >
+                <Text style={[s.attrToggleText, value === true && s.attrToggleTextActive]}>
+                  {value === true ? t('common.yes') : t('common.no')}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TextInput
+                style={s.attrInput}
+                value={value !== undefined ? String(value) : ''}
+                onChangeText={text => setValue(attr.slug, attr.type === 'number' ? Number(text.replace(/\s/g, '')) : text)}
+                keyboardType={attr.type === 'number' ? 'numeric' : 'default'}
+                placeholder={label}
+                placeholderTextColor="#9CA3AF"
+              />
+            )}
+          </View>
+        )
+      })}
     </View>
   )
 }
@@ -459,6 +551,17 @@ const s = StyleSheet.create({
   mediaAddText: { color: '#64748B' },
   priceHint: { backgroundColor: '#ECFDF5', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#A7F3D0' },
   priceHintText: { fontSize: 12, color: '#065F46', lineHeight: 18 },
+  attrLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  attrInput: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, padding: 14, fontSize: 15, color: '#111827', backgroundColor: '#fff' },
+  attrOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  attrOption: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent' },
+  attrOptionActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
+  attrOptionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  attrOptionTextActive: { color: '#059669' },
+  attrToggle: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent', alignSelf: 'flex-start' },
+  attrToggleActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
+  attrToggleText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  attrToggleTextActive: { color: '#059669' },
 })
 
 export default withScreenBoundary(CreateRequest, 'CreateRequest')
