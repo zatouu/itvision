@@ -164,6 +164,8 @@ app.prepare().then(() => {
     socket.on('provider:location', (data) => {
       if (!data?.requestId || !data?.lat || !data?.lng) return
       socket.to(`request-${data.requestId}`).emit('provider:location', {
+        providerId: userId,
+        providerName: email?.split('@')[0] || data.providerName || 'Prestataire',
         lat: data.lat,
         lng: data.lng,
         heading: data.heading || null,
