@@ -32,6 +32,9 @@
     "**/*.spec.ts",
     "**/*.spec.tsx",
     "src/lib/tensorflow",
-    "mobile/**"
+    "mobile/**",
+    "src/lib/taxonomy/drizzle/**",
+    "src/lib/taxonomy/prisma/**",
+    "src/lib/taxonomy/typeorm/**"
   ]
 }

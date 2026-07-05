@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
 import Product from '@/lib/models/Product.validated'
 import { defaultProductCategories } from '@/lib/data/default-categories'
+import { aggregateProductCounts } from '@/lib/taxonomy/category-api-format'
 
 const fallbackCategories = defaultProductCategories.map((category, index) => ({
   slug: category.id,
@@ -18,25 +19,37 @@ const fallbackCategories = defaultProductCategories.map((category, index) => ({
   })),
   order: index,
   isActive: true,
+  taxonomyId: category.id,
+  level: 1,
+  isLeaf: false,
+  allowedUnits: ['piece'],
+  requiredAttributes: [],
+  optionalAttributes: [],
+  searchFilters: [],
+  supportsWholesale: true,
+  supportsDropshipping: true,
+  supportsGroupBuying: true,
+  commissionRate: 0.08,
 }))
 
 export async function GET() {
   try {
     await connectMongoose()
 
-    const dbCategories = await ProductCategory.find({ isActive: true })
+    let dbCategories = await ProductCategory.find({ isActive: true })
       .sort({ order: 1, name: 1 })
       .lean()
-    const categories = dbCategories.length > 0 ? dbCategories : fallbackCategories
+    if (dbCategories.length === 0) {
+      dbCategories = fallbackCategories as any
+    }
 
-    // Count products per category (top-level slug only)
     const counts = await Product.aggregate([
       { $match: { category: { $exists: true, $nin: [null, ''] } } },
       { $group: { _id: '$category', count: { $sum: 1 } } }
     ])
-    const countMap = new Map(counts.map((c: any) => [String(c._id), Number(c.count) || 0]))
+    const countMap = aggregateProductCounts(dbCategories as any, counts as any)
 
-    const items = categories.map((c: any) => ({
+    const items = dbCategories.map((c: any) => ({
       category: c.slug,
       name: c.labelFr || c.name,
       label: c.labelFr || c.name,

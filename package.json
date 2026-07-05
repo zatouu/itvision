@@ -31,6 +31,7 @@
     "docker:backup": "docker-compose --env-file .env.docker --profile backup run --rm backup",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "seed:product-categories": "tsx scripts/seed-product-categories.ts",
+    "seed:taxonomy": "tsx scripts/seed-taxonomy.ts",
     "create:admin": "tsx scripts/create-admin-user.ts",
     "create:admin:interactive": "tsx scripts/create-admin-user.ts",
     "reinit:mongodb": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < docker/mongodb/init.js",
