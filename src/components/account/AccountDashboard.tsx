@@ -12,6 +12,7 @@ import {
   Zap, Clock, X, LayoutGrid
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toaster'
+import LogoutButton from '@/components/auth/LogoutButton'
 
 // ─── Types ───
 interface DashboardData {
@@ -460,9 +461,11 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
                 <Link href="/compte/profil" className="bg-white/15 backdrop-blur border border-white/30 px-3 py-1.5 rounded-lg text-xs hover:bg-white/25 flex items-center gap-1 transition-colors">
                   <Settings className="w-3 h-3" /> Paramètres
                 </Link>
-                <Link href="/api/auth/logout" className="bg-white/15 backdrop-blur border border-white/30 px-3 py-1.5 rounded-lg text-xs hover:bg-white/25 flex items-center gap-1 transition-colors">
+                <LogoutButton
+                  className="bg-white/15 backdrop-blur border border-white/30 px-3 py-1.5 rounded-lg text-xs hover:bg-white/25 flex items-center gap-1 transition-colors"
+                >
                   <LogOut className="w-3 h-3" /> Déconnexion
-                </Link>
+                </LogoutButton>
               </div>
             </div>
           </div>

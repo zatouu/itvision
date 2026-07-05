@@ -135,8 +135,21 @@ export default function ProductAdminInterface() {
 
   // Données initiales des produits IT Vision
   useEffect(() => {
-    // Catégories par défaut en attendant le fetch
-    setCategories(defaultProductCategories)
+    // Catégories par défaut en attendant le fetch (aplaties avec parentCategory)
+    setCategories(
+      defaultProductCategories.flatMap((c) => [
+        { id: c.id, name: c.name, description: c.description, icon: c.icon, margin: c.margin, isActive: c.isActive },
+        ...(c.subCategories || []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          description: '',
+          icon: s.icon,
+          parentCategory: c.id,
+          margin: c.margin,
+          isActive: c.isActive
+        }))
+      ])
+    )
 
     // Charger les catégories dynamiquement depuis l'API
     fetch('/api/products/categories', { credentials: 'include' })
@@ -144,14 +157,25 @@ export default function ProductAdminInterface() {
       .then(data => {
         if (data?.success && Array.isArray(data.items) && data.items.length > 0) {
           setCategories(
-            data.items.map((it: any) => ({
-              id: String(it.category || ''),
-              name: String(it.label || it.name || it.category || ''),
-              description: '',
-              icon: it.icon || '🏷️',
-              margin: 30,
-              isActive: true
-            })).filter((c: any) => c.id)
+            data.items.flatMap((it: any) => [
+              {
+                id: String(it.category || ''),
+                name: String(it.label || it.name || it.category || ''),
+                description: '',
+                icon: it.icon || '🏷️',
+                margin: 30,
+                isActive: true
+              },
+              ...(it.subCategories || []).map((s: any) => ({
+                id: String(s.slug || ''),
+                name: String(s.label || s.name || s.slug || ''),
+                description: '',
+                icon: s.icon || '🏷️',
+                parentCategory: String(it.category || ''),
+                margin: 30,
+                isActive: true
+              }))
+            ]).filter((c: any) => c.id)
           )
         }
       })

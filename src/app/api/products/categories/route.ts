@@ -10,7 +10,12 @@ const fallbackCategories = defaultProductCategories.map((category, index) => ({
   labelFr: category.name,
   icon: category.icon,
   color: '#f97316',
-  subCategories: [],
+  subCategories: (category.subCategories || []).map((s) => ({
+    slug: s.id,
+    name: s.name,
+    labelFr: s.name,
+    icon: s.icon
+  })),
   order: index,
   isActive: true,
 }))

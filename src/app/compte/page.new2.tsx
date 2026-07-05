@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
+import LogoutButton from '@/components/auth/LogoutButton'
 import { verifyAuthServer } from '@/lib/auth-server'
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/db'
@@ -165,13 +166,12 @@ export default async function ComptePage() {
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Paramètres</span>
               </Link>
-              <Link
-                href="/api/auth/logout"
+              <LogoutButton
                 className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Déconnexion</span>
-              </Link>
+              </LogoutButton>
             </div>
           </div>
         </div>

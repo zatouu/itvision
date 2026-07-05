@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import SoftMessage from '@/components/ui/SoftMessage'
+import LogoutButton from '@/components/auth/LogoutButton'
 
 type Profile = {
   _id: string
@@ -242,12 +243,11 @@ export default function CompteProfilPage() {
                   {saving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
 
-                <Link
-                  href="/api/auth/logout"
+                <LogoutButton
                   className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
                 >
                   Se déconnecter
-                </Link>
+                </LogoutButton>
               </div>
 
               {/* ══ Section Statut Marketplace ══ */}

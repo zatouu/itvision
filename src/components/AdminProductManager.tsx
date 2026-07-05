@@ -500,7 +500,7 @@ export default function AdminProductManager() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [conditionFilter, setConditionFilter] = useState<string>('')
-  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; label: string; count: number }>>([])
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; label: string; count: number; subCategories?: Array<{ slug: string; name: string; label?: string; icon?: string }> }>>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState<
     'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category' |
@@ -586,7 +586,17 @@ export default function AdminProductManager() {
 
   const loadCategoryOptions = async () => {
     setCategoryOptions(
-      defaultProductCategories.map(c => ({ category: c.id, label: c.name, count: 0 }))
+      defaultProductCategories.map(c => ({
+        category: c.id,
+        label: c.name,
+        count: 0,
+        subCategories: (c.subCategories || []).map((s) => ({
+          slug: s.id,
+          name: s.name,
+          label: s.name,
+          icon: s.icon
+        }))
+      }))
     )
 
     try {
@@ -598,7 +608,13 @@ export default function AdminProductManager() {
             .map((it: any) => ({
               category: String(it.category || ''),
               label: String(it.label || it.name || it.category || ''),
-              count: Number(it.count) || 0
+              count: Number(it.count) || 0,
+              subCategories: (it.subCategories || []).map((s: any) => ({
+                slug: String(s.slug || ''),
+                name: String(s.label || s.name || s.slug || ''),
+                label: String(s.label || s.name || s.slug || ''),
+                icon: s.icon || 'tag'
+              }))
             }))
             .filter((it: any) => it.category)
         )

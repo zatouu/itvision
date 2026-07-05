@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { LogIn, LogOut, LayoutDashboard, Wrench, ShieldCheck } from 'lucide-react'
+import LogoutButton from '@/components/auth/LogoutButton'
 
 interface UnifiedLoginButtonProps {
   className?: string
@@ -29,7 +30,6 @@ export default function UnifiedLoginButton({
   className = "", 
   variant = 'default' 
 }: UnifiedLoginButtonProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -84,22 +84,6 @@ export default function UnifiedLoginButton({
 
   const loginHref = `/login?redirect=${encodeURIComponent(pathname || '/')}`
 
-  async function handleLogout() {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'content-type': 'application/json'
-        }
-      })
-    } finally {
-      setIsAuthenticated(false)
-      setUserRole('')
-      router.refresh()
-    }
-  }
-
   const dashboard = getRoleDashboard(userRole)
 
   if (variant === 'header') {
@@ -116,14 +100,17 @@ export default function UnifiedLoginButton({
               <span className="2xl:hidden">Admin</span>
             </Link>
           )}
-          <button
-            type="button"
-            onClick={handleLogout}
+          <LogoutButton
             className={`${getButtonStyles()} ${className} bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700`}
+            redirectTo="/login"
+            onDone={() => {
+              setIsAuthenticated(false)
+              setUserRole('')
+            }}
           >
             <LogOut className="h-4 w-4 mr-1.5" />
             <span className="hidden xl:inline">Déconnexion</span>
-          </button>
+          </LogoutButton>
         </div>
       )
     }
@@ -151,14 +138,17 @@ export default function UnifiedLoginButton({
             {dashboard.label}
           </Link>
         )}
-        <button
-          type="button"
-          onClick={handleLogout}
+        <LogoutButton
           className={`${getButtonStyles()} ${className} bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700`}
+          redirectTo="/login"
+          onDone={() => {
+            setIsAuthenticated(false)
+            setUserRole('')
+          }}
         >
           <LogOut className="h-4 w-4 mr-1.5" />
           Déconnexion
-        </button>
+        </LogoutButton>
       </div>
     )
   }

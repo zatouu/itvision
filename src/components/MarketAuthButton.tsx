@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { LogIn, LogOut, ShoppingBag, User } from 'lucide-react'
+import LogoutButton from '@/components/auth/LogoutButton'
 
 interface MarketAuthButtonProps {
   className?: string
@@ -28,7 +29,6 @@ export default function MarketAuthButton({
   unauthLabel = 'Mon compte',
   showLogout = true
 }: MarketAuthButtonProps) {
-  const router = useRouter()
   const pathname = usePathname()
 
   const [isLoading, setIsLoading] = useState(true)
@@ -88,22 +88,6 @@ export default function MarketAuthButton({
       ? 'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold shadow-sm transition'
       : 'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition'
 
-  async function handleLogout() {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'content-type': 'application/json'
-        }
-      })
-    } finally {
-      setIsAuthenticated(false)
-      router.refresh()
-      onDone?.()
-    }
-  }
-
   if (!isLoading && isAuthenticated) {
     return (
       <div className={`inline-flex items-center gap-2 ${className}`}>
@@ -122,16 +106,18 @@ export default function MarketAuthButton({
         </Link>
 
         {showLogout ? (
-          <button
-            type="button"
-            onClick={handleLogout}
+          <LogoutButton
             className={`${baseClassName} border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
-            aria-label="Déconnexion Market"
+            redirectTo="/market"
+            onDone={() => {
+              setIsAuthenticated(false)
+              onDone?.()
+            }}
           >
             <ShoppingBag className="h-4 w-4" />
             <span className={variant === 'header' ? 'hidden 2xl:inline' : ''}>Déconnexion</span>
             <LogOut className="h-4 w-4 opacity-70" />
-          </button>
+          </LogoutButton>
         ) : null}
       </div>
     )

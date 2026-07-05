@@ -12,7 +12,12 @@ function toSeedCategories() {
     icon: category.icon,
     color: '#f97316',
     description: category.description,
-    subCategories: [],
+    subCategories: (category.subCategories || []).map((s) => ({
+      slug: s.id,
+      name: s.name,
+      labelFr: s.name,
+      icon: s.icon
+    })),
     order: index,
     isActive: true,
   }))
