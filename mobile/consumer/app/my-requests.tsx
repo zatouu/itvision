@@ -198,7 +198,7 @@ function MyRequests() {
                 style={s.card}
                 activeOpacity={0.85}
                 onPress={() => {
-                  if (['assigned', 'provider_arriving', 'in_progress'].includes(it.status)) {
+                  if (['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(it.status)) {
                     router.push(`/mission/${it._id}`)
                   } else {
                     router.push({ pathname: '/request-offers', params: { id: it._id } })

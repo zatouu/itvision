@@ -90,11 +90,8 @@ function Home() {
       .catch(() => { /* silencieux */ })
   }, [loadRecent])
 
-  const recommended = [
-    { name: 'Moussa D.', rating: 4.9, jobCount: 127, jobLabel: 'missions', specialty: 'Électricien', verified: true },
-    { name: 'Abdoulaye F.', rating: 4.8, jobCount: 98, jobLabel: 'missions', specialty: 'Plombier', verified: true },
-    { name: 'Ibrahim N.', rating: 4.9, jobCount: 156, jobLabel: 'missions', specialty: 'Menuisier', verified: true },
-  ]
+  // TODO: remplacer par un vrai endpoint /api/services/providers/top quand le backend l'exposera
+  const [recommended, setRecommended] = useState<any[]>([])
 
   return (
     <SafeAreaView style={s.safe}>
@@ -237,18 +234,19 @@ function Home() {
           })
         )}
 
-        {/* Prestataires recommandés */}
-        <View style={s.sectionRow}>
-          <Text style={s.sectionTitle}>Prestataires recommandés près de vous</Text>
-          <TouchableOpacity>
-            <Text style={s.seeAllText}>Voir tout</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-          {recommended.map((p, i) => (
-            <ProviderCard key={i} {...p} />
-          ))}
-        </ScrollView>
+        {/* Prestataires recommandés — affichés uniquement si données réelles */}
+        {recommended.length > 0 && (
+          <>
+            <View style={s.sectionRow}>
+              <Text style={s.sectionTitle}>Prestataires recommandés près de vous</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+              {recommended.map((p, i) => (
+                <ProviderCard key={i} {...p} />
+              ))}
+            </ScrollView>
+          </>
+        )}
 
       </ScrollView>
 

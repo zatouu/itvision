@@ -20,10 +20,10 @@ function Home() {
   const [busy, setBusy] = useState(false)
   const [hour] = useState(new Date().getHours())
   const [providerName, setProviderName] = useState('')
-  const [nearbyCount, setNearbyCount] = useState(5)
-  const [pendingOffers, setPendingOffers] = useState(2)
-  const [activeMission, setActiveMission] = useState(1)
-  const [dailyRevenue, setDailyRevenue] = useState(12500)
+  const [nearbyCount, setNearbyCount] = useState(0)
+  const [pendingOffers, setPendingOffers] = useState(0)
+  const [activeMission, setActiveMission] = useState(0)
+  const [dailyRevenue, setDailyRevenue] = useState(0)
   const [initials, setInitials] = useState('')
   const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -168,14 +168,14 @@ function Home() {
         <TouchableOpacity style={[s.actionHero, !online && s.actionDisabled]} onPress={goNearby} activeOpacity={0.85}>
           <View style={s.actionHeroTag}><Text style={s.actionHeroTagText}>Nouveautés</Text></View>
           <Text style={s.actionHeroTitle}>Demandes proches</Text>
-          <Text style={s.actionHeroSub}>9 demandes autour de vous</Text>
+          <Text style={s.actionHeroSub}>{online ? (nearbyCount > 0 ? `${nearbyCount} demande(s) autour de vous` : 'Aucune demande proche pour le moment') : t('home.activateToReceive')}</Text>
           <View style={s.actionHeroArrow}><ChevronRight size={20} color="#fff" /></View>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.actionRow} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
           <View style={s.actionRowTag}><Text style={s.actionRowTagText}>Suivi</Text></View>
           <Text style={s.actionRowTitle}>Mes offres envoyées</Text>
-          <Text style={s.actionRowSub}>3 acceptées, 2 en attente</Text>
+          <Text style={s.actionRowSub}>{pendingOffers > 0 ? `${pendingOffers} offre(s) en attente de réponse` : 'Aucune offre en attente'}</Text>
           <ChevronRight size={22} color={colors.textMuted} />
         </TouchableOpacity>
 
