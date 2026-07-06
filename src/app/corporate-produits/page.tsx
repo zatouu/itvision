@@ -53,7 +53,7 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
   {
     id: 'camera-ip',
     name: 'Caméras IP professionnelles',
-    category: 'Vidéosurveillance',
+    category: 'Sécurité',
     description: 'Solutions de surveillance HD pour bureaux, commerces, entrepôts et résidences. Vision nocturne, accès mobile et enregistrement sécurisé.',
     currency: 'FCFA',
     features: ['Vision nocturne', 'Accès mobile', 'Enregistrement local ou cloud', 'Installation incluse'],
@@ -64,7 +64,7 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
   {
     id: 'controle-acces',
     name: "Contrôle d'accès biométrique",
-    category: "Contrôle d'accès",
+    category: 'Sécurité',
     description: 'Gestion sécurisée des entrées par empreinte digitale, badge RFID ou code PIN. Journal des passages et gestion multi-sites.',
     currency: 'FCFA',
     features: ['Empreinte / Badge / Code', 'Gestion utilisateurs', 'Journal des passages', 'Multi-sites'],
@@ -75,7 +75,7 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
   {
     id: 'alarme-intrusion',
     name: "Système d'alarme intrusion",
-    category: 'Alarme & détection',
+    category: 'Sécurité',
     description: 'Protection périmétrique et volumétrique avec détecteurs, sirènes et alertes en temps réel sur mobile.',
     currency: 'FCFA',
     features: ['Détecteurs mouvement', 'Capteurs ouverture', 'Sirène', 'Alertes mobile'],
@@ -86,7 +86,7 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
   {
     id: 'reseau-poe',
     name: 'Réseau & switches PoE',
-    category: 'Réseau & connectivité',
+    category: 'Informatique',
     description: 'Infrastructure réseau fiable pour caméras IP, postes de travail et équipements Wi-Fi. Câblage structuré et baie réseau.',
     currency: 'FCFA',
     features: ['Switches PoE', 'Câblage structuré', 'Baie réseau', 'Tests débit'],
@@ -108,7 +108,7 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
   {
     id: 'detection-incendie',
     name: 'Détection incendie',
-    category: 'Sécurité incendie',
+    category: 'Sécurité',
     description: "Détecteurs de fumée, signalisation d'alarme et dispositifs d'évacuation pour sites professionnels et ERP.",
     currency: 'FCFA',
     features: ['Détecteurs fumée', 'Signalisation sonore', 'Centrale selon besoin', 'Maintenance périodique'],
@@ -120,13 +120,12 @@ const FALLBACK_PRODUCTS: CorporateProduct[] = [
 
 function resolveCategory(doc: any): string | null {
   const CATS = [
-    { label: 'Vidéosurveillance', terms: ['camera', 'caméra', 'videosurveillance', 'vidéosurveillance', 'cctv', 'hikvision', 'dahua', 'nvr', 'dvr'] },
-    { label: "Contrôle d'accès", terms: ["contrôle d'accès", "controle d'acces", 'biométrique', 'badge', 'rfid', 'serrure', 'empreinte'] },
-    { label: 'Alarme & détection', terms: ['alarme', 'alarm', 'détecteur', 'detecteur', 'sirène', 'intrusion', 'capteur'] },
-    { label: 'Réseau & connectivité', terms: ['réseau', 'reseau', 'wifi', 'wi-fi', 'switch', 'poe', 'routeur', 'câble', 'cable'] },
+    { label: 'Sécurité', terms: ['camera', 'caméra', 'videosurveillance', 'vidéosurveillance', 'cctv', 'hikvision', 'dahua', 'nvr', 'dvr', "contrôle d'accès", "controle d'acces", 'biométrique', 'biometrique', 'badge', 'rfid', 'serrure', 'empreinte', 'alarme', 'alarm', 'détecteur', 'detecteur', 'sirène', 'sirene', 'intrusion', 'capteur', 'incendie', 'fumée', 'fumee', 'extincteur', 'détection incendie'] },
+    { label: 'Informatique', terms: ['informatique', 'ordinateur', 'pc', 'réseau', 'reseau', 'wifi', 'wi-fi', 'switch', 'poe', 'routeur', 'câble', 'cable', 'serveur', 'baie', 'racks'] },
     { label: 'Domotique', terms: ['domotique', 'smart home', 'maison intelligente', 'automatisation', 'tuya', 'zigbee', 'sonoff'] },
-    { label: 'Gadgets & accessoires', terms: ['gadget', 'accessoire', 'objet connecté', 'support', 'adaptateur'] },
-    { label: 'Sécurité incendie', terms: ['incendie', 'fumée', 'fumee', 'extincteur', 'détection incendie'] },
+    { label: 'Électronique', terms: ['electronique', 'électronique', 'gadget', 'accessoire', 'objet connecté', 'support', 'adaptateur', 'smartphone', 'téléphone'] },
+    { label: 'Mobilier', terms: ['mobilier', 'bureau', 'chaise', 'table', 'étagère', 'etagere'] },
+    { label: 'Packs cadeaux', terms: ['pack', 'cadeau', 'kit', 'coffret'] },
   ]
   const hay = normalizeStr(
     [doc.category, doc.name, doc.tagline, ...(Array.isArray(doc.tags) ? doc.tags : [])]

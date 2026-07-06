@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product, { type IProduct } from '@/lib/models/Product.validated'
-import ProductCategory from '@/lib/models/ProductCategory'
 import type { ProductVariantGroup, ProductChannel } from '@/lib/types/product.types'
 import { randomUUID } from 'crypto'
 import { requireAuth } from '@/lib/jwt'
-import { defaultProductCategories } from '@/lib/data/default-categories'
+import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 
 async function requireManagerRole(request: NextRequest) {
   try {
@@ -84,33 +83,6 @@ const parseChannels = (value: unknown): string[] | undefined => {
     .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
     .filter((item) => VALID_CHANNELS.includes(item as typeof VALID_CHANNELS[number]))
   return parsed.length > 0 ? parsed : undefined
-}
-
-async function expandCategorySlugs(slugs: string[]): Promise<string[]> {
-  try {
-    const dbCategories = await ProductCategory.find({ isActive: true }).lean()
-    const categories = dbCategories.length > 0
-      ? dbCategories
-      : defaultProductCategories.map((c) => ({
-          slug: c.id,
-          subCategories: (c.subCategories || []).map((s) => ({ slug: s.id }))
-        })) as any
-
-    const expanded = new Set<string>()
-    for (const slug of slugs) {
-      expanded.add(slug)
-      const parent = categories.find((c: any) => c.slug === slug)
-      if (parent?.subCategories?.length) {
-        for (const sub of parent.subCategories) {
-          expanded.add(sub.slug)
-        }
-      }
-    }
-    return Array.from(expanded)
-  } catch (error) {
-    console.error('expandCategorySlugs error', error)
-    return slugs
-  }
 }
 
 const syncConditionTags = (

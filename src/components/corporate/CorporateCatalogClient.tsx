@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import {
-  Camera, Shield, Lock, Wifi, Bell, Cpu, Sparkles,
+  Shield, Monitor, Home, Smartphone, Armchair, Gift,
   Phone, Mail, CheckCircle, ArrowRight, PackageCheck, MessageCircle,
   Menu, X, ChevronRight, ShoppingBag, Search, Hash, Tag
 } from 'lucide-react'
@@ -29,13 +29,12 @@ interface CorporateProduct {
 
 // ── Config ────────────────────────────────────────────
 const CATEGORIES: Array<{ label: string; icon: LucideIcon; aliases: string[] }> = [
-  { label: 'Vidéosurveillance', icon: Camera, aliases: ['Vidéosurveillance', 'Camera', 'Caméra', 'CCTV'] },
-  { label: "Contrôle d'accès", icon: Lock, aliases: ["Contrôle d'Accès", "Contrôle d'accès", 'Biométrie'] },
-  { label: 'Alarme & détection', icon: Bell, aliases: ['Alarme', 'Alarmes', 'Détection'] },
-  { label: 'Réseau & connectivité', icon: Wifi, aliases: ['Réseau', 'Reseau', 'Wifi', 'Switch', 'PoE'] },
-  { label: 'Domotique', icon: Cpu, aliases: ['Domotique', 'Smart Home'] },
-  { label: 'Gadgets & accessoires', icon: Sparkles, aliases: ['Gadgets', 'Accessoires'] },
-  { label: 'Sécurité incendie', icon: Shield, aliases: ['Sécurité incendie', 'Incendie'] },
+  { label: 'Sécurité', icon: Shield, aliases: ['Sécurité', 'Vidéosurveillance', 'Caméra', 'CCTV', "Contrôle d'accès", 'Biométrie', 'Alarme', 'Alarmes', 'Détection', 'Incendie'] },
+  { label: 'Informatique', icon: Monitor, aliases: ['Informatique', 'Réseau', 'Reseau', 'Wifi', 'Switch', 'PoE', 'Routeur', 'Câble'] },
+  { label: 'Domotique', icon: Home, aliases: ['Domotique', 'Smart Home'] },
+  { label: 'Électronique', icon: Smartphone, aliases: ['Électronique', 'Electronique', 'Gadgets', 'Accessoires'] },
+  { label: 'Mobilier', icon: Armchair, aliases: ['Mobilier', 'Bureau', 'Chaise'] },
+  { label: 'Packs cadeaux', icon: Gift, aliases: ['Packs', 'Cadeaux'] },
 ]
 
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.label)
