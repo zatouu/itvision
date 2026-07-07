@@ -70,6 +70,16 @@ export function emitProviderLocation(requestId: string, location: { lat: number;
   socket?.emit('provider:location', { requestId, ...location })
 }
 
+/** Signal that provider is viewing a request detail (presence viewers) */
+export function emitRequestViewing(requestId: string, providerName?: string, lat?: number, lng?: number) {
+  socket?.emit('request:viewing', { requestId, providerName, lat, lng })
+}
+
+/** Signal that provider stopped viewing a request detail */
+export function emitStopViewing(requestId: string) {
+  socket?.emit('request:stop-viewing', { requestId })
+}
+
 /** Emit provider GPS for geofencing (called periodically while online) */
 export function emitGps(lat: number, lng: number) {
   socket?.emit('provider:gps', { lat, lng })

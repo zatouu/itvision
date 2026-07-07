@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
 import { colors, radius, spacing, typography } from '../design'
+import { hapticSelect } from '../haptics'
 
 export type TabKey = 'home' | 'requests' | 'offers' | 'notifications' | 'profile'
 
@@ -12,7 +13,7 @@ interface TabBarProps {
 
 const TABS: { key: TabKey; label: string; icon: string; route: string }[] = [
   { key: 'home',          label: 'Accueil',       icon: '⌂', route: '/' },
-  { key: 'requests',      label: 'Demandes',      icon: '≡', route: '/my-requests' },
+  { key: 'requests',      label: 'Demandes',      icon: '≡', route: '/nearby-requests' },
   { key: 'offers',        label: 'Offres',        icon: '≡', route: '/my-offers' },
   { key: 'notifications', label: 'Notifications', icon: 'N', route: '/notifications' },
   { key: 'profile',       label: 'Profil',        icon: '○', route: '/profile' },
@@ -32,6 +33,7 @@ export default function TabBar({ active }: TabBarProps) {
 
   const onPress = (tab: typeof TABS[number]) => {
     if (tab.key === active) return
+    hapticSelect()
     if (tab.key === 'home') {
       router.replace('/')
     } else {

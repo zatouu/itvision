@@ -6,6 +6,7 @@ import { apiPostQueued } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import { Star, PartyPopper } from 'lucide-react-native'
+import { hapticSelect, hapticSuccess } from '../src/haptics'
 
 const TAG_KEYS = ['tag_punctual', 'tag_clean', 'tag_pro', 'tag_goodPrice', 'tag_fast', 'tag_communicative'] as const
 
@@ -37,6 +38,7 @@ function RateMission() {
         tags: selectedTags,
       }, t('rating.queuedOffline'))
       setSubmitted(true)
+      hapticSuccess()
     } catch (e: any) {
       setError(e.message || t('rating.errorSubmit'))
     } finally {
@@ -76,7 +78,7 @@ function RateMission() {
           {/* Étoiles */}
           <View style={s.starsRow}>
             {[1, 2, 3, 4, 5].map(n => (
-              <TouchableOpacity key={n} onPress={() => setRating(n)} style={s.starBtn}>
+              <TouchableOpacity key={n} onPress={() => { hapticSelect(); setRating(n) }} style={s.starBtn}>
                 <Star size={44} color={n <= rating ? '#F59E0B' : '#E2E8F0'} fill={n <= rating ? '#F59E0B' : 'transparent'} />
               </TouchableOpacity>
             ))}

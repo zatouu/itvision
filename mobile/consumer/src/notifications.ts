@@ -59,6 +59,15 @@ export async function loadNotifications(): Promise<Notification[]> {
   return loadingPromise
 }
 
+/** Force le rechargement depuis AsyncStorage (notifs écrites par la background task quand l'app était fermée). */
+export async function reloadNotifications(): Promise<Notification[]> {
+  loaded = false
+  loadingPromise = null
+  const fresh = await loadNotifications()
+  emit()
+  return fresh
+}
+
 export function subscribeNotifications(fn: (items: Notification[]) => void): () => void {
   listeners.add(fn)
   fn(cache)

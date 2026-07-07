@@ -144,7 +144,7 @@ export function LiveRouteMap({
         coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
       }
       mapRef.current?.fitToCoordinates(coords, {
-        edgePadding: { top: 60, right: 60, bottom: 120, left: 60 },
+        edgePadding: { top: 100, right: 100, bottom: 200, left: 100 },
         animated,
       })
       fitToRouteLock.current = false
@@ -277,8 +277,8 @@ export function LiveRouteMap({
           initialRegion={{
             latitude: destination.lat,
             longitude: destination.lng,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
           }}
           showsUserLocation={false}
           showsMyLocationButton={false}

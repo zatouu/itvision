@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Animated } from 'react-native'
 import { Image } from 'expo-image'
 import BottomSheet from '../src/components/BottomSheet'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
@@ -15,10 +15,12 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { SkeletonCard } from '../src/components/Skeleton'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
+import { getCategoryIcon } from '../src/categoryIcons'
+import { hapticSuccess, hapticLight, hapticSelect } from '../src/haptics'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
-import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck } from 'lucide-react-native'
+import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2 } from 'lucide-react-native'
 
 const RADIUS_KM = 10
 
@@ -52,6 +54,7 @@ function NearbyRequests() {
   const [sending, setSending] = useState(false)
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const successScale = useRef(new Animated.Value(0))
 
   const { t, i18n } = useTranslation()
   const [catMap, setCatMap] = useState<Record<string, { abbr: string; color: string; label: string }>>({})
@@ -186,6 +189,9 @@ function NearbyRequests() {
         availableNow,
       }, t('nearby.offerQueuedOffline'))
       setSentId(selected._id)
+      hapticSuccess()
+      Animated.spring(successScale.current, { toValue: 1, useNativeDriver: true, friction: 8, tension: 40 }).start()
+      setTimeout(() => Animated.timing(successScale.current, { toValue: 0, duration: 200, useNativeDriver: true }).start(), 3000)
       setSelected(null)
       setPrice(''); setComment(''); setEta('30'); setValidityMinutes(30); setTravelIncluded(true); setMaterialIncluded(false); setAvailableNow(true)
       if (r) setItems(prev => prev.filter(it => it._id !== selected._id))
@@ -202,8 +208,8 @@ function NearbyRequests() {
   const mapRegion = coords ? {
     latitude: coords.lat,
     longitude: coords.lng,
-    latitudeDelta: 0.04,
-    longitudeDelta: 0.04,
+    latitudeDelta: 0.06,
+    longitudeDelta: 0.06,
   } : undefined
 
   // Recentre automatiquement la map quand la position est affinée
@@ -245,10 +251,10 @@ function NearbyRequests() {
       </View>
 
       {sentId && (
-        <View style={s.successBanner}>
+        <Animated.View style={[s.successBanner, { transform: [{ scale: successScale.current }] }]}>
           <View style={s.successDot} />
           <Text style={s.successText}>{t('nearby.offerSent')}</Text>
-        </View>
+        </Animated.View>
       )}
 
       {loading ? (
@@ -300,15 +306,15 @@ function NearbyRequests() {
                   const loc = it.location?.coordinates
                   if (!loc || loc.length < 2) return null
                   const color = catMap[it.category]?.color || '#475569'
-                  const abbr = catMap[it.category]?.abbr || it.category?.slice(0, 2).toUpperCase()
+                  const Icon = getCategoryIcon(it.category)
                   return (
                     <Marker
                       key={it._id}
                       coordinate={{ latitude: loc[1], longitude: loc[0] }}
-                      onPress={() => { setSelected(it); setSentId(null) }}
+                      onPress={() => { hapticLight(); setSelected(it); setSentId(null) }}
                     >
                       <View style={[s.mapMarker, { backgroundColor: color }]}>
-                        <Text style={s.mapMarkerText}>{abbr}</Text>
+                        <Icon size={16} color="#fff" />
                       </View>
                       <View style={[s.mapMarkerTail, { borderTopColor: color }]} />
                     </Marker>
@@ -352,11 +358,11 @@ function NearbyRequests() {
           )}
 
           {items.map(it => (
-            <TouchableOpacity key={it._id} style={s.card} activeOpacity={0.88} onPress={() => { setSelected(it); setSentId(null) }}>
+            <TouchableOpacity key={it._id} style={s.card} activeOpacity={0.88} onPress={() => { hapticLight(); setSelected(it); setSentId(null) }}>
               <View style={s.cardHead}>
                 <View style={s.catRow}>
                   <View style={[s.catMonogram, { backgroundColor: catMap[it.category]?.color || '#475569' }]}>
-                    <Text style={s.catMonogramText}>{catMap[it.category]?.abbr || it.category?.slice(0,2).toUpperCase()}</Text>
+                    {(() => { const Icon = getCategoryIcon(it.category); return <Icon size={16} color="#fff" /> })()}
                   </View>
                   <Text style={s.catText}>{catMap[it.category]?.label || it.category}</Text>
                 </View>
@@ -364,6 +370,12 @@ function NearbyRequests() {
                   <Text style={s.distText}>{distLabel(it._distance)}</Text>
                 </View>
               </View>
+              {it.media?.some((m: any) => m.type === 'audio') && (
+                <View style={s.audioBadge}>
+                  <Volume2 size={14} color="#0369A1" />
+                  <Text style={s.audioBadgeText}>{t('providerNearby.voiceMessage')}</Text>
+                </View>
+              )}
               {it.description ? <Text style={s.desc} numberOfLines={2}>{it.description}</Text> : null}
               {it.media?.filter((m: any) => m.type === 'image').length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
@@ -386,7 +398,7 @@ function NearbyRequests() {
               })()}
               <View style={s.cardFoot}>
                 {it.budget ? <Text style={s.budget}>{t('nearby.budget', { amount: Number(it.budget).toLocaleString('fr-FR') })}</Text> : <Text style={s.budgetNone}>{t('nearby.budgetNone')}</Text>}
-                <TouchableOpacity style={s.offerChip} onPress={() => { setSelected(it); setSentId(null) }}>
+                <TouchableOpacity style={s.offerChip} onPress={() => { hapticSelect(); setSelected(it); setSentId(null) }}>
                   <Text style={s.offerChipText}>{t('nearby.makeOffer')}</Text>
                 </TouchableOpacity>
               </View>
@@ -538,6 +550,8 @@ const s = StyleSheet.create({
   distBadge: { backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.border },
   distText: { fontSize: 11, color: colors.textSecondary, fontWeight: typography.weight.extrabold as any },
   desc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  audioBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E0F7FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, alignSelf: 'flex-start', marginTop: 6, marginBottom: 4 },
+  audioBadgeText: { fontSize: 11, fontWeight: '700', color: '#0369A1' },
   cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.bg },
   budget: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
   budgetNone: { fontSize: 14, color: colors.textMuted },

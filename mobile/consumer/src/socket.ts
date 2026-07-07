@@ -126,3 +126,14 @@ export function onChatMessage(callback: (message: any) => void) {
   s.on('chat:message', callback)
   return () => { s.off('chat:message', callback) }
 }
+
+export function requestOnlineProviders() {
+  const s = connectSocket()
+  s.emit('get-online-providers')
+}
+
+export function onOnlineProvidersCount(callback: (data: { count: number }) => void) {
+  const s = connectSocket()
+  s.on('online-providers-count', callback)
+  return () => { s.off('online-providers-count', callback) }
+}

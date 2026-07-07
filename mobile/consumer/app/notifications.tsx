@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import TabBar from '../src/components/TabBar'
@@ -10,6 +10,7 @@ import {
   Notification,
   clearNotifications,
   loadNotifications,
+  reloadNotifications,
   markAllRead,
   markRead,
   subscribeNotifications,
@@ -88,6 +89,14 @@ function NotificationsScreen() {
     const interval = setInterval(() => setTick(v => v + 1), 60_000)
     return () => { mounted = false; unsubscribe(); clearInterval(interval) }
   }, [])
+
+  // Recharger depuis AsyncStorage quand l'écran regagne le focus
+  // (notifs écrites par la background task pendant que l'app était fermée)
+  useFocusEffect(
+    useCallback(() => {
+      reloadNotifications().then(fresh => setItems([...fresh])).catch(() => {})
+    }, [])
+  )
 
   const handleOpen = async (n: Notification) => {
     if (!n.read) await markRead(n.id)

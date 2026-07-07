@@ -14,6 +14,8 @@ import { loadCategories, getCategoryLabel, getAttributeLabel, ServiceCategory, A
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, X, Check, MapPin, Plus } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { getCategoryIcon } from '../src/categoryIcons'
+import { hapticSelect, hapticSuccess, hapticLight } from '../src/haptics'
 
 const FALLBACK_CATS = [
   { id: 'electricite', label: 'Électricité', abbr: 'EL', color: '#1D4ED8' },
@@ -96,10 +98,16 @@ function CreateRequest() {
     setLocating(true)
     setAutoAddress('')
     try {
-      const pos = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
-      ])
+      let pos: any = null
+      try {
+        pos = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+        ])
+      } catch {
+        pos = await Location.getLastKnownPositionAsync()
+      }
+      if (!pos) throw new Error('no location')
       const c: [number, number] = [pos.coords.longitude, pos.coords.latitude]
       setCoords(c)
       // Reverse geocode
@@ -172,6 +180,7 @@ function CreateRequest() {
       }, t('request.queuedOffline'))
       await cacheClear('home-requests')
       await cacheClear('my-requests')
+      hapticSuccess()
       setDone(true)
     } catch (e: any) { setErr(e.message); setUploadingMedia(false) }
     setLoading(false)
@@ -234,7 +243,7 @@ function CreateRequest() {
                 <TouchableOpacity
                   key={c.id}
                   style={[s.catCard, category === c.id && s.catCardActive]}
-                  onPress={() => setCategory(c.id)}
+                  onPress={() => { hapticSelect(); setCategory(c.id) }}
                   activeOpacity={0.75}
                 >
                   {category === c.id && (
@@ -243,7 +252,7 @@ function CreateRequest() {
                     </View>
                   )}
                   <View style={[s.catMonogram, { backgroundColor: c.color }]}>
-                    <Text style={s.catMonogramText}>{c.abbr}</Text>
+                    {(() => { const Icon = getCategoryIcon(c.id); return <Icon size={22} color="#fff" /> })()}
                   </View>
                   <Text style={[s.catLabel, category === c.id && s.catLabelActive]}>{c.label}</Text>
                 </TouchableOpacity>

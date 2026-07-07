@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { setAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import { ArrowLeft, FlaskConical } from 'lucide-react-native'
+import { hapticSuccess, hapticError } from '../src/haptics'
 
 const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 const CODE_LENGTH = 6
@@ -35,14 +36,17 @@ export default function VerifyOtp() {
       })
       const data = await r.json()
       if (!r.ok) {
+        hapticError()
         setErr(data.error || t('auth.errorVerify'))
         setLoading(false)
         return
       }
       await setAuth(data.token, data.user)
       resetSocket()
+      hapticSuccess()
       router.replace('/')
     } catch (e: any) {
+      hapticError()
       setErr(t('auth.errorNetwork'))
     }
     setLoading(false)

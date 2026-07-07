@@ -23,6 +23,7 @@
     "expo-dev-client": "~4.0.29",
     "expo-device": "~6.0.0",
     "expo-file-system": "~17.0.1",
+    "expo-haptics": "~13.0.0",
     "expo-image": "~1.13.0",
     "expo-image-picker": "~15.1.0",
     "expo-linking": "~6.3.1",

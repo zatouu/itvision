@@ -9,6 +9,8 @@ import { pushNotification, NotificationKind } from './notifications'
 
 /** Mappe le type de push serveur vers un kind + lien de navigation pour le store in-app. */
 function mapPushToStore(title: string, body: string, data: any) {
+  // Ne jamais re-stocker une notification locale émise par l'app elle-même (sinon boucle infinie)
+  if (data?.localEcho) return
   const type = String(data?.type || '')
   const requestId = data?.requestId ? String(data.requestId) : ''
   let kind: NotificationKind = 'mission-update'
@@ -164,7 +166,7 @@ export async function scheduleLocalNotification(title = 'Test local Pro', body =
 
   try {
     const id = await Notifications.scheduleNotificationAsync({
-      content: { title, body, data, sound: 'default' },
+      content: { title, body, data: { ...data, localEcho: true }, sound: 'default' },
       trigger: { seconds: 1 },
     })
     console.log('[Push] Notification locale programmée:', id)

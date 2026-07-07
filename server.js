@@ -161,6 +161,12 @@ app.prepare().then(() => {
       providerPositions.set(userId, { lat: data.lat, lng: data.lng, updatedAt: Date.now() })
     })
 
+    // Consumer demande le nombre de prestataires en ligne
+    socket.on('get-online-providers', () => {
+      const count = io.sockets.adapter.rooms.get('providers-online')?.size || 0
+      socket.emit('online-providers-count', { count })
+    })
+
     socket.on('provider:location', (data) => {
       if (!data?.requestId || !data?.lat || !data?.lng) return
       socket.to(`request-${data.requestId}`).emit('provider:location', {
@@ -181,6 +187,27 @@ app.prepare().then(() => {
     })
     socket.on('leave-mission-chat', (requestId) => {
       socket.leave(`mission-${requestId}`)
+    })
+
+    // ── PRESENCE VIEWERS ──
+    // Provider signale qu'il consulte une demande → relayé au consumer
+    socket.on('request:viewing', (data) => {
+      const requestId = typeof data === 'string' ? data : data?.requestId
+      if (!requestId) return
+      socket.to(`request-${requestId}`).emit('request:viewing', {
+        providerId: userId,
+        providerName: data?.providerName || email?.split('@')[0] || 'Prestataire',
+        lat: data?.lat || null,
+        lng: data?.lng || null,
+        timestamp: Date.now(),
+      })
+    })
+    socket.on('request:stop-viewing', (data) => {
+      const requestId = typeof data === 'string' ? data : data?.requestId
+      if (!requestId) return
+      socket.to(`request-${requestId}`).emit('request:stop-viewing', {
+        providerId: userId,
+      })
     })
 
     // Événement: Rejoindre un projet

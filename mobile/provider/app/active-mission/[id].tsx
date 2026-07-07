@@ -9,6 +9,7 @@ import { apiGet, apiPost, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
+import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
 import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation } from 'lucide-react-native'
@@ -187,7 +188,7 @@ function ActiveMission() {
   }, [requestId])
 
   useEffect(() => {
-    if (!requestId || !['provider_arriving', 'in_progress'].includes(item?.status || '')) return
+    if (!requestId || !['assigned', 'provider_arriving', 'in_progress'].includes(item?.status || '')) return
     let cancelled = false
     let timer: ReturnType<typeof setInterval> | null = null
 
@@ -195,8 +196,13 @@ function ActiveMission() {
       try {
         const perm = await Location.requestForegroundPermissionsAsync()
         if (perm.status !== 'granted' || cancelled) return
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-        if (cancelled) return
+        let pos: Location.LocationObject | null = null
+        try {
+          pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        } catch {
+          pos = await Location.getLastKnownPositionAsync()
+        }
+        if (cancelled || !pos) return
         const location = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
@@ -234,18 +240,21 @@ function ActiveMission() {
   const handleArriving = async () => {
     const ok = await confirm(t('mission.arrivingTitle'), t('mission.arrivingMsg'))
     if (!ok) return
+    hapticSuccess()
     doUpdateStatus('provider_arriving')
   }
 
   const handleStart = async () => {
     const ok = await confirm(t('mission.startTitle'), t('mission.startMsg'))
     if (!ok) return
+    hapticSuccess()
     doUpdateStatus('in_progress')
   }
 
   const handleComplete = async () => {
     const ok = await confirm(t('mission.completeTitle'), t('mission.completeMsg'))
     if (!ok) return
+    hapticSuccess()
     doUpdateStatus('completed')
   }
 
@@ -253,6 +262,7 @@ function ActiveMission() {
     if (!requestId) return
     const ok = await confirm(t('payment.cashConfirmTitle'), t('payment.cashConfirmMsg', { amount: formatMoney(item?.payment?.amount) }))
     if (!ok) return
+    hapticSuccess()
     setUpdating(true)
     try {
       const r = await apiPost('/api/payments/release', { requestId })
@@ -311,6 +321,14 @@ function ActiveMission() {
     Linking.openURL(url).catch(() => {
       notify(t('common.error'), 'Impossible d\'ouvrir la navigation')
     })
+  }
+
+  const focusRouteInApp = () => {
+    if (!hasCoords) return
+    // La carte LiveRouteMap se charge déjà du fitToCoordinates via son ref interne
+    // On déclenche un re-render en toggling la clé pour forcer le fit
+    setRouteInfo(null)
+    setTick(v => v + 1)
   }
   const locationAddress = typeof item?.location?.address === 'string' ? item.location.address : undefined
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
@@ -390,10 +408,15 @@ function ActiveMission() {
                   </View>
                 )}
                 {['assigned', 'provider_arriving'].includes(item.status) && (
-                  <TouchableOpacity style={s.navBtn} onPress={openNavigation}>
-                    <Navigation size={18} color="#fff" />
-                    <Text style={s.navBtnText}>Naviguer vers le client</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <TouchableOpacity style={[s.navBtn, { flex: 1 }]} onPress={focusRouteInApp}>
+                      <Navigation size={18} color="#fff" />
+                      <Text style={s.navBtnText}>{t('mission.viewRoute')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[s.navBtn, { flex: 0.5, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }]} onPress={openNavigation}>
+                      <Text style={[s.navBtnText, { color: '#475569' }]}>{t('mission.openMaps')}</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             )}

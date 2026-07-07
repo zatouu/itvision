@@ -12,6 +12,7 @@ import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { hapticWarning } from '../src/haptics'
 import { ArrowLeft, Plus, AlertTriangle, Inbox, Search, ChevronRight } from 'lucide-react-native'
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
@@ -75,6 +76,7 @@ function MyRequests() {
   const handleCancel = async (id: string) => {
     const ok = await confirm(t('requests.cancelRequestConfirm'), t('requests.cancelRequestMsg'))
     if (!ok) return
+    hapticWarning()
     try {
       await apiPatch(`/api/services/requests/${id}`, { status: 'cancelled' })
       notify(t('requests.cancelRequestSuccess'), '')

@@ -3,16 +3,18 @@ import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
+import { SkeletonCard } from '../../src/components/Skeleton'
 import * as Location from 'expo-location'
-import { MapPin, Mic, Check } from 'lucide-react-native'
+import { MapPin, Mic, Check, Volume2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import StatusChip from '../../src/components/StatusChip'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
-import { apiGet } from '../../src/api'
-import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation } from '../../src/socket'
+import VoicePlayer from '../../src/components/VoicePlayer'
+import { apiGet, getBaseUrl } from '../../src/api'
+import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation, emitRequestViewing, emitStopViewing } from '../../src/socket'
 
 const DEGS_TO_RADS = Math.PI / 180
 function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -74,10 +76,14 @@ export default function NearbyRequestDetail() {
     }
     startLocation()
 
+    // Signal presence viewing to the consumer
+    emitRequestViewing(id)
+
     return () => {
       mounted = false
       if (locInterval) clearInterval(locInterval)
       leaveRequestRoom(id)
+      emitStopViewing(id)
     }
   }, [id])
 
@@ -95,9 +101,11 @@ export default function NearbyRequestDetail() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
         <AppHeader title={t('providerNearby.request')} onBack={() => router.back()} />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScrollView>
       </SafeAreaView>
     )
   }
@@ -149,6 +157,20 @@ export default function NearbyRequestDetail() {
           <Text style={s.sectionTitle}>{t('providerNearby.description')}</Text>
           <Text style={s.description}>{request.description || '—'}</Text>
         </View>
+
+        {request.media?.some((m: any) => m.type === 'audio') && (() => {
+          const audioMedia = request.media.find((m: any) => m.type === 'audio')
+          const audioUri = audioMedia.url?.startsWith('http') ? audioMedia.url : getBaseUrl() + audioMedia.url
+          return (
+            <View style={s.section}>
+              <View style={s.audioBadge}>
+                <Volume2 size={16} color="#1DC3F0" />
+                <Text style={s.audioBadgeText}>{t('providerNearby.voiceMessage')}</Text>
+              </View>
+              <VoicePlayer uri={audioUri} />
+            </View>
+          )
+        })()}
 
         {request.media && request.media.length > 0 ? (
           <View style={s.section}>
@@ -260,6 +282,8 @@ const s = StyleSheet.create({
   locationIcon: { fontSize: 16 },
   locationText: { fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.medium as any, flex: 1 },
   description: { fontSize: typography.base.fontSize, color: colors.textSecondary, lineHeight: 22 },
+  audioBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#E0F7FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 8 },
+  audioBadgeText: { fontSize: 12, fontWeight: '700', color: '#0369A1' },
   thumb: { width: 80, height: 80, borderRadius: radius.lg, overflow: 'hidden' },
   thumbImage: { width: '100%', height: '100%' },
   audioThumb: {

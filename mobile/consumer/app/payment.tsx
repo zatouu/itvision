@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
-import { ArrowLeft, Check, Waves, Circle, Banknote } from 'lucide-react-native'
+import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert } from 'lucide-react-native'
+import { hapticSuccess, hapticSelect } from '../src/haptics'
 
 type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 
@@ -111,6 +112,7 @@ function PaymentScreen() {
         }
       }
       if (res.payment?.status === 'held') {
+        hapticSuccess()
         Alert.alert(
           t('payment.initiated'),
           isCash
@@ -176,7 +178,13 @@ function PaymentScreen() {
             <Text style={s.escrowHint}>{t('payment.escrowSub')}</Text>
           )}
           {selected === 'cash' && (
-            <Text style={s.escrowHint}>{t('payment.cashOnPlace')}</Text>
+            <>
+              <Text style={s.escrowHint}>{t('payment.cashOnPlace')}</Text>
+              <View style={s.cashWarning}>
+                <ShieldAlert size={16} color="#B45309" />
+                <Text style={s.cashWarningText}>{t('payment.cashNotGuaranteed')}</Text>
+              </View>
+            </>
           )}
           {!walletLoading && escrowEnabled && !escrowMandatory && (
             <TouchableOpacity
@@ -224,14 +232,14 @@ function PaymentScreen() {
           <View style={s.modeSelector}>
             <TouchableOpacity
               style={[s.modeBtn, paymentMode === 'deposit' && s.modeBtnActive]}
-              onPress={() => setPaymentMode('deposit')}
+              onPress={() => { hapticSelect(); setPaymentMode('deposit') }}
             >
               <Text style={[s.modeText, paymentMode === 'deposit' && s.modeTextActive]}>{t('payment.depositMode')}</Text>
               <Text style={s.modeSub}>{t('payment.depositModeSub')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[s.modeBtn, paymentMode === 'full' && s.modeBtnActive]}
-              onPress={() => setPaymentMode('full')}
+              onPress={() => { hapticSelect(); setPaymentMode('full') }}
             >
               <Text style={[s.modeText, paymentMode === 'full' && s.modeTextActive]}>{t('payment.fullMode')}</Text>
               <Text style={s.modeSub}>{t('payment.fullModeSub')}</Text>
@@ -292,6 +300,8 @@ const s = StyleSheet.create({
   amountLabel: { fontSize: 13, color: '#64748B' },
   amountValue: { fontSize: 28, fontWeight: '800', color: '#1D4ED8' },
   escrowHint: { fontSize: 11, color: '#3B82F6', textAlign: 'center', marginTop: 4 },
+  cashWarning: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFBEB', borderRadius: 10, borderWidth: 1, borderColor: '#FCD34D', paddingHorizontal: 12, paddingVertical: 8, marginTop: 8 },
+  cashWarningText: { fontSize: 11, color: '#B45309', fontWeight: '600', flex: 1 },
   escrowChoice: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: '#CBD5E1', padding: 12, marginTop: 10 },
   escrowChoiceActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#94A3B8', alignItems: 'center', justifyContent: 'center' },

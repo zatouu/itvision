@@ -6,11 +6,13 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
 import { fetchWithCache } from '../src/storage'
+import { connectSocket, requestOnlineProviders, onOnlineProvidersCount } from '../src/socket'
 import TabBar from '../src/components/TabBar'
 import { SkeletonCard } from '../src/components/Skeleton'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import EmptyState from '../src/components/EmptyState'
 import { loadCategories, getCategoryLabel } from '../src/categories'
+import { getCategoryIcon } from '../src/categoryIcons'
 import { useTranslation } from 'react-i18next'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import Logo from '../src/components/Logo'
@@ -55,6 +57,7 @@ function Home() {
   const [cats, setCats] = useState<CatItem[]>(FALLBACK_CATS)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [mapLoading, setMapLoading] = useState(false)
+  const [onlineProviders, setOnlineProviders] = useState(0)
   const { t, i18n } = useTranslation()
 
   const applyItems = useCallback((items: any[]) => {
@@ -76,6 +79,15 @@ function Home() {
     } catch { /* silencieux */ }
     finally { setLoadingRecent(false) }
   }, [applyItems])
+
+  // Online providers count via WebSocket
+  useEffect(() => {
+    const socket = connectSocket()
+    const unsub = onOnlineProvidersCount((data) => setOnlineProviders(data.count))
+    requestOnlineProviders()
+    const interval = setInterval(() => requestOnlineProviders(), 15000)
+    return () => { unsub(); clearInterval(interval) }
+  }, [])
 
   useEffect(() => {
     Location.requestForegroundPermissionsAsync()
@@ -192,8 +204,8 @@ function Home() {
               initialRegion={{
                 latitude: userLocation.lat,
                 longitude: userLocation.lng,
-                latitudeDelta: 0.04,
-                longitudeDelta: 0.04,
+                latitudeDelta: 0.06,
+                longitudeDelta: 0.06,
               }}
               showsUserLocation
               showsMyLocationButton={false}
@@ -211,7 +223,7 @@ function Home() {
                 .map(it => {
                   const catMatch = cats.find(c => c.id === it.category)
                   const color = catMatch?.color || '#475569'
-                  const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
+                  const Icon = getCategoryIcon(it.category)
                   return (
                     <Marker
                       key={it._id}
@@ -219,12 +231,18 @@ function Home() {
                       onPress={() => router.push({ pathname: '/request-offers', params: { id: it._id } })}
                     >
                       <View style={[s.mapMarker, { backgroundColor: color }]}>
-                        <Text style={s.mapMarkerText}>{abbr}</Text>
+                        <Icon size={14} color="#fff" />
                       </View>
                     </Marker>
                   )
                 })}
             </MapView>
+          )}
+          {onlineProviders > 0 && (
+            <View style={s.onlineBadge}>
+              <View style={s.onlineDot} />
+              <Text style={s.onlineText}>{t('home.providersOnline', { count: onlineProviders })}</Text>
+            </View>
           )}
           <TouchableOpacity
             style={s.mapFab}
@@ -249,7 +267,7 @@ function Home() {
               onPress={() => router.push({ pathname: '/create-request', params: { category: c.id } })}
             >
               <View style={[s.catMonogram, { backgroundColor: c.color }]}>
-                <Text style={s.catMonogramText}>{c.abbr}</Text>
+                {(() => { const Icon = getCategoryIcon(c.id); return <Icon size={20} color="#fff" /> })()}
               </View>
               <Text style={s.catLabel}>{c.label}</Text>
             </TouchableOpacity>
@@ -394,6 +412,9 @@ const s = StyleSheet.create({
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
   mapMarker: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFF', ...shadows.md },
   mapMarkerText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  onlineBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.md },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
+  onlineText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },
   mapFab: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.navy, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, ...shadows.md },
   mapFabText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 10 },

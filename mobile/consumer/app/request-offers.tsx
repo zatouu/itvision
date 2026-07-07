@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { SkeletonCard } from '../src/components/Skeleton'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
+import { hapticSuccess, hapticWarning, hapticLight } from '../src/haptics'
 import { ArrowLeft, Star, Clock, Hourglass } from 'lucide-react-native'
 
 const STATUS_OFFER: Record<string, { key: string; color: string; bg: string; dot: string }> = {
@@ -123,6 +124,27 @@ function RequestOffers() {
         },
       }))
     }
+    const handleRequestViewing = (data: any) => {
+      if (!data?.providerId) return
+      setViewerLocations(prev => ({
+        ...prev,
+        [`view-${data.providerId}`]: {
+          lat: Number(data.lat) || 0,
+          lng: Number(data.lng) || 0,
+          name: data.providerName,
+          providerId: data.providerId,
+          lastSeen: Number(data.timestamp) || Date.now(),
+        },
+      }))
+    }
+    const handleStopViewing = (data: any) => {
+      if (!data?.providerId) return
+      setViewerLocations(prev => {
+        const next = { ...prev }
+        delete next[`view-${data.providerId}`]
+        return next
+      })
+    }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
@@ -132,6 +154,8 @@ function RequestOffers() {
     socket.on('offer:counter-rejected', handleCounterRejected)
     socket.on('offer:updated', handleOfferUpdated)
     socket.on('provider:location', handleProviderLocation)
+    socket.on('request:viewing', handleRequestViewing)
+    socket.on('request:stop-viewing', handleStopViewing)
 
     // Fallback: auto-refresh toutes les 10s si WS déconnecté
     const interval = setInterval(() => {
@@ -163,6 +187,8 @@ function RequestOffers() {
       socket.off('offer:counter-rejected', handleCounterRejected)
       socket.off('offer:updated', handleOfferUpdated)
       socket.off('provider:location', handleProviderLocation)
+      socket.off('request:viewing', handleRequestViewing)
+      socket.off('request:stop-viewing', handleStopViewing)
     }
   }, [id, load])
 
@@ -175,6 +201,7 @@ function RequestOffers() {
       t('offers.confirmMsg', { price: price.toLocaleString('fr-FR') })
     )
     if (!ok) return
+    hapticLight()
     router.push(`/payment?offerId=${offerId}&amount=${price}&requestId=${id}`)
   }
 
@@ -203,6 +230,7 @@ function RequestOffers() {
       setCounterPrice('')
       setCounterComment('')
       Alert.alert(t('offers.counterSent'), t('offers.counterSentMsg'))
+      hapticSuccess()
       load(true)
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message || t('offers.counterError'))
@@ -277,8 +305,8 @@ function RequestOffers() {
               initialRegion={{
                 latitude: serviceRequest.location.lat,
                 longitude: serviceRequest.location.lng,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
               }}
             >
               {/* Position de la demande */}
