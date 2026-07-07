@@ -566,7 +566,7 @@ export default function TrackingPage() {
               </div>
               <div className="text-left">
                 <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-                  IT Vision Plus
+                  DDM+
                 </span>
                 <p className="text-xs text-white/40">Suivi sécurisé</p>
               </div>
@@ -739,7 +739,7 @@ export default function TrackingPage() {
                   <Shield className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div className="text-left">
-                  <h3 className="font-semibold">Vos garanties IT Vision</h3>
+                  <h3 className="font-semibold">Vos garanties DDM+</h3>
                   <p className="text-sm text-white/40">Protection complète de votre achat</p>
                 </div>
               </div>
@@ -926,14 +926,14 @@ export default function TrackingPage() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <Shield className="w-5 h-5 text-emerald-400" />
             <span className="font-semibold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-              IT Vision Plus
+              DDM+
             </span>
           </div>
           <p className="text-white/40 text-sm">
             Votre partenaire de confiance pour tous vos achats
           </p>
           <p className="text-white/20 text-xs mt-4">
-            © {new Date().getFullYear()} IT Vision Plus - Tous droits réservés
+            © {new Date().getFullYear()} DDM+ - Tous droits réservés
           </p>
         </div>
       </footer>

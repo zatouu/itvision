@@ -663,7 +663,7 @@ Merci de me recontacter.`
         doc.setFontSize(8)
         doc.setTextColor(150, 150, 150)
         doc.text(
-          `IT Vision - ${new Date().toLocaleDateString('fr-FR')} - Page ${i}/${pageCount}`,
+          `DDM+ - ${new Date().toLocaleDateString('fr-FR')} - Page ${i}/${pageCount}`,
           14,
           doc.internal.pageSize.height - 10
         )
@@ -1235,7 +1235,7 @@ Merci de me recontacter.`
                       <ul className="space-y-3">
                         {(product.features.filter(Boolean).length > 0
                           ? product.features.filter(Boolean)
-                          : ['Qualité professionnelle import Chine', 'Installation & support IT Vision Dakar', 'Tarification optimisée selon le mode de transport']
+                          : ['Qualité professionnelle import Chine', 'Installation & support DDM+ Dakar', 'Tarification optimisée selon le mode de transport']
                         ).map((feature, index) => (
                           <li key={index} className="flex items-start gap-3">
                             <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
@@ -1283,7 +1283,7 @@ Merci de me recontacter.`
                       <ul className="space-y-3">
                         {[
                           'Garantie constructeur 12 mois (extensions possibles)',
-                          'Assistance IT Vision 7j/7 sur Dakar & Sénégal',
+                          'Assistance DDM+ 7j/7 sur Dakar & Sénégal',
                           'Maintenance préventive et curative disponible',
                           'Support import dédié & livraison sécurisée'
                         ].map((item, index) => (
@@ -1393,7 +1393,7 @@ Merci de me recontacter.`
                 <div className="flex items-center gap-2 mb-2">
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
                     <ShieldCheck className="h-3 w-3" />
-                    IT Vision
+                    DDM+
                   </span>
                   {product.condition === 'used' && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full">

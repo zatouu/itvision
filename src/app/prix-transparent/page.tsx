@@ -57,7 +57,7 @@ export default function PrixTransparentPage() {
             Notre Promesse de Transparence
           </h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            Chez <strong>IT Vision Plus</strong>, nous croyons en une totale transparence sur nos prix. 
+            Chez <strong>DDM+</strong>, nous croyons en une totale transparence sur nos prix. 
             Contrairement à de nombreux vendeurs, nous vous montrons exactement comment est calculé 
             le prix final de vos produits importés de Chine.
           </p>

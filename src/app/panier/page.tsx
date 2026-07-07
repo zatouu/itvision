@@ -181,15 +181,16 @@ export default function PanierPage() {
         const categories = [...new Set(items.map(i => i.category).filter(Boolean))]
         let products: any[] = []
 
-        for (const category of categories.slice(0, 3)) {
-          try {
-            const res = await fetch(`/api/catalog/products?category=${encodeURIComponent(category)}&limit=6`)
-            const data = await res.json()
-            if (data.success && data.items) {
-              products = [...products, ...data.items.filter((p: any) => !cartIds.includes(p._id))]
-            }
-          } catch {}
-        }
+        const categoryResults = await Promise.all(
+          categories.slice(0, 3).map(async (category) => {
+            try {
+              const res = await fetch(`/api/catalog/products?category=${encodeURIComponent(category)}&limit=6`)
+              const data = await res.json()
+              return data.success && data.items ? data.items.filter((p: any) => !cartIds.includes(p._id)) : []
+            } catch { return [] }
+          })
+        )
+        products = categoryResults.flat()
 
         if (products.length < 10) {
           const res = await fetch('/api/catalog/products?limit=12&sort=popular')
@@ -222,24 +223,26 @@ export default function PanierPage() {
       try {
         const productIds = items.map(i => i.id?.split('-')[0] || i.id).filter(Boolean)
         const unique = [...new Set(productIds)]
-        const results: any[] = []
-        for (const pid of unique.slice(0, 5)) {
-          try {
-            const res = await fetch(`/api/group-orders?productId=${encodeURIComponent(pid)}&limit=1`)
-            const data = await res.json()
-            if (data?.success && data.groups?.length > 0) {
-              const g = data.groups[0]
-              if (g.status === 'open') {
-                results.push({
-                  ...g,
-                  cartProductId: pid,
-                  cartProductName: items.find(i => (i.id?.split('-')[0] || i.id) === pid)?.name,
-                })
+        const groupResults = await Promise.all(
+          unique.slice(0, 5).map(async (pid) => {
+            try {
+              const res = await fetch(`/api/group-orders?productId=${encodeURIComponent(pid)}&limit=1`)
+              const data = await res.json()
+              if (data?.success && data.groups?.length > 0) {
+                const g = data.groups[0]
+                if (g.status === 'open') {
+                  return {
+                    ...g,
+                    cartProductId: pid,
+                    cartProductName: items.find(i => (i.id?.split('-')[0] || i.id) === pid)?.name,
+                  }
+                }
               }
-            }
-          } catch {}
-        }
-        setActiveGroups(results)
+            } catch {}
+            return null
+          })
+        )
+        setActiveGroups(groupResults.filter(Boolean))
       } catch {}
     }
     fetchGroups()

@@ -37,14 +37,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const product = await fetchProductById(id)
   if (!product) {
     return {
-      title: 'Produit introuvable | Catalogue IT Vision',
+      title: 'Produit introuvable | Catalogue DDM+',
       description: 'Ce produit n’est plus disponible dans le catalogue.'
     }
   }
 
   const detail = formatProductDetail(product)
-  const title = `${detail.name} — IT Vision Plus Marketplace`
-  const description = detail.tagline || detail.description || 'Achetez ce produit en import direct Chine, livraison Dakar. IT Vision Plus.'
+  const title = `${detail.name} — DDM+ Marketplace`
+  const description = detail.tagline || detail.description || 'Achetez ce produit en import direct Chine, livraison Dakar. DDM+.'
   const image = detail.image?.startsWith('http') ? detail.image : `${SITE_URL}${detail.image}`
   const price = detail.pricing?.salePrice ?? detail.pricing?.baseCost ?? 0
   const currency = detail.currency || 'FCFA'
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return {
     title,
     description,
-    keywords: [detail.name, detail.category || 'Catalogue', 'import Chine', 'Dakar', 'Sénégal', 'IT Vision Plus'],
+    keywords: [detail.name, detail.category || 'Catalogue', 'import Chine', 'Dakar', 'Sénégal', 'DDM+'],
     alternates: { canonical: `${SITE_URL}/produits/${id}` },
     openGraph: {
       title,
@@ -101,7 +101,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     sku: detail.id,
     brand: {
       '@type': 'Brand',
-      name: 'IT Vision Plus'
+      name: 'DDM+'
     },
     offers: {
       '@type': 'Offer',
@@ -111,7 +111,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
       seller: {
         '@type': 'Organization',
-        name: 'IT Vision Plus Marketplace',
+        name: 'DDM+ Marketplace',
         url: SITE_URL
       }
     }

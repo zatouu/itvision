@@ -830,7 +830,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
               <div className="bg-white rounded-xl p-5 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                    <ShieldCheck className="h-3 w-3" /> IT Vision
+                    <ShieldCheck className="h-3 w-3" /> DDM+
                   </span>
                   <span className={clsx("text-xs font-medium px-2 py-1 rounded-full", product.availability.status === 'in_stock' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
                     {product.availability.label}

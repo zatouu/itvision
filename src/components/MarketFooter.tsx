@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   ShoppingBag, Shield, Truck, Headphones, CreditCard, MapPin, ArrowRight,
-  Store, Instagram, Facebook, Twitter, Linkedin, Mail, Send
+  Store, Instagram, Facebook, Mail, Send
 } from 'lucide-react'
 
 const columns = [
@@ -31,9 +31,9 @@ const columns = [
     title: 'Entreprise',
     links: [
       ['Boutiques partenaires', '/market/boutiques'],
-      ['Espace vendeurs', '/market/vendeurs'],
-      ['Comptes Pro', '/market/pro'],
-      ['Sélections Dakar', '/market/selections'],
+      ['CGV', '/cgv'],
+      ['Politique de confidentialité', '/politique-confidentialite'],
+      ['Contact', '/contact'],
     ],
   },
 ]
@@ -46,29 +46,42 @@ const assurances = [
 ]
 
 const socials = [
-  { icon: Instagram, href: 'https://instagram.com', label: 'Instagram' },
-  { icon: Facebook, href: 'https://facebook.com', label: 'Facebook' },
-  { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
-  { icon: Linkedin, href: 'https://linkedin.com', label: 'LinkedIn' },
+  { icon: Instagram, href: 'https://instagram.com/ddm_import', label: 'Instagram' },
+  { icon: Facebook, href: 'https://facebook.com/ddm.import', label: 'Facebook' },
 ]
 
 const legal = [
   ['CGV', '/cgv'],
-  ['Politique de confidentialité', '/privacy'],
-  ['Livraison & retours', '/livraison-retours'],
+  ['Politique de confidentialité', '/politique-confidentialite'],
   ['Contact', '/contact'],
 ]
 
 export default function MarketFooter() {
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  const [subscribeError, setSubscribeError] = useState('')
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
-    setSubscribed(true)
-    setEmail('')
-    setTimeout(() => setSubscribed(false), 4000)
+    setSubscribing(true)
+    setSubscribeError('')
+    try {
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (!res.ok) throw new Error('Erreur')
+      setSubscribed(true)
+      setEmail('')
+      setTimeout(() => setSubscribed(false), 4000)
+    } catch {
+      setSubscribeError('Service indisponible pour le moment.')
+    } finally {
+      setSubscribing(false)
+    }
   }
 
   return (
@@ -142,12 +155,16 @@ export default function MarketFooter() {
                   />
                   <button
                     type="submit"
-                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-3 py-2 text-white hover:bg-black dark:bg-white dark:text-gray-900"
+                    disabled={subscribing}
+                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-3 py-2 text-white hover:bg-black disabled:opacity-50 dark:bg-white dark:text-gray-900"
                     aria-label="S'inscrire"
                   >
                     <Send className="h-4 w-4" />
                   </button>
                 </form>
+              )}
+              {subscribeError && (
+                <p className="mt-2 text-xs text-red-600">{subscribeError}</p>
               )}
             </div>
 

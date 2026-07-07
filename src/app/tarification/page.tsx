@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Détail de notre tarification — IT Vision Plus',
+  title: 'Détail de notre tarification — DDM+',
   description:
     'Transparence totale sur nos prix : logique de prix, transports, remises pack, frais de service 10% et assurance 2%.',
 }

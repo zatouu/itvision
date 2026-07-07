@@ -89,18 +89,11 @@ function CompareContent() {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const responses = await Promise.all(
-          ids.map(id => fetch(`/api/catalog/products/${id}`))
-        )
+        const res = await fetch(`/api/catalog/products?ids=${ids.join(',')}&limit=${ids.length}`)
+        const data = await res.json()
 
-        const data = await Promise.all(
-          responses.map(res => res.json())
-        )
-
-        const formatted: CompareProduct[] = data
-          .filter(item => item.success && item.product)
-          .map(item => {
-            const product = item.product
+        const formatted: CompareProduct[] = (data.success && data.products ? data.products : [])
+          .map((product: any) => {
             const pricing = product.pricing || {}
             const bestShipping = pricing.shippingOptions?.[0]
             
@@ -112,7 +105,7 @@ function CompareContent() {
               currency: pricing.currency || 'FCFA',
               requiresQuote: product.requiresQuote || false,
               features: product.features || [],
-              rating: 4.7,
+              rating: product.rating ?? 0,
               deliveryDays: bestShipping?.durationDays ?? product.availability?.leadTimeDays,
               availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
                 ? product.availability.status

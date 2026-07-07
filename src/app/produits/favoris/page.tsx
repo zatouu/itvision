@@ -161,18 +161,11 @@ export default function WishlistPage() {
     const fetchFavorites = async (favorites: string[]) => {
       try {
         setLoading(true)
-        const responses = await Promise.all(
-          favorites.map((id: string) => fetch(`/api/catalog/products/${id}`))
-        )
+        const res = await fetch(`/api/catalog/products?ids=${favorites.join(',')}&limit=${favorites.length}`)
+        const data = await res.json()
 
-        const data = await Promise.all(
-          responses.map(res => res.json())
-        )
-
-        const formatted: WishlistProduct[] = data
-          .filter(item => item.success && item.product)
-          .map(item => {
-            const product = item.product
+        const formatted: WishlistProduct[] = (data.success && data.products ? data.products : [])
+          .map((product: any) => {
             const pricing = product.pricing || {}
             const bestShipping = pricing.shippingOptions?.[0]
             
@@ -188,7 +181,7 @@ export default function WishlistPage() {
               requiresQuote: product.requiresQuote || false,
               deliveryDays: bestShipping?.durationDays ?? product.availability?.leadTimeDays,
               features: product.features || [],
-              rating: 4.7,
+              rating: product.rating ?? 0,
               shippingOptions: pricing.shippingOptions || [],
               availabilityStatus: (product.availability?.status === 'in_stock' || product.availability?.status === 'preorder' || product.availability?.status === 'out_of_stock')
                 ? product.availability.status

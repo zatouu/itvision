@@ -391,7 +391,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
               {/* Header */}
               <div className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full"><ShieldCheck className="w-3 h-3" />IT Vision · Import direct</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full"><ShieldCheck className="w-3 h-3" />DDM+ · Import direct</span>
                   <span className={clsx("text-xs font-medium px-2 py-1 rounded-full", product.availability.status === 'in_stock' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>{product.availability.label}</span>
                   {product.isImported && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded-full">
