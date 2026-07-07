@@ -71,7 +71,11 @@ function NearbyRequests() {
   const lastCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
 
   const locate = async (): Promise<{ lat: number; lng: number } | null> => {
-    const { status } = await Location.requestForegroundPermissionsAsync()
+    let { status } = await Location.getForegroundPermissionsAsync()
+    if (status !== 'granted') {
+      const req = await Location.requestForegroundPermissionsAsync()
+      status = req.status
+    }
     if (status !== 'granted') {
       Alert.alert(t('nearby.permissionRequired'), t('nearby.permissionMsg'))
       return lastCoordsRef.current

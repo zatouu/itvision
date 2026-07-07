@@ -188,12 +188,18 @@ function MissionDetail() {
       })
     }
 
+    const handleReconnect = () => {
+      joinRequestRoom(requestId)
+      syncMission()
+    }
+
     socket.on('request:status-changed', handleStatusChanged)
     socket.on('provider:location', handleProviderLocation)
+    socket.on('connect', handleReconnect)
 
-    // Fallback si un événement WS est manqué
+    // Fallback si un événement WS est manqué (uniquement si WS déconnecté)
     const interval = setInterval(() => {
-      syncMission()
+      if (!socket.connected) syncMission()
     }, 15000)
 
     return () => {
@@ -202,6 +208,7 @@ function MissionDetail() {
       leaveRequestRoom(requestId)
       socket.off('request:status-changed', handleStatusChanged)
       socket.off('provider:location', handleProviderLocation)
+      socket.off('connect', handleReconnect)
     }
   }, [requestId])
 

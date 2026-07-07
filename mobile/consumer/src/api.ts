@@ -17,7 +17,6 @@ export function setOnUnauthorized(handler: () => void) {
     if (_unauthorizedFired) return
     _unauthorizedFired = true
     handler()
-    setTimeout(() => { _unauthorizedFired = false }, 3000)
   }
 }
 
@@ -90,21 +89,21 @@ export async function apiGetRetry(path: string, maxRetries = 2) {
 }
 
 export async function apiPost(path: string, body: Record<string, unknown>) {
-  const r = await fetchWithTimeout(base + path, {
+  const r = await fetchWithRetry(base + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
-  })
+  }, 1)
   await handleStatus(r)
   return r.json()
 }
 
 export async function apiPatch(path: string, body: Record<string, unknown>) {
-  const r = await fetchWithTimeout(base + path, {
+  const r = await fetchWithRetry(base + path, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
-  })
+  }, 1)
   await handleStatus(r)
   return r.json()
 }
@@ -147,7 +146,8 @@ export async function apiUpload(fileUri: string, filename: string, contentType: 
         },
       }
     )
-    const data = JSON.parse(uploadResult.body)
+    let data
+    try { data = JSON.parse(uploadResult.body) } catch { throw new Error('Réponse serveur invalide') }
     if (uploadResult.status >= 400) throw new Error(data.error || `Erreur upload (${uploadResult.status})`)
     return data
   }

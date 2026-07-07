@@ -908,12 +908,12 @@ export default function TrackingPage() {
                 +221 33 800 00 00
               </motion.a>
               <motion.a 
-                href="mailto:support@itvisionplus.com" 
+                href="mailto:support@itvisionplus.sn" 
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition"
                 whileHover={{ scale: 1.05 }}
               >
                 <Mail className="w-4 h-4 text-emerald-400" />
-                support@itvisionplus.com
+                support@itvisionplus.sn
               </motion.a>
             </div>
           </GlassCard>

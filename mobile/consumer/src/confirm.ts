@@ -1,4 +1,5 @@
 import { Alert, Platform } from 'react-native'
+import i18n from './i18n'
 
 /**
  * Confirmation dialog cross-platform.
@@ -13,8 +14,8 @@ export function confirm(title: string, message: string): Promise<boolean> {
   }
   return new Promise((resolve) => {
     Alert.alert(title, message, [
-      { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Confirmer', style: 'default', onPress: () => resolve(true) },
+      { text: i18n.t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+      { text: i18n.t('common.confirm'), style: 'default', onPress: () => resolve(true) },
     ])
   })
 }

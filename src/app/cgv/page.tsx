@@ -31,13 +31,13 @@ export default function CGVPage() {
 
             <section>
               <h2 className="flex items-center gap-2"><Scale className="w-5 h-5 text-emerald-600" /> Article 1 – Objet et champ d&apos;application</h2>
-              <p>Les présentes Conditions Générales de Vente (CGV) s&apos;appliquent à toutes les commandes passées sur la plateforme <strong>itvisionplus.sn</strong>, exploitée par IT Vision Plus, entreprise de droit sénégalais spécialisée en sécurité électronique, domotique et import de matériel technologique.</p>
-              <p>Toute commande implique l&apos;acceptation sans réserve des présentes CGV. IT Vision Plus se réserve le droit de modifier ces conditions à tout moment. Les CGV applicables sont celles en vigueur au moment de la commande.</p>
+              <p>Les présentes Conditions Générales de Vente (CGV) s&apos;appliquent à toutes les commandes passées sur la plateforme <strong>DDM+</strong>, marketplace d&apos;import de matériel technologique opérée par une entreprise de droit sénégalais spécialisée en sécurité électronique, domotique et import.</p>
+              <p>Toute commande implique l&apos;acceptation sans réserve des présentes CGV. DDM+ se réserve le droit de modifier ces conditions à tout moment. Les CGV applicables sont celles en vigueur au moment de la commande.</p>
             </section>
 
             <section>
               <h2 className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-600" /> Article 2 – Produits et services</h2>
-              <p>IT Vision Plus propose :</p>
+              <p>DDM+ propose :</p>
               <ul>
                 <li><strong>Produits importés</strong> : matériel de vidéosurveillance, contrôle d&apos;accès, alarme, domotique et réseau, sourcés depuis la Chine (1688.com, AliExpress, fournisseurs directs).</li>
                 <li><strong>Services d&apos;installation</strong> : mise en service, configuration et formation sur site à Dakar et environs.</li>
@@ -53,7 +53,7 @@ export default function CGVPage() {
               <p>Pour les produits importés, le prix inclut :</p>
               <ul>
                 <li>Coût d&apos;achat fournisseur (converti au taux du jour)</li>
-                <li>Frais de service IT Vision (10%)</li>
+                <li>Frais de service DDM+ (10%)</li>
                 <li>Assurance transport (2,5%)</li>
                 <li>Frais de transport selon méthode choisie</li>
               </ul>
@@ -97,13 +97,13 @@ export default function CGVPage() {
                   </tbody>
                 </table>
               </div>
-              <p className="mt-4">Les délais sont indicatifs et peuvent varier en fonction des conditions douanières et logistiques. IT Vision Plus s&apos;engage à informer le client de tout retard significatif.</p>
+              <p className="mt-4">Les délais sont indicatifs et peuvent varier en fonction des conditions douanières et logistiques. DDM+ s&apos;engage à informer le client de tout retard significatif.</p>
             </section>
 
             <section>
               <h2 className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-emerald-600" /> Article 5 – Garantie et réclamations</h2>
               <h3>Garantie constructeur</h3>
-              <p>Les produits neufs bénéficient de la garantie constructeur (généralement 12 à 24 mois selon le fabricant). IT Vision Plus assure le suivi SAV et le remplacement si nécessaire.</p>
+              <p>Les produits neufs bénéficient de la garantie constructeur (généralement 12 à 24 mois selon le fabricant). DDM+ assure le suivi SAV et le remplacement si nécessaire.</p>
               <h3>Réclamations</h3>
               <ul>
                 <li>Tout produit défectueux doit être signalé dans les <strong>48 heures</strong> suivant la réception.</li>
@@ -126,7 +126,7 @@ export default function CGVPage() {
 
             <section>
               <h2>Article 7 – Achats groupés</h2>
-              <p>IT Vision Plus propose des achats groupés permettant d&apos;obtenir des prix dégressifs :</p>
+              <p>DDM+ propose des achats groupés permettant d&apos;obtenir des prix dégressifs :</p>
               <ul>
                 <li>L&apos;inscription à un achat groupé vaut engagement ferme.</li>
                 <li>Le prix final est déterminé par la quantité totale atteinte à la date de clôture.</li>
@@ -137,7 +137,7 @@ export default function CGVPage() {
 
             <section>
               <h2>Article 8 – Protection des données</h2>
-              <p>IT Vision Plus collecte les données personnelles nécessaires au traitement des commandes. Ces données sont protégées conformément à notre <Link href="/politique-confidentialite" className="text-emerald-600 hover:underline">Politique de Confidentialité</Link>.</p>
+              <p>DDM+ collecte les données personnelles nécessaires au traitement des commandes. Ces données sont protégées conformément à notre <Link href="/politique-confidentialite" className="text-emerald-600 hover:underline">Politique de Confidentialité</Link>.</p>
             </section>
 
             <section>
@@ -148,11 +148,11 @@ export default function CGVPage() {
             <section>
               <h2>Article 10 – Contact</h2>
               <div className="not-prose bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-2">
-                <p className="font-semibold text-gray-900 dark:text-white">IT Vision Plus</p>
+                <p className="font-semibold text-gray-900 dark:text-white">DDM+</p>
                 <p className="text-gray-600 dark:text-gray-300">Parcelles Assainies, Unité 25 – Dakar, Sénégal</p>
                 <p className="text-gray-600 dark:text-gray-300">Email : contact@itvisionplus.sn</p>
                 <p className="text-gray-600 dark:text-gray-300">WhatsApp : +221 77 413 34 40</p>
-                <p className="text-gray-600 dark:text-gray-300">Site : itvisionplus.sn</p>
+                <p className="text-gray-600 dark:text-gray-300">Site : ddm-import.sn</p>
               </div>
             </section>
 

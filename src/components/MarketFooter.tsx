@@ -82,7 +82,7 @@ export default function MarketFooter() {
                 <ShoppingBag className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-base font-black text-gray-900 dark:text-white">IT Vision Plus</p>
+                <p className="text-base font-black text-gray-900 dark:text-white">DDM+</p>
                 <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">Marketplace import</p>
               </div>
             </Link>
@@ -170,7 +170,7 @@ export default function MarketFooter() {
         {/* Bottom bar */}
         <div className="mt-10 flex flex-col gap-4 border-t border-slate-100 pt-6 text-xs text-gray-500 dark:border-slate-800 dark:text-gray-400 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-4">
-            <span>IT Vision Plus — Import & sourcing</span>
+            <span>DDM+ — Import & sourcing</span>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               Dakar, Sénégal

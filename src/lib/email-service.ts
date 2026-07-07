@@ -67,7 +67,7 @@ class EmailService {
     const bccRecipients = emailData.bcc
       ? `${emailData.bcc}, contact@itvisionplus.sn`
       : 'contact@itvisionplus.sn'
-    const fromAddress = `"IT Vision Plus" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`
+    const fromAddress = `"DDM+" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`
 
     if (!this.isConfigured || !this.transporter) {
       console.warn('[EMAIL] Service non configuré, email simulé:', emailData.subject)
@@ -173,7 +173,7 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Réinitialisation de mot de passe - IT Vision Plus</title>
+        <title>Réinitialisation de mot de passe - DDM+</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -188,11 +188,11 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>🔐 Réinitialisation de mot de passe</h1>
-            <p>IT Vision Plus - Sécurité Électronique</p>
+            <p>DDM+ - Sécurité Électronique</p>
           </div>
           <div class="content">
             <h2>Bonjour,</h2>
-            <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte IT Vision Plus.</p>
+            <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte DDM+.</p>
             
             <p>Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
             
@@ -219,7 +219,7 @@ class EmailService {
             📱 WhatsApp: +221 77 413 34 40</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} IT Vision Plus - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
             <p>Cet email a été envoyé à ${userEmail}</p>
           </div>
         </div>
@@ -229,10 +229,10 @@ class EmailService {
 
     return {
       to: userEmail,
-      subject: '🔐 Réinitialisation de votre mot de passe - IT Vision Plus',
+      subject: '🔐 Réinitialisation de votre mot de passe - DDM+',
       html,
       text: `
-        Réinitialisation de mot de passe - IT Vision Plus
+        Réinitialisation de mot de passe - DDM+
         
         Bonjour,
         
@@ -285,7 +285,7 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirmation de Rendez-vous - IT Vision Plus</title>
+        <title>Confirmation de Rendez-vous - DDM+</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -307,7 +307,7 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>📅 Confirmation de Rendez-vous</h1>
-            <p>IT Vision Plus - Sécurité Électronique</p>
+            <p>DDM+ - Sécurité Électronique</p>
           </div>
           <div class="content">
             <h2>Bonjour ${bookingData.clientInfo.name},</h2>
@@ -381,10 +381,10 @@ class EmailService {
             </div>
 
             <p><strong>Merci de votre confiance !</strong></p>
-            <p>L'équipe IT Vision Plus</p>
+            <p>L'équipe DDM+</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} IT Vision Plus - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
             <p>Cet email a été envoyé à ${bookingData.clientInfo.email}</p>
           </div>
         </div>
@@ -397,7 +397,7 @@ class EmailService {
       subject: `🗓️ Confirmation de RDV - ${serviceName} le ${appointmentDate}`,
       html,
       text: `
-        Confirmation de Rendez-vous - IT Vision Plus
+        Confirmation de Rendez-vous - DDM+
         
         Bonjour ${bookingData.clientInfo.name},
         
@@ -417,7 +417,7 @@ class EmailService {
         Contact: contact@itvisionplus.sn | WhatsApp: +221 77 413 34 40
         
         Merci de votre confiance !
-        L'équipe IT Vision Plus
+        L'équipe DDM+
       `
     }
   }
@@ -430,7 +430,7 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Bienvenue chez IT Vision Plus</title>
+        <title>Bienvenue chez DDM+</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -443,12 +443,12 @@ class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🎉 Bienvenue chez IT Vision Plus !</h1>
+            <h1>🎉 Bienvenue chez DDM+ !</h1>
             <p>Votre partenaire en sécurité électronique</p>
           </div>
           <div class="content">
             <h2>Bonjour ${userName},</h2>
-            <p>Félicitations ! Votre compte IT Vision Plus a été créé avec succès.</p>
+            <p>Félicitations ! Votre compte DDM+ a été créé avec succès.</p>
             
             <p>Vous pouvez maintenant accéder à votre espace personnel pour :</p>
             <ul>
@@ -469,7 +469,7 @@ class EmailService {
             🌐 Site web: www.itvisionplus.sn</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} IT Vision Plus - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
           </div>
         </div>
       </body>
@@ -478,10 +478,10 @@ class EmailService {
 
     return {
       to: userEmail,
-      subject: '🎉 Bienvenue chez IT Vision Plus !',
+      subject: '🎉 Bienvenue chez DDM+ !',
       html,
       text: `
-        Bienvenue chez IT Vision Plus !
+        Bienvenue chez DDM+ !
         
         Bonjour ${userName},
         
@@ -502,7 +502,7 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Changement d'email - IT Vision Plus</title>
+        <title>Changement d'email - DDM+</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -517,11 +517,11 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>📧 Votre email a été mis à jour</h1>
-            <p>IT Vision Plus - Espace Client</p>
+            <p>DDM+ - Espace Client</p>
           </div>
           <div class="content">
             <h2>Bonjour ${userName},</h2>
-            <p>L'email de votre compte IT Vision Plus a été modifié par notre équipe.</p>
+            <p>L'email de votre compte DDM+ a été modifié par notre équipe.</p>
 
             <div class="info">
               <strong>Nouvel email :</strong> ${userEmail}
@@ -545,7 +545,7 @@ class EmailService {
             📱 WhatsApp: +221 77 413 34 40</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} IT Vision Plus - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
             <p>Cet email a été envoyé à ${userEmail}</p>
           </div>
         </div>
@@ -555,14 +555,14 @@ class EmailService {
 
     return {
       to: userEmail,
-      subject: '📧 Votre email de connexion a été mis à jour - IT Vision Plus',
+      subject: '📧 Votre email de connexion a été mis à jour - DDM+',
       html,
       text: `
-        Changement d'email - IT Vision Plus
+        Changement d'email - DDM+
 
         Bonjour ${userName},
 
-        L'email de votre compte IT Vision Plus a été modifié par notre équipe.
+        L'email de votre compte DDM+ a été modifié par notre équipe.
         Nouvel email: ${userEmail}
 
         Définissez votre nouveau mot de passe ici :

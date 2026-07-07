@@ -305,7 +305,7 @@ export default function SuiviPage() {
           transition={{ delay: 0.7 }}
           className="text-center text-white/40 text-sm mt-12"
         >
-          💬 Besoin d&apos;aide ? Contactez-nous à support@itvision.sn
+          💬 Besoin d&apos;aide ? Contactez-nous à support@itvisionplus.sn
         </motion.p>
       </div>
     </div>

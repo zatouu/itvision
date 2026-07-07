@@ -14,16 +14,16 @@ const BRAND_COLORS = {
 
 export const getClientInvitationEmail = (name: string, url: string): EmailTemplate => {
   return {
-    subject: 'Activation de votre compte IT Vision Plus',
+    subject: 'Activation de votre compte DDM+',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: white;">
         <div style="background-color: ${BRAND_COLORS.navy}; padding: 24px; text-align: center;">
-          <h1 style="color: ${BRAND_COLORS.orange}; margin: 0; font-size: 24px; letter-spacing: 1px;">IT VISION PLUS</h1>
+          <h1 style="color: ${BRAND_COLORS.orange}; margin: 0; font-size: 24px; letter-spacing: 1px;">DDM+</h1>
         </div>
         <div style="padding: 32px; border: 1px solid #e5e7eb; border-top: none;">
           <h2 style="color: ${BRAND_COLORS.navy}; margin-top: 0;">Bienvenue, ${name} !</h2>
           <p style="color: ${BRAND_COLORS.text}; line-height: 1.6;">
-            Un compte entreprise a été créé pour vous sur le portail IT Vision Plus.
+            Un compte entreprise a été créé pour vous sur le portail DDM+.
             Cela vous permettra d'accéder à vos factures, contrats et de suivre vos projets en temps réel.
           </p>
           <p style="color: ${BRAND_COLORS.text}; line-height: 1.6;">
@@ -38,21 +38,21 @@ export const getClientInvitationEmail = (name: string, url: string): EmailTempla
           </p>
         </div>
         <div style="background-color: ${BRAND_COLORS.bg}; padding: 16px; text-align: center; font-size: 12px; color: ${BRAND_COLORS.textLight};">
-            © ${new Date().getFullYear()} IT Vision Plus.
+            © ${new Date().getFullYear()} DDM+.
         </div>
       </div>
     `,
-    text: `Bienvenue ${name}. Activez votre compte IT Vision Plus en visitant ce lien : ${url}`
+    text: `Bienvenue ${name}. Activez votre compte DDM+ en visitant ce lien : ${url}`
   }
 }
 
 export const getPasswordResetEmail = (name: string, url: string): EmailTemplate => {
   return {
-    subject: 'Réinitialisation de votre mot de passe IT Vision Plus',
+    subject: 'Réinitialisation de votre mot de passe DDM+',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: white;">
         <div style="background-color: ${BRAND_COLORS.navy}; padding: 24px; text-align: center;">
-          <h1 style="color: ${BRAND_COLORS.orange}; margin: 0; font-size: 24px; letter-spacing: 1px;">IT VISION PLUS</h1>
+          <h1 style="color: ${BRAND_COLORS.orange}; margin: 0; font-size: 24px; letter-spacing: 1px;">DDM+</h1>
         </div>
         <div style="padding: 32px; border: 1px solid #e5e7eb; border-top: none;">
           <h2 style="color: ${BRAND_COLORS.navy}; margin-top: 0;">Bonjour ${name},</h2>
@@ -74,11 +74,11 @@ export const getPasswordResetEmail = (name: string, url: string): EmailTemplate 
 
 export const getClientCredentialsEmail = (name: string, email: string, url: string, password: string): EmailTemplate => {
   return {
-    subject: 'Vos identifiants de connexion IT Vision Plus',
+    subject: 'Vos identifiants de connexion DDM+',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: white;">
         <div style="background-color: ${BRAND_COLORS.navy}; padding: 24px; text-align: center;">
-          <h1 style="color: ${BRAND_COLORS.orange}; margin: 0; font-size: 24px; letter-spacing: 1px;">IT VISION PLUS</h1>
+          <h1 style="color: ${BRAND_COLORS.orange}; margin: 0; font-size: 24px; letter-spacing: 1px;">DDM+</h1>
         </div>
         <div style="padding: 32px; border: 1px solid #e5e7eb; border-top: none;">
           <h2 style="color: ${BRAND_COLORS.navy}; margin-top: 0;">Bienvenue, ${name} !</h2>
@@ -100,7 +100,7 @@ export const getClientCredentialsEmail = (name: string, email: string, url: stri
           </div>
         </div>
         <div style="background-color: ${BRAND_COLORS.bg}; padding: 16px; text-align: center; font-size: 12px; color: ${BRAND_COLORS.textLight};">
-            © ${new Date().getFullYear()} IT Vision Plus.
+            © ${new Date().getFullYear()} DDM+.
         </div>
       </div>
     `,

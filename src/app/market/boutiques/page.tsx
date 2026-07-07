@@ -9,8 +9,8 @@ import Product from '@/lib/models/Product'
 import mongoose from 'mongoose'
 
 export const metadata: Metadata = {
-  title: 'Boutiques partenaires | IT Vision Plus Marketplace',
-  description: 'Découvrez les boutiques partenaires IT Vision Plus. Produits en stock, import Chine et revendeurs locaux vérifiés.'
+  title: 'Boutiques partenaires | DDM+ Marketplace',
+  description: 'Découvrez les boutiques partenaires DDM+. Produits en stock, import Chine et revendeurs locaux vérifiés.'
 }
 
 export default async function MarketBoutiquesPage() {
@@ -29,7 +29,7 @@ export default async function MarketBoutiquesPage() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-gray-900">Boutiques partenaires</h1>
           <p className="mt-2 text-gray-600">
-            Découvrez les vendeurs et revendeurs sélectionnés par IT Vision Plus.
+            Découvrez les vendeurs et revendeurs sélectionnés par DDM+.
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default async function MarketBoutiquesPage() {
                         <h3 className="font-bold text-gray-900 truncate">{shop.name}</h3>
                         {shop.isVerified && <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{shop.description || 'Boutique IT Vision Plus'}</p>
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{shop.description || 'Boutique DDM+'}</p>
                       <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
                         <Package className="h-3.5 w-3.5" />
                         <span>{count} produit{count > 1 ? 's' : ''}</span>

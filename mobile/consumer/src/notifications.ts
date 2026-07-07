@@ -80,6 +80,7 @@ export function unreadCount(): number {
 
 const recentKeys = new Map<string, number>()
 const DEDUPE_WINDOW_MS = 4000
+const MAX_RECENT_KEYS = 200
 
 export async function pushNotification(input: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<void> {
   await loadNotifications()
@@ -91,9 +92,14 @@ export async function pushNotification(input: Omit<Notification, 'id' | 'created
   const last = recentKeys.get(key)
   if (last && now - last < DEDUPE_WINDOW_MS) return
   recentKeys.set(key, now)
-  // Nettoyage léger des clés anciennes
-  for (const [k, ts] of recentKeys) {
-    if (now - ts > DEDUPE_WINDOW_MS) recentKeys.delete(k)
+  // Nettoyage léger des clés anciennes + limite de taille
+  if (recentKeys.size > MAX_RECENT_KEYS) {
+    recentKeys.clear()
+    recentKeys.set(key, now)
+  } else {
+    for (const [k, ts] of recentKeys) {
+      if (now - ts > DEDUPE_WINDOW_MS) recentKeys.delete(k)
+    }
   }
 
   const notif: Notification = {
@@ -141,10 +147,18 @@ export async function clearNotifications(): Promise<void> {
 }
 
 let wsBound = false
+let boundHandlers: Record<string, (payload: any) => void> = {}
 
-/** Reset le flag de binding (à appeler après resetSocket / logout). */
+/** Reset le flag de binding et retire les listeners (à appeler après resetSocket / logout). */
 export function resetNotificationBinding() {
+  if (wsBound) {
+    const socket = connectSocket()
+    for (const [event, fn] of Object.entries(boundHandlers)) {
+      socket.off(event, fn)
+    }
+  }
   wsBound = false
+  boundHandlers = {}
 }
 
 /** À appeler une fois (depuis _layout) pour brancher les events WS au store. */
@@ -206,8 +220,14 @@ export function bindNotificationSocket() {
     })
   }
 
-  socket.on('user:offer-received', onOfferReceived)
-  socket.on('user:request-assigned', onRequestAssigned)
-  socket.on('request:status-changed', onStatusChanged)
-  socket.on('chat:message', onChatMessage)
+  boundHandlers = {
+    'user:offer-received': onOfferReceived,
+    'user:request-assigned': onRequestAssigned,
+    'request:status-changed': onStatusChanged,
+    'chat:message': onChatMessage,
+  }
+
+  for (const [event, fn] of Object.entries(boundHandlers)) {
+    socket.on(event, fn)
+  }
 }

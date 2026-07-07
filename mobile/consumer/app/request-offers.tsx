@@ -34,7 +34,28 @@ function formatCountdown(ms: number): string {
   return `${s}s`
 }
 
+function toLatLng(location: any): { lat: number; lng: number } | null {
+  if (Number.isFinite(Number(location?.lat)) && Number.isFinite(Number(location?.lng))) {
+    return { lat: Number(location.lat), lng: Number(location.lng) }
+  }
+  const coords = location?.coordinates
+  if (Array.isArray(coords) && coords.length === 2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]))) {
+    return { lat: Number(coords[1]), lng: Number(coords[0]) }
+  }
+  return null
+}
+
+function isValidLatLng(value: any): value is { lat: number; lng: number } {
+  return (
+    Number.isFinite(Number(value?.lat))
+    && Number.isFinite(Number(value?.lng))
+    && Math.abs(Number(value.lat)) <= 90
+    && Math.abs(Number(value.lng)) <= 180
+  )
+}
+
 function RequestOffers() {
+  const { t, i18n } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const [offers, setOffers] = useState<any[]>([])
   const [serviceRequest, setServiceRequest] = useState<any>(null)
@@ -112,10 +133,11 @@ function RequestOffers() {
     const handleCounterRejected = () => { load(true) }
     const handleOfferUpdated = () => { load(true) }
     const handleProviderLocation = (data: any) => {
+      if (!data?.providerId) return
       if (!Number.isFinite(Number(data?.lat)) || !Number.isFinite(Number(data?.lng))) return
       setViewerLocations(prev => ({
         ...prev,
-        [data.providerId || data.socketId || 'unknown']: {
+        [data.providerId]: {
           lat: Number(data.lat),
           lng: Number(data.lng),
           name: data.providerName,
@@ -126,11 +148,12 @@ function RequestOffers() {
     }
     const handleRequestViewing = (data: any) => {
       if (!data?.providerId) return
+      const viewerLocation = toLatLng(data)
+      if (!viewerLocation) return
       setViewerLocations(prev => ({
         ...prev,
-        [`view-${data.providerId}`]: {
-          lat: Number(data.lat) || 0,
-          lng: Number(data.lng) || 0,
+        [data.providerId]: {
+          ...viewerLocation,
           name: data.providerName,
           providerId: data.providerId,
           lastSeen: Number(data.timestamp) || Date.now(),
@@ -141,7 +164,7 @@ function RequestOffers() {
       if (!data?.providerId) return
       setViewerLocations(prev => {
         const next = { ...prev }
-        delete next[`view-${data.providerId}`]
+        delete next[data.providerId]
         return next
       })
     }
@@ -246,7 +269,7 @@ function RequestOffers() {
   }, [serviceRequest, id])
 
   const isAssigned = serviceRequest?.status === 'assigned' || serviceRequest?.status === 'in_progress'
-  const { t, i18n } = useTranslation()
+  const requestLocation = toLatLng(serviceRequest?.location)
   const [catMap, setCatMap] = useState<Record<string, { abbr: string; color: string; label: string }>>({})
   useEffect(() => {
     loadCategories().then(cats => {
@@ -288,7 +311,7 @@ function RequestOffers() {
       )}
 
       {/* Carte live des prestataires qui consultent la demande (style InDriver) */}
-      {serviceRequest?.location?.lat && serviceRequest?.location?.lng && !requestDone ? (
+      {requestLocation && !requestDone ? (
         <View style={s.mapWrap}>
           <View style={s.mapHeader}>
             <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
@@ -303,31 +326,33 @@ function RequestOffers() {
               provider={PROVIDER_DEFAULT}
               style={s.map}
               initialRegion={{
-                latitude: serviceRequest.location.lat,
-                longitude: serviceRequest.location.lng,
+                latitude: requestLocation.lat,
+                longitude: requestLocation.lng,
                 latitudeDelta: 0.05,
                 longitudeDelta: 0.05,
               }}
             >
               {/* Position de la demande */}
               <Marker
-                coordinate={{ latitude: serviceRequest.location.lat, longitude: serviceRequest.location.lng }}
+                coordinate={{ latitude: requestLocation.lat, longitude: requestLocation.lng }}
                 title={t('offers.requestLocation')}
                 pinColor={colors.primary}
               />
               {/* Prestataires en cours de consultation */}
-              {Object.entries(viewerLocations).map(([key, v]) => (
-                <Marker
-                  key={key}
-                  coordinate={{ latitude: v.lat, longitude: v.lng }}
-                  title={v.name || t('offers.viewer')}
-                  description={t('offers.viewerNearBy')}
-                >
-                  <View style={s.viewerMarker}>
-                    <Text style={s.viewerMarkerText}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
-                  </View>
-                </Marker>
-              ))}
+              {Object.entries(viewerLocations)
+                .filter(([, v]) => isValidLatLng(v))
+                .map(([key, v]) => (
+                  <Marker
+                    key={key}
+                    coordinate={{ latitude: v.lat, longitude: v.lng }}
+                    title={v.name || t('offers.viewer')}
+                    description={t('offers.viewerNearBy')}
+                  >
+                    <View style={s.viewerMarker}>
+                      <Text style={s.viewerMarkerText}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                  </Marker>
+                ))}
             </MapView>
           )}
         </View>

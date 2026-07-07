@@ -49,6 +49,7 @@ function PaymentScreen() {
   const [useEscrow, setUseEscrow] = useState(true)
   const [polling, setPolling] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const user = getAuthUser()
   const escrowEnabled = !!wallet?.config?.escrowEnabled
   const escrowMandatory = !!wallet?.config?.escrowMandatory
@@ -65,6 +66,7 @@ function PaymentScreen() {
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null }
     setPolling(false)
   }, [])
 
@@ -139,7 +141,7 @@ function PaymentScreen() {
             }
           } catch { /* keep polling */ }
         }, 5000)
-        setTimeout(() => stopPolling(), 120000)
+        pollTimeoutRef.current = setTimeout(() => stopPolling(), 120000)
       }
     } catch (e: any) {
       Alert.alert(
@@ -213,17 +215,21 @@ function PaymentScreen() {
             </View>
           )}
           <View style={s.escrowRow}>
-            <Text style={s.escrowCost}>
-              {walletLoading
-                ? t('payment.checkingWallet')
-                : escrowCost > 0
-                  ? t('payment.escrowFeeBalance', { fee: escrowCost, balance: wallet?.points || 0 })
-                  : escrowEnabled ? t('payment.escrowNotSelected') : t('payment.escrowUnavailable')}
-            </Text>
-            {!walletLoading && !hasEnoughEscrowPoints && (
-              <TouchableOpacity onPress={() => router.push('/wallet')} style={s.topupBtn}>
-                <Text style={s.topupText}>{t('payment.recharge')}</Text>
-              </TouchableOpacity>
+            {walletLoading ? (
+              <ActivityIndicator size="small" color="#1D4ED8" />
+            ) : (
+              <>
+                <Text style={s.escrowCost}>
+                  {escrowCost > 0
+                    ? t('payment.escrowFeeBalance', { fee: escrowCost, balance: wallet?.points || 0 })
+                    : escrowEnabled ? t('payment.escrowNotSelected') : t('payment.escrowUnavailable')}
+                </Text>
+                {!hasEnoughEscrowPoints && (
+                  <TouchableOpacity onPress={() => router.push('/wallet')} style={s.topupBtn}>
+                    <Text style={s.topupText}>{t('payment.recharge')}</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </View>

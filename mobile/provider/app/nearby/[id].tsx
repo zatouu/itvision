@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, AppState, AppStateStatus } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { SkeletonCard } from '../../src/components/Skeleton'
@@ -15,6 +15,7 @@ import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '.
 import VoicePlayer from '../../src/components/VoicePlayer'
 import { apiGet, getBaseUrl } from '../../src/api'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation, emitRequestViewing, emitStopViewing } from '../../src/socket'
+import { getProviderName } from '../../src/user-profile'
 
 const DEGS_TO_RADS = Math.PI / 180
 function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -54,8 +55,11 @@ export default function NearbyRequestDetail() {
 
     const startLocation = async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync()
-        if (status !== 'granted') return
+        const perm = await Location.getForegroundPermissionsAsync()
+        if (perm.status !== 'granted') {
+          const req = await Location.requestForegroundPermissionsAsync()
+          if (req.status !== 'granted') return
+        }
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
         const { latitude, longitude } = loc.coords
         if (!mounted) return
@@ -63,25 +67,36 @@ export default function NearbyRequestDetail() {
         const socket = connectSocket()
         joinRequestRoom(id)
         emitProviderLocation(id, { lat: latitude, lng: longitude })
+        emitRequestViewing(id, getProviderName(), latitude, longitude)
         locInterval = setInterval(async () => {
           try {
             const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
             if (mounted) {
               setMyLocation({ lat: fresh.coords.latitude, lng: fresh.coords.longitude })
               emitProviderLocation(id, { lat: fresh.coords.latitude, lng: fresh.coords.longitude })
+              emitRequestViewing(id, getProviderName(), fresh.coords.latitude, fresh.coords.longitude)
             }
           } catch {}
         }, 10_000)
       } catch {}
     }
-    startLocation()
 
-    // Signal presence viewing to the consumer
-    emitRequestViewing(id)
+    const stopLocation = () => {
+      if (locInterval) { clearInterval(locInterval); locInterval = null }
+    }
+
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'active') startLocation()
+      else stopLocation()
+    }
+
+    startLocation()
+    const sub = AppState.addEventListener('change', handleAppStateChange)
 
     return () => {
       mounted = false
-      if (locInterval) clearInterval(locInterval)
+      stopLocation()
+      sub.remove()
       leaveRequestRoom(id)
       emitStopViewing(id)
     }

@@ -87,14 +87,14 @@ function wrapEmailTemplate(content: string, title: string): string {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${title} - IT Vision Plus</title>
+      <title>${title} - DDM+</title>
       <style>${baseStyles}</style>
     </head>
     <body>
       <div class="container">
         ${content}
         <div class="footer">
-          <p>© ${new Date().getFullYear()} IT Vision Plus - Votre partenaire sécurité</p>
+          <p>© ${new Date().getFullYear()} DDM+ - Votre partenaire import</p>
           <p><a href="${siteUrl}">www.itvisionplus.com</a> | <a href="tel:+221338000000">+221 33 800 00 00</a></p>
         </div>
       </div>

@@ -5,11 +5,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 interface CacheEntry<T> {
   data: T
   ts: number
+  ttl?: number
 }
 
-export async function cacheSet<T>(key: string, data: T, _ttlMs = CACHE_TTL_MS): Promise<void> {
+export async function cacheSet<T>(key: string, data: T, ttlMs = CACHE_TTL_MS): Promise<void> {
   try {
-    const entry: CacheEntry<T> = { data, ts: Date.now() }
+    const entry: CacheEntry<T> = { data, ts: Date.now(), ttl: ttlMs }
     await AsyncStorage.setItem(`cache:${key}`, JSON.stringify(entry))
   } catch {}
 }
@@ -19,7 +20,8 @@ export async function cacheGet<T>(key: string, ttlMs = CACHE_TTL_MS): Promise<T 
     const raw = await AsyncStorage.getItem(`cache:${key}`)
     if (!raw) return null
     const entry: CacheEntry<T> = JSON.parse(raw)
-    if (Date.now() - entry.ts > ttlMs) return null
+    const effectiveTtl = entry.ttl || ttlMs
+    if (Date.now() - entry.ts > effectiveTtl) return null
     return entry.data
   } catch {
     return null
@@ -40,10 +42,11 @@ export async function fetchWithCache<T>(
 
   try {
     const fresh = await fetcher()
-    await cacheSet(key, fresh)
+    await cacheSet(key, fresh, ttlMs)
     onData(fresh, false)
   } catch (e) {
     if (cached === null) throw e // pas de cache → propaguer l'erreur
+    // si on a le cache, on garde silencieusement
   }
 }
 

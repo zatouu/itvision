@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
 
 export const metadata: Metadata = {
-  title: 'IT Vision Plus — Marketplace Import Chine & Sécurité Électronique',
+  title: 'DDM+ — Marketplace Import Chine & Sécurité Électronique',
   description:
     'Catalogue produits importés directement de Chine : caméras IP, contrôle d\'accès, alarmes, domotique, réseau. Livraison Sénégal. Achats groupés disponibles.',
   keywords: [
@@ -14,12 +14,12 @@ export const metadata: Metadata = {
     'alarme',
     'domotique',
     'achat groupé',
-    'IT Vision Plus',
+    'DDM+',
     'Dakar',
   ],
   alternates: { canonical: SITE_URL },
   openGraph: {
-    title: 'Marketplace — IT Vision Plus',
+    title: 'Marketplace — DDM+',
     description:
       'Import direct Chine, livraison Sénégal. Caméras, alarmes, contrôle d\'accès, réseau. Achats groupés pour payer moins cher.',
     url: SITE_URL,
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Marketplace — IT Vision Plus',
+    title: 'Marketplace — DDM+',
     description: 'Import direct Chine, livraison Sénégal. Achats groupés pour payer moins cher.',
   }
 }

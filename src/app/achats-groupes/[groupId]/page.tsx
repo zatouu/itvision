@@ -330,7 +330,7 @@ export default function GroupOrderDetailPage() {
       `👥 ${group.participants.length} participant${group.participants.length > 1 ? 's' : ''}\n` +
       `📦 Import direct Chine — Idéal revendeurs !\n` +
       `🔗 ${window.location.href}\n` +
-      `#AchatGroupé #ImportChine #BonPlan #ITVision #Business`
+      `#AchatGroupé #ImportChine #BonPlan #DDM #Business`
     navigator.clipboard.writeText(caption)
     setNotification({ type: 'success', message: 'Texte copié ! Collez-le dans votre vidéo TikTok' })
     setTimeout(() => setNotification(null), 3000)
@@ -348,7 +348,7 @@ export default function GroupOrderDetailPage() {
       `💼 Parfait pour les revendeurs & entrepreneurs\n\n` +
       `🔗 Lien en bio ou DM pour le lien direct\n` +
       `${window.location.href}\n\n` +
-      `#AchatGroupé #ImportChine #BonPlan #ITVision #Business #Sénégal`
+      `#AchatGroupé #ImportChine #BonPlan #DDM #Business #Sénégal`
     navigator.clipboard.writeText(caption)
     setNotification({ type: 'success', message: 'Texte copié ! Collez-le dans votre story/post Instagram' })
     setTimeout(() => setNotification(null), 3000)

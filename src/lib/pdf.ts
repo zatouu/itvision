@@ -18,7 +18,7 @@ export function generateDiagnosticPdf(payload: any): ArrayBuffer {
   doc.rect(0, 0, 595, 80, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(18)
-  doc.text('IT Vision Plus', 40, 40)
+  doc.text('DDM+', 40, 40)
   doc.setFontSize(11)
   doc.text('Diagnostic de digitalisation PME', 40, 60)
 
@@ -50,7 +50,7 @@ export function generateDiagnosticPdf(payload: any): ArrayBuffer {
   doc.line(40, pageHeight - 60, 555, pageHeight - 60)
   doc.setFontSize(9)
   doc.setTextColor(100, 116, 139)
-  doc.text('IT Vision Plus • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
+  doc.text('DDM+ • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
   doc.text('www.itvisionplus.sn • contact@itvisionplus.sn • +221 77 413 34 40', 40, pageHeight - 24)
 
   return doc.output('arraybuffer') as unknown as ArrayBuffer
@@ -662,7 +662,7 @@ export function generateITVisionInvoicePdf(invoice: {
   doc.line(40, pageHeight - 60, pageWidth - 40, pageHeight - 60)
   doc.setFontSize(9)
   doc.setTextColor(100, 116, 139)
-  doc.text('IT Vision Plus • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
+  doc.text('DDM+ • Sécurité électronique & digitalisation des processus', 40, pageHeight - 40)
   doc.text('www.itvisionplus.sn • contact@itvisionplus.sn • +221 77 413 34 40', 40, pageHeight - 24)
 
   return doc.output('arraybuffer') as unknown as ArrayBuffer

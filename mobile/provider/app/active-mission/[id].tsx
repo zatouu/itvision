@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -194,8 +194,12 @@ function ActiveMission() {
 
     const publishLocation = async () => {
       try {
-        const perm = await Location.requestForegroundPermissionsAsync()
-        if (perm.status !== 'granted' || cancelled) return
+        const perm = await Location.getForegroundPermissionsAsync()
+        if (perm.status !== 'granted') {
+          const req = await Location.requestForegroundPermissionsAsync()
+          if (req.status !== 'granted' || cancelled) return
+        }
+        if (cancelled) return
         let pos: Location.LocationObject | null = null
         try {
           pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
@@ -214,12 +218,28 @@ function ActiveMission() {
       } catch {}
     }
 
-    publishLocation()
-    timer = setInterval(publishLocation, 5000)
+    const startTracking = () => {
+      if (timer) clearInterval(timer)
+      publishLocation()
+      timer = setInterval(publishLocation, 5000)
+    }
+
+    const stopTracking = () => {
+      if (timer) { clearInterval(timer); timer = null }
+    }
+
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'active') startTracking()
+      else stopTracking()
+    }
+
+    startTracking()
+    const sub = AppState.addEventListener('change', handleAppStateChange)
 
     return () => {
       cancelled = true
-      if (timer) clearInterval(timer)
+      stopTracking()
+      sub.remove()
     }
   }, [requestId, item?.status])
 
