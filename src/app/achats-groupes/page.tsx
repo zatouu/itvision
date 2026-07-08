@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   Users, Package, Clock, ArrowRight, Search,
   Zap, CheckCircle,
-  X, Briefcase, Calculator, Flame,
+  Briefcase, Calculator, Flame,
   Sparkles, Truck, ChevronDown,
-  Shield, Factory
+  Factory
 } from 'lucide-react'
+import MarketHeader from '@/components/MarketHeader'
+import MarketFooter from '@/components/MarketFooter'
+import MarketBottomNav from '@/components/MarketBottomNav'
 
 /* ─── Types ─── */
 interface GroupOrder {
@@ -249,38 +251,7 @@ export default function GroupOrdersPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20 md:pb-0">
-      {/* TOP BAR */}
-      <div className="h-10 bg-[#1A1A2E] text-white flex items-center justify-between px-4 text-xs">
-        <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-[#00C853]" />
-          <span className="font-semibold">IT Vision Plus</span>
-          <span className="text-white/60 hidden sm:inline">Import Chine → Sénégal · Livraison Dakar · Support comm. 7j/7</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1"><span className="text-[#FFAB40]">🪙</span> 1250 pts</span>
-          <button className="px-4 py-1 bg-[#00C853] rounded-full font-semibold text-xs hover:bg-emerald-500 transition">Mon compte</button>
-        </div>
-      </div>
-
-      {/* NAV */}
-      <nav className="sticky top-0 z-40 bg-white shadow-sm h-16 flex items-center justify-between px-4">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2 font-bold text-[#1A1A2E] text-lg">
-            <Shield className="w-6 h-6 text-[#00C853]" /> IT Vision Plus
-          </div>
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-            <Link href="/" className="hover:text-[#1A1A2E] transition">Accueil</Link>
-            <Link href="/produits" className="hover:text-[#1A1A2E] transition">Produits</Link>
-            <span className="text-[#1A1A2E] border-b-2 border-[#00C853] pb-0.5 font-semibold">Achats groupés</span>
-            <Link href="/boutiques" className="hover:text-[#1A1A2E] transition">Boutiques</Link>
-            <Link href="/compte" className="hover:text-[#1A1A2E] transition">Compte</Link>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gray-300" />
-          <span className="text-sm font-medium text-[#1A1A2E] hidden sm:inline">Mon compte</span>
-        </div>
-      </nav>
+      <MarketHeader />
 
       {/* HERO */}
       <section className="relative min-h-[500px] overflow-hidden" style={{background:'linear-gradient(135deg, #1A1A2E 0%, #16213E 30%, #0F3460 60%, #00C853 100%)'}}>
@@ -662,39 +633,8 @@ export default function GroupOrdersPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="bg-[#1A1A2E] text-white py-12">
-        <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-4 gap-8">
-          <div>
-            <div className="flex items-center gap-2 font-bold mb-3"><Shield className="w-5 h-5 text-[#00C853]" /> IT Vision Plus</div>
-            <p className="text-xs text-gray-400 mb-4">Import Chine → Sénégal. Livraison Dakar. Support 7j/7.</p>
-            <div className="flex gap-3">
-              {['fb','tw','ig','tk'].map(s=>(<div key={s} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-xs">{s}</div>))}
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold mb-3 text-sm">Aide</h4>
-            <div className="space-y-2 text-xs text-gray-400">
-              <p>Produits</p><p>Commandes</p><p>Paiement & Livraison</p><p>Retours</p>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold mb-3 text-sm">Communauté</h4>
-            <div className="space-y-2 text-xs text-gray-400">
-              <p>Blog</p><p>Partenaires</p><p>Revendeurs</p>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold mb-3 text-sm">Certifications</h4>
-            <div className="flex gap-2">
-              {['CE','ISO','SGS'].map(c=>(<div key={c} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-[10px] font-bold">{c}</div>))}
-            </div>
-          </div>
-        </div>
-        <div className="max-w-6xl mx-auto px-4 mt-8 pt-6 border-t border-white/10 text-center text-xs text-gray-500">
-          © 2024 IT Vision Plus - Import Chine
-        </div>
-      </footer>
+      <MarketFooter />
+      <MarketBottomNav />
 
     </div>
   )
