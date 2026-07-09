@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -124,8 +124,10 @@ function ActiveMission() {
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [, setTick] = useState(0)
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
+  const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
+  const locationRef = useRef(mapLocation)
+  const lastUiUpdateAt = useRef(0)
 
   // Timer: refresh elapsed display every second while mission is in_progress
   useEffect(() => {
@@ -133,6 +135,18 @@ function ActiveMission() {
     const interval = setInterval(() => setTick(v => v + 1), 1000)
     return () => clearInterval(interval)
   }, [item?.status])
+
+  const shouldUpdateUiLocation = (next: { lat: number; lng: number }) => {
+    const prev = locationRef.current
+    if (!prev) return true
+    const now = Date.now()
+    if (now - lastUiUpdateAt.current > 10000) return true
+    const dLat = (next.lat - prev.lat) * Math.PI / 180
+    const dLng = (next.lng - prev.lng) * Math.PI / 180
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(prev.lat * Math.PI / 180) * Math.cos(next.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+    const distM = 6371000 * 2 * Math.asin(Math.sqrt(a))
+    return distM > 150
+  }
 
   const load = useCallback(async (isRefresh = false) => {
     if (!requestId) return
@@ -190,42 +204,48 @@ function ActiveMission() {
   useEffect(() => {
     if (!requestId || !['assigned', 'provider_arriving', 'in_progress'].includes(item?.status || '')) return
     let cancelled = false
-    let timer: ReturnType<typeof setInterval> | null = null
+    let watcher: Location.LocationSubscription | null = null
 
-    const publishLocation = async () => {
+    const publishLocation = (pos: Location.LocationObject) => {
+      if (cancelled) return
+      const location = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        heading: pos.coords.heading ?? null,
+        speed: pos.coords.speed,
+      }
+      locationRef.current = location
+      emitProviderLocation(requestId, location)
+      if (shouldUpdateUiLocation(location)) {
+        setMapLocation(location)
+        lastUiUpdateAt.current = Date.now()
+      }
+    }
+
+    const startTracking = async () => {
       try {
         const perm = await Location.getForegroundPermissionsAsync()
         if (perm.status !== 'granted') {
           const req = await Location.requestForegroundPermissionsAsync()
           if (req.status !== 'granted' || cancelled) return
         }
-        if (cancelled) return
-        let pos: Location.LocationObject | null = null
+        // One initial snapshot to show the user immediately on the map
         try {
-          pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          if (!cancelled && pos) publishLocation(pos)
         } catch {
-          pos = await Location.getLastKnownPositionAsync()
+          const last = await Location.getLastKnownPositionAsync()
+          if (!cancelled && last) publishLocation(last)
         }
-        if (cancelled || !pos) return
-        const location = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          heading: pos.coords.heading,
-          speed: pos.coords.speed,
-        }
-        setCurrentLocation(location)
-        emitProviderLocation(requestId, location)
+        watcher = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 4000 },
+          publishLocation
+        )
       } catch {}
     }
 
-    const startTracking = () => {
-      if (timer) clearInterval(timer)
-      publishLocation()
-      timer = setInterval(publishLocation, 5000)
-    }
-
     const stopTracking = () => {
-      if (timer) { clearInterval(timer); timer = null }
+      if (watcher) { watcher.remove(); watcher = null }
     }
 
     const handleAppStateChange = (nextState: AppStateStatus) => {
@@ -345,10 +365,9 @@ function ActiveMission() {
 
   const focusRouteInApp = () => {
     if (!hasCoords) return
-    // La carte LiveRouteMap se charge déjà du fitToCoordinates via son ref interne
-    // On déclenche un re-render en toggling la clé pour forcer le fit
+    // Force the map to refit without re-rendering the entire screen
     setRouteInfo(null)
-    setTick(v => v + 1)
+    setMapLocation(prev => prev ? { ...prev } : null)
   }
   const locationAddress = typeof item?.location?.address === 'string' ? item.location.address : undefined
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
@@ -417,8 +436,8 @@ function ActiveMission() {
                 <LiveRouteMap
                   destination={{ lat, lng }}
                   destinationLabel={locationAddress}
-                  origin={currentLocation || undefined}
-                  providerLocation={currentLocation || undefined}
+                  origin={mapLocation || undefined}
+                  providerLocation={mapLocation || undefined}
                   status={item.status}
                   onRouteInfo={setRouteInfo}
                 />

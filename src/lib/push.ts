@@ -1,5 +1,6 @@
 import { connectMongoose } from './mongoose'
 import PushToken from './models/PushToken'
+import { addAppNotification, AppNotificationKind } from './notifications-memory'
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts'
@@ -161,6 +162,49 @@ async function checkReceipts(ticketIds: string[], tokenMap: Map<string, string>)
   }
 }
 
+function buildAppNotification(message: PushMessage, appType: 'consumer' | 'provider' | undefined) {
+  const requestId = message.data?.requestId ? String(message.data.requestId) : ''
+  const role = appType === 'provider' ? 'provider' : 'consumer'
+  const link = (pathname: string, params?: Record<string, string>) => ({ pathname, params })
+
+  switch (message.data?.type) {
+    case 'offer:new':
+      return {
+        kind: 'offer-received' as AppNotificationKind,
+        link: role === 'consumer' && requestId ? link('/request-offers', { id: requestId }) : undefined,
+      }
+    case 'offer:accepted':
+    case 'payment:held':
+      return {
+        kind: 'request-assigned' as AppNotificationKind,
+        link: requestId ? link(role === 'provider' ? `/active-mission/${requestId}` : `/mission/${requestId}`) : undefined,
+      }
+    case 'request:status-changed':
+    case 'offer:counter-accepted':
+    case 'offer:counter-rejected':
+      return {
+        kind: 'request-status-changed' as AppNotificationKind,
+        link: requestId ? link(role === 'provider' ? `/active-mission/${requestId}` : `/mission/${requestId}`) : undefined,
+      }
+    case 'chat:message':
+      return {
+        kind: 'mission-update' as AppNotificationKind,
+        link: requestId ? link('/mission-chat', { id: requestId }) : undefined,
+      }
+    case 'request:new':
+      return { kind: 'request-new' as AppNotificationKind, link: role === 'provider' ? link('/nearby-requests') : undefined }
+    case 'offer:rejected':
+      return { kind: 'offer-rejected' as AppNotificationKind, link: role === 'provider' ? link('/my-offers') : undefined }
+    case 'offer:counter':
+      return { kind: 'offer-counter' as AppNotificationKind, link: role === 'provider' ? link('/my-offers') : undefined }
+    default:
+      return {
+        kind: 'mission-update' as AppNotificationKind,
+        link: requestId ? link(role === 'provider' ? `/active-mission/${requestId}` : `/mission/${requestId}`) : undefined,
+      }
+  }
+}
+
 /**
  * Envoie une push notification à tous les appareils d'un utilisateur.
  * Utilise l'API Expo Push (gratuit, pas de clé nécessaire pour Expo tokens).
@@ -176,6 +220,17 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
       return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token enregistré pour cet utilisateur' }
     }
     console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
+
+    // Persist an in-app notification so it appears in the mobile notification tab even when
+    // the push was received in the background or the local cache was cleared.
+    try {
+      const safeAppType: 'consumer' | 'provider' | undefined =
+        message.appType === 'consumer' || message.appType === 'provider' ? message.appType : undefined
+      const { kind, link } = buildAppNotification(message, safeAppType)
+      addAppNotification(userId, kind, message.title, message.body, link, message.data)
+    } catch (err) {
+      console.warn('[Push] Failed to persist app notification:', err)
+    }
 
     const messages = tokens.map((t: any) => ({
       to: t.token,

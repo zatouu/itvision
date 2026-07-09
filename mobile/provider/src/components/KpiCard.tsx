@@ -8,24 +8,12 @@ type KpiCardProps = {
   iconBg: string
   iconColor: string
   onPress?: () => void
+  right?: React.ReactNode
 }
 
-export default function KpiCard({ value, label, icon, iconBg, iconColor, onPress }: KpiCardProps) {
-  if (onPress) {
-    return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[s.card, shadows.sm]}>
-        <View style={[s.icon, { backgroundColor: iconBg }]}>
-          {icon}
-        </View>
-        <View style={s.text}>
-          <Text style={s.value}>{value}</Text>
-          <Text style={s.label}>{label}</Text>
-        </View>
-      </TouchableOpacity>
-    )
-  }
-  return (
-    <View style={[s.card, shadows.sm]}>
+export default function KpiCard({ value, label, icon, iconBg, iconColor, onPress, right }: KpiCardProps) {
+  const content = (
+    <>
       <View style={[s.icon, { backgroundColor: iconBg }]}>
         {icon}
       </View>
@@ -33,6 +21,19 @@ export default function KpiCard({ value, label, icon, iconBg, iconColor, onPress
         <Text style={s.value}>{value}</Text>
         <Text style={s.label}>{label}</Text>
       </View>
+      {right ? <View style={s.right}>{right}</View> : null}
+    </>
+  )
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[s.card, shadows.sm]}>
+        {content}
+      </TouchableOpacity>
+    )
+  }
+  return (
+    <View style={[s.card, shadows.sm]}>
+      {content}
     </View>
   )
 }
@@ -56,6 +57,7 @@ const s = StyleSheet.create({
   },
   iconText: { },
   text: { flex: 1 },
+  right: { justifyContent: 'center' },
   value: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },
   label: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 })

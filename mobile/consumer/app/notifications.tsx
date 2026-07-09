@@ -11,6 +11,7 @@ import {
   clearNotifications,
   loadNotifications,
   reloadNotifications,
+  loadBackendNotifications,
   markAllRead,
   markRead,
   subscribeNotifications,
@@ -25,6 +26,7 @@ const KIND_META: Record<Notification['kind'], { tagKey: string; color: string; b
   'request-assigned':       { tagKey: 'notifications.kind_mission',     color: '#065F46', bg: '#ECFDF5' },
   'request-status-changed': { tagKey: 'notifications.kind_mission',     color: '#5B21B6', bg: '#F5F3FF' },
   'mission-update':         { tagKey: 'notifications.kind_mission',     color: '#1E293B', bg: '#F1F5F9' },
+  'info':                   { tagKey: 'notifications.kind_info',       color: '#475569', bg: '#F1F5F9' },
 }
 
 function formatRelative(ts: number, t: any): string {
@@ -81,7 +83,7 @@ function NotificationsScreen() {
 
   useEffect(() => {
     let mounted = true
-    loadNotifications().then(initial => { if (mounted) setItems([...initial]) })
+    loadBackendNotifications().then(initial => { if (mounted) setItems([...initial]) })
     const unsubscribe = subscribeNotifications(next => {
       if (mounted) setItems([...next])
     })
@@ -90,11 +92,10 @@ function NotificationsScreen() {
     return () => { mounted = false; unsubscribe(); clearInterval(interval) }
   }, [])
 
-  // Recharger depuis AsyncStorage quand l'écran regagne le focus
-  // (notifs écrites par la background task pendant que l'app était fermée)
+  // Recharger depuis AsyncStorage + backend quand l'écran regagne le focus
   useFocusEffect(
     useCallback(() => {
-      reloadNotifications().then(fresh => setItems([...fresh])).catch(() => {})
+      loadBackendNotifications().then(fresh => setItems([...fresh])).catch(() => {})
     }, [])
   )
 

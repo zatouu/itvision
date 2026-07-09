@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { connectSocket } from './socket'
 import { scheduleLocalNotification } from './push'
+import { apiGet } from './api'
 
 export type NotificationKind =
   | 'request-new'
@@ -8,6 +9,7 @@ export type NotificationKind =
   | 'offer-rejected'
   | 'offer-counter'
   | 'mission-update'
+  | 'info'
 
 export interface Notification {
   id: string
@@ -57,6 +59,45 @@ export async function loadNotifications(): Promise<Notification[]> {
   if (loadingPromise) return loadingPromise
   loadingPromise = doLoad().finally(() => { loadingPromise = null })
   return loadingPromise
+}
+
+function mapBackendNotification(n: any): Notification | null {
+  if (!n || !n.id) return null
+  const id = String(n.id)
+  const kind: NotificationKind = n.kind || 'info'
+  const title = String(n.title || 'Notification')
+  const body = String(n.body || n.message || '')
+  const createdAt = new Date(n.createdAt || Date.now()).getTime()
+  if (!Number.isFinite(createdAt)) return null
+  const link = n.link || (n.actionUrl ? { pathname: n.actionUrl } : undefined)
+  return { id, kind, title, body, createdAt, read: !!n.read, link }
+}
+
+/** Fetch notifications persisted server-side and merge them with the local cache. */
+export async function loadBackendNotifications(): Promise<Notification[]> {
+  await loadNotifications()
+  try {
+    const r: any = await apiGet('/api/notifications')
+    const backend = (r.notifications || [])
+      .map(mapBackendNotification)
+      .filter(Boolean) as Notification[]
+    const backendKey = (n: Notification) => `${n.kind}|${n.title}|${n.body}`
+    const backendKeys = new Set(backend.map(backendKey))
+    const mergedBackend = backend.map(n => {
+      const local = cache.find(c => backendKey(c) === backendKey(n))
+      return { ...n, read: n.read || (local?.read ?? false) }
+    })
+    const merged = [
+      ...mergedBackend,
+      ...cache.filter(n => !backendKeys.has(backendKey(n))),
+    ].sort((a, b) => b.createdAt - a.createdAt).slice(0, MAX_KEEP)
+    cache = merged
+    await persist()
+    emit()
+  } catch (e) {
+    console.warn('[Notifications] backend sync failed:', e)
+  }
+  return cache
 }
 
 /** Force le rechargement depuis AsyncStorage (notifs écrites par la background task quand l'app était fermée). */

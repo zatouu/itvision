@@ -15,6 +15,9 @@ export type WalletTransactionKind =
   | 'admin_adjust'   // ajustement manuel admin
   | 'escrow_charge'  // points débités au client pour escrow
   | 'escrow_refund'  // points remboursés sur annulation/refund escrow
+  | 'unlock_spend'   // crédits consommés pour débloquer une mission (provider)
+  | 'unlock_refund'  // crédits remboursés (mission annulée/frauduleuse)
+  | 'promo'          // crédits promotionnels offerts
 
 export interface IWalletTransaction extends Document {
   userId: mongoose.Types.ObjectId
@@ -32,7 +35,7 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   kind: {
     type: String,
-    enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund'],
+    enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund', 'unlock_spend', 'unlock_refund', 'promo'],
     required: true,
   },
   points: { type: Number, required: true },

@@ -1,18 +1,25 @@
 import { Text, View, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert } from 'react-native'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import * as Location from 'expo-location'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { loadInitial, toggleOnline, subscribe } from '../src/online'
 import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
-import { emitGps, onNearbyRequest } from '../src/socket'
+import {
+  emitGps,
+  onNearbyRequest,
+  onOfferAccepted,
+  onOfferRejected,
+  onMissionStatusChanged,
+} from '../src/socket'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import { colors, spacing, radius, shadows, typography } from '../src/design'
-import { Bell, MapPin, FileText, Briefcase, Banknote, ChevronRight } from 'lucide-react-native'
+import { Bell, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff } from 'lucide-react-native'
+import { apiGet } from '../src/api'
 
 function Home() {
   const { t } = useTranslation()
@@ -24,6 +31,7 @@ function Home() {
   const [pendingOffers, setPendingOffers] = useState(0)
   const [activeMission, setActiveMission] = useState(0)
   const [dailyRevenue, setDailyRevenue] = useState(0)
+  const [hideRevenue, setHideRevenue] = useState(false)
   const [initials, setInitials] = useState('')
   const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -76,6 +84,35 @@ function Home() {
     setBusy(true)
     try { await toggleOnline() } finally { setBusy(false) }
   }
+
+  const loadDashboard = useCallback(async () => {
+    try {
+      const d: any = await apiGet('/api/services/provider-dashboard')
+      if (d.success) {
+        setPendingOffers(d.pendingOffers ?? 0)
+        setActiveMission(d.activeMissions ?? 0)
+        setDailyRevenue(d.dailyRevenue ?? 0)
+      }
+    } catch (e) {
+      console.warn('[Home] dashboard load failed', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDashboard()
+    const unsubs = [
+      onOfferAccepted(() => loadDashboard()),
+      onOfferRejected(() => loadDashboard()),
+      onMissionStatusChanged(() => loadDashboard()),
+    ]
+    return () => { unsubs.forEach(u => u()) }
+  }, [loadDashboard])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard()
+    }, [loadDashboard])
+  )
 
   const goNearby = () => {
     if (!online) {
@@ -155,11 +192,16 @@ function Home() {
             iconColor={colors.success}
           />
           <KpiCard
-            value={formatMoney(dailyRevenue)}
+            value={hideRevenue ? '••••• FCFA' : formatMoney(dailyRevenue)}
             label="Revenus du jour"
             icon={<Banknote size={22} color={colors.navy} />}
             iconBg="#F1F5F9"
             iconColor={colors.navy}
+            right={
+              <TouchableOpacity onPress={() => setHideRevenue(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                {hideRevenue ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
+              </TouchableOpacity>
+            }
           />
         </View>
 

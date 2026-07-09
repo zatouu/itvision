@@ -7,6 +7,30 @@ export interface PickedMedia {
   type: 'image' | 'video'
 }
 
+export async function captureMedia(options?: { selfie?: boolean }): Promise<PickedMedia[]> {
+  if (Platform.OS === 'web') {
+    // Web fallback to file picker
+    return pickMedia({ maxFiles: 1 })
+  }
+  const { status } = await ImagePicker.requestCameraPermissionsAsync()
+  if (status !== 'granted') {
+    throw new Error('Permission appareil photo refusée')
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: options?.selfie ? [1, 1] : [4, 3],
+    quality: 0.85,
+    cameraType: 'front' as any,
+  })
+  if (result.canceled) return []
+  return result.assets.map(a => ({
+    uri: a.uri,
+    name: a.fileName || `capture-${Date.now()}.jpg`,
+    type: 'image',
+  }))
+}
+
 export async function pickMedia(options?: { maxFiles?: number }): Promise<PickedMedia[]> {
   if (Platform.OS === 'web') {
     return new Promise((resolve) => {

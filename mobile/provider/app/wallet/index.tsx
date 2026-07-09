@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StatusChip from '../../src/components/StatusChip'
-import { Wallet as WalletIcon, ArrowUpRight, Zap, Minus, Banknote, Check, Info, X } from 'lucide-react-native'
+import { Wallet as WalletIcon, ArrowUpRight, Zap, Minus, Banknote, Check, Info, X, Coins } from 'lucide-react-native'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
-import { apiGet, apiPost } from '../../src/api'
+import { apiGet, apiPost, getCreditPacks } from '../../src/api'
 import { getAuthUser } from '../../src/auth'
 
 const OPERATORS: Array<{ id: 'wave' | 'orange_money' | 'free_money'; label: string }> = [
@@ -18,6 +18,9 @@ const OPERATORS: Array<{ id: 'wave' | 'orange_money' | 'free_money'; label: stri
 const KIND_META: Record<string, { labelKey: string; icon: any; positive?: boolean }> = {
   topup: { labelKey: 'providerWallet.kindTopup', icon: Zap, positive: true },
   mission_spend: { labelKey: 'providerWallet.kindMission', icon: Minus, positive: false },
+  unlock_spend: { labelKey: 'providerWallet.kindUnlock', icon: Minus, positive: false },
+  unlock_refund: { labelKey: 'providerWallet.kindUnlockRefund', icon: Banknote, positive: true },
+  promo: { labelKey: 'providerWallet.kindPromo', icon: Zap, positive: true },
   admin_adjust: { labelKey: 'providerWallet.kindAdjust', icon: Banknote, positive: true },
   refund: { labelKey: 'providerWallet.kindRefund', icon: Banknote, positive: true },
   escrow_refund: { labelKey: 'providerWallet.kindEscrowRefund', icon: Banknote, positive: true },
@@ -26,6 +29,7 @@ const KIND_META: Record<string, { labelKey: string; icon: any; positive?: boolea
 }
 
 type WalletData = {
+  points: number
   cashBalance: number
   escrow: number
   lifetimePointsEarned: number
@@ -38,6 +42,13 @@ type WalletData = {
     description: string | null
     createdAt: string
   }>
+  config?: {
+    credits: {
+      unlockEnabled: boolean
+      packs: Array<{ id: string; credits: number; bonusCredits: number; priceFcfa: number; popular?: boolean }>
+      refundWindowMinutes: number
+    }
+  }
   profile?: {
     loyaltyTier?: string
     referralBalance?: number
@@ -54,6 +65,10 @@ export default function Wallet() {
   const [operator, setOperator] = useState<'wave' | 'orange_money' | 'free_money'>('wave')
   const [phone, setPhone] = useState('')
   const [withdrawLoading, setWithdrawLoading] = useState(false)
+  const [topupOpen, setTopupOpen] = useState(false)
+  const [packs, setPacks] = useState<Array<{ id: string; credits: number; bonusCredits: number; priceFcfa: number; popular?: boolean }>>([])
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+  const [topupLoading, setTopupLoading] = useState(false)
   const format = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, ' ')
 
   const load = useCallback(async () => {
@@ -71,6 +86,42 @@ export default function Wallet() {
   useEffect(() => {
     load()
   }, [load])
+
+  const openTopup = async () => {
+    setTopupOpen(true)
+    try {
+      const r = await getCreditPacks()
+      setPacks(r.packs || [])
+      if (r.packs?.length && !selectedPackId) setSelectedPackId(r.packs[0].id)
+    } catch {}
+  }
+
+  const buyPack = async () => {
+    if (!selectedPackId) return
+    setTopupLoading(true)
+    try {
+      const user = getAuthUser()
+      const r: any = await apiPost('/api/wallet/topup', {
+        packId: selectedPackId,
+        provider: operator,
+        phone: phone.trim() || user?.phone || '',
+      })
+      if (r?.confirmed) {
+        Alert.alert(t('providerWallet.topupSuccess'), t('providerWallet.topupSuccessMsg', { pack: r.totalCredits || r.points, balance: r.balance }))
+        setTopupOpen(false)
+        setSelectedPackId(null)
+        await load()
+      } else if (r?.checkoutUrl) {
+        Alert.alert(t('providerWallet.paymentLink'), r.checkoutUrl)
+      } else {
+        Alert.alert(t('providerWallet.topupFailed'), r?.error || t('providerWallet.topupFailedMsg'))
+      }
+    } catch (e: any) {
+      Alert.alert(t('providerWallet.topupFailed'), e?.message || t('providerWallet.topupFailedMsg'))
+    } finally {
+      setTopupLoading(false)
+    }
+  }
 
   const onWithdraw = async () => {
     const user = getAuthUser()
@@ -117,6 +168,7 @@ export default function Wallet() {
 
   const balance = data?.cashBalance ?? 0
   const escrow = data?.escrow ?? 0
+  const credits = data?.points ?? 0
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -141,6 +193,22 @@ export default function Wallet() {
             <Check size={14} color={colors.surface} />
             <Text style={s.statusPillText}>{t('providerWallet.activeAccount')}</Text>
           </View>
+        </View>
+
+        <View style={s.creditsCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <View style={s.creditsIconWrap}>
+              <Coins size={24} color={colors.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.creditsLabel}>{t('providerWallet.creditsBalance')}</Text>
+              <Text style={s.creditsValue}>{credits} <Text style={s.creditsUnit}>crédits</Text></Text>
+              <Text style={s.creditsSub}>{t('providerWallet.creditsSub')}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={s.buyCreditsBtn} activeOpacity={0.85} onPress={openTopup}>
+            <Text style={s.buyCreditsText}>{t('providerWallet.buyCredits')}</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={s.withdrawBtn} activeOpacity={0.85} onPress={() => setWithdrawOpen(true)}>
@@ -197,6 +265,55 @@ export default function Wallet() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal visible={topupOpen} animationType="slide" transparent>
+        <View style={s.modalOverlay}>
+          <View style={s.modalSheet}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>{t('providerWallet.buyCredits')}</Text>
+              <TouchableOpacity onPress={() => setTopupOpen(false)}>
+                <X size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.modalLabel}>{t('providerWallet.choosePack')}</Text>
+            <View style={s.packsGrid}>
+              {packs.length === 0 && <ActivityIndicator color={colors.primary} />}
+              {packs.map(pack => {
+                const selected = selectedPackId === pack.id
+                const total = pack.credits + (pack.bonusCredits || 0)
+                return (
+                  <TouchableOpacity key={pack.id} style={[s.packCard, selected && s.packCardActive]} onPress={() => setSelectedPackId(pack.id)}>
+                    {pack.popular && <View style={s.popularBadge}><Text style={s.popularText}>{t('providerWallet.popular')}</Text></View>}
+                    <Text style={s.packCredits}>{total} <Text style={s.packCreditsUnit}>crédits</Text></Text>
+                    {pack.bonusCredits ? <Text style={s.packBonus}>+{pack.bonusCredits} bonus</Text> : null}
+                    <Text style={s.packPrice}>{format(pack.priceFcfa)} FCFA</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+            <Text style={s.modalLabel}>{t('providerWallet.operator')}</Text>
+            <View style={s.opRow}>
+              {OPERATORS.map(op => (
+                <TouchableOpacity key={op.id} style={[s.op, operator === op.id && s.opActive]} onPress={() => setOperator(op.id)}>
+                  <Text style={[s.opText, operator === op.id && s.opTextActive]}>{op.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={s.modalLabel}>{t('providerWallet.phone')}</Text>
+            <TextInput
+              style={s.input}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder={t('providerWallet.phonePlaceholder')}
+              placeholderTextColor={colors.textMuted}
+            />
+            <TouchableOpacity style={[s.modalBtn, !selectedPackId && s.modalBtnDisabled]} onPress={buyPack} disabled={!selectedPackId || topupLoading}>
+              {topupLoading ? <ActivityIndicator color={colors.surface} /> : <Text style={s.modalBtnText}>{t('providerWallet.pay')}</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={withdrawOpen} animationType="slide" transparent>
         <View style={s.modalOverlay}>
@@ -299,6 +416,14 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   withdrawText: { fontSize: typography.md.fontSize, color: colors.surface, fontWeight: typography.weight.extrabold as any },
+  creditsCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  creditsIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  creditsLabel: { fontSize: typography.sm.fontSize, color: colors.textSecondary, marginBottom: 2 },
+  creditsValue: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  creditsUnit: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
+  creditsSub: { fontSize: typography.xs.fontSize, color: colors.textMuted, marginTop: 2 },
+  buyCreditsBtn: { backgroundColor: colors.warning, borderRadius: radius.lg, paddingVertical: 10, alignItems: 'center', marginTop: spacing.md },
+  buyCreditsText: { color: '#fff', fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,4 +537,14 @@ const s = StyleSheet.create({
     marginTop: spacing.sm,
   },
   modalBtnText: { color: colors.surface, fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any },
+  modalBtnDisabled: { backgroundColor: '#CBD5E1' },
+  packsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  packCard: { width: '47%', backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, borderWidth: 2, borderColor: colors.border, alignItems: 'center' },
+  packCardActive: { borderColor: colors.primary, backgroundColor: '#EFF6FF' },
+  popularBadge: { position: 'absolute', top: -10, backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  popularText: { color: colors.surface, fontSize: 10, fontWeight: typography.weight.extrabold as any },
+  packCredits: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  packCreditsUnit: { fontSize: 12, color: colors.textSecondary },
+  packBonus: { fontSize: 11, color: colors.success, fontWeight: typography.weight.extrabold as any, marginTop: 2 },
+  packPrice: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary, marginTop: 6 },
 })

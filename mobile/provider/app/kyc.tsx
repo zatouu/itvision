@@ -5,7 +5,7 @@ import { TextInput } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost, apiUpload } from '../src/api'
-import { pickMedia } from '../src/media'
+import { pickMedia, captureMedia } from '../src/media'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, CheckCircle2, Clock } from 'lucide-react-native'
@@ -37,11 +37,15 @@ function KycScreen() {
       .finally(() => setLoading(false))
   }, [])
 
-  const pickImage = async (setter: (uri: string) => void) => {
+  const pickImage = async (setter: (uri: string) => void, useCamera = false, selfie = false) => {
     try {
-      const picked = await pickMedia({ maxFiles: 1 })
+      const picked = useCamera
+        ? await captureMedia({ selfie })
+        : await pickMedia({ maxFiles: 1 })
       if (picked.length > 0) setter(picked[0].uri)
-    } catch { Alert.alert(t('common.error'), t('kyc.uploadError')) }
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message || t('kyc.uploadError'))
+    }
   }
 
   const submit = async () => {
@@ -153,7 +157,7 @@ function KycScreen() {
 
         <View style={s.field}>
           <Text style={s.label}>{t('kyc.idFront')}</Text>
-          <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setIdFrontUri)}>
+          <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setIdFrontUri, true)}>
             {idFrontUri ? (
               <Image source={{ uri: idFrontUri }} style={s.photoPreview} />
             ) : (
@@ -176,7 +180,7 @@ function KycScreen() {
         <View style={s.field}>
           <Text style={s.label}>{t('kyc.selfie')}</Text>
           <Text style={s.hint}>{t('kyc.selfieHint')}</Text>
-          <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setSelfieUri)}>
+          <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(setSelfieUri, true, true)}>
             {selfieUri ? (
               <Image source={{ uri: selfieUri }} style={s.photoPreview} />
             ) : (

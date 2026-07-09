@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native'
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
@@ -81,7 +81,7 @@ function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   return points
 }
 
-export function LiveRouteMap({
+function LiveRouteMapComponent({
   origin,
   destination,
   destinationLabel,
@@ -479,3 +479,5 @@ const s = StyleSheet.create({
     elevation: 4,
   },
 })
+
+export const LiveRouteMap = React.memo(LiveRouteMapComponent)

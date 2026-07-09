@@ -58,6 +58,15 @@ function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [mapLoading, setMapLoading] = useState(false)
   const [onlineProviders, setOnlineProviders] = useState(0)
+  const [liveProviders, setLiveProviders] = useState<Array<{
+    providerId: string
+    name?: string
+    status: string
+    lat: number
+    lng: number
+    distanceKm?: number | null
+    etaMinutes?: number | null
+  }>>([])
   const { t, i18n } = useTranslation()
 
   const applyItems = useCallback((items: any[]) => {
@@ -118,6 +127,43 @@ function Home() {
       .catch(() => {})
       .finally(() => setLoadingRecommended(false))
   }, [loadRecent])
+
+  // Récupérer les providers en live pour les demandes actives
+  useEffect(() => {
+    const activeIds = recent
+      .filter(it => it._id && !['completed', 'cancelled'].includes(it.status))
+      .map(it => String(it._id))
+    if (activeIds.length === 0) {
+      setLiveProviders([])
+      return
+    }
+    let mounted = true
+    const fetchLive = async () => {
+      const merged = new Map<string, typeof liveProviders[0]>()
+      for (const id of activeIds) {
+        try {
+          const r: any = await apiGet(`/api/services/requests/${id}/live`)
+          ;[...(r.viewers || []), ...(r.offerors || []), ...(r.assigned ? [r.assigned] : []), ...(r.nearby || [])]
+            .filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
+            .forEach((p: any) => {
+              merged.set(String(p.providerId), {
+                providerId: String(p.providerId),
+                name: p.name,
+                status: p.status || 'available',
+                lat: Number(p.lat),
+                lng: Number(p.lng),
+                distanceKm: p.distanceKm ?? null,
+                etaMinutes: p.etaMinutes ?? null,
+              })
+            })
+        } catch {}
+      }
+      if (mounted) setLiveProviders(Array.from(merged.values()))
+    }
+    fetchLive()
+    const interval = setInterval(fetchLive, 15000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [recent])
 
   const [recommended, setRecommended] = useState<any[]>([])
   const [loadingRecommended, setLoadingRecommended] = useState(false)
@@ -218,24 +264,37 @@ function Home() {
                 fillColor="rgba(37,99,235,0.06)"
                 strokeWidth={2}
               />
-              {recent
-                .filter(it => it.location?.coordinates?.length === 2 && !['completed', 'cancelled'].includes(it.status))
-                .map(it => {
-                  const catMatch = cats.find(c => c.id === it.category)
-                  const color = catMatch?.color || '#475569'
-                  const Icon = getCategoryIcon(it.category)
-                  return (
-                    <Marker
-                      key={it._id}
-                      coordinate={{ latitude: it.location.coordinates[1], longitude: it.location.coordinates[0] }}
-                      onPress={() => router.push({ pathname: '/request-offers', params: { id: it._id } })}
-                    >
-                      <View style={[s.mapMarker, { backgroundColor: color }]}>
-                        <Icon size={14} color="#fff" />
+              {liveProviders.map(p => {
+                const statusColor =
+                  p.status === 'arriving' || p.status === 'in_progress' || p.status === 'selected' ? '#2563EB'
+                  : p.status === 'offered' ? '#F59E0B'
+                  : p.status === 'viewing' ? '#10B981'
+                  : '#64748B'
+                const label = p.status === 'arriving' ? t('offers.statusArriving')
+                  : p.status === 'in_progress' ? t('offers.statusInProgress')
+                  : p.status === 'selected' ? t('offers.statusSelected')
+                  : p.status === 'offered' ? t('offers.statusOffered')
+                  : p.status === 'viewing' ? t('offers.statusViewing')
+                  : t('offers.viewer')
+                const sub = [p.distanceKm ? `${p.distanceKm} km` : null, p.etaMinutes ? `${p.etaMinutes} min` : null].filter(Boolean).join(' · ')
+                return (
+                  <Marker
+                    key={p.providerId}
+                    coordinate={{ latitude: p.lat, longitude: p.lng }}
+                  >
+                    <View style={[s.providerMarker, { borderColor: statusColor }]}>
+                      <Text style={[s.providerMarkerText, { color: statusColor }]}>{(p.name || 'P').slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
+                    {(sub || label) ? (
+                      <View style={s.providerMarkerCallout}>
+                        <Text style={s.providerMarkerStatus}>{label}</Text>
+                        {!!sub && <Text style={s.providerMarkerSub}>{sub}</Text>}
                       </View>
-                    </Marker>
-                  )
-                })}
+                    ) : null}
+                  </Marker>
+                )
+              })}
             </MapView>
           )}
           {onlineProviders > 0 && (
@@ -412,6 +471,12 @@ const s = StyleSheet.create({
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
   mapMarker: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFF', ...shadows.md },
   mapMarkerText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  providerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 3, ...shadows.md },
+  providerMarkerText: { fontSize: 13, fontWeight: typography.weight.extrabold as any },
+  providerMarkerTail: { width: 0, height: 0, backgroundColor: 'transparent', borderStyle: 'solid', borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -3 },
+  providerMarkerCallout: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 8, paddingVertical: 4, ...shadows.md, alignSelf: 'center', marginBottom: 6, minWidth: 80 },
+  providerMarkerStatus: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
+  providerMarkerSub: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 2 },
   onlineBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.md },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
   onlineText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },

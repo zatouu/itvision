@@ -11,6 +11,7 @@ export interface AuthUser {
   isNew?: boolean
   referralCode?: string
   referralBalance?: number
+  avatarUrl?: string
 }
 
 let _token: string | null = null
@@ -56,6 +57,14 @@ export async function setAuth(token: string, user: AuthUser): Promise<void> {
     AsyncStorage.setItem(USER_KEY, JSON.stringify(user)),
   ])
   notify()
+}
+
+export async function updateAuthUser(partial: Partial<AuthUser>): Promise<AuthUser | null> {
+  if (!_user) return null
+  _user = { ..._user, ...partial }
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(_user))
+  notify()
+  return _user
 }
 
 /** Déconnexion */

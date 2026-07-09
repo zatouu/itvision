@@ -41,21 +41,32 @@ export async function POST(request: NextRequest) {
       topup.completedAt = new Date()
       await topup.save()
 
+      // Credit bonus points first if any
+      const bonusCredits = topup.bonusCredits || 0
+      if (bonusCredits > 0) {
+        await creditPoints(topup.userId, bonusCredits, 'promo', {
+          description: `Bonus ${bonusCredits} crédits offerts (pack)`,
+          paymentRef: externalId,
+        })
+      }
+
       // Credit points to user's wallet
       const { balance } = await creditPoints(topup.userId, topup.points, 'topup', {
         description: `Recharge ${topup.points} pts (${topup.amountFcfa} FCFA via ${topup.provider})`,
         paymentRef: externalId,
       })
 
+      const total = topup.points + (topup.bonusCredits || 0)
+
       // Push notification
       const { sendPushToUser } = await import('@/lib/push')
       await sendPushToUser(topup.userId, {
         title: '💳 Recharge confirmée',
-        body: `${topup.points} points crédités. Solde: ${balance} pts.`,
-        data: { type: 'wallet:topped-up', points: topup.points, balance },
+        body: `${total} crédits crédités. Solde: ${balance} crédits.`,
+        data: { type: 'wallet:topped-up', points: topup.points, bonusCredits: topup.bonusCredits, balance },
       })
 
-      return NextResponse.json({ received: true, credited: true, points: topup.points, balance })
+      return NextResponse.json({ received: true, credited: true, points: topup.points, bonusCredits: topup.bonusCredits, total, balance })
     }
 
     if (isFailed) {

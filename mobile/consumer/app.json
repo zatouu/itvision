@@ -19,6 +19,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour trouver les prestataires proches.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour le suivi de mission.",
+        "NSCameraUsageDescription": "Xeuy Bi utilise l'appareil photo pour prendre des photos de la mission ou des documents.",
+        "NSMicrophoneUsageDescription": "Xeuy Bi utilise le microphone pour les messages vocaux.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -32,12 +34,18 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "RECORD_AUDIO",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
         "POST_NOTIFICATIONS",
         "WAKE_LOCK",
         "RECEIVE_BOOT_COMPLETED",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.WAKE_LOCK",

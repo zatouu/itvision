@@ -90,6 +90,12 @@ const menuItems: MenuItem[] = [
         label: 'Transactions Points',
         icon: CreditCard,
         href: '/admin/platform/transactions'
+      },
+      {
+        id: 'plateforme-kyc',
+        label: 'KYC Prestataires',
+        icon: Shield,
+        href: '/admin/platform/kyc'
       }
     ]
   },

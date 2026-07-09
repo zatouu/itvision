@@ -54,9 +54,28 @@ async function verifyToken(token) {
   }
 }
 
-// ── GEOFENCING : positions des providers en mémoire ──
-const providerPositions = new Map() // userId → { lat, lng, updatedAt }
+// ── GEOFENCING : présence enrichie des providers en mémoire ──
+// userId → { lat, lng, updatedAt, status, viewingRequestId, missionRequestId, name, email, lastEmitAt }
+// status: 'available' | 'viewing' | 'on_mission' | 'offline'
+// NOTE MVP : en mémoire partagée car API routes et Socket.io tournent dans le même process node.
+// Pour scaler horizontal / multi-instance, migrer vers Redis GEO (documenté dans le backlog).
+const providerPresence = new Map()
 const STALE_POSITION_MS = 10 * 60 * 1000 // 10 min sans update = considéré stale
+const EMIT_THROTTLE_MS = 3000 // throttle côté serveur pour limiter les écritures mémoire/batterie
+
+function isStale(pos) {
+  return !pos || Date.now() - (pos.updatedAt || 0) > STALE_POSITION_MS
+}
+
+function updatePresence(userId, patch) {
+  const existing = providerPresence.get(userId) || {}
+  const now = Date.now()
+  providerPresence.set(userId, {
+    ...existing,
+    ...patch,
+    updatedAt: now,
+  })
+}
 
 /**
  * Haversine distance between two points in km
@@ -152,13 +171,27 @@ app.prepare().then(() => {
     socket.on('leave-provider-channel', () => {
       socket.leave(`provider-${userId}`)
       socket.leave('providers-online')
-      providerPositions.delete(userId)
+      const p = providerPresence.get(userId)
+      if (p) {
+        p.status = 'offline'
+        p.updatedAt = Date.now()
+      }
     })
 
-    // Provider envoie sa position GPS pour le geofencing
+    // Provider envoie sa position GPS globale pour le geofencing
     socket.on('provider:gps', (data) => {
       if (!data?.lat || !data?.lng) return
-      providerPositions.set(userId, { lat: data.lat, lng: data.lng, updatedAt: Date.now() })
+      const now = Date.now()
+      const existing = providerPresence.get(userId)
+      if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return
+      updatePresence(userId, {
+        lat: data.lat,
+        lng: data.lng,
+        status: existing?.missionRequestId ? 'on_mission' : (existing?.viewingRequestId ? 'viewing' : 'available'),
+        name: data.providerName || email?.split('@')[0] || 'Prestataire',
+        email,
+        lastEmitAt: now,
+      })
     })
 
     // Consumer demande le nombre de prestataires en ligne
@@ -169,6 +202,18 @@ app.prepare().then(() => {
 
     socket.on('provider:location', (data) => {
       if (!data?.requestId || !data?.lat || !data?.lng) return
+      const now = Date.now()
+      const existing = providerPresence.get(userId)
+      if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return
+      updatePresence(userId, {
+        lat: data.lat,
+        lng: data.lng,
+        missionRequestId: data.requestId,
+        status: 'on_mission',
+        name: data.providerName || email?.split('@')[0] || 'Prestataire',
+        email,
+        lastEmitAt: now,
+      })
       socket.to(`request-${data.requestId}`).emit('provider:location', {
         providerId: userId,
         providerName: email?.split('@')[0] || data.providerName || 'Prestataire',
@@ -176,7 +221,9 @@ app.prepare().then(() => {
         lng: data.lng,
         heading: data.heading || null,
         speed: data.speed || null,
-        timestamp: Date.now(),
+        distance: data.distance ?? null,
+        eta: data.eta ?? null,
+        timestamp: now,
       })
     })
 
@@ -194,17 +241,32 @@ app.prepare().then(() => {
     socket.on('request:viewing', (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
       if (!requestId) return
+      const existing = providerPresence.get(userId)
+      updatePresence(userId, {
+        lat: data?.lat || existing?.lat || null,
+        lng: data?.lng || existing?.lng || null,
+        viewingRequestId: requestId,
+        status: existing?.missionRequestId ? 'on_mission' : 'viewing',
+        name: data?.providerName || email?.split('@')[0] || 'Prestataire',
+        email,
+      })
       socket.to(`request-${requestId}`).emit('request:viewing', {
         providerId: userId,
         providerName: data?.providerName || email?.split('@')[0] || 'Prestataire',
-        lat: data?.lat || null,
-        lng: data?.lng || null,
+        lat: data?.lat || existing?.lat || null,
+        lng: data?.lng || existing?.lng || null,
         timestamp: Date.now(),
       })
     })
     socket.on('request:stop-viewing', (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
       if (!requestId) return
+      const existing = providerPresence.get(userId)
+      if (existing) {
+        existing.viewingRequestId = existing.viewingRequestId === requestId ? null : existing.viewingRequestId
+        existing.status = existing.missionRequestId ? 'on_mission' : (existing.viewingRequestId ? 'viewing' : 'available')
+        existing.updatedAt = Date.now()
+      }
       socket.to(`request-${requestId}`).emit('request:stop-viewing', {
         providerId: userId,
       })
@@ -293,6 +355,16 @@ app.prepare().then(() => {
       console.log(`\n❌ Client déconnecté: ${email}`)
       console.log(`   Raison: ${reason}`)
       console.log(`   Socket ID: ${socket.id}`)
+      // On ne supprime pas immédiatement : permettre un "online/offline" progressif
+      // et éviter de perdre la position si reconnect rapide (30-60s).
+      // Le cleanup interval supprime les entrées périmées.
+      if (role !== 'CLIENT' && role !== 'ADMIN') {
+        const p = providerPresence.get(userId)
+        if (p) {
+          p.status = 'offline'
+          p.updatedAt = Date.now()
+        }
+      }
     })
 
     // Erreurs
@@ -314,21 +386,24 @@ app.prepare().then(() => {
   setInterval(() => {
     const now = Date.now()
     let cleaned = 0
-    for (const [id, pos] of providerPositions.entries()) {
+    for (const [id, pos] of providerPresence.entries()) {
       if (now - pos.updatedAt > STALE_POSITION_MS) {
-        providerPositions.delete(id)
+        providerPresence.delete(id)
         cleaned++
       }
     }
     if (cleaned > 0) console.log(`[GF] Cleaned ${cleaned} stale provider position(s)`)
   }, STALE_POSITION_MS)
 
-  // Exposer io globalement pour pouvoir l'utiliser dans les API routes
+  // Exposer io et la présence provider globalement pour pouvoir l'utiliser dans les API routes
   global.io = io
+  global.providerPresence = providerPresence
 
   /**
    * Notify only providers within radiusKm of the request location.
    * Fallback broadcast only when NO provider has ever reported a position.
+   * Providers currently on another mission are still notified (ils peuvent refuser/ignorer),
+   * mais prioritairement ceux disponibles.
    */
   global.notifyNearbyProviders = function (requestData, radiusKm = 10) {
     const { lng, lat, requestId } = requestData
@@ -336,7 +411,16 @@ app.prepare().then(() => {
     const now = Date.now()
     let notified = 0
     let inRadius = 0
-    for (const [providerId, pos] of providerPositions.entries()) {
+    // Trier par statut : available/viewing en premier, on_mission/offline ensuite
+    const entries = []
+    for (const [providerId, pos] of providerPresence.entries()) {
+      entries.push([providerId, pos])
+    }
+    entries.sort((a, b) => {
+      const score = (p) => (p.status === 'available' ? 0 : p.status === 'viewing' ? 1 : p.status === 'on_mission' ? 2 : 3)
+      return score(a[1]) - score(b[1])
+    })
+    for (const [providerId, pos] of entries) {
       const dist = haversineKm(lat, lng, pos.lat, pos.lng)
       if (dist <= radiusKm) inRadius++
       if (now - pos.updatedAt > STALE_POSITION_MS) continue
@@ -346,14 +430,12 @@ app.prepare().then(() => {
       }
     }
     // Fallback: broadcast ONLY if zero providers have ever reported a position.
-    // If providers exist but all positions are stale, do NOT broadcast —
-    // they will re-emit positions on next heartbeat and start receiving again.
-    if (notified === 0 && providerPositions.size === 0) {
+    if (notified === 0 && providerPresence.size === 0) {
       console.log(`[GF] No provider positions known — broadcasting request ${requestId} to all online providers`)
       io.to('providers-online').emit('request:nearby', requestData)
       return 'broadcast'
     }
-    console.log(`[GF] Notified ${notified}/${inRadius} providers within ${radiusKm}km for request ${requestId} (total tracked: ${providerPositions.size})`)
+    console.log(`[GF] Notified ${notified}/${inRadius} providers within ${radiusKm}km for request ${requestId} (total tracked: ${providerPresence.size})`)
     return notified
   }
 

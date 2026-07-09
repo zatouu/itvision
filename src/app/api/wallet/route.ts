@@ -41,6 +41,11 @@ export async function GET(request: NextRequest) {
         escrowEnabled: cfg.escrow.enabled,
         escrowMandatory: cfg.escrow.mandatory,
         escrowCostPoints: cfg.escrow.enabled ? cfg.monetization.escrowCostPoints : 0,
+        credits: {
+          unlockEnabled: cfg.credits?.unlockEnabled ?? false,
+          packs: cfg.credits?.packs || [],
+          refundWindowMinutes: cfg.credits?.refundWindowMinutes ?? 10,
+        },
       },
       history: history.map((t: any) => ({
         id: String(t._id),

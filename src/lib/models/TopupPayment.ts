@@ -3,6 +3,7 @@ import mongoose, { Schema, model, models, Document } from 'mongoose'
 export interface ITopupPayment extends Document {
   userId: string
   points: number
+  bonusCredits?: number
   amountFcfa: number
   provider: 'wave' | 'orange_money' | 'free_money'
   status: 'pending' | 'successful' | 'failed'
@@ -17,6 +18,7 @@ export interface ITopupPayment extends Document {
 const TopupPaymentSchema = new Schema<ITopupPayment>({
   userId: { type: String, required: true, index: true },
   points: { type: Number, required: true, min: 1 },
+  bonusCredits: { type: Number, default: 0 },
   amountFcfa: { type: Number, required: true, min: 100 },
   provider: { type: String, enum: ['wave', 'orange_money', 'free_money'], required: true },
   status: { type: String, enum: ['pending', 'successful', 'failed'], default: 'pending' },

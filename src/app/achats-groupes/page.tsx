@@ -193,17 +193,17 @@ export default function GroupOrdersPage() {
 
   const featuredCards = loading ? (
     [1,2,3].map(i => (
-      <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden animate-pulse">
-        <div className="h-48 bg-gray-200" />
+      <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-lg overflow-hidden animate-pulse">
+        <div className="h-48 bg-gray-200 dark:bg-slate-700" />
         <div className="p-5 space-y-3">
-          <div className="h-5 bg-gray-200 rounded w-3/4" />
-          <div className="h-3 bg-gray-200 rounded w-1/2" />
-          <div className="h-8 bg-gray-200 rounded w-full" />
+          <div className="h-5 bg-gray-200 dark:bg-slate-700 rounded w-3/4" />
+          <div className="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2" />
+          <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-full" />
         </div>
       </div>
     ))
   ) : featured.length === 0 ? (
-    <div className="col-span-3 text-center py-12 text-gray-500">
+    <div className="col-span-3 text-center py-12 text-gray-500 dark:text-slate-400">
       Aucun groupe en vedette pour le moment.
     </div>
   ) : (
@@ -211,16 +211,16 @@ export default function GroupOrdersPage() {
       const b = badgeFn(g); const prog = getProg(g); const days = getDays(g.deadline)
       const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
       return (
-        <motion.div key={g.groupId} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}} whileHover={{y:-6}} className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="relative h-48 bg-gray-100">
-            {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">{g.product.name}</div>}
+        <motion.div key={g.groupId} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}} whileHover={{y:-6}} className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+          <div className="relative h-48 bg-gray-100 dark:bg-slate-700">
+            {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-slate-500">{g.product.name}</div>}
             <span className={`absolute top-3 left-3 px-3 py-1.5 ${b.bg} text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-md`}><b.icon className="w-3.5 h-3.5"/>{b.text}</span>
           </div>
           <div className="p-5">
-            <h3 className="font-bold text-lg text-[#1A1A2E] mb-2 line-clamp-1">{g.product.name}</h3>
+            <h3 className="font-bold text-lg text-[#1A1A2E] dark:text-slate-200 mb-2 line-clamp-1">{g.product.name}</h3>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-700">{g.currentQty}/{g.targetQty}</span>
-              <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{g.currentQty}/{g.targetQty}</span>
+              <div className="w-32 h-2 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden">
                 <motion.div initial={{width:0}} animate={{width:`${prog}%`}} transition={{duration:0.8}} className={`h-full rounded-full ${prog>=100?'bg-[#00C853]':'bg-gradient-to-r from-[#00C853] to-[#7C4DFF]'}`}/>
               </div>
             </div>
@@ -230,12 +230,12 @@ export default function GroupOrdersPage() {
                   <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[10px] font-bold text-white border-2 border-white" title={p.name}>{initials(p.name)}</div>
                 ))}
               </div>
-              <span className="text-xs text-gray-500">+{(g.participantCount||0)>4?(g.participantCount||0)-4:Math.max(0,(g.participantCount||0))} acheteurs</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400">+{(g.participantCount||0)>4?(g.participantCount||0)-4:Math.max(0,(g.participantCount||0))} acheteurs</span>
             </div>
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-sm text-gray-400 line-through">Solo: {fmt(solo)}</span>
+              <span className="text-sm text-gray-400 dark:text-slate-500 line-through">Solo: {fmt(solo)}</span>
               <span className="text-base font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
-              <span className="text-xs bg-red-50 text-[#FF5252] rounded px-1.5 py-0.5 font-bold">(-{sav}%)</span>
+              <span className="text-xs bg-red-50 dark:bg-red-950/30 text-[#FF5252] rounded px-1.5 py-0.5 font-bold">(-{sav}%)</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm text-orange-500 mb-4">
               <Clock className="w-4 h-4"/>{days>0?`⏱ ${days}j restantes`:'Terminé'}
@@ -250,7 +250,7 @@ export default function GroupOrdersPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 pb-20 md:pb-0">
       <MarketHeader />
 
       {/* HERO */}
@@ -304,32 +304,32 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* SEARCH & FILTERS */}
-      <section className="sticky top-16 z-30 bg-white py-6 shadow-sm border-b border-gray-100">
+      <section className="sticky top-16 z-30 bg-white dark:bg-slate-900 py-6 shadow-sm border-b border-gray-100 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4">
           <div className="relative max-w-3xl mx-auto mb-4">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input type="text" placeholder="Rechercher un produit ou groupe..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="w-full h-14 bg-gray-100 rounded-2xl pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
+            <input type="text" placeholder="Rechercher un produit ou groupe..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="w-full h-14 bg-gray-100 dark:bg-slate-800 dark:text-slate-200 rounded-2xl pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
           </div>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex flex-wrap gap-3 justify-center">
               {CATS.map((cat)=>(
-                <button key={cat} onClick={()=>setCategoryFilter(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${categoryFilter===cat?'bg-[#1A1A2E] text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                <button key={cat} onClick={()=>setCategoryFilter(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${categoryFilter===cat?'bg-[#1A1A2E] text-white dark:bg-slate-700':'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
                   {cat}{cat==='Tous'?' (24)':''}
                 </button>
               ))}
             </div>
             <div className="relative">
-              <button onClick={() => setShowSortDropdown(v => !v)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button onClick={() => setShowSortDropdown(v => !v)} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700">
                 Trier: {sortBy.label} <ChevronDown className="w-4 h-4" />
               </button>
               <AnimatePresence>
                 {showSortDropdown && (
-                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden">
+                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
                     {SORT_OPTIONS.map(opt => (
                       <button
                         key={opt.key}
                         onClick={() => { setSortBy(opt); setShowSortDropdown(false) }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition ${sortBy.key === opt.key ? 'bg-gray-50 font-semibold text-[#1A1A2E]' : 'text-gray-700 hover:bg-gray-50'}`}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition ${sortBy.key === opt.key ? 'bg-gray-50 dark:bg-slate-700 font-semibold text-[#1A1A2E] dark:text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
                       >
                         {opt.label}
                       </button>
@@ -343,17 +343,17 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* VALUE BADGES */}
-      <section className="py-6 bg-white">
+      <section className="py-6 bg-white dark:bg-slate-950">
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap gap-4 justify-center">
-          <div className="flex items-center gap-3 px-5 py-4 bg-[#E8F5E9] rounded-xl">
+          <div className="flex items-center gap-3 px-5 py-4 bg-[#E8F5E9] dark:bg-emerald-950/30 rounded-xl">
             <span className="text-xl">💰</span>
             <span className="text-sm font-bold text-[#00C853]">Économisez jusqu&apos;à -45%</span>
           </div>
-          <div className="flex items-center gap-3 px-5 py-4 bg-[#EDE7F6] rounded-xl">
+          <div className="flex items-center gap-3 px-5 py-4 bg-[#EDE7F6] dark:bg-violet-950/30 rounded-xl">
             <span className="text-xl">📦</span>
             <span className="text-sm font-bold text-[#7C4DFF]">Stock négocié</span>
           </div>
-          <div className="flex items-center gap-3 px-5 py-4 bg-orange-50 rounded-xl">
+          <div className="flex items-center gap-3 px-5 py-4 bg-orange-50 dark:bg-orange-950/30 rounded-xl">
             <span className="text-xl">🚚</span>
             <span className="text-sm font-bold text-[#FFAB40]">Transport groupé optimisé</span>
           </div>
@@ -361,11 +361,11 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* FEATURED GROUPS */}
-      <section id="featured-groups" className="py-8 px-4 bg-white">
+      <section id="featured-groups" className="py-8 px-4 bg-white dark:bg-slate-950">
         <div className="max-w-6xl mx-auto">
           <div className="mb-5">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">GROUPES ACTIFS · HERO GROUP CARDS</p>
-            <h2 className="text-xl font-bold text-[#1A1A2E] flex items-center gap-2">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1">GROUPES ACTIFS · HERO GROUP CARDS</p>
+            <h2 className="text-xl font-bold text-[#1A1A2E] dark:text-white flex items-center gap-2">
               <Flame className="w-5 h-5 text-[#FFAB40]" />
               Groupes en vedette – Rejoignez vite !
             </h2>
@@ -377,11 +377,11 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* CALCULATOR + GROUPS — compact side-by-side */}
-      <section id="all-groups" className="py-6 px-4 bg-gray-50">
+      <section id="all-groups" className="py-6 px-4 bg-gray-50 dark:bg-slate-900">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-5">
           {/* LEFT: Calculator */}
-          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="bg-white rounded-2xl shadow-lg p-5">
-            <h2 className="text-base font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-5">
+            <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white mb-4 flex items-center gap-2">
               <Calculator className="w-5 h-5 text-[#7C4DFF]" />
               Calculez votre économie en temps réel
             </h2>
@@ -401,7 +401,7 @@ export default function GroupOrdersPage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#1A1A2E] mb-1 block">Produit</label>
-                  <select className="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-xs border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00C853]">
+                  <select className="w-full px-2 py-1.5 bg-gray-50 dark:bg-slate-700 dark:text-slate-200 rounded-lg text-xs border border-gray-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#00C853]">
                     <option>Caméra IP Hikvision 4MP</option>
                     <option>iPhone reconditionné 128GB</option>
                     <option>Sneakers Running Légères</option>
@@ -411,7 +411,7 @@ export default function GroupOrdersPage() {
                   <label className="text-xs font-semibold text-[#1A1A2E] mb-1 block">Mode transport</label>
                   <div className="flex gap-1.5">
                     {['maritime','air','express'].map((t)=>(
-                      <button key={t} onClick={()=>setCalcTransport(t as any)} className={`flex-1 py-1 rounded-lg text-[10px] font-semibold border transition ${calcTransport===t?'bg-[#EDE7F6] border-[#7C4DFF] text-[#7C4DFF]':'bg-white border-gray-200 text-gray-600'}`}>
+                      <button key={t} onClick={()=>setCalcTransport(t as any)} className={`flex-1 py-1 rounded-lg text-[10px] font-semibold border transition ${calcTransport===t?'bg-[#EDE7F6] border-[#7C4DFF] text-[#7C4DFF]':'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300'}`}>
                         {t==='maritime'?'Maritime 45j':t==='air'?'Aérien 7j':'Express 3j'}
                       </button>
                     ))}
@@ -419,11 +419,11 @@ export default function GroupOrdersPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs"><span className="text-gray-600">Prix unitaire individuel</span><span className="font-bold text-gray-500">{fmt(calcSoloPrice)}</span></div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs"><span className="text-gray-600">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">{fmt(calcGroupPrice)}</span></div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs"><span className="text-gray-600">Transport groupé</span><span className="font-bold text-gray-700">+{fmt(unitShip)}</span></div>
-                <div className="border-t border-gray-200 pt-2">
-                  <div className="flex justify-between items-center mb-1"><span className="text-xs font-bold text-[#1A1A2E]">Total par unité:</span><span className="text-lg font-extrabold text-[#00C853]">{fmt(calcTotalUnit)}</span></div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-xs"><span className="text-gray-600 dark:text-slate-400">Prix unitaire individuel</span><span className="font-bold text-gray-500 dark:text-slate-400">{fmt(calcSoloPrice)}</span></div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-xs"><span className="text-gray-600 dark:text-slate-400">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">{fmt(calcGroupPrice)}</span></div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-xs"><span className="text-gray-600 dark:text-slate-400">Transport groupé</span><span className="font-bold text-gray-700 dark:text-slate-300">+{fmt(unitShip)}</span></div>
+                <div className="border-t border-gray-200 dark:border-slate-600 pt-2">
+                  <div className="flex justify-between items-center mb-1"><span className="text-xs font-bold text-[#1A1A2E] dark:text-white">Total par unité:</span><span className="text-lg font-extrabold text-[#00C853]">{fmt(calcTotalUnit)}</span></div>
                   <span className="text-[10px] text-[#00C853] font-semibold block">💚 Économie: {fmt(calcTotalSavings)} (-{calcDiscount}%)</span>
                   <span className="inline-block mt-1 text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-2 py-0.5">📈 Marge: +{calcMarginPct}%</span>
                 </div>
@@ -437,14 +437,14 @@ export default function GroupOrdersPage() {
           {/* RIGHT: Compact groups */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#1A1A2E] flex items-center gap-2">
+              <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white flex items-center gap-2">
                 <Package className="w-5 h-5 text-[#7C4DFF]" />
                 Tous les groupes
               </h2>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {['Tous','Bientôt','Nouv.','Mode','Tech','Maison','Beauté'].map((f,i)=> (
-                <button key={f} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white':i===1?'bg-red-50 text-[#FF5252] border-red-100':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100':'bg-white text-gray-500 border-gray-100'}`}>{f}</button>
+                <button key={f} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white dark:bg-slate-700':i===1?'bg-red-50 text-[#FF5252] border-red-100 dark:bg-red-950/30 dark:border-red-900':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900':'bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-100 dark:border-slate-700'}`}>{f}</button>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -452,25 +452,25 @@ export default function GroupOrdersPage() {
                 const b = badgeFn(g); const prog = getProg(g); const days = getDays(g.deadline)
                 const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
                 return (
-                  <motion.div key={g.groupId} whileHover={{y:-3}} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                    <div className="relative h-24 bg-gray-100">
-                      {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-[10px]">{g.product.name}</div>}
+                  <motion.div key={g.groupId} whileHover={{y:-3}} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                    <div className="relative h-24 bg-gray-100 dark:bg-slate-700">
+                      {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-slate-500 text-[10px]">{g.product.name}</div>}
                       <span className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 ${b.bg} text-white text-[8px] font-bold rounded-full`}>{b.text}</span>
                     </div>
                     <div className="p-2">
-                      <h3 className="font-bold text-[11px] text-[#1A1A2E] mb-0.5 line-clamp-1">{g.product.name}</h3>
+                      <h3 className="font-bold text-[11px] text-[#1A1A2E] dark:text-slate-200 mb-0.5 line-clamp-1">{g.product.name}</h3>
                       <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[10px] text-gray-500">{g.currentQty}/{g.targetQty}</span>
-                        <div className="w-10 h-1 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400">{g.currentQty}/{g.targetQty}</span>
+                        <div className="w-10 h-1 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
                       </div>
                       <div className="flex items-center gap-0.5 mb-0.5">
                         <div className="flex -space-x-1">
                           {['AD','FS'].map((ini,i)=>(<div key={i} className="w-4 h-4 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[6px] font-bold text-white border border-white">{ini}</div>))}
                         </div>
-                        <span className="text-[8px] text-gray-400">+{Math.max(0,(g.participantCount||1)-2)}</span>
+                        <span className="text-[8px] text-gray-400 dark:text-slate-500">+{Math.max(0,(g.participantCount||1)-2)}</span>
                       </div>
                       <div className="flex items-baseline gap-1 mb-0.5">
-                        <span className="text-[9px] text-gray-400 line-through">{fmt(solo)}</span>
+                        <span className="text-[9px] text-gray-400 dark:text-slate-500 line-through">{fmt(solo)}</span>
                         <span className="text-[11px] font-bold text-[#00C853]">{fmt(gp)}</span>
                         <span className="text-[8px] bg-red-50 text-[#FF5252] rounded px-0.5 font-bold">-{sav}%</span>
                       </div>
@@ -497,9 +497,9 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* HOW IT WORKS — compact inline */}
-      <section className="py-6 px-4 bg-white border-b border-gray-100">
+      <section className="py-6 px-4 bg-white dark:bg-slate-950 border-b border-gray-100 dark:border-slate-800">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-base font-bold text-[#1A1A2E] mb-4">Comment fonctionne un achat groupé ?</h2>
+          <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white mb-4">Comment fonctionne un achat groupé ?</h2>
           <div className="grid grid-cols-4 gap-4">
             {[
               {num:'1', icon:Search, title:'Choisissez un groupe'},
@@ -508,12 +508,12 @@ export default function GroupOrdersPage() {
               {num:'4', icon:Truck, title:'Livraison Sénégal'}
             ].map((step, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-[#1A1A2E] text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{step.num}</div>
+                <div className="w-7 h-7 bg-[#1A1A2E] dark:bg-slate-700 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{step.num}</div>
                 <div>
                   <step.icon className="w-3.5 h-3.5 text-[#7C4DFF] mb-0.5" />
-                  <h3 className="font-bold text-[#1A1A2E] text-[11px]">{step.title}</h3>
+                  <h3 className="font-bold text-[#1A1A2E] dark:text-slate-200 text-[11px]">{step.title}</h3>
                 </div>
-                {i < 3 && <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0" />}
+                {i < 3 && <ArrowRight className="w-4 h-4 text-gray-300 dark:text-slate-600 flex-shrink-0" />}
               </div>
             ))}
           </div>
@@ -521,19 +521,19 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* ALL GROUPS — full width 4-col grid */}
-      <section className="py-8 px-4 bg-[#F8F9FA]">
+      <section className="py-8 px-4 bg-[#F8F9FA] dark:bg-slate-900">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">TOUS LES GROUPES ACTIFS · GRD</p>
-              <h2 className="text-xl font-bold text-[#1A1A2E] flex items-center gap-2">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">TOUS LES GROUPES ACTIFS · GRD</p>
+              <h2 className="text-xl font-bold text-[#1A1A2E] dark:text-white flex items-center gap-2">
                 <Package className="w-5 h-5 text-[#7C4DFF]"/>Tous les groupes actifs
               </h2>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
             {['Tous','Bientôt complet','Nouveau','Mode','Tech','Maison','Beauté'].map((f,i)=>(
-              <button key={f} className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white border-[#1A1A2E]':i===1?'bg-red-50 text-[#FF5252] border-red-100':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100':'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}>{f}</button>
+              <button key={f} className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white border-[#1A1A2E] dark:bg-slate-700 dark:border-slate-600':i===1?'bg-red-50 text-[#FF5252] border-red-100 dark:bg-red-950/30 dark:border-red-900':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900':'bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>{f}</button>
             ))}
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -541,27 +541,31 @@ export default function GroupOrdersPage() {
               const b=badgeFn(g);const prog=getProg(g);const days=getDays(g.deadline)
               const solo=g.product.basePrice;const gp=g.currentUnitPrice;const sav=Math.round(((solo-gp)/solo)*100)
               return (
-                <motion.div key={g.groupId+'-grid'} whileHover={{y:-3}} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                  <div className="relative h-28 bg-gray-100">
+                <motion.div key={g.groupId+'-grid'} whileHover={{y:-3}} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                  <div className="relative h-28 bg-gray-100 dark:bg-slate-700">
                     {g.product.image&&<Image src={g.product.image} alt={g.product.name} fill className="object-cover"/>}
                     <span className={`absolute top-2 left-2 px-2 py-0.5 ${b.bg} text-white text-[9px] font-bold rounded-full`}>{b.text}</span>
                   </div>
                   <div className="p-3">
-                    <h3 className="font-bold text-xs text-[#1A1A2E] mb-1 line-clamp-1">{g.product.name}</h3>
+                    <h3 className="font-bold text-xs text-[#1A1A2E] dark:text-slate-200 mb-1 line-clamp-1">{g.product.name}</h3>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-gray-500">{g.currentQty}/{g.targetQty}</span>
-                      <div className="w-14 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
+                      <span className="text-[10px] text-gray-500 dark:text-slate-400">{g.currentQty}/{g.targetQty}</span>
+                      <div className="w-14 h-1.5 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
                     </div>
                     <div className="flex -space-x-1 mb-1.5">
                       {['AD','FS','MK'].slice(0,Math.min(3,g.participantCount||1)).map((ini,i)=>(
                         <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[7px] font-bold text-white border border-white">{ini}</div>
                       ))}
-                      {(g.participantCount||0)>3&&<div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[7px] font-bold text-gray-600 border border-white">+{(g.participantCount||0)-3}</div>}
+                      {(g.participantCount || 0) > 3 && (
+                        <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-slate-600 flex items-center justify-center text-[7px] font-bold text-gray-600 dark:text-slate-300 border border-white dark:border-slate-800">
+                          +{(g.participantCount || 0) - 3}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-baseline gap-1 mb-1">
-                      <span className="text-[9px] text-gray-400 line-through">Solo: {fmt(solo)}</span>
+                      <span className="text-[9px] text-gray-400 dark:text-slate-500 line-through">Solo: {fmt(solo)}</span>
                       <span className="text-xs font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
-                      <span className="text-[9px] bg-red-50 text-[#FF5252] rounded px-0.5 font-bold">(-{sav}%)</span>
+                      <span className="text-[9px] bg-red-50 dark:bg-red-950/30 text-[#FF5252] rounded px-0.5 font-bold">(-{sav}%)</span>
                     </div>
                     <div className="text-[10px] text-orange-500 mb-2 flex items-center gap-0.5"><Clock className="w-3 h-3"/>{days}j restantes</div>
                     <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-1.5 rounded-lg text-[10px] font-semibold text-white transition ${prog>=100?'bg-gray-400':g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600':'bg-[#00C853] hover:bg-emerald-600'}`}>
@@ -576,7 +580,7 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* CREATE GROUP CTA — full width banner */}
-      <section className="py-6 px-4 bg-white">
+      <section className="py-6 px-4 bg-white dark:bg-slate-950">
         <div className="max-w-6xl mx-auto">
           <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden" style={{background:'linear-gradient(135deg, #1A1A2E 0%, #7C4DFF 50%, #00C853 100%)'}}>
             <div>
@@ -584,7 +588,7 @@ export default function GroupOrdersPage() {
               <h3 className="text-xl font-bold mb-1">Créez votre propre groupe</h3>
               <p className="text-sm text-white/80">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
             </div>
-            <button onClick={()=>router.push('/achats-groupes/nouveau')} className="flex-shrink-0 px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
+            <button onClick={()=>router.push('/achats-groupes/nouveau')} className="flex-shrink-0 px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 dark:hover:bg-slate-200 transition shadow-lg">
               Créer un groupe →
             </button>
           </motion.div>
@@ -592,10 +596,10 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* ENTREPRENEURS */}
-      <section className="py-6 px-4 bg-white">
+      <section className="py-6 px-4 bg-white dark:bg-slate-950">
         <div className="max-w-6xl mx-auto">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">EXEMPLE DE RENTABILITÉ POUR REVENDEURS</p>
-          <h2 className="text-base font-bold text-[#1A1A2E] mb-4 flex items-center gap-2">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1">EXEMPLE DE RENTABILITÉ POUR REVENDEURS</p>
+          <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white mb-4 flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-[#7C4DFF]" />
             Pour les entrepreneurs &amp; revendeurs
           </h2>
@@ -609,23 +613,23 @@ export default function GroupOrdersPage() {
               ].map((txt,i)=> (
                 <div key={i} className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-[#00C853] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs text-gray-700">{txt}</span>
+                  <span className="text-xs text-gray-700 dark:text-slate-300">{txt}</span>
                 </div>
               ))}
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <h3 className="font-bold text-[#1A1A2E] mb-3 text-xs">Exemple de rentabilité pour revendeurs</h3>
+            <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 border border-gray-100 dark:border-slate-700">
+              <h3 className="font-bold text-[#1A1A2E] dark:text-slate-200 mb-3 text-xs">Exemple de rentabilité pour revendeurs</h3>
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between"><span className="text-gray-500">Prix unitaire individuel</span><span className="font-bold text-[#FF5252]">22 000 FCFA</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Transport groupé</span><span className="font-bold text-gray-600">+8 000 FCFA</span></div>
-                <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
-                  <span className="text-sm font-bold text-[#1A1A2E]">Total par unité:</span>
+                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Prix unitaire individuel</span><span className="font-bold text-[#FF5252]">22 000 FCFA</span></div>
+                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
+                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Transport groupé</span><span className="font-bold text-gray-600 dark:text-slate-300">+8 000 FCFA</span></div>
+                <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between items-center">
+                  <span className="text-sm font-bold text-[#1A1A2E] dark:text-white">Total par unité:</span>
                   <span className="text-lg font-extrabold text-[#00C853]">20 000 FCFA</span>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <span className="text-[10px] font-bold text-[#00C853] bg-emerald-50 rounded-full px-2 py-0.5">💚 Économie: -45%</span>
-                  <span className="text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-2 py-0.5">📈 Marge revente: +67%</span>
+                  <span className="text-[10px] font-bold text-[#00C853] bg-emerald-50 dark:bg-emerald-950/30 rounded-full px-2 py-0.5">💚 Économie: -45%</span>
+                  <span className="text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] dark:bg-violet-950/30 rounded-full px-2 py-0.5">📈 Marge revente: +67%</span>
                 </div>
               </div>
             </div>

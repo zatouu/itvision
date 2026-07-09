@@ -2,6 +2,7 @@ import { connectMongoose } from './mongoose'
 import Wallet from './models/Wallet'
 import WalletTransaction, { WalletTransactionKind } from './models/WalletTransaction'
 import AppConfig, { IAppConfig } from './models/AppConfig'
+import MissionUnlock from './models/MissionUnlock'
 
 /**
  * Helpers pour le système de wallet / points.
@@ -179,4 +180,105 @@ export async function refundEscrowPoints(
     relatedMissionId: missionId,
     description: `Remboursement frais escrow (${points} pts)`,
   })
+}
+
+// ──── Mission Unlock (crédits provider) ───────────────────────────────────
+
+export type UnlockResult =
+  | { ok: true; balance: number; unlockId: string; cost: number }
+  | { ok: false; reason: 'insufficient' | 'already_unlocked' | 'not_enabled' | 'not_found' | 'server'; balance?: number }
+
+/**
+ * Débite les crédits provider pour débloquer une mission.
+ * Crée une MissionUnlock active (remboursable selon les règles métier).
+ */
+export async function unlockMission(
+  providerId: string,
+  requestId: string,
+  cost: number
+): Promise<UnlockResult> {
+  if (cost < 0) return { ok: false, reason: 'server' }
+  await connectMongoose()
+
+  const cfg = await getAppConfig()
+  if (cfg.credits?.unlockEnabled !== true) return { ok: false, reason: 'not_enabled' }
+
+  const existing = await MissionUnlock.findOne({ providerId, requestId }).lean()
+  if (existing && existing.status !== 'refunded') {
+    return { ok: false, reason: 'already_unlocked' }
+  }
+
+  if (cost === 0) {
+    const unlock = await MissionUnlock.create({
+      providerId,
+      requestId,
+      points: 0,
+      status: 'active',
+    })
+    return { ok: true, balance: (await getOrCreateWallet(providerId)).points, unlockId: String(unlock._id), cost: 0 }
+  }
+
+  const debit = await debitPoints(providerId, cost, 'unlock_spend', {
+    relatedMissionId: requestId,
+    description: `Déblocage mission (${cost} crédits)`,
+  })
+
+  if (!debit) {
+    const wallet = await getOrCreateWallet(providerId)
+    return { ok: false, reason: 'insufficient', balance: wallet.points }
+  }
+
+  const unlock = await MissionUnlock.create({
+    providerId,
+    requestId,
+    points: cost,
+    status: 'active',
+  })
+
+  return { ok: true, balance: debit.balance, unlockId: String(unlock._id), cost }
+}
+
+/**
+ * Marque un unlock comme "spent" quand le provider gagne la mission
+ * (offre acceptée / mission assignée). Le crédit est alors consommé définitivement.
+ */
+export async function spendMissionUnlock(providerId: string, requestId: string): Promise<boolean> {
+  await connectMongoose()
+  const res = await MissionUnlock.updateOne(
+    { providerId, requestId, status: 'active' },
+    { $set: { status: 'spent', spentAt: new Date() } }
+  )
+  return res.modifiedCount > 0
+}
+
+/**
+ * Rembourse automatiquement un unlock dans les cas métier :
+ * - mission annulée rapidement par le client (dans refundWindowMinutes)
+ * - mission frauduleuse / expirée sans offre
+ * - mission annulée par le provider avant envoi d'offre
+ */
+export async function refundMissionUnlock(
+  providerId: string,
+  requestId: string,
+  reason: string
+): Promise<{ ok: boolean; refundedCredits?: number; balance?: number }> {
+  await connectMongoose()
+  const unlock = await MissionUnlock.findOne({ providerId, requestId, status: 'active' })
+  if (!unlock) return { ok: false }
+
+  const points = unlock.points || 0
+  unlock.status = 'refunded'
+  unlock.refundedAt = new Date()
+  unlock.refundReason = reason
+  await unlock.save()
+
+  if (points > 0) {
+    const { balance } = await creditPoints(providerId, points, 'unlock_refund', {
+      relatedMissionId: requestId,
+      description: `Remboursement déblocage : ${reason} (${points} crédits)`,
+    })
+    return { ok: true, refundedCredits: points, balance }
+  }
+
+  return { ok: true, refundedCredits: 0 }
 }

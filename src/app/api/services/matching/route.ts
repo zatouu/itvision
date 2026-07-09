@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
+import MissionUnlock from '@/lib/models/MissionUnlock'
 import { requireAuth } from '@/lib/jwt'
+import { computeUnlockCost } from '@/lib/credit-cost'
 
 const REQUEST_TTL_HOURS = 2 // doit rester aligné avec /api/services/requests
 
@@ -91,11 +93,40 @@ export async function GET(request: NextRequest) {
 
     console.log(`[MATCHING] found ${items.length} items after geo+status+mine filter`)
 
-    const withScore = items.map((it: any) => {
+    const requestIds = items.map((it: any) => String(it._id))
+    const myUnlocks = await MissionUnlock.find({
+      requestId: { $in: requestIds },
+      providerId: userId,
+      status: { $in: ['active', 'spent'] },
+    }).select('requestId status').lean()
+    const unlockedSet = new Set(myUnlocks.map((u: any) => String(u.requestId)))
+
+    const withScore = await Promise.all(items.map(async (it: any) => {
       const [lng, lat] = (it.location?.coordinates || [q.lng, q.lat])
       const distMeters = haversineMeters(q.lat, q.lng, lat, lng)
-      return { ...it, _score: score(distMeters, it.createdAt), _distance: Math.round(distMeters) }
-    })
+      const distKm = distMeters / 1000
+      const cost = await computeUnlockCost({
+        requestId: String(it._id),
+        category: it.category,
+        budget: it.budget,
+        urgency: it.attributes?.urgency || 'normal',
+        media: it.media,
+        distanceKm: distKm,
+      })
+      const hasAudio = (it.media || []).some((m: any) => m.type === 'audio')
+      const hasPhoto = (it.media || []).some((m: any) => m.type === 'image')
+      const hasVideo = (it.media || []).some((m: any) => m.type === 'video')
+      return {
+        ...it,
+        _score: score(distMeters, it.createdAt),
+        _distance: Math.round(distMeters),
+        _unlockCost: cost.cost,
+        _unlockedByMe: unlockedSet.has(String(it._id)),
+        _hasAudio: hasAudio,
+        _hasPhoto: hasPhoto,
+        _hasVideo: hasVideo,
+      }
+    }))
 
     return NextResponse.json({ items: withScore })
   } catch (e: any) {

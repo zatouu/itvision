@@ -108,12 +108,12 @@ export async function apiPatch(path: string, body: Record<string, unknown>) {
   return r.json()
 }
 
-export async function apiUpload(fileUri: string, filename: string, contentType: string) {
+export async function apiUpload(fileUri: string, filename: string, contentType: string, uploadType = 'requests') {
   if (Platform.OS === 'web') {
     const formData = new FormData()
     const blob = await fetch(fileUri).then(res => res.blob())
     ;(formData.append as any)('file', blob, filename)
-    formData.append('type', 'requests')
+    formData.append('type', uploadType)
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
     try {
@@ -142,7 +142,7 @@ export async function apiUpload(fileUri: string, filename: string, contentType: 
         mimeType: contentType,
         headers: authHeaders(),
         parameters: {
-          type: 'requests',
+          type: uploadType,
         },
       }
     )

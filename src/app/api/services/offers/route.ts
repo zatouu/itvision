@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { sendPushToUser } from '@/lib/push'
 import { getAppConfig, getOrCreateWallet } from '@/lib/wallet'
+import MissionUnlock from '@/lib/models/MissionUnlock'
 
 const MAX_PRICE = 50_000_000
 const MAX_ETA_MINUTES = 10080 // 7 jours
@@ -107,6 +108,22 @@ export async function POST(request: NextRequest) {
         )
       }
     }
+
+    // Gate crédits : si le mode déblocage est actif, le provider doit avoir payé pour voir la mission.
+    // NOTE : ce gate est optionnel et piloté par AppConfig.credits.unlockEnabled.
+    if (cfg.credits?.unlockEnabled === true) {
+      const unlock = await MissionUnlock.findOne({
+        requestId,
+        providerId: userId,
+        status: { $in: ['active', 'spent'] },
+      }).lean()
+      if (!unlock) {
+        return NextResponse.json(
+          { error: 'Mission non débloquée. Achetez des crédits puis débloquez cette mission.', code: 'UNLOCK_REQUIRED' },
+          { status: 402 }
+        )
+      }
+    }
     // Validité : 5..1440 min, défaut 30
     const vm = Math.max(5, Math.min(1440, Number(validityMinutes) || 30))
     const validUntil = new Date(Date.now() + vm * 60_000)
@@ -119,6 +136,14 @@ export async function POST(request: NextRequest) {
     if (providerName && typeof providerName === 'string') offerData.providerName = providerName.slice(0, 60)
     const created = await Offer.create(offerData)
     if (sr.status === 'created') { sr.status = 'pending_offers'; await sr.save() }
+
+    // Noter que le provider a envoyé une offre (utile pour les règles de remboursement)
+    if (cfg.credits?.unlockEnabled === true) {
+      await MissionUnlock.updateOne(
+        { requestId, providerId: userId, status: 'active' },
+        { $set: { offerSentAt: new Date() } }
+      )
+    }
 
     // Notifier le consumer en temps réel
     const io = (global as any).io

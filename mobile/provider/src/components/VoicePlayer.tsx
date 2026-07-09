@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { Audio } from 'expo-av'
+import { getBaseUrl } from '../api'
 
 type Props = {
   uri: string
@@ -8,9 +9,20 @@ type Props = {
   onRemove?: () => void
 }
 
+function resolveAudioUri(raw: string) {
+  if (!raw) return ''
+  const v = raw.trim()
+  if (!v) return ''
+  if (/^(https?:|file:|blob:|data:)/i.test(v)) return v
+  const base = getBaseUrl().replace(/\/$/, '')
+  if (v.startsWith('/')) return `${base}${v}`
+  return `${base}/${v}`
+}
+
 export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [error, setError] = useState(false)
   const soundRef = useRef<Audio.Sound | null>(null)
 
   useEffect(() => {
@@ -28,12 +40,24 @@ export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
 
   const play = async () => {
     try {
+      setError(false)
       if (soundRef.current) {
         await soundRef.current.unloadAsync()
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      })
+      const fullUri = resolveAudioUri(uri)
+      if (!fullUri) {
+        setError(true)
+        return
+      }
       const { sound } = await Audio.Sound.createAsync(
-        { uri },
+        { uri: fullUri },
         { shouldPlay: true },
         (status) => {
           if (!status.isLoaded) return
@@ -48,8 +72,10 @@ export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
       )
       soundRef.current = sound
       setPlaying(true)
-    } catch (err) {
+    } catch (err: any) {
       console.error('[VoicePlayer] play error:', err)
+      setError(true)
+      Alert.alert('Erreur lecture', err?.message || 'Impossible de lire le message vocal.')
     }
   }
 
@@ -62,9 +88,9 @@ export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
   }
 
   return (
-    <View style={s.container}>
-      <TouchableOpacity style={s.playBtn} onPress={playing ? stop : play}>
-        <Text style={s.playIcon}>{playing ? '⏸' : '▶'}</Text>
+    <View style={[s.container, error && s.containerError]}>
+      <TouchableOpacity style={[s.playBtn, error && s.playBtnError]} onPress={playing ? stop : play}>
+        <Text style={s.playIcon}>{error ? '!' : playing ? '⏸' : '▶'}</Text>
       </TouchableOpacity>
       <View style={s.waveContainer}>
         <View style={s.waveTrack}>
@@ -87,10 +113,12 @@ const s = StyleSheet.create({
     backgroundColor: '#F0FDF4', borderRadius: 12, padding: 10,
     borderWidth: 1, borderColor: '#86EFAC',
   },
+  containerError: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
   playBtn: {
     width: 38, height: 38, borderRadius: 19, backgroundColor: '#059669',
     alignItems: 'center', justifyContent: 'center',
   },
+  playBtnError: { backgroundColor: '#DC2626' },
   playIcon: { fontSize: 16, color: '#fff' },
   waveContainer: { flex: 1, gap: 4 },
   waveTrack: {

@@ -138,6 +138,24 @@ export function onCounterOffer(callback: (offer: any) => void) {
   return () => { s.off('offer:counter', callback) }
 }
 
+export function onOfferAccepted(callback: (data: any) => void) {
+  const s = connectSocket()
+  s.on('offer:accepted', callback)
+  return () => { s.off('offer:accepted', callback) }
+}
+
+export function onOfferRejected(callback: (data: any) => void) {
+  const s = connectSocket()
+  s.on('offer:rejected', callback)
+  return () => { s.off('offer:rejected', callback) }
+}
+
+export function onMissionStatusChanged(callback: (data: { requestId: string; status: string }) => void) {
+  const s = connectSocket()
+  s.on('mission:status-changed', callback)
+  return () => { s.off('mission:status-changed', callback) }
+}
+
 export function onNotification(callback: (notification: any) => void) {
   const s = connectSocket()
   s.on('notification:new', callback)

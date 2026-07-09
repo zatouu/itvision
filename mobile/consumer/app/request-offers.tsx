@@ -99,7 +99,8 @@ function RequestOffers() {
 
   const [wsConnected, setWsConnected] = useState(false)
   const [now, setNow] = useState<number>(Date.now())
-  const [viewerLocations, setViewerLocations] = useState<Record<string, { lat: number; lng: number; name?: string; providerId?: string; lastSeen: number }>>({})
+  const [viewerLocations, setViewerLocations] = useState<Record<string, { lat: number; lng: number; name?: string; providerId?: string; lastSeen: number; status?: string; distanceKm?: number; etaMinutes?: number }>>({})
+  const [liveData, setLiveData] = useState<any>(null)
   // Contre-offre modal
   const [counterModal, setCounterModal] = useState(false)
   const [counterOfferId, setCounterOfferId] = useState<string | null>(null)
@@ -143,6 +144,9 @@ function RequestOffers() {
           name: data.providerName,
           providerId: data.providerId,
           lastSeen: Number(data.timestamp) || Date.now(),
+          status: data.status || 'assigned',
+          distanceKm: data.distance,
+          etaMinutes: data.eta,
         },
       }))
     }
@@ -157,6 +161,7 @@ function RequestOffers() {
           name: data.providerName,
           providerId: data.providerId,
           lastSeen: Number(data.timestamp) || Date.now(),
+          status: 'viewing',
         },
       }))
     }
@@ -180,6 +185,36 @@ function RequestOffers() {
     socket.on('request:viewing', handleRequestViewing)
     socket.on('request:stop-viewing', handleStopViewing)
 
+    // Snapshot de présence provider depuis l'API (fallback + données complètes)
+    const fetchLive = () => {
+      apiGet(`/api/services/requests/${id}/live`).then(data => {
+        setLiveData(data)
+        setViewerLocations(prev => {
+          const next = { ...prev }
+          const merge = (p: any) => {
+            if (!p || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng))) return
+            next[String(p.providerId)] = {
+              lat: Number(p.lat),
+              lng: Number(p.lng),
+              name: p.name,
+              providerId: String(p.providerId),
+              lastSeen: new Date(p.lastSeenAt || Date.now()).getTime(),
+              status: p.status,
+              distanceKm: p.distanceKm,
+              etaMinutes: p.etaMinutes,
+            }
+          }
+          data.assigned && merge(data.assigned)
+          ;(data.offerors || []).forEach(merge)
+          ;(data.viewers || []).forEach(merge)
+          ;(data.nearby || []).forEach(merge)
+          return next
+        })
+      }).catch(() => {})
+    }
+    fetchLive()
+    const liveInterval = setInterval(fetchLive, 15_000)
+
     // Fallback: auto-refresh toutes les 10s si WS déconnecté
     const interval = setInterval(() => {
       if (!socket.connected) load(true)
@@ -200,6 +235,7 @@ function RequestOffers() {
 
     return () => {
       clearInterval(interval)
+      clearInterval(liveInterval)
       clearInterval(cleanup)
       leaveRequestRoom(id)
       socket.off('connect', handleConnect)
@@ -338,21 +374,39 @@ function RequestOffers() {
                 title={t('offers.requestLocation')}
                 pinColor={colors.primary}
               />
-              {/* Prestataires en cours de consultation */}
+              {/* Prestataires en live avec statut, distance, ETA */}
               {Object.entries(viewerLocations)
-                .filter(([, v]) => isValidLatLng(v))
-                .map(([key, v]) => (
-                  <Marker
-                    key={key}
-                    coordinate={{ latitude: v.lat, longitude: v.lng }}
-                    title={v.name || t('offers.viewer')}
-                    description={t('offers.viewerNearBy')}
-                  >
-                    <View style={s.viewerMarker}>
-                      <Text style={s.viewerMarkerText}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
-                    </View>
-                  </Marker>
-                ))}
+                .filter(([, v]) => Number.isFinite(v.lat) && Number.isFinite(v.lng))
+                .map(([key, v]) => {
+                  const statusColor = v.status === 'selected' || v.status === 'arriving' || v.status === 'in_progress' ? '#2563EB'
+                    : v.status === 'offered' ? '#F59E0B'
+                    : v.status === 'viewing' ? '#10B981'
+                    : '#64748B'
+                  const label = v.status === 'arriving' ? t('offers.statusArriving')
+                    : v.status === 'in_progress' ? t('offers.statusInProgress')
+                    : v.status === 'selected' ? t('offers.statusSelected')
+                    : v.status === 'offered' ? t('offers.statusOffered')
+                    : v.status === 'viewing' ? t('offers.statusViewing')
+                    : t('offers.viewer')
+                  const sub = [v.distanceKm ? `${v.distanceKm} km` : null, v.etaMinutes ? `${v.etaMinutes} min` : null].filter(Boolean).join(' · ')
+                  return (
+                    <Marker
+                      key={key}
+                      coordinate={{ latitude: v.lat, longitude: v.lng }}
+                    >
+                      <View style={[s.providerMarker, { borderColor: statusColor }]}>
+                        <Text style={[s.providerMarkerText, { color: statusColor }]}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
+                      </View>
+                      <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
+                      {(sub || label) ? (
+                        <View style={s.providerMarkerCallout}>
+                          <Text style={s.providerMarkerStatus}>{label}</Text>
+                          {!!sub && <Text style={s.providerMarkerSub}>{sub}</Text>}
+                        </View>
+                      ) : null}
+                    </Marker>
+                  )
+                })}
             </MapView>
           )}
         </View>
@@ -596,8 +650,12 @@ const s = StyleSheet.create({
   map: { width: '100%', height: 220 },
   mapPlaceholder: { width: '100%', height: 220, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
-  viewerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.success, borderWidth: 2, borderColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
-  viewerMarkerText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  providerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', borderWidth: 3, borderColor: colors.success, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  providerMarkerText: { fontSize: 14, fontWeight: typography.weight.extrabold as any },
+  providerMarkerTail: { width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -1 },
+  providerMarkerCallout: { position: 'absolute', top: -34, backgroundColor: 'rgba(15,23,42,0.88)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, minWidth: 70, alignItems: 'center' },
+  providerMarkerStatus: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  providerMarkerSub: { fontSize: 9, color: '#CBD5E1', marginTop: 1 },
   list: { padding: spacing.lg, gap: spacing.md, paddingBottom: 32 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: 10, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   cardAccepted: { borderColor: colors.success, borderWidth: 2 },

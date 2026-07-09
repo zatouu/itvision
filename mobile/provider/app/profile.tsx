@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { apiGet, apiGetRetry } from '../src/api'
+import { apiGet, apiGetRetry, apiUpload, apiPatch } from '../src/api'
 import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import { clearAuth, getAuthUser, subscribeAuth } from '../src/auth'
+import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
-import { ArrowLeft, ChevronRight } from 'lucide-react-native'
+import { captureMedia } from '../src/media'
+import { ArrowLeft, ChevronRight, Camera } from 'lucide-react-native'
 
 function Profile() {
   const { t } = useTranslation()
@@ -29,6 +30,32 @@ function Profile() {
     const unsub = subscribeAuth(() => setUser(getAuthUser()))
     return unsub
   }, [])
+
+  useEffect(() => {
+    apiGet('/api/users/me')
+      .then(r => {
+        if (r.user) {
+          updateAuthUser(r.user)
+          setProfileName(r.user.name || '')
+        }
+        setUser(getAuthUser())
+      })
+      .catch(() => {})
+  }, [])
+
+  const changeAvatar = async () => {
+    try {
+      const assets = await captureMedia({ selfie: true })
+      if (!assets.length) return
+      const file = assets[0]
+      const uploaded = await apiUpload(file.uri, file.name, 'image/jpeg', 'avatars')
+      await apiPatch('/api/users/me', { avatarUrl: uploaded.url })
+      await updateAuthUser({ avatarUrl: uploaded.url })
+      setUser(getAuthUser())
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible de mettre à jour la photo')
+    }
+  }
 
   useEffect(() => {
     apiGet('/api/services/offers?mine=1')
@@ -64,9 +91,18 @@ function Profile() {
 
       <ScrollView contentContainerStyle={s.body}>
         <View style={s.avatarBox}>
-          <View style={s.avatar}>
-            <Text style={s.avatarText}>{profileName ? profileName.slice(0, 2).toUpperCase() : 'PR'}</Text>
-          </View>
+          <TouchableOpacity activeOpacity={0.9} onPress={changeAvatar} style={s.avatarWrap}>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={s.avatarImage} />
+            ) : (
+              <View style={s.avatar}>
+                <Text style={s.avatarText}>{profileName ? profileName.slice(0, 2).toUpperCase() : 'PR'}</Text>
+              </View>
+            )}
+            <View style={s.cameraBadge}>
+              <Camera size={16} color="#fff" />
+            </View>
+          </TouchableOpacity>
           <Text style={s.name}>{profileName || t('profile.defaultName')}</Text>
           <Text style={s.meta}>{t('profile.providerAvailable')}</Text>
         </View>
@@ -151,8 +187,11 @@ const s = StyleSheet.create({
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
   body: { padding: 20, gap: 20 },
   avatarBox: { alignItems: 'center', gap: 8, marginVertical: 16 },
+  avatarWrap: { position: 'relative' },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E2E8F0' },
   avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   name: { fontSize: 20, fontWeight: '700', color: '#111827' },
   meta: { fontSize: 14, color: '#64748B' },
   statsRow: { flexDirection: 'row', gap: 10 },

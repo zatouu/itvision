@@ -57,6 +57,9 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60 }: Props
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
       })
       const { recording: rec } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
@@ -87,7 +90,12 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60 }: Props
     setIsRecording(false)
     try {
       await rec.stopAndUnloadAsync()
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false })
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: false,
+      })
       const uri = rec.getURI()
       const status = await rec.getStatusAsync()
       setRecording(null)

@@ -6,7 +6,8 @@ import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet, apiPostQueued, getBaseUrl } from '../src/api'
+import { apiGet, apiPostQueued, getBaseUrl, unlockMission, getUnlockCost } from '../src/api'
+import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
 import { confirm } from '../src/confirm'
@@ -54,6 +55,10 @@ function NearbyRequests() {
   const [sending, setSending] = useState(false)
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [unlockEnabled, setUnlockEnabled] = useState(false)
+  const [unlockLoading, setUnlockLoading] = useState(false)
+  const [unlockedMap, setUnlockedMap] = useState<Record<string, boolean>>({})
+  const [walletPoints, setWalletPoints] = useState(0)
   const successScale = useRef(new Animated.Value(0))
 
   const { t, i18n } = useTranslation()
@@ -128,6 +133,9 @@ function NearbyRequests() {
         () => apiGet(`/api/services/matching?lng=${target.lng}&lat=${target.lat}&radiusKm=${RADIUS_KM}&excludeMine=true`).then(r => r.items || []),
         (items, fromCache) => {
           setItems(items)
+          const map: Record<string, boolean> = {}
+          for (const it of items) { if (it._unlockedByMe) map[it._id] = true }
+          setUnlockedMap(map)
           if (!fromCache) {
             setLoading(false)
             setRefreshing(false)
@@ -144,7 +152,15 @@ function NearbyRequests() {
   }, [coords])
 
   useEffect(() => {
-    (async () => { const c = await locate(); await load(c) })()
+    (async () => {
+      const c = await locate()
+      await load(c)
+      try {
+        const w = await getProviderWallet()
+        setUnlockEnabled(w.config.credits.unlockEnabled)
+        setWalletPoints(w.points || 0)
+      } catch {}
+    })()
   }, [])
 
   // Refs stables pour éviter de réabonner les listeners à chaque changement de coords/load
@@ -176,8 +192,43 @@ function NearbyRequests() {
     }
   }, [])
 
+  const selectedUnlocked = selected && (!unlockEnabled || unlockedMap[selected._id] || selected._unlockedByMe)
+
+  const unlockSelected = async () => {
+    if (!selected) return
+    setUnlockLoading(true)
+    setErr(null)
+    try {
+      const preview = await getUnlockCost(selected._id)
+      const balance = walletPoints
+      if (preview.cost > balance) {
+        const go = await confirm(t('nearby.insufficientCredits'), t('nearby.insufficientCreditsMsg', { cost: preview.cost, balance }))
+        if (go) router.push('/wallet')
+        setUnlockLoading(false)
+        return
+      }
+      const ok = await confirm(t('nearby.unlockConfirm', { cost: preview.cost }), t('nearby.unlockConfirmSub'))
+      if (!ok) { setUnlockLoading(false); return }
+      const res = await unlockMission(selected._id)
+      setUnlockedMap(prev => ({ ...prev, [selected._id]: true }))
+      setWalletPoints(res.balance || 0)
+      hapticSuccess()
+    } catch (e: any) {
+      if (e?.message?.includes('UNLOCK_REQUIRED') || e?.message?.includes('débloquée')) {
+        setUnlockedMap(prev => ({ ...prev, [selected._id]: true }))
+      } else {
+        setErr(t('nearby.unlockError', { msg: e.message }))
+      }
+    }
+    setUnlockLoading(false)
+  }
+
   const sendOffer = async () => {
     if (!selected || !price) return
+    if (unlockEnabled && !selectedUnlocked) {
+      await unlockSelected()
+      if (!unlockedMap[selected._id] && !selected._unlockedByMe) return
+    }
     setSending(true)
     setErr(null)
     try {
@@ -311,16 +362,37 @@ function NearbyRequests() {
                   if (!loc || loc.length < 2) return null
                   const color = catMap[it.category]?.color || '#475569'
                   const Icon = getCategoryIcon(it.category)
+                  const hasAudio = it._hasAudio || it.media?.some((m: any) => m.type === 'audio')
+                  const hasPhoto = it._hasPhoto || it.media?.some((m: any) => m.type === 'image')
+                  const hasVideo = it._hasVideo || it.media?.some((m: any) => m.type === 'video')
+                  const isLocked = unlockEnabled && !it._unlockedByMe && !unlockedMap[it._id]
                   return (
                     <Marker
                       key={it._id}
                       coordinate={{ latitude: loc[1], longitude: loc[0] }}
                       onPress={() => { hapticLight(); setSelected(it); setSentId(null) }}
                     >
-                      <View style={[s.mapMarker, { backgroundColor: color }]}>
-                        <Icon size={16} color="#fff" />
+                      <View style={s.markerWrap}>
+                        <View style={[s.mapMarker, { backgroundColor: color }]}>
+                          <Icon size={16} color="#fff" />
+                        </View>
+                        <View style={[s.mapMarkerTail, { borderTopColor: color }]} />
+                        {isLocked && (
+                          <View style={[s.markerBadge, { backgroundColor: '#EF4444' }]}>
+                            <Text style={s.markerBadgeText}>{it._unlockCost || '?'}</Text>
+                          </View>
+                        )}
+                        {(hasAudio || hasPhoto || hasVideo) && !isLocked && (
+                          <View style={[s.markerBadge, { backgroundColor: '#0F172A' }]}>
+                            <Text style={s.markerBadgeText}>{hasAudio ? '♪' : '📷'}</Text>
+                          </View>
+                        )}
+                        {it.budget && (
+                          <View style={s.markerBudget}>
+                            <Text style={s.markerBudgetText}>{`${(Number(it.budget)/1000).toFixed(0)}k`}</Text>
+                          </View>
+                        )}
                       </View>
-                      <View style={[s.mapMarkerTail, { borderTopColor: color }]} />
                     </Marker>
                   )
                 })}
@@ -432,33 +504,77 @@ function NearbyRequests() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalCatName}>{catMap[selected.category]?.label || selected.category}</Text>
-                  <Text style={s.modalCatMeta}>{selected.location?.address || 'À proximité'}{selected._distance ? ` · ${distLabel(selected._distance)}` : ''}</Text>
+                  <Text style={s.modalCatMeta}>{selected.location?.address || 'À proximité'}{selected._distance ? ` · ${distLabel(selected._distance)}` : ''}{selected._unlockCost ? ` · ${selected._unlockCost} crédits` : ''}</Text>
                 </View>
               </View>
+
+              {/* 1. Audio en premier pour décision rapide */}
+              {selected.media?.some((m: any) => m.type === 'audio') && (() => {
+                const audioUrl = selected.media.find((m: any) => m.type === 'audio').url
+                const fullUri = audioUrl.startsWith('http') ? audioUrl : getBaseUrl() + audioUrl
+                return (
+                  <View style={s.audioFirstBox}>
+                    <Text style={s.audioFirstLabel}>{t('nearby.listenClient')}</Text>
+                    <VoicePlayer uri={fullUri} />
+                  </View>
+                )
+              })()}
+
+              {/* 2. Galerie médias */}
+              {selected.media?.filter((m: any) => m.type === 'image' || m.type === 'video').length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+                  {selected.media.filter((m: any) => m.type === 'image' || m.type === 'video').map((m: any, i: number) => {
+                    const uri = m.url?.startsWith('http') ? m.url : getBaseUrl() + m.url
+                    return (
+                      <View key={i} style={s.mediaThumbWrap}>
+                        <Image source={{ uri }} style={s.mediaThumb} />
+                        {m.type === 'video' && <Text style={s.videoBadge}>▶</Text>}
+                      </View>
+                    )
+                  })}
+                </ScrollView>
+              )}
+
               <View style={s.modalBudgetRow}>
-                <Text style={s.modalBudgetLabel}>Budget client</Text>
-                <Text style={s.modalBudgetValue}>{selected.budget ? `${Number(selected.budget).toLocaleString('fr-FR')} FCFA` : 'Non précisé'}</Text>
+                <Text style={s.modalBudgetLabel}>{t('nearby.clientBudget')}</Text>
+                <Text style={s.modalBudgetValue}>{selected.budget ? `${Number(selected.budget).toLocaleString('fr-FR')} FCFA` : t('nearby.budgetNone')}</Text>
               </View>
             </View>
           )}
 
-          {/* Prix */}
-          <Text style={s.modalSectionLabel}>Votre prix</Text>
-          <View style={s.priceInputRow}>
-            <TouchableOpacity style={s.priceAdjustBtn} onPress={() => setPrice(String(Math.max(0, (Number(price) || 0) - 1000)))}>
-              <Minus size={24} color={colors.text} />
-            </TouchableOpacity>
-            <View style={s.priceDisplay}>
-              <Text style={s.priceDisplayText}>{Number(price || 0).toLocaleString('fr-FR')}</Text>
-              <Text style={s.priceDisplayUnit}>FCFA</Text>
+          {unlockEnabled && !selectedUnlocked && (
+            <View style={s.unlockBox}>
+              <Text style={s.unlockTitle}>{t('nearby.unlockTitle')}</Text>
+              <Text style={s.unlockSub}>{t('nearby.unlockSub', { cost: selected?._unlockCost || '?' })}</Text>
+              <TouchableOpacity style={[s.unlockBtn, unlockLoading && s.sendOfferBtnDisabled]} onPress={unlockSelected} disabled={unlockLoading}>
+                {unlockLoading ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.unlockBtnText}>{t('nearby.unlockBtn', { cost: selected?._unlockCost || '?' })}</Text>}
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={s.priceAdjustBtn} onPress={() => setPrice(String((Number(price) || 0) + 1000))}>
-              <Plus size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          <Text style={s.priceHint}>Prix moyen constaté : 8 000 - 15 000 FCFA</Text>
+          )}
 
-          <Text style={s.modalSectionLabel}>Délai d'arrivée</Text>
+          {/* Prix direct + chips rapides */}
+          <Text style={s.modalSectionLabel}>{t('nearby.yourPrice')}</Text>
+          <TextInput
+            style={s.priceTextInput}
+            value={price}
+            onChangeText={(txt) => setPrice(txt.replace(/[^0-9]/g, ''))}
+            keyboardType="numeric"
+            placeholder="0"
+            placeholderTextColor={colors.textMuted}
+          />
+          <View style={s.quickPriceRow}>
+            {[selected?.budget ? Math.round(Number(selected.budget) * 0.9 / 1000) * 1000 : 10000,
+              selected?.budget ? Math.round(Number(selected.budget) / 1000) * 1000 : 15000,
+              selected?.budget ? Math.round(Number(selected.budget) * 1.1 / 1000) * 1000 : 20000,
+              selected?.budget ? Math.round(Number(selected.budget) * 1.25 / 1000) * 1000 : 25000,
+            ].map((v, i) => (
+              <TouchableOpacity key={i} style={s.quickPriceChip} onPress={() => setPrice(String(v))}>
+                <Text style={s.quickPriceChipText}>{(v / 1000).toFixed(0)}k</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={s.modalSectionLabel}>{t('nearby.arrivalEta')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             {['15', '30', '60', 'Autre'].map(v => {
               const isActive = v === 'Autre' ? !['15', '30', '60'].includes(eta) : eta === v
@@ -474,25 +590,25 @@ function NearbyRequests() {
             })}
           </View>
 
-          <Text style={s.modalSectionLabel}>Message au client (optionnel)</Text>
-          <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder="Précisez votre offre..." multiline placeholderTextColor={colors.textMuted} />
+          <Text style={s.modalSectionLabel}>{t('nearby.optionalMessage')}</Text>
+          <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder={t('nearby.messagePlaceholder')} multiline placeholderTextColor={colors.textMuted} />
 
           {/* Options */}
-          <Text style={s.modalSectionLabel}>Options</Text>
+          <Text style={s.modalSectionLabel}>{t('nearby.options')}</Text>
           <View style={s.optionRow}>
-            <Text style={s.optionLabel}>Déplacement inclus</Text>
+            <Text style={s.optionLabel}>{t('nearby.travelIncluded')}</Text>
             <TouchableOpacity style={[s.optionSwitch, travelIncluded && s.optionSwitchActive]} onPress={() => setTravelIncluded(v => !v)}>
               <View style={[s.optionSwitchThumb, travelIncluded && s.optionSwitchThumbActive]} />
             </TouchableOpacity>
           </View>
           <View style={s.optionRow}>
-            <Text style={s.optionLabel}>Matériel inclus</Text>
+            <Text style={s.optionLabel}>{t('nearby.materialIncluded')}</Text>
             <TouchableOpacity style={[s.optionSwitch, materialIncluded && s.optionSwitchActive]} onPress={() => setMaterialIncluded(v => !v)}>
               <View style={[s.optionSwitchThumb, materialIncluded && s.optionSwitchThumbActive]} />
             </TouchableOpacity>
           </View>
           <View style={s.optionRow}>
-            <Text style={s.optionLabel}>Disponible immédiatement</Text>
+            <Text style={s.optionLabel}>{t('nearby.availableNow')}</Text>
             <TouchableOpacity style={[s.optionSwitch, availableNow && s.optionSwitchActive]} onPress={() => setAvailableNow(v => !v)}>
               <View style={[s.optionSwitchThumb, availableNow && s.optionSwitchThumbActive]} />
             </TouchableOpacity>
@@ -501,7 +617,7 @@ function NearbyRequests() {
           {/* Sécurité */}
           <View style={s.secureBox}>
             <ShieldCheck size={18} color={colors.info} />
-            <Text style={s.secureText}>Paiement sécurisé via Xeuy</Text>
+            <Text style={s.secureText}>{t('nearby.securePayment')}</Text>
           </View>
 
           {err && <Text style={s.errText}>{err}</Text>}
@@ -509,8 +625,8 @@ function NearbyRequests() {
           <View style={{ height: 24 }} />
         </ScrollView>
 
-        <TouchableOpacity style={[s.sendOfferBtn, (!price || sending) && s.sendOfferBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
-          {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>Envoyer l'offre</Text>}
+        <TouchableOpacity style={[s.sendOfferBtn, (!price || sending || (unlockEnabled && !selectedUnlocked)) && s.sendOfferBtnDisabled]} disabled={!price || sending || (unlockEnabled && !selectedUnlocked)} onPress={sendOffer}>
+          {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>{unlockEnabled && !selectedUnlocked ? t('nearby.unlockAndOffer') : t('nearby.sendOffer')}</Text>}
         </TouchableOpacity>
       </BottomSheet>
     </SafeAreaView>
@@ -535,9 +651,14 @@ const s = StyleSheet.create({
   successText: { color: colors.success, fontWeight: typography.weight.extrabold as any, fontSize: 13 },
   mapContainer: { flex: 1 },
   map: { flex: 1 },
+  markerWrap: { alignItems: 'center', justifyContent: 'center' },
   mapMarker: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: colors.surface, ...shadows.md },
   mapMarkerText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   mapMarkerTail: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -1 },
+  markerBadge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.surface },
+  markerBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  markerBudget: { position: 'absolute', bottom: -10, backgroundColor: 'rgba(15,23,42,0.85)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  markerBudgetText: { fontSize: 9, fontWeight: '700', color: '#fff' },
   mapLegend: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, ...shadows.md },
   legendDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success, opacity: 0.7 },
   legendText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },
@@ -569,6 +690,20 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
   emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
   // Modal offre
+  audioFirstBox: { backgroundColor: '#F0FDF4', borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md },
+  audioFirstLabel: { fontSize: 13, fontWeight: typography.weight.semibold as any, color: '#166534', marginBottom: 8 },
+  mediaThumbWrap: { width: 100, height: 100, borderRadius: radius.md, marginRight: 8, backgroundColor: colors.bg, overflow: 'hidden' },
+  mediaThumb: { width: 100, height: 100 },
+  videoBadge: { position: 'absolute', top: 6, right: 6, fontSize: 16, color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  unlockBox: { backgroundColor: '#FEF3C7', borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md },
+  unlockTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: '#92400E' },
+  unlockSub: { fontSize: 13, color: '#B45309', marginTop: 4, marginBottom: 12 },
+  unlockBtn: { backgroundColor: '#F59E0B', borderRadius: radius.lg, paddingVertical: 12, alignItems: 'center' },
+  unlockBtnText: { color: '#fff', fontWeight: typography.weight.extrabold as any, fontSize: 15 },
+  priceTextInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 12, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text, backgroundColor: colors.surface },
+  quickPriceRow: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 12 },
+  quickPriceChip: { backgroundColor: colors.bg, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
+  quickPriceChipText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
   modalBackBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   modalBackIcon: { color: colors.text },

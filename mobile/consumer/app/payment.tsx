@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, ScrollView } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -165,7 +165,7 @@ function PaymentScreen() {
         <View style={{ width: 28 }} />
       </View>
 
-      <View style={s.body}>
+      <ScrollView contentContainerStyle={s.body}>
         <View style={s.amountBox}>
           <Text style={s.amountLabel}>{t('payment.amount')}</Text>
           <Text style={s.amountValue}>{totalAmount.toLocaleString('fr-FR')} FCFA</Text>
@@ -238,7 +238,7 @@ function PaymentScreen() {
           <View style={s.modeSelector}>
             <TouchableOpacity
               style={[s.modeBtn, paymentMode === 'deposit' && s.modeBtnActive]}
-              onPress={() => { hapticSelect(); setPaymentMode('deposit') }}
+              onPress={() => { hapticSelect(); setPaymentMode('deposit'); setUseEscrow(true) }}
             >
               <Text style={[s.modeText, paymentMode === 'deposit' && s.modeTextActive]}>{t('payment.depositMode')}</Text>
               <Text style={s.modeSub}>{t('payment.depositModeSub')}</Text>
@@ -286,7 +286,7 @@ function PaymentScreen() {
             </Text>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   )
 }

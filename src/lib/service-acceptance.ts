@@ -1,6 +1,6 @@
 import Offer from './models/Offer'
 import { sendPushToUser, sendPushToUsers } from './push'
-import { spendOnWonMission } from './wallet'
+import { spendOnWonMission, spendMissionUnlock } from './wallet'
 
 type AcceptOfferArgs = {
   serviceRequest: any
@@ -39,6 +39,13 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
     }
   } catch (walletErr) {
     console.error('[wallet] Erreur débit points mission', requestId, walletErr)
+  }
+
+  // Consommer définitivement les crédits de déblocage si le provider a payé pour voir la mission
+  try {
+    await spendMissionUnlock(providerId, requestId)
+  } catch (unlockErr) {
+    console.error('[wallet] Erreur consommation unlock mission', requestId, unlockErr)
   }
 
   const io = (global as any).io

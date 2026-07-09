@@ -25,15 +25,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
 
-    const points = Number(body.points)
+    const packId = typeof body.packId === 'string' ? body.packId : null
     const provider = body.provider as PaymentProvider
     const payPhone = (body.phone || '').toString().trim()
 
-    if (!Number.isFinite(points) || !Number.isInteger(points) || points < MIN_POINTS || points > MAX_POINTS) {
-      return NextResponse.json(
-        { error: `Quantité de points invalide (entre ${MIN_POINTS} et ${MAX_POINTS})` },
-        { status: 400 }
-      )
+    let points = Number(body.points)
+    let bonusCredits = 0
+    let amountFcfa = 0
+
+    if (packId) {
+      const cfg = await getAppConfig()
+      const pack = cfg.credits?.packs?.find((p: any) => p.id === packId)
+      if (!pack) {
+        return NextResponse.json({ error: 'Pack de crédits introuvable' }, { status: 400 })
+      }
+      points = pack.credits
+      bonusCredits = pack.bonusCredits || 0
+      amountFcfa = pack.priceFcfa
+    } else {
+      if (!Number.isFinite(points) || !Number.isInteger(points) || points < MIN_POINTS || points > MAX_POINTS) {
+        return NextResponse.json(
+          { error: `Quantité de points invalide (entre ${MIN_POINTS} et ${MAX_POINTS})` },
+          { status: 400 }
+        )
+      }
     }
     if (!VALID_PROVIDERS.includes(provider)) {
       return NextResponse.json({ error: 'Opérateur de paiement invalide' }, { status: 400 })
@@ -43,13 +58,16 @@ export async function POST(request: NextRequest) {
     }
 
     const cfg = await getAppConfig()
-    const amountFcfa = points * cfg.monetization.fcfaPerPoint
+    if (!packId) {
+      amountFcfa = points * cfg.monetization.fcfaPerPoint
+    }
 
+    const totalCredits = points + bonusCredits
     const result = await initiatePayment(
       provider,
       amountFcfa,
       payPhone,
-      `Recharge ${points} XC Xeuy`
+      `Recharge ${totalCredits} XC Xeuy`
     )
 
     if (!result.success) {
@@ -59,14 +77,23 @@ export async function POST(request: NextRequest) {
     // En dev, le paiement est mocké et confirmé instantanément → on crédite tout de suite.
     // En prod, le crédit doit être confirmé par le webhook opérateur (paiement réel).
     if (isDev) {
+      if (totalCredits !== points) {
+        await creditPoints(String(userId), totalCredits - points, 'promo', {
+          description: `Bonus ${totalCredits - points} crédits offerts (pack ${packId || 'custom'})`,
+        })
+      }
       const { balance } = await creditPoints(String(userId), points, 'topup', {
-        description: `Recharge ${points} XC (${amountFcfa} FCFA via ${provider})`,
+        description: packId
+          ? `Achat pack ${packId} : ${totalCredits} crédits (${amountFcfa} FCFA via ${provider})`
+          : `Recharge ${points} XC (${amountFcfa} FCFA via ${provider})`,
         paymentRef: result.externalId,
       })
       return NextResponse.json({
         success: true,
         confirmed: true,
         points,
+        bonusCredits,
+        totalCredits,
         amountFcfa,
         balance,
         externalId: result.externalId,
@@ -77,6 +104,7 @@ export async function POST(request: NextRequest) {
     const topup = await TopupPayment.create({
       userId: String(userId),
       points,
+      bonusCredits,
       amountFcfa,
       provider,
       status: 'pending',
@@ -89,6 +117,8 @@ export async function POST(request: NextRequest) {
       success: true,
       confirmed: false,
       points,
+      bonusCredits,
+      totalCredits,
       amountFcfa,
       balance: wallet.points,
       externalId: result.externalId,
