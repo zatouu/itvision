@@ -134,7 +134,35 @@ export async function POST(request: NextRequest) {
       validityMinutes: vm, validUntil,
     }
     if (providerName && typeof providerName === 'string') offerData.providerName = providerName.slice(0, 60)
-    const created = await Offer.create(offerData)
+
+    // Upsert: si le provider a déjà une offre sur cette demande, on la met à jour
+    // au lieu d'en créer une nouvelle (évite les doublons).
+    const existing = await Offer.findOne({ requestId, providerId: userId })
+    let offer: any
+    let isUpdate = false
+    if (existing) {
+      // Une offre déjà acceptée/refusée/retirée ne peut pas être modifiée
+      if (['accepted', 'rejected', 'withdrawn'].includes(existing.status)) {
+        return NextResponse.json(
+          { error: `Vous avez déjà une offre ${existing.status === 'accepted' ? 'acceptée' : existing.status === 'rejected' ? 'refusée' : 'retirée'} sur cette demande` },
+          { status: 409 }
+        )
+      }
+      isUpdate = true
+      existing.price = offerData.price
+      existing.etaMinutes = offerData.etaMinutes
+      existing.comment = offerData.comment
+      existing.validityMinutes = offerData.validityMinutes
+      existing.validUntil = offerData.validUntil
+      if (offerData.providerName) existing.providerName = offerData.providerName
+      // Remettre le statut à submitted si l'offre avait expiré
+      if (existing.status === 'expired') existing.status = 'submitted'
+      await existing.save()
+      offer = existing
+    } else {
+      offer = await Offer.create(offerData)
+    }
+    const created = offer
     if (sr.status === 'created') { sr.status = 'pending_offers'; await sr.save() }
 
     // Noter que le provider a envoyé une offre (utile pour les règles de remboursement)
@@ -148,8 +176,8 @@ export async function POST(request: NextRequest) {
     // Notifier le consumer en temps réel
     const io = (global as any).io
     if (io) {
-      io.to(`request-${requestId}`).emit('offer:new', {
-        offerId: created._id,
+      io.to(`request-${requestId}`).emit(isUpdate ? 'offer:updated' : 'offer:new', {
+        offerId: String(created._id),
         requestId,
         price,
         etaMinutes,
@@ -167,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     // Push notification au consumer
     await sendPushToUser(String(sr.clientId), {
-      title: '💰 Nouvelle offre reçue',
+      title: isUpdate ? '💰 Offre mise à jour' : '💰 Nouvelle offre reçue',
       body: `${price.toLocaleString('fr-FR')} FCFA — ${comment ? comment.slice(0, 60) : 'Voir l\'offre'}`,
       data: { type: 'offer:new', requestId, offerId: String(created._id) },
       appType: 'consumer',

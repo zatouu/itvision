@@ -36,6 +36,17 @@
     "devCode": "Kood bu dev",
     "logout": "Génne"
   },
+  "setup": {
+    "title": "Dalal jàmm!",
+    "subtitle": "Duggal sa tur ngir def sa xërët bu sa wàll.",
+    "nameLabel": "Tur ak tur yaay",
+    "namePlaceholder": "Misal: Mamadou Diop",
+    "phoneLabel": "Telefon",
+    "phonePlaceholder": "77 123 45 67",
+    "save": "Kontine",
+    "nameRequired": "Duggal sa tur",
+    "error": "Njuumte ci denc sa profil"
+  },
   "home": {
     "greeting_morning": "Jàmm ngeen fanaan",
     "greeting_afternoon": "Naka ngeen def",
@@ -219,7 +230,11 @@
     "help": "Jàppale",
     "about": "Ci mbirum",
     "appVersion": "Versioŋ",
-    "memberSince": "Membre bi"
+    "memberSince": "Membre bi",
+    "avatarTitle": "Nataal profil",
+    "avatarCamera": "Jàpp nataal",
+    "avatarGallery": "Tànn ci galeri bi",
+    "avatarGenerated": "Jëfandikoo inisyal yi"
   },
   "chat": {
     "title": "Baat",

@@ -8,6 +8,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
 import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert } from 'lucide-react-native'
 import { hapticSuccess, hapticSelect } from '../src/haptics'
+import { colors, radius, shadows, spacing, typography } from '../src/design'
 
 type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 
@@ -18,11 +19,11 @@ function getProviderLabel(t: any, id: Provider) {
   return 'Wave'
 }
 
-const PROVIDERS: { id: Provider; icon: React.ReactNode; color: string }[] = [
-  { id: 'wave', icon: <Waves size={26} color="#1DC3F0" />, color: '#1DC3F0' },
-  { id: 'orange_money', icon: <Circle size={26} color="#FF6600" fill="#FF6600" />, color: '#FF6600' },
-  { id: 'free_money', icon: <Circle size={26} color="#00A651" fill="#00A651" />, color: '#00A651' },
-  { id: 'cash', icon: <Banknote size={26} color="#16A34A" />, color: '#16A34A' },
+const PROVIDERS: { id: Provider; icon: React.ReactNode; color: string; bg: string }[] = [
+  { id: 'wave', icon: <Waves size={26} color="#1DC3F0" />, color: '#1DC3F0', bg: '#E0F7FE' },
+  { id: 'orange_money', icon: <Circle size={26} color="#FF6600" fill="#FF6600" />, color: '#FF6600', bg: '#FFF7ED' },
+  { id: 'free_money', icon: <Circle size={26} color="#00A651" fill="#00A651" />, color: '#00A651', bg: '#ECFDF5' },
+  { id: 'cash', icon: <Banknote size={26} color="#16A34A" />, color: '#16A34A', bg: '#DCFCE7' },
 ]
 
 const DEPOSIT_RATE = 0.25
@@ -157,37 +158,47 @@ function PaymentScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#0F172A" />
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.6}>
+          <ArrowLeft size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('payment.escrow')}</Text>
-        <View style={{ width: 28 }} />
+        <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.body}>
-        <View style={s.amountBox}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg }}
+      >
+        {/* Amount card */}
+        <View style={s.amountCard}>
           <Text style={s.amountLabel}>{t('payment.amount')}</Text>
           <Text style={s.amountValue}>{totalAmount.toLocaleString('fr-FR')} FCFA</Text>
+
           {selected !== 'cash' && paymentMode === 'deposit' && (
-            <View style={s.depositRow}>
+            <View style={s.depositBox}>
               <Text style={s.depositLabel}>{t('payment.depositLabel')}</Text>
               <Text style={s.depositValue}>{depositAmount.toLocaleString('fr-FR')} FCFA</Text>
               <Text style={s.depositHint}>{t('payment.depositHint', { amount: balanceAmount.toLocaleString('fr-FR') })}</Text>
             </View>
           )}
+
           {selected !== 'cash' && paymentMode === 'full' && (
             <Text style={s.escrowHint}>{t('payment.escrowSub')}</Text>
           )}
+
           {selected === 'cash' && (
-            <>
+            <View style={s.cashBox}>
               <Text style={s.escrowHint}>{t('payment.cashOnPlace')}</Text>
               <View style={s.cashWarning}>
                 <ShieldAlert size={16} color="#B45309" />
                 <Text style={s.cashWarningText}>{t('payment.cashNotGuaranteed')}</Text>
               </View>
-            </>
+            </View>
           )}
+
+          {/* Escrow toggle */}
           {!walletLoading && escrowEnabled && !escrowMandatory && (
             <TouchableOpacity
               onPress={() => setUseEscrow(v => !v)}
@@ -214,11 +225,13 @@ function PaymentScreen() {
               </View>
             </View>
           )}
+
+          {/* Escrow cost row */}
           <View style={s.escrowRow}>
             {walletLoading ? (
-              <ActivityIndicator size="small" color="#1D4ED8" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
                 <Text style={s.escrowCost}>
                   {escrowCost > 0
                     ? t('payment.escrowFeeBalance', { fee: escrowCost, balance: wallet?.points || 0 })
@@ -229,16 +242,18 @@ function PaymentScreen() {
                     <Text style={s.topupText}>{t('payment.recharge')}</Text>
                   </TouchableOpacity>
                 )}
-              </>
+              </View>
             )}
           </View>
         </View>
 
+        {/* Payment mode selector */}
         {selected !== 'cash' && (
           <View style={s.modeSelector}>
             <TouchableOpacity
               style={[s.modeBtn, paymentMode === 'deposit' && s.modeBtnActive]}
               onPress={() => { hapticSelect(); setPaymentMode('deposit'); setUseEscrow(true) }}
+              activeOpacity={0.7}
             >
               <Text style={[s.modeText, paymentMode === 'deposit' && s.modeTextActive]}>{t('payment.depositMode')}</Text>
               <Text style={s.modeSub}>{t('payment.depositModeSub')}</Text>
@@ -246,6 +261,7 @@ function PaymentScreen() {
             <TouchableOpacity
               style={[s.modeBtn, paymentMode === 'full' && s.modeBtnActive]}
               onPress={() => { hapticSelect(); setPaymentMode('full') }}
+              activeOpacity={0.7}
             >
               <Text style={[s.modeText, paymentMode === 'full' && s.modeTextActive]}>{t('payment.fullMode')}</Text>
               <Text style={s.modeSub}>{t('payment.fullModeSub')}</Text>
@@ -253,25 +269,28 @@ function PaymentScreen() {
           </View>
         )}
 
+        {/* Payment methods */}
         <Text style={s.sectionTitle}>{t('payment.chooseMethod')}</Text>
 
         {PROVIDERS.map(p => (
           <TouchableOpacity
             key={p.id}
-            style={[s.providerCard, selected === p.id && { borderColor: p.color }]}
-            onPress={() => setSelected(p.id)}
-            activeOpacity={0.8}
+            style={[s.providerCard, selected === p.id && { borderColor: p.color, backgroundColor: p.bg }]}
+            onPress={() => { hapticSelect(); setSelected(p.id) }}
+            activeOpacity={0.7}
           >
-            {p.icon}
+            <View style={[s.providerIcon, { backgroundColor: p.bg }]}>{p.icon}</View>
             <Text style={s.providerLabel}>{getProviderLabel(t, p.id)}</Text>
             {selected === p.id && <Check size={22} color={p.color} />}
           </TouchableOpacity>
         ))}
 
+        {/* Pay button */}
         <TouchableOpacity
           style={[s.payBtn, (!selected || loading || walletLoading) && s.payBtnDisabled]}
           disabled={!selected || loading || walletLoading}
           onPress={initiate}
+          activeOpacity={0.8}
         >
           {loading || polling ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -292,58 +311,56 @@ function PaymentScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  backIcon: { color: '#0F172A' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A' },
-  body: { flex: 1, padding: 20, gap: 20 },
-  amountBox: {
-    backgroundColor: '#EFF6FF', borderRadius: 16, padding: 20, alignItems: 'center', gap: 6,
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  amountCard: {
+    backgroundColor: colors.infoLight, borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', gap: 6, ...shadows.sm,
   },
-  amountLabel: { fontSize: 13, color: '#64748B' },
-  amountValue: { fontSize: 28, fontWeight: '800', color: '#1D4ED8' },
-  escrowHint: { fontSize: 11, color: '#3B82F6', textAlign: 'center', marginTop: 4 },
-  cashWarning: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFBEB', borderRadius: 10, borderWidth: 1, borderColor: '#FCD34D', paddingHorizontal: 12, paddingVertical: 8, marginTop: 8 },
-  cashWarningText: { fontSize: 11, color: '#B45309', fontWeight: '600', flex: 1 },
-  escrowChoice: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: '#CBD5E1', padding: 12, marginTop: 10 },
-  escrowChoiceActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
-  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#94A3B8', alignItems: 'center', justifyContent: 'center' },
-  checkCircleActive: { backgroundColor: '#059669', borderColor: '#059669' },
-  checkCircleText: { color: '#fff' },
-  escrowChoiceTitle: { fontSize: 13, color: '#0F172A', fontWeight: '800' },
-  escrowChoiceSub: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  amountLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
+  amountValue: { fontSize: 30, fontWeight: typography.weight.extrabold as any, color: colors.info },
+  escrowHint: { fontSize: 12, color: colors.info, textAlign: 'center', marginTop: 4, fontWeight: typography.weight.semibold as any },
+  cashBox: { width: '100%', alignItems: 'center', marginTop: 4 },
+  cashWarning: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warningLight, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning, paddingHorizontal: 12, paddingVertical: 8, marginTop: 8 },
+  cashWarningText: { fontSize: 11, color: '#B45309', fontWeight: typography.weight.semibold as any, flex: 1 },
+  depositBox: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.sm, width: '100%' },
+  depositLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
+  depositValue: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.primary, marginTop: 2 },
+  depositHint: { fontSize: 11, color: colors.textSecondary, textAlign: 'center', marginTop: 4 },
+  escrowChoice: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, padding: spacing.md, marginTop: 10 },
+  escrowChoiceActive: { backgroundColor: colors.successLight, borderColor: colors.success },
+  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.textMuted, alignItems: 'center', justifyContent: 'center' },
+  checkCircleActive: { backgroundColor: colors.success, borderColor: colors.success },
+  escrowChoiceTitle: { fontSize: 13, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  escrowChoiceSub: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
   escrowRow: { marginTop: 8, alignItems: 'center', gap: 8 },
-  escrowCost: { fontSize: 12, color: '#0F172A', fontWeight: '700', textAlign: 'center' },
-  topupBtn: { backgroundColor: '#DBEAFE', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
-  topupText: { color: '#1D4ED8', fontSize: 12, fontWeight: '800' },
-  depositRow: { alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, marginTop: 10, width: '100%' },
-  depositLabel: { fontSize: 13, color: '#64748B', fontWeight: '600' },
-  depositValue: { fontSize: 20, fontWeight: '800', color: '#059669', marginTop: 2 },
-  depositHint: { fontSize: 11, color: '#64748B', textAlign: 'center', marginTop: 4 },
-  modeSelector: { flexDirection: 'row', gap: 10 },
-  modeBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center' },
-  modeBtnActive: { borderColor: '#059669', backgroundColor: '#ECFDF5' },
-  modeText: { fontSize: 14, fontWeight: '700', color: '#334155' },
-  modeTextActive: { color: '#059669' },
-  modeSub: { fontSize: 11, color: '#64748B', marginTop: 2, textAlign: 'center' },
-  sectionTitle: { fontSize: 15, fontWeight: '600', color: '#334155' },
+  escrowCost: { fontSize: 12, color: colors.text, fontWeight: typography.weight.bold as any, textAlign: 'center' },
+  topupBtn: { backgroundColor: colors.infoLight, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 7 },
+  topupText: { color: colors.info, fontSize: 12, fontWeight: typography.weight.extrabold as any },
+  modeSelector: { flexDirection: 'row', gap: spacing.sm },
+  modeBtn: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 2, borderColor: colors.border, alignItems: 'center', ...shadows.sm },
+  modeBtnActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  modeText: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
+  modeTextActive: { color: colors.primary },
+  modeSub: { fontSize: 11, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
+  sectionTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
   providerCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    padding: 16, borderRadius: 14, backgroundColor: '#fff',
-    borderWidth: 2, borderColor: '#E2E8F0',
+    padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface,
+    borderWidth: 2, borderColor: colors.border, ...shadows.sm,
   },
-  providerIcon: { },
-  providerLabel: { fontSize: 16, fontWeight: '600', color: '#0F172A', flex: 1 },
-  checkMark: { },
+  providerIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  providerLabel: { fontSize: 16, fontWeight: typography.weight.semibold as any, color: colors.text, flex: 1 },
   payBtn: {
-    backgroundColor: '#059669', borderRadius: 14, padding: 16,
-    alignItems: 'center', marginTop: 'auto',
+    backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.lg,
+    alignItems: 'center', marginTop: spacing.sm, ...shadows.md,
   },
   payBtnDisabled: { opacity: 0.5 },
-  payBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  payBtnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
 })
 
 export default withScreenBoundary(PaymentScreen, 'Payment')

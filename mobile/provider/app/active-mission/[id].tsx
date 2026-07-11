@@ -89,9 +89,12 @@ function isImageMedia(type: unknown, url: unknown): boolean {
 
 function resolveMediaUrl(rawUrl: unknown): string | null {
   if (typeof rawUrl !== 'string') return null
-  const v = rawUrl.trim()
+  let v = rawUrl.trim()
   if (!v) return null
   if (/^(https?:|file:|blob:|data:)/i.test(v)) return v
+  if (v.startsWith('/api/uploads/')) {
+    v = v.replace('/api/uploads/', '/uploads/')
+  }
   const base = getBaseUrl().replace(/\/$/, '')
   if (v.startsWith('/')) return `${base}${v}`
   return `${base}/${v}`

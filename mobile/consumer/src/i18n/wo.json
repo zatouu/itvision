@@ -36,6 +36,33 @@
     "devCode": "Kood bu dev",
     "logout": "Génne"
   },
+  "menu": {
+    "home": "Kër",
+    "myRequests": "Sama laaj",
+    "wallet": "Poort-mbéyl",
+    "notifications": "Yégale",
+    "profile": "Profil",
+    "rateApp": "Wóorël app bi",
+    "help": "Ndimbal & Topp",
+    "about": "Ci mbir mi",
+    "logout": "Génne",
+    "navigation": "Doxal",
+    "account": "Sama bopp",
+    "settings": "Téere yi",
+    "verified": "Wóor",
+    "guest": "Tudd"
+  },
+  "setup": {
+    "title": "Dalal jàmm!",
+    "subtitle": "Duggal sa tur ngir def sa xërët bu sa wàll.",
+    "nameLabel": "Tur ak tur yaay",
+    "namePlaceholder": "Misal: Aminata Diop",
+    "phoneLabel": "Telefon",
+    "phonePlaceholder": "77 123 45 67",
+    "save": "Kontine",
+    "nameRequired": "Duggal sa tur",
+    "error": "Njuumte ci denc sa profil"
+  },
   "home": {
     "greeting_morning": "Jàmm ngeen fanaan",
     "greeting_afternoon": "Naka ngeen def",
@@ -63,7 +90,25 @@
     "locating": "Ngi am kàrt...",
     "locationNeeded": "Doxal sa localisation ngir gis kàrt bi",
     "missions": "mission yi",
-    "newProvider": "Liggéykat bu bees"
+    "newProvider": "Liggéykat bu bees",
+    "offersWaiting": "{{count}} liggéey bu ñu tegu",
+    "offersWaitingSub": "Pil ak tann sa liggéeykat",
+    "reviewOffers": "Xool liggéey yi",
+    "activeMissions": "Liggéey yi ngir ñu wér",
+    "noActiveMissions": "Amul liggéey bu wér",
+    "providerArriving": "Liggéeykat di ñëw",
+    "providerInProgress": "Liggéey di wér",
+    "quickActions": "Liggéey yu gaaw",
+    "emergencyRepair": "Toppat bu gaaw",
+    "emergencySub": "Kooling, ndox, saraxu bunt",
+    "howItWorks": "Nan la jëf",
+    "step1": "Yónne sa laaj",
+    "step1Sub": "Wone poroblem bi, yonnal foto ak baat",
+    "step2": "Jot liggéey",
+    "step2Sub": "Liggéeykat yi ëpp ci sa wet ngir tontu",
+    "step3": "Tann ak wóor",
+    "step3Sub": "Pil njëg ak seet",
+    "recommendedProviders": "Liggéeykat yi ñu digal ci sa wet"
   },
   "request": {
     "createTitle": "Laaj bu bees",
@@ -145,7 +190,9 @@
     "status_rejected": "Bañ",
     "status_expired": "Jeex",
     "status_withdrawn": "Ñu jëlat",
-    "status_cancelled": "Ëpp"
+    "status_cancelled": "Ëpp",
+    "voiceMessage": "Bataaxal bu ñu wax",
+    "media": "Média"
   },
   "requests": {
     "title": "Samay laaj",
@@ -228,7 +275,31 @@
     "mediaUnavailable": "Média bu nekkul",
     "invalidMediaLink": "Lien média bi baaxul",
     "cannotOpenLink": "Mënuma ubbi lien bi",
-    "cannotOpenMedia": "Mënuma ubbi média bi"
+    "cannotOpenMedia": "Mënuma ubbi média bi",
+    "trackingTitle": "Tëralin",
+    "noLocation": "Amul bérébu podoor",
+    "stepAssigned": "Teg",
+    "stepArriving": "Di ñëw",
+    "stepInProgress": "Ci barab bi",
+    "stepCompleted": "Ban",
+    "bannerAssigned": "Liggéeykat bi tegu na",
+    "bannerArriving": "Di ñëw ci yaw",
+    "bannerInProgress": "Liggéey di wér",
+    "bannerCompleted": "Liggéey bi mu jeex",
+    "bannerCancelled": "Liggéey bi ñu neexal",
+    "arrivingIn": "Da na ñëw ci {{eta}}",
+    "sinceLabel": "Di wér ba {{duration}}",
+    "durationLabel": "Diiru: {{duration}}",
+    "agreedPrice": "Nëg bu ñu wóoral",
+    "service": "Liggéey",
+    "payment": "Fay",
+    "depositPaid": "Deposite bi ñu fay",
+    "balanceDue": "Solde bi ngay fay",
+    "cashOnPlace": "Cash ci barab bi",
+    "depositPhase": "deposite",
+    "balancePhase": "solde",
+    "totalPhase": "épp",
+    "cancelBtn": "Neexal liggéey bi"
   },
   "rating": {
     "title": "Dimbali ci sa xel",
@@ -295,7 +366,11 @@
     "referralShareMessage": "Ñëwal ci Xeuy Bi! Jëfandikoo sama kód {{code}} te am 1 000 FCFA. Yebbal app bi fi: https://xeuy.sn",
     "referralShare": "Séddoo",
     "referralEarned": "Am",
-    "referralCount": "Parrainage yi"
+    "referralCount": "Parrainage yi",
+    "avatarTitle": "Nataal profil",
+    "avatarCamera": "Jàpp nataal",
+    "avatarGallery": "Tànn ci galeri bi",
+    "avatarGenerated": "Jëfandikoo inisyal yi"
   },
   "chat": {
     "title": "Baat",

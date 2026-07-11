@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Créer un nouvel utilisateur mobile
-      const displayName = rawName && typeof rawName === 'string' ? rawName.trim().slice(0, 100) : phone.slice(-9)
+      const displayName = rawName && typeof rawName === 'string' ? rawName.trim().slice(0, 100) : ''
       const referralCode = await createUniqueReferralCode()
       const newUser = await User.create({
         username: `mobile_${phone.replace('+', '')}`,
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         referralCount: 0,
       })
       user = newUser.toObject()
+      user._isNew = true
 
       // Créer les profils découplés par domaine
       const mappedRole = role === 'PROVIDER' ? 'TECHNICIAN' : 'CLIENT'
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest) {
         name: user.name,
         phone: user.phone,
         role: role,
-        isNew: user.name === phone.slice(-9),
+        isNew: !!user._isNew,
         referralCode: user.referralCode,
         referralBalance: user.referralBalance || 0,
       },

@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, Pressable } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
+import { Image } from 'expo-image'
+import { Video, ResizeMode } from 'expo-av'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../src/socket'
 import { fetchWithCache, cacheClear } from '../src/storage'
@@ -13,7 +15,9 @@ import { SkeletonCard } from '../src/components/Skeleton'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
 import { hapticSuccess, hapticWarning, hapticLight } from '../src/haptics'
-import { ArrowLeft, Star, Clock, Hourglass } from 'lucide-react-native'
+import { ArrowLeft, Star, Clock, Hourglass, Play, X, Volume2 } from 'lucide-react-native'
+import VoicePlayer from '../src/components/VoicePlayer'
+import { resolveMediaUrl } from '../src/media'
 
 const STATUS_OFFER: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   submitted: { key: 'offers.status_submitted',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
@@ -58,6 +62,7 @@ function RequestOffers() {
   const { t, i18n } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const [offers, setOffers] = useState<any[]>([])
+  const [fullMedia, setFullMedia] = useState<{ uri: string; type: string } | null>(null)
   const [serviceRequest, setServiceRequest] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -345,6 +350,77 @@ function RequestOffers() {
           </View>
         </View>
       )}
+
+      {/* Médias de la demande */}
+      {serviceRequest?.media?.some((m: any) => m.type === 'audio') && (() => {
+        const audioMedia = serviceRequest.media.find((m: any) => m.type === 'audio')
+        return (
+          <View style={s.mediaSection}>
+            <View style={s.audioBadge}>
+              <Volume2 size={16} color="#1DC3F0" />
+              <Text style={s.audioBadgeText}>{t('offers.voiceMessage') || 'Message vocal'}</Text>
+            </View>
+            <VoicePlayer uri={resolveMediaUrl(audioMedia.url || audioMedia.uri)} />
+          </View>
+        )
+      })()}
+
+      {serviceRequest?.media?.some((m: any) => ['image', 'video'].includes(m.type || 'image')) ? (
+        <View style={s.mediaSection}>
+          <Text style={s.mediaTitle}>{t('offers.media') || 'Médias'}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              {serviceRequest.media.filter((m: any) => ['image', 'video'].includes(m.type || 'image')).map((m: any, i: number) => {
+                const uri = resolveMediaUrl(m.url || m.uri)
+                const isVideo = m.type === 'video'
+                return (
+                  <TouchableOpacity key={i} style={s.thumb} onPress={() => setFullMedia({ uri, type: m.type || 'image' })}>
+                    {isVideo ? (
+                      <View style={s.thumbImage}>
+                        <Video
+                          source={{ uri }}
+                          style={StyleSheet.absoluteFill}
+                          resizeMode={ResizeMode.COVER}
+                          shouldPlay={false}
+                          isLooping={false}
+                          useNativeControls={false}
+                        />
+                        <View style={s.playOverlay}>
+                          <Play size={24} color="#fff" fill="#fff" />
+                        </View>
+                      </View>
+                    ) : (
+                      <Image source={{ uri }} style={s.thumbImage} contentFit="cover" />
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      ) : null}
+
+      <Modal visible={!!fullMedia} transparent animationType="fade" onRequestClose={() => setFullMedia(null)}>
+        <Pressable style={s.mediaModalOverlay} onPress={() => setFullMedia(null)}>
+          <View style={s.mediaModalContent}>
+            <TouchableOpacity style={s.mediaModalClose} onPress={() => setFullMedia(null)}>
+              <X size={24} color="#fff" />
+            </TouchableOpacity>
+            {fullMedia?.type === 'video' ? (
+              <Video
+                source={{ uri: fullMedia.uri }}
+                style={s.fullMedia}
+                resizeMode={ResizeMode.CONTAIN}
+                useNativeControls
+                shouldPlay
+                isLooping={false}
+              />
+            ) : fullMedia ? (
+              <Image source={{ uri: fullMedia.uri }} style={s.fullMedia} contentFit="contain" />
+            ) : null}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Carte live des prestataires qui consultent la demande (style InDriver) */}
       {requestLocation && !requestDone ? (
@@ -640,6 +716,17 @@ const s = StyleSheet.create({
   reqMonogramText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   reqTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text, lineHeight: 21 },
   reqMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  mediaSection: { marginHorizontal: spacing.lg, marginTop: spacing.md },
+  mediaTitle: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm },
+  audioBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#E0F7FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 8 },
+  audioBadgeText: { fontSize: 12, fontWeight: '700', color: '#0369A1' },
+  thumb: { width: 80, height: 80, borderRadius: radius.lg, overflow: 'hidden' },
+  thumbImage: { width: '100%', height: '100%' },
+  playOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
+  mediaModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.md },
+  mediaModalContent: { width: '100%', height: '80%', alignItems: 'center', justifyContent: 'center' },
+  mediaModalClose: { position: 'absolute', top: 0, right: 0, zIndex: 10, padding: spacing.sm },
+  fullMedia: { width: '100%', height: '100%', borderRadius: radius.lg },
   rtRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.border },
   rtDot: { width: 7, height: 7, borderRadius: 4 },
   rtDot2: { width: 5, height: 5, borderRadius: 3 },

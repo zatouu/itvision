@@ -36,6 +36,33 @@
     "devCode": "Code de dev",
     "logout": "Déconnexion"
   },
+  "menu": {
+    "home": "Accueil",
+    "myRequests": "Mes demandes",
+    "wallet": "Portefeuille",
+    "notifications": "Notifications",
+    "profile": "Profil",
+    "rateApp": "Noter l'app",
+    "help": "Aide & Support",
+    "about": "À propos",
+    "logout": "Déconnexion",
+    "navigation": "Navigation",
+    "account": "Compte",
+    "settings": "Paramètres",
+    "verified": "Vérifié",
+    "guest": "Invité"
+  },
+  "setup": {
+    "title": "Bienvenue !",
+    "subtitle": "Renseignez votre nom pour personnaliser votre expérience.",
+    "nameLabel": "Prénom et nom",
+    "namePlaceholder": "Ex : Aminata Diop",
+    "phoneLabel": "Téléphone",
+    "phonePlaceholder": "77 123 45 67",
+    "save": "Continuer",
+    "nameRequired": "Veuillez saisir votre nom",
+    "error": "Erreur lors de l'enregistrement"
+  },
   "home": {
     "greeting_morning": "Bonjour",
     "greeting_afternoon": "Bon après-midi",
@@ -63,7 +90,25 @@
     "locating": "Localisation en cours...",
     "locationNeeded": "Activez la localisation pour voir la carte",
     "missions": "missions",
-    "newProvider": "Nouveau prestataire"
+    "newProvider": "Nouveau prestataire",
+    "offersWaiting": "{{count}} offre(s) en attente",
+    "offersWaitingSub": "Comparez et choisissez votre prestataire",
+    "reviewOffers": "Voir les offres",
+    "activeMissions": "Missions en cours",
+    "noActiveMissions": "Aucune mission en cours",
+    "providerArriving": "Prestataire en route",
+    "providerInProgress": "Intervention en cours",
+    "quickActions": "Services rapides",
+    "emergencyRepair": "Réparation urgente",
+    "emergencySub": "Électricité, plomberie, serrurerie",
+    "howItWorks": "Comment ça marche",
+    "step1": "Publiez votre demande",
+    "step1Sub": "Décrivez le problème, ajoutez photos et vocal",
+    "step2": "Recevez des offres",
+    "step2Sub": "Les prestataires proches vous répondent",
+    "step3": "Choisissez et notez",
+    "step3Sub": "Comparez les prix et les avis",
+    "recommendedProviders": "Prestataires recommandes pres de vous"
   },
   "request": {
     "createTitle": "Nouvelle demande",
@@ -155,7 +200,9 @@
     "statusInProgress": "En intervention",
     "statusSelected": "Sélectionné",
     "statusOffered": "A fait une offre",
-    "statusViewing": "Consulte votre demande"
+    "statusViewing": "Consulte votre demande",
+    "voiceMessage": "Message vocal",
+    "media": "Médias"
   },
   "requests": {
     "title": "Mes demandes",
@@ -238,7 +285,31 @@
     "mediaUnavailable": "Média indisponible",
     "invalidMediaLink": "Lien du média invalide",
     "cannotOpenLink": "Impossible d'ouvrir ce lien",
-    "cannotOpenMedia": "Impossible d'ouvrir ce média"
+    "cannotOpenMedia": "Impossible d'ouvrir ce média",
+    "trackingTitle": "Suivi",
+    "noLocation": "Aucune position disponible",
+    "stepAssigned": "Assigné",
+    "stepArriving": "En route",
+    "stepInProgress": "Sur place",
+    "stepCompleted": "Terminée",
+    "bannerAssigned": "Prestataire assigné",
+    "bannerArriving": "En route vers vous",
+    "bannerInProgress": "Intervention en cours",
+    "bannerCompleted": "Mission terminée",
+    "bannerCancelled": "Mission annulée",
+    "arrivingIn": "Arrive dans {{eta}}",
+    "sinceLabel": "En cours depuis {{duration}}",
+    "durationLabel": "Durée : {{duration}}",
+    "agreedPrice": "Prix convenu",
+    "service": "Service",
+    "payment": "Paiement",
+    "depositPaid": "Dépôt payé",
+    "balanceDue": "Solde à payer",
+    "cashOnPlace": "Cash sur place",
+    "depositPhase": "dépôt",
+    "balancePhase": "solde",
+    "totalPhase": "total",
+    "cancelBtn": "Annuler la mission"
   },
   "rating": {
     "title": "Notez cette intervention",
@@ -305,7 +376,11 @@
     "referralShareMessage": "Rejoins-moi sur Xeuy Bi ! Utilise mon code {{code}} et gagne 1 000 FCFA. Télécharge l'app ici : https://xeuy.sn",
     "referralShare": "Partager",
     "referralEarned": "Gagnés",
-    "referralCount": "Parrainages"
+    "referralCount": "Parrainages",
+    "avatarTitle": "Photo de profil",
+    "avatarCamera": "Prendre une photo",
+    "avatarGallery": "Choisir dans la galerie",
+    "avatarGenerated": "Utiliser un avatar avec initiales"
   },
   "chat": {
     "title": "Chat",

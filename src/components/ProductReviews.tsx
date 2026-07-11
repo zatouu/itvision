@@ -43,7 +43,7 @@ function StarRating({ rating, size = 16, interactive = false, onChange }: {
         >
           <Star
             size={size}
-            className={`${(hover || rating) >= i ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'} transition-colors`}
+            className={`${(hover || rating) >= i ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 dark:fill-slate-600 text-gray-200 dark:text-slate-600'} transition-colors`}
           />
         </button>
       ))}
@@ -192,13 +192,13 @@ export default function ProductReviews({ productId }: { productId: string }) {
       {/* Header + Stats */}
       <div className="flex flex-col md:flex-row md:items-start gap-6 mb-6">
         <div className="flex-1">
-          <h3 className="text-xl font-bold text-gray-900">Avis clients</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-slate-200">Avis clients</h3>
           {stats && stats.total > 0 && (
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-3xl font-bold text-gray-900">{stats.avgRating}</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-slate-200">{stats.avgRating}</span>
               <div>
                 <StarRating rating={Math.round(stats.avgRating)} size={18} />
-                <p className="text-sm text-gray-500 mt-0.5">{stats.total} avis{stats.withPhotos > 0 && ` · ${stats.withPhotos} avec photos`}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{stats.total} avis{stats.withPhotos > 0 && ` · ${stats.withPhotos} avec photos`}</p>
               </div>
             </div>
           )}
@@ -212,12 +212,12 @@ export default function ProductReviews({ productId }: { productId: string }) {
               const pct = stats.total > 0 ? (count / stats.total) * 100 : 0
               return (
                 <div key={star} className="flex items-center gap-2 text-sm">
-                  <span className="w-4 text-right text-gray-500 font-medium">{star}</span>
+                  <span className="w-4 text-right text-gray-500 dark:text-slate-400 font-medium">{star}</span>
                   <Star size={12} className="fill-yellow-400 text-yellow-400 flex-shrink-0" />
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="flex-1 h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="w-8 text-right text-gray-400 text-xs">{count}</span>
+                  <span className="w-8 text-right text-gray-400 dark:text-slate-500 text-xs">{count}</span>
                 </div>
               )
             })}
@@ -237,48 +237,48 @@ export default function ProductReviews({ productId }: { productId: string }) {
 
       {/* Success message */}
       {formSuccess && !showForm && (
-        <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700 font-medium">
+        <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 text-sm text-green-700 dark:text-green-400 font-medium">
           Merci pour votre avis !
         </div>
       )}
 
       {/* Formulaire */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 p-5 rounded-2xl border border-gray-200 bg-white shadow-sm space-y-4">
+        <form onSubmit={handleSubmit} className="mb-6 p-5 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Votre note</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">Votre note</label>
             <StarRating rating={formRating} size={28} interactive onChange={setFormRating} />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Titre (optionnel)</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">Titre (optionnel)</label>
             <input
               type="text"
               value={formTitle}
               onChange={e => setFormTitle(e.target.value)}
               placeholder="Resumez votre experience"
               maxLength={100}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none"
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Votre avis</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">Votre avis</label>
             <textarea
               value={formComment}
               onChange={e => setFormComment(e.target.value)}
               placeholder="Partagez votre experience avec ce produit (min 10 caracteres)"
               rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none resize-none"
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none resize-none"
             />
           </div>
 
           {/* Photos */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Photos (max 5)</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Photos (max 5)</label>
             <div className="flex flex-wrap gap-2">
               {formPhotos.map((url, idx) => (
-                <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
+                <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-600 group">
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -290,7 +290,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
                 </div>
               ))}
               {formPhotos.length < 5 && (
-                <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition">
+                <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition">
                   {uploading ? (
                     <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
                   ) : (
@@ -325,7 +325,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition"
+              className="px-4 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition"
             >
               Annuler
             </button>
@@ -335,30 +335,30 @@ export default function ProductReviews({ productId }: { productId: string }) {
 
       {/* Liste des avis */}
       {loading ? (
-        <div className="text-center py-8 text-gray-400">
+        <div className="text-center py-8 text-gray-400 dark:text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
           Chargement des avis...
         </div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-8 rounded-2xl border border-gray-200 bg-white">
-          <ImageIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">Aucun avis pour le moment. Soyez le premier !</p>
+        <div className="text-center py-8 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <ImageIcon className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+          <p className="text-sm text-gray-500 dark:text-slate-400">Aucun avis pour le moment. Soyez le premier !</p>
         </div>
       ) : (
         <div className="space-y-4">
           {reviews.map(review => (
-            <div key={review.id} className="p-4 rounded-2xl border border-gray-200 bg-white">
+            <div key={review.id} className="p-4 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-gray-900">{review.userName}</span>
+                    <span className="font-semibold text-sm text-gray-900 dark:text-slate-200">{review.userName}</span>
                     {review.verified && (
-                      <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">Achat verifie</span>
+                      <span className="text-[10px] bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold">Achat verifie</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <StarRating rating={review.rating} size={14} />
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-slate-500">
                       {new Date(review.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </span>
                   </div>
@@ -366,9 +366,9 @@ export default function ProductReviews({ productId }: { productId: string }) {
               </div>
 
               {review.title && (
-                <p className="font-semibold text-sm text-gray-900 mt-2">{review.title}</p>
+                <p className="font-semibold text-sm text-gray-900 dark:text-slate-200 mt-2">{review.title}</p>
               )}
-              <p className="text-sm text-gray-700 mt-1 leading-relaxed">{review.comment}</p>
+              <p className="text-sm text-gray-700 dark:text-slate-300 mt-1 leading-relaxed">{review.comment}</p>
 
               {/* Photos */}
               {review.photos.length > 0 && (
@@ -377,7 +377,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
                     <button
                       key={idx}
                       onClick={() => setLightboxSrc(photo)}
-                      className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 hover:border-violet-300 hover:shadow-md transition"
+                      className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-600 hover:border-violet-300 hover:shadow-md transition"
                     >
                       <img src={photo} alt="" className="w-full h-full object-cover" />
                     </button>
@@ -387,7 +387,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
 
               {/* Helpful */}
               {review.helpful > 0 && (
-                <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-400">
+                <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-400 dark:text-slate-500">
                   <ThumbsUp className="w-3.5 h-3.5" />
                   {review.helpful} personne{review.helpful > 1 ? 's' : ''} a trouve cet avis utile
                 </div>
@@ -405,7 +405,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
                   className={`w-8 h-8 rounded-lg text-sm font-semibold transition ${
                     p === page
                       ? 'bg-gradient-to-r from-green-500 to-violet-500 text-white shadow'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   {p}

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
+import { getBaseUrl } from './api'
 
 export interface PickedMedia {
   uri: string
@@ -29,6 +30,23 @@ export async function captureMedia(options?: { selfie?: boolean }): Promise<Pick
     name: a.fileName || `capture-${Date.now()}.jpg`,
     type: 'image',
   }))
+}
+
+/**
+ * Résout une URL média en URL absolue utilisable par Image/Video/Audio.
+ * Gère les URLs absolues, les chemins /uploads/ et corrige les anciens
+ * chemins /api/uploads/ en /uploads/ (l'endpoint API n'existe pas).
+ */
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url) return ''
+  let v = url.trim()
+  if (!v) return ''
+  if (/^(https?:|file:|blob:|data:)/i.test(v)) return v
+  if (v.startsWith('/api/uploads/')) {
+    v = v.replace('/api/uploads/', '/uploads/')
+  }
+  const base = getBaseUrl().replace(/\/$/, '')
+  return v.startsWith('/') ? `${base}${v}` : `${base}/${v}`
 }
 
 export async function pickMedia(options?: { maxFiles?: number }): Promise<PickedMedia[]> {

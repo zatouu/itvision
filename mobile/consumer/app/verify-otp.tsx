@@ -46,8 +46,8 @@ export default function VerifyOtp() {
       // Recréer le socket avec le nouveau token
       resetSocket()
       hapticSuccess()
-      // Naviguer vers l'accueil
-      router.replace('/')
+      // Naviguer vers l'onboarding si nouveau user, sinon l'accueil
+      router.replace(data.user?.isNew ? '/setup-profile' : '/')
     } catch (e: any) {
       hapticError()
       setErr(t('auth.errorNetwork'))

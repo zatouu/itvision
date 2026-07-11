@@ -71,13 +71,21 @@ export default function Layout(){
   // Auth guard : rediriger vers /login ou / selon l'état
   useEffect(() => {
     if (!ready) return
-    const onAuthScreen = segments[0] === 'login' || segments[0] === 'verify-otp'
-    if (!loggedIn && !onAuthScreen) {
+    const onLoginScreen = segments[0] === 'login' || segments[0] === 'verify-otp'
+    const onSetupScreen = segments[0] === 'setup-profile'
+    if (!loggedIn && !onLoginScreen) {
       router.replace('/login')
-    } else if (loggedIn && onAuthScreen) {
+    } else if (loggedIn && onLoginScreen) {
       router.replace('/')
-    } else if (loggedIn) {
-      flushPendingNavigation()
+    } else if (loggedIn && !onSetupScreen) {
+      // Rediriger vers setup-profile si l'utilisateur n'a pas encore de nom
+      const u = getAuthUser()
+      const needsSetup = !u?.name?.trim() || /^\d{7,}$/.test(u.name.trim())
+      if (needsSetup) {
+        router.replace('/setup-profile')
+      } else {
+        flushPendingNavigation()
+      }
     }
   }, [ready, loggedIn, segments])
 

@@ -36,6 +36,17 @@
     "devCode": "Dev code",
     "logout": "Log out"
   },
+  "setup": {
+    "title": "Welcome!",
+    "subtitle": "Enter your name to personalize your experience.",
+    "nameLabel": "First and last name",
+    "namePlaceholder": "e.g. Mamadou Diop",
+    "phoneLabel": "Phone",
+    "phonePlaceholder": "77 123 45 67",
+    "save": "Continue",
+    "nameRequired": "Please enter your name",
+    "error": "Error saving profile"
+  },
   "home": {
     "greeting_morning": "Good morning",
     "greeting_afternoon": "Good afternoon",
@@ -219,7 +230,11 @@
     "help": "Help & Support",
     "about": "About",
     "appVersion": "Version",
-    "memberSince": "Member since"
+    "memberSince": "Member since",
+    "avatarTitle": "Profile photo",
+    "avatarCamera": "Take a photo",
+    "avatarGallery": "Choose from gallery",
+    "avatarGenerated": "Use initials avatar"
   },
   "chat": {
     "title": "Chat",

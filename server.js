@@ -8,6 +8,7 @@ const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
 const { jwtVerify } = require('jose')
+const geo = require('./lib/redis-geo')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
@@ -54,19 +55,19 @@ async function verifyToken(token) {
   }
 }
 
-// ── GEOFENCING : présence enrichie des providers en mémoire ──
-// userId → { lat, lng, updatedAt, status, viewingRequestId, missionRequestId, name, email, lastEmitAt }
-// status: 'available' | 'viewing' | 'on_mission' | 'offline'
-// NOTE MVP : en mémoire partagée car API routes et Socket.io tournent dans le même process node.
-// Pour scaler horizontal / multi-instance, migrer vers Redis GEO (documenté dans le backlog).
-const providerPresence = new Map()
-const STALE_POSITION_MS = 10 * 60 * 1000 // 10 min sans update = considéré stale
+// ── GEOFENCING : présence des providers via Redis GEO ──
+// Redis GEO commands (GEOADD, GEOSEARCH) for O(log N) spatial queries.
+// Fallback: in-memory Map if Redis is unavailable.
+// providerPresence Map is kept as a fallback cache for synchronous access.
+const providerPresence = new Map() // fallback only
+const STALE_POSITION_MS = geo.STALE_POSITION_MS
 const EMIT_THROTTLE_MS = 3000 // throttle côté serveur pour limiter les écritures mémoire/batterie
 
 function isStale(pos) {
   return !pos || Date.now() - (pos.updatedAt || 0) > STALE_POSITION_MS
 }
 
+// Keep in-memory cache in sync for legacy code that reads providerPresence directly
 function updatePresence(userId, patch) {
   const existing = providerPresence.get(userId) || {}
   const now = Date.now()
@@ -75,17 +76,20 @@ function updatePresence(userId, patch) {
     ...patch,
     updatedAt: now,
   })
-}
-
-/**
- * Haversine distance between two points in km
- */
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLng = (lng2 - lng1) * Math.PI / 180
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  // Also persist to Redis GEO asynchronously
+  if (existing.lat != null && existing.lng != null || patch.lat != null && patch.lng != null) {
+    geo.updateProviderPosition(userId, {
+      lat: patch.lat != null ? patch.lat : existing.lat,
+      lng: patch.lng != null ? patch.lng : existing.lng,
+      status: patch.status || existing.status,
+      name: patch.name || existing.name,
+      email: patch.email || existing.email,
+      viewingRequestId: patch.viewingRequestId !== undefined ? patch.viewingRequestId : existing.viewingRequestId,
+      missionRequestId: patch.missionRequestId !== undefined ? patch.missionRequestId : existing.missionRequestId,
+    }).catch(() => {}) // fire-and-forget
+  } else {
+    geo.updateProviderMeta(userId, patch).catch(() => {})
+  }
 }
 
 app.prepare().then(() => {
@@ -176,6 +180,27 @@ app.prepare().then(() => {
         p.status = 'offline'
         p.updatedAt = Date.now()
       }
+      geo.setProviderOffline(userId).catch(() => {})
+    })
+
+    // Provider rejoint une zone géofencée pour recevoir les demandes proches
+    // Stocke la position + rayon pour les notifications temps réel
+    socket.on('join-nearby-room', (data) => {
+      if (!data?.lat || !data?.lng) return
+      const radiusKm = Number(data.radiusKm) || 10
+      socket.join('nearby-providers')
+      socket.nearbyRadius = radiusKm
+      updatePresence(userId, {
+        lat: data.lat,
+        lng: data.lng,
+        status: providerPresence.get(userId)?.missionRequestId ? 'on_mission' : (providerPresence.get(userId)?.viewingRequestId ? 'viewing' : 'available'),
+      })
+      console.log(`   📍 ${userId} a rejoint la zone nearby (${radiusKm}km)`)
+    })
+    socket.on('leave-nearby-room', () => {
+      socket.leave('nearby-providers')
+      socket.nearbyRadius = null
+      console.log(`   📍 ${userId} a quitté la zone nearby`)
     })
 
     // Provider envoie sa position GPS globale pour le geofencing
@@ -383,7 +408,8 @@ app.prepare().then(() => {
   })
 
   // Periodic cleanup of stale provider positions (every 10 min)
-  setInterval(() => {
+  setInterval(async () => {
+    // In-memory cleanup
     const now = Date.now()
     let cleaned = 0
     for (const [id, pos] of providerPresence.entries()) {
@@ -392,51 +418,53 @@ app.prepare().then(() => {
         cleaned++
       }
     }
-    if (cleaned > 0) console.log(`[GF] Cleaned ${cleaned} stale provider position(s)`)
+    if (cleaned > 0) console.log(`[GF] Cleaned ${cleaned} stale provider position(s) [memory]`)
+    // Redis cleanup
+    await geo.cleanupStale()
   }, STALE_POSITION_MS)
 
   // Exposer io et la présence provider globalement pour pouvoir l'utiliser dans les API routes
   global.io = io
   global.providerPresence = providerPresence
+  global.geo = geo
 
   /**
    * Notify only providers within radiusKm of the request location.
+   * Uses Redis GEOSEARCH for O(log N) spatial queries.
+   * Fallback: in-memory Map if Redis unavailable.
    * Fallback broadcast only when NO provider has ever reported a position.
    * Providers currently on another mission are still notified (ils peuvent refuser/ignorer),
    * mais prioritairement ceux disponibles.
    */
-  global.notifyNearbyProviders = function (requestData, radiusKm = 10) {
+  global.notifyNearbyProviders = async function (requestData, radiusKm = 10) {
     const { lng, lat, requestId } = requestData
     if (!lng || !lat || !requestId) return 0
-    const now = Date.now()
-    let notified = 0
-    let inRadius = 0
-    // Trier par statut : available/viewing en premier, on_mission/offline ensuite
-    const entries = []
-    for (const [providerId, pos] of providerPresence.entries()) {
-      entries.push([providerId, pos])
-    }
-    entries.sort((a, b) => {
-      const score = (p) => (p.status === 'available' ? 0 : p.status === 'viewing' ? 1 : p.status === 'on_mission' ? 2 : 3)
-      return score(a[1]) - score(b[1])
-    })
-    for (const [providerId, pos] of entries) {
-      const dist = haversineKm(lat, lng, pos.lat, pos.lng)
-      if (dist <= radiusKm) inRadius++
-      if (now - pos.updatedAt > STALE_POSITION_MS) continue
-      if (dist <= radiusKm) {
-        io.to(`provider-${providerId}`).emit('request:nearby', requestData)
+
+    try {
+      const nearby = await geo.findNearbyProviders(lat, lng, radiusKm)
+      let notified = 0
+
+      for (const p of nearby) {
+        io.to(`provider-${p.providerId}`).emit('request:nearby', requestData)
         notified++
       }
-    }
-    // Fallback: broadcast ONLY if zero providers have ever reported a position.
-    if (notified === 0 && providerPresence.size === 0) {
-      console.log(`[GF] No provider positions known — broadcasting request ${requestId} to all online providers`)
+
+      // Fallback: broadcast to all online providers if geofencing found zero matches.
+      if (notified === 0) {
+        console.log(`[GF] Broadcasting request ${requestId} to all online providers (no nearby match)`)
+        io.to('providers-online').emit('request:nearby', requestData)
+        return 'broadcast'
+      }
+
+      const total = await geo.getProviderCount()
+      console.log(`[GF] Notified ${notified} providers within ${radiusKm}km for request ${requestId} (total tracked: ${total})`)
+      return notified
+    } catch (err) {
+      console.error('[GF] notifyNearbyProviders error:', err.message)
+      // Emergency fallback: broadcast to all
       io.to('providers-online').emit('request:nearby', requestData)
       return 'broadcast'
     }
-    console.log(`[GF] Notified ${notified}/${inRadius} providers within ${radiusKm}km for request ${requestId} (total tracked: ${providerPresence.size})`)
-    return notified
   }
 
   // Démarrer le serveur

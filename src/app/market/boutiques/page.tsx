@@ -24,17 +24,17 @@ export default async function MarketBoutiquesPage() {
   const countsByShop = Object.fromEntries(productCounts.map((c: any) => [String(c._id), c.count]))
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-16">
+    <main className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-16">
       <section className="mx-auto max-w-7xl px-4 py-12">
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-gray-900">Boutiques partenaires</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-200">Boutiques partenaires</h1>
+          <p className="mt-2 text-gray-600 dark:text-slate-400">
             Découvrez les vendeurs et revendeurs sélectionnés par DDM+.
           </p>
         </div>
 
         {shops.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-gray-500 dark:text-slate-400">
             Aucune boutique disponible pour le moment.
           </div>
         ) : (
@@ -45,27 +45,27 @@ export default async function MarketBoutiquesPage() {
                 <Link
                   key={String(shop._id)}
                   href={`/boutiques/${shop.slug}`}
-                  className="group block rounded-2xl border border-gray-200 bg-white p-5 transition hover:shadow-lg hover:border-emerald-300"
+                  className="group block rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 transition hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-700"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="h-16 w-16 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="h-16 w-16 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden shrink-0">
                       {shop.logo ? (
                         <Image src={shop.logo} alt={shop.name} width={64} height={64} className="object-cover w-full h-full" />
                       ) : (
-                        <Store className="h-7 w-7 text-gray-400" />
+                        <Store className="h-7 w-7 text-gray-400 dark:text-slate-500" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-bold text-gray-900 truncate">{shop.name}</h3>
-                        {shop.isVerified && <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />}
+                        <h3 className="font-bold text-gray-900 dark:text-slate-200 truncate">{shop.name}</h3>
+                        {shop.isVerified && <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{shop.description || 'Boutique DDM+'}</p>
-                      <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 line-clamp-2">{shop.description || 'Boutique DDM+'}</p>
+                      <div className="mt-3 flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400">
                         <Package className="h-3.5 w-3.5" />
                         <span>{count} produit{count > 1 ? 's' : ''}</span>
                       </div>
-                      <div className="mt-3 flex items-center text-sm font-medium text-emerald-600 group-hover:underline">
+                      <div className="mt-3 flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400 group-hover:underline">
                         Visiter <ArrowRight className="h-3.5 w-3.5 ml-1" />
                       </div>
                     </div>

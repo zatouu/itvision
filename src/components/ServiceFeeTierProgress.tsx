@@ -39,7 +39,7 @@ export function ServiceFeeTierProgress({
   if (variant === 'compact') {
     if (!progress.hasNextTier) {
       return (
-        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full">
+        <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 rounded-full">
           <Award className="w-3.5 h-3.5" />
           <span>
             Tarif {activeTier.label} actif
@@ -52,17 +52,17 @@ export function ServiceFeeTierProgress({
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-600">Progression vers tarif {progress.nextTier?.label}</span>
-          <span className="font-medium text-emerald-700">{progress.progressPercent}%</span>
+          <span className="text-gray-600 dark:text-slate-400">Progression vers tarif {progress.nextTier?.label}</span>
+          <span className="font-medium text-emerald-700 dark:text-emerald-400">{progress.progressPercent}%</span>
         </div>
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full transition-all"
             style={{ width: `${progress.progressPercent}%` }}
           />
         </div>
         {progress.amountNeeded && progress.amountNeeded > 0 && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             Plus que {formatCurrency(progress.amountNeeded)} pour -{progress.nextTier?.feeRate}% de frais
           </p>
         )}
@@ -72,17 +72,17 @@ export function ServiceFeeTierProgress({
 
   // Version complète
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-4 space-y-4">
+    <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-slate-800 dark:to-slate-800 rounded-xl p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <TrendingDown className="w-5 h-5 text-emerald-600" />
-        <h4 className="font-semibold text-gray-900">Réductions par volume</h4>
+        <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        <h4 className="font-semibold text-gray-900 dark:text-slate-200">Réductions par volume</h4>
       </div>
 
       {/* Économie actuelle */}
       {savingsVsStandard > 0 && (
-        <div className="flex items-center gap-2 p-2 bg-emerald-100 rounded-lg text-sm">
-          <span className="text-emerald-700 font-medium">
+        <div className="flex items-center gap-2 p-2 bg-emerald-100 dark:bg-emerald-950/30 rounded-lg text-sm">
+          <span className="text-emerald-700 dark:text-emerald-400 font-medium">
             💰 Vous économisez {formatCurrency(savingsVsStandard)} sur les frais de service
           </span>
         </div>
@@ -92,19 +92,19 @@ export function ServiceFeeTierProgress({
       {progress.hasNextTier && progress.nextTier && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Prochain palier: {progress.nextTier.label}</span>
-            <span className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+            <span className="text-gray-600 dark:text-slate-400">Prochain palier: {progress.nextTier.label}</span>
+            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
               -{progress.nextTier.feeRate}%
             </span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full transition-all duration-500"
               style={{ width: `${progress.progressPercent}%` }}
             />
           </div>
           {progress.amountNeeded && progress.amountNeeded > 0 && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Ajoutez {formatCurrency(progress.amountNeeded)} pour obtenir des frais réduits
             </p>
           )}
@@ -112,8 +112,8 @@ export function ServiceFeeTierProgress({
       )}
 
       {/* Liste des paliers */}
-      <div className="space-y-2 pt-2 border-t border-gray-200">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tous les paliers</p>
+      <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-slate-700">
+        <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Tous les paliers</p>
         {tiersInfo.map((tier, idx) => {
           const isCurrent = currentAmount >= tier.minAmount && (tier.maxAmount === undefined || currentAmount < tier.maxAmount)
           const Icon = tierIcons[idx] || Package
@@ -122,29 +122,29 @@ export function ServiceFeeTierProgress({
               key={`${tier.label}-${tier.minAmount}`}
               className={`flex items-center gap-3 p-2 rounded-lg text-sm transition-colors ${
                 isCurrent
-                  ? 'bg-emerald-100 text-emerald-900'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300'
+                  : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isCurrent ? 'text-emerald-600' : 'text-gray-400'}`} />
+              <Icon className={`w-4 h-4 ${isCurrent ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className={isCurrent ? 'font-semibold' : ''}>{tier.label}</span>
                   {isCurrent && (
-                    <span className="text-xs bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-emerald-200 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded">
                       Actif
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   {formatCurrency(tier.minAmount)} {tier.maxAmount ? `- ${formatCurrency(tier.maxAmount)}` : 'et plus'}
                 </p>
               </div>
-              <span className={`font-semibold ${isCurrent ? 'text-emerald-700' : ''}`}>
+              <span className={`font-semibold ${isCurrent ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>
                 {tier.feeRate}%
               </span>
               {idx < tiersInfo.length - 1 && !isCurrent && (
-                <ChevronRight className="w-4 h-4 text-gray-300" />
+                <ChevronRight className="w-4 h-4 text-gray-300 dark:text-slate-600" />
               )}
             </div>
           )

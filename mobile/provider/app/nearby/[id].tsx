@@ -1,11 +1,11 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, AppState, AppStateStatus } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, AppState, AppStateStatus, Modal, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { SkeletonCard } from '../../src/components/Skeleton'
 import * as Location from 'expo-location'
-import { MapPin, Mic, Check, Volume2 } from 'lucide-react-native'
+import { MapPin, Mic, Check, Volume2, Play, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
@@ -13,7 +13,9 @@ import Button from '../../src/components/Button'
 import StatusChip from '../../src/components/StatusChip'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
 import VoicePlayer from '../../src/components/VoicePlayer'
-import { apiGet, getBaseUrl } from '../../src/api'
+import { apiGet } from '../../src/api'
+import { resolveMediaUrl } from '../../src/media'
+import { Video, ResizeMode } from 'expo-av'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation, emitRequestViewing, emitStopViewing } from '../../src/socket'
 import { getProviderName } from '../../src/user-profile'
 
@@ -31,6 +33,7 @@ export default function NearbyRequestDetail() {
   const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [fullMedia, setFullMedia] = useState<{ uri: string; type: string } | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -175,38 +178,73 @@ export default function NearbyRequestDetail() {
 
         {request.media?.some((m: any) => m.type === 'audio') && (() => {
           const audioMedia = request.media.find((m: any) => m.type === 'audio')
-          const audioUri = audioMedia.url?.startsWith('http') ? audioMedia.url : getBaseUrl() + audioMedia.url
           return (
             <View style={s.section}>
               <View style={s.audioBadge}>
                 <Volume2 size={16} color="#1DC3F0" />
                 <Text style={s.audioBadgeText}>{t('providerNearby.voiceMessage')}</Text>
               </View>
-              <VoicePlayer uri={audioUri} />
+              <VoicePlayer uri={resolveMediaUrl(audioMedia.url || audioMedia.uri)} />
             </View>
           )
         })()}
 
-        {request.media && request.media.length > 0 ? (
+        {request.media && request.media.some((m: any) => ['image', 'video'].includes(m.type || 'image')) ? (
           <View style={s.section}>
             <Text style={s.sectionTitle}>{t('providerNearby.media')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                {request.media.map((m: any, i: number) => (
-                  <View key={i} style={s.thumb}>
-                    {m.type === 'image' || !m.type ? (
-                      <Image source={{ uri: m.url || m.uri }} style={s.thumbImage} />
-                    ) : (
-                      <View style={s.audioThumb}>
-                        <Mic size={28} color={colors.primary} />
-                      </View>
-                    )}
-                  </View>
-                ))}
+                {request.media.filter((m: any) => ['image', 'video'].includes(m.type || 'image')).map((m: any, i: number) => {
+                  const uri = resolveMediaUrl(m.url || m.uri)
+                  const isVideo = m.type === 'video'
+                  return (
+                    <TouchableOpacity key={i} style={s.thumb} onPress={() => setFullMedia({ uri, type: m.type || 'image' })}>
+                      {isVideo ? (
+                        <View style={s.thumbImage}>
+                          <Video
+                            source={{ uri }}
+                            style={StyleSheet.absoluteFill}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay={false}
+                            isLooping={false}
+                            useNativeControls={false}
+                          />
+                          <View style={s.playOverlay}>
+                            <Play size={24} color="#fff" fill="#fff" />
+                          </View>
+                        </View>
+                      ) : (
+                        <Image source={{ uri }} style={s.thumbImage} contentFit="cover" />
+                      )}
+                    </TouchableOpacity>
+                  )
+                })}
               </View>
             </ScrollView>
           </View>
         ) : null}
+
+        <Modal visible={!!fullMedia} transparent animationType="fade" onRequestClose={() => setFullMedia(null)}>
+          <Pressable style={s.modalOverlay} onPress={() => setFullMedia(null)}>
+            <View style={s.modalContent}>
+              <TouchableOpacity style={s.modalClose} onPress={() => setFullMedia(null)}>
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+              {fullMedia?.type === 'video' ? (
+                <Video
+                  source={{ uri: fullMedia.uri }}
+                  style={s.fullMedia}
+                  resizeMode={ResizeMode.CONTAIN}
+                  useNativeControls
+                  shouldPlay
+                  isLooping={false}
+                />
+              ) : fullMedia ? (
+                <Image source={{ uri: fullMedia.uri }} style={s.fullMedia} contentFit="contain" />
+              ) : null}
+            </View>
+          </Pressable>
+        </Modal>
 
         <View style={s.detailCard}>
           <Text style={s.sectionTitle}>{t('providerNearby.details')}</Text>
@@ -308,6 +346,37 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   audioIcon: { fontSize: 24 },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+  },
+  modalContent: {
+    width: '100%',
+    height: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalClose: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    zIndex: 10,
+    padding: spacing.sm,
+  },
+  fullMedia: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.lg,
+  },
   detailCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.xl,

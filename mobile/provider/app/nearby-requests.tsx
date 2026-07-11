@@ -6,15 +6,16 @@ import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet, apiPostQueued, getBaseUrl, unlockMission, getUnlockCost } from '../src/api'
+import { apiGet, apiPostQueued, unlockMission, getUnlockCost } from '../src/api'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
-import { connectSocket } from '../src/socket'
+import { connectSocket, joinNearbyRoom, leaveNearbyRoom } from '../src/socket'
 import { confirm } from '../src/confirm'
 import { getProviderName } from '../src/user-profile'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { SkeletonCard } from '../src/components/Skeleton'
 import VoicePlayer from '../src/components/VoicePlayer'
+import { resolveMediaUrl } from '../src/media'
 import { loadCategories, getCategoryLabel, ServiceCategory } from '../src/categories'
 import { getCategoryIcon } from '../src/categoryIcons'
 import { hapticSuccess, hapticLight, hapticSelect } from '../src/haptics'
@@ -155,12 +156,14 @@ function NearbyRequests() {
     (async () => {
       const c = await locate()
       await load(c)
+      if (c) joinNearbyRoom(c.lat, c.lng, RADIUS_KM)
       try {
         const w = await getProviderWallet()
         setUnlockEnabled(w.config.credits.unlockEnabled)
         setWalletPoints(w.points || 0)
       } catch {}
     })()
+    return () => { leaveNearbyRoom() }
   }, [])
 
   // Refs stables pour éviter de réabonner les listeners à chaque changement de coords/load
@@ -456,7 +459,7 @@ function NearbyRequests() {
               {it.media?.filter((m: any) => m.type === 'image').length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
                   {it.media.filter((m: any) => m.type === 'image').map((m: any, i: number) => {
-                    const uri = m.url?.startsWith('http') ? m.url : getBaseUrl() + m.url
+                    const uri = resolveMediaUrl(m.url)
                     return (
                       <Image
                         key={i}
@@ -469,8 +472,7 @@ function NearbyRequests() {
               )}
               {it.media?.some((m: any) => m.type === 'audio') && (() => {
                 const audioUrl = it.media.find((m: any) => m.type === 'audio').url
-                const fullUri = audioUrl.startsWith('http') ? audioUrl : getBaseUrl() + audioUrl
-                return <VoicePlayer uri={fullUri} />
+                return <VoicePlayer uri={audioUrl} />
               })()}
               <View style={s.cardFoot}>
                 {it.budget ? <Text style={s.budget}>{t('nearby.budget', { amount: Number(it.budget).toLocaleString('fr-FR') })}</Text> : <Text style={s.budgetNone}>{t('nearby.budgetNone')}</Text>}
@@ -511,11 +513,10 @@ function NearbyRequests() {
               {/* 1. Audio en premier pour décision rapide */}
               {selected.media?.some((m: any) => m.type === 'audio') && (() => {
                 const audioUrl = selected.media.find((m: any) => m.type === 'audio').url
-                const fullUri = audioUrl.startsWith('http') ? audioUrl : getBaseUrl() + audioUrl
                 return (
                   <View style={s.audioFirstBox}>
                     <Text style={s.audioFirstLabel}>{t('nearby.listenClient')}</Text>
-                    <VoicePlayer uri={fullUri} />
+                    <VoicePlayer uri={audioUrl} />
                   </View>
                 )
               })()}
@@ -524,7 +525,7 @@ function NearbyRequests() {
               {selected.media?.filter((m: any) => m.type === 'image' || m.type === 'video').length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                   {selected.media.filter((m: any) => m.type === 'image' || m.type === 'video').map((m: any, i: number) => {
-                    const uri = m.url?.startsWith('http') ? m.url : getBaseUrl() + m.url
+                    const uri = resolveMediaUrl(m.url)
                     return (
                       <View key={i} style={s.mediaThumbWrap}>
                         <Image source={{ uri }} style={s.mediaThumb} />

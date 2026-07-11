@@ -36,6 +36,17 @@
     "devCode": "Code de dev",
     "logout": "Déconnexion"
   },
+  "setup": {
+    "title": "Bienvenue !",
+    "subtitle": "Renseignez votre nom pour personnaliser votre expérience.",
+    "nameLabel": "Prénom et nom",
+    "namePlaceholder": "Ex : Mamadou Diop",
+    "phoneLabel": "Téléphone",
+    "phonePlaceholder": "77 123 45 67",
+    "save": "Continuer",
+    "nameRequired": "Veuillez saisir votre nom",
+    "error": "Erreur lors de l'enregistrement"
+  },
   "home": {
     "greeting_morning": "Bonjour",
     "greeting_afternoon": "Bon après-midi",
@@ -230,7 +241,11 @@
     "help": "Aide & Support",
     "about": "À propos",
     "appVersion": "Version",
-    "memberSince": "Membre depuis"
+    "memberSince": "Membre depuis",
+    "avatarTitle": "Photo de profil",
+    "avatarCamera": "Prendre une photo",
+    "avatarGallery": "Choisir dans la galerie",
+    "avatarGenerated": "Utiliser un avatar avec initiales"
   },
   "chat": {
     "title": "Chat",

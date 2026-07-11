@@ -4,7 +4,7 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
-import { sendPushToAllProviders } from '@/lib/push'
+import { sendPushToNearbyProviders } from '@/lib/push'
 import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
@@ -120,11 +120,13 @@ export async function POST(request: NextRequest) {
       expiresAt,
     })
 
-    // Notifier les providers proches via geofencing (fallback: tous si aucune position connue)
+    // Coordonnées de la demande (réutilisées pour geofencing socket + push)
+    const [rLng, rLat] = created.location?.coordinates || []
+
+    // Notifier les providers proches via geofencing Redis GEO (fallback: tous si aucune position connue)
     const notifyNearby = (global as any).notifyNearbyProviders
     if (notifyNearby) {
-      const [rLng, rLat] = created.location?.coordinates || []
-      notifyNearby({
+      await notifyNearby({
         requestId: String(created._id),
         category: created.category,
         description: created.description,
@@ -136,13 +138,14 @@ export async function POST(request: NextRequest) {
       }, 10) // 10 km radius
     }
 
-    // Push notification à tous les providers
-    await sendPushToAllProviders({
+    // Push notification aux providers proches (geofenced), fallback tous si aucune position
+    await sendPushToNearbyProviders({
       title: '🔔 Nouvelle demande',
       body: `${created.category} — ${(created.description || '').slice(0, 80) || 'Sans description'}`,
       data: { type: 'request:new', requestId: String(created._id) },
       channelId: 'services',
-    }, userId)
+      appType: 'provider',
+    }, rLat, rLng, 10, userId)
 
     return NextResponse.json({ success: true, item: created })
   } catch (e: any) {

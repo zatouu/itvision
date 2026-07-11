@@ -44,7 +44,7 @@ export default function VerifyOtp() {
       await setAuth(data.token, data.user)
       resetSocket()
       hapticSuccess()
-      router.replace('/')
+      router.replace(data.user?.isNew ? '/setup-profile' : '/')
     } catch (e: any) {
       hapticError()
       setErr(t('auth.errorNetwork'))

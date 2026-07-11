@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, Alert, Platform, ActionSheetIOS } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +10,7 @@ import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/au
 import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
-import { captureMedia } from '../src/media'
+import { captureMedia, pickMedia } from '../src/media'
 import { ArrowLeft, ChevronRight, Camera } from 'lucide-react-native'
 
 function Profile() {
@@ -34,14 +34,49 @@ function Profile() {
       .catch(() => {})
   }, [])
 
+  const promptAvatarSource = (): Promise<'camera' | 'gallery' | 'avatar' | null> => {
+    return new Promise((resolve) => {
+      const options = [t('profile.avatarCamera'), t('profile.avatarGallery'), t('profile.avatarGenerated'), t('common.cancel')]
+      const actions: Array<'camera' | 'gallery' | 'avatar' | null> = ['camera', 'gallery', 'avatar', null]
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          { options, cancelButtonIndex: 3, title: t('profile.avatarTitle') },
+          (idx) => resolve(actions[idx] ?? null)
+        )
+      } else {
+        Alert.alert(t('profile.avatarTitle'), '', [
+          { text: options[0], onPress: () => resolve('camera') },
+          { text: options[1], onPress: () => resolve('gallery') },
+          { text: options[2], onPress: () => resolve('avatar') },
+          { text: options[3], style: 'cancel', onPress: () => resolve(null) },
+        ], { cancelable: true })
+      }
+    })
+  }
+
   const changeAvatar = async () => {
     try {
-      const assets = await captureMedia({ selfie: true })
+      const source = await promptAvatarSource()
+      if (!source) return
+
+      if (source === 'avatar') {
+        await apiPatch('/api/users/me', { avatarUrl: '' })
+        await updateAuthUser({ avatarUrl: '' })
+        setUser(getAuthUser())
+        return
+      }
+
+      const assets = source === 'camera'
+        ? await captureMedia({ selfie: true })
+        : await pickMedia({ maxFiles: 1 })
       if (!assets.length) return
+
       const file = assets[0]
-      const uploaded = await apiUpload(file.uri, file.name, 'image/jpeg', 'avatars')
-      await apiPatch('/api/users/me', { avatarUrl: uploaded.url })
-      await updateAuthUser({ avatarUrl: uploaded.url })
+      const contentType = file.type === 'video' ? 'video/mp4' : 'image/jpeg'
+      const uploaded = await apiUpload(file.uri, file.name, contentType, 'avatars')
+      const avatarUrl = uploaded.staticUrl || uploaded.url
+      await apiPatch('/api/users/me', { avatarUrl })
+      await updateAuthUser({ avatarUrl })
       setUser(getAuthUser())
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Impossible de mettre à jour la photo')

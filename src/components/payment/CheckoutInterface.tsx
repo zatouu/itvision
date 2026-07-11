@@ -229,44 +229,44 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
       <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
         {/* LEFT: Order Summary */}
         <aside className="lg:sticky lg:top-24 lg:h-fit order-2 lg:order-1">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Package className="w-5 h-5 text-violet-600" />
-              <h2 className="font-bold text-slate-900">Récapitulatif de la commande</h2>
+              <Package className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+              <h2 className="font-bold text-slate-900 dark:text-slate-200">Récapitulatif de la commande</h2>
             </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Produits</span>
-                <span className="font-medium">{participant.subtotal?.toLocaleString('fr-FR') || participant.amount.toLocaleString('fr-FR')} FCFA</span>
+                <span className="text-slate-500 dark:text-slate-400">Produits</span>
+                <span className="font-medium dark:text-slate-200">{participant.subtotal?.toLocaleString('fr-FR') || participant.amount.toLocaleString('fr-FR')} FCFA</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Frais & assurance</span>
-                <span className="font-medium">{participant.fees?.totalFees?.toLocaleString('fr-FR') || '0'} FCFA</span>
+                <span className="text-slate-500 dark:text-slate-400">Frais & assurance</span>
+                <span className="font-medium dark:text-slate-200">{participant.fees?.totalFees?.toLocaleString('fr-FR') || '0'} FCFA</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Livraison</span>
-                <span className="font-medium">{participant.shipping?.totalCost?.toLocaleString('fr-FR') || '0'} FCFA</span>
+                <span className="text-slate-500 dark:text-slate-400">Livraison</span>
+                <span className="font-medium dark:text-slate-200">{participant.shipping?.totalCost?.toLocaleString('fr-FR') || '0'} FCFA</span>
               </div>
               {addedOns.length > 0 && (
-                <div className="flex justify-between text-emerald-600">
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                   <span>Options ajoutées</span>
                   <span className="font-medium">+{addedOns.reduce((sum, id) => sum + (ADD_ONS.find((a) => a.id === id)?.price || 0), 0).toLocaleString('fr-FR')} FCFA</span>
                 </div>
               )}
-              <div className="h-px bg-slate-100 my-2" />
-              <div className="flex justify-between text-lg font-bold text-slate-900">
+              <div className="h-px bg-slate-100 dark:bg-slate-700 my-2" />
+              <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-slate-200">
                 <span>Total</span>
                 <span>{amount.toLocaleString('fr-FR')} FCFA</span>
               </div>
             </div>
 
-            <div className="mt-4 p-3 bg-slate-50 rounded-xl text-xs text-slate-500">
-              <p className="font-semibold text-slate-700 mb-1">{group.productName}</p>
-              <p>Référence : <span className="font-mono text-violet-600">{participant.reference}</span></p>
+            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-xs text-slate-500 dark:text-slate-400">
+              <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">{group.productName}</p>
+              <p>Référence : <span className="font-mono text-violet-600 dark:text-violet-400">{participant.reference}</span></p>
               <p>Client : {participant.name} • {participant.phone}</p>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 p-3 rounded-xl">
+            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-xl">
               <Lock className="w-4 h-4" />
               Paiement sécurisé par escrow — votre argent est protégé jusqu'à la livraison.
             </div>
@@ -284,12 +284,12 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
                 <button
                   key={provider.key}
                   onClick={() => setSelectedProvider(provider.key)}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition text-left ${active ? `ring-2 ring-emerald-500 ${provider.color}` : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition text-left ${active ? `ring-2 ring-emerald-500 ${provider.color}` : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600'}`}
                 >
                   <Icon className="w-10 h-10 flex-shrink-0" />
                   <div>
-                    <p className="font-bold text-slate-900">{provider.label}</p>
-                    <p className="text-xs text-slate-500">Paiement manuel</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-200">{provider.label}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Paiement manuel</p>
                   </div>
                   {active && <Check className="w-5 h-5 text-emerald-600 ml-auto" />}
                 </button>
@@ -298,12 +298,12 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
             {gatewayActive && (
               <button
                 onClick={() => setSelectedProvider('gateway')}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 transition text-left ${selectedProvider === 'gateway' ? 'ring-2 ring-emerald-500 bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 transition text-left ${selectedProvider === 'gateway' ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600'}`}
               >
-                <CreditCard className="w-10 h-10 text-emerald-600 flex-shrink-0" />
+                <CreditCard className="w-10 h-10 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                 <div>
-                  <p className="font-bold text-slate-900">Carte / Gateway</p>
-                  <p className="text-xs text-slate-500">Paiement en ligne sécurisé</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-200">Carte / Gateway</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Paiement en ligne sécurisé</p>
                 </div>
                 {selectedProvider === 'gateway' && <Check className="w-5 h-5 text-emerald-600 ml-auto" />}
               </button>
@@ -311,11 +311,11 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
           </div>
 
           {/* Installments */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
             <div className="flex items-center gap-2 mb-3">
-              <Percent className="w-5 h-5 text-violet-600" />
-              <h3 className="font-bold text-slate-900">Paiement en échéances</h3>
-              <span className="ml-auto text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">Bientôt</span>
+              <Percent className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+              <h3 className="font-bold text-slate-900 dark:text-slate-200">Paiement en échéances</h3>
+              <span className="ml-auto text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-1 rounded-full font-bold">Bientôt</span>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {INSTALLMENTS.map((inst) => (
@@ -327,67 +327,67 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
                     selectedInstallment === inst.count && inst.available
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : inst.available
-                      ? 'bg-white border-gray-200 text-slate-700 hover:border-emerald-400'
-                      : 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed'
+                      ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+                      : 'bg-slate-100 dark:bg-slate-700 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                   }`}
                 >
                   {inst.label}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2">Le paiement fractionné sera activé prochainement selon les moyens disponibles au Sénégal.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Le paiement fractionné sera activé prochainement selon les moyens disponibles au Sénégal.</p>
           </div>
 
           {/* Instructions */}
           {selectedProvider !== 'gateway' ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-600" /> Instructions {PROVIDERS.find(p => p.key === selectedProvider)?.label}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
+              <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Instructions {PROVIDERS.find(p => p.key === selectedProvider)?.label}
               </h3>
-              <ol className="space-y-2 text-sm text-slate-600 list-decimal list-inside mb-4">
+              <ol className="space-y-2 text-sm text-slate-600 dark:text-slate-400 list-decimal list-inside mb-4">
                 {PROVIDERS.find(p => p.key === selectedProvider)?.instructions.map((step, i) => (
                   <li key={i}>{step}</li>
                 ))}
               </ol>
 
               {selectedProvider !== 'virement' && (
-                <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between mb-4">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-xs text-slate-500">Numéro marchand</p>
-                    <p className="font-mono text-lg font-bold text-slate-900">{phoneByProvider[selectedProvider]}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Numéro marchand</p>
+                    <p className="font-mono text-lg font-bold text-slate-900 dark:text-slate-200">{phoneByProvider[selectedProvider]}</p>
                   </div>
                   <button
                     onClick={() => copyToClipboard(phoneByProvider[selectedProvider], 'phone')}
-                    className="p-2 bg-white rounded-lg border border-gray-200 hover:border-emerald-400 transition"
+                    className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-emerald-400 transition"
                   >
-                    {copiedField === 'phone' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
+                    {copiedField === 'phone' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />}
                   </button>
                 </div>
               )}
 
-              <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between mb-4">
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-xs text-slate-500">Montant à transférer</p>
-                  <p className="font-mono text-lg font-bold text-slate-900">{amount.toLocaleString('fr-FR')} FCFA</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Montant à transférer</p>
+                  <p className="font-mono text-lg font-bold text-slate-900 dark:text-slate-200">{amount.toLocaleString('fr-FR')} FCFA</p>
                 </div>
                 <button
                   onClick={() => copyToClipboard(String(amount), 'amount')}
-                  className="p-2 bg-white rounded-lg border border-gray-200 hover:border-emerald-400 transition"
+                  className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-emerald-400 transition"
                 >
-                  {copiedField === 'amount' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
+                  {copiedField === 'amount' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />}
                 </button>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-between mb-4">
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-xs text-slate-500">Référence à indiquer</p>
-                  <p className="font-mono text-lg font-bold text-slate-900">{participant.reference}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Référence à indiquer</p>
+                  <p className="font-mono text-lg font-bold text-slate-900 dark:text-slate-200">{participant.reference}</p>
                 </div>
                 <button
                   onClick={() => copyToClipboard(participant.reference, 'ref')}
-                  className="p-2 bg-white rounded-lg border border-gray-200 hover:border-emerald-400 transition"
+                  className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-emerald-400 transition"
                 >
-                  {copiedField === 'ref' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
+                  {copiedField === 'ref' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />}
                 </button>
               </div>
 
@@ -401,11 +401,11 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
               </a>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-600" /> Paiement en ligne
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
+              <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Paiement en ligne
               </h3>
-              <p className="text-sm text-slate-600 mb-4">Payez par carte bancaire, Visa, Mastercard ou mobile money via notre passerelle sécurisée.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Payez par carte bancaire, Visa, Mastercard ou mobile money via notre passerelle sécurisée.</p>
               <button
                 onClick={handleGatewayPayment}
                 disabled={loading}
@@ -417,33 +417,33 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
           )}
 
           {/* Escrow & trust badges */}
-          <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-5">
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 p-5">
             <div className="flex items-start gap-3">
-              <Shield className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+              <Shield className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-emerald-900">Protection acheteur DDM+</h3>
-                <p className="text-sm text-emerald-800 mt-1">Votre paiement est conservé en escrow. Le vendeur n’est payé qu’après votre validation de la livraison.</p>
+                <h3 className="font-bold text-emerald-900 dark:text-emerald-300">Protection acheteur DDM+</h3>
+                <p className="text-sm text-emerald-800 dark:text-emerald-400 mt-1">Votre paiement est conservé en escrow. Le vendeur n’est payé qu’après votre validation de la livraison.</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-4">
-              <div className="flex flex-col items-center text-center p-3 bg-white rounded-xl border border-emerald-100">
-                <BadgeCheck className="w-5 h-5 text-emerald-600 mb-1" />
-                <span className="text-[10px] font-bold text-emerald-900">Vérifié</span>
+              <div className="flex flex-col items-center text-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
+                <BadgeCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
+                <span className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300">Vérifié</span>
               </div>
-              <div className="flex flex-col items-center text-center p-3 bg-white rounded-xl border border-emerald-100">
-                <Lock className="w-5 h-5 text-emerald-600 mb-1" />
-                <span className="text-[10px] font-bold text-emerald-900">Sécurisé</span>
+              <div className="flex flex-col items-center text-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
+                <Lock className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
+                <span className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300">Sécurisé</span>
               </div>
-              <div className="flex flex-col items-center text-center p-3 bg-white rounded-xl border border-emerald-100">
-                <Truck className="w-5 h-5 text-emerald-600 mb-1" />
-                <span className="text-[10px] font-bold text-emerald-900">Suivi</span>
+              <div className="flex flex-col items-center text-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
+                <Truck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
+                <span className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300">Suivi</span>
               </div>
             </div>
           </div>
 
           {/* Cross-sell */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
+            <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-3 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-500" /> Complétez votre commande
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -451,17 +451,17 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
                 const Icon = addon.icon
                 const added = addedOns.includes(addon.id)
                 return (
-                  <div key={addon.id} className={`p-3 rounded-xl border-2 transition ${added ? 'border-emerald-500 bg-emerald-50' : 'border-gray-100 bg-white'}`}>
+                  <div key={addon.id} className={`p-3 rounded-xl border-2 transition ${added ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900'}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600">
+                      <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 dark:text-violet-400">
                         <Icon className="w-4 h-4" />
                       </div>
-                      <p className="text-sm font-bold text-slate-900">{addon.name}</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-200">{addon.name}</p>
                     </div>
-                    <p className="text-xs text-slate-500 mb-2">+{addon.price.toLocaleString('fr-FR')} FCFA</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">+{addon.price.toLocaleString('fr-FR')} FCFA</p>
                     <button
                       onClick={() => toggleAddOn(addon.id)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition ${added ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition ${added ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
                     >
                       {added ? 'Ajouté' : 'Ajouter'}
                     </button>
@@ -474,14 +474,14 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
       </div>
 
       {/* Countdown banner */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-700">
+          <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
             <Clock className="w-4 h-4 text-amber-500" />
             <span>Annulation automatique si non payé dans</span>
-            <span className="font-mono font-bold text-amber-600">{formatTime(timeLeft)}</span>
+            <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{formatTime(timeLeft)}</span>
           </div>
-          <Link href="/panier" className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1">
+          <Link href="/panier" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1">
             Retour panier <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

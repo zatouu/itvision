@@ -34,7 +34,7 @@ export default function CartItemCard({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-slate-200 rounded-xl p-3 flex gap-3"
+      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3"
     >
       <div className="flex flex-col items-center gap-2 flex-shrink-0">
         <input
@@ -43,30 +43,30 @@ export default function CartItemCard({
           onChange={onToggle}
           className="w-4 h-4 accent-ddm-emerald rounded"
         />
-        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 dark:bg-slate-700 rounded-lg overflow-hidden flex-shrink-0">
           {item.image ? (
             <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">No img</div>
+            <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-500 text-xs">No img</div>
           )}
         </div>
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="font-semibold text-sm text-slate-900 line-clamp-2 break-words">{item.name}</h3>
-          <p className="text-xs text-slate-500 mt-1 truncate">
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-200 line-clamp-2 break-words">{item.name}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
             Couleur: {item.color || 'Défaut'} · Taille: {item.size || 'Standard'}
           </p>
-          <p className="text-xs text-slate-500 truncate">Vendu par {item.shopName || 'DDM+ Import'}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Vendu par {item.shopName || 'DDM+ Import'}</p>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             {item.groupActive && (
-              <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-medium rounded flex items-center gap-1">
+              <span className="px-1.5 py-0.5 bg-violet-100 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 text-[10px] font-medium rounded flex items-center gap-1">
                 <Users className="w-3 h-3" /> Groupe actif
               </span>
             )}
             {item.stockStatus === 'low' && (
-              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-medium rounded">
+              <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 text-[10px] font-medium rounded">
                 Stock faible
               </span>
             )}
@@ -77,28 +77,28 @@ export default function CartItemCard({
           <div className="flex items-center gap-1">
             <button
               onClick={() => onQtyChange(Math.max(1, qty - 1))}
-              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50"
+              className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
-            <span className="w-8 text-center text-sm font-medium">{qty}</span>
+            <span className="w-8 text-center text-sm font-medium dark:text-slate-200">{qty}</span>
             <button
               onClick={() => onQtyChange(qty + 1)}
-              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50"
+              className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="text-right min-w-0">
             <p className="text-sm font-bold text-ddm-emerald whitespace-nowrap">{formatCurrency(total)}</p>
-            {qty > 1 && <p className="text-[10px] text-slate-400 whitespace-nowrap">{formatCurrency(price)} / unité</p>}
+            {qty > 1 && <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{formatCurrency(price)} / unité</p>}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-2 border-l border-slate-100 pl-3 flex-shrink-0">
+      <div className="flex flex-col items-center justify-center gap-2 border-l border-slate-100 dark:border-slate-700 pl-3 flex-shrink-0">
         {onAddToFavorites && (
-          <button onClick={onAddToFavorites} className="p-1.5 text-slate-400 hover:text-red-500 transition">
+          <button onClick={onAddToFavorites} className="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-500 transition">
             <Heart className="w-4 h-4" />
           </button>
         )}
@@ -107,7 +107,7 @@ export default function CartItemCard({
             <Users className="w-4 h-4" />
           </button>
         )}
-        <button onClick={onRemove} className="p-1.5 text-slate-400 hover:text-red-600 transition">
+        <button onClick={onRemove} className="p-1.5 text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-600 transition">
           <Trash2 className="w-4 h-4" />
         </button>
       </div>

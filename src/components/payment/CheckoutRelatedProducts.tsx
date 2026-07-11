@@ -71,7 +71,7 @@ export default function CheckoutRelatedProducts({ productIds }: { productIds?: s
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
-      className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
+      className="mt-8 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm p-6"
     >
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
@@ -79,13 +79,13 @@ export default function CheckoutRelatedProducts({ productIds }: { productIds?: s
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-gray-900">Complétez votre commande</h3>
-            <p className="text-xs text-gray-500">Ajoutez un produit pendant que vous payez</p>
+            <h3 className="text-base font-bold text-gray-900 dark:text-slate-200">Complétez votre commande</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Ajoutez un produit pendant que vous payez</p>
           </div>
         </div>
         <Link
           href="/produits"
-          className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1 transition"
+          className="text-xs text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 flex items-center gap-1 transition"
         >
           Voir tout
           <ExternalLink className="w-3 h-3" />
@@ -99,9 +99,9 @@ export default function CheckoutRelatedProducts({ productIds }: { productIds?: s
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 + idx * 0.05 }}
-            className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 hover:border-violet-200 hover:shadow-md transition-all group"
+            className="bg-gray-50 dark:bg-slate-900/50 rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:border-violet-200 dark:hover:border-violet-800 hover:shadow-md transition-all group"
           >
-            <div className="relative h-28 bg-gray-100 overflow-hidden">
+            <div className="relative h-28 bg-gray-100 dark:bg-slate-700 overflow-hidden">
               {product.image ? (
                 <img
                   src={product.image}
@@ -110,21 +110,21 @@ export default function CheckoutRelatedProducts({ productIds }: { productIds?: s
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <ShoppingBag className="w-8 h-8 text-gray-300" />
+                  <ShoppingBag className="w-8 h-8 text-gray-300 dark:text-slate-600" />
                 </div>
               )}
             </div>
             <div className="p-3">
-              <p className="text-xs font-semibold text-gray-800 line-clamp-2 mb-2 leading-snug">
+              <p className="text-xs font-semibold text-gray-800 dark:text-slate-300 line-clamp-2 mb-2 leading-snug">
                 {product.name}
               </p>
               <div className="flex items-center justify-between gap-1">
                 <div>
-                  <p className="text-xs font-bold text-green-600">
+                  <p className="text-xs font-bold text-green-600 dark:text-green-400">
                     {formatCurrency(product.price)}
                   </p>
                   {product.b2bPrice && product.b2bPrice < (product.price ?? Infinity) && (
-                    <p className="text-[10px] text-violet-500">
+                    <p className="text-[10px] text-violet-500 dark:text-violet-400">
                       Vol: {formatCurrency(product.b2bPrice)}
                     </p>
                   )}
@@ -150,7 +150,7 @@ export default function CheckoutRelatedProducts({ productIds }: { productIds?: s
       <div className="mt-4 text-center">
         <Link
           href="/panier"
-          className="text-sm text-green-600 hover:text-green-700 font-semibold transition"
+          className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-semibold transition"
         >
           → Voir le panier mis à jour
         </Link>

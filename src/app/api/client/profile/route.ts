@@ -53,6 +53,13 @@ export async function GET(request: NextRequest) {
 
     const profileData = profile as any
 
+    // Self-healing: si le nom est en fait un numéro de téléphone (ancien bug), on le vide
+    let profileName = profileData.name || ''
+    if (profileName && /^\d{7,}$/.test(profileName)) {
+      profileName = ''
+      await User.updateOne({ _id: profileData._id }, { $set: { name: '' } }).catch(() => {})
+    }
+
     // Récupérer la dernière commande pour l'adresse
     let lastAddress = null
     try {
@@ -88,7 +95,7 @@ export async function GET(request: NextRequest) {
       lastAddress,
       profile: {
         _id: profileData._id.toString(),
-        name: profileData.name,
+        name: profileName,
         email: profileData.email,
         phone: profileData.phone,
         company: profileData.company,

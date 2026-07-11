@@ -40,27 +40,27 @@ export default function TransportSelector({ value, onChange, options }: Transpor
             onClick={() => onChange(opt.id)}
             className={`relative flex items-center gap-3 p-3 rounded-xl border-2 text-left transition ${
               selected
-                ? 'border-ddm-emerald bg-emerald-50/60'
-                : 'border-slate-200 bg-white hover:border-slate-300'
+                ? 'border-ddm-emerald bg-emerald-50/60 dark:bg-emerald-950/30'
+                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
             }`}
           >
             {selected && (
               <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-ddm-emerald" />
             )}
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selected ? 'bg-ddm-emerald text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selected ? 'bg-ddm-emerald text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
               <Icon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm text-slate-900">{opt.label}</span>
+                <span className="font-semibold text-sm text-slate-900 dark:text-slate-200">{opt.label}</span>
                 {opt.bestPrice && (
                   <span className="px-1.5 py-0.5 bg-ddm-emerald text-white text-[10px] font-bold rounded">BEST PRICE</span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 truncate">{opt.duration}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{opt.duration}</p>
             </div>
             <div className="text-right min-w-0">
-              <p className="text-sm font-bold text-slate-900 whitespace-nowrap">{opt.weightPrice}</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-200 whitespace-nowrap">{opt.weightPrice}</p>
             </div>
           </motion.button>
         )

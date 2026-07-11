@@ -29,11 +29,11 @@ export default function ProviderCard({ name, rating, jobCount, jobLabel, special
         )}
       </View>
       <Text style={s.name} numberOfLines={1}>{name}</Text>
+      <Text style={s.specialty} numberOfLines={1}>{specialty}</Text>
       <View style={s.row}>
         <Star size={12} color={colors.warning} fill={colors.warning} />
         <Text style={s.rating}>{rating}</Text>
       </View>
-      <Text style={s.meta}>{specialty}</Text>
       <Text style={s.meta}>{jobCount} {jobLabel}</Text>
     </View>
   )
@@ -55,6 +55,7 @@ const s = StyleSheet.create({
   badge: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
   badgeText: { color: colors.surface },
   name: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
+  specialty: { fontSize: 12, fontWeight: typography.weight.semibold as any, color: colors.primary, textAlign: 'center', marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2, gap: 2 },
   star: { color: colors.warning },
   rating: { fontSize: 12, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },

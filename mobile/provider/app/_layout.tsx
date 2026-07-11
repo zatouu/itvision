@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
+import * as Location from 'expo-location'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications, resetNotificationBinding } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized } from '../src/api'
-import { resetSocket } from '../src/socket'
+import { resetSocket, emitGps } from '../src/socket'
+import { loadInitial, subscribe as subscribeOnline } from '../src/online'
 import { initSentry, setUser, clearUser } from '../src/sentry'
 import '../src/i18n'
 import { loadSavedLanguage } from '../src/i18n'
@@ -69,13 +71,21 @@ export default function Layout(){
 
   useEffect(() => {
     if (!ready) return
-    const onAuthScreen = segments[0] === 'login' || segments[0] === 'verify-otp'
-    if (!loggedIn && !onAuthScreen) {
+    const onLoginScreen = segments[0] === 'login' || segments[0] === 'verify-otp'
+    const onSetupScreen = segments[0] === 'setup-profile'
+    if (!loggedIn && !onLoginScreen) {
       router.replace('/login')
-    } else if (loggedIn && onAuthScreen) {
+    } else if (loggedIn && onLoginScreen) {
       router.replace('/')
-    } else if (loggedIn) {
-      flushPendingNavigation()
+    } else if (loggedIn && !onSetupScreen) {
+      // Rediriger vers setup-profile si l'utilisateur n'a pas encore de nom
+      const u = getAuthUser()
+      const needsSetup = !u?.name?.trim() || /^\d{7,}$/.test(u.name.trim())
+      if (needsSetup) {
+        router.replace('/setup-profile')
+      } else {
+        flushPendingNavigation()
+      }
     }
   }, [ready, loggedIn, segments])
 
@@ -116,6 +126,41 @@ export default function Layout(){
       appStateSub.remove()
     }
   }, [loggedIn])
+
+  // Global GPS emission: send provider position to server while online, regardless of active screen
+  const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [isOnline, setIsOnline] = useState(false)
+
+  useEffect(() => {
+    if (!loggedIn) return
+    (async () => {
+      const initial = await loadInitial()
+      setIsOnline(initial)
+    })()
+    const unsub = subscribeOnline(setIsOnline)
+    return unsub
+  }, [loggedIn])
+
+  useEffect(() => {
+    if (!loggedIn || !isOnline) {
+      if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
+      return
+    }
+    const sendGps = async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync()
+        if (status !== 'granted') return
+        const pos = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+        ])
+        emitGps(pos.coords.latitude, pos.coords.longitude)
+      } catch { /* silent */ }
+    }
+    sendGps()
+    gpsInterval.current = setInterval(sendGps, 30_000)
+    return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
+  }, [loggedIn, isOnline])
 
   if (!ready) {
     return (

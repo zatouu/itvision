@@ -1,22 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { Audio } from 'expo-av'
-import { getBaseUrl } from '../api'
+import { resolveMediaUrl } from '../media'
 
 type Props = {
   uri: string
   durationMs?: number
   onRemove?: () => void
-}
-
-function resolveAudioUri(raw: string) {
-  if (!raw) return ''
-  const v = raw.trim()
-  if (!v) return ''
-  if (/^(https?:|file:|blob:|data:)/i.test(v)) return v
-  const base = getBaseUrl().replace(/\/$/, '')
-  if (v.startsWith('/')) return `${base}${v}`
-  return `${base}/${v}`
 }
 
 export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
@@ -51,7 +41,7 @@ export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
         staysActiveInBackground: true,
         shouldDuckAndroid: true,
       })
-      const fullUri = resolveAudioUri(uri)
+      const fullUri = resolveMediaUrl(uri)
       if (!fullUri) {
         setError(true)
         return

@@ -27,27 +27,27 @@ export default function PriceBreakdown({
 }: PriceBreakdownProps) {
   return (
     <div className="space-y-2 text-sm">
-      <div className="flex justify-between text-slate-600">
+      <div className="flex justify-between text-slate-600 dark:text-slate-400">
         <span>Sous-total</span>
-        <span className="font-medium text-slate-900">{formatCurrency(subtotal)}</span>
+        <span className="font-medium text-slate-900 dark:text-slate-200">{formatCurrency(subtotal)}</span>
       </div>
       {serviceFees > 0 && (
-        <div className="flex justify-between text-slate-600">
+        <div className="flex justify-between text-slate-600 dark:text-slate-400">
           <span>Frais de service</span>
-          <span className="font-medium text-slate-900">+ {formatCurrency(serviceFees)}</span>
+          <span className="font-medium text-slate-900 dark:text-slate-200">+ {formatCurrency(serviceFees)}</span>
         </div>
       )}
-      <div className="flex justify-between text-slate-600">
+      <div className="flex justify-between text-slate-600 dark:text-slate-400">
         <span className="flex items-center gap-1">
           <Truck className="w-3.5 h-3.5 text-ddm-orange" />
           Transport
         </span>
-        <span className="font-medium text-slate-900">+ {formatCurrency(transport)}</span>
+        <span className="font-medium text-slate-900 dark:text-slate-200">+ {formatCurrency(transport)}</span>
       </div>
       {insurance > 0 && (
-        <div className="flex justify-between text-slate-600">
+        <div className="flex justify-between text-slate-600 dark:text-slate-400">
           <span>Assurance</span>
-          <span className="font-medium text-slate-900">+ {formatCurrency(insurance)}</span>
+          <span className="font-medium text-slate-900 dark:text-slate-200">+ {formatCurrency(insurance)}</span>
         </div>
       )}
       {promoDiscount > 0 && (
@@ -68,8 +68,8 @@ export default function PriceBreakdown({
           <span className="font-medium">{formatCurrency(totalSavings)} (-13%)</span>
         </div>
       )}
-      <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-        <span className="text-base font-bold text-slate-900">Total estimé</span>
+      <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <span className="text-base font-bold text-slate-900 dark:text-slate-200">Total estimé</span>
         <span className="text-xl font-bold text-ddm-emerald">{formatCurrency(total)}</span>
       </div>
     </div>

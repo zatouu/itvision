@@ -1,14 +1,14 @@
 import { Text, View, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert } from 'react-native'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { loadInitial, toggleOnline, subscribe } from '../src/online'
+import { getAuthUser } from '../src/auth'
 import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import {
-  emitGps,
   onNearbyRequest,
   onOfferAccepted,
   onOfferRejected,
@@ -26,18 +26,21 @@ function Home() {
   const [online, setOnline] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hour] = useState(new Date().getHours())
-  const [providerName, setProviderName] = useState('')
+  const [providerName, setProviderName] = useState(() => {
+    const authUser = getAuthUser()
+    const n = authUser?.name?.trim() || ''
+    return n && !/^\d{7,}$/.test(n) ? n.split(' ')[0] : ''
+  })
   const [nearbyCount, setNearbyCount] = useState(0)
   const [pendingOffers, setPendingOffers] = useState(0)
   const [activeMission, setActiveMission] = useState(0)
   const [dailyRevenue, setDailyRevenue] = useState(0)
   const [hideRevenue, setHideRevenue] = useState(false)
   const [initials, setInitials] = useState('')
-  const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     return subscribeProfile(p => {
-      const name = p?.name || ''
+      const name = p?.name?.trim() || ''
       setProviderName(name.split(' ')[0] || '')
       setInitials(name.slice(0, 2).toUpperCase() || 'P')
     })
@@ -52,27 +55,6 @@ function Home() {
     const unsub = subscribe(setOnline)
     return unsub
   }, [])
-
-  useEffect(() => {
-    if (!online) {
-      if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
-      return
-    }
-    const sendGps = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync()
-        if (status !== 'granted') return
-        const pos = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-        ])
-        emitGps(pos.coords.latitude, pos.coords.longitude)
-      } catch { /* silent */ }
-    }
-    sendGps()
-    gpsInterval.current = setInterval(sendGps, 60_000)
-    return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
-  }, [online])
 
   useEffect(() => {
     const unsub = onNearbyRequest(() => setNearbyCount(c => c + 1))

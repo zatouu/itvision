@@ -297,6 +297,93 @@ export async function sendPushToAllProviders(message: PushMessage, excludeUserId
   }
 }
 
+/**
+ * Haversine distance between two points in km
+ */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const STALE_POSITION_MS = 10 * 60 * 1000
+
+/**
+ * Envoie une push notification uniquement aux providers dont la position GPS est
+ * dans un rayon donné autour du point de la demande. Si aucun provider n'a de
+ * position connue ou fraîche dans la zone, fallback: envoie à tous les providers.
+ */
+export async function sendPushToNearbyProviders(
+  message: PushMessage,
+  lat: number,
+  lng: number,
+  radiusKm = 10,
+  excludeUserId?: string,
+): Promise<PushResult> {
+  try {
+    await connectMongoose()
+
+    // 1) Try Redis GEO first (global.geo set by server.js)
+    const geo = (global as any).geo
+    if (geo && typeof geo.findNearbyProviders === 'function') {
+      try {
+        const nearby = await geo.findNearbyProviders(lat, lng, radiusKm)
+        const nearbyUserIds = nearby
+          .filter((p: any) => !excludeUserId || p.providerId !== excludeUserId)
+          .map((p: any) => p.providerId)
+
+        if (nearbyUserIds.length > 0) {
+          console.log(`[Push] → ${nearbyUserIds.length} provider(s) dans un rayon de ${radiusKm}km (Redis GEO)`)
+          const results = await sendPushToUsers(nearbyUserIds, message)
+          const totalDelivered = results.reduce((sum, r) => sum + r.deliveredCount, 0)
+          const totalTokens = results.reduce((sum, r) => sum + r.tokenCount, 0)
+          return { success: totalDelivered > 0, tokenCount: totalTokens, deliveredCount: totalDelivered }
+        }
+
+        // No nearby providers found in Redis → fallback broadcast
+        console.log(`[Push] Aucun provider proche trouvé (Redis), fallback broadcast à tous`)
+        return sendPushToAllProviders(message, excludeUserId)
+      } catch (redisErr: any) {
+        console.warn('[Push] Redis GEO error, falling back to in-memory:', redisErr.message)
+      }
+    }
+
+    // 2) Fallback: in-memory providerPresence (legacy)
+    const presence = (global as any).providerPresence as Map<string, any> | undefined
+    const nearbyUserIds: string[] = []
+    if (presence && presence.size > 0) {
+      const now = Date.now()
+      for (const [providerId, pos] of presence.entries()) {
+        if (excludeUserId && providerId === excludeUserId) continue
+        if (!pos?.lat || !pos?.lng) continue
+        if (now - (pos.updatedAt || 0) > STALE_POSITION_MS) continue
+        const dist = haversineKm(lat, lng, pos.lat, pos.lng)
+        if (dist <= radiusKm) {
+          nearbyUserIds.push(providerId)
+        }
+      }
+    }
+
+    // 3) Si on a des providers proches, envoyer uniquement à eux
+    if (nearbyUserIds.length > 0) {
+      console.log(`[Push] → ${nearbyUserIds.length} provider(s) dans un rayon de ${radiusKm}km (memory)`)
+      const results = await sendPushToUsers(nearbyUserIds, message)
+      const totalDelivered = results.reduce((sum, r) => sum + r.deliveredCount, 0)
+      const totalTokens = results.reduce((sum, r) => sum + r.tokenCount, 0)
+      return { success: totalDelivered > 0, tokenCount: totalTokens, deliveredCount: totalDelivered }
+    }
+
+    // 4) Fallback: aucun provider proche connu → broadcast à tous
+    console.log(`[Push] Aucun provider proche trouvé, fallback broadcast à tous`)
+    return sendPushToAllProviders(message, excludeUserId)
+  } catch (err: any) {
+    console.error('[Push] sendPushToNearbyProviders error:', err)
+    return { success: false, tokenCount: 0, deliveredCount: 0, error: err.message || 'Erreur push nearby' }
+  }
+}
+
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = []
   for (let i = 0; i < arr.length; i += size) {

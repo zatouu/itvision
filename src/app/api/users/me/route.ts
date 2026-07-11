@@ -9,11 +9,19 @@ export async function GET(request: NextRequest) {
     const { userId } = await requireAuth(request)
     const user = await User.findById(userId).lean() as any
     if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
+
+    // Self-healing: si le nom est en fait un numéro de téléphone (ancien bug), on le vide
+    let userName = user.name || ''
+    if (userName && /^\d{7,}$/.test(userName)) {
+      userName = ''
+      await User.updateOne({ _id: user._id }, { $set: { name: '' } })
+    }
+
     return NextResponse.json({
       success: true,
       user: {
         _id: String(user._id),
-        name: user.name || '',
+        name: userName,
         phone: user.phone || '',
         email: user.email || '',
         avatarUrl: user.avatarUrl || '',

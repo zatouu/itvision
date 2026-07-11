@@ -93,17 +93,17 @@ export default async function CheckoutPage({ params }: PageProps) {
 
   if (!participantData || !groupData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-violet-50 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-2xl p-10 shadow-lg border border-gray-100 max-w-md w-full">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-violet-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
+        <div className="text-center bg-white dark:bg-slate-800 rounded-2xl p-10 shadow-lg border border-gray-100 dark:border-slate-700 max-w-md w-full">
           <p className="text-5xl mb-4">🔍</p>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Référence introuvable</h1>
-          <p className="text-gray-500 mb-2 text-sm">Cette référence de paiement est introuvable ou expirée.</p>
-          <p className="font-mono text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-block text-gray-700 mb-6">{reference}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-200 mb-2">Référence introuvable</h1>
+          <p className="text-gray-500 dark:text-slate-400 mb-2 text-sm">Cette référence de paiement est introuvable ou expirée.</p>
+          <p className="font-mono text-xs bg-gray-100 dark:bg-slate-700 px-3 py-1.5 rounded-lg inline-block text-gray-700 dark:text-slate-300 mb-6">{reference}</p>
           <div className="flex flex-col gap-2">
             <Link href="/panier" className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:from-green-600 hover:to-violet-600 transition">
               Retour au panier
             </Link>
-            <Link href="/compte/commandes" className="text-sm text-gray-500 hover:text-violet-600 transition">
+            <Link href="/compte/commandes" className="text-sm text-gray-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition">
               Voir mes commandes
             </Link>
           </div>
@@ -116,29 +116,29 @@ export default async function CheckoutPage({ params }: PageProps) {
   const settings = readPaymentSettings()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50 pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 pb-8">
       {/* Header marketplace */}
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-20">
+      <header className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 shadow-sm sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/produits" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-600 transition font-medium">
+            <Link href="/produits" className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition font-medium">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               Catalogue
             </Link>
-            <div className="h-5 w-px bg-gray-200 hidden sm:block" />
+            <div className="h-5 w-px bg-gray-200 dark:bg-slate-700 hidden sm:block" />
             <Link href="/" className="hidden sm:flex items-center gap-2">
               <span className="font-extrabold text-lg bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">
                 IT Vision
               </span>
-              <span className="text-xs text-gray-400 font-medium">Marketplace</span>
+              <span className="text-xs text-gray-400 dark:text-slate-500 font-medium">Marketplace</span>
             </Link>
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <Link href="/panier" className="text-gray-500 hover:text-green-600 transition font-medium flex items-center gap-1.5">
+            <Link href="/panier" className="text-gray-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition font-medium flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
               Panier
             </Link>
-            <Link href="/compte" className="text-gray-500 hover:text-violet-600 transition font-medium hidden sm:flex items-center gap-1.5">
+            <Link href="/compte" className="text-gray-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition font-medium hidden sm:flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               Mon compte
             </Link>
@@ -150,22 +150,22 @@ export default async function CheckoutPage({ params }: PageProps) {
 
       {/* Breadcrumb + Titre */}
       <div className="max-w-5xl mx-auto px-4 pt-6 pb-3">
-        <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-4 flex-wrap">
-          <Link href="/produits" className="hover:text-green-600 transition">Catalogue</Link>
+        <nav className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mb-4 flex-wrap">
+          <Link href="/produits" className="hover:text-green-600 dark:hover:text-green-400 transition">Catalogue</Link>
           <span>›</span>
-          <Link href="/panier" className="hover:text-green-600 transition">Panier</Link>
+          <Link href="/panier" className="hover:text-green-600 dark:hover:text-green-400 transition">Panier</Link>
           <span>›</span>
-          <span className="text-gray-700 font-medium">Paiement</span>
+          <span className="text-gray-700 dark:text-slate-300 font-medium">Paiement</span>
         </nav>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Finalisation du paiement</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-200">Finalisation du paiement</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
               {orderType === 'group' ? 'Achat Groupé' : 'Commande'}{' '}
-              <span className="font-mono font-semibold text-violet-600">{groupData.groupId}</span>
+              <span className="font-mono font-semibold text-violet-600 dark:text-violet-400">{groupData.groupId}</span>
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400 bg-white rounded-xl px-3 py-2 border border-gray-100 shadow-sm self-start sm:self-auto">
+          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500 bg-white dark:bg-slate-800 rounded-xl px-3 py-2 border border-gray-100 dark:border-slate-700 shadow-sm self-start sm:self-auto">
             <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
             Paiement sécurisé
           </div>
@@ -187,16 +187,16 @@ export default async function CheckoutPage({ params }: PageProps) {
       </div>
 
       {/* Footer marketplace */}
-      <footer className="border-t border-gray-100 bg-white/70 backdrop-blur-sm py-6 mt-4">
+      <footer className="border-t border-gray-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm py-6 mt-4">
         <div className="max-w-5xl mx-auto px-4 text-center">
-          <p className="text-xs text-gray-400 mb-3">
+          <p className="text-xs text-gray-400 dark:text-slate-500 mb-3">
             IT Vision Plus • Paiements sécurisés • Support : <strong>{settings.providers.manual.waveMerchantPhone}</strong>
           </p>
-          <div className="flex items-center justify-center gap-5 text-xs text-gray-400">
-            <Link href="/produits" className="hover:text-green-600 transition">Catalogue</Link>
-            <Link href="/suivi" className="hover:text-green-600 transition">Suivi commande</Link>
-            <Link href="/compte/commandes" className="hover:text-violet-600 transition">Mes commandes</Link>
-            <Link href="/contact" className="hover:text-green-600 transition">Contact</Link>
+          <div className="flex items-center justify-center gap-5 text-xs text-gray-400 dark:text-slate-500">
+            <Link href="/produits" className="hover:text-green-600 dark:hover:text-green-400 transition">Catalogue</Link>
+            <Link href="/suivi" className="hover:text-green-600 dark:hover:text-green-400 transition">Suivi commande</Link>
+            <Link href="/compte/commandes" className="hover:text-violet-600 dark:hover:text-violet-400 transition">Mes commandes</Link>
+            <Link href="/contact" className="hover:text-green-600 dark:hover:text-green-400 transition">Contact</Link>
           </div>
         </div>
       </footer>

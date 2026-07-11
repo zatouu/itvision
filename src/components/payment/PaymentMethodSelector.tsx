@@ -150,8 +150,8 @@ export default function PaymentMethodSelector({
     <div className="space-y-6">
       {/* Titre */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Moyen de paiement</h1>
-        <p className="text-sm text-gray-400 mt-1">Choisissez comment payer votre commande</p>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Moyen de paiement</h1>
+        <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">Choisissez comment payer votre commande</p>
       </div>
 
       {/* Option gateway intégrée si active */}
@@ -161,8 +161,8 @@ export default function PaymentMethodSelector({
           onClick={() => setSelected('gateway')}
           className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition text-left ${
             selected === 'gateway'
-              ? 'border-emerald-500 bg-emerald-50'
-              : 'border-gray-200 bg-white hover:border-emerald-300'
+              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30'
+              : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700'
           }`}
         >
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-violet-500 flex items-center justify-center">
@@ -170,10 +170,10 @@ export default function PaymentMethodSelector({
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <p className="font-bold text-slate-800">Paiement instantané</p>
-              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Rapide</span>
+              <p className="font-bold text-slate-800 dark:text-slate-200">Paiement instantané</p>
+              <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">Rapide</span>
             </div>
-            <p className="text-xs text-gray-500">Carte, Wave, Orange Money, Free Money</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Carte, Wave, Orange Money, Free Money</p>
           </div>
           {selected === 'gateway' && <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
         </motion.button>
@@ -181,10 +181,10 @@ export default function PaymentMethodSelector({
 
       {/* Séparateur si gateway active */}
       {gatewayActive && (
-        <div className="flex items-center gap-3 text-xs text-gray-400">
-          <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-slate-500">
+          <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
           <span>ou paiement manuel</span>
-          <div className="flex-1 h-px bg-gray-200" />
+          <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
         </div>
       )}
 
@@ -201,7 +201,7 @@ export default function PaymentMethodSelector({
               className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition ${
                 isSelected
                   ? `${provider.border} ${provider.bg}`
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'
               }`}
             >
               <div className="relative">
@@ -210,7 +210,7 @@ export default function PaymentMethodSelector({
                   <span className="absolute -top-1.5 -right-1.5 text-[8px] bg-emerald-500 text-white px-1 py-0.5 rounded-full font-bold">Top</span>
                 )}
               </div>
-              <span className={`text-xs font-bold ${isSelected ? provider.text : 'text-gray-600'}`}>{provider.short}</span>
+              <span className={`text-xs font-bold ${isSelected ? provider.text : 'text-gray-600 dark:text-slate-400'}`}>{provider.short}</span>
               {isSelected && <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: provider.color }} />}
             </motion.button>
           )
@@ -227,14 +227,14 @@ export default function PaymentMethodSelector({
             exit={{ opacity: 0, y: -8 }}
             className="space-y-5"
           >
-            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/40">
               <div className="flex items-start gap-3">
-                <div className="bg-emerald-100 p-2 rounded-lg">
-                  <Smartphone className="w-5 h-5 text-emerald-600" />
+                <div className="bg-emerald-100 dark:bg-emerald-900/40 p-2 rounded-lg">
+                  <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-emerald-900">Paiement sécurisé en ligne</p>
-                  <p className="text-xs text-emerald-700 mt-0.5">
+                  <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-300">Paiement sécurisé en ligne</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
                     Vous serez redirigé vers notre partenaire de paiement pour finaliser la transaction.
                   </p>
                 </div>
@@ -270,28 +270,28 @@ export default function PaymentMethodSelector({
               <div className="flex items-center gap-3 mb-3">
                 <activeProvider.icon className="h-8 w-auto rounded shadow-sm" />
                 <div>
-                  <p className="font-bold text-slate-800">Payer avec {activeProvider.label}</p>
-                  <p className="text-xs text-gray-500">Transfert rapide et sécurisé</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">Payer avec {activeProvider.label}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Transfert rapide et sécurisé</p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-100">
+                <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-100 dark:border-slate-700">
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">Numéro marchand</p>
-                    <p className="text-lg font-mono font-bold text-slate-900">
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wider">Numéro marchand</p>
+                    <p className="text-lg font-mono font-bold text-slate-900 dark:text-slate-200">
                       {selected === 'wave' ? phones.wave : selected === 'orange' ? phones.orange : phones.free}
                     </p>
                   </div>
                   <button
                     onClick={() => copyToClipboard(selected === 'wave' ? phones.wave : selected === 'orange' ? phones.orange : phones.free, selected)}
-                    className="text-gray-400 hover:text-emerald-600 p-2 hover:bg-emerald-50 rounded-lg transition"
+                    className="text-gray-400 hover:text-emerald-600 dark:text-slate-500 dark:hover:text-emerald-400 p-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
                   >
                     {copiedField === selected ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
                   </button>
                 </div>
 
-                <div className="bg-white rounded-lg p-3 border border-gray-100 text-xs text-gray-600 space-y-1.5">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-100 dark:border-slate-700 text-xs text-gray-600 dark:text-slate-400 space-y-1.5">
                   <p className="flex items-start gap-2"><span className={`font-bold ${activeProvider.text}`}>1.</span> Ouvrez l&apos;app {activeProvider.label}</p>
                   <p className="flex items-start gap-2"><span className={`font-bold ${activeProvider.text}`}>2.</span> Envoyez <strong>{formatCurrency(amount)}</strong> au numéro ci-dessus</p>
                   <p className="flex items-start gap-2"><span className={`font-bold ${activeProvider.text}`}>3.</span> Indiquez la référence : <strong className="font-mono">{reference}</strong></p>
@@ -309,12 +309,12 @@ export default function PaymentMethodSelector({
             </div>
 
             {/* WhatsApp confirmation */}
-            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-              <p className="text-sm font-semibold text-amber-900 mb-1 flex items-center gap-2">
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-900/40">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-300 mb-1 flex items-center gap-2">
                 <Shield size={14} />
                 Validation plus rapide
               </p>
-              <p className="text-xs text-amber-800 leading-relaxed mb-3">
+              <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed mb-3">
                 Envoyez la capture d&apos;écran de confirmation par WhatsApp pour une validation sous 5 min.
               </p>
               <a
@@ -334,18 +334,18 @@ export default function PaymentMethodSelector({
       {/* Sécurité badges */}
       <div className="grid grid-cols-3 gap-2 pt-2">
         {[{ icon: Shield, label: 'Sécurisé' }, { icon: Building2, label: 'Marchand vérifié' }, { icon: Smartphone, label: 'Paiement mobile' }].map((b, i) => (
-          <div key={i} className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-lg min-h-[72px] justify-center">
+          <div key={i} className="flex flex-col items-center text-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg min-h-[72px] justify-center">
             <b.icon className="w-5 h-5 text-emerald-500 mb-1.5" />
-            <span className="text-xs text-gray-600 font-medium leading-tight">{b.label}</span>
+            <span className="text-xs text-gray-600 dark:text-slate-400 font-medium leading-tight">{b.label}</span>
           </div>
         ))}
       </div>
 
       {/* Paiement à la livraison - option secondaire */}
-      <div className="pt-4 border-t border-gray-100">
+      <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
         <button
           onClick={() => setShowCod(!showCod)}
-          className="w-full flex items-center justify-between text-sm text-gray-500 hover:text-gray-700 transition"
+          className="w-full flex items-center justify-between text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition"
         >
           <span className="flex items-center gap-2">
             <Truck className="w-4 h-4" />
@@ -361,7 +361,7 @@ export default function PaymentMethodSelector({
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="mt-3 bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm text-gray-600">
+              <div className="mt-3 bg-gray-50 dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700 text-sm text-gray-600 dark:text-slate-400">
                 <p className="mb-2">
                   Le paiement à la livraison est disponible pour certaines commandes. Veuillez nous contacter pour confirmer l&apos;éligibilité.
                 </p>

@@ -36,6 +36,33 @@
     "devCode": "Dev code",
     "logout": "Log out"
   },
+  "menu": {
+    "home": "Home",
+    "myRequests": "My requests",
+    "wallet": "Wallet",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "rateApp": "Rate app",
+    "help": "Help & Support",
+    "about": "About",
+    "logout": "Log out",
+    "navigation": "Navigation",
+    "account": "Account",
+    "settings": "Settings",
+    "verified": "Verified",
+    "guest": "Guest"
+  },
+  "setup": {
+    "title": "Welcome!",
+    "subtitle": "Enter your name to personalize your experience.",
+    "nameLabel": "First and last name",
+    "namePlaceholder": "e.g. Aminata Diop",
+    "phoneLabel": "Phone",
+    "phonePlaceholder": "77 123 45 67",
+    "save": "Continue",
+    "nameRequired": "Please enter your name",
+    "error": "Error saving profile"
+  },
   "home": {
     "greeting_morning": "Good morning",
     "greeting_afternoon": "Good afternoon",
@@ -63,7 +90,25 @@
     "locating": "Locating...",
     "locationNeeded": "Enable location to see the map",
     "missions": "missions",
-    "newProvider": "New provider"
+    "newProvider": "New provider",
+    "offersWaiting": "{{count}} offer(s) waiting",
+    "offersWaitingSub": "Compare and choose your provider",
+    "reviewOffers": "Review offers",
+    "activeMissions": "Active missions",
+    "noActiveMissions": "No active missions",
+    "providerArriving": "Provider on the way",
+    "providerInProgress": "Service in progress",
+    "quickActions": "Quick services",
+    "emergencyRepair": "Emergency repair",
+    "emergencySub": "Electricity, plumbing, locksmith",
+    "howItWorks": "How it works",
+    "step1": "Post your request",
+    "step1Sub": "Describe the issue, add photos and voice",
+    "step2": "Receive offers",
+    "step2Sub": "Nearby providers respond to you",
+    "step3": "Choose and rate",
+    "step3Sub": "Compare prices and reviews",
+    "recommendedProviders": "Recommended providers near you"
   },
   "request": {
     "createTitle": "New request",
@@ -145,7 +190,9 @@
     "status_rejected": "Rejected",
     "status_expired": "Expired",
     "status_withdrawn": "Withdrawn",
-    "status_cancelled": "Cancelled"
+    "status_cancelled": "Cancelled",
+    "voiceMessage": "Voice message",
+    "media": "Media"
   },
   "requests": {
     "title": "My requests",
@@ -228,7 +275,31 @@
     "mediaUnavailable": "Media unavailable",
     "invalidMediaLink": "Invalid media link",
     "cannotOpenLink": "Cannot open this link",
-    "cannotOpenMedia": "Cannot open this media"
+    "cannotOpenMedia": "Cannot open this media",
+    "trackingTitle": "Tracking",
+    "noLocation": "No location available",
+    "stepAssigned": "Assigned",
+    "stepArriving": "On the way",
+    "stepInProgress": "On site",
+    "stepCompleted": "Completed",
+    "bannerAssigned": "Provider assigned",
+    "bannerArriving": "On the way to you",
+    "bannerInProgress": "Service in progress",
+    "bannerCompleted": "Mission completed",
+    "bannerCancelled": "Mission cancelled",
+    "arrivingIn": "Arrives in {{eta}}",
+    "sinceLabel": "In progress since {{duration}}",
+    "durationLabel": "Duration: {{duration}}",
+    "agreedPrice": "Agreed price",
+    "service": "Service",
+    "payment": "Payment",
+    "depositPaid": "Deposit paid",
+    "balanceDue": "Balance due",
+    "cashOnPlace": "Cash on site",
+    "depositPhase": "deposit",
+    "balancePhase": "balance",
+    "totalPhase": "total",
+    "cancelBtn": "Cancel mission"
   },
   "rating": {
     "title": "Rate this service",
@@ -295,7 +366,11 @@
     "referralShareMessage": "Join me on Xeuy Bi! Use my code {{code}} and earn 1,000 FCFA. Download the app here: https://xeuy.sn",
     "referralShare": "Share",
     "referralEarned": "Earned",
-    "referralCount": "Referrals"
+    "referralCount": "Referrals",
+    "avatarTitle": "Profile photo",
+    "avatarCamera": "Take a photo",
+    "avatarGallery": "Choose from gallery",
+    "avatarGenerated": "Use initials avatar"
   },
   "chat": {
     "title": "Chat",
