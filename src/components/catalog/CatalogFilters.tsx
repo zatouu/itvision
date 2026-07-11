@@ -12,13 +12,13 @@ interface FilterSectionProps {
 function FilterSection({ title, children, defaultOpen = false }: FilterSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border-b border-slate-100 last:border-b-0 pb-4 mb-4">
+    <div className="border-b border-slate-100 dark:border-slate-700 last:border-b-0 pb-4 mb-4">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 mb-2"
+        className="flex items-center justify-between w-full text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2"
       >
         {title}
-        {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        {open ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
       </button>
       {open && <div className="space-y-2">{children}</div>}
     </div>
@@ -39,16 +39,16 @@ function CheckboxList({ options, selected, onToggle }: {
   return (
     <div className="space-y-1.5">
       {options.map((opt) => (
-        <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
+        <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
           <input
             type="checkbox"
             checked={selected.includes(opt.value)}
             onChange={() => onToggle(opt.value)}
-            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
           />
           <span className="flex-1">{opt.label}</span>
           {opt.count !== undefined && (
-            <span className="text-xs text-slate-400">{opt.count.toLocaleString('fr-FR')}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">{opt.count.toLocaleString('fr-FR')}</span>
           )}
         </label>
       ))}
@@ -116,13 +116,13 @@ export default function CatalogFilters({ activeFilters, onRemoveFilter, onReset 
 
   return (
     <aside className="sticky top-[180px] h-[calc(100vh-200px)] overflow-y-auto pr-2">
-      <div className="bg-white border border-slate-200 rounded-lg p-4">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
         {/* Active filters */}
         {activeFilters.length > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-600">Filtres actifs</span>
-              <button onClick={onReset} className="text-xs text-violet-600 hover:underline">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Filtres actifs</span>
+              <button onClick={onReset} className="text-xs text-violet-600 dark:text-violet-400 hover:underline">
                 Réinitialiser
               </button>
             </div>
@@ -131,7 +131,7 @@ export default function CatalogFilters({ activeFilters, onRemoveFilter, onReset 
                 <button
                   key={f.key}
                   onClick={() => onRemoveFilter(f.key)}
-                  className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-1 flex items-center gap-1"
+                  className="text-xs bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-full px-2 py-1 flex items-center gap-1"
                 >
                   {f.label} <X className="w-3 h-3" />
                 </button>
@@ -158,14 +158,14 @@ export default function CatalogFilters({ activeFilters, onRemoveFilter, onReset 
               placeholder="Min"
               value={priceRange[0]}
               onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-              className="w-full text-xs border border-slate-200 rounded px-2 py-1"
+              className="w-full text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded px-2 py-1"
             />
             <input
               type="number"
               placeholder="Max"
               value={priceRange[1]}
               onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-              className="w-full text-xs border border-slate-200 rounded px-2 py-1"
+              className="w-full text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded px-2 py-1"
             />
           </div>
         </FilterSection>
@@ -213,15 +213,15 @@ export default function CatalogFilters({ activeFilters, onRemoveFilter, onReset 
         <FilterSection title="Délai livraison">
           <div className="space-y-1.5">
             {deliveryOptions.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+              <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
                 <input
                   type="radio"
                   name="delivery"
                   checked={delivery === opt.value}
                   onChange={() => setDelivery(opt.value)}
-                  className="w-4 h-4 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  className="w-4 h-4 border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
                 />
-                {opt.label}
+                <span className="dark:text-slate-400">{opt.label}</span>
               </label>
             ))}
           </div>

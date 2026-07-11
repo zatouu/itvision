@@ -147,7 +147,7 @@ export default function MarketHeader() {
           )}
           <Link
             href="/grains"
-            className="flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-violet-50/50 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100/60 transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-900/60 bg-violet-50/50 dark:bg-violet-950/30 px-2.5 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100/60 dark:hover:bg-violet-950/50 transition-colors whitespace-nowrap"
             title="Mes Grains"
           >
             <Gem className="h-3.5 w-3.5" />

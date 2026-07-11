@@ -53,7 +53,7 @@ export default function CatalogProductCard({
       viewport={{ once: true }}
       transition={{ delay: (index % 10) * 0.03 }}
       whileHover={{ y: -4 }}
-      className="group relative bg-white border border-slate-100 rounded-lg overflow-hidden hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.15)] hover:border-orange-200 transition-all duration-200"
+      className="group relative bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg overflow-hidden hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.15)] hover:border-orange-200 transition-all duration-200"
     >
       {/* Image carrée */}
       <div className="relative aspect-square overflow-hidden bg-slate-50">
@@ -111,7 +111,7 @@ export default function CatalogProductCard({
         <button
           type="button"
           onClick={(e) => onToggleFavorite(e, product.id)}
-          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white shadow-sm transition-colors opacity-0 group-hover:opacity-100 z-10"
+          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-full hover:bg-white dark:hover:bg-slate-900 shadow-sm transition-colors opacity-0 group-hover:opacity-100 z-10"
           aria-label="Ajouter aux favoris"
         >
           <Heart
@@ -140,12 +140,12 @@ export default function CatalogProductCard({
 
       {/* Info section */}
       <div className="p-2.5 space-y-1">
-        <h3 className="text-[11px] font-medium text-slate-800 line-clamp-2 leading-snug min-h-[2rem]">
+        <h3 className="text-[11px] font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug min-h-[2rem]">
           {product.name}
         </h3>
 
         {/* Rating + sold */}
-        <div className="flex items-center gap-1 text-[10px] text-slate-500">
+        <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           {product.rating !== undefined && product.rating > 0 && (
             <>
               <span className="text-amber-400">★</span>
@@ -153,7 +153,7 @@ export default function CatalogProductCard({
             </>
           )}
           {product.soldCount !== undefined && product.soldCount > 0 && (
-            <span className="text-slate-400">· {product.soldCount}+ vendus</span>
+            <span className="text-slate-400 dark:text-slate-500">· {product.soldCount}+ vendus</span>
           )}
         </div>
 
@@ -163,12 +163,12 @@ export default function CatalogProductCard({
             {formatPrice(product.price, product.currency)}
           </span>
           {product.originalPrice && product.originalPrice > product.price && (
-            <span className="text-[10px] text-slate-400 line-through">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
               {formatPrice(product.originalPrice, product.currency)}
             </span>
           )}
           {product.discount && product.discount > 0 && (
-            <span className="text-[10px] bg-red-50 text-red-600 px-1 rounded">
+            <span className="text-[10px] bg-red-50 dark:bg-red-950/30 text-red-600 px-1 rounded">
               -{product.discount}%
             </span>
           )}
@@ -180,12 +180,12 @@ export default function CatalogProductCard({
             {product.colorVariants.slice(0, 4).map((c, i) => (
               <div
                 key={i}
-                className="w-3 h-3 rounded-full border border-slate-200"
+                className="w-3 h-3 rounded-full border border-slate-200 dark:border-slate-600"
                 style={{ backgroundColor: c }}
               />
             ))}
             {product.colorVariants.length > 4 && (
-              <span className="text-[9px] text-slate-400 leading-3">+{product.colorVariants.length - 4}</span>
+              <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-3">+{product.colorVariants.length - 4}</span>
             )}
           </div>
         )}
@@ -193,11 +193,11 @@ export default function CatalogProductCard({
         {/* Bottom tag : delivery OR group buy progress */}
         {product.isGroupBuy ? (
           <div className="space-y-1 pt-0.5">
-            <div className="flex items-center justify-between text-[10px] text-violet-700">
+            <div className="flex items-center justify-between text-[10px] text-violet-700 dark:text-violet-400">
               <span>{product.groupProgress}/{product.groupTarget} participants</span>
               <span>{product.daysLeft}j restants</span>
             </div>
-            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-violet-500 to-purple-600"
                 style={{
@@ -207,11 +207,11 @@ export default function CatalogProductCard({
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-1 text-[10px] text-slate-500 pt-0.5">
+          <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
             <Truck className="w-3 h-3" />
             <span>Livraison {product.deliveryDays ?? 3}j</span>
             {product.origin === 'Stock Dakar' && (
-              <span className="text-emerald-600 font-medium">· En stock</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">· En stock</span>
             )}
           </div>
         )}

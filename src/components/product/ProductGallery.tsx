@@ -34,9 +34,9 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
   const isVideo = isVideoUrl(activeMedia)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
       {/* Main Image */}
-      <div className="relative bg-gray-50">
+      <div className="relative bg-gray-50 dark:bg-slate-700">
         {isVideo ? (
           <div className="relative aspect-square bg-black">
             <video src={activeMedia} controls autoPlay className="w-full h-full object-contain" />
@@ -74,21 +74,21 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
             <div className="absolute top-3 right-3 flex flex-col gap-2">
               <button
                 onClick={e => { e.stopPropagation(); onToggleFavorite() }}
-                className="p-2 bg-white/90 backdrop-blur rounded-full shadow hover:bg-white transition"
+                className="p-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-full shadow hover:bg-white dark:hover:bg-slate-900 transition"
               >
-                <Heart className={isFavorite ? "w-5 h-5 fill-red-500 text-red-500" : "w-5 h-5 text-gray-700"} />
+                <Heart className={isFavorite ? "w-5 h-5 fill-red-500 text-red-500" : "w-5 h-5 text-gray-700 dark:text-slate-400"} />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onShare?.() }}
-                className="p-2 bg-white/90 backdrop-blur rounded-full shadow hover:bg-white transition"
+                className="p-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-full shadow hover:bg-white dark:hover:bg-slate-900 transition"
               >
-                <Share2 className="w-5 h-5 text-gray-700" />
+                <Share2 className="w-5 h-5 text-gray-700 dark:text-slate-400" />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); setShowLightbox(true) }}
-                className="p-2 bg-white/90 backdrop-blur rounded-full shadow hover:bg-white transition"
+                className="p-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-full shadow hover:bg-white dark:hover:bg-slate-900 transition"
               >
-                <ZoomIn className="w-5 h-5 text-gray-700" />
+                <ZoomIn className="w-5 h-5 text-gray-700 dark:text-slate-400" />
               </button>
             </div>
             {/* Bottom counter */}
@@ -100,15 +100,15 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
               <>
                 <button
                   onClick={e => { e.stopPropagation(); setActiveImageIndex(i => i > 0 ? i - 1 : gallery.length - 1) }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-900 rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <ArrowLeft className="w-4 h-4 text-gray-700" />
+                  <ArrowLeft className="w-4 h-4 text-gray-700 dark:text-slate-400" />
                 </button>
                 <button
                   onClick={e => { e.stopPropagation(); setActiveImageIndex(i => i < gallery.length - 1 ? i + 1 : 0) }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-900 rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <ArrowRight className="w-4 h-4 text-gray-700" />
+                  <ArrowRight className="w-4 h-4 text-gray-700 dark:text-slate-400" />
                 </button>
               </>
             )}
@@ -128,8 +128,8 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
                 className={clsx(
                   "relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition",
                   activeImageIndex === idx
-                    ? "border-emerald-500 ring-2 ring-emerald-100"
-                    : "border-gray-200 hover:border-emerald-300"
+                    ? "border-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-900"
+                    : "border-gray-200 dark:border-slate-600 hover:border-emerald-300"
                 )}
               >
                 {video ? (

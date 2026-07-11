@@ -948,34 +948,34 @@ export default function ProduitsPage() {
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
       {/* === STICKY SEARCH HEADER === */}
-      <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+      <div className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-2">
           {/* Search bar compacte */}
-          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white border border-slate-300 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
-            <Search className="w-4 h-4 text-slate-400 ml-3 flex-shrink-0" />
+          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 ml-3 flex-shrink-0" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher dans 12 458 produits..."
-              className="flex-1 outline-none bg-transparent px-2 text-sm min-w-0"
+              className="flex-1 outline-none bg-transparent px-2 text-sm min-w-0 dark:text-slate-200"
             />
-            <button title="Recherche par image" onClick={() => setShowImageSearch(true)} className="p-2 hover:bg-slate-100 rounded-full flex-shrink-0">
-              <Camera className="w-4 h-4 text-violet-600" />
+            <button title="Recherche par image" onClick={() => setShowImageSearch(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full flex-shrink-0">
+              <Camera className="w-4 h-4 text-violet-600 dark:text-violet-400" />
             </button>
             <button className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-full text-sm font-medium flex-shrink-0">
               Rechercher
             </button>
           </div>
           {/* Breadcrumb */}
-          <div className="flex items-center mt-1.5 text-xs text-slate-500">
+          <div className="flex items-center mt-1.5 text-xs text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-1">
-              <Link href="/" className="hover:text-slate-700">Accueil</Link>
+              <Link href="/" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link>
               <span>{'>'}</span>
-              <span className="text-slate-700 font-medium">Catalogue</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">Catalogue</span>
               {activePill && activePill !== 'tous' && (
                 <>
                   <span>{'>'}</span>
-                  <span className="text-slate-700 font-medium">{getCategoryName(activePill)}</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{getCategoryName(activePill)}</span>
                 </>
               )}
             </div>
@@ -1020,12 +1020,12 @@ export default function ProduitsPage() {
       )}
 
       {/* === MAIN AREA : SIDEBAR + GRID === */}
-      <section className="py-6 bg-slate-50">
+      <section className="py-6 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
             {/* Sidebar */}
             <aside className="hidden md:block sticky top-[180px] h-[calc(100vh-200px)] overflow-y-auto pr-2">
-              <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-5">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-5">
                 {/* Filtres actifs */}
                 {(() => {
                   const activeFilters = []
@@ -1040,10 +1040,10 @@ export default function ProduitsPage() {
                   return activeFilters.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-slate-600">Filtres actifs</span>
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Filtres actifs</span>
                         <button onClick={() => {
                           setSearch(''); setDebouncedSearch(''); setSelected([]); setOnlyGroupBuy(false); setOnlyPrice(false); setOnlyQuote(false); setSegment('all'); setAvailabilityFilter('all'); setPriceRange(null)
-                        }} className="text-xs text-violet-600 hover:underline">Réinitialiser</button>
+                        }} className="text-xs text-violet-600 dark:text-violet-400 hover:underline">Réinitialiser</button>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {activeFilters.map(f => (
@@ -1058,7 +1058,7 @@ export default function ProduitsPage() {
                               case 'avail': setAvailabilityFilter('all'); break
                               case 'priceRange': setPriceRange(null); break
                             }
-                          }} className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-2 py-1 flex items-center gap-1">
+                          }} className="text-xs bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-900 rounded-full px-2 py-1 flex items-center gap-1">
                             {f.label} <X className="w-3 h-3" />
                           </button>
                         ))}
@@ -1068,7 +1068,7 @@ export default function ProduitsPage() {
                 })()}
                 {/* Prix */}
                 <div>
-                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Prix (FCFA)</span>
                   </div>
                   <input type="range" min={0} max={500000} step={5000} value={priceRange?.max ?? 500000} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full accent-orange-500 mb-1" />
@@ -1077,18 +1077,18 @@ export default function ProduitsPage() {
                     {[30,45,20,60,85,40,55,70,35,50,90,65,30,45,25,55,40,70,50,35].map((h,i)=>{
                       const inRange = priceRange ? (i/20)*500000 <= (priceRange.max ?? 500000) && (i/20)*500000 >= (priceRange.min ?? 0) : true
                       return (
-                        <div key={i} className={`flex-1 rounded-t-sm ${inRange ? 'bg-orange-300' : 'bg-slate-200'}`} style={{height:`${h}%`}} />
+                        <div key={i} className={`flex-1 rounded-t-sm ${inRange ? 'bg-orange-300 dark:bg-orange-600' : 'bg-slate-200 dark:bg-slate-600'}`} style={{height:`${h}%`}} />
                       )
                     })}
                   </div>
                   <div className="flex gap-2">
-                    <input type="number" placeholder="Min" value={priceRange?.min ?? ''} onChange={e => setPriceRange({min: Number(e.target.value), max: priceRange?.max ?? 500000})} className="w-full text-xs border border-slate-200 rounded px-2 py-1" />
-                    <input type="number" placeholder="Max" value={priceRange?.max ?? ''} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full text-xs border border-slate-200 rounded px-2 py-1" />
+                    <input type="number" placeholder="Min" value={priceRange?.min ?? ''} onChange={e => setPriceRange({min: Number(e.target.value), max: priceRange?.max ?? 500000})} className="w-full text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded px-2 py-1" />
+                    <input type="number" placeholder="Max" value={priceRange?.max ?? ''} onChange={e => setPriceRange({min: priceRange?.min ?? 0, max: Number(e.target.value)})} className="w-full text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded px-2 py-1" />
                   </div>
                 </div>
                 {/* Catégories */}
                 <div>
-                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Catégories</span>
                   </div>
                   <div className="space-y-1.5">
@@ -1106,10 +1106,10 @@ export default function ProduitsPage() {
                         slate: 'bg-slate-400'
                       }[cat.color || 'slate'] || 'bg-orange-400'
                       return (
-                        <label key={cat.slug} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 hover:text-slate-900">
-                          <input type="checkbox" checked={selected.includes(cat.slug)} onChange={() => setSelected(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])} className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
-                          <span className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${selected.includes(cat.slug) ? dotClass : 'bg-slate-200'}`} />
-                          <span className="flex-1">{cat.name}</span>
+                        <label key={cat.slug} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                          <input type="checkbox" checked={selected.includes(cat.slug)} onChange={() => setSelected(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-orange-600 focus:ring-orange-500" />
+                          <span className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${selected.includes(cat.slug) ? dotClass : 'bg-slate-200 dark:bg-slate-600'}`} />
+                          <span className="flex-1 dark:text-slate-300">{cat.name}</span>
                         </label>
                       )
                     })}
@@ -1117,37 +1117,37 @@ export default function ProduitsPage() {
                 </div>
                 {/* Disponibilité */}
                 <div>
-                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Disponibilité</span>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 border-slate-300 text-orange-600" />
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="w-4 h-4 border-slate-300 dark:border-slate-600 text-orange-600" />
                       Tous
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 border-slate-300 text-orange-600" />
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="w-4 h-4 border-slate-300 dark:border-slate-600 text-orange-600" />
                       En stock
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 border-slate-300 text-orange-600" />
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+                      <input type="radio" name="avail-sidebar" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="w-4 h-4 border-slate-300 dark:border-slate-600 text-orange-600" />
                       Sur commande
                     </label>
                   </div>
                 </div>
                 {/* Type d'achat */}
                 <div>
-                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 mb-2 border-l-2 border-orange-500 pl-2">
+                  <div className="flex items-center w-full text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 border-l-2 border-orange-500 pl-2">
                     <span>Type d'achat</span>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="checkbox" checked={!onlyGroupBuy} onChange={() => setOnlyGroupBuy(false)} className="w-4 h-4 rounded border-slate-300 text-orange-600" />
-                      <span className="flex-1">Achat individuel</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+                      <input type="checkbox" checked={!onlyGroupBuy} onChange={() => setOnlyGroupBuy(false)} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-orange-600" />
+                      <span className="flex-1 dark:text-slate-300">Achat individuel</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                      <input type="checkbox" checked={onlyGroupBuy} onChange={() => setOnlyGroupBuy(true)} className="w-4 h-4 rounded border-slate-300 text-orange-600" />
-                      <span className="flex-1">Achat groupé</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+                      <input type="checkbox" checked={onlyGroupBuy} onChange={() => setOnlyGroupBuy(true)} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-orange-600" />
+                      <span className="flex-1 dark:text-slate-300">Achat groupé</span>
                     </label>
                   </div>
                 </div>
@@ -1180,12 +1180,12 @@ export default function ProduitsPage() {
               {loading && filteredProducts.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {Array.from({length: 10}).map((_, i) => (
-                    <div key={i} className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-pulse">
-                      <div className="aspect-square bg-slate-100" />
+                    <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden animate-pulse">
+                      <div className="aspect-square bg-slate-100 dark:bg-slate-700" />
                       <div className="p-2.5 space-y-2">
-                        <div className="h-3 bg-slate-100 rounded w-3/4" />
-                        <div className="h-3 bg-slate-100 rounded w-1/2" />
-                        <div className="h-4 bg-slate-100 rounded w-1/3" />
+                        <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded w-3/4" />
+                        <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded w-1/2" />
+                        <div className="h-4 bg-slate-100 dark:bg-slate-700 rounded w-1/3" />
                       </div>
                     </div>
                   ))}
@@ -1219,10 +1219,10 @@ export default function ProduitsPage() {
                     return (
                       <div
                         key={pid}
-                        className="group bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md hover:border-orange-200 transition"
+                        className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:shadow-md hover:border-orange-200 transition"
                       >
                         <div className="flex gap-4">
-                          <Link href={`/produits/${pid}`} className="relative w-28 h-28 flex-shrink-0 rounded-lg overflow-hidden bg-slate-50">
+                          <Link href={`/produits/${pid}`} className="relative w-28 h-28 flex-shrink-0 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-700">
                             <img src={product.image || product.gallery?.[0] || '/file.svg'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                             {product.isFeatured && (
                               <span className="absolute top-1 left-1 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">✨ Nouveau</span>
@@ -1230,12 +1230,12 @@ export default function ProduitsPage() {
                           </Link>
                           <div className="flex-1 min-w-0 flex flex-col">
                             <div className="flex items-start justify-between gap-2">
-                              <Link href={`/produits/${pid}`} className="font-semibold text-slate-900 text-sm line-clamp-2 hover:text-orange-600 transition">
+                              <Link href={`/produits/${pid}`} className="font-semibold text-slate-900 dark:text-slate-200 text-sm line-clamp-2 hover:text-orange-600 transition">
                                 {product.name}
                               </Link>
                               <button
                                 onClick={(e) => toggleFavoriteFromList(e, pid)}
-                                className="p-1.5 hover:bg-slate-100 rounded-full transition flex-shrink-0"
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition flex-shrink-0"
                                 aria-label="Ajouter aux favoris"
                               >
                                 <Heart className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
@@ -1248,23 +1248,23 @@ export default function ProduitsPage() {
                                   <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> {product.rating.toFixed(1)}
                                 </span>
                               )}
-                              <span className="text-xs text-slate-500">· {product.deliveryDays}j</span>
-                              <span className="text-xs text-slate-500">· {product.isImported ? 'Import Chine' : 'Stock Dakar'}</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">· {product.deliveryDays}j</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">· {product.isImported ? 'Import Chine' : 'Stock Dakar'}</span>
                               {product.groupBuyEnabled && (
-                                <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-medium">👥 Groupe</span>
+                                <span className="text-xs bg-violet-100 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 px-1.5 py-0.5 rounded font-medium">👥 Groupe</span>
                               )}
                               {product.availabilityStatus === 'in_stock' && (
-                                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">En stock</span>
+                                <span className="text-xs bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded font-medium">En stock</span>
                               )}
                               {product.availabilityStatus === 'preorder' && (
-                                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Sur commande</span>
+                                <span className="text-xs bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-medium">Sur commande</span>
                               )}
                             </div>
 
                             {product.features && product.features.length > 0 && (
                               <div className="hidden sm:flex items-center gap-2 mt-2 flex-wrap">
                                 {product.features.slice(0, 3).map((f, i) => (
-                                  <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{f}</span>
+                                  <span key={i} className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">{f}</span>
                                 ))}
                               </div>
                             )}
@@ -1276,7 +1276,7 @@ export default function ProduitsPage() {
                               <div className="flex items-center gap-2">
                                 <Link
                                   href={`/produits/${pid}`}
-                                  className="text-xs font-medium text-slate-600 hover:text-orange-600 transition"
+                                  className="text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-orange-600 transition"
                                 >
                                   Voir
                                 </Link>
@@ -1299,9 +1299,9 @@ export default function ProduitsPage() {
               {/* Empty state */}
               {!loading && filteredProducts.length === 0 && (
                 <div className="text-center py-16">
-                  <Package className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Aucun produit trouvé</h3>
-                  <p className="text-slate-600">Essayez de modifier vos critères de recherche</p>
+                  <Package className="h-16 w-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-200 mb-2">Aucun produit trouvé</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Essayez de modifier vos critères de recherche</p>
                 </div>
               )}
 
@@ -1311,7 +1311,7 @@ export default function ProduitsPage() {
                   {loadingMore ? (
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
                   ) : (
-                    <p className="text-sm text-slate-400">Faites défiler pour voir plus</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-500">Faites défiler pour voir plus</p>
                   )}
                 </div>
               )}
@@ -1323,87 +1323,87 @@ export default function ProduitsPage() {
       {showFilters && (
         <div className="lg:hidden fixed inset-0 z-50" aria-hidden={!showFilters}>
           <div className="absolute inset-0 bg-black/40" onClick={()=>setShowFilters(false)} />
-          <div className="absolute left-0 top-0 h-full w-80 bg-white shadow-2xl p-4 space-y-4">
+          <div className="absolute left-0 top-0 h-full w-80 bg-white dark:bg-slate-900 shadow-2xl p-4 space-y-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">Filtres</h3>
-              <button onClick={()=>setShowFilters(false)} className="text-sm">Fermer</button>
-                    </div>
-            <div className="bg-white border rounded-xl p-3">
-              <h4 className="font-medium text-gray-900 mb-2">Recherche</h4>
-              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Rechercher..." className="w-full border rounded-lg px-3 py-2 text-sm" />
+              <h3 className="font-semibold dark:text-slate-200">Filtres</h3>
+              <button onClick={()=>setShowFilters(false)} className="text-sm dark:text-slate-400">Fermer</button>
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <h4 className="font-medium text-gray-900 mb-2">Catégories</h4>
-              <div className="space-y-1 text-sm max-h-56 overflow-auto pr-1">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 dark:text-slate-200 mb-2">Recherche</h4>
+              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Rechercher..." className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 dark:text-slate-200 mb-2">Catégories</h4>
+              <div className="space-y-1 text-sm max-h-56 overflow-auto pr-1 dark:text-slate-400">
                 {pillCategories.map((cat)=> (
                   <label key={cat.slug} className="flex items-center gap-2">
                     <input type="checkbox" checked={selected.includes(cat.slug)} onChange={(e)=>{
                       setSelected((prev)=> e.target.checked ? [...prev, cat.slug] : prev.filter(id=>id!==cat.slug))
-                    }} />
+                    }} className="rounded border-slate-300 dark:border-slate-600" />
                     <span>{cat.name}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <h4 className="font-medium text-gray-900 mb-2">Tarif</h4>
-              <div className="space-y-1 text-sm">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 dark:text-slate-200 mb-2">Tarif</h4>
+              <div className="space-y-1 text-sm dark:text-slate-400">
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} />
+                  <input type="checkbox" checked={onlyPrice} onChange={(e)=>{ setOnlyPrice(e.target.checked); if (e.target.checked) setOnlyQuote(false) }} className="rounded border-slate-300 dark:border-slate-600" />
                   <span>Avec prix</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} />
+                  <input type="checkbox" checked={onlyQuote} onChange={(e)=>{ setOnlyQuote(e.target.checked); if (e.target.checked) setOnlyPrice(false) }} className="rounded border-slate-300 dark:border-slate-600" />
                   <span>Sur devis</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} />
+                  <input type="checkbox" checked={onlyGroupBuy} onChange={(e)=> setOnlyGroupBuy(e.target.checked)} className="rounded border-slate-300 dark:border-slate-600" />
                   <span>Achat groupé uniquement</span>
                 </label>
               </div>
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <h4 className="font-medium text-gray-900 mb-2">Segment</h4>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 dark:text-slate-200 mb-2">Segment</h4>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSegment('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'all' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'all' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-green-300'}`}
                 >
                   Tous
                 </button>
                 <button
                   onClick={() => setSegment('import')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'import' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'import' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-green-300'}`}
                 >
                   Import
                 </button>
                 <button
                   onClick={() => setSegment('in_stock')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'in_stock' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'in_stock' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-green-300'}`}
                 >
                   Stock Dakar
                 </button>
                 <button
                   onClick={() => setSegment('group_buy')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'group_buy' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${segment === 'group_buy' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-green-300'}`}
                 >
                   Achats groupés
                 </button>
               </div>
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <h4 className="font-medium text-gray-900 mb-2">Disponibilité</h4>
-              <div className="space-y-1 text-sm">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+              <h4 className="font-medium text-gray-900 dark:text-slate-200 mb-2">Disponibilité</h4>
+              <div className="space-y-1 text-sm dark:text-slate-400">
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} />
+                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'all'} onChange={() => setAvailabilityFilter('all')} className="border-slate-300 dark:border-slate-600" />
                   <span>Tous</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} />
+                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'in_stock'} onChange={() => setAvailabilityFilter('in_stock')} className="border-slate-300 dark:border-slate-600" />
                   <span>En stock</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} />
+                  <input type="radio" name="availability-mobile" checked={availabilityFilter === 'preorder'} onChange={() => setAvailabilityFilter('preorder')} className="border-slate-300 dark:border-slate-600" />
                   <span>Sur commande</span>
                 </label>
               </div>
@@ -1455,10 +1455,10 @@ export default function ProduitsPage() {
 
       {/* Barre de comparaison */}
       {showCompareBar && comparingProducts.size > 0 && (
-        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-green-300 rounded-xl shadow-2xl px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 max-w-[92vw] md:max-w-2xl">
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white dark:bg-slate-800 border border-green-300 dark:border-green-900 rounded-xl shadow-2xl px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 max-w-[92vw] md:max-w-2xl">
           <div className="flex items-center gap-2">
             <GitCompare className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-semibold text-gray-900">
+            <span className="text-sm font-semibold text-gray-900 dark:text-slate-200">
               {comparingProducts.size} produit{comparingProducts.size > 1 ? 's' : ''} sélectionné{comparingProducts.size > 1 ? 's' : ''}
             </span>
           </div>
@@ -1469,7 +1469,7 @@ export default function ProduitsPage() {
                 setComparingProducts(new Set())
                 setShowCompareBar(false)
               }}
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="px-3 py-1.5 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Effacer
             </button>
