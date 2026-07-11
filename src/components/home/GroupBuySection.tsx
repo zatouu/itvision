@@ -112,12 +112,12 @@ export default function GroupBuySection() {
 
   if (loading) {
     return (
-      <section className="py-8 bg-emerald-50/50">
+      <section className="py-8 bg-emerald-50/50 dark:bg-emerald-950/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="h-8 w-48 bg-slate-100 rounded animate-pulse mb-6" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-80 bg-slate-50 rounded-2xl animate-pulse" />
+              <div key={i} className="h-80 bg-slate-50 dark:bg-slate-900 rounded-2xl animate-pulse" />
             ))}
           </div>
         </div>
@@ -137,8 +137,8 @@ export default function GroupBuySection() {
               <Flame className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">🤝 Achats groupés actifs</h2>
-              <p className="text-sm text-slate-500">Rejoignez un groupe, plus on est moins on paie</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">🤝 Achats groupés actifs</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Rejoignez un groupe, plus on est moins on paie</p>
             </div>
           </div>
           <Link
@@ -168,7 +168,7 @@ export default function GroupBuySection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className="group relative rounded-2xl border border-slate-200 bg-white hover:shadow-lg hover:border-orange-200 transition-all overflow-hidden"
+                className="group relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-lg hover:border-orange-200 transition-all overflow-hidden"
               >
                 {/* Image */}
                 <div className="relative h-40 bg-slate-50 overflow-hidden">
@@ -197,7 +197,7 @@ export default function GroupBuySection() {
 
                 {/* Content */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-slate-800 text-sm line-clamp-2 mb-2 min-h-[2rem]">
+                  <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 mb-2 min-h-[2rem]">
                     {item.name}
                   </h3>
 
@@ -206,7 +206,7 @@ export default function GroupBuySection() {
                       {/* Progress bar */}
                       <div className="mb-3">
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-slate-500 flex items-center gap-1">
+                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <Users className="h-3 w-3" />
                             {group.currentQty}/{group.targetQty} unités
                           </span>
@@ -214,7 +214,7 @@ export default function GroupBuySection() {
                             {formatPrice(group.currentPrice, item.currency)}
                           </span>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-emerald-500 rounded-full transition-all"
                             style={{ width: `${progress}%` }}
@@ -224,23 +224,23 @@ export default function GroupBuySection() {
 
                       {/* Counters */}
                       <div className="grid grid-cols-3 gap-1 mb-3 text-center">
-                        <div className="bg-emerald-50 rounded-lg p-1.5">
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-1.5">
                           <div className="flex items-center justify-center gap-1">
                             <Users className="h-3 w-3 text-emerald-500" />
-                            <span className="text-xs font-bold text-emerald-700">{group.participantCount}</span>
+                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{group.participantCount}</span>
                           </div>
-                          <span className="text-[10px] text-emerald-500">participants</span>
+                          <span className="text-[10px] text-emerald-500 dark:text-emerald-500/80">participants</span>
                         </div>
-                        <div className="bg-slate-50 rounded-lg p-1.5">
-                          <div className="text-xs font-bold text-slate-700">{group.targetQty - group.currentQty}</div>
-                          <span className="text-[10px] text-slate-500">places</span>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-1.5">
+                          <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{group.targetQty - group.currentQty}</div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400">places</span>
                         </div>
-                        <div className="bg-slate-50 rounded-lg p-1.5">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-1.5">
                           <div className="flex items-center justify-center gap-1">
                             <Clock className="h-3 w-3 text-slate-400" />
-                            <span className="text-xs font-bold text-slate-700">{formatTimeLeft(group.deadline)}</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{formatTimeLeft(group.deadline)}</span>
                           </div>
-                          <span className="text-[10px] text-slate-500">restant</span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400">restant</span>
                         </div>
                       </div>
                     </>

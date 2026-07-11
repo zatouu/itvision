@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 export default function FinalCTABanner() {
   return (
-    <section className="py-12">
+    <section className="py-12 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

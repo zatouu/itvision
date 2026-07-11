@@ -1,0 +1,510 @@
+
+> securite-electronique-site@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.11
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+ ⚠ Mismatching @next/swc version, detected: 15.5.7 while Next.js is on 15.5.11. Please ensure these match
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: d:\itvision-1\public\sw.js
+ ○ (pwa)   URL: /sw.js
+ ○ (pwa)   Scope: /
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ Compiled successfully in 3.1min
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+(node:8260) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:8260) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:8260) [MONGOOSE] Warning: Duplicate schema index on {"providerId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:832) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:19048) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:20312) [MONGOOSE] Warning: Duplicate schema index on {"providerId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20312) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+[Payment] Mode: PROD (Wave/OM/Free Money réels) — NODE_ENV=production PAYMENTS_MOCK=undefined
+[Payment] Mode: PROD (Wave/OM/Free Money réels) — NODE_ENV=production PAYMENTS_MOCK=undefined
+(node:20312) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:816) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Payment] Mode: PROD (Wave/OM/Free Money réels) — NODE_ENV=production PAYMENTS_MOCK=undefined
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:816) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:19048) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+   Generating static pages (0/298) ...
+(node:19060) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:19060) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:19060) [MONGOOSE] Warning: Duplicate schema index on {"providerId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:2872) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Payment] Mode: PROD (Wave/OM/Free Money réels) — NODE_ENV=production PAYMENTS_MOCK=undefined
+[MongoDB] Connexion à MongoDB… mongodb://localhost:27018/itvision
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:18628) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18628) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+[EMAIL] Variables d'environnement SMTP non configurées
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:19416) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19416) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:18836) [MONGOOSE] Warning: Duplicate schema index on {"referralCode":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18836) [MONGOOSE] Warning: Duplicate schema index on {"providerId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:18836) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+[Payment] Mode: PROD (Wave/OM/Free Money réels) — NODE_ENV=production PAYMENTS_MOCK=undefined
+[EMAIL] Variables d'environnement SMTP non configurées
+(node:20188) [MONGOOSE] Warning: Duplicate schema index on {"interventionId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+   Generating static pages (74/298) 
+[MongoDB] ❌ Erreur de connexion: MongooseServerSelectionError: connect ECONNREFUSED ::1:27018, connect ECONNREFUSED 127.0.0.1:27018
+    at <unknown> (MongooseServerSelectionError: connect ECONNREFUSED ::1:27018, connect ECONNREFUSED 127.0.0.1:27018)
+    at async f (d:\itvision-1\.next\server\app\api\technicians\sync-users\route.js:1:11673)
+    at async C (d:\itvision-1\.next\server\app\sitemap.xml\route.js:1:6068)
+    at async F (d:\itvision-1\.next\server\app\sitemap.xml\route.js:1:7495) {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: [TopologyDescription]
+}
+[sitemap] MongoDB indisponible pendant le build, sitemap minimal généré.
+   Generating static pages (148/298) 
+   Generating static pages (223/298) 
+ ✓ Generating static pages (298/298)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                   Size  First Load JS
+┌ ○ /                                                      8.91 kB         149 kB
+├ ○ /_not-found                                               1 kB         106 kB
+├ ○ /about                                                 1.41 kB         124 kB
+├ ○ /achats-groupes                                        11.6 kB         173 kB
+├ ƒ /achats-groupes/[groupId]                              14.8 kB         169 kB
+├ ƒ /achats-groupes/nouveau                                7.88 kB         159 kB
+├ ○ /admin                                                 10.6 kB         119 kB
+├ ○ /admin-prix                                            5.76 kB         114 kB
+├ ○ /admin-produits                                          733 B         106 kB
+├ ○ /admin-reports                                         12.2 kB         165 kB
+├ ○ /admin/achats-chine                                       5 kB         151 kB
+├ ○ /admin/achats-groupes                                  10.9 kB         157 kB
+├ ○ /admin/achats-groupes/nouveau                          3.67 kB         112 kB
+├ ○ /admin/administration/how-to                           3.51 kB         109 kB
+├ ○ /admin/analytics                                       6.73 kB         112 kB
+├ ○ /admin/catalog                                         2.96 kB         117 kB
+├ ○ /admin/clients                                         10.9 kB         160 kB
+├ ○ /admin/commandes                                       9.87 kB         152 kB
+├ ƒ /admin/comptabilite                                    5.08 kB         114 kB
+├ ƒ /admin/depenses                                        10.7 kB         119 kB
+├ ○ /admin/devis                                           13.7 kB         163 kB
+├ ○ /admin/emails                                          3.28 kB         108 kB
+├ ○ /admin/factures                                        13.2 kB         118 kB
+├ ○ /admin/garanties                                       8.66 kB         151 kB
+├ ○ /admin/maintenance                                     16.8 kB         125 kB
+├ ○ /admin/market/image-embeddings                         5.83 kB         111 kB
+├ ○ /admin/market/promo-slides                             4.48 kB         147 kB
+├ ○ /admin/market/sourcing-requests                        8.58 kB         114 kB
+├ ƒ /admin/marketplace                                     7.25 kB         116 kB
+├ ○ /admin/marketplace/comptes-pro                         3.08 kB         112 kB
+├ ○ /admin/marketplace/retours                             4.35 kB         113 kB
+├ ○ /admin/marketplace/shops                               3.81 kB         112 kB
+├ ○ /admin/migration                                       3.76 kB         109 kB
+├ ○ /admin/paiements                                       6.49 kB         149 kB
+├ ○ /admin/planning                                        17.3 kB         126 kB
+├ ○ /admin/platform/analytics                              3.59 kB         109 kB
+├ ○ /admin/platform/config                                 3.67 kB         109 kB
+├ ○ /admin/platform/kyc                                    3.77 kB         109 kB
+├ ○ /admin/platform/transactions                           3.06 kB         108 kB
+├ ○ /admin/platform/wallets                                2.69 kB         108 kB
+├ ○ /admin/prices                                          7.47 kB         121 kB
+├ ƒ /admin/produits                                        30.1 kB         139 kB
+├ ○ /admin/produits/b2b-pricing                             4.9 kB         110 kB
+├ ○ /admin/projects                                        12.5 kB         121 kB
+├ ƒ /admin/projects/[id]                                   16.2 kB         125 kB
+├ ○ /admin/rapports                                         2.3 kB         116 kB
+├ ○ /admin/technicians                                       10 kB         118 kB
+├ ○ /admin/tickets                                         6.03 kB         114 kB
+├ ƒ /admin/tresorerie                                      7.37 kB         116 kB
+├ ○ /admin/users                                           14.8 kB         161 kB
+├ ƒ /api/account/dashboard                                   733 B         106 kB
+├ ƒ /api/account/grains/redeem                               733 B         106 kB
+├ ƒ /api/accounting/entries                                  733 B         106 kB
+├ ƒ /api/accounting/record-sale                              733 B         106 kB
+├ ƒ /api/accounting/stats                                    733 B         106 kB
+├ ƒ /api/admin/analytics/validation                          733 B         106 kB
+├ ƒ /api/admin/analytics/visits                              733 B         106 kB
+├ ƒ /api/admin/audit                                         733 B         106 kB
+├ ƒ /api/admin/catalog/categories                            733 B         106 kB
+├ ƒ /api/admin/catalog/categories/import-taxonomy            733 B         106 kB
+├ ƒ /api/admin/catalog/categories/seed                       733 B         106 kB
+├ ƒ /api/admin/catalog/image-embeddings/backfill             733 B         106 kB
+├ ƒ /api/admin/china-purchases                               733 B         106 kB
+├ ƒ /api/admin/china-purchases/[purchaseId]                  733 B         106 kB
+├ ƒ /api/admin/clients                                       733 B         106 kB
+├ ƒ /api/admin/clients/[id]                                  733 B         106 kB
+├ ƒ /api/admin/clients/contacts                              733 B         106 kB
+├ ƒ /api/admin/documents/upload                              733 B         106 kB
+├ ƒ /api/admin/emails                                        733 B         106 kB
+├ ƒ /api/admin/escrow                                        733 B         106 kB
+├ ƒ /api/admin/escrow/[reference]                            733 B         106 kB
+├ ƒ /api/admin/expenses                                      733 B         106 kB
+├ ƒ /api/admin/group-orders                                  733 B         106 kB
+├ ƒ /api/admin/group-orders/[groupId]                        733 B         106 kB
+├ ƒ /api/admin/inventory/low-stock                           733 B         106 kB
+├ ƒ /api/admin/invoices                                      733 B         106 kB
+├ ƒ /api/admin/invoices/extract                              733 B         106 kB
+├ ƒ /api/admin/invoices/pdf                                  733 B         106 kB
+├ ƒ /api/admin/invoices/send                                 733 B         106 kB
+├ ƒ /api/admin/kyc                                           733 B         106 kB
+├ ƒ /api/admin/market/external-search-logs                   733 B         106 kB
+├ ƒ /api/admin/market/sourcing                               733 B         106 kB
+├ ƒ /api/admin/market/sourcing/[id]                          733 B         106 kB
+├ ƒ /api/admin/market/sourcing/[id]/proposal                 733 B         106 kB
+├ ƒ /api/admin/marketplace/users                             733 B         106 kB
+├ ƒ /api/admin/milestone-knowledge                           733 B         106 kB
+├ ƒ /api/admin/order-chat/recent                             733 B         106 kB
+├ ƒ /api/admin/orders                                        733 B         106 kB
+├ ƒ /api/admin/payment-settings                              733 B         106 kB
+├ ƒ /api/admin/planning                                      733 B         106 kB
+├ ƒ /api/admin/platform/analytics                            733 B         106 kB
+├ ƒ /api/admin/platform/config                               733 B         106 kB
+├ ƒ /api/admin/platform/transactions                         733 B         106 kB
+├ ƒ /api/admin/platform/wallets                              733 B         106 kB
+├ ƒ /api/admin/pricing-overrides                             733 B         106 kB
+├ ƒ /api/admin/products/batch-b2b-pricing                    733 B         106 kB
+├ ƒ /api/admin/products/smart-import                         733 B         106 kB
+├ ƒ /api/admin/promo-slides                                  733 B         106 kB
+├ ƒ /api/admin/promo-slides/[id]                             733 B         106 kB
+├ ƒ /api/admin/quotes                                        733 B         106 kB
+├ ƒ /api/admin/quotes/extract                                733 B         106 kB
+├ ƒ /api/admin/quotes/pdf                                    733 B         106 kB
+├ ƒ /api/admin/quotes/send                                   733 B         106 kB
+├ ƒ /api/admin/reports/[id]/generate-quote                   733 B         106 kB
+├ ƒ /api/admin/reports/[id]/snapshot                         733 B         106 kB
+├ ƒ /api/admin/reports/create                                733 B         106 kB
+├ ƒ /api/admin/reports/validate                              733 B         106 kB
+├ ƒ /api/admin/settings                                      733 B         106 kB
+├ ƒ /api/admin/shipping-rates                                733 B         106 kB
+├ ƒ /api/admin/shops                                         733 B         106 kB
+├ ƒ /api/admin/shops/[shopId]                                733 B         106 kB
+├ ƒ /api/admin/shops/[shopId]/products                       733 B         106 kB
+├ ƒ /api/admin/technicians                                   733 B         106 kB
+├ ƒ /api/admin/technicians/[id]                              733 B         106 kB
+├ ƒ /api/admin/technicians/[id]/availability                 733 B         106 kB
+├ ƒ /api/admin/treasury                                      733 B         106 kB
+├ ƒ /api/admin/users                                         733 B         106 kB
+├ ƒ /api/admin/users/[id]/marketplace-tier                   733 B         106 kB
+├ ƒ /api/analytics/track                                     733 B         106 kB
+├ ƒ /api/auth/[...nextauth]                                  733 B         106 kB
+├ ƒ /api/auth/2fa/verify                                     733 B         106 kB
+├ ƒ /api/auth/forgot                                         733 B         106 kB
+├ ƒ /api/auth/guest-checkout                                 733 B         106 kB
+├ ƒ /api/auth/login                                          733 B         106 kB
+├ ƒ /api/auth/logout                                         733 B         106 kB
+├ ƒ /api/auth/mobile/send-otp                                733 B         106 kB
+├ ƒ /api/auth/mobile/verify-otp                              733 B         106 kB
+├ ƒ /api/auth/referral                                       733 B         106 kB
+├ ƒ /api/auth/register                                       733 B         106 kB
+├ ƒ /api/auth/register-corporate                             733 B         106 kB
+├ ƒ /api/auth/reset                                          733 B         106 kB
+├ ƒ /api/booking/confirm                                     733 B         106 kB
+├ ƒ /api/booking/ics                                         733 B         106 kB
+├ ƒ /api/catalog/categories                                  733 B         106 kB
+├ ƒ /api/catalog/products                                    733 B         106 kB
+├ ƒ /api/catalog/products/[id]                               733 B         106 kB
+├ ƒ /api/catalog/search-by-image                             733 B         106 kB
+├ ƒ /api/client-enterprise/contracts                         733 B         106 kB
+├ ƒ /api/client-enterprise/contracts/[id]                    733 B         106 kB
+├ ƒ /api/client-enterprise/dashboard                         733 B         106 kB
+├ ƒ /api/client-enterprise/documents                         733 B         106 kB
+├ ƒ /api/client-enterprise/interventions                     733 B         106 kB
+├ ƒ /api/client-enterprise/interventions/[id]                733 B         106 kB
+├ ƒ /api/client-enterprise/interventions/[id]/acknowledge    733 B         106 kB
+├ ƒ /api/client-enterprise/interventions/[id]/feedback       733 B         106 kB
+├ ƒ /api/client-enterprise/interventions/request             733 B         106 kB
+├ ƒ /api/client-enterprise/invoices/[id]                     733 B         106 kB
+├ ƒ /api/client-enterprise/me                                733 B         106 kB
+├ ƒ /api/client-enterprise/notifications                     733 B         106 kB
+├ ƒ /api/client-enterprise/projects                          733 B         106 kB
+├ ƒ /api/client-enterprise/projects/[id]                     733 B         106 kB
+├ ƒ /api/client-enterprise/quotes/[id]                       733 B         106 kB
+├ ƒ /api/client-enterprise/quotes/[id]/action                733 B         106 kB
+├ ƒ /api/client-enterprise/tickets                           733 B         106 kB
+├ ƒ /api/client-enterprise/tickets/[id]                      733 B         106 kB
+├ ƒ /api/client/dashboard                                    733 B         106 kB
+├ ƒ /api/client/documents                                    733 B         106 kB
+├ ƒ /api/client/interventions                                733 B         106 kB
+├ ƒ /api/client/invoices                                     733 B         106 kB
+├ ƒ /api/client/invoices/pdf                                 733 B         106 kB
+├ ƒ /api/client/maintenance                                  733 B         106 kB
+├ ƒ /api/client/profile                                      733 B         106 kB
+├ ƒ /api/client/projects                                     733 B         106 kB
+├ ƒ /api/client/quotes                                       733 B         106 kB
+├ ƒ /api/client/request-pro                                  733 B         106 kB
+├ ƒ /api/client/requests/intervention                        733 B         106 kB
+├ ƒ /api/client/requests/project                             733 B         106 kB
+├ ƒ /api/client/requests/quote                               733 B         106 kB
+├ ƒ /api/client/tickets                                      733 B         106 kB
+├ ƒ /api/client/visits                                       733 B         106 kB
+├ ƒ /api/clients                                             733 B         106 kB
+├ ƒ /api/corporate/products                                  733 B         106 kB
+├ ƒ /api/cron/maintenance                                    733 B         106 kB
+├ ƒ /api/csrf                                                733 B         106 kB
+├ ƒ /api/diagnostic/submit                                   733 B         106 kB
+├ ƒ /api/escrow/[reference]                                  733 B         106 kB
+├ ƒ /api/escrow/[reference]/dispute                          733 B         106 kB
+├ ƒ /api/exchange-rate                                       733 B         106 kB
+├ ƒ /api/favorites                                           733 B         106 kB
+├ ƒ /api/feedback                                            733 B         106 kB
+├ ƒ /api/grains                                              733 B         106 kB
+├ ƒ /api/grains/challenges                                   733 B         106 kB
+├ ƒ /api/grains/challenges/claim                             733 B         106 kB
+├ ƒ /api/grains/check-in                                     733 B         106 kB
+├ ƒ /api/grains/contest                                      733 B         106 kB
+├ ƒ /api/grains/history                                      733 B         106 kB
+├ ƒ /api/grains/rewards                                      733 B         106 kB
+├ ƒ /api/grains/rewards/redeem                               733 B         106 kB
+├ ƒ /api/grains/wheel                                        733 B         106 kB
+├ ƒ /api/grains/wheel/spin                                   733 B         106 kB
+├ ƒ /api/group-orders                                        733 B         106 kB
+├ ƒ /api/group-orders/[groupId]                              733 B         106 kB
+├ ƒ /api/group-orders/[groupId]/chat/messages                733 B         106 kB
+├ ƒ /api/group-orders/[groupId]/chat/stream                  733 B         106 kB
+├ ƒ /api/group-orders/[groupId]/leave                        733 B         106 kB
+├ ƒ /api/group-orders/[groupId]/my-payment                   733 B         106 kB
+├ ƒ /api/group-orders/[groupId]/payment-links                733 B         106 kB
+├ ƒ /api/group-orders/activities                             733 B         106 kB
+├ ƒ /api/group-orders/cron/reminders                         733 B         106 kB
+├ ƒ /api/group-orders/featured                               733 B         106 kB
+├ ƒ /api/group-orders/stats                                  733 B         106 kB
+├ ƒ /api/health                                              733 B         106 kB
+├ ƒ /api/installations                                       733 B         106 kB
+├ ƒ /api/installations/[id]/assign                           733 B         106 kB
+├ ƒ /api/installations/[id]/status                           733 B         106 kB
+├ ƒ /api/interventions                                       733 B         106 kB
+├ ƒ /api/interventions/submit                                733 B         106 kB
+├ ƒ /api/kyc/[id]                                            733 B         106 kB
+├ ƒ /api/kyc/status                                          733 B         106 kB
+├ ƒ /api/kyc/submit                                          733 B         106 kB
+├ ƒ /api/maintenance/activities                              733 B         106 kB
+├ ƒ /api/maintenance/activities/[id]/assign                  733 B         106 kB
+├ ƒ /api/maintenance/activities/[id]/bids                    733 B         106 kB
+├ ƒ /api/maintenance/contracts                               733 B         106 kB
+├ ƒ /api/maintenance/contracts/[id]/export                   733 B         106 kB
+├ ƒ /api/maintenance/reports                                 733 B         106 kB
+├ ƒ /api/maintenance/reports-prisma                          733 B         106 kB
+├ ƒ /api/maintenance/reports/submit                          733 B         106 kB
+├ ƒ /api/maintenance/visits                                  733 B         106 kB
+├ ƒ /api/market/products                                     733 B         106 kB
+├ ƒ /api/market/sourcing                                     733 B         106 kB
+├ ƒ /api/market/sourcing/search-external                     733 B         106 kB
+├ ƒ /api/market/sourcing/track/[token]                       733 B         106 kB
+├ ƒ /api/messages/conversations                              733 B         106 kB
+├ ƒ /api/messages/conversations/[conversationId]             733 B         106 kB
+├ ƒ /api/messages/conversations/[conversationId]/messages    733 B         106 kB
+├ ƒ /api/messages/users/search                               733 B         106 kB
+├ ƒ /api/notifications                                       733 B         106 kB
+├ ƒ /api/notifications/push-token                            733 B         106 kB
+├ ƒ /api/notifications/test-push                             733 B         106 kB
+├ ƒ /api/order                                               733 B         106 kB
+├ ƒ /api/order-chat                                          733 B         106 kB
+├ ƒ /api/order/[orderId]                                     733 B         106 kB
+├ ƒ /api/order/[orderId]/claim                               733 B         106 kB
+├ ƒ /api/order/[orderId]/resend-link                         733 B         106 kB
+├ ƒ /api/order/recover-link                                  733 B         106 kB
+├ ƒ /api/payment/checkout/init                               733 B         106 kB
+├ ƒ /api/payment/paydunya/callback                           733 B         106 kB
+├ ƒ /api/payment/paydunya/init                               733 B         106 kB
+├ ƒ /api/payment/status                                      733 B         106 kB
+├ ƒ /api/payments/initiate                                   733 B         106 kB
+├ ƒ /api/payments/refund                                     733 B         106 kB
+├ ƒ /api/payments/release                                    733 B         106 kB
+├ ƒ /api/payments/webhook                                    733 B         106 kB
+├ ƒ /api/pricing/settings                                    733 B         106 kB
+├ ƒ /api/pricing/simulate                                    733 B         106 kB
+├ ƒ /api/products                                            733 B         106 kB
+├ ƒ /api/products/b2b-price                                  733 B         106 kB
+├ ƒ /api/products/bulk                                       733 B         106 kB
+├ ƒ /api/products/categories                                 733 B         106 kB
+├ ƒ /api/products/group-buy                                  733 B         106 kB
+├ ƒ /api/products/import                                     733 B         106 kB
+├ ƒ /api/products/installations                              733 B         106 kB
+├ ƒ /api/projects                                            733 B         106 kB
+├ ƒ /api/projects/[id]/documents                             733 B         106 kB
+├ ƒ /api/projects/[id]/events                                733 B         106 kB
+├ ƒ /api/projects/[id]/images                                733 B         106 kB
+├ ƒ /api/projects/[id]/milestones                            733 B         106 kB
+├ ƒ /api/projects/[id]/products                              733 B         106 kB
+├ ƒ /api/projects/[id]/quote                                 733 B         106 kB
+├ ƒ /api/projects/[id]/summary                               733 B         106 kB
+├ ƒ /api/projects/[id]/timeline                              733 B         106 kB
+├ ƒ /api/projects/[id]/update-realtime                       733 B         106 kB
+├ ƒ /api/projects/advance                                    733 B         106 kB
+├ ƒ /api/promo-slides                                        733 B         106 kB
+├ ƒ /api/quotes                                              733 B         106 kB
+├ ƒ /api/realizations                                        733 B         106 kB
+├ ƒ /api/reports                                             733 B         106 kB
+├ ƒ /api/returns                                             733 B         106 kB
+├ ƒ /api/returns/[id]                                        733 B         106 kB
+├ ƒ /api/reviews                                             733 B         106 kB
+├ ƒ /api/scheduling/auto-assign                              733 B         106 kB
+├ ƒ /api/scrape                                              733 B         106 kB
+├ ƒ /api/security/dashboard                                  733 B         106 kB
+├ ƒ /api/services                                            733 B         106 kB
+├ ƒ /api/services/assignments                                733 B         106 kB
+├ ƒ /api/services/categories                                 733 B         106 kB
+├ ƒ /api/services/chat                                       733 B         106 kB
+├ ƒ /api/services/matching                                   733 B         106 kB
+├ ƒ /api/services/offers                                     733 B         106 kB
+├ ƒ /api/services/offers/[id]/counter                        733 B         106 kB
+├ ƒ /api/services/offers/[id]/counter-response               733 B         106 kB
+├ ƒ /api/services/price-estimate                             733 B         106 kB
+├ ƒ /api/services/provider-dashboard                         733 B         106 kB
+├ ƒ /api/services/providers                                  733 B         106 kB
+├ ƒ /api/services/providers/top                              733 B         106 kB
+├ ƒ /api/services/requests                                   733 B         106 kB
+├ ƒ /api/services/requests/[id]                              733 B         106 kB
+├ ƒ /api/services/requests/[id]/accept                       733 B         106 kB
+├ ƒ /api/services/requests/[id]/live                         733 B         106 kB
+├ ƒ /api/services/requests/[id]/offers                       733 B         106 kB
+├ ƒ /api/services/requests/[id]/unlock                       733 B         106 kB
+├ ƒ /api/services/reviews                                    733 B         106 kB
+├ ƒ /api/services/route                                        0 B            0 B
+├ ƒ /api/shipping-rates                                      733 B         106 kB
+├ ƒ /api/shipping/rates-public                               733 B         106 kB
+├ ƒ /api/shops                                               733 B         106 kB
+├ ƒ /api/shops/[shopId]                                      733 B         106 kB
+├ ƒ /api/shops/[shopId]/products                             733 B         106 kB
+├ ƒ /api/support/tickets                                     733 B         106 kB
+├ ƒ /api/tech/clients                                        733 B         106 kB
+├ ƒ /api/technicians                                         733 B         106 kB
+├ ƒ /api/technicians/sync-users                              733 B         106 kB
+├ ƒ /api/test-email                                          733 B         106 kB
+├ ƒ /api/tickets                                             733 B         106 kB
+├ ƒ /api/tickets/[id]                                        733 B         106 kB
+├ ƒ /api/upload                                              733 B         106 kB
+├ ƒ /api/upload/dispute                                      733 B         106 kB
+├ ƒ /api/uploads/[...path]                                   733 B         106 kB
+├ ƒ /api/users                                               733 B         106 kB
+├ ƒ /api/users/me                                            733 B         106 kB
+├ ƒ /api/wallet                                              733 B         106 kB
+├ ƒ /api/wallet/packs                                        733 B         106 kB
+├ ƒ /api/wallet/topup                                        733 B         106 kB
+├ ƒ /api/wallet/webhook                                      733 B         106 kB
+├ ƒ /api/wallet/withdraw                                     733 B         106 kB
+├ ƒ /api/workflows                                           733 B         106 kB
+├ ƒ /boutiques/[shopId]                                    5.24 kB         126 kB
+├ ○ /cgv                                                   5.21 kB         130 kB
+├ ○ /checkout/adresse                                      10.7 kB         172 kB
+├ ○ /client-portal                                           261 B         278 kB
+├ ○ /client-portal-v2                                        176 B         278 kB
+├ ƒ /commandes/[orderId]                                   10.6 kB         159 kB
+├ ƒ /commandes/[orderId]/retour                            3.42 kB         112 kB
+├ ƒ /compte                                                12.7 kB         174 kB
+├ ƒ /compte/achats-groupes                                   182 B         109 kB
+├ ƒ /compte/commandes                                        182 B         109 kB
+├ ○ /compte/profil                                         4.98 kB         113 kB
+├ ○ /compte/reclamer-commande                                 2 kB         110 kB
+├ ○ /contact                                               4.55 kB         182 kB
+├ ƒ /corporate-produits                                     7.8 kB         121 kB
+├ ƒ /corporate-produits/[id]                                5.8 kB         119 kB
+├ ○ /digitalisation                                        11.1 kB         136 kB
+├ ○ /domotique                                             7.64 kB         133 kB
+├ ○ /forgot-password                                       2.61 kB         111 kB
+├ ○ /generateur-devis                                      12.4 kB         135 kB
+├ ○ /gestion-projets                                       17.1 kB         126 kB
+├ ○ /grains                                                13.9 kB         168 kB
+├ ○ /icon.png                                                  0 B            0 B
+├ ○ /intervention                                            577 B         106 kB
+├ ○ /login                                                 4.73 kB         113 kB
+├ ○ /login/admin                                             733 B         106 kB
+├ ○ /login/client                                            733 B         106 kB
+├ ○ /login/technician                                        733 B         106 kB
+├ ○ /maintenance-digital                                   3.08 kB         136 kB
+├ ○ /market                                                14.5 kB         174 kB
+├ ƒ /market/boutiques                                        179 B         114 kB
+├ ƒ /market/compte                                           733 B         106 kB
+├ ○ /market/creer-compte                                   4.71 kB         117 kB
+├ ƒ /market/sourcing/[token]                               6.39 kB         115 kB
+├ ○ /mentions-legales                                      1.87 kB         127 kB
+├ ○ /messages                                              3.55 kB         125 kB
+├ ƒ /messages/[conversationId]                             3.45 kB         124 kB
+├ ○ /mobile-app                                             6.1 kB         111 kB
+├ ƒ /paiement/checkout/[reference]                          8.2 kB         157 kB
+├ ○ /panier                                                17.2 kB         179 kB
+├ ƒ /payment/cancel                                          182 B         109 kB
+├ ○ /payment/success                                       2.34 kB         111 kB
+├ ○ /politique-confidentialite                             4.52 kB         130 kB
+├ ƒ /portail-entreprise                                      182 B         109 kB
+├ ƒ /portail-entreprise/activite                           2.04 kB         110 kB
+├ ƒ /portail-entreprise/contrats                           2.04 kB         110 kB
+├ ƒ /portail-entreprise/contrats/[id]                      6.02 kB         111 kB
+├ ○ /portail-entreprise/documents                          9.95 kB         118 kB
+├ ƒ /portail-entreprise/documents/devis/[id]               4.46 kB         113 kB
+├ ƒ /portail-entreprise/documents/factures/[id]            4.39 kB         109 kB
+├ ƒ /portail-entreprise/finances                           2.04 kB         110 kB
+├ ƒ /portail-entreprise/interventions                      4.64 kB         113 kB
+├ ƒ /portail-entreprise/interventions/[id]                 5.09 kB         110 kB
+├ ○ /portail-entreprise/profil                             5.16 kB         114 kB
+├ ƒ /portail-entreprise/projets                              182 B         109 kB
+├ ƒ /portail-entreprise/projets/[id]                       7.04 kB         115 kB
+├ ƒ /portail-entreprise/rapports                           2.04 kB         110 kB
+├ ○ /portail-entreprise/support                            5.31 kB         114 kB
+├ ƒ /portail-entreprise/support/[id]                       5.49 kB         111 kB
+├ ○ /portail-valeur                                        5.69 kB         111 kB
+├ ○ /prix-transparent                                      6.12 kB         152 kB
+├ ○ /produits                                              21.3 kB         193 kB
+├ ƒ /produits/[id]                                         15.5 kB         180 kB
+├ ○ /produits/compare                                      7.14 kB         169 kB
+├ ○ /produits/favoris                                       7.3 kB         172 kB
+├ ○ /realisations                                          1.41 kB         124 kB
+├ ○ /register                                                733 B         106 kB
+├ ○ /register-corporate                                    4.87 kB         117 kB
+├ ○ /reset-password                                        3.52 kB         112 kB
+├ ○ /retrouver-ma-commande                                 1.49 kB         110 kB
+├ ○ /robots.txt                                              733 B         106 kB
+├ ○ /services                                              13.4 kB         138 kB
+├ ○ /services/controle-acces                               3.73 kB         129 kB
+├ ○ /services/fiber-optic                                  3.58 kB         129 kB
+├ ○ /services/maintenance                                  3.56 kB         129 kB
+├ ○ /services/network-cabling                              3.62 kB         129 kB
+├ ○ /services/qhse                                         4.23 kB         129 kB
+├ ○ /services/securite-incendie                            3.57 kB         129 kB
+├ ○ /services/videosurveillance                            3.94 kB         129 kB
+├ ○ /sitemap.xml                                             733 B         106 kB
+├ ○ /suivi                                                 3.71 kB         150 kB
+├ ƒ /suivi/[reference]                                     9.98 kB         156 kB
+├ ƒ /suivi/[reference]/litige                              8.18 kB         159 kB
+├ ○ /tarification                                            182 B         109 kB
+├ ○ /tech-interface                                        14.3 kB         175 kB
+├ ○ /test-inputs                                           2.21 kB         125 kB
+├ ○ /validation-rapports                                   2.44 kB         130 kB
+├ ○ /workflow-engine                                       8.87 kB         114 kB
+└ ○ /workflows                                             7.46 kB         112 kB
++ First Load JS shared by all                               105 kB
+  ├ chunks/4696-f21d0b329e71007e.js                          48 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js                    54.2 kB
+  └ other shared chunks (total)                            2.78 kB
+
+
+ƒ Middleware                                               41.3 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

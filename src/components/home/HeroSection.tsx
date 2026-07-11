@@ -142,7 +142,7 @@ export default function HeroSection({ onOpenImageSearch, onOpenSourcing }: HeroS
       </div>
 
       {/* Bottom fade */}
-      <div className="h-16 bg-gradient-to-b from-transparent to-slate-50" />
+      <div className="h-16 bg-gradient-to-b from-transparent to-slate-50 dark:to-slate-950" />
     </section>
   )
 }

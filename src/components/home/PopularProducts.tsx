@@ -20,7 +20,7 @@ function ProductCard({ p, idx }: { p: HomeProduct; idx: number }) {
       viewport={{ once: true }}
       transition={{ delay: idx * 0.04 }}
       whileHover={{ y: -4 }}
-      className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
     >
       <Link href={`/produits/${p.id}`} className="block">
         <div className="relative aspect-square">
@@ -52,7 +52,7 @@ function ProductCard({ p, idx }: { p: HomeProduct; idx: number }) {
           <button
             type="button"
             onClick={(e) => e.preventDefault()}
-            className="absolute top-2 right-2 w-7 h-7 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+            className="absolute top-2 right-2 w-7 h-7 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
             aria-label="Ajouter aux favoris"
           >
             <Heart className="h-3.5 w-3.5" />
@@ -60,7 +60,7 @@ function ProductCard({ p, idx }: { p: HomeProduct; idx: number }) {
         </div>
 
         <div className="p-3">
-          <h3 className="text-xs font-medium text-slate-800 line-clamp-2 mb-2 min-h-[2rem]">
+          <h3 className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-2 mb-2 min-h-[2rem]">
             {p.name}
           </h3>
 
@@ -69,7 +69,7 @@ function ProductCard({ p, idx }: { p: HomeProduct; idx: number }) {
             {p.rating && (
               <span className="flex items-center gap-0.5 text-[10px]">
                 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                <span className="font-semibold text-slate-700">{p.rating.toFixed(1)}</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{p.rating.toFixed(1)}</span>
               </span>
             )}
             {p.soldCount && (
@@ -90,7 +90,7 @@ function ProductCard({ p, idx }: { p: HomeProduct; idx: number }) {
           </div>
 
           {/* Origin */}
-          <span className="text-[10px] text-slate-500">{p.origin}</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">{p.origin}</span>
         </div>
       </Link>
     </motion.div>
@@ -129,10 +129,10 @@ export default function PopularProducts() {
       })
 
   return (
-    <section className="py-8 bg-white">
+    <section className="py-8 bg-white dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl md:text-2xl font-bold text-slate-900">🔥 Produits populaires</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">🔥 Produits populaires</h2>
         </div>
 
         {/* Filter chips */}
@@ -144,7 +144,7 @@ export default function PopularProducts() {
               className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition border ${
                 tab === activeTab
                   ? 'bg-emerald-500 text-white border-emerald-500 font-medium'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-500 hover:text-emerald-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-500 hover:text-emerald-600 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:border-emerald-500 dark:hover:text-emerald-400'
               }`}
             >
               {tab}
@@ -155,7 +155,7 @@ export default function PopularProducts() {
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <div key={i} className="bg-white rounded-xl border border-slate-100 dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
                 <div className="aspect-square bg-slate-100 animate-pulse" />
                 <div className="p-3 space-y-2">
                   <div className="h-4 bg-slate-100 rounded animate-pulse" />

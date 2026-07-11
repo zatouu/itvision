@@ -61,7 +61,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
       .catch(() => {})
   }, [])
   return (
-    <section className="py-20 bg-slate-50">
+    <section className="py-20 bg-slate-50 dark:bg-slate-900">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -71,10 +71,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-800 mb-4">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-800 dark:text-white mb-4">
             Tout ce dont vous avez besoin pour importer
           </h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
             Trois services puissants, une seule plateforme.
           </p>
         </motion.div>
@@ -99,7 +99,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 ],
               }}
               transition={{ duration: 3, repeat: Infinity }}
-              className="relative h-[520px] rounded-3xl overflow-hidden border-2 border-violet-200 ring-4 ring-violet-100 bg-white flex flex-col"
+              className="relative h-[520px] rounded-3xl overflow-hidden border-2 border-violet-200 dark:border-violet-800 ring-4 ring-violet-100 dark:ring-violet-900/30 bg-white dark:bg-slate-800 flex flex-col"
             >
               {/* Badge populaire */}
               <div className="absolute top-4 right-4 z-10">
@@ -124,7 +124,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white dark:from-slate-800 to-transparent" />
               </div>
 
               {/* Content bottom */}
@@ -132,10 +132,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center mb-3">
                   <Search className="h-5 w-5 text-violet-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-2">
                   Trouvez un produit rare en Chine
                 </h3>
-                <p className="text-sm text-slate-500 mb-4 flex-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 flex-1">
                   Envoyez une photo, nos sourceurs trouvent le produit en 24h.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -168,7 +168,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
           >
             <motion.div
               whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-              className="h-[520px] rounded-3xl overflow-hidden border border-emerald-200 bg-white flex flex-col shadow-lg"
+              className="h-[520px] rounded-3xl overflow-hidden border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-800 flex flex-col shadow-lg"
             >
               {/* Image top (60%) */}
               <div className="relative h-[60%] overflow-hidden p-4">
@@ -185,7 +185,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white dark:from-slate-800 to-transparent" />
               </div>
 
               {/* Content bottom */}
@@ -193,10 +193,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
                   <Users className="h-5 w-5 text-emerald-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-2">
                   Achetez à plusieurs
                 </h3>
-                <p className="text-sm text-slate-500 mb-4 flex-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 flex-1">
                   Regroupez-vous avec d&apos;autres acheteurs et économisez jusqu&apos;à -45%.
                 </p>
                 <div className="flex items-center gap-2 mb-4">
@@ -205,7 +205,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                     <div className="w-7 h-7 rounded-full bg-violet-400 flex items-center justify-center text-[10px] font-bold text-white border-2 border-white">AM</div>
                     <div className="w-7 h-7 rounded-full bg-emerald-300 flex items-center justify-center text-[10px] font-bold text-white border-2 border-white">SK</div>
                   </div>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
                     847 membres actifs · 12 groupes ouverts
                   </span>
                 </div>
@@ -230,7 +230,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
           >
             <motion.div
               whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-              className="h-[520px] rounded-3xl overflow-hidden border border-slate-200 bg-white flex flex-col shadow-lg"
+              className="h-[520px] rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col shadow-lg"
             >
               {/* Image top (60%) */}
               <div className="relative h-[60%] overflow-hidden p-4">
@@ -247,7 +247,7 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white dark:from-slate-800 to-transparent" />
               </div>
 
               {/* Content bottom */}
@@ -255,10 +255,10 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
                   <svg className="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-2">
                   Catalogue direct usine
                 </h3>
-                <p className="text-sm text-slate-500 mb-4 flex-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 flex-1">
                   Prix transparents, zéro intermédiaire. Vous payez le prix usine.
                 </p>
                 <div className="mb-4 flex flex-wrap gap-2">
@@ -272,14 +272,14 @@ export default function FeatureCards({ onOpenSourcing }: FeatureCardsProps) {
                 <div className="flex flex-col gap-2">
                   <Link
                     href="/produits"
-                    className="w-full inline-flex items-center justify-center gap-2 border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white py-3 rounded-xl font-semibold transition-all"
+                    className="w-full inline-flex items-center justify-center gap-2 border-2 border-slate-900 dark:border-slate-200 text-slate-900 dark:text-slate-200 hover:bg-slate-900 hover:text-white dark:hover:bg-slate-200 dark:hover:text-slate-900 py-3 rounded-xl font-semibold transition-all"
                   >
                     Voir le catalogue
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
                     href="/tarification"
-                    className="w-full inline-flex items-center justify-center gap-2 text-slate-500 hover:text-slate-700 py-2 text-sm font-medium transition-colors"
+                    className="w-full inline-flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 py-2 text-sm font-medium transition-colors"
                   >
                     Voir le détail de notre tarification
                   </Link>

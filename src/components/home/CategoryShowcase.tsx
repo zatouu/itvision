@@ -6,9 +6,9 @@ import { showcaseCategories } from '@/lib/home-data'
 
 export default function CategoryShowcase() {
   return (
-    <section className="py-8 bg-slate-50">
+    <section className="py-8 bg-slate-50 dark:bg-slate-900">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-6">
           🏬 Découvrez nos rayons
         </h2>
 

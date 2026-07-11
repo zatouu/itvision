@@ -15,7 +15,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function QuickCategoriesGrid() {
   return (
-    <section className="py-8 bg-white">
+    <section className="py-8 bg-white dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-6 md:grid-cols-12 gap-3 md:gap-4">
           {quickCategories.map((cat, i) => {
@@ -32,10 +32,10 @@ export default function QuickCategoriesGrid() {
                   href={cat.href}
                   className="flex flex-col items-center gap-2 group"
                 >
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-slate-50 to-slate-100 group-hover:ring-2 ring-emerald-500 group-hover:scale-110 transition-all flex items-center justify-center">
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 group-hover:ring-2 ring-emerald-500 group-hover:scale-110 transition-all flex items-center justify-center">
                     <Icon className={`w-6 h-6 md:w-7 md:h-7 ${cat.color}`} />
                   </div>
-                  <span className="text-[10px] md:text-xs text-slate-600 text-center group-hover:text-emerald-600 transition-colors">
+                  <span className="text-[10px] md:text-xs text-slate-600 dark:text-slate-400 text-center group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                     {cat.label}
                   </span>
                 </Link>

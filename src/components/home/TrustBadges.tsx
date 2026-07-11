@@ -12,7 +12,7 @@ const BADGES = [
 
 export default function TrustBadges() {
   return (
-    <section className="py-10 bg-slate-50 border-y border-slate-200">
+    <section className="py-10 bg-slate-50 border-y border-slate-200 dark:bg-slate-900 dark:border-slate-800">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {BADGES.map((badge) => {
@@ -20,14 +20,14 @@ export default function TrustBadges() {
             return (
               <div
                 key={badge.label}
-                className="flex items-center gap-3 bg-white rounded-xl p-4 border border-slate-100"
+                className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700"
               >
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
                   <Icon className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-slate-800">{badge.label}</div>
-                  <div className="text-xs text-slate-500">{badge.desc}</div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{badge.label}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{badge.desc}</div>
                 </div>
               </div>
             )

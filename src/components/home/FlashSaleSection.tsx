@@ -65,7 +65,7 @@ export default function FlashSaleSection() {
   }, [])
 
   return (
-    <section className="py-6 bg-white">
+    <section className="py-6 bg-white dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 rounded-t-2xl flex items-center justify-between">
@@ -79,11 +79,11 @@ export default function FlashSaleSection() {
         </div>
 
         {/* Horizontal scroll products */}
-        <div className="bg-slate-50 border border-slate-100 border-t-0 rounded-b-2xl p-4">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 border-t-0 rounded-b-2xl p-4">
           <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
             {loading
               ? Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="snap-start flex-shrink-0 w-[160px] bg-white rounded-xl border border-slate-100 overflow-hidden">
+                  <div key={i} className="snap-start flex-shrink-0 w-[160px] bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <div className="h-[160px] bg-slate-100 animate-pulse" />
                     <div className="p-2.5 space-y-2">
                       <div className="h-3 bg-slate-100 rounded animate-pulse" />
@@ -100,7 +100,7 @@ export default function FlashSaleSection() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
                 whileHover={{ y: -4 }}
-                className="snap-start flex-shrink-0 w-[160px] bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="snap-start flex-shrink-0 w-[160px] bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="relative h-[160px]">
                   <img
@@ -119,7 +119,7 @@ export default function FlashSaleSection() {
                   ))}
                 </div>
                 <div className="p-2.5">
-                  <h3 className="text-xs font-medium text-slate-800 line-clamp-2 mb-1.5 min-h-[2rem]">
+                  <h3 className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-2 mb-1.5 min-h-[2rem]">
                     {p.name}
                   </h3>
                   <div className="flex items-center gap-1.5 mb-2">

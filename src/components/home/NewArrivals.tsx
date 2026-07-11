@@ -29,7 +29,7 @@ export default function NewArrivals() {
   }, [])
 
   return (
-    <section className="py-10 bg-gradient-to-br from-slate-50 to-white">
+    <section className="py-10 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -38,8 +38,8 @@ export default function NewArrivals() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-xl text-slate-900">Nouveautés</h2>
-              <p className="text-sm text-slate-500">Les derniers produits ajoutés au catalogue</p>
+              <h2 className="font-bold text-xl text-slate-900 dark:text-white">Nouveautés</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Les derniers produits ajoutés au catalogue</p>
             </div>
           </div>
           <Link href="/produits?sort=createdAt-desc" className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition">
@@ -51,7 +51,7 @@ export default function NewArrivals() {
         <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
           {loading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="snap-start flex-shrink-0 w-[180px] bg-white rounded-xl border border-slate-100 overflow-hidden">
+                <div key={i} className="snap-start flex-shrink-0 w-[180px] bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                   <div className="h-[180px] bg-slate-100 animate-pulse" />
                   <div className="p-3 space-y-2">
                     <div className="h-3 bg-slate-100 rounded animate-pulse" />
@@ -68,7 +68,7 @@ export default function NewArrivals() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
                 whileHover={{ y: -4 }}
-                className="snap-start flex-shrink-0 w-[180px] bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="snap-start flex-shrink-0 w-[180px] bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
                 <Link href={`/produits/${p.id}`} className="block">
                   <div className="relative h-[180px]">
@@ -83,7 +83,7 @@ export default function NewArrivals() {
                     </span>
                   </div>
                   <div className="p-3">
-                    <h3 className="text-xs font-medium text-slate-800 line-clamp-2 mb-2 min-h-[2rem]">
+                    <h3 className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-2 mb-2 min-h-[2rem]">
                       {p.name}
                     </h3>
                     <div className="flex items-center gap-1.5">
@@ -96,7 +96,7 @@ export default function NewArrivals() {
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-500">{p.origin}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">{p.origin}</span>
                   </div>
                 </Link>
               </motion.div>

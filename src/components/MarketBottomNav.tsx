@@ -39,7 +39,7 @@ export default function MarketBottomNav() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200 dark:border-slate-800 dark:bg-slate-950/90 md:hidden">
       <div className="flex items-center justify-around px-2 py-2">
         {items.map((item) => {
           const I = item.icon
@@ -51,8 +51,8 @@ export default function MarketBottomNav() {
               href={item.href}
               className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-colors ${
                 active
-                  ? 'text-emerald-600 bg-emerald-50'
-                  : 'text-gray-500 hover:text-gray-900'
+                  ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
               }`}
             >
               <div className="relative">
