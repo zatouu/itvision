@@ -16,6 +16,7 @@ import { ArrowLeft, X, Check, MapPin, Plus } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getCategoryIcon } from '../src/categoryIcons'
 import { hapticSelect, hapticSuccess, hapticLight } from '../src/haptics'
+import { colors, radius, spacing, typography, shadows } from '../src/design'
 
 const FALLBACK_CATS = [
   { id: 'electricite', label: 'Électricité', abbr: 'EL', color: '#1D4ED8' },
@@ -189,10 +190,10 @@ function CreateRequest() {
   if (done) return (
     <SafeAreaView style={s.safe}>
       <View style={s.successBox}>
-        <View style={s.successCheck}><Check size={40} color="#fff" /></View>
+        <View style={s.successCheck}><Check size={40} color={colors.surface} /></View>
         <Text style={s.successTitle}>{t('request.published')}</Text>
         <Text style={s.successSub}>{t('request.publishedSub')}</Text>
-        <TouchableOpacity style={s.btn} onPress={() => router.replace('/my-requests')}>
+        <TouchableOpacity style={s.btn} onPress={() => router.replace('/my-requests')} activeOpacity={0.8}>
           <Text style={s.btnText}>{t('request.viewRequests')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { setDone(false); setStep(1); setCategory(''); setDescription(''); setBudget(''); setCoords(null); setMedia([]); setLandmark(''); setAutoAddress(''); setVoiceNote(null) }}>
@@ -206,8 +207,8 @@ function CreateRequest() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => step > 1 ? setStep(s2 => s2 - 1) : router.back()} style={s.backBtn}>
-          <ArrowLeft size={20} color="#111827" />
+        <TouchableOpacity onPress={() => step > 1 ? setStep(s2 => s2 - 1) : router.back()} style={s.backBtn} activeOpacity={0.6}>
+          <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('request.createTitle')}</Text>
         <TouchableOpacity onPress={() => router.back()}>
@@ -282,7 +283,7 @@ function CreateRequest() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder={t('request.descPlaceholder')}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
               />
@@ -324,7 +325,7 @@ function CreateRequest() {
                 value={budget}
                 onChangeText={setBudget}
                 placeholder={t('request.budgetCustom')}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="numeric"
               />
             </View>
@@ -342,13 +343,13 @@ function CreateRequest() {
                             </View>
                           )}
                       <TouchableOpacity style={s.mediaRemove} onPress={() => removeMedia(i)}>
-                        <X size={12} color="#fff" />
+                        <X size={12} color={colors.surface} />
                       </TouchableOpacity>
                     </View>
                   ))}
                   {media.length < 5 && (
                     <TouchableOpacity style={s.mediaAddBtn} onPress={addMedia}>
-                      <Plus size={32} color="#64748B" />
+                      <Plus size={32} color={colors.textSecondary} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -370,7 +371,7 @@ function CreateRequest() {
             <Text style={s.stepSub}>{t('request.locationSub')}</Text>
 
             <TouchableOpacity style={s.locBtn} onPress={pickLocation} disabled={locating}>
-              {locating ? <ActivityIndicator color="#F59E0B" /> : <MapPin size={22} color="#F59E0B" />}
+              {locating ? <ActivityIndicator color={colors.warning} /> : <MapPin size={22} color={colors.warning} />}
               <View style={{ flex: 1 }}>
                 <Text style={s.locTitle}>{coords ? t('request.positionOk') : t('request.useGps')}</Text>
                 {autoAddress ? <Text style={s.locSub}>{autoAddress}</Text> : coords ? <Text style={s.locSub}>{coords[1].toFixed(4)}, {coords[0].toFixed(4)}</Text> : null}
@@ -384,9 +385,9 @@ function CreateRequest() {
                 value={landmark}
                 onChangeText={setLandmark}
                 placeholder={t('request.landmarkPlaceholder')}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
               />
-              <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>{t('request.landmarkHint')}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>{t('request.landmarkHint')}</Text>
             </View>
 
             {/* Récap */}
@@ -405,7 +406,7 @@ function CreateRequest() {
               disabled={!coords || loading || uploadingMedia}
               onPress={submit}
             >
-              {loading || uploadingMedia ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{t('request.publish')}</Text>}
+              {loading || uploadingMedia ? <ActivityIndicator color={colors.surface} /> : <Text style={s.btnText}>{t('request.publish')}</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -483,7 +484,7 @@ function DynamicAttributes({
                 onChangeText={text => setValue(attr.slug, attr.type === 'number' ? Number(text.replace(/\s/g, '')) : text)}
                 keyboardType={attr.type === 'number' ? 'numeric' : 'default'}
                 placeholder={label}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
               />
             )}
           </View>
@@ -494,83 +495,83 @@ function DynamicAttributes({
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { color: '#111827' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  cancelText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
-  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingTop: 8 },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 14 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
+  backIcon: { color: colors.text },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
+  cancelText: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingTop: spacing.sm },
   stepperItem: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center' },
   stepperDot: { width: 12, height: 12, borderRadius: 6 },
-  stepperDotActive: { backgroundColor: '#0F172A' },
-  stepperDotInactive: { backgroundColor: '#CBD5E1' },
-  stepperLine: { flex: 1, height: 2, marginHorizontal: 4 },
-  stepperLineActive: { backgroundColor: '#0F172A' },
-  stepperLineInactive: { backgroundColor: '#CBD5E1' },
-  stepperLabels: { flexDirection: 'row', paddingHorizontal: 24, paddingTop: 6, paddingBottom: 16 },
-  stepperLabel: { flex: 1, textAlign: 'center', fontSize: 11, color: '#94A3B8', fontWeight: '500' },
-  stepperLabelActive: { color: '#0F172A', fontWeight: '700' },
-  body: { padding: 20, paddingBottom: 40 },
-  stepTitle: { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 6, letterSpacing: -0.3 },
-  stepSub: { fontSize: 14, color: '#6B7280', marginBottom: 24 },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  catCard: { width: '47%', backgroundColor: '#fff', borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0', position: 'relative', gap: 6 },
-  catCardActive: { borderColor: '#0F172A', borderWidth: 2 },
-  checkmark: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
-  checkmarkText: { color: '#fff' },
-  catMonogram: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  catMonogramText: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  catLabel: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  catLabelActive: { color: '#0F172A' },
-  catSubLabel: { fontSize: 11, color: '#64748B', textAlign: 'center' },
-  footer: { paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 24, backgroundColor: '#F8FAFC', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  input: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, padding: 14, fontSize: 15, color: '#111827', backgroundColor: '#fff' },
-  textarea: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, padding: 14, fontSize: 15, color: '#111827', minHeight: 110, textAlignVertical: 'top', backgroundColor: '#fff' },
-  budgetChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent' },
-  budgetChipActive: { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' },
-  budgetChipText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  budgetChipTextActive: { color: '#B45309' },
-  btn: { backgroundColor: '#0F172A', borderRadius: 12, padding: 17, alignItems: 'center' },
+  stepperDotActive: { backgroundColor: colors.navy },
+  stepperDotInactive: { backgroundColor: colors.border },
+  stepperLine: { flex: 1, height: 2, marginHorizontal: spacing.xs },
+  stepperLineActive: { backgroundColor: colors.navy },
+  stepperLineInactive: { backgroundColor: colors.border },
+  stepperLabels: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingTop: 6, paddingBottom: spacing.lg },
+  stepperLabel: { flex: 1, textAlign: 'center', fontSize: 11, color: colors.textMuted, fontWeight: typography.weight.medium as any },
+  stepperLabelActive: { color: colors.text, fontWeight: typography.weight.bold as any },
+  body: { padding: spacing.xl, paddingBottom: 40 },
+  stepTitle: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: 6, letterSpacing: -0.3 },
+  stepSub: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.xxl },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  catCard: { width: '47%', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xxl, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border, position: 'relative', gap: 6, ...shadows.sm },
+  catCardActive: { borderColor: colors.navy, borderWidth: 2, ...shadows.md },
+  checkmark: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  checkmarkText: { color: colors.surface },
+  catMonogram: { width: 52, height: 52, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
+  catMonogramText: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  catLabel: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text },
+  catLabelActive: { color: colors.navy },
+  catSubLabel: { fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
+  footer: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, paddingBottom: spacing.xxl, backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border },
+  label: { fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.text, marginBottom: spacing.sm },
+  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.lg, padding: 14, fontSize: 15, color: colors.text, backgroundColor: colors.surface },
+  textarea: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.lg, padding: 14, fontSize: 15, color: colors.text, minHeight: 110, textAlignVertical: 'top', backgroundColor: colors.surface },
+  budgetChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent' },
+  budgetChipActive: { backgroundColor: colors.warningLight, borderColor: colors.warning },
+  budgetChipText: { fontSize: 13, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
+  budgetChipTextActive: { color: colors.warning },
+  btn: { backgroundColor: colors.navy, borderRadius: radius.md, padding: 17, alignItems: 'center', ...shadows.sm },
   btnDisabled: { opacity: 0.35 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
-  locBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1.5, borderColor: '#E2E8F0' },
-  locIcon: { color: '#F59E0B' },
-  locTitle: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
-  locSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  recap: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  recapRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  recapLabel: { fontSize: 13, color: '#6B7280', fontWeight: '500', flex: 0.4 },
-  recapValue: { fontSize: 13, color: '#111827', fontWeight: '600', flex: 0.6, textAlign: 'right' },
-  errText: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
-  successBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
-  successCheck: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  successCheckText: { color: '#fff' },
-  successTitle: { fontSize: 22, fontWeight: '700', color: '#0F172A' },
-  successSub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 22, maxWidth: 280 },
-  link: { color: '#2563EB', fontWeight: '600', fontSize: 14, marginTop: 4 },
-  mediaThumbBox: { width: 72, height: 72, borderRadius: 10, overflow: 'hidden', position: 'relative' },
-  mediaThumb: { width: 72, height: 72, borderRadius: 10 },
-  mediaFileBox: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
-  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
+  btnText: { color: colors.surface, fontSize: 15, fontWeight: typography.weight.bold as any, letterSpacing: 0.2 },
+  locBtn: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1.5, borderColor: colors.border, ...shadows.sm },
+  locIcon: { color: colors.warning },
+  locTitle: { fontSize: 15, fontWeight: typography.weight.semibold as any, color: colors.text },
+  locSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  recap: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  recapRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+  recapLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.medium as any, flex: 0.4 },
+  recapValue: { fontSize: 13, color: colors.text, fontWeight: typography.weight.semibold as any, flex: 0.6, textAlign: 'right' },
+  errText: { color: colors.danger, fontSize: 13, textAlign: 'center', fontWeight: typography.weight.semibold as any },
+  successBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: spacing.lg },
+  successCheck: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm, ...shadows.md },
+  successCheckText: { color: colors.surface },
+  successTitle: { fontSize: 22, fontWeight: typography.weight.bold as any, color: colors.text },
+  successSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
+  link: { color: colors.info, fontWeight: typography.weight.semibold as any, fontSize: 14, marginTop: spacing.xs },
+  mediaThumbBox: { width: 72, height: 72, borderRadius: radius.sm, overflow: 'hidden', position: 'relative' },
+  mediaThumb: { width: 72, height: 72, borderRadius: radius.sm },
+  mediaFileBox: { width: 72, height: 72, borderRadius: radius.sm, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  mediaFileType: { fontSize: 11, color: colors.text, fontWeight: typography.weight.bold as any, textTransform: 'uppercase' },
   mediaRemove: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  mediaRemoveText: { color: '#fff' },
-  mediaAddBtn: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#F1F5F9', borderWidth: 1.5, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
-  mediaAddText: { color: '#64748B' },
-  priceHint: { backgroundColor: '#ECFDF5', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#A7F3D0' },
-  priceHintText: { fontSize: 12, color: '#065F46', lineHeight: 18 },
-  attrLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  attrInput: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, padding: 14, fontSize: 15, color: '#111827', backgroundColor: '#fff' },
-  attrOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  attrOption: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent' },
-  attrOptionActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
-  attrOptionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  attrOptionTextActive: { color: '#059669' },
-  attrToggle: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent', alignSelf: 'flex-start' },
-  attrToggleActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
-  attrToggleText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
-  attrToggleTextActive: { color: '#059669' },
+  mediaRemoveText: { color: colors.surface },
+  mediaAddBtn: { width: 72, height: 72, borderRadius: radius.sm, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  mediaAddText: { color: colors.textSecondary },
+  priceHint: { backgroundColor: colors.successLight, borderRadius: radius.sm, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#A7F3D0' },
+  priceHintText: { fontSize: 12, color: colors.primaryDark, lineHeight: 18 },
+  attrLabel: { fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.text, marginBottom: spacing.sm },
+  attrInput: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.lg, padding: 14, fontSize: 15, color: colors.text, backgroundColor: colors.surface },
+  attrOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  attrOption: { paddingVertical: spacing.sm, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent' },
+  attrOptionActive: { backgroundColor: colors.successLight, borderColor: colors.success },
+  attrOptionText: { fontSize: 13, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
+  attrOptionTextActive: { color: colors.success },
+  attrToggle: { paddingVertical: 12, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: 'transparent', alignSelf: 'flex-start' },
+  attrToggleActive: { backgroundColor: colors.successLight, borderColor: colors.success },
+  attrToggleText: { fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
+  attrToggleTextActive: { color: colors.success },
 })
 
 export default withScreenBoundary(CreateRequest, 'CreateRequest')

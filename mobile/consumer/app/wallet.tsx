@@ -6,8 +6,9 @@ import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
-import { ArrowLeft, Plus } from 'lucide-react-native'
-import { colors } from '../src/design'
+import { ArrowLeft, Plus, Coins, TrendingUp, TrendingDown, Wallet as WalletIcon } from 'lucide-react-native'
+import { colors, radius, spacing, typography, shadows } from '../src/design'
+import { hapticSelect, hapticSuccess } from '../src/haptics'
 
 type WalletData = {
   points: number
@@ -123,7 +124,7 @@ function Wallet() {
   if (loading) {
     return (
       <SafeAreaView style={[s.safe, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#0F172A" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </SafeAreaView>
     )
   }
@@ -133,8 +134,8 @@ function Wallet() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={18} color="#111827" />
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.6}>
+          <ArrowLeft size={18} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('wallet.title')}</Text>
         <View style={{ width: 36 }} />
@@ -142,6 +143,7 @@ function Wallet() {
 
       <ScrollView
         contentContainerStyle={s.body}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
         <View style={s.balanceCard}>
@@ -177,7 +179,8 @@ function Wallet() {
               <TouchableOpacity
                 key={p}
                 style={[s.pack, selectedPack === p && s.packActive]}
-                onPress={() => setSelectedPack(p)}
+                onPress={() => { hapticSelect(); setSelectedPack(p) }}
+                activeOpacity={0.7}
               >
                 <Text style={[s.packNum, selectedPack === p && s.packNumActive]}>{p}</Text>
                 <Text style={[s.packFcfa, selectedPack === p && s.packFcfaActive]}>
@@ -192,16 +195,17 @@ function Wallet() {
               <TouchableOpacity
                 key={op.id}
                 style={[s.op, selectedOp === op.id && s.opActive]}
-                onPress={() => setSelectedOp(op.id)}
+                onPress={() => { hapticSelect(); setSelectedOp(op.id) }}
+                activeOpacity={0.7}
               >
                 <Text style={[s.opText, selectedOp === op.id && s.opTextActive]}>{op.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <TouchableOpacity style={s.payBtn} onPress={onTopup} disabled={topupLoading}>
+          <TouchableOpacity style={s.payBtn} onPress={onTopup} disabled={topupLoading} activeOpacity={0.8}>
             {topupLoading
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.surface} />
               : <Text style={s.payText}>{t('wallet.payBtn', { amount: (selectedPack * (data?.config.fcfaPerPoint || 100)).toLocaleString('fr-FR') })}</Text>}
           </TouchableOpacity>
         </View>
@@ -238,49 +242,49 @@ function Wallet() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { color: '#111827' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  body: { padding: 20, gap: 18 },
-  balanceCard: { backgroundColor: '#065F46', borderRadius: 18, padding: 24, alignItems: 'center', gap: 2 },
-  balanceLabel: { color: '#A7F3D0', fontSize: 13, fontWeight: '600' },
-  balanceValue: { color: '#fff', fontSize: 48, fontWeight: '900', letterSpacing: -1 },
-  balanceUnit: { color: '#6EE7B7', fontSize: 14, fontWeight: '600' },
-  freeBadge: { marginTop: 12, backgroundColor: '#064E3B', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  freeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  modeBadge: { marginTop: 12, backgroundColor: '#064E3B', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  modeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: '700' },
-  lifetimeRow: { flexDirection: 'row', gap: 12 },
-  lifetimeCard: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  lifetimeNum: { fontSize: 22, fontWeight: '800', color: '#0F172A' },
-  lifetimeLabel: { fontSize: 12, color: '#64748B', marginTop: 4 },
-  section: { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 14 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
+  backIcon: { color: colors.text },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
+  body: { padding: spacing.xl, gap: 18 },
+  balanceCard: { backgroundColor: colors.primaryDark, borderRadius: radius.xl, padding: spacing.xxl, alignItems: 'center', gap: 2, ...shadows.md },
+  balanceLabel: { color: '#A7F3D0', fontSize: 13, fontWeight: typography.weight.semibold as any },
+  balanceValue: { color: colors.surface, fontSize: 48, fontWeight: typography.weight.extrabold as any, letterSpacing: -1 },
+  balanceUnit: { color: '#6EE7B7', fontSize: 14, fontWeight: typography.weight.semibold as any },
+  freeBadge: { marginTop: spacing.md, backgroundColor: '#064E3B', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: spacing.sm },
+  freeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: typography.weight.semibold as any, textAlign: 'center' },
+  modeBadge: { marginTop: spacing.md, backgroundColor: '#064E3B', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: spacing.sm },
+  modeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: typography.weight.bold as any },
+  lifetimeRow: { flexDirection: 'row', gap: spacing.md },
+  lifetimeCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  lifetimeNum: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  lifetimeLabel: { fontSize: 12, color: colors.textSecondary, marginTop: spacing.xs },
+  section: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, gap: spacing.md, ...shadows.sm },
+  sectionTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
   packRow: { flexDirection: 'row', gap: 10 },
-  pack: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
-  packActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
-  packNum: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
-  packNumActive: { color: '#059669' },
-  packFcfa: { fontSize: 11, color: '#64748B', marginTop: 2 },
-  packFcfaActive: { color: '#059669' },
-  opRow: { flexDirection: 'row', gap: 8 },
-  op: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
-  opActive: { backgroundColor: '#065F46', borderColor: '#065F46' },
-  opText: { fontSize: 12, fontWeight: '700', color: '#475569' },
-  opTextActive: { color: '#fff' },
-  payBtn: { backgroundColor: '#059669', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  payText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  empty: { color: '#94A3B8', fontSize: 13, textAlign: 'center', paddingVertical: 12 },
-  txn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  txnKind: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  txnDesc: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  txnDate: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+  pack: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border },
+  packActive: { backgroundColor: colors.successLight, borderColor: colors.success },
+  packNum: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  packNumActive: { color: colors.success },
+  packFcfa: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  packFcfaActive: { color: colors.success },
+  opRow: { flexDirection: 'row', gap: spacing.sm },
+  op: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.sm, paddingVertical: 10, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border },
+  opActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
+  opText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
+  opTextActive: { color: colors.surface },
+  payBtn: { backgroundColor: colors.success, borderRadius: radius.md, paddingVertical: 15, alignItems: 'center', ...shadows.sm },
+  payText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: 15 },
+  empty: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: spacing.md },
+  txn: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.bg },
+  txnKind: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text },
+  txnDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  txnDate: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   txnPoints: { },
-  txnPointsText: { fontSize: 16, fontWeight: '800' },
-  txnPos: { color: '#059669' },
-  txnNeg: { color: '#DC2626' },
+  txnPointsText: { fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  txnPos: { color: colors.success },
+  txnNeg: { color: colors.danger },
 })
 
 export default withScreenBoundary(Wallet, 'Wallet')

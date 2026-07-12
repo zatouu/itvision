@@ -33,6 +33,7 @@
     "verifying": "Verifying...",
     "errorVerify": "Incorrect or expired code",
     "resend": "Resend code",
+    "referralPlaceholder": "Referral code (optional)",
     "devCode": "Dev code",
     "logout": "Log out"
   },

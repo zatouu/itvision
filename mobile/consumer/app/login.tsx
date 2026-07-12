@@ -3,8 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-
-const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+import { apiPost } from '../src/api'
+import { hapticSelect, hapticError } from '../src/haptics'
+import { colors, radius, spacing, typography, shadows } from '../src/design'
+import { ArrowRight, Phone, ShieldCheck } from 'lucide-react-native'
 
 export default function Login() {
   const { t } = useTranslation()
@@ -17,27 +19,22 @@ export default function Login() {
     const cleaned = phone.replace(/[\s\-().]/g, '')
     if (cleaned.length < 9) {
       setErr(t('auth.errorPhone'))
+      hapticError()
       return
     }
     setLoading(true)
     try {
-      const r = await fetch(`${base}/api/auth/mobile/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleaned, role: 'CLIENT' }),
-      })
-      const data = await r.json()
-      if (!r.ok) {
-        setErr(data.error || t('auth.errorOtp'))
-        setLoading(false)
-        return
-      }
+      const data = await apiPost('/api/auth/mobile/send-otp', { phone: cleaned, role: 'CLIENT' })
+      hapticSelect()
       router.push({ pathname: '/verify-otp', params: { phone: data.phone, _devCode: data._devCode || '' } })
     } catch (e: any) {
-      setErr(t('auth.errorNetwork'))
+      setErr(e.message || t('auth.errorOtp'))
+      hapticError()
     }
     setLoading(false)
   }
+
+  const canSubmit = phone.replace(/\s/g, '').length >= 9
 
   return (
     <SafeAreaView style={s.safe}>
@@ -61,7 +58,7 @@ export default function Login() {
               value={phone}
               onChangeText={setPhone}
               placeholder={t('auth.phonePlaceholder')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
               maxLength={15}
               autoFocus
@@ -72,40 +69,54 @@ export default function Login() {
           {err && <Text style={s.errText}>{err}</Text>}
 
           <TouchableOpacity
-            style={[s.btn, (loading || phone.replace(/\s/g, '').length < 9) && s.btnDisabled]}
-            disabled={loading || phone.replace(/\s/g, '').length < 9}
+            style={[s.btn, (!canSubmit || loading) && s.btnDisabled]}
+            disabled={!canSubmit || loading}
             onPress={sendOtp}
+            activeOpacity={0.8}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{t('auth.sendCode')}</Text>}
+            {loading ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <>
+                <Text style={s.btnText}>{t('auth.sendCode')}</Text>
+                <ArrowRight size={18} color={colors.surface} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
-        <Text style={s.legal}>
-          {t('auth.legal')}
-        </Text>
+        <View style={s.trust}>
+          <ShieldCheck size={14} color={colors.textMuted} />
+          <Text style={s.legal}>{t('auth.legal')}</Text>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, justifyContent: 'center', padding: spacing.xxl },
   top: { alignItems: 'center', marginBottom: 40 },
-  logo: { width: 72, height: 72, borderRadius: 20, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  logoText: { fontSize: 32, fontWeight: '800', color: '#F59E0B' },
-  title: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },
-  form: { gap: 16 },
-  label: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  phoneRow: { flexDirection: 'row', gap: 10 },
-  prefix: { backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 16, justifyContent: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
-  prefixText: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  phoneInput: { flex: 1, borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16, fontSize: 18, fontWeight: '600', color: '#0F172A', backgroundColor: '#fff', letterSpacing: 1 },
-  hint: { fontSize: 12, color: '#9CA3AF' },
-  errText: { fontSize: 13, color: '#DC2626', textAlign: 'center' },
-  btn: { backgroundColor: '#0F172A', borderRadius: 12, padding: 17, alignItems: 'center', marginTop: 8 },
+  logo: { width: 72, height: 72, borderRadius: radius.lg, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg, ...shadows.md },
+  logoText: { fontSize: 32, fontWeight: typography.weight.extrabold as any, color: colors.warning },
+  title: { fontSize: 28, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.xs },
+  form: { gap: spacing.lg },
+  label: { fontSize: 15, fontWeight: typography.weight.semibold as any, color: colors.text },
+  phoneRow: { flexDirection: 'row', gap: spacing.sm },
+  prefix: { backgroundColor: colors.bg, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 16, justifyContent: 'center', borderWidth: 1.5, borderColor: colors.border },
+  prefixText: { fontSize: 15, fontWeight: typography.weight.semibold as any, color: colors.text },
+  phoneInput: { flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 16, fontSize: 18, fontWeight: typography.weight.semibold as any, color: colors.text, backgroundColor: colors.surface, letterSpacing: 1 },
+  hint: { fontSize: 12, color: colors.textMuted },
+  errText: { fontSize: 13, color: colors.danger, textAlign: 'center', fontWeight: typography.weight.semibold as any },
+  btn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: colors.navy, borderRadius: radius.md, paddingVertical: 17,
+    marginTop: spacing.xs, ...shadows.sm,
+  },
   btnDisabled: { opacity: 0.35 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  legal: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginTop: 32, lineHeight: 16 },
+  btnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 32 },
+  legal: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 16, flex: 1 },
 })

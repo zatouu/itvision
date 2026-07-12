@@ -33,6 +33,7 @@
     "verifying": "Vérification...",
     "errorVerify": "Code incorrect ou expiré",
     "resend": "Renvoyer le code",
+    "referralPlaceholder": "Code de parrainage (optionnel)",
     "devCode": "Code de dev",
     "logout": "Déconnexion"
   },
