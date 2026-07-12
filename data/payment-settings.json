@@ -28,7 +28,7 @@
       "instructions": "Paiement à la livraison ou retrait au bureau."
     },
     "gateway": {
-      "active": false,
+      "active": true,
       "provider": "paydunya",
       "apiKey": "",
       "apiSecret": "",
