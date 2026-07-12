@@ -50,6 +50,13 @@ services:
       OM_API_TOKEN: ${OM_API_TOKEN:-}
       FREE_MONEY_API_URL: ${FREE_MONEY_API_URL:-}
       FREE_MONEY_API_KEY: ${FREE_MONEY_API_KEY:-}
+      # ── PayDunya Gateway ──────────────────────────────────
+      PAYDUNYA_MASTER_KEY: ${PAYDUNYA_MASTER_KEY:-}
+      PAYDUNYA_PRIVATE_KEY: ${PAYDUNYA_PRIVATE_KEY:-}
+      PAYDUNYA_TOKEN: ${PAYDUNYA_TOKEN:-}
+      PAYDUNYA_MODE: ${PAYDUNYA_MODE:-live}
+      PAYDUNYA_STORE_NAME: ${PAYDUNYA_STORE_NAME:-IT Vision Plus}
+      APP_BASE_URL: ${NEXT_PUBLIC_SITE_URL}
       # ── SMS / OTP ─────────────────────────────────────────
       SMS_PROVIDER: ${SMS_PROVIDER:-console}
       ALLOW_TEST_CODES: ${ALLOW_TEST_CODES:-false}
