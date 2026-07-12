@@ -190,7 +190,7 @@ function MyOffers() {
         </ScrollView>
       ) : err ? (
         <View style={s.center}>
-          <AlertTriangle size={40} color="#F59E0B" />
+          <AlertTriangle size={40} color="#0F7B4F" />
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
             <Text style={s.retryTxt}>{t('common.retry')}</Text>

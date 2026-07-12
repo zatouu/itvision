@@ -455,7 +455,7 @@ function RequestOffers() {
                 .filter(([, v]) => Number.isFinite(v.lat) && Number.isFinite(v.lng))
                 .map(([key, v]) => {
                   const statusColor = v.status === 'selected' || v.status === 'arriving' || v.status === 'in_progress' ? '#2563EB'
-                    : v.status === 'offered' ? '#F59E0B'
+                    : v.status === 'offered' ? '#0F7B4F'
                     : v.status === 'viewing' ? '#10B981'
                     : '#64748B'
                   const label = v.status === 'arriving' ? t('offers.statusArriving')

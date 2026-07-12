@@ -44,7 +44,7 @@ export default function SetupProfile() {
     <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.iconWrap}>
-          <User size={32} color="#F59E0B" />
+          <User size={32} color="#0F7B4F" />
         </View>
         <Text style={s.title}>{t('setup.title')}</Text>
         <Text style={s.subtitle}>{t('setup.subtitle')}</Text>
@@ -113,7 +113,7 @@ const s = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text },
   errText: { fontSize: 13, color: colors.danger, marginBottom: 12, textAlign: 'center' },
-  btn: { backgroundColor: '#F59E0B', borderRadius: radius.lg, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  btn: { backgroundColor: '#0F7B4F', borderRadius: radius.lg, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   btnDisabled: { opacity: 0.4 },
   btnContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: typography.weight.bold as any },

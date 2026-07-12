@@ -50,7 +50,7 @@ function RateMission() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.successContainer}>
-          <PartyPopper size={64} color="#F59E0B" />
+          <PartyPopper size={64} color="#0F7B4F" />
           <Text style={s.successTitle}>{t('rating.thanks')}</Text>
           <Text style={s.successText}>{t('rating.thanksSub')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -79,7 +79,7 @@ function RateMission() {
           <View style={s.starsRow}>
             {[1, 2, 3, 4, 5].map(n => (
               <TouchableOpacity key={n} onPress={() => { hapticSelect(); setRating(n) }} style={s.starBtn}>
-                <Star size={44} color={n <= rating ? '#F59E0B' : '#E2E8F0'} fill={n <= rating ? '#F59E0B' : 'transparent'} />
+                <Star size={44} color={n <= rating ? '#0F7B4F' : '#E2E8F0'} fill={n <= rating ? '#0F7B4F' : 'transparent'} />
               </TouchableOpacity>
             ))}
           </View>
@@ -154,7 +154,7 @@ const s = StyleSheet.create({
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 },
   starBtn: { padding: 4 },
   star: { color: '#E2E8F0' },
-  starActive: { color: '#F59E0B' },
+  starActive: { color: '#0F7B4F' },
   ratingLabel: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, fontWeight: '500' },
   tagsSection: { marginBottom: 20 },
   tagsTitle: { fontSize: 13, color: '#475569', fontWeight: '600', marginBottom: 10 },
@@ -169,7 +169,7 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  successEmoji: { color: '#F59E0B' },
+  successEmoji: { color: '#0F7B4F' },
   successTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A' },
   successText: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 22 },
 })

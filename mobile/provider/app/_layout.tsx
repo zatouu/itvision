@@ -167,7 +167,7 @@ export default function Layout(){
       <View style={s.splash}>
         <Text style={s.splashName}>Xeuy Bi Pro</Text>
         <Text style={s.splashSub}>Espace prestataire</Text>
-        <ActivityIndicator size="small" color="#92400E" style={{ marginTop: 24 }} />
+        <ActivityIndicator size="small" color="#A7F3D0" style={{ marginTop: 24 }} />
       </View>
     )
   }
@@ -180,7 +180,7 @@ export default function Layout(){
 }
 
 const s = StyleSheet.create({
-  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#78350F' },
-  splashName: { fontSize: 36, fontWeight: '800', color: '#FFFBEB', letterSpacing: -1 },
-  splashSub: { fontSize: 14, color: '#FDE68A', marginTop: 4 },
+  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#065F3A' },
+  splashName: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1 },
+  splashSub: { fontSize: 14, color: '#A7F3D0', marginTop: 4 },
 })

@@ -71,7 +71,7 @@ export default function VerifyOtp() {
         {_devCode ? (
           <View style={s.devBanner}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <FlaskConical size={16} color="#92400E" />
+              <FlaskConical size={16} color="#065F3A" />
               <Text style={s.devText}>{t('auth.devCode')}: {_devCode}</Text>
             </View>
           </View>
@@ -127,8 +127,8 @@ const s = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
   subtitle: { fontSize: 15, color: '#64748B', marginBottom: 24, lineHeight: 22 },
   phoneBold: { fontWeight: '700', color: '#0F172A' },
-  devBanner: { backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginBottom: 20 },
-  devText: { fontSize: 14, fontWeight: '700', color: '#92400E', textAlign: 'center' },
+  devBanner: { backgroundColor: '#E6F4EC', borderRadius: 10, padding: 12, marginBottom: 20 },
+  devText: { fontSize: 14, fontWeight: '700', color: '#065F3A', textAlign: 'center' },
   codeBox: { marginBottom: 24 },
   codeInput: {
     borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 16, padding: 20,
@@ -136,9 +136,9 @@ const s = StyleSheet.create({
     letterSpacing: 12, backgroundColor: '#fff',
   },
   errText: { fontSize: 13, color: '#DC2626', textAlign: 'center', marginBottom: 12 },
-  btn: { backgroundColor: '#F59E0B', borderRadius: 12, padding: 17, alignItems: 'center' },
+  btn: { backgroundColor: '#0F7B4F', borderRadius: 12, padding: 17, alignItems: 'center' },
   btnDisabled: { opacity: 0.35 },
-  btnText: { color: '#0F172A', fontSize: 16, fontWeight: '700' },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   referralInput: {
     borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 12, padding: 14,
     fontSize: 15, fontWeight: '600', color: '#0F172A', textAlign: 'center',

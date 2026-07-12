@@ -167,7 +167,7 @@ function MyRequests() {
         </ScrollView>
       ) : err ? (
         <View style={s.center}>
-          <AlertTriangle size={36} color="#F59E0B" />
+          <AlertTriangle size={36} color="#0F7B4F" />
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
             <Text style={s.retryText}>{t('common.retry')}</Text>
@@ -176,7 +176,7 @@ function MyRequests() {
       ) : (
         <ScrollView
           contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#F59E0B" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#0F7B4F" />}
         >
           {filteredItems.length === 0 && (
             <EmptyState
@@ -272,7 +272,7 @@ const s = StyleSheet.create({
   searchInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: '#0F172A', fontSize: 14 },
   filterChips: { gap: 8 },
   filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
-  filterChipActive: { backgroundColor: '#F59E0B', borderColor: '#F59E0B' },
+  filterChipActive: { backgroundColor: '#0F7B4F', borderColor: '#0F7B4F' },
   filterChipText: { fontSize: 12, color: '#64748B', fontWeight: '700' },
   filterChipTextActive: { color: '#fff' },
   list: { padding: 16, gap: 10, paddingBottom: 32 },
@@ -291,7 +291,7 @@ const s = StyleSheet.create({
   offerCountBadge: { backgroundColor: '#F97316', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, minWidth: 20, alignItems: 'center' },
   offerCountText: { fontSize: 11, fontWeight: '800', color: '#fff' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  errIcon: { color: '#F59E0B' },
+  errIcon: { color: '#0F7B4F' },
   errText: { fontSize: 14, color: '#64748B', textAlign: 'center' },
   retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#0F172A', borderRadius: 10 },
   retryText: { color: '#fff', fontWeight: '600' },

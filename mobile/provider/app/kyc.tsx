@@ -89,7 +89,7 @@ function KycScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.safe}>
-        <View style={s.center}><ActivityIndicator size="large" color="#F59E0B" /></View>
+        <View style={s.center}><ActivityIndicator size="large" color="#0F7B4F" /></View>
       </SafeAreaView>
     )
   }
@@ -113,7 +113,7 @@ function KycScreen() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <Clock size={48} color="#F59E0B" />
+          <Clock size={48} color="#0F7B4F" />
           <Text style={s.statusTitle}>{t('kyc.pending')}</Text>
           <Text style={s.statusSub}>{t('kyc.pendingMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>

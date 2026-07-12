@@ -186,7 +186,7 @@ export async function setupNotificationChannel(): Promise<void> {
     name: 'Services & Missions',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 250, 500],
-    lightColor: '#F59E0B',
+    lightColor: '#0F7B4F',
   })
 }
 

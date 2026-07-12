@@ -158,11 +158,11 @@ const s = StyleSheet.create({
   container: { marginVertical: 4 },
   startBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14,
-    borderWidth: 1.5, borderColor: '#F59E0B', borderStyle: 'dashed',
+    backgroundColor: '#E6F4EC', borderRadius: 12, padding: 14,
+    borderWidth: 1.5, borderColor: '#0F7B4F', borderStyle: 'dashed',
   },
   micIcon: { fontSize: 22 },
-  startText: { fontSize: 14, fontWeight: '600', color: '#92400E' },
+  startText: { fontSize: 14, fontWeight: '600', color: '#065F3A' },
   recordingRow: {
     backgroundColor: '#FEE2E2', borderRadius: 12, padding: 14,
     gap: 8, alignItems: 'center',

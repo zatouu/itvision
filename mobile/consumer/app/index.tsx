@@ -340,7 +340,7 @@ function Home() {
               {liveProviders.map(p => {
                 const statusColor =
                   p.status === 'arriving' || p.status === 'in_progress' || p.status === 'selected' ? '#2563EB'
-                  : p.status === 'offered' ? '#F59E0B'
+                  : p.status === 'offered' ? '#0F7B4F'
                   : p.status === 'viewing' ? '#10B981'
                   : '#64748B'
                 const label = p.status === 'arriving' ? t('offers.statusArriving')
