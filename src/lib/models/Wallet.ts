@@ -17,6 +17,7 @@ const WalletSchema = new Schema({
   escrow: { type: Number, default: 0 },
   // Système de points (monétisation providers — style Yango/InDrive)
   points: { type: Number, default: 0, min: 0 },
+  reservedPoints: { type: Number, default: 0, min: 0 },
   lifetimePointsEarned: { type: Number, default: 0, min: 0 },
   lifetimePointsSpent: { type: Number, default: 0, min: 0 },
   txns: { type: [WalletTxnSchema], default: [] },

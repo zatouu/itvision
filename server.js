@@ -209,14 +209,30 @@ app.prepare().then(() => {
       const now = Date.now()
       const existing = providerPresence.get(userId)
       if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return
+      // Le status du payload (available/offline) prime sur l'inférence
+      const payloadStatus = data?.status === 'offline' ? 'offline'
+        : data?.status === 'available' ? 'available'
+        : existing?.missionRequestId ? 'on_mission'
+        : (existing?.viewingRequestId ? 'viewing' : 'available')
       updatePresence(userId, {
         lat: data.lat,
         lng: data.lng,
-        status: existing?.missionRequestId ? 'on_mission' : (existing?.viewingRequestId ? 'viewing' : 'available'),
+        status: payloadStatus,
         name: data.providerName || email?.split('@')[0] || 'Prestataire',
         email,
         lastEmitAt: now,
       })
+    })
+
+    // Provider signale son statut de disponibilité (toggle en ligne)
+    socket.on('provider:status', (data) => {
+      const existing = providerPresence.get(userId)
+      const newStatus = data?.status === 'offline' ? 'offline'
+        : data?.status === 'available' ? 'available'
+        : existing?.missionRequestId ? 'on_mission'
+        : (existing?.viewingRequestId ? 'viewing' : 'available')
+      updatePresence(userId, { status: newStatus })
+      console.log(`   🔧 ${userId} statut → ${newStatus}`)
     })
 
     // Consumer demande le nombre de prestataires en ligne
@@ -429,41 +445,22 @@ app.prepare().then(() => {
   global.geo = geo
 
   /**
-   * Notify only providers within radiusKm of the request location.
-   * Uses Redis GEOSEARCH for O(log N) spatial queries.
-   * Fallback: in-memory Map if Redis unavailable.
-   * Fallback broadcast only when NO provider has ever reported a position.
-   * Providers currently on another mission are still notified (ils peuvent refuser/ignorer),
-   * mais prioritairement ceux disponibles.
+   * ADAPTATEUR LEGACY — délègue au Visibility Engine.
+   *
+   * Ancien appel direct socket+push → désormais géré par le Visibility Scheduler
+   * (vagues d'escalade, ranking, dédup). Cette fonction reste pour la compat
+   * ascendante (autres appelants éventuels) mais redirige vers enqueueDispatch.
    */
   global.notifyNearbyProviders = async function (requestData, radiusKm = 10) {
-    const { lng, lat, requestId } = requestData
-    if (!lng || !lat || !requestId) return 0
-
+    const { requestId } = requestData
+    if (!requestId) return 0
     try {
-      const nearby = await geo.findNearbyProviders(lat, lng, radiusKm)
-      let notified = 0
-
-      for (const p of nearby) {
-        io.to(`provider-${p.providerId}`).emit('request:nearby', requestData)
-        notified++
-      }
-
-      // Fallback: broadcast to all online providers if geofencing found zero matches.
-      if (notified === 0) {
-        console.log(`[GF] Broadcasting request ${requestId} to all online providers (no nearby match)`)
-        io.to('providers-online').emit('request:nearby', requestData)
-        return 'broadcast'
-      }
-
-      const total = await geo.getProviderCount()
-      console.log(`[GF] Notified ${notified} providers within ${radiusKm}km for request ${requestId} (total tracked: ${total})`)
-      return notified
+      const { enqueueDispatch } = require('./src/lib/visibility/dispatch')
+      await enqueueDispatch(String(requestId))
+      return 1
     } catch (err) {
-      console.error('[GF] notifyNearbyProviders error:', err.message)
-      // Emergency fallback: broadcast to all
-      io.to('providers-online').emit('request:nearby', requestData)
-      return 'broadcast'
+      console.error('[GF] notifyNearbyProviders (legacy adapter) error:', err.message)
+      return 0
     }
   }
 

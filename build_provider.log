@@ -1,0 +1,1716 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.8/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugin:settings-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:jar UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-launcher-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-updates-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-updates-gradle-plugin:processResources UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors
+> Task :gradle-plugin:react-native-gradle-plugin:processResources
+> Task :expo-dev-launcher-gradle-plugin:compileKotlin
+> Task :expo-dev-launcher-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-dev-launcher-gradle-plugin:classes UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:jar
+> Task :gradle-plugin:react-native-gradle-plugin:compileKotlin
+> Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:classes
+> Task :gradle-plugin:react-native-gradle-plugin:jar
+> Task :expo-updates-gradle-plugin:compileKotlin
+> Task :expo-updates-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-updates-gradle-plugin:classes UP-TO-DATE
+> Task :expo-updates-gradle-plugin:jar
+
+> Configure project :app
+ ℹ️  [33mApplying gradle plugin[0m '[32mexpo-dev-launcher-gradle-plugin[0m' (expo-dev-launcher@4.0.29)
+ ℹ️  [33mApplying gradle plugin[0m '[32mexpo-updates-gradle-plugin[0m' (expo-updates@0.25.28)
+
+> Configure project :expo
+
+Using expo modules
+  - [32mexpo-application[0m (5.9.1)
+  - [32mexpo-asset[0m (10.0.10)
+  - [32mexpo-av[0m (14.0.7)
+  - [32mexpo-constants[0m (16.0.2)
+  - [32mexpo-dev-client[0m (4.0.29)
+  - [32mexpo-dev-launcher[0m (4.0.29)
+  - [32mexpo-dev-menu[0m (5.0.23)
+  - [32mexpo-device[0m (6.0.2)
+  - [32mexpo-eas-client[0m (0.12.0)
+  - [32mexpo-file-system[0m (17.0.1)
+  - [32mexpo-font[0m (12.0.10)
+  - [32mexpo-haptics[0m (13.0.1)
+  - [32mexpo-image[0m (1.13.0)
+  - [32mexpo-image-loader[0m (4.7.0)
+  - [32mexpo-image-picker[0m (15.1.0)
+  - [32mexpo-json-utils[0m (0.13.1)
+  - [32mexpo-keep-awake[0m (13.0.2)
+  - [32mexpo-location[0m (17.0.1)
+  - [32mexpo-manifests[0m (0.14.3)
+  - [32mexpo-modules-core[0m (1.12.26)
+  - [32mexpo-notifications[0m (0.28.19)
+  - [32mexpo-splash-screen[0m (0.27.7)
+  - [32mexpo-structured-headers[0m (3.8.0)
+  - [32mexpo-task-manager[0m (11.8.2)
+  - [32mexpo-updates[0m (0.25.28)
+  - [32munimodules-app-loader[0m (4.6.0)
+
+
+> Task :app:buildKotlinToolingMetadata UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateCodegenSchemaFromJavaScript SKIPPED
+> Task :app:generateCodegenArtifactsFromSchema SKIPPED
+> Task :app:generatePackageList
+> Task :app:preBuild
+> Task :app:preReleaseBuild
+> Task :app:generateReleaseBuildConfig UP-TO-DATE
+> Task :expo:generateExpoModulesPackageListTask
+> Task :expo:preBuild
+> Task :expo:preReleaseBuild
+> Task :expo-application:preBuild UP-TO-DATE
+> Task :expo-application:preReleaseBuild UP-TO-DATE
+> Task :expo:writeReleaseAarMetadata
+> Task :expo-asset:preBuild UP-TO-DATE
+> Task :expo-asset:preReleaseBuild UP-TO-DATE
+> Task :expo-application:writeReleaseAarMetadata
+> Task :expo-av:preBuild UP-TO-DATE
+> Task :expo-av:preReleaseBuild UP-TO-DATE
+> Task :expo-asset:writeReleaseAarMetadata
+> Task :expo-av:writeReleaseAarMetadata
+
+> Task :expo-constants:createExpoConfig
+The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
+Proceeding without mode-specific .env
+env: load .env
+env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+
+> Task :expo-constants:preBuild
+> Task :expo-constants:preReleaseBuild
+> Task :expo-dev-client:preBuild UP-TO-DATE
+> Task :expo-dev-client:preReleaseBuild UP-TO-DATE
+> Task :expo-constants:writeReleaseAarMetadata
+> Task :expo-dev-launcher:preBuild UP-TO-DATE
+> Task :expo-dev-launcher:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-client:writeReleaseAarMetadata
+> Task :expo-dev-menu:preBuild UP-TO-DATE
+> Task :expo-dev-menu:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-launcher:writeReleaseAarMetadata
+> Task :expo-dev-menu-interface:preBuild UP-TO-DATE
+> Task :expo-dev-menu-interface:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu:writeReleaseAarMetadata
+> Task :expo-device:preBuild UP-TO-DATE
+> Task :expo-device:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu-interface:writeReleaseAarMetadata
+> Task :expo-eas-client:preBuild UP-TO-DATE
+> Task :expo-eas-client:preReleaseBuild UP-TO-DATE
+> Task :expo-device:writeReleaseAarMetadata
+> Task :expo-file-system:preBuild UP-TO-DATE
+> Task :expo-file-system:preReleaseBuild UP-TO-DATE
+> Task :expo-eas-client:writeReleaseAarMetadata
+> Task :expo-font:preBuild UP-TO-DATE
+> Task :expo-font:preReleaseBuild UP-TO-DATE
+> Task :expo-file-system:writeReleaseAarMetadata
+> Task :expo-haptics:preBuild UP-TO-DATE
+> Task :expo-haptics:preReleaseBuild UP-TO-DATE
+> Task :expo-font:writeReleaseAarMetadata
+> Task :expo-image:preBuild UP-TO-DATE
+> Task :expo-image:preReleaseBuild UP-TO-DATE
+> Task :expo-haptics:writeReleaseAarMetadata
+> Task :expo-image-loader:preBuild UP-TO-DATE
+> Task :expo-image-loader:preReleaseBuild UP-TO-DATE
+> Task :expo-image:writeReleaseAarMetadata
+> Task :expo-image-picker:preBuild UP-TO-DATE
+> Task :expo-image-picker:preReleaseBuild UP-TO-DATE
+> Task :expo-image-loader:writeReleaseAarMetadata
+> Task :expo-json-utils:preBuild UP-TO-DATE
+> Task :expo-json-utils:preReleaseBuild UP-TO-DATE
+> Task :expo-image-picker:writeReleaseAarMetadata
+> Task :expo-keep-awake:preBuild UP-TO-DATE
+> Task :expo-keep-awake:preReleaseBuild UP-TO-DATE
+> Task :expo-json-utils:writeReleaseAarMetadata
+> Task :expo-location:preBuild UP-TO-DATE
+> Task :expo-location:preReleaseBuild UP-TO-DATE
+> Task :expo-keep-awake:writeReleaseAarMetadata
+> Task :expo-manifests:preBuild UP-TO-DATE
+> Task :expo-manifests:preReleaseBuild UP-TO-DATE
+> Task :expo-location:writeReleaseAarMetadata
+> Task :expo-modules-core:preBuild UP-TO-DATE
+> Task :expo-modules-core:preReleaseBuild UP-TO-DATE
+> Task :expo-manifests:writeReleaseAarMetadata
+> Task :expo-notifications:preBuild UP-TO-DATE
+> Task :expo-notifications:preReleaseBuild UP-TO-DATE
+> Task :expo-modules-core:writeReleaseAarMetadata
+> Task :expo-splash-screen:preBuild UP-TO-DATE
+> Task :expo-splash-screen:preReleaseBuild UP-TO-DATE
+> Task :expo-notifications:writeReleaseAarMetadata
+> Task :expo-structured-headers:preBuild UP-TO-DATE
+> Task :expo-structured-headers:preReleaseBuild UP-TO-DATE
+> Task :expo-splash-screen:writeReleaseAarMetadata
+> Task :expo-task-manager:preBuild UP-TO-DATE
+> Task :expo-task-manager:preReleaseBuild UP-TO-DATE
+> Task :expo-structured-headers:writeReleaseAarMetadata
+> Task :expo-updates:preBuild UP-TO-DATE
+> Task :expo-updates:preReleaseBuild UP-TO-DATE
+> Task :expo-task-manager:writeReleaseAarMetadata
+> Task :expo-updates-interface:preBuild UP-TO-DATE
+> Task :expo-updates-interface:preReleaseBuild UP-TO-DATE
+> Task :expo-updates:writeReleaseAarMetadata
+> Task :react-native-async-storage_async-storage:preBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preReleaseBuild UP-TO-DATE
+> Task :expo-updates-interface:writeReleaseAarMetadata
+> Task :react-native-community_netinfo:preBuild UP-TO-DATE
+> Task :react-native-community_netinfo:preReleaseBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:writeReleaseAarMetadata
+> Task :react-native-gesture-handler:preBuild UP-TO-DATE
+> Task :react-native-gesture-handler:preReleaseBuild UP-TO-DATE
+> Task :react-native-community_netinfo:writeReleaseAarMetadata
+> Task :react-native-maps:preBuild UP-TO-DATE
+> Task :react-native-maps:preReleaseBuild UP-TO-DATE
+> Task :react-native-gesture-handler:writeReleaseAarMetadata
+> Task :react-native-safe-area-context:preBuild UP-TO-DATE
+> Task :react-native-safe-area-context:preReleaseBuild UP-TO-DATE
+> Task :react-native-maps:writeReleaseAarMetadata
+> Task :react-native-screens:preBuild UP-TO-DATE
+> Task :react-native-screens:preReleaseBuild UP-TO-DATE
+> Task :react-native-safe-area-context:writeReleaseAarMetadata
+> Task :react-native-svg:preBuild UP-TO-DATE
+> Task :react-native-svg:preReleaseBuild UP-TO-DATE
+> Task :react-native-screens:writeReleaseAarMetadata
+> Task :sentry_react-native:preBuild UP-TO-DATE
+> Task :sentry_react-native:preReleaseBuild UP-TO-DATE
+> Task :react-native-svg:writeReleaseAarMetadata
+> Task :unimodules-app-loader:preBuild UP-TO-DATE
+> Task :unimodules-app-loader:preReleaseBuild UP-TO-DATE
+> Task :sentry_react-native:writeReleaseAarMetadata
+> Task :unimodules-app-loader:writeReleaseAarMetadata
+
+> Task :app:createBundleReleaseJsAndAssets
+env: load .env
+env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+Android Bundled 180993ms node_modules/expo-router/entry.js (2965 modules)
+Writing bundle output to: /mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle
+Writing sourcemap output to: /mnt/d/itvision-1/mobile/provider/android/app/build/intermediates/sourcemaps/react/release/index.android.bundle.packager.map
+Copying 10 asset files
+Done writing bundle output
+Done writing sourcemap output
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:767:63: warning: Direct call to eval(), but lexical scope is not supported.
+...typeof expo === "undefined" ? eval("require") : function (moduleId) {
+                                 ^~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:848:24: warning: the variable "URL" was not declared in function "_fetch"
+        props[0] = new URL(props[0], window.location?.origin).toString();
+                       ^~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:870:42: warning: the variable "fetch" was not declared in anonymous function " 23#"
+      value: wrapFetchWithWindowLocation(fetch)
+                                         ^~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:1647:20: warning: the variable "Promise" was not declared in function "promiseMethodWrapper"
+        return new Promise(function (resolve, reject) {
+                   ^~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:2027:18: warning: the variable "DebuggerInternal" was not declared in function "__shouldPauseOnThrow"
+          typeof DebuggerInternal !== 'undefined' &&
+                 ^~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:4654:5: warning: the variable "setImmediate" was not declared in function "handleResolved"
+    setImmediate(function () {
+    ^~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:6124:9: warning: the variable "setTimeout" was not declared in anonymous function " 220#"
+        setTimeout(function () {
+        ^~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8997:5: warning: the variable "Headers" was not declared in anonymous function " 295#"
+    Headers,
+    ^~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8998:5: warning: the variable "Request" was not declared in anonymous function " 295#"
+    Request,
+    ^~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8999:5: warning: the variable "Response" was not declared in anonymous function " 295#"
+    Response
+    ^~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9156:24: warning: the variable "FileReader" was not declared in function "readBlobAsArrayBuffer"
+      var reader = new FileReader();
+                       ^~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9207:36: warning: the variable "Blob" was not declared in anonymous function " 306#"
+        } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
+                                   ^~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9209:40: warning: the variable "FormData" was not declared in anonymous function " 306#"
+        } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
+                                       ^~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9211:44: warning: the variable "URLSearchParams" was not declared in anonymous function " 306#"
+...e if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body...
+                                 ^~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9330:26: warning: the variable "AbortController" was not declared in anonymous function " 312#"
+          var ctrl = new AbortController();
+                         ^~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9464:23: warning: the variable "XMLHttpRequest" was not declared in anonymous function " 316#"
+        var xhr = new XMLHttpRequest();
+                      ^~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9009:71: warning: the variable "self" was not declared in anonymous function " 298#"
+...undefined' && globalThis || typeof self !== 'undefined' && self ||
+                                      ^~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:20534:31: warning: the variable "nativeFabricUIManager" was not declared in anonymous function " 627#"
+  var _nativeFabricUIManage = nativeFabricUIManager,
+                              ^~~~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:20562:21: warning: the variable "clearTimeout" was not declared in anonymous function " 627#"
+    cancelTimeout = clearTimeout;
+                    ^~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25192:30: warning: the variable "__REACT_DEVTOOLS_GLOBAL_HOOK__" was not declared in anonymous function " 627#"
+  if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
+                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25307:27: warning: the variable "performance" was not declared in anonymous function " 658#"
+  if ("object" === typeof performance && "function" === typeof performance.no...
+                          ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25330:26: warning: the variable "navigator" was not declared in anonymous function " 658#"
+  "undefined" !== typeof navigator && undefined !== navigator.scheduling && u...
+                         ^~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25440:37: warning: the variable "MessageChannel" was not declared in anonymous function " 658#"
+  };else if ("undefined" !== typeof MessageChannel) {
+                                    ^~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25455:34: warning: the variable "nativeRuntimeScheduler" was not declared in anonymous function " 658#"
+... = "undefined" !== typeof nativeRuntimeScheduler ? nativeRuntimeScheduler....
+                             ^~~~~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:38749:34: warning: the variable "requestAnimationFrame" was not declared in function "start 9#"
+...    this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+                              ^~~~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:62418:38: warning: the variable "document" was not declared in anonymous function " 1765#"
+...r useClientLayoutEffect = typeof document !== 'undefined' || typeof naviga...
+                                    ^~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:73670:11: warning: the variable "cancelAnimationFrame" was not declared in function "cleanup"
+          cancelAnimationFrame(this.splashScreenAnimationFrame);
+          ^~~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:81853:25: warning: the variable "location" was not declared in function "url"
+    loc = loc || typeof location !== "undefined" && location;
+                        ^~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:82037:35: warning: the variable "addEventListener" was not declared in anonymous function " 2694#"
+... withEventListeners = typeof addEventListener === "function" && typeof rem...
+                                ^~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:82037:77: warning: the variable "removeEventListener" was not declared in anonymous function " 2694#"
+...er === "function" && typeof removeEventListener === "function";
+                               ^~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83078:16: warning: the variable "attachEvent" was not declared in anonymous function " 2717#"
+    if (typeof attachEvent === "function") {
+               ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83602:16: warning: the variable "TransformStream" was not declared in function "createPacketEncoderStream"
+    return new TransformStream({
+               ^~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83658:26: warning: the variable "TextDecoder" was not declared in function "createPacketDecoderStream"
+      TEXT_DECODER = new TextDecoder();
+                         ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83782:28: warning: the variable "TextEncoder" was not declared in anonymous function " 2749#"
+        TEXT_ENCODER = new TextEncoder();
+                           ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:85114:33: warning: the variable "WebTransport" was not declared in function "doOpen 2#"
+          this._transport = new WebTransport(this.createUri("https"), this.op...
+                                ^~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:87355:158: warning: the variable "File" was not declared in function "isBinary"
+...| withNativeFile && obj instanceof File;
+                                      ^~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:118260:48: warning: the variable "CSSRule" was not declared in function "adoptStyleSheets"
+              rules: Array.from(sheet.rules || CSSRule, function (r, index) {
+                                               ^~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:124961:13: warning: the variable "createImageBitmap" was not declared in anonymous function " 4087#"
+            createImageBitmap(canvas).then(function (bitmap) {
+            ^~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128064:24: warning: the variable "indexedDB" was not declared in function "getIDB"
+            if (typeof indexedDB !== 'undefined') {
+                       ^~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128067:24: warning: the variable "webkitIndexedDB" was not declared in function "getIDB"
+            if (typeof webkitIndexedDB !== 'undefined') {
+                       ^~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128070:24: warning: the variable "mozIndexedDB" was not declared in function "getIDB"
+            if (typeof mozIndexedDB !== 'undefined') {
+                       ^~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128073:24: warning: the variable "OIndexedDB" was not declared in function "getIDB"
+            if (typeof OIndexedDB !== 'undefined') {
+                       ^~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128076:24: warning: the variable "msIndexedDB" was not declared in function "getIDB"
+            if (typeof msIndexedDB !== 'undefined') {
+                       ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128095:35: warning: the variable "openDatabase" was not declared in function "isIndexedDBValid"
+            var isSafari = typeof openDatabase !== 'undefined' && /(Safari|iP...
+                                  ^~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128109:20: warning: the variable "IDBKeyRange" was not declared in function "isIndexedDBValid"
+            typeof IDBKeyRange !== 'undefined';
+                   ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128131:34: warning: the variable "BlobBuilder" was not declared in function "createBlob"
+            var Builder = typeof BlobBuilder !== 'undefined' ? BlobBuilder : ...
+                                 ^~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128131:85: warning: the variable "MSBlobBuilder" was not declared in function "createBlob"
+...efined' ? BlobBuilder : typeof MSBlobBuilder !== 'undefined' ? MSBlobBuild...
+                                  ^~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128131:140: warning: the variable "MozBlobBuilder" was not declared in function "createBlob"
+...ned' ? MSBlobBuilder : typeof MozBlobBuilder !== 'undefined' ? MozBlobBuil...
+                                 ^~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128131:190: warning: the variable "WebKitBlobBuilder" was not declared in function "createBlob"
+...ndefined' ? MozBlobBuilder : WebKitBlobBuilder;
+                                ^~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128397:28: warning: the variable "btoa" was not declared in anonymous function " 4190#"
+              var base64 = btoa(e.target.result || '');
+                           ^~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128410:51: warning: the variable "atob" was not declared in function "_decodeBlob"
+          var arrayBuff = _binStringToArrayBuffer(atob(encodedBlob.data));
+                                                  ^~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:143856:38: warning: the variable "SharedArrayBuffer" was not declared in anonymous function " 4810#"
+...aredArrayBufferCopy = typeof SharedArrayBuffer !== 'undefined' ? SharedArr...
+                                ^~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144117:25: warning: the variable "Atomics" was not declared in anonymous function " 4817#"
+    '%Atomics%': typeof Atomics === 'undefined' ? undefined : Atomics,
+                        ^~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144132:30: warning: the variable "Float16Array" was not declared in anonymous function " 4817#"
+    '%Float16Array%': typeof Float16Array === 'undefined' ? undefined : Float...
+                             ^~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144135:38: warning: the variable "FinalizationRegistry" was not declared in anonymous function " 4817#"
+...lizationRegistry%': typeof FinalizationRegistry === 'undefined' ? undefine...
+                              ^~~~~~~~~~~~~~~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144175:25: warning: the variable "WeakRef" was not declared in anonymous function " 4817#"
+    '%WeakRef%': typeof WeakRef === 'undefined' ? undefined : WeakRef,
+                        ^~~~~~~
+/mnt/d/itvision-1/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:150788:29: warning: the variable "Intl" was not declared in function "formatLanguageCode"
+            formattedCode = Intl.getCanonicalLocales(code)[0];
+                            ^~~~
+
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues
+> Task :expo:generateReleaseResValues
+> Task :expo:generateReleaseResources
+> Task :expo:packageReleaseResources
+> Task :expo-application:generateReleaseResValues
+> Task :expo-application:generateReleaseResources
+> Task :expo-application:packageReleaseResources
+> Task :expo-asset:generateReleaseResValues
+> Task :expo-asset:generateReleaseResources
+> Task :expo-asset:packageReleaseResources
+> Task :expo-av:generateReleaseResValues
+> Task :expo-av:generateReleaseResources
+> Task :expo-av:packageReleaseResources
+> Task :expo-constants:generateReleaseResValues
+> Task :expo-constants:generateReleaseResources
+> Task :expo-constants:packageReleaseResources
+> Task :expo-dev-client:generateReleaseResValues
+> Task :expo-dev-client:generateReleaseResources
+> Task :expo-dev-client:packageReleaseResources
+> Task :expo-dev-launcher:generateReleaseResValues
+> Task :expo-dev-launcher:generateReleaseResources
+> Task :expo-dev-launcher:packageReleaseResources
+> Task :expo-dev-menu:generateReleaseResValues
+> Task :expo-dev-menu:generateReleaseResources
+> Task :expo-dev-menu:packageReleaseResources
+> Task :expo-dev-menu-interface:generateReleaseResValues
+> Task :expo-dev-menu-interface:generateReleaseResources
+> Task :expo-dev-menu-interface:packageReleaseResources
+> Task :expo-device:generateReleaseResValues
+> Task :expo-device:generateReleaseResources
+> Task :expo-device:packageReleaseResources
+> Task :expo-eas-client:generateReleaseResValues
+> Task :expo-eas-client:generateReleaseResources
+> Task :expo-eas-client:packageReleaseResources
+> Task :expo-file-system:generateReleaseResValues
+> Task :expo-file-system:generateReleaseResources
+> Task :expo-file-system:packageReleaseResources
+> Task :expo-font:generateReleaseResValues
+> Task :expo-font:generateReleaseResources
+> Task :expo-font:packageReleaseResources
+> Task :expo-haptics:generateReleaseResValues
+> Task :expo-haptics:generateReleaseResources
+> Task :expo-haptics:packageReleaseResources
+> Task :expo-image:generateReleaseResValues
+> Task :expo-image:generateReleaseResources
+> Task :expo-image:packageReleaseResources
+> Task :expo-image-loader:generateReleaseResValues
+> Task :expo-image-loader:generateReleaseResources
+> Task :expo-image-loader:packageReleaseResources
+> Task :expo-image-picker:generateReleaseResValues
+> Task :expo-image-picker:generateReleaseResources
+> Task :expo-image-picker:packageReleaseResources
+> Task :expo-json-utils:generateReleaseResValues
+> Task :expo-json-utils:generateReleaseResources
+> Task :expo-json-utils:packageReleaseResources
+> Task :expo-keep-awake:generateReleaseResValues
+> Task :expo-keep-awake:generateReleaseResources
+> Task :expo-keep-awake:packageReleaseResources
+> Task :expo-location:generateReleaseResValues
+> Task :expo-location:generateReleaseResources
+> Task :expo-location:packageReleaseResources
+> Task :expo-manifests:generateReleaseResValues
+> Task :expo-manifests:generateReleaseResources
+> Task :expo-manifests:packageReleaseResources
+> Task :expo-modules-core:generateReleaseResValues
+> Task :expo-modules-core:generateReleaseResources
+> Task :expo-modules-core:packageReleaseResources
+> Task :expo-notifications:generateReleaseResValues
+> Task :expo-notifications:generateReleaseResources
+> Task :expo-notifications:packageReleaseResources
+> Task :expo-splash-screen:generateReleaseResValues
+> Task :expo-splash-screen:generateReleaseResources
+> Task :expo-splash-screen:packageReleaseResources
+> Task :expo-structured-headers:generateReleaseResValues
+> Task :expo-structured-headers:generateReleaseResources
+> Task :expo-structured-headers:packageReleaseResources
+> Task :expo-task-manager:generateReleaseResValues
+> Task :expo-task-manager:generateReleaseResources
+> Task :expo-task-manager:packageReleaseResources
+> Task :expo-updates:generateReleaseResValues
+> Task :expo-updates:generateReleaseResources
+> Task :expo-updates:packageReleaseResources
+> Task :expo-updates-interface:generateReleaseResValues
+> Task :expo-updates-interface:generateReleaseResources
+> Task :expo-updates-interface:packageReleaseResources
+> Task :react-native-async-storage_async-storage:generateReleaseResValues
+> Task :react-native-async-storage_async-storage:generateReleaseResources
+> Task :react-native-async-storage_async-storage:packageReleaseResources
+> Task :react-native-community_netinfo:generateReleaseResValues
+> Task :react-native-community_netinfo:generateReleaseResources
+> Task :react-native-community_netinfo:packageReleaseResources
+> Task :react-native-gesture-handler:generateReleaseResValues
+> Task :react-native-gesture-handler:generateReleaseResources
+> Task :react-native-gesture-handler:packageReleaseResources
+> Task :react-native-maps:generateReleaseResValues
+> Task :react-native-maps:generateReleaseResources
+> Task :react-native-maps:packageReleaseResources
+> Task :react-native-safe-area-context:generateReleaseResValues
+> Task :react-native-safe-area-context:generateReleaseResources
+> Task :react-native-safe-area-context:packageReleaseResources
+> Task :react-native-screens:generateReleaseResValues
+> Task :react-native-screens:generateReleaseResources
+> Task :react-native-screens:packageReleaseResources
+> Task :react-native-svg:generateReleaseResValues
+> Task :react-native-svg:generateReleaseResources
+> Task :react-native-svg:packageReleaseResources
+> Task :sentry_react-native:generateReleaseResValues
+> Task :sentry_react-native:generateReleaseResources
+> Task :sentry_react-native:packageReleaseResources
+> Task :unimodules-app-loader:generateReleaseResValues
+> Task :unimodules-app-loader:generateReleaseResources
+> Task :unimodules-app-loader:packageReleaseResources
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :app:mergeReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :expo:extractDeepLinksRelease
+> Task :app:parseReleaseLocalResources
+> Task :expo-application:extractDeepLinksRelease
+> Task :expo:processReleaseManifest
+> Task :expo-asset:extractDeepLinksRelease
+> Task :expo-application:processReleaseManifest
+> Task :expo-av:extractDeepLinksRelease
+> Task :expo-asset:processReleaseManifest
+> Task :expo-constants:extractDeepLinksRelease
+> Task :expo-av:processReleaseManifest
+> Task :expo-dev-client:extractDeepLinksRelease
+> Task :expo-constants:processReleaseManifest
+> Task :expo-dev-launcher:extractDeepLinksRelease
+> Task :expo-dev-client:processReleaseManifest
+> Task :expo-dev-launcher:processReleaseManifest
+> Task :expo-dev-menu:extractDeepLinksRelease
+> Task :expo-dev-menu-interface:extractDeepLinksRelease
+> Task :expo-dev-menu:processReleaseManifest
+> Task :expo-device:extractDeepLinksRelease
+> Task :expo-dev-menu-interface:processReleaseManifest
+> Task :expo-eas-client:extractDeepLinksRelease
+> Task :expo-device:processReleaseManifest
+> Task :expo-file-system:extractDeepLinksRelease
+> Task :expo-eas-client:processReleaseManifest
+> Task :expo-font:extractDeepLinksRelease
+
+> Task :expo-file-system:processReleaseManifest
+/mnt/d/itvision-1/mobile/provider/node_modules/expo-file-system/android/src/main/AndroidManifest.xml:6:9-8:20 Warning:
+	provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:6 to replace other declarations but no other declaration present
+
+> Task :expo-haptics:extractDeepLinksRelease
+> Task :expo-font:processReleaseManifest
+> Task :expo-image:extractDeepLinksRelease
+> Task :expo-haptics:processReleaseManifest
+> Task :expo-image-loader:extractDeepLinksRelease
+> Task :expo-image:processReleaseManifest
+> Task :expo-image-picker:extractDeepLinksRelease
+> Task :expo-image-loader:processReleaseManifest
+> Task :expo-json-utils:extractDeepLinksRelease
+> Task :expo-image-picker:processReleaseManifest
+> Task :expo-keep-awake:extractDeepLinksRelease
+> Task :expo-json-utils:processReleaseManifest
+> Task :expo-location:extractDeepLinksRelease
+> Task :expo-keep-awake:processReleaseManifest
+> Task :expo-manifests:extractDeepLinksRelease
+> Task :expo-location:processReleaseManifest
+> Task :expo-modules-core:extractDeepLinksRelease
+> Task :expo-manifests:processReleaseManifest
+
+> Task :expo-modules-core:processReleaseManifest
+/mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/AndroidManifest.xml:8:9-11:45 Warning:
+	meta-data#com.facebook.soloader.enabled@android:value was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+
+> Task :expo-notifications:extractDeepLinksRelease
+> Task :expo-splash-screen:extractDeepLinksRelease
+> Task :expo-notifications:processReleaseManifest
+> Task :expo-structured-headers:extractDeepLinksRelease
+> Task :expo-splash-screen:processReleaseManifest
+> Task :expo-task-manager:extractDeepLinksRelease
+> Task :expo-structured-headers:processReleaseManifest
+> Task :expo-updates:extractDeepLinksRelease
+> Task :expo-task-manager:processReleaseManifest
+> Task :expo-updates-interface:extractDeepLinksRelease
+> Task :expo-updates:processReleaseManifest
+> Task :react-native-async-storage_async-storage:extractDeepLinksRelease
+> Task :expo-updates-interface:processReleaseManifest
+> Task :react-native-community_netinfo:extractDeepLinksRelease
+
+> Task :react-native-async-storage_async-storage:processReleaseManifest
+package="com.reactnativecommunity.asyncstorage" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.reactnativecommunity.asyncstorage" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/main/AndroidManifest.xml.
+
+> Task :react-native-gesture-handler:extractDeepLinksRelease
+
+> Task :react-native-community_netinfo:processReleaseManifest
+package="com.reactnativecommunity.netinfo" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/@react-native-community/netinfo/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.reactnativecommunity.netinfo" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/@react-native-community/netinfo/android/src/main/AndroidManifest.xml.
+
+> Task :react-native-maps:extractDeepLinksRelease
+
+> Task :react-native-gesture-handler:processReleaseManifest
+package="com.swmansion.gesturehandler" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.swmansion.gesturehandler" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/AndroidManifest.xml.
+
+> Task :react-native-safe-area-context:extractDeepLinksRelease
+
+> Task :react-native-maps:processReleaseManifest
+package="com.rnmaps.maps" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-maps/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.rnmaps.maps" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-maps/android/src/main/AndroidManifest.xml.
+
+> Task :react-native-screens:extractDeepLinksRelease
+
+> Task :react-native-safe-area-context:processReleaseManifest
+package="com.th3rdwave.safeareacontext" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.th3rdwave.safeareacontext" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+
+> Task :react-native-svg:extractDeepLinksRelease
+
+> Task :react-native-screens:processReleaseManifest
+package="com.swmansion.rnscreens" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.swmansion.rnscreens" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/AndroidManifest.xml.
+
+> Task :react-native-svg:processReleaseManifest
+package="com.horcrux.svg" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-svg/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.horcrux.svg" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-svg/android/src/main/AndroidManifest.xml.
+
+> Task :sentry_react-native:extractDeepLinksRelease
+> Task :unimodules-app-loader:extractDeepLinksRelease
+
+> Task :sentry_react-native:processReleaseManifest
+package="io.sentry.react" found in source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="io.sentry.react" from the source AndroidManifest.xml: /mnt/d/itvision-1/mobile/provider/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
+
+> Task :expo:compileReleaseLibraryResources
+> Task :unimodules-app-loader:processReleaseManifest
+> Task :expo:parseReleaseLocalResources
+> Task :expo-application:compileReleaseLibraryResources
+
+> Task :app:processReleaseMainManifest
+/mnt/d/itvision-1/mobile/provider/android/app/src/main/AndroidManifest.xml Warning:
+	provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:0 to replace other declarations but no other declaration present
+
+> Task :app:processReleaseManifest
+> Task :expo-application:parseReleaseLocalResources
+> Task :expo-asset:compileReleaseLibraryResources
+> Task :expo:generateReleaseRFile
+> Task :expo-asset:parseReleaseLocalResources
+> Task :expo-application:generateReleaseRFile
+> Task :app:processReleaseManifestForPackage
+> Task :expo-asset:generateReleaseRFile
+> Task :expo-av:compileReleaseLibraryResources
+> Task :expo-av:parseReleaseLocalResources
+> Task :expo-constants:compileReleaseLibraryResources
+> Task :expo-av:generateReleaseRFile
+> Task :expo-constants:parseReleaseLocalResources
+> Task :expo-dev-client:compileReleaseLibraryResources
+> Task :expo-constants:generateReleaseRFile
+> Task :expo-dev-client:parseReleaseLocalResources
+> Task :expo-dev-client:generateReleaseRFile
+> Task :expo-dev-launcher:parseReleaseLocalResources
+> Task :expo-dev-launcher:compileReleaseLibraryResources
+> Task :expo-dev-launcher:generateReleaseRFile
+> Task :expo-dev-menu-interface:compileReleaseLibraryResources
+> Task :expo-dev-menu-interface:parseReleaseLocalResources
+> Task :expo-device:compileReleaseLibraryResources
+> Task :expo-dev-menu:parseReleaseLocalResources
+> Task :expo-dev-menu-interface:generateReleaseRFile
+> Task :expo-dev-menu:generateReleaseRFile
+> Task :expo-device:parseReleaseLocalResources
+> Task :expo-eas-client:compileReleaseLibraryResources
+> Task :expo-device:generateReleaseRFile
+> Task :expo-eas-client:parseReleaseLocalResources
+> Task :expo-file-system:compileReleaseLibraryResources
+> Task :expo-eas-client:generateReleaseRFile
+> Task :expo-file-system:parseReleaseLocalResources
+> Task :expo-font:compileReleaseLibraryResources
+> Task :expo-file-system:generateReleaseRFile
+> Task :expo-font:parseReleaseLocalResources
+> Task :expo-haptics:compileReleaseLibraryResources
+> Task :expo-font:generateReleaseRFile
+> Task :expo-haptics:parseReleaseLocalResources
+> Task :expo-image:compileReleaseLibraryResources
+> Task :expo-haptics:generateReleaseRFile
+> Task :expo-image:parseReleaseLocalResources
+> Task :expo-image-loader:compileReleaseLibraryResources
+> Task :expo-image:generateReleaseRFile
+> Task :expo-image-loader:parseReleaseLocalResources
+> Task :expo-image-picker:compileReleaseLibraryResources
+> Task :expo-image-loader:generateReleaseRFile
+> Task :expo-image-picker:parseReleaseLocalResources
+> Task :expo-json-utils:compileReleaseLibraryResources
+> Task :expo-image-picker:generateReleaseRFile
+> Task :expo-json-utils:parseReleaseLocalResources
+> Task :expo-keep-awake:compileReleaseLibraryResources
+> Task :expo-json-utils:generateReleaseRFile
+> Task :expo-keep-awake:parseReleaseLocalResources
+> Task :expo-location:compileReleaseLibraryResources
+> Task :expo-keep-awake:generateReleaseRFile
+> Task :expo-location:parseReleaseLocalResources
+> Task :expo-manifests:compileReleaseLibraryResources
+> Task :expo-location:generateReleaseRFile
+> Task :expo-manifests:parseReleaseLocalResources
+> Task :expo-modules-core:compileReleaseLibraryResources
+> Task :expo-manifests:generateReleaseRFile
+> Task :expo-modules-core:parseReleaseLocalResources
+> Task :expo-notifications:compileReleaseLibraryResources
+> Task :expo-modules-core:generateReleaseRFile
+> Task :expo-notifications:parseReleaseLocalResources
+> Task :expo-splash-screen:compileReleaseLibraryResources
+> Task :expo-notifications:generateReleaseRFile
+> Task :expo-structured-headers:compileReleaseLibraryResources
+> Task :expo-splash-screen:parseReleaseLocalResources
+> Task :expo-structured-headers:parseReleaseLocalResources
+> Task :expo-task-manager:compileReleaseLibraryResources
+> Task :expo-splash-screen:generateReleaseRFile
+> Task :expo-structured-headers:generateReleaseRFile
+> Task :expo-task-manager:parseReleaseLocalResources
+> Task :expo-updates:compileReleaseLibraryResources
+> Task :expo-updates:parseReleaseLocalResources
+> Task :expo-task-manager:generateReleaseRFile
+> Task :expo-updates-interface:compileReleaseLibraryResources
+> Task :expo-updates:generateReleaseRFile
+> Task :expo-updates-interface:parseReleaseLocalResources
+> Task :react-native-async-storage_async-storage:compileReleaseLibraryResources
+> Task :expo-updates-interface:generateReleaseRFile
+> Task :react-native-community_netinfo:compileReleaseLibraryResources
+> Task :react-native-async-storage_async-storage:parseReleaseLocalResources
+> Task :react-native-community_netinfo:parseReleaseLocalResources
+> Task :react-native-gesture-handler:compileReleaseLibraryResources
+> Task :react-native-async-storage_async-storage:generateReleaseRFile
+> Task :expo-dev-menu:compileReleaseLibraryResources
+> Task :react-native-community_netinfo:generateReleaseRFile
+> Task :react-native-gesture-handler:parseReleaseLocalResources
+> Task :react-native-maps:compileReleaseLibraryResources
+> Task :react-native-gesture-handler:generateReleaseRFile
+> Task :react-native-maps:parseReleaseLocalResources
+> Task :react-native-safe-area-context:compileReleaseLibraryResources
+> Task :react-native-maps:generateReleaseRFile
+> Task :react-native-safe-area-context:parseReleaseLocalResources
+> Task :react-native-safe-area-context:generateReleaseRFile
+> Task :react-native-svg:compileReleaseLibraryResources
+> Task :react-native-screens:compileReleaseLibraryResources
+> Task :react-native-svg:parseReleaseLocalResources
+> Task :react-native-screens:parseReleaseLocalResources
+> Task :sentry_react-native:compileReleaseLibraryResources
+> Task :react-native-screens:generateReleaseRFile
+> Task :react-native-svg:generateReleaseRFile
+> Task :sentry_react-native:parseReleaseLocalResources
+> Task :unimodules-app-loader:compileReleaseLibraryResources
+> Task :expo:checkKotlinGradlePluginConfigurationErrors
+> Task :unimodules-app-loader:parseReleaseLocalResources
+> Task :sentry_react-native:generateReleaseRFile
+> Task :expo:generateReleaseBuildConfig
+> Task :expo-application:checkKotlinGradlePluginConfigurationErrors
+> Task :unimodules-app-loader:generateReleaseRFile
+> Task :expo-application:generateReleaseBuildConfig
+> Task :expo-modules-core:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-modules-core:generateReleaseBuildConfig
+> Task :expo-modules-core:javaPreCompileRelease
+> Task :expo-asset:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-application:javaPreCompileRelease
+> Task :expo-asset:generateReleaseBuildConfig
+> Task :expo-av:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-asset:javaPreCompileRelease
+> Task :expo-av:generateReleaseBuildConfig
+> Task :expo-constants:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-av:javaPreCompileRelease
+> Task :expo-constants:generateReleaseBuildConfig
+> Task :app:processReleaseResources
+> Task :expo-dev-client:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-constants:javaPreCompileRelease
+> Task :expo-dev-client:dataBindingMergeDependencyArtifactsRelease
+> Task :expo-dev-client:generateReleaseBuildConfig
+> Task :expo-dev-client:dataBindingGenBaseClassesRelease
+> Task :expo-dev-launcher:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-client:javaPreCompileRelease
+> Task :expo-dev-launcher:dataBindingMergeDependencyArtifactsRelease
+> Task :expo-dev-launcher:generateReleaseBuildConfig
+> Task :expo-modules-core:compileReleaseKotlin
+> Task :expo-dev-launcher:dataBindingGenBaseClassesRelease
+> Task :expo-dev-menu:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-menu:generateReleaseBuildConfig
+> Task :expo-dev-menu-interface:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-menu-interface:generateReleaseBuildConfig
+> Task :expo-json-utils:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-menu-interface:javaPreCompileRelease
+> Task :expo-json-utils:generateReleaseBuildConfig
+> Task :expo-manifests:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-json-utils:javaPreCompileRelease
+> Task :expo-manifests:generateReleaseBuildConfig
+> Task :expo-manifests:javaPreCompileRelease
+> Task :expo-updates-interface:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-menu:javaPreCompileRelease
+> Task :expo-updates-interface:generateReleaseBuildConfig
+> Task :expo-updates-interface:javaPreCompileRelease
+> Task :expo-device:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-launcher:javaPreCompileRelease
+> Task :expo-device:generateReleaseBuildConfig
+> Task :expo-eas-client:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-device:javaPreCompileRelease
+> Task :expo-eas-client:generateReleaseBuildConfig
+> Task :expo-file-system:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-eas-client:javaPreCompileRelease
+> Task :expo-file-system:generateReleaseBuildConfig
+> Task :expo-font:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-file-system:javaPreCompileRelease
+> Task :expo-font:generateReleaseBuildConfig
+> Task :expo-haptics:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-font:javaPreCompileRelease
+> Task :expo-haptics:generateReleaseBuildConfig
+> Task :expo-image:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-haptics:javaPreCompileRelease
+> Task :expo-image:generateReleaseBuildConfig
+> Task :expo-image-loader:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-image:javaPreCompileRelease
+> Task :expo-image-loader:generateReleaseBuildConfig
+> Task :expo-image-picker:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-image-loader:javaPreCompileRelease
+> Task :expo-image-picker:generateReleaseBuildConfig
+> Task :expo-keep-awake:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-image-picker:javaPreCompileRelease
+> Task :expo-keep-awake:generateReleaseBuildConfig
+> Task :expo-location:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-keep-awake:javaPreCompileRelease
+> Task :expo-location:generateReleaseBuildConfig
+> Task :expo-notifications:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-location:javaPreCompileRelease
+> Task :expo-notifications:generateReleaseBuildConfig
+> Task :expo-splash-screen:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-notifications:javaPreCompileRelease
+> Task :expo-splash-screen:generateReleaseBuildConfig
+> Task :expo-structured-headers:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-splash-screen:javaPreCompileRelease
+> Task :expo-structured-headers:generateReleaseBuildConfig
+> Task :expo-task-manager:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-structured-headers:javaPreCompileRelease
+> Task :expo-task-manager:generateReleaseBuildConfig
+> Task :unimodules-app-loader:checkKotlinGradlePluginConfigurationErrors
+> Task :unimodules-app-loader:generateReleaseBuildConfig
+> Task :unimodules-app-loader:javaPreCompileRelease
+> Task :expo-updates:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-task-manager:javaPreCompileRelease
+> Task :expo-updates:generateReleaseBuildConfig
+> Task :expo-updates:javaPreCompileRelease
+> Task :expo:javaPreCompileRelease
+> Task :react-native-async-storage_async-storage:generateReleaseBuildConfig
+> Task :react-native-async-storage_async-storage:javaPreCompileRelease
+> Task :react-native-community_netinfo:generateReleaseBuildConfig
+
+> Task :react-native-async-storage_async-storage:compileReleaseJavaWithJavac
+/mnt/d/itvision-1/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/main/java/com/reactnativecommunity/asyncstorage/AsyncStorageModule.java:84: warning: [removal] onCatalystInstanceDestroy() in NativeModule has been deprecated and marked for removal
+  public void onCatalystInstanceDestroy() {
+              ^
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /mnt/d/itvision-1/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/javaPackage/java/com/reactnativecommunity/asyncstorage/AsyncStoragePackage.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+1 warning
+
+> Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-community_netinfo:javaPreCompileRelease
+> Task :react-native-async-storage_async-storage:bundleLibCompileToJarRelease
+
+> Task :react-native-community_netinfo:compileReleaseJavaWithJavac
+/mnt/d/itvision-1/mobile/provider/node_modules/@react-native-community/netinfo/android/src/main/java/com/reactnativecommunity/netinfo/NetInfoModule.java:45: warning: [removal] onCatalystInstanceDestroy() in NativeModule has been deprecated and marked for removal
+    public void onCatalystInstanceDestroy() {
+                ^
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+1 warning
+
+> Task :react-native-community_netinfo:bundleLibCompileToJarRelease
+> Task :react-native-gesture-handler:generateReleaseBuildConfig
+> Task :react-native-gesture-handler:javaPreCompileRelease
+> Task :react-native-maps:generateReleaseBuildConfig
+> Task :react-native-safe-area-context:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-maps:javaPreCompileRelease
+> Task :react-native-safe-area-context:generateReleaseBuildConfig
+
+> Task :react-native-maps:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :react-native-maps:bundleLibCompileToJarRelease
+> Task :react-native-gesture-handler:compileReleaseKotlin
+> Task :react-native-screens:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-safe-area-context:javaPreCompileRelease
+> Task :react-native-screens:generateReleaseBuildConfig
+> Task :react-native-screens:javaPreCompileRelease
+> Task :react-native-svg:generateReleaseBuildConfig
+> Task :react-native-svg:javaPreCompileRelease
+> Task :sentry_react-native:generateReleaseBuildConfig
+> Task :react-native-safe-area-context:compileReleaseKotlin
+> Task :react-native-screens:compileReleaseKotlin
+> Task :react-native-svg:compileReleaseJavaWithJavac
+
+> Task :react-native-safe-area-context:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaContextPackage.kt:27:11 'constructor ReactModuleInfo(String!, String!, Boolean, Boolean, Boolean, Boolean, Boolean)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaContextPackage.kt:33:27 'hasConstants: Boolean' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:59:23 'getter for uiImplementation: UIImplementation!' is deprecated. Deprecated in Java
+
+> Task :react-native-gesture-handler:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerPackage.kt:69:42 'constructor ReactModuleInfo(String!, String!, Boolean, Boolean, Boolean, Boolean, Boolean)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/core/FlingGestureHandler.kt:25:26 Parameter 'event' is never used
+
+> Task :react-native-svg:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :react-native-gesture-handler:compileReleaseJavaWithJavac
+
+> Task :react-native-safe-area-context:compileReleaseJavaWithJavac
+Note: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-safe-area-context/android/src/paper/java/com/th3rdwave/safeareacontext/NativeSafeAreaContextSpec.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :react-native-gesture-handler:bundleLibCompileToJarRelease
+> Task :sentry_react-native:javaPreCompileRelease
+> Task :app:javaPreCompileRelease
+> Task :react-native-safe-area-context:bundleLibCompileToJarRelease
+
+> Task :react-native-screens:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/RNScreensPackage.kt:42:47 'constructor ReactModuleInfo(String!, String!, Boolean, Boolean, Boolean, Boolean, Boolean)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenContainer.kt:30:53 'FrameCallback' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenContainer.kt:30:98 'FrameCallback' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:65:27 'setter for targetElevation: Float' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:128:27 'setter for targetElevation: Float' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt:86:34 'getter for systemWindowInsetTop: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt:231:37 'setColorFilter(Int, PorterDuff.Mode): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenViewManager.kt:47:42 'setStateWrapper(StateWrapper!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:135:47 'replaceSystemWindowInsets(Int, Int, Int, Int): WindowInsetsCompat' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:136:51 'getter for systemWindowInsetLeft: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:138:51 'getter for systemWindowInsetRight: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:139:51 'getter for systemWindowInsetBottom: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/SearchBarManager.kt:100:22 Parameter 'view' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/SearchBarManager.kt:100:43 Parameter 'placeholder' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/SearchBarView.kt:147:43 Parameter 'flag' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/events/HeaderHeightChangeEvent.kt:6:44 'RCTEventEmitter' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:5:37 'FabricViewStateManager' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:9:48 'FabricViewStateManager' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:11:42 Parameter 'width' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:11:54 Parameter 'height' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:11:67 Parameter 'headerHeight' is never used
+
+> Task :sentry_react-native:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /mnt/d/itvision-1/mobile/provider/node_modules/@sentry/react-native/android/src/main/java/io/sentry/react/RNSentryOnDrawReporterManager.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :react-native-svg:bundleLibCompileToJarRelease
+
+> Task :react-native-screens:compileReleaseJavaWithJavac
+Note: /mnt/d/itvision-1/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/NativeScreensModuleSpec.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :sentry_react-native:bundleLibCompileToJarRelease
+> Task :app:extractProguardFiles
+> Task :expo:mergeReleaseJniLibFolders
+> Task :expo:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :expo:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo:mergeReleaseShaders
+> Task :expo:compileReleaseShaders NO-SOURCE
+> Task :expo:generateReleaseAssets UP-TO-DATE
+> Task :expo:packageReleaseAssets
+> Task :expo:prepareLintJarForPublish UP-TO-DATE
+> Task :expo:prepareReleaseArtProfile UP-TO-DATE
+> Task :expo-application:mergeReleaseJniLibFolders
+> Task :expo-application:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-application:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-application:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :expo-application:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-application:mergeReleaseShaders
+> Task :expo-application:compileReleaseShaders NO-SOURCE
+> Task :expo-application:generateReleaseAssets UP-TO-DATE
+> Task :react-native-screens:bundleLibCompileToJarRelease
+> Task :expo-application:packageReleaseAssets
+> Task :expo-application:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-application:prepareReleaseArtProfile UP-TO-DATE
+> Task :expo-asset:mergeReleaseJniLibFolders
+> Task :expo-asset:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-asset:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-asset:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :expo-asset:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-asset:mergeReleaseShaders
+> Task :expo-asset:compileReleaseShaders NO-SOURCE
+> Task :expo-asset:generateReleaseAssets UP-TO-DATE
+> Task :expo-asset:packageReleaseAssets
+> Task :expo-asset:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-asset:prepareReleaseArtProfile UP-TO-DATE
+> Task :expo-av:configureCMakeRelWithDebInfo[arm64-v8a]
+> Task :expo-av:buildCMakeRelWithDebInfo[arm64-v8a]
+> Task :expo-av:configureCMakeRelWithDebInfo[armeabi-v7a]
+> Task :expo-av:buildCMakeRelWithDebInfo[armeabi-v7a]
+
+> Task :expo-modules-core:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/adapters/react/permissions/PermissionsService.kt:20:26 'Promise' is deprecated. AsyncFunction will crash when called. Use expo.modules.kotlin.Promise instead
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/adapters/react/permissions/PermissionsService.kt:63:51 'Promise' is deprecated. AsyncFunction will crash when called. Use expo.modules.kotlin.Promise instead
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/adapters/react/permissions/PermissionsService.kt:90:54 'Promise' is deprecated. AsyncFunction will crash when called. Use expo.modules.kotlin.Promise instead
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/defaultmodules/CoreModule.kt:6:34 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/defaultmodules/CoreModule.kt:70:12 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/events/KModuleEventEmitterWrapper.kt:97:7 'constructor Event<T : Event<(raw) Event<*>>!>(Int)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/JSTypeConverterHelper.kt:44:17 'get(String!): Any?' is deprecated. Deprecated in Java
+
+> Task :expo-av:configureCMakeRelWithDebInfo[x86]
+> Task :expo-modules-core:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :expo-av:buildCMakeRelWithDebInfo[x86]
+> Task :expo-modules-core:bundleLibCompileToJarRelease
+> Task :expo-av:configureCMakeRelWithDebInfo[x86_64]
+> Task :expo-av:buildCMakeRelWithDebInfo[x86_64]
+> Task :expo-dev-client:compileReleaseKotlin NO-SOURCE
+> Task :expo-application:compileReleaseKotlin
+> Task :expo-dev-client:compileReleaseJavaWithJavac
+> Task :expo-dev-client:bundleLibCompileToJarRelease
+> Task :expo-asset:compileReleaseKotlin
+> Task :expo-av:compileReleaseKotlin
+> Task :expo-application:compileReleaseJavaWithJavac
+> Task :expo-constants:compileReleaseKotlin
+> Task :expo-application:bundleLibCompileToJarRelease
+> Task :expo-asset:compileReleaseJavaWithJavac
+> Task :expo-asset:bundleLibCompileToJarRelease
+> Task :expo-dev-menu-interface:compileReleaseKotlin
+> Task :expo-json-utils:compileReleaseKotlin
+> Task :expo-json-utils:compileReleaseJavaWithJavac
+> Task :expo-json-utils:bundleLibCompileToJarRelease
+> Task :expo-updates-interface:compileReleaseKotlin
+> Task :expo-constants:compileReleaseJavaWithJavac
+> Task :expo-device:compileReleaseKotlin
+> Task :expo-constants:bundleLibCompileToJarRelease
+> Task :expo-eas-client:compileReleaseKotlin
+> Task :expo-updates-interface:compileReleaseJavaWithJavac
+> Task :expo-updates-interface:bundleLibCompileToJarRelease
+> Task :expo-file-system:compileReleaseKotlin
+
+> Task :expo-av:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/ViewUtils.kt:10:26 'Promise' is deprecated. AsyncFunction will crash when called. Use expo.modules.kotlin.Promise instead
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/ViewUtils.kt:19:129 'Promise' is deprecated. AsyncFunction will crash when called. Use expo.modules.kotlin.Promise instead
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/ViewUtils.kt:21:78 'resolveView(Int): View?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/ViewUtils.kt:39:111 'Promise' is deprecated. AsyncFunction will crash when called. Use expo.modules.kotlin.Promise instead
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/ViewUtils.kt:52:78 'resolveView(Int): View?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/player/datasource/CustomHeadersOkHttpDataSourceFactory.kt:32:12 'constructor OkHttpDataSource(Call.Factory, String?, CacheControl?, HttpDataSource.RequestProperties?)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/progress/AndroidLooperTimeMachine.kt:8:5 'constructor Handler()' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-av/android/src/main/java/expo/modules/av/video/VideoViewModule.kt:64:17 'tryRunWithVideoView(ModuleRegistry, Int, ViewUtils.VideoViewCallback, Promise): Unit' is deprecated. Use `dispatchCommands` in favor of finding view with imperative calls
+
+> Task :expo-manifests:compileReleaseKotlin
+> Task :expo-font:compileReleaseKotlin
+
+> Task :expo-av:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :expo-haptics:compileReleaseKotlin
+> Task :expo-dev-menu-interface:compileReleaseJavaWithJavac
+> Task :expo-dev-menu-interface:bundleLibCompileToJarRelease
+> Task :expo-av:bundleLibCompileToJarRelease
+> Task :expo-device:compileReleaseJavaWithJavac
+> Task :expo-device:bundleLibCompileToJarRelease
+> Task :expo-eas-client:compileReleaseJavaWithJavac
+> Task :expo-eas-client:bundleLibCompileToJarRelease
+
+> Task :expo-manifests:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/EmbeddedManifest.kt:19:16 This declaration overrides deprecated member but not marked as deprecated itself. Please add @Deprecated annotation or suppress. See https://youtrack.jetbrains.com/issue/KT-47902 for details
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/EmbeddedManifest.kt:19:86 'getLegacyID(): String' is deprecated. Prefer scopeKey or projectId depending on use case
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/ExpoUpdatesManifest.kt:16:16 This declaration overrides deprecated member but not marked as deprecated itself. Please add @Deprecated annotation or suppress. See https://youtrack.jetbrains.com/issue/KT-47902 for details
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/Manifest.kt:15:12 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-manifests/android/src/main/java/expo/modules/manifests/core/Manifest.kt:225:65 Elvis operator (?:) always returns the left operand of non-nullable type List<PluginType>
+
+> Task :expo-font:compileReleaseJavaWithJavac
+> Task :expo-manifests:compileReleaseJavaWithJavac
+> Task :expo-manifests:bundleLibCompileToJarRelease
+> Task :expo-font:bundleLibCompileToJarRelease
+> Task :expo-image:kaptGenerateStubsReleaseKotlin
+> Task :expo-haptics:compileReleaseJavaWithJavac
+> Task :expo-file-system:compileReleaseJavaWithJavac
+> Task :expo-haptics:bundleLibCompileToJarRelease
+> Task :expo-file-system:bundleLibCompileToJarRelease
+> Task :expo-image-loader:compileReleaseKotlin
+> Task :expo-dev-menu:compileReleaseKotlin
+> Task :expo-image-loader:compileReleaseJavaWithJavac
+> Task :expo-image-loader:bundleLibCompileToJarRelease
+> Task :expo-image-picker:compileReleaseKotlin
+> Task :expo-keep-awake:compileReleaseKotlin
+> Task :expo-location:compileReleaseKotlin
+> Task :expo-keep-awake:compileReleaseJavaWithJavac
+> Task :expo-keep-awake:bundleLibCompileToJarRelease
+> Task :expo-notifications:compileReleaseKotlin
+> Task :expo-structured-headers:compileReleaseKotlin NO-SOURCE
+
+> Task :expo-dev-menu:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-menu/android/src/main/java/expo/modules/devmenu/helpers/DevMenuOkHttpExtension.kt:58:19 'create(MediaType?, String): RequestBody' is deprecated. Moved to extension function. Put the 'content' argument first to fix Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-menu/android/src/release/java/expo/modules/devmenu/DevMenuManager.kt:43:42 Returning type parameter has been inferred to Nothing implicitly. Please specify type arguments explicitly to hide this warning. Nothing can produce an exception at runtime.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-menu/android/src/release/java/expo/modules/devmenu/DevMenuManager.kt:103:43 The corresponding parameter in the supertype 'DevMenuManagerInterface' is named 'shouldAutoLaunch'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-menu/android/src/release/java/expo/modules/devmenu/DevMenuManager.kt:119:17 Parameter 'context' is never used
+
+> Task :expo-image-picker:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-image-picker/android/src/main/java/expo/modules/imagepicker/ImagePickerConstants.kt:123:23 'TAG_ISO_SPEED_RATINGS: String' is deprecated. Deprecated in Java
+
+> Task :expo-structured-headers:compileReleaseJavaWithJavac
+> Task :expo-image:kaptReleaseKotlin
+> Task :expo-dev-menu:compileReleaseJavaWithJavac
+
+> Task :expo-location:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-location/android/src/main/java/expo/modules/location/LocationModule.kt:676:63 'getFromLocationName(String, Int): (Mutable)List<Address!>?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-location/android/src/main/java/expo/modules/location/LocationModule.kt:708:63 'getFromLocation(Double, Double, Int): (Mutable)List<Address!>?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-location/android/src/main/java/expo/modules/location/records/LocationResults.kt:86:23 'getter for isFromMockProvider: Boolean' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-location/android/src/main/java/expo/modules/location/records/LocationResults.kt:93:7 Unchecked cast: {BaseBundle & Parcelable & kotlin.Cloneable} to BundleType
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-location/android/src/main/java/expo/modules/location/records/LocationResults.kt:135:7 Unchecked cast: {BaseBundle & Parcelable & kotlin.Cloneable} to BundleType
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-location/android/src/main/java/expo/modules/location/services/LocationTaskService.kt:50:5 'stopForeground(Boolean): Unit' is deprecated. Deprecated in Java
+
+> Task :expo-image-picker:compileReleaseJavaWithJavac
+> Task :expo-dev-menu:bundleLibCompileToJarRelease
+> Task :expo-splash-screen:compileReleaseKotlin
+> Task :expo-image-picker:bundleLibCompileToJarRelease
+> Task :expo-location:compileReleaseJavaWithJavac
+
+> Task :expo-splash-screen:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/SplashScreenViewController.kt:42:5 Parameter 'failureCallback' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/singletons/SplashScreenStatusBar.kt:16:27 'replaceSystemWindowInsets(Int, Int, Int, Int): WindowInsets' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/singletons/SplashScreenStatusBar.kt:17:29 'getter for systemWindowInsetLeft: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/singletons/SplashScreenStatusBar.kt:19:29 'getter for systemWindowInsetRight: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/singletons/SplashScreenStatusBar.kt:20:29 'getter for systemWindowInsetBottom: Int' is deprecated. Deprecated in Java
+
+> Task :expo-image:kaptReleaseKotlin
+Note: [2] Wrote GeneratedAppGlideModule with: [com.github.penfeizhou.animation.glide.GlideAnimationModule, com.bumptech.glide.integration.okhttp3.OkHttpLibraryGlideModule, com.bumptech.glide.integration.avif.AvifGlideModule, expo.modules.image.blurhash.BlurhashModule, expo.modules.image.dataurls.Base64Module, expo.modules.image.thumbhash.ThumbhashModule, expo.modules.image.okhttp.ExpoImageOkHttpClientGlideModule, expo.modules.image.svg.SVGModule]
+
+> Task :expo-splash-screen:compileReleaseJavaWithJavac
+> Task :unimodules-app-loader:compileReleaseKotlin NO-SOURCE
+> Task :expo-structured-headers:bundleLibCompileToJarRelease
+> Task :expo-location:bundleLibCompileToJarRelease
+> Task :expo-splash-screen:bundleLibCompileToJarRelease
+> Task :unimodules-app-loader:compileReleaseJavaWithJavac
+> Task :unimodules-app-loader:bundleLibCompileToJarRelease
+
+> Task :expo-notifications:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/Utils.kt:41:21 'get(String!): Any?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/Utils.kt:93:25 No cast needed
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/Utils.kt:97:26 No cast needed
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/categories/ExpoNotificationCategoriesModule.kt:69:40 'getParcelableArrayList(String?): ArrayList<T!>?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/categories/ExpoNotificationCategoriesModule.kt:122:36 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/debug/DebugLogging.kt:30:23 'get(String!): Any?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/RemoteNotificationContent.kt:21:45 'readParcelable(ClassLoader?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/triggers/FirebaseNotificationTrigger.kt:16:12 'readParcelable(ClassLoader?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/ExpoNotificationPresentationModule.kt:44:33 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/ExpoNotificationPresentationModule.kt:55:43 'getParcelableArrayList(String?): ArrayList<T!>?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/ExpoNotificationPresentationModule.kt:59:33 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/ExpoNotificationPresentationModule.kt:79:31 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/ExpoNotificationPresentationModule.kt:93:31 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt:208:26 Unnecessary safe call on a non-null receiver of type NotificationPriority
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt:208:40 Elvis operator (?:) always returns the left operand of non-nullable type Int
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt:230:11 Condition 'requestPriority != null' is always 'true'
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/scheduling/NotificationScheduler.kt:50:40 'getParcelableArrayList(String?): ArrayList<T!>?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/scheduling/NotificationScheduler.kt:57:33 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/scheduling/NotificationScheduler.kt:80:35 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/scheduling/NotificationScheduler.kt:127:31 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/scheduling/NotificationScheduler.kt:141:31 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:480:34 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:481:28 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:505:33 'getParcelableExtra(String!): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:506:27 'getParcelableExtra(String!): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:604:54 'get(String!): Any?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:671:22 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:672:22 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:699:14 'getParcelableExtra(String!): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:729:18 'getParcelableExtra(String!): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/NotificationsService.kt:769:22 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/Base64Serialization.kt:26:45 Returning type parameter has been inferred to Nothing implicitly because Nothing is more specific than specified expected type. Please specify type arguments explicitly in accordance with expected type to hide this warning. Nothing can produce an exception at runtime. See KT-36776 for more details.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt:63:85 Parameter 'notificationResponse' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt:190:70 'priority: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt:191:41 'vibrate: LongArray!' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt:192:30 'sound: Uri!' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt:205:41 'get(String!): Any?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt:208:124 'get(String!): Any?' is deprecated. Deprecated in Java
+
+> Task :expo-dev-launcher:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/DevLauncherRecentlyOpenedAppsRegistry.kt:32:47 Unchecked cast: MutableMap<Any?, Any?> to MutableMap<String, Any>
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/DevLauncherRecentlyOpenedAppsRegistry.kt:50:27 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:37:23 'constructor TaskDescription(String!, Bitmap!, Int)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:63:61 'FLAG_TRANSLUCENT_STATUS: Int' is deprecated. Deprecated in Java
+
+> Task :expo-updates:kaptGenerateStubsReleaseKotlin
+
+> Task :expo-dev-launcher:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:90:33 Variable 'appliedStatusBarStyle' initializer is redundant
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:92:45 'getter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:95:68 'SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:99:67 'SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:103:67 'SYSTEM_UI_FLAG_LIGHT_STATUS_BAR: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:107:15 'setter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:115:59 'FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:116:61 'FLAG_FORCE_NOT_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:118:59 'FLAG_FORCE_NOT_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:119:61 'FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:131:23 'replaceSystemWindowInsets(Int, Int, Int, Int): WindowInsets' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:132:25 'getter for systemWindowInsetLeft: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:134:25 'getter for systemWindowInsetRight: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:135:25 'getter for systemWindowInsetBottom: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:160:63 'FLAG_TRANSLUCENT_NAVIGATION: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:171:63 'FLAG_TRANSLUCENT_NAVIGATION: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:175:33 'getter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:176:33 'SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:177:21 'setter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:190:29 'getter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:191:62 'SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:191:101 'SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:192:63 'SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:192:102 'SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:192:136 'SYSTEM_UI_FLAG_IMMERSIVE: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:193:70 'SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:193:109 'SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:193:143 'SYSTEM_UI_FLAG_IMMERSIVE_STICKY: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/main/java/expo/modules/devlauncher/launcher/configurators/DevLauncherExpoActivityConfigurator.kt:196:17 'setter for systemUiVisibility: Int' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:102:29 Parameter 'context' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:102:47 Parameter 'reactHost' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:108:67 Parameter 'launcherClass' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:113:56 Parameter 'additionalPackages' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:113:93 Parameter 'launcherClass' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:118:35 Parameter 'reactActivity' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:123:27 Parameter 'reactActivity' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherController.kt:123:57 Parameter 'intent' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherPackageDelegate.kt:12:27 Parameter 'reactContext' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherPackageDelegate.kt:13:43 Parameter 'context' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherPackageDelegate.kt:14:45 Parameter 'activityContext' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherPackageDelegate.kt:15:35 Parameter 'activityContext' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/DevLauncherPackageDelegate.kt:16:37 Parameter 'context' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/launcher/DevLauncherReactHost.kt:8:14 Parameter 'application' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/launcher/DevLauncherReactHost.kt:8:40 Parameter 'launcherIp' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-dev-launcher/android/src/release/java/expo/modules/devlauncher/launcher/DevLauncherReactNativeHost.kt:8:60 Parameter 'launcherIp' is never used
+
+> Task :expo-image:compileReleaseKotlin
+
+> Task :expo-notifications:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /mnt/d/itvision-1/mobile/provider/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/NotificationCategory.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :expo-dev-launcher:compileReleaseJavaWithJavac
+> Task :expo-dev-launcher:bundleLibCompileToJarRelease
+> Task :expo-application:extractReleaseAnnotations
+> Task :expo-application:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :expo-application:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :expo-application:processReleaseJavaRes
+> Task :expo-asset:extractReleaseAnnotations
+> Task :expo-asset:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :expo-asset:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :expo-asset:processReleaseJavaRes
+> Task :expo-application:mergeReleaseJavaResource
+> Task :expo-notifications:bundleLibCompileToJarRelease
+> Task :expo-asset:mergeReleaseJavaResource
+> Task :expo-application:syncReleaseLibJars
+> Task :expo-application:bundleReleaseLocalLintAar
+> Task :expo-asset:syncReleaseLibJars
+> Task :expo-asset:bundleReleaseLocalLintAar
+> Task :expo-av:mergeReleaseJniLibFolders
+> Task :expo-av:extractDeepLinksForAarRelease
+> Task :expo-av:extractReleaseAnnotations
+> Task :expo-av:mergeReleaseGeneratedProguardFiles
+> Task :expo-av:mergeReleaseConsumerProguardFiles
+> Task :expo-av:mergeReleaseShaders
+> Task :expo-av:compileReleaseShaders NO-SOURCE
+> Task :expo-av:generateReleaseAssets UP-TO-DATE
+> Task :expo-av:packageReleaseAssets
+> Task :expo-av:mergeReleaseNativeLibs
+> Task :expo-av:prepareLintJarForPublish
+> Task :expo-av:prepareReleaseArtProfile
+> Task :expo-av:stripReleaseDebugSymbols
+> Task :expo-av:processReleaseJavaRes
+> Task :expo-constants:mergeReleaseJniLibFolders
+> Task :expo-constants:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-av:mergeReleaseJavaResource
+> Task :expo-av:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-constants:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-av:syncReleaseLibJars
+> Task :expo-task-manager:compileReleaseKotlin
+> Task :expo-image:compileReleaseJavaWithJavac
+> Task :expo-image:bundleLibCompileToJarRelease
+
+> Task :expo-task-manager:compileReleaseJavaWithJavac
+Note: /mnt/d/itvision-1/mobile/provider/node_modules/expo-task-manager/android/src/main/java/expo/modules/taskManager/TaskService.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :expo-task-manager:bundleLibCompileToJarRelease
+> Task :expo-av:bundleReleaseLocalLintAar
+> Task :expo-constants:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-constants:extractDeepLinksForAarRelease
+> Task :expo-constants:extractReleaseAnnotations
+> Task :expo-constants:mergeReleaseGeneratedProguardFiles
+> Task :expo-constants:mergeReleaseConsumerProguardFiles
+> Task :expo-constants:mergeReleaseShaders
+> Task :expo-constants:compileReleaseShaders NO-SOURCE
+> Task :expo-constants:generateReleaseAssets UP-TO-DATE
+> Task :expo-constants:packageReleaseAssets
+> Task :expo-constants:prepareLintJarForPublish
+> Task :expo-constants:prepareReleaseArtProfile
+> Task :expo-constants:processReleaseJavaRes
+> Task :expo-dev-client:mergeReleaseJniLibFolders
+> Task :expo-dev-client:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-client:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-constants:mergeReleaseJavaResource
+> Task :expo-dev-client:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-constants:syncReleaseLibJars
+> Task :expo-constants:bundleReleaseLocalLintAar
+> Task :expo-dev-client:extractDeepLinksForAarRelease
+> Task :expo-dev-client:extractReleaseAnnotations
+> Task :expo-dev-client:mergeReleaseGeneratedProguardFiles
+> Task :expo-dev-client:mergeReleaseConsumerProguardFiles
+> Task :expo-dev-client:mergeReleaseShaders
+> Task :expo-dev-client:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-client:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-client:packageReleaseAssets
+> Task :expo-dev-client:prepareLintJarForPublish
+> Task :expo-dev-client:prepareReleaseArtProfile
+> Task :expo-dev-client:processReleaseJavaRes NO-SOURCE
+> Task :expo-dev-client:mergeReleaseJavaResource
+> Task :expo-dev-launcher:mergeReleaseJniLibFolders
+> Task :expo-dev-client:syncReleaseLibJars
+> Task :expo-dev-client:bundleReleaseLocalLintAar
+> Task :expo-dev-launcher:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-launcher:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-dev-launcher:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-dev-launcher:extractDeepLinksForAarRelease
+> Task :expo-dev-launcher:extractReleaseAnnotations
+> Task :expo-dev-launcher:mergeReleaseGeneratedProguardFiles
+> Task :expo-dev-launcher:mergeReleaseConsumerProguardFiles
+> Task :expo-dev-launcher:mergeReleaseShaders
+> Task :expo-dev-launcher:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-launcher:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-launcher:packageReleaseAssets
+> Task :expo-dev-launcher:prepareLintJarForPublish
+> Task :expo-dev-launcher:prepareReleaseArtProfile
+> Task :expo-dev-launcher:processReleaseJavaRes
+> Task :expo-dev-menu:mergeReleaseJniLibFolders
+> Task :expo-dev-menu:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-menu:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-dev-menu:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-dev-menu:extractDeepLinksForAarRelease
+> Task :expo-dev-launcher:mergeReleaseJavaResource
+> Task :expo-dev-menu:extractReleaseAnnotations
+> Task :expo-dev-launcher:syncReleaseLibJars
+> Task :expo-dev-launcher:bundleReleaseLocalLintAar
+> Task :expo-dev-menu:mergeReleaseGeneratedProguardFiles
+> Task :expo-dev-menu:mergeReleaseConsumerProguardFiles
+> Task :expo-dev-menu:mergeReleaseShaders
+> Task :expo-dev-menu:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-menu:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-menu:packageReleaseAssets
+> Task :expo-dev-menu:prepareLintJarForPublish
+> Task :expo-dev-menu:prepareReleaseArtProfile
+> Task :expo-updates:kaptReleaseKotlin
+> Task :expo-dev-menu:processReleaseJavaRes
+> Task :expo-device:mergeReleaseJniLibFolders
+> Task :expo-device:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-device:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-device:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-device:extractDeepLinksForAarRelease
+> Task :expo-device:extractReleaseAnnotations
+> Task :expo-dev-menu:mergeReleaseJavaResource
+> Task :expo-device:mergeReleaseGeneratedProguardFiles
+> Task :expo-dev-menu:syncReleaseLibJars
+> Task :expo-dev-menu:bundleReleaseLocalLintAar
+> Task :expo-device:mergeReleaseConsumerProguardFiles
+> Task :expo-device:mergeReleaseShaders
+> Task :expo-device:compileReleaseShaders NO-SOURCE
+> Task :expo-device:generateReleaseAssets UP-TO-DATE
+> Task :expo-device:packageReleaseAssets
+> Task :expo-device:prepareLintJarForPublish
+> Task :expo-device:prepareReleaseArtProfile
+> Task :expo-device:processReleaseJavaRes
+> Task :expo-updates:mergeReleaseJniLibFolders
+> Task :expo-updates:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-updates:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-updates:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-updates:extractDeepLinksForAarRelease
+> Task :expo-updates:mergeReleaseShaders
+> Task :expo-updates:compileReleaseShaders NO-SOURCE
+> Task :expo-updates:generateReleaseAssets UP-TO-DATE
+> Task :expo-device:mergeReleaseJavaResource
+> Task :expo-updates:packageReleaseAssets
+> Task :expo-device:syncReleaseLibJars
+> Task :expo-device:bundleReleaseLocalLintAar
+> Task :expo-updates:prepareLintJarForPublish
+> Task :expo-updates:prepareReleaseArtProfile
+> Task :expo-eas-client:mergeReleaseJniLibFolders
+> Task :expo-eas-client:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-eas-client:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-eas-client:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-eas-client:extractDeepLinksForAarRelease
+> Task :expo-eas-client:extractReleaseAnnotations
+> Task :expo-eas-client:mergeReleaseGeneratedProguardFiles
+> Task :expo-eas-client:mergeReleaseConsumerProguardFiles
+> Task :expo-eas-client:mergeReleaseShaders
+> Task :expo-eas-client:compileReleaseShaders NO-SOURCE
+> Task :expo-eas-client:generateReleaseAssets UP-TO-DATE
+> Task :expo-eas-client:packageReleaseAssets
+> Task :expo-eas-client:prepareLintJarForPublish
+> Task :expo-eas-client:prepareReleaseArtProfile
+> Task :expo-eas-client:processReleaseJavaRes
+> Task :expo-eas-client:mergeReleaseJavaResource
+> Task :expo-file-system:mergeReleaseJniLibFolders
+> Task :expo-eas-client:syncReleaseLibJars
+> Task :expo-eas-client:bundleReleaseLocalLintAar
+> Task :expo-file-system:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-file-system:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-file-system:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-file-system:extractDeepLinksForAarRelease
+> Task :expo-file-system:extractReleaseAnnotations
+> Task :expo-file-system:mergeReleaseGeneratedProguardFiles
+> Task :expo-file-system:mergeReleaseConsumerProguardFiles
+> Task :expo-file-system:mergeReleaseShaders
+> Task :expo-file-system:compileReleaseShaders NO-SOURCE
+> Task :expo-file-system:generateReleaseAssets UP-TO-DATE
+> Task :expo-file-system:packageReleaseAssets
+> Task :expo-file-system:prepareLintJarForPublish
+> Task :expo-file-system:prepareReleaseArtProfile
+> Task :expo-file-system:processReleaseJavaRes
+> Task :expo-font:mergeReleaseJniLibFolders
+> Task :expo-font:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-font:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-file-system:mergeReleaseJavaResource
+> Task :expo-font:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-file-system:syncReleaseLibJars
+> Task :expo-file-system:bundleReleaseLocalLintAar
+> Task :expo-font:extractDeepLinksForAarRelease
+> Task :expo-font:extractReleaseAnnotations
+> Task :expo-font:mergeReleaseGeneratedProguardFiles
+> Task :expo-font:mergeReleaseConsumerProguardFiles
+> Task :expo-font:mergeReleaseShaders
+> Task :expo-font:compileReleaseShaders NO-SOURCE
+> Task :expo-font:generateReleaseAssets UP-TO-DATE
+> Task :expo-font:packageReleaseAssets
+> Task :expo-font:prepareLintJarForPublish
+> Task :expo-font:prepareReleaseArtProfile
+> Task :expo-font:processReleaseJavaRes
+> Task :expo-haptics:mergeReleaseJniLibFolders
+> Task :expo-haptics:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-haptics:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-font:mergeReleaseJavaResource
+> Task :expo-haptics:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-font:syncReleaseLibJars
+> Task :expo-font:bundleReleaseLocalLintAar
+> Task :expo-haptics:extractDeepLinksForAarRelease
+> Task :expo-haptics:extractReleaseAnnotations
+> Task :expo-haptics:mergeReleaseGeneratedProguardFiles
+> Task :expo-haptics:mergeReleaseConsumerProguardFiles
+> Task :expo-haptics:mergeReleaseShaders
+> Task :expo-haptics:compileReleaseShaders NO-SOURCE
+> Task :expo-haptics:generateReleaseAssets UP-TO-DATE
+> Task :expo-haptics:packageReleaseAssets
+> Task :expo-haptics:prepareLintJarForPublish
+> Task :expo-haptics:prepareReleaseArtProfile
+> Task :expo-haptics:processReleaseJavaRes
+> Task :expo-image:mergeReleaseJniLibFolders
+> Task :expo-image:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-image:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-haptics:mergeReleaseJavaResource
+> Task :expo-image:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-haptics:syncReleaseLibJars
+> Task :expo-haptics:bundleReleaseLocalLintAar
+> Task :expo-image:extractDeepLinksForAarRelease
+> Task :expo-image:extractReleaseAnnotations
+> Task :expo-image:mergeReleaseGeneratedProguardFiles
+> Task :expo-image:mergeReleaseConsumerProguardFiles
+> Task :expo-image:mergeReleaseShaders
+> Task :expo-image:compileReleaseShaders NO-SOURCE
+> Task :expo-image:generateReleaseAssets UP-TO-DATE
+> Task :expo-image:packageReleaseAssets
+> Task :expo-image:prepareLintJarForPublish
+> Task :expo-image:prepareReleaseArtProfile
+> Task :expo-image:processReleaseJavaRes
+> Task :expo-image-loader:mergeReleaseJniLibFolders
+> Task :expo-image-loader:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-image-loader:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-image-loader:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-image-loader:extractDeepLinksForAarRelease
+> Task :expo-image:mergeReleaseJavaResource
+> Task :expo-image-loader:extractReleaseAnnotations
+> Task :expo-updates:compileReleaseKotlin
+> Task :expo-image:syncReleaseLibJars
+> Task :expo-image:bundleReleaseLocalLintAar
+> Task :expo-image-loader:mergeReleaseGeneratedProguardFiles
+> Task :expo-image-loader:mergeReleaseConsumerProguardFiles
+> Task :expo-image-loader:mergeReleaseShaders
+> Task :expo-image-loader:compileReleaseShaders NO-SOURCE
+> Task :expo-image-loader:generateReleaseAssets UP-TO-DATE
+> Task :expo-image-loader:packageReleaseAssets
+> Task :expo-image-loader:prepareLintJarForPublish
+> Task :expo-image-loader:prepareReleaseArtProfile
+> Task :expo-image-loader:processReleaseJavaRes
+> Task :expo-image-picker:mergeReleaseJniLibFolders
+> Task :expo-image-picker:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-image-picker:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-image-loader:mergeReleaseJavaResource
+> Task :expo-image-picker:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-image-loader:syncReleaseLibJars
+> Task :expo-image-loader:bundleReleaseLocalLintAar
+> Task :expo-image-picker:extractDeepLinksForAarRelease
+> Task :expo-image-picker:extractReleaseAnnotations
+> Task :expo-image-picker:mergeReleaseGeneratedProguardFiles
+> Task :expo-image-picker:mergeReleaseConsumerProguardFiles
+> Task :expo-image-picker:mergeReleaseShaders
+> Task :expo-image-picker:compileReleaseShaders NO-SOURCE
+> Task :expo-image-picker:generateReleaseAssets UP-TO-DATE
+> Task :expo-image-picker:packageReleaseAssets
+> Task :expo-image-picker:prepareLintJarForPublish
+> Task :expo-image-picker:prepareReleaseArtProfile
+> Task :expo-image-picker:processReleaseJavaRes
+> Task :expo-manifests:mergeReleaseJniLibFolders
+> Task :expo-manifests:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-manifests:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-manifests:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-manifests:extractDeepLinksForAarRelease
+> Task :expo-manifests:extractReleaseAnnotations
+> Task :expo-manifests:mergeReleaseGeneratedProguardFiles
+> Task :expo-image-picker:mergeReleaseJavaResource
+> Task :expo-manifests:mergeReleaseConsumerProguardFiles
+> Task :expo-image-picker:syncReleaseLibJars
+> Task :expo-image-picker:bundleReleaseLocalLintAar
+> Task :expo-manifests:mergeReleaseShaders
+> Task :expo-manifests:compileReleaseShaders NO-SOURCE
+> Task :expo-manifests:generateReleaseAssets UP-TO-DATE
+> Task :expo-manifests:packageReleaseAssets
+> Task :expo-manifests:prepareLintJarForPublish
+> Task :expo-manifests:prepareReleaseArtProfile
+> Task :expo-manifests:processReleaseJavaRes
+> Task :expo-json-utils:mergeReleaseJniLibFolders
+> Task :expo-json-utils:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-json-utils:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-json-utils:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-json-utils:extractDeepLinksForAarRelease
+> Task :expo-manifests:mergeReleaseJavaResource
+> Task :expo-json-utils:extractReleaseAnnotations
+> Task :expo-manifests:syncReleaseLibJars
+> Task :expo-manifests:bundleReleaseLocalLintAar
+> Task :expo-json-utils:mergeReleaseGeneratedProguardFiles
+> Task :expo-json-utils:mergeReleaseConsumerProguardFiles
+> Task :expo-json-utils:mergeReleaseShaders
+> Task :expo-json-utils:compileReleaseShaders NO-SOURCE
+> Task :expo-json-utils:generateReleaseAssets UP-TO-DATE
+> Task :expo-json-utils:packageReleaseAssets
+> Task :expo-json-utils:prepareLintJarForPublish
+> Task :expo-json-utils:prepareReleaseArtProfile
+> Task :expo-json-utils:processReleaseJavaRes
+> Task :expo-json-utils:mergeReleaseJavaResource
+> Task :expo-keep-awake:mergeReleaseJniLibFolders
+> Task :expo-json-utils:syncReleaseLibJars
+> Task :expo-json-utils:bundleReleaseLocalLintAar
+> Task :expo-keep-awake:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-keep-awake:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-keep-awake:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-keep-awake:extractDeepLinksForAarRelease
+> Task :expo-keep-awake:extractReleaseAnnotations
+> Task :expo-keep-awake:mergeReleaseGeneratedProguardFiles
+> Task :expo-keep-awake:mergeReleaseConsumerProguardFiles
+> Task :expo-keep-awake:mergeReleaseShaders
+> Task :expo-keep-awake:compileReleaseShaders NO-SOURCE
+> Task :expo-keep-awake:generateReleaseAssets UP-TO-DATE
+> Task :expo-keep-awake:packageReleaseAssets
+> Task :expo-keep-awake:prepareLintJarForPublish
+> Task :expo-keep-awake:prepareReleaseArtProfile
+> Task :expo-keep-awake:processReleaseJavaRes
+> Task :expo-location:mergeReleaseJniLibFolders
+> Task :expo-location:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-location:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-keep-awake:mergeReleaseJavaResource
+> Task :expo-location:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-keep-awake:syncReleaseLibJars
+> Task :expo-keep-awake:bundleReleaseLocalLintAar
+> Task :expo-location:extractDeepLinksForAarRelease
+> Task :expo-location:extractReleaseAnnotations
+> Task :expo-location:mergeReleaseGeneratedProguardFiles
+> Task :expo-location:mergeReleaseConsumerProguardFiles
+> Task :expo-location:mergeReleaseShaders
+> Task :expo-location:compileReleaseShaders NO-SOURCE
+> Task :expo-location:generateReleaseAssets UP-TO-DATE
+> Task :expo-location:packageReleaseAssets
+> Task :expo-location:prepareLintJarForPublish
+> Task :expo-location:prepareReleaseArtProfile
+> Task :expo-location:processReleaseJavaRes
+> Task :expo-notifications:mergeReleaseJniLibFolders
+> Task :expo-notifications:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-notifications:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-notifications:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-notifications:extractDeepLinksForAarRelease
+> Task :expo-location:mergeReleaseJavaResource
+
+> Task :expo-updates:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/DisabledUpdatesController.kt:63:20 This class shouldn't be used in Kotlin. Use kotlin.Any instead.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/DisabledUpdatesController.kt:164:14 This class shouldn't be used in Kotlin. Use kotlin.Any instead.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:5:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:79:39 This class shouldn't be used in Kotlin. Use kotlin.Any instead.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:114:20 This class shouldn't be used in Kotlin. Use kotlin.Any instead.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:232:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:232:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:258:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/EnabledUpdatesController.kt:258:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesConfiguration.kt:189:13 'get(String!): Any?' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesDevLauncherController.kt:4:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesDevLauncherController.kt:183:138 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesDevLauncherController.kt:290:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesDevLauncherController.kt:290:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:4:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:151:46 'toString(): String' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:240:7 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:240:17 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:246:7 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/UpdatesModule.kt:246:17 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Converters.kt:56:30 Type mismatch: inferred type is ByteArray? but ByteArray was expected
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Converters.kt:98:21 Parameter 'value' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Converters.kt:103:21 Parameter 'hashType' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/DatabaseHolder.kt:24:20 This class shouldn't be used in Kotlin. Use kotlin.Any instead.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/DatabaseHolder.kt:36:14 This class shouldn't be used in Kotlin. Use kotlin.Any instead.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/DatabaseIntegrityCheck.kt:38:39 Type mismatch: inferred type is String? but String was expected
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Reaper.kt:50:41 Type mismatch: inferred type is String? but String was expected
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/Reaper.kt:68:41 Type mismatch: inferred type is String? but String was expected
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:107:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:122:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:144:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:162:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:181:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:189:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:197:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/db/UpdatesDatabase.kt:208:28 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/launcher/NoDatabaseLauncher.kt:4:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/launcher/NoDatabaseLauncher.kt:61:7 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/launcher/NoDatabaseLauncher.kt:61:17 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/FileDownloader.kt:210:27 'constructor MultipartStream(InputStream!, ByteArray!)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/Loader.kt:242:13 Type mismatch: inferred type is String? but String was expected
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/Loader.kt:285:7 'when' is exhaustive so 'else' is redundant here
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/Loader.kt:306:65 Type mismatch: inferred type is String? but String was expected
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:4:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:350:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:350:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:403:105 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:479:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/loader/LoaderTask.kt:479:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/manifest/EmbeddedUpdate.kt:30:89 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/manifest/ExpoUpdatesUpdate.kt:35:92 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:4:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:33:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:33:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:131:108 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/CheckForUpdateProcedure.kt:164:108 'getRawJson(): JSONObject' is deprecated. Prefer to use specific field getters
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/FetchUpdateProcedure.kt:4:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/FetchUpdateProcedure.kt:34:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/FetchUpdateProcedure.kt:34:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RelaunchProcedure.kt:5:19 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RelaunchProcedure.kt:11:34 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RelaunchProcedure.kt:91:5 'AsyncTask<Params : Any!, Progress : Any!, Result : Any!>' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RelaunchProcedure.kt:91:15 'execute(Runnable!): Unit' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RelaunchProcedure.kt:118:9 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RestartReactAppExtensions.kt:6:34 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/RestartReactAppExtensions.kt:15:7 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/StartupProcedure.kt:163:36 'getCurrentState(): UpdatesStateValue' is deprecated. Avoid needing to access current state to know how to transition to next state
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/StartupProcedure.kt:197:34 'getCurrentState(): UpdatesStateValue' is deprecated. Avoid needing to access current state to know how to transition to next state
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/procedures/StateMachineSerialExecutorQueue.kt:43:35 'getCurrentState(): UpdatesStateValue' is deprecated. Avoid needing to access current state to know how to transition to next state
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/main/java/expo/modules/updates/statemachine/UpdatesStateMachine.kt:27:20 This declaration overrides deprecated member but not marked as deprecated itself. Please add @Deprecated annotation or suppress. See https://youtrack.jetbrains.com/issue/KT-47902 for details
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/react-native-74/main/expo/modules/updates/errorrecovery/ErrorRecovery.kt:11:34 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/react-native-74/main/expo/modules/updates/errorrecovery/ErrorRecovery.kt:103:9 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/react-native-74/main/expo/modules/updates/errorrecovery/ErrorRecovery.kt:110:50 Parameter 'devSupportManager' is never used
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo-updates/android/src/react-native-74/main/expo/modules/updates/errorrecovery/ErrorRecovery.kt:136:9 'ReactFeatureFlags' is deprecated. Deprecated in Java
+
+> Task :expo-notifications:extractReleaseAnnotations
+> Task :expo-location:syncReleaseLibJars
+> Task :expo-updates:compileReleaseJavaWithJavac
+> Task :expo-updates:extractReleaseAnnotations
+> Task :expo-updates:mergeReleaseGeneratedProguardFiles
+> Task :expo-updates:mergeReleaseConsumerProguardFiles
+> Task :expo-updates:processReleaseJavaRes
+> Task :expo-location:bundleReleaseLocalLintAar
+> Task :expo-notifications:mergeReleaseGeneratedProguardFiles
+> Task :expo-updates:mergeReleaseJavaResource
+> Task :expo-notifications:mergeReleaseConsumerProguardFiles
+> Task :expo-updates:bundleLibCompileToJarRelease
+> Task :expo-updates:syncReleaseLibJars
+> Task :expo-updates:bundleReleaseLocalLintAar
+> Task :expo-notifications:mergeReleaseShaders
+> Task :expo-notifications:compileReleaseShaders NO-SOURCE
+> Task :expo-notifications:generateReleaseAssets UP-TO-DATE
+> Task :expo-notifications:packageReleaseAssets
+> Task :expo-notifications:prepareLintJarForPublish
+> Task :expo-notifications:prepareReleaseArtProfile
+> Task :expo-notifications:processReleaseJavaRes
+> Task :expo-splash-screen:mergeReleaseJniLibFolders
+> Task :expo-splash-screen:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-splash-screen:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-splash-screen:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-splash-screen:extractDeepLinksForAarRelease
+> Task :expo-splash-screen:extractReleaseAnnotations
+> Task :expo-notifications:mergeReleaseJavaResource
+> Task :expo-splash-screen:mergeReleaseGeneratedProguardFiles
+> Task :expo:compileReleaseKotlin
+> Task :expo-notifications:syncReleaseLibJars
+> Task :expo-notifications:bundleReleaseLocalLintAar
+> Task :expo-splash-screen:mergeReleaseConsumerProguardFiles
+> Task :expo-splash-screen:mergeReleaseShaders
+> Task :expo-splash-screen:compileReleaseShaders NO-SOURCE
+> Task :expo-splash-screen:generateReleaseAssets UP-TO-DATE
+> Task :expo-splash-screen:packageReleaseAssets
+> Task :expo-splash-screen:prepareLintJarForPublish
+> Task :expo-splash-screen:prepareReleaseArtProfile
+
+> Task :expo:compileReleaseKotlin
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:20:34 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:153:11 'ReactFeatureFlags' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:161:34 'constructor ReactDelegate(Activity!, ReactNativeHost!, String?, Bundle?)' is deprecated. Deprecated in Java
+w: file:///mnt/d/itvision-1/mobile/provider/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:231:10 'ReactFeatureFlags' is deprecated. Deprecated in Java
+
+> Task :expo-splash-screen:processReleaseJavaRes
+> Task :expo-splash-screen:mergeReleaseJavaResource
+> Task :expo:compileReleaseJavaWithJavac
+> Task :expo:processReleaseJavaRes
+> Task :expo:bundleLibCompileToJarRelease
+> Task :expo:bundleLibRuntimeToJarRelease
+> Task :expo:extractReleaseAnnotations

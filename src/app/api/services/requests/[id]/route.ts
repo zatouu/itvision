@@ -5,8 +5,9 @@ import Offer from '@/lib/models/Offer'
 import Payment from '@/lib/models/Payment'
 import { requireAuth } from '@/lib/jwt'
 import { sendPushToUser } from '@/lib/push'
+import { closeDispatch } from '@/lib/visibility'
 import { creditReferrerOnFirstMission } from '@/lib/referral'
-import { refundEscrowPoints, refundMissionUnlock } from '@/lib/wallet'
+import { refundEscrowPoints, refundMissionUnlock, releaseMissionReservation } from '@/lib/wallet'
 import MissionUnlock from '@/lib/models/MissionUnlock'
 import {
   incrementProviderCompleted,
@@ -172,14 +173,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         // ─── Remboursement des crédits de déblocage ───
         try {
           const activeUnlocks = await MissionUnlock.find({ requestId: id, status: 'active' }).lean()
+          const reservations = await MissionUnlock.find({ requestId: id, status: 'reserved' }).lean()
           const cfgDoc = await (await import('@/lib/models/AppConfig')).default.findOne({ key: 'global' }).lean() as any
           const refundWindowMin = cfgDoc?.credits?.refundWindowMinutes ?? 10
           const quickCancel = now.getTime() - (sr.createdAt?.getTime() || 0) <= refundWindowMin * 60 * 1000
           const reason = quickCancel ? 'Annulation rapide du client' : 'Mission annulée'
           for (const u of activeUnlocks as any[]) {
-            // Si la mission avait été assignée, le unlock gagnant est déjà 'spent'.
-            // On rembourse donc seulement ceux encore 'active'.
             void refundMissionUnlock(String(u.providerId), id, reason)
+          }
+          for (const reservation of reservations as any[]) {
+            void releaseMissionReservation(String(reservation.providerId), id, reason)
           }
         } catch (unlockRefundErr) {
           console.error('[PATCH cancel] auto-refund mission unlocks', unlockRefundErr)
@@ -193,6 +196,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
     await sr.save()
+
+    // Fermer la diffusion Visibility Engine si la mission n'est plus en attente d'offres
+    if (['assigned', 'cancelled', 'completed', 'expired'].includes(sr.status)) {
+      void closeDispatch(id, sr.status === 'assigned' ? 'assigned' : sr.status === 'cancelled' ? 'cancelled' : 'completed')
+    }
 
     // Notifier en temps réel
     const io = (global as any).io

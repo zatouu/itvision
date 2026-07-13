@@ -17,6 +17,8 @@ export type WalletTransactionKind =
   | 'escrow_refund'  // points remboursés sur annulation/refund escrow
   | 'unlock_spend'   // crédits consommés pour débloquer une mission (provider)
   | 'unlock_refund'  // crédits remboursés (mission annulée/frauduleuse)
+  | 'mission_reserve'
+  | 'mission_release'
   | 'promo'          // crédits promotionnels offerts
 
 export interface IWalletTransaction extends Document {
@@ -25,6 +27,7 @@ export interface IWalletTransaction extends Document {
   // Positif = crédit, négatif = débit
   points: number
   balanceAfter: number
+  reservedPointsAfter?: number
   description?: string
   relatedMissionId?: mongoose.Types.ObjectId
   paymentRef?: string
@@ -35,11 +38,12 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   kind: {
     type: String,
-    enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund', 'unlock_spend', 'unlock_refund', 'promo'],
+    enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund', 'unlock_spend', 'unlock_refund', 'mission_reserve', 'mission_release', 'promo'],
     required: true,
   },
   points: { type: Number, required: true },
   balanceAfter: { type: Number, required: true },
+  reservedPointsAfter: { type: Number, min: 0 },
   description: { type: String },
   relatedMissionId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest' },
   paymentRef: { type: String },

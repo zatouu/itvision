@@ -10,7 +10,7 @@ import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/au
 import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
-import { captureMedia, pickMedia } from '../src/media'
+import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
 import { ArrowLeft, ChevronRight, Camera } from 'lucide-react-native'
 
 function Profile() {
@@ -117,7 +117,7 @@ function Profile() {
         <View style={s.avatarBox}>
           <TouchableOpacity activeOpacity={0.9} onPress={changeAvatar} style={s.avatarWrap}>
             {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={s.avatarImage} />
+              <Image source={{ uri: resolveMediaUrl(user.avatarUrl) }} style={s.avatarImage} />
             ) : (
               <View style={s.avatar}>
                 <Text style={s.avatarText}>{user?.name ? user.name.slice(0, 2).toUpperCase() : t('profile.defaultName').slice(0, 2).toUpperCase()}</Text>

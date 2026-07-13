@@ -2,6 +2,7 @@ import { apiGet } from './api'
 
 export type WalletData = {
   points: number
+  reservedPoints: number
   cashBalance: number
   escrow: number
   lifetimePointsEarned: number

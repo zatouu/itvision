@@ -5,8 +5,10 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { sendPushToUser } from '@/lib/push'
-import { getAppConfig, getOrCreateWallet } from '@/lib/wallet'
+import { onOffer } from '@/lib/visibility'
+import { getAppConfig, releaseMissionReservation, reserveMissionCredits } from '@/lib/wallet'
 import MissionUnlock from '@/lib/models/MissionUnlock'
+import { computeUnlockCost } from '@/lib/credit-cost'
 
 const MAX_PRICE = 50_000_000
 const MAX_ETA_MINUTES = 10080 // 7 jours
@@ -27,10 +29,18 @@ export async function GET(request: NextRequest) {
 
     // Auto-expiration paresseuse : marque "expired" toute offre dont validUntil est dépassé et statut encore "submitted"
     const now = new Date()
-    await Offer.updateMany(
-      { ...q, status: 'submitted', validUntil: { $lt: now } },
-      { $set: { status: 'expired' } }
-    ).catch(() => {})
+    const expiredOffers = await Offer.find({ ...q, status: 'submitted', validUntil: { $lt: now } })
+      .select('requestId providerId')
+      .lean()
+    if (expiredOffers.length > 0) {
+      await Offer.updateMany(
+        { _id: { $in: expiredOffers.map((offer: any) => offer._id) } },
+        { $set: { status: 'expired' } }
+      )
+      await Promise.all(expiredOffers.map((offer: any) =>
+        releaseMissionReservation(String(offer.providerId), String(offer.requestId), 'Offre expirée').catch(() => {})
+      ))
+    }
 
     const items = await Offer.find(q).sort({ createdAt: -1 }).limit(100).lean()
 
@@ -96,34 +106,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
 
-    // Gate: vérifier solde points suffisant pour une future mission gagnée
     const cfg = await getAppConfig()
-    const pointsCost = cfg.monetization.pointsPerWonMission
-    if (cfg.monetization.mode === 'points' && pointsCost > 0) {
-      const wallet = await getOrCreateWallet(String(userId))
-      if (wallet.points < pointsCost) {
-        return NextResponse.json(
-          { error: `Solde points insuffisant (${wallet.points}/${pointsCost} pts requis pour soumettre une offre)` },
-          { status: 402 }
-        )
+    const existing = await Offer.findOne({ requestId, providerId: userId })
+    let reservedForOffer = false
+
+    if (cfg.credits?.unlockEnabled === true && (!existing || existing.status === 'expired')) {
+      const currentReservation = await MissionUnlock.findOne({ requestId, providerId: userId }).lean()
+      if (currentReservation?.status !== 'reserved') {
+        const cost = await computeUnlockCost({
+          requestId,
+          category: sr.category,
+          budget: sr.budget,
+          urgency: sr.attributes?.urgency || 'normal',
+          media: sr.media,
+        })
+        const reservation = await reserveMissionCredits(String(userId), requestId, cost.cost)
+        if (!reservation.ok) {
+          const error = reservation.reason === 'insufficient'
+            ? `Crédits insuffisants (${reservation.balance ?? 0}/${cost.cost} requis pour proposer cette mission)`
+            : 'Réservation de crédits impossible pour cette mission'
+          return NextResponse.json({ error, code: reservation.reason }, { status: 402 })
+        }
+        reservedForOffer = true
       }
     }
 
-    // Gate crédits : si le mode déblocage est actif, le provider doit avoir payé pour voir la mission.
-    // NOTE : ce gate est optionnel et piloté par AppConfig.credits.unlockEnabled.
-    if (cfg.credits?.unlockEnabled === true) {
-      const unlock = await MissionUnlock.findOne({
-        requestId,
-        providerId: userId,
-        status: { $in: ['active', 'spent'] },
-      }).lean()
-      if (!unlock) {
-        return NextResponse.json(
-          { error: 'Mission non débloquée. Achetez des crédits puis débloquez cette mission.', code: 'UNLOCK_REQUIRED' },
-          { status: 402 }
-        )
-      }
-    }
     // Validité : 5..1440 min, défaut 30
     const vm = Math.max(5, Math.min(1440, Number(validityMinutes) || 30))
     const validUntil = new Date(Date.now() + vm * 60_000)
@@ -137,7 +144,6 @@ export async function POST(request: NextRequest) {
 
     // Upsert: si le provider a déjà une offre sur cette demande, on la met à jour
     // au lieu d'en créer une nouvelle (évite les doublons).
-    const existing = await Offer.findOne({ requestId, providerId: userId })
     let offer: any
     let isUpdate = false
     if (existing) {
@@ -160,15 +166,21 @@ export async function POST(request: NextRequest) {
       await existing.save()
       offer = existing
     } else {
-      offer = await Offer.create(offerData)
+      try {
+        offer = await Offer.create(offerData)
+      } catch (offerError) {
+        if (reservedForOffer) {
+          await releaseMissionReservation(String(userId), requestId, 'Échec de création de l’offre')
+        }
+        throw offerError
+      }
     }
     const created = offer
     if (sr.status === 'created') { sr.status = 'pending_offers'; await sr.save() }
 
-    // Noter que le provider a envoyé une offre (utile pour les règles de remboursement)
     if (cfg.credits?.unlockEnabled === true) {
       await MissionUnlock.updateOne(
-        { requestId, providerId: userId, status: 'active' },
+        { requestId, providerId: userId, status: 'reserved' },
         { $set: { offerSentAt: new Date() } }
       )
     }
@@ -200,6 +212,11 @@ export async function POST(request: NextRequest) {
       data: { type: 'offer:new', requestId, offerId: String(created._id) },
       appType: 'consumer',
     })
+
+    // Notifier le Visibility Engine qu'une offre a été reçue (arrête l'escalade)
+    if (!isUpdate) {
+      void onOffer(requestId)
+    }
 
     return NextResponse.json({ success: true, item: created })
   } catch (e: any) {

@@ -34,16 +34,18 @@ export async function captureMedia(options?: { selfie?: boolean }): Promise<Pick
 
 /**
  * Résout une URL média en URL absolue utilisable par Image/Video/Audio.
- * Gère les URLs absolues, les chemins /uploads/ et corrige les anciens
- * chemins /api/uploads/ en /uploads/ (l'endpoint API n'existe pas).
+ * Gère les URLs absolues et redirige les chemins /uploads/ vers /api/uploads/
+ * car c'est la route API /api/uploads/[...path] qui sert les fichiers en standalone.
  */
 export function resolveMediaUrl(url?: string | null): string {
   if (!url) return ''
   let v = url.trim()
   if (!v) return ''
   if (/^(https?:|file:|blob:|data:)/i.test(v)) return v
-  if (v.startsWith('/api/uploads/')) {
-    v = v.replace('/api/uploads/', '/uploads/')
+  // En standalone, seule la route API /api/uploads/[...path] sert les fichiers.
+  // On convertit donc les anciens/nouveaux chemins /uploads/ en /api/uploads/.
+  if (v.startsWith('/uploads/')) {
+    v = v.replace('/uploads/', '/api/uploads/')
   }
   const base = getBaseUrl().replace(/\/$/, '')
   return v.startsWith('/') ? `${base}${v}` : `${base}/${v}`

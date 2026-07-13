@@ -1,6 +1,8 @@
 import Offer from './models/Offer'
+import ServiceRequest from './models/ServiceRequest'
+import ChatMessage from './models/ChatMessage'
 import { sendPushToUser, sendPushToUsers } from './push'
-import { spendOnWonMission, spendMissionUnlock } from './wallet'
+import { confirmMissionReservation, getAppConfig, releaseMissionReservation, spendOnWonMission } from './wallet'
 
 type AcceptOfferArgs = {
   serviceRequest: any
@@ -17,12 +19,55 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
   const providerId = String(offer.providerId)
   const clientId = String(sr.clientId)
   const losingOffers = await Offer.find({ requestId: sr._id, _id: { $ne: offer._id } }).select('_id providerId').lean()
+  const cfg = await getAppConfig()
 
-  sr.status = 'assigned'
-  sr.assignedProviderId = offer.providerId
-  sr.selectedOfferId = offer._id
-  sr.assignedAt = new Date()
-  await sr.save()
+  const assignedAt = new Date()
+  const claimedRequest = await ServiceRequest.findOneAndUpdate(
+    { _id: sr._id, status: { $in: ['created', 'pending_offers'] } },
+    {
+      $set: {
+        status: 'assigned',
+        assignedProviderId: offer.providerId,
+        selectedOfferId: offer._id,
+        assignedAt,
+      },
+    },
+    { new: true }
+  )
+  if (!claimedRequest) {
+    throw new Error('Mission déjà attribuée ou indisponible')
+  }
+
+  let pointsCharged = 0
+  try {
+    if (cfg.credits?.unlockEnabled === true) {
+      const reservation = await confirmMissionReservation(providerId, requestId)
+      if (!reservation.ok) {
+        throw new Error('Réservation de crédits introuvable ou invalide pour ce prestataire')
+      }
+      pointsCharged = reservation.charged
+    } else {
+      const spend = await spendOnWonMission(providerId, requestId)
+      if (!spend.ok) {
+        throw new Error('Crédits insuffisants pour attribuer cette mission')
+      }
+      pointsCharged = spend.charged
+    }
+  } catch (error) {
+    await ServiceRequest.updateOne(
+      { _id: sr._id, status: 'assigned', selectedOfferId: offer._id },
+      {
+        $set: { status: 'pending_offers' },
+        $unset: { assignedProviderId: 1, selectedOfferId: 1, assignedAt: 1 },
+      }
+    )
+    throw error
+  }
+
+  sr.status = claimedRequest.status
+  sr.assignedProviderId = claimedRequest.assignedProviderId
+  sr.selectedOfferId = claimedRequest.selectedOfferId
+  sr.assignedAt = claimedRequest.assignedAt
 
   await Offer.updateOne({ _id: offer._id }, { status: 'accepted' })
   await Offer.updateMany(
@@ -30,26 +75,45 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
     { status: 'rejected' }
   )
 
-  let pointsCharged = 0
-  try {
-    const spend = await spendOnWonMission(providerId, requestId)
-    pointsCharged = spend.charged
-    if (!spend.ok && spend.reason === 'insufficient') {
-      console.warn(`[wallet] Provider ${providerId} solde points insuffisant pour mission ${requestId} (solde: ${spend.balance})`)
+  await Promise.all(losingOffers.map(async (losingOffer: any) => {
+    try {
+      await releaseMissionReservation(String(losingOffer.providerId), requestId, 'Offre non retenue')
+    } catch (releaseErr) {
+      console.error('[wallet] Erreur libération réservation mission', requestId, releaseErr)
     }
-  } catch (walletErr) {
-    console.error('[wallet] Erreur débit points mission', requestId, walletErr)
-  }
-
-  // Consommer définitivement les crédits de déblocage si le provider a payé pour voir la mission
-  try {
-    await spendMissionUnlock(providerId, requestId)
-  } catch (unlockErr) {
-    console.error('[wallet] Erreur consommation unlock mission', requestId, unlockErr)
-  }
+  }))
 
   const io = (global as any).io
+
+  // Premier message de chat : description de la demande, pour que le prestataire
+  // voit le contexte sans retourner dans les demandes proches.
+  let initialChatMessage: any = null
+  const description = sr.description?.trim()
+  if (description) {
+    const existing = await ChatMessage.findOne({ requestId: sr._id }).lean()
+    if (!existing) {
+      initialChatMessage = await ChatMessage.create({
+        requestId: sr._id,
+        senderId: clientId,
+        senderRole: 'client',
+        text: description,
+      })
+    }
+  }
+
   if (io) {
+    if (initialChatMessage) {
+      const payload = {
+        _id: String(initialChatMessage._id),
+        requestId,
+        senderId: clientId,
+        senderRole: 'client',
+        text: initialChatMessage.text,
+        createdAt: initialChatMessage.createdAt,
+      }
+      io.to(`mission-${requestId}`).emit('chat:message', payload)
+      io.to(`provider-${providerId}`).emit('chat:message', payload)
+    }
     io.to(`provider-${providerId}`).emit('offer:accepted', {
       offerId,
       requestId,

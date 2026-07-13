@@ -34,6 +34,7 @@
     "errorVerify": "Code incorrect ou expiré",
     "resend": "Renvoyer le code",
     "devCode": "Code de dev",
+    "referralPlaceholder": "Code de parrainage (optionnel)",
     "logout": "Déconnexion"
   },
   "setup": {
@@ -46,6 +47,23 @@
     "save": "Continuer",
     "nameRequired": "Veuillez saisir votre nom",
     "error": "Erreur lors de l'enregistrement"
+  },
+  "menu": {
+    "home": "Accueil",
+    "nearbyRequests": "Demandes proches",
+    "myOffers": "Mes offres",
+    "wallet": "Portefeuille",
+    "notifications": "Notifications",
+    "profile": "Profil",
+    "rateApp": "Noter l'app",
+    "help": "Aide & Support",
+    "about": "À propos",
+    "logout": "Déconnexion",
+    "navigation": "Navigation",
+    "account": "Compte",
+    "settings": "Paramètres",
+    "verified": "Vérifié",
+    "guest": "Invité"
   },
   "home": {
     "greeting_morning": "Bonjour",

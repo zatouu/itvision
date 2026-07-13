@@ -70,9 +70,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Code correct — marquer comme vérifié
-    otp.verified = true
-    await otp.save()
+    // Code correct : on diffère le marquage "verified" après création user
+    // pour ne pas consommer le code si la création échoue.
 
     // Trouver ou créer l'utilisateur
     let user = await User.findOne({ phone }).lean() as any
@@ -148,6 +147,10 @@ export async function POST(request: NextRequest) {
       await User.updateOne({ _id: user._id }, { $set: { referredBy } })
       user.referredBy = referredBy
     }
+
+    // Tout s'est bien passé : on marque l'OTP comme vérifié
+    otp.verified = true
+    await otp.save()
 
     // Générer le JWT (30 jours)
     const token = await signAuthTokenWithExpiry(

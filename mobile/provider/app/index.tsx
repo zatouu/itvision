@@ -8,6 +8,7 @@ import { getAuthUser } from '../src/auth'
 import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
+import SideMenu from '../src/components/SideMenu'
 import {
   onNearbyRequest,
   onOfferAccepted,
@@ -18,7 +19,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import { colors, spacing, radius, shadows, typography } from '../src/design'
-import { Bell, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff } from 'lucide-react-native'
+import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff } from 'lucide-react-native'
 import { apiGet } from '../src/api'
 
 function Home() {
@@ -31,6 +32,7 @@ function Home() {
     const n = authUser?.name?.trim() || ''
     return n && !/^\d{7,}$/.test(n) ? n.split(' ')[0] : ''
   })
+  const [menuOpen, setMenuOpen] = useState(false)
   const [nearbyCount, setNearbyCount] = useState(0)
   const [pendingOffers, setPendingOffers] = useState(0)
   const [activeMission, setActiveMission] = useState(0)
@@ -113,14 +115,17 @@ function Home() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         {/* Header */}
         <View style={s.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.greeting}>{greeting}</Text>
+          <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Menu size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginHorizontal: spacing.sm }}>
+            <Text style={s.greeting} numberOfLines={1}>{greeting}</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
-            <Bell size={18} color={colors.text} />
+            <BellRing size={18} color={colors.text} />
             <View style={s.notifDot} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn}>
+          <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn} accessibilityLabel="Profil">
             <Text style={s.avatarText}>{initials}</Text>
           </TouchableOpacity>
         </View>
@@ -212,6 +217,7 @@ function Home() {
       </ScrollView>
 
       <TabBar active="home" />
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

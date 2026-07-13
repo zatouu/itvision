@@ -34,6 +34,7 @@
     "errorVerify": "Kood bi juum walla jeex",
     "resend": "Yónnee kood bi",
     "devCode": "Kood bu dev",
+    "referralPlaceholder": "Kood bu parrainage (doxul)",
     "logout": "Génne"
   },
   "setup": {
@@ -46,6 +47,23 @@
     "save": "Kontine",
     "nameRequired": "Duggal sa tur",
     "error": "Njuumte ci denc sa profil"
+  },
+  "menu": {
+    "home": "Kër",
+    "nearbyRequests": "Laaj yu nga am ci wetu",
+    "myOffers": "Sama ay mbir",
+    "wallet": "Poort-mbéyl",
+    "notifications": "Yégale",
+    "profile": "Profil",
+    "rateApp": "Wóorël app bi",
+    "help": "Ndimbal & Topp",
+    "about": "Ci mbir mi",
+    "logout": "Génne",
+    "navigation": "Doxal",
+    "account": "Sama bopp",
+    "settings": "Téere yi",
+    "verified": "Wóor",
+    "guest": "Tudd"
   },
   "home": {
     "greeting_morning": "Jàmm ngeen fanaan",

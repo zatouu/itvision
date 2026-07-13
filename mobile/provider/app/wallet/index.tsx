@@ -18,6 +18,8 @@ const OPERATORS: Array<{ id: 'wave' | 'orange_money' | 'free_money'; label: stri
 const KIND_META: Record<string, { labelKey: string; icon: any; positive?: boolean }> = {
   topup: { labelKey: 'providerWallet.kindTopup', icon: Zap, positive: true },
   mission_spend: { labelKey: 'providerWallet.kindMission', icon: Minus, positive: false },
+  mission_reserve: { labelKey: 'Réservation mission', icon: Minus, positive: false },
+  mission_release: { labelKey: 'Libération réservation', icon: Banknote, positive: true },
   unlock_spend: { labelKey: 'providerWallet.kindUnlock', icon: Minus, positive: false },
   unlock_refund: { labelKey: 'providerWallet.kindUnlockRefund', icon: Banknote, positive: true },
   promo: { labelKey: 'providerWallet.kindPromo', icon: Zap, positive: true },
@@ -30,6 +32,7 @@ const KIND_META: Record<string, { labelKey: string; icon: any; positive?: boolea
 
 type WalletData = {
   points: number
+  reservedPoints: number
   cashBalance: number
   escrow: number
   lifetimePointsEarned: number
@@ -169,6 +172,7 @@ export default function Wallet() {
   const balance = data?.cashBalance ?? 0
   const escrow = data?.escrow ?? 0
   const credits = data?.points ?? 0
+  const reserved = data?.reservedPoints ?? 0
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -203,6 +207,7 @@ export default function Wallet() {
             <View style={{ flex: 1 }}>
               <Text style={s.creditsLabel}>{t('providerWallet.creditsBalance')}</Text>
               <Text style={s.creditsValue}>{credits} <Text style={s.creditsUnit}>crédits</Text></Text>
+              {reserved > 0 && <Text style={s.creditsReserved}>{reserved} crédits réservés</Text>}
               <Text style={s.creditsSub}>{t('providerWallet.creditsSub')}</Text>
             </View>
           </View>
@@ -422,6 +427,7 @@ const s = StyleSheet.create({
   creditsValue: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text },
   creditsUnit: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
   creditsSub: { fontSize: typography.xs.fontSize, color: colors.textMuted, marginTop: 2 },
+  creditsReserved: { fontSize: typography.xs.fontSize, color: colors.warning, marginTop: 2, fontWeight: typography.weight.bold as any },
   buyCreditsBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 10, alignItems: 'center', marginTop: spacing.md },
   buyCreditsText: { color: '#fff', fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any },
   sectionHeader: {

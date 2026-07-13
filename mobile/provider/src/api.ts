@@ -98,14 +98,6 @@ export async function apiPost(path: string, body: Record<string, unknown>, maxRe
   return r.json()
 }
 
-export async function unlockMission(requestId: string) {
-  return apiPost(`/api/services/requests/${requestId}/unlock`, {}, 2)
-}
-
-export async function getUnlockCost(requestId: string) {
-  return apiGet(`/api/services/requests/${requestId}/unlock`)
-}
-
 export async function getCreditPacks() {
   return apiGet('/api/wallet/packs')
 }

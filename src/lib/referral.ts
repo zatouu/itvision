@@ -1,5 +1,6 @@
 import { connectMongoose } from './mongoose'
 import User from './models/User'
+import MarketplaceProfile from './models/MarketplaceProfile'
 
 const ALPHANUM = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sans I, O, 0, 1 pour éviter la confusion
 
@@ -16,8 +17,11 @@ export async function createUniqueReferralCode(maxRetries = 5): Promise<string> 
   await connectMongoose()
   for (let i = 0; i < maxRetries; i++) {
     const code = generateReferralCode()
-    const existing = await User.findOne({ referralCode: code }).lean()
-    if (!existing) return code
+    const [existingUser, existingProfile] = await Promise.all([
+      User.findOne({ referralCode: code }).lean(),
+      MarketplaceProfile.findOne({ referralCode: code }).lean(),
+    ])
+    if (!existingUser && !existingProfile) return code
   }
   throw new Error('Impossible de générer un code de parrainage unique')
 }

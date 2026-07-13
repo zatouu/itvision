@@ -30,7 +30,10 @@ export async function goOnline() {
   current = true
   try { await AsyncStorage.setItem(KEY, '1') } catch {}
   const s = getSocket()
-  const join = () => s.emit('join-provider-channel')
+  const join = () => {
+    s.emit('join-provider-channel')
+    s.emit('provider:status', { status: 'available' })
+  }
   if (s.connected) {
     join()
   } else {
@@ -43,10 +46,11 @@ export async function goOnline() {
 export async function goOffline() {
   current = false
   try { await AsyncStorage.setItem(KEY, '0') } catch {}
+  // NE PAS déconnecter le socket : on reste abonné aux notifications,
+  // mais on signale au serveur qu'on est indisponible (scoring/eligibility).
   const s = getSocket()
   if (s.connected) {
-    s.emit('leave-provider-channel')
-    s.disconnect()
+    s.emit('provider:status', { status: 'offline' })
   }
   emit()
 }

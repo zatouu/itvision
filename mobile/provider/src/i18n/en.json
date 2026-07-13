@@ -34,6 +34,7 @@
     "errorVerify": "Incorrect or expired code",
     "resend": "Resend code",
     "devCode": "Dev code",
+    "referralPlaceholder": "Referral code (optional)",
     "logout": "Log out"
   },
   "setup": {
@@ -46,6 +47,23 @@
     "save": "Continue",
     "nameRequired": "Please enter your name",
     "error": "Error saving profile"
+  },
+  "menu": {
+    "home": "Home",
+    "nearbyRequests": "Nearby requests",
+    "myOffers": "My offers",
+    "wallet": "Wallet",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "rateApp": "Rate the app",
+    "help": "Help & Support",
+    "about": "About",
+    "logout": "Log out",
+    "navigation": "Navigation",
+    "account": "Account",
+    "settings": "Settings",
+    "verified": "Verified",
+    "guest": "Guest"
   },
   "home": {
     "greeting_morning": "Good morning",

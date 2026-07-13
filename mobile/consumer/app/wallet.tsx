@@ -12,6 +12,7 @@ import { hapticSelect, hapticSuccess } from '../src/haptics'
 
 type WalletData = {
   points: number
+  reservedPoints: number
   cashBalance: number
   lifetimePointsEarned: number
   lifetimePointsSpent: number
@@ -46,6 +47,8 @@ const KIND_KEYS: Record<string, string> = {
   welcome: 'wallet.kind_welcome',
   topup: 'wallet.kind_topup',
   mission_spend: 'wallet.kind_mission_spend',
+  mission_reserve: 'Réservation mission',
+  mission_release: 'Libération réservation',
   referral_bonus: 'wallet.kind_referral_bonus',
   refund: 'wallet.kind_refund',
   escrow_charge: 'wallet.kind_escrow_charge',
@@ -159,6 +162,9 @@ function Wallet() {
               <Text style={s.modeBadgeText}>1 XC = {data?.config.fcfaPerPoint} FCFA</Text>
             </View>
           )}
+          {(data?.reservedPoints ?? 0) > 0 && (
+            <Text style={s.reservedText}>{data?.reservedPoints} crédits réservés</Text>
+          )}
         </View>
 
         <View style={s.lifetimeRow}>
@@ -256,6 +262,7 @@ const s = StyleSheet.create({
   freeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: typography.weight.semibold as any, textAlign: 'center' },
   modeBadge: { marginTop: spacing.md, backgroundColor: '#064E3B', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: spacing.sm },
   modeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: typography.weight.bold as any },
+  reservedText: { color: '#FCD34D', fontSize: 13, fontWeight: typography.weight.bold as any, marginTop: spacing.sm },
   lifetimeRow: { flexDirection: 'row', gap: spacing.md },
   lifetimeCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   lifetimeNum: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },

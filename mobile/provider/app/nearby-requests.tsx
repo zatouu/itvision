@@ -6,11 +6,10 @@ import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet, apiPostQueued, unlockMission, getUnlockCost } from '../src/api'
+import { apiGet, apiPostQueued } from '../src/api'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket, joinNearbyRoom, leaveNearbyRoom } from '../src/socket'
-import { confirm } from '../src/confirm'
 import { getProviderName } from '../src/user-profile'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { SkeletonCard } from '../src/components/Skeleton'
@@ -57,9 +56,6 @@ function NearbyRequests() {
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [unlockEnabled, setUnlockEnabled] = useState(false)
-  const [unlockLoading, setUnlockLoading] = useState(false)
-  const [unlockedMap, setUnlockedMap] = useState<Record<string, boolean>>({})
-  const [walletPoints, setWalletPoints] = useState(0)
   const successScale = useRef(new Animated.Value(0))
 
   const { t, i18n } = useTranslation()
@@ -134,9 +130,6 @@ function NearbyRequests() {
         () => apiGet(`/api/services/matching?lng=${target.lng}&lat=${target.lat}&radiusKm=${RADIUS_KM}&excludeMine=true`).then(r => r.items || []),
         (items, fromCache) => {
           setItems(items)
-          const map: Record<string, boolean> = {}
-          for (const it of items) { if (it._unlockedByMe) map[it._id] = true }
-          setUnlockedMap(map)
           if (!fromCache) {
             setLoading(false)
             setRefreshing(false)
@@ -160,7 +153,6 @@ function NearbyRequests() {
       try {
         const w = await getProviderWallet()
         setUnlockEnabled(w.config.credits.unlockEnabled)
-        setWalletPoints(w.points || 0)
       } catch {}
     })()
     return () => { leaveNearbyRoom() }
@@ -195,43 +187,8 @@ function NearbyRequests() {
     }
   }, [])
 
-  const selectedUnlocked = selected && (!unlockEnabled || unlockedMap[selected._id] || selected._unlockedByMe)
-
-  const unlockSelected = async () => {
-    if (!selected) return
-    setUnlockLoading(true)
-    setErr(null)
-    try {
-      const preview = await getUnlockCost(selected._id)
-      const balance = walletPoints
-      if (preview.cost > balance) {
-        const go = await confirm(t('nearby.insufficientCredits'), t('nearby.insufficientCreditsMsg', { cost: preview.cost, balance }))
-        if (go) router.push('/wallet')
-        setUnlockLoading(false)
-        return
-      }
-      const ok = await confirm(t('nearby.unlockConfirm', { cost: preview.cost }), t('nearby.unlockConfirmSub'))
-      if (!ok) { setUnlockLoading(false); return }
-      const res = await unlockMission(selected._id)
-      setUnlockedMap(prev => ({ ...prev, [selected._id]: true }))
-      setWalletPoints(res.balance || 0)
-      hapticSuccess()
-    } catch (e: any) {
-      if (e?.message?.includes('UNLOCK_REQUIRED') || e?.message?.includes('débloquée')) {
-        setUnlockedMap(prev => ({ ...prev, [selected._id]: true }))
-      } else {
-        setErr(t('nearby.unlockError', { msg: e.message }))
-      }
-    }
-    setUnlockLoading(false)
-  }
-
   const sendOffer = async () => {
     if (!selected || !price) return
-    if (unlockEnabled && !selectedUnlocked) {
-      await unlockSelected()
-      if (!unlockedMap[selected._id] && !selected._unlockedByMe) return
-    }
     setSending(true)
     setErr(null)
     try {
@@ -368,7 +325,6 @@ function NearbyRequests() {
                   const hasAudio = it._hasAudio || it.media?.some((m: any) => m.type === 'audio')
                   const hasPhoto = it._hasPhoto || it.media?.some((m: any) => m.type === 'image')
                   const hasVideo = it._hasVideo || it.media?.some((m: any) => m.type === 'video')
-                  const isLocked = unlockEnabled && !it._unlockedByMe && !unlockedMap[it._id]
                   return (
                     <Marker
                       key={it._id}
@@ -380,12 +336,7 @@ function NearbyRequests() {
                           <Icon size={16} color="#fff" />
                         </View>
                         <View style={[s.mapMarkerTail, { borderTopColor: color }]} />
-                        {isLocked && (
-                          <View style={[s.markerBadge, { backgroundColor: '#EF4444' }]}>
-                            <Text style={s.markerBadgeText}>{it._unlockCost || '?'}</Text>
-                          </View>
-                        )}
-                        {(hasAudio || hasPhoto || hasVideo) && !isLocked && (
+                        {(hasAudio || hasPhoto || hasVideo) && (
                           <View style={[s.markerBadge, { backgroundColor: '#0F172A' }]}>
                             <Text style={s.markerBadgeText}>{hasAudio ? '♪' : '📷'}</Text>
                           </View>
@@ -497,7 +448,7 @@ function NearbyRequests() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
+        <View style={{ paddingBottom: 24 }}>
           {selected && (
             <View style={s.modalRecap}>
               <View style={s.modalCatRow}>
@@ -506,7 +457,7 @@ function NearbyRequests() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalCatName}>{catMap[selected.category]?.label || selected.category}</Text>
-                  <Text style={s.modalCatMeta}>{selected.location?.address || 'À proximité'}{selected._distance ? ` · ${distLabel(selected._distance)}` : ''}{selected._unlockCost ? ` · ${selected._unlockCost} crédits` : ''}</Text>
+                  <Text style={s.modalCatMeta}>{selected.location?.address || 'À proximité'}{selected._distance ? ` · ${distLabel(selected._distance)}` : ''}{selected._unlockCost ? ` · ${selected._unlockCost} crédits si sélectionné` : ''}</Text>
                 </View>
               </View>
 
@@ -521,7 +472,7 @@ function NearbyRequests() {
                 )
               })()}
 
-              {/* 2. Galerie médias */}
+              {/* 2. Galerie médias — scroll horizontal, pas vertical */}
               {selected.media?.filter((m: any) => m.type === 'image' || m.type === 'video').length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                   {selected.media.filter((m: any) => m.type === 'image' || m.type === 'video').map((m: any, i: number) => {
@@ -543,13 +494,10 @@ function NearbyRequests() {
             </View>
           )}
 
-          {unlockEnabled && !selectedUnlocked && (
+          {unlockEnabled && (
             <View style={s.unlockBox}>
-              <Text style={s.unlockTitle}>{t('nearby.unlockTitle')}</Text>
-              <Text style={s.unlockSub}>{t('nearby.unlockSub', { cost: selected?._unlockCost || '?' })}</Text>
-              <TouchableOpacity style={[s.unlockBtn, unlockLoading && s.sendOfferBtnDisabled]} onPress={unlockSelected} disabled={unlockLoading}>
-                {unlockLoading ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.unlockBtnText}>{t('nearby.unlockBtn', { cost: selected?._unlockCost || '?' })}</Text>}
-              </TouchableOpacity>
+              <Text style={s.unlockTitle}>Crédits à la sélection</Text>
+              <Text style={s.unlockSub}>{selected?._unlockCost || '?'} crédits seront débités uniquement si le client choisit votre offre.</Text>
             </View>
           )}
 
@@ -623,12 +571,10 @@ function NearbyRequests() {
 
           {err && <Text style={s.errText}>{err}</Text>}
 
-          <View style={{ height: 24 }} />
-        </ScrollView>
-
-        <TouchableOpacity style={[s.sendOfferBtn, (!price || sending || (unlockEnabled && !selectedUnlocked)) && s.sendOfferBtnDisabled]} disabled={!price || sending || (unlockEnabled && !selectedUnlocked)} onPress={sendOffer}>
-          {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>{unlockEnabled && !selectedUnlocked ? t('nearby.unlockAndOffer') : t('nearby.sendOffer')}</Text>}
-        </TouchableOpacity>
+          <TouchableOpacity style={[s.sendOfferBtn, (!price || sending) && s.sendOfferBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
+            {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>{t('nearby.sendOffer')}</Text>}
+          </TouchableOpacity>
+        </View>
       </BottomSheet>
     </SafeAreaView>
   )

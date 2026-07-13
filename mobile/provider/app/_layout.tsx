@@ -127,22 +127,31 @@ export default function Layout(){
     }
   }, [loggedIn])
 
-  // Global GPS emission: send provider position to server while online, regardless of active screen
+  // Global GPS emission: send provider position to server while app is foregrounded,
+  // REGARDLESS of the online toggle. The toggle only affects the status flag (available/offline)
+  // sent with the GPS payload, which the Visibility Engine uses for scoring/eligibility.
   const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const [isOnline, setIsOnline] = useState(false)
+  const isOnlineRef = useRef(false)
 
   useEffect(() => {
     if (!loggedIn) return
     (async () => {
       const initial = await loadInitial()
       setIsOnline(initial)
+      isOnlineRef.current = initial
     })()
-    const unsub = subscribeOnline(setIsOnline)
+    const unsub = subscribeOnline((val) => {
+      setIsOnline(val)
+      isOnlineRef.current = val
+    })
     return unsub
   }, [loggedIn])
 
+  // GPS emission: runs whenever logged in + foregrounded, independent of online toggle.
+  // The online toggle only controls the 'status' field (available vs offline).
   useEffect(() => {
-    if (!loggedIn || !isOnline) {
+    if (!loggedIn) {
       if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
       return
     }
@@ -154,13 +163,13 @@ export default function Layout(){
           Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
         ])
-        emitGps(pos.coords.latitude, pos.coords.longitude)
+        emitGps(pos.coords.latitude, pos.coords.longitude, isOnlineRef.current ? 'available' : 'offline')
       } catch { /* silent */ }
     }
     sendGps()
     gpsInterval.current = setInterval(sendGps, 30_000)
     return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
-  }, [loggedIn, isOnline])
+  }, [loggedIn])
 
   if (!ready) {
     return (

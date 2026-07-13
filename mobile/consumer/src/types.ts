@@ -78,6 +78,7 @@ export interface WalletConfig {
 
 export interface WalletData {
   points: number
+  reservedPoints: number
   cashBalance: number
   lifetimePointsEarned: number
   lifetimePointsSpent: number

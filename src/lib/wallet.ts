@@ -58,7 +58,7 @@ export async function getOrCreateWallet(userId: string) {
   await connectMongoose()
   let wallet = await Wallet.findOne({ userId })
   if (!wallet) {
-    wallet = await Wallet.create({ userId, balance: 0, escrow: 0, points: 0 })
+    wallet = await Wallet.create({ userId, balance: 0, escrow: 0, points: 0, reservedPoints: 0 })
   }
   return wallet
 }
@@ -78,7 +78,7 @@ export async function creditPoints(
     { userId },
     {
       $inc: { points, lifetimePointsEarned: points },
-      $setOnInsert: { balance: 0, escrow: 0 },
+      $setOnInsert: { balance: 0, escrow: 0, reservedPoints: 0 },
     },
     { new: true, upsert: true }
   )
@@ -182,6 +182,183 @@ export async function refundEscrowPoints(
   })
 }
 
+export type CreditReservationResult =
+  | { ok: true; balance: number; reservedPoints: number; reservationId: string; cost: number }
+  | { ok: false; reason: 'insufficient' | 'already_reserved' | 'not_enabled' | 'not_found' | 'server'; balance?: number }
+
+export async function reserveMissionCredits(
+  providerId: string,
+  requestId: string,
+  cost: number
+): Promise<CreditReservationResult> {
+  if (!Number.isFinite(cost) || cost < 0) return { ok: false, reason: 'server' }
+  await connectMongoose()
+
+  const cfg = await getAppConfig()
+  if (cfg.credits?.unlockEnabled !== true) return { ok: false, reason: 'not_enabled' }
+
+  const existing = await MissionUnlock.findOne({ providerId, requestId }).lean()
+  if (existing && ['active', 'reserved', 'spent'].includes(existing.status)) {
+    const wallet = await getOrCreateWallet(providerId)
+    return {
+      ok: false,
+      reason: 'already_reserved',
+      balance: wallet.points,
+    }
+  }
+
+  if (cost === 0) {
+    const reservation = await MissionUnlock.findOneAndUpdate(
+      { providerId, requestId },
+      { $set: { points: 0, status: 'reserved', reservedAt: new Date(), releasedAt: undefined, releaseReason: undefined } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
+    return {
+      ok: true,
+      balance: (await getOrCreateWallet(providerId)).points,
+      reservedPoints: 0,
+      reservationId: String(reservation._id),
+      cost: 0,
+    }
+  }
+
+  const reservation = await MissionUnlock.findOneAndUpdate(
+    { providerId, requestId, status: { $nin: ['active', 'reserved', 'spent'] } },
+    { $set: { points: cost, status: 'reserved', reservedAt: new Date(), releasedAt: undefined, releaseReason: undefined } },
+    { new: true }
+  )
+
+  let createdReservation = reservation
+  if (!createdReservation && !existing) {
+    try {
+      createdReservation = await MissionUnlock.create({ providerId, requestId, points: cost, status: 'reserved', reservedAt: new Date() })
+    } catch (error: unknown) {
+      if ((error as { code?: number }).code === 11000) {
+        const wallet = await getOrCreateWallet(providerId)
+        return { ok: false, reason: 'already_reserved', balance: wallet.points }
+      }
+      throw error
+    }
+  }
+
+  if (!createdReservation) {
+    const wallet = await getOrCreateWallet(providerId)
+    return { ok: false, reason: 'already_reserved', balance: wallet.points }
+  }
+
+  await getOrCreateWallet(providerId)
+  const wallet = await Wallet.findOneAndUpdate(
+    { userId: providerId, points: { $gte: cost } },
+    { $inc: { points: -cost, reservedPoints: cost } },
+    { new: true }
+  )
+
+  if (!wallet) {
+    await MissionUnlock.deleteOne({ _id: createdReservation._id, status: 'reserved' })
+    const current = await getOrCreateWallet(providerId)
+    return { ok: false, reason: 'insufficient', balance: current.points }
+  }
+
+  await WalletTransaction.create({
+    userId: providerId,
+    kind: 'mission_reserve',
+    points: -cost,
+    balanceAfter: wallet.points,
+    reservedPointsAfter: wallet.reservedPoints || 0,
+    relatedMissionId: requestId,
+    description: `Réservation mission (${cost} crédits)`,
+  })
+
+  return {
+    ok: true,
+    balance: wallet.points,
+    reservedPoints: wallet.reservedPoints || 0,
+    reservationId: String(createdReservation._id),
+    cost,
+  }
+}
+
+export async function confirmMissionReservation(
+  providerId: string,
+  requestId: string
+): Promise<{ ok: boolean; charged: number; balance?: number; reason?: 'missing' | 'insufficient' }> {
+  await connectMongoose()
+  const reservation = await MissionUnlock.findOne({ providerId, requestId, status: 'reserved' })
+  if (!reservation) return { ok: false, charged: 0, reason: 'missing' }
+
+  const cost = reservation.points || 0
+  const wallet = await Wallet.findOneAndUpdate(
+    { userId: providerId, reservedPoints: { $gte: cost } },
+    { $inc: { reservedPoints: -cost, lifetimePointsSpent: cost } },
+    { new: true }
+  )
+  if (!wallet) return { ok: false, charged: 0, reason: 'insufficient' }
+
+  const spent = await MissionUnlock.updateOne(
+    { _id: reservation._id, status: 'reserved' },
+    { $set: { status: 'spent', spentAt: new Date() } }
+  )
+  if (spent.modifiedCount === 0) {
+    await Wallet.findOneAndUpdate(
+      { userId: providerId },
+      { $inc: { reservedPoints: cost, lifetimePointsSpent: -cost } }
+    )
+    return { ok: false, charged: 0, reason: 'missing' }
+  }
+
+  await WalletTransaction.create({
+    userId: providerId,
+    kind: 'mission_spend',
+    points: 0,
+    balanceAfter: wallet.points,
+    reservedPointsAfter: wallet.reservedPoints || 0,
+    relatedMissionId: requestId,
+    description: `Mission gagnée (${cost} crédits consommés)`,
+  })
+
+  return { ok: true, charged: cost, balance: wallet.points }
+}
+
+export async function releaseMissionReservation(
+  providerId: string,
+  requestId: string,
+  reason: string
+): Promise<{ ok: boolean; releasedCredits?: number; balance?: number }> {
+  await connectMongoose()
+  const reservation = await MissionUnlock.findOneAndUpdate(
+    { providerId, requestId, status: 'reserved' },
+    { $set: { status: 'released', releasedAt: new Date(), releaseReason: reason } },
+    { new: true }
+  )
+  if (!reservation) return { ok: false }
+
+  const cost = reservation.points || 0
+  const wallet = await Wallet.findOneAndUpdate(
+    { userId: providerId, reservedPoints: { $gte: cost } },
+    { $inc: { points: cost, reservedPoints: -cost } },
+    { new: true }
+  )
+  if (!wallet) {
+    await MissionUnlock.updateOne(
+      { _id: reservation._id, status: 'released' },
+      { $set: { status: 'reserved', releasedAt: undefined, releaseReason: undefined } }
+    )
+    return { ok: false }
+  }
+
+  await WalletTransaction.create({
+    userId: providerId,
+    kind: 'mission_release',
+    points: cost,
+    balanceAfter: wallet.points,
+    reservedPointsAfter: wallet.reservedPoints || 0,
+    relatedMissionId: requestId,
+    description: `Réservation libérée : ${reason} (${cost} crédits)`,
+  })
+
+  return { ok: true, releasedCredits: cost, balance: wallet.points }
+}
+
 // ──── Mission Unlock (crédits provider) ───────────────────────────────────
 
 export type UnlockResult =
@@ -197,45 +374,21 @@ export async function unlockMission(
   requestId: string,
   cost: number
 ): Promise<UnlockResult> {
-  if (cost < 0) return { ok: false, reason: 'server' }
-  await connectMongoose()
-
-  const cfg = await getAppConfig()
-  if (cfg.credits?.unlockEnabled !== true) return { ok: false, reason: 'not_enabled' }
-
-  const existing = await MissionUnlock.findOne({ providerId, requestId }).lean()
-  if (existing && existing.status !== 'refunded') {
-    return { ok: false, reason: 'already_unlocked' }
+  const reservation = await reserveMissionCredits(providerId, requestId, cost)
+  if (!reservation.ok) {
+    return {
+      ok: false,
+      reason: reservation.reason === 'already_reserved' ? 'already_unlocked' : reservation.reason,
+      balance: reservation.balance,
+    }
   }
 
-  if (cost === 0) {
-    const unlock = await MissionUnlock.create({
-      providerId,
-      requestId,
-      points: 0,
-      status: 'active',
-    })
-    return { ok: true, balance: (await getOrCreateWallet(providerId)).points, unlockId: String(unlock._id), cost: 0 }
+  return {
+    ok: true,
+    balance: reservation.balance,
+    unlockId: reservation.reservationId,
+    cost: reservation.cost,
   }
-
-  const debit = await debitPoints(providerId, cost, 'unlock_spend', {
-    relatedMissionId: requestId,
-    description: `Déblocage mission (${cost} crédits)`,
-  })
-
-  if (!debit) {
-    const wallet = await getOrCreateWallet(providerId)
-    return { ok: false, reason: 'insufficient', balance: wallet.points }
-  }
-
-  const unlock = await MissionUnlock.create({
-    providerId,
-    requestId,
-    points: cost,
-    status: 'active',
-  })
-
-  return { ok: true, balance: debit.balance, unlockId: String(unlock._id), cost }
 }
 
 /**

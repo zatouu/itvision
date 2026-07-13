@@ -166,8 +166,17 @@ export async function scheduleLocalNotification(title = 'Test local Pro', body =
 
   try {
     const id = await Notifications.scheduleNotificationAsync({
-      content: { title, body, data: { ...data, localEcho: true }, sound: 'default' },
-      trigger: { seconds: 1 },
+      content: {
+        title,
+        body,
+        data: { ...data, localEcho: true },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger: {
+        seconds: 1,
+        channelId: 'services',
+      },
     })
     console.log('[Push] Notification locale programmée:', id)
     return id

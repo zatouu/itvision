@@ -4,6 +4,7 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import MissionUnlock from '@/lib/models/MissionUnlock'
 import { requireAuth } from '@/lib/jwt'
 import { computeUnlockCost } from '@/lib/credit-cost'
+import { releaseMissionReservation } from '@/lib/wallet'
 
 const REQUEST_TTL_HOURS = 2 // doit rester aligné avec /api/services/requests
 
@@ -66,16 +67,27 @@ export async function GET(request: NextRequest) {
     // Auto-expire les demandes expirées (paresseux), y compris les anciennes sans expiresAt (legacy)
     const now = new Date()
     const legacyCutoff = new Date(now.getTime() - REQUEST_TTL_HOURS * 60 * 60 * 1000)
-    await ServiceRequest.updateMany(
-      {
-        status: { $in: ['created', 'pending_offers'] },
-        $or: [
-          { expiresAt: { $lt: now } },
-          { expiresAt: null, createdAt: { $lt: legacyCutoff } },
-        ],
-      },
-      { $set: { status: 'expired', expiredAt: now } }
-    ).catch(() => {})
+    const expiringRequests = await ServiceRequest.find({
+      status: { $in: ['created', 'pending_offers'] },
+      $or: [
+        { expiresAt: { $lt: now } },
+        { expiresAt: null, createdAt: { $lt: legacyCutoff } },
+      ],
+    }).select('_id').lean()
+    if (expiringRequests.length > 0) {
+      const expiringIds = expiringRequests.map((item: any) => item._id)
+      await ServiceRequest.updateMany(
+        { _id: { $in: expiringIds } },
+        { $set: { status: 'expired', expiredAt: now } }
+      )
+      const reservations = await MissionUnlock.find({
+        requestId: { $in: expiringIds },
+        status: 'reserved',
+      }).select('requestId providerId').lean()
+      await Promise.all(reservations.map((reservation: any) =>
+        releaseMissionReservation(String(reservation.providerId), String(reservation.requestId), 'Mission expirée').catch(() => {})
+      ))
+    }
 
     const statusFilter = { status: { $in: ['created', 'pending_offers'] } }
     // Une demande legacy (sans expiresAt) n'est valide que si elle est plus récente que le TTL
@@ -97,7 +109,7 @@ export async function GET(request: NextRequest) {
     const myUnlocks = await MissionUnlock.find({
       requestId: { $in: requestIds },
       providerId: userId,
-      status: { $in: ['active', 'spent'] },
+      status: { $in: ['active', 'reserved', 'spent'] },
     }).select('requestId status').lean()
     const unlockedSet = new Set(myUnlocks.map((u: any) => String(u.requestId)))
 

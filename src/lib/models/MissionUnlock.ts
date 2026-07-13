@@ -1,6 +1,6 @@
 import mongoose, { Schema, model, models, Document } from 'mongoose'
 
-export type MissionUnlockStatus = 'active' | 'refunded' | 'spent' | 'expired'
+export type MissionUnlockStatus = 'active' | 'reserved' | 'released' | 'refunded' | 'spent' | 'expired'
 
 export interface IMissionUnlock extends Document {
   requestId: mongoose.Types.ObjectId
@@ -8,6 +8,9 @@ export interface IMissionUnlock extends Document {
   points: number // crédits dépensés pour débloquer la mission
   status: MissionUnlockStatus
   offerSentAt?: Date
+  reservedAt?: Date
+  releasedAt?: Date
+  releaseReason?: string
   refundedAt?: Date
   refundReason?: string
   spentAt?: Date // date où une offre a été acceptée / mission assignée (crédits consommés)
@@ -18,8 +21,11 @@ const MissionUnlockSchema = new Schema<IMissionUnlock>({
   requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, index: true },
   providerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   points: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ['active', 'refunded', 'spent', 'expired'], default: 'active' },
+  status: { type: String, enum: ['active', 'reserved', 'released', 'refunded', 'spent', 'expired'], default: 'active' },
   offerSentAt: { type: Date },
+  reservedAt: { type: Date },
+  releasedAt: { type: Date },
+  releaseReason: { type: String },
   refundedAt: { type: Date },
   refundReason: { type: String },
   spentAt: { type: Date },

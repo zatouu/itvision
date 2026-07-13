@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       points: wallet.points || 0,
+      reservedPoints: wallet.reservedPoints || 0,
       cashBalance: wallet.balance || 0,
       escrow: wallet.escrow || 0,
       lifetimePointsEarned: wallet.lifetimePointsEarned || 0,

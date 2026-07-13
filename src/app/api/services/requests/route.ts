@@ -4,7 +4,7 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
-import { sendPushToNearbyProviders } from '@/lib/push'
+import { enqueueDispatch } from '@/lib/visibility'
 import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
@@ -120,32 +120,12 @@ export async function POST(request: NextRequest) {
       expiresAt,
     })
 
-    // Coordonnées de la demande (réutilisées pour geofencing socket + push)
-    const [rLng, rLat] = created.location?.coordinates || []
-
-    // Notifier les providers proches via geofencing Redis GEO (fallback: tous si aucune position connue)
-    const notifyNearby = (global as any).notifyNearbyProviders
-    if (notifyNearby) {
-      await notifyNearby({
-        requestId: String(created._id),
-        category: created.category,
-        description: created.description,
-        location: created.location,
-        budget: created.budget,
-        createdAt: created.createdAt,
-        lng: rLng,
-        lat: rLat,
-      }, 10) // 10 km radius
-    }
-
-    // Push notification aux providers proches (geofenced), fallback tous si aucune position
-    await sendPushToNearbyProviders({
-      title: '🔔 Nouvelle demande',
-      body: `${created.category} — ${(created.description || '').slice(0, 80) || 'Sans description'}`,
-      data: { type: 'request:new', requestId: String(created._id) },
-      channelId: 'services',
-      appType: 'provider',
-    }, rLat, rLng, 10, userId)
+    // Diffusion via le Visibility Engine + Visibility Scheduler (vague immédiate
+    // puis escalade progressive du rayon si pas d'offre). Fire-and-forget : ne
+    // bloque pas la réponse au client.
+    enqueueDispatch(String(created._id)).catch(err => {
+      console.error('[POST /api/services/requests] enqueueDispatch failed:', err?.message)
+    })
 
     return NextResponse.json({ success: true, item: created })
   } catch (e: any) {

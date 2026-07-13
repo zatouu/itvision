@@ -90,7 +90,7 @@ export async function computeUnlockCost(input: UnlockCostInput): Promise<UnlockC
  */
 export async function hasUnlocked(providerId: string, requestId: string): Promise<boolean> {
   await connectMongoose()
-  const existing = await MissionUnlock.findOne({ providerId, requestId, status: { $in: ['active', 'spent'] } }).lean()
+  const existing = await MissionUnlock.findOne({ providerId, requestId, status: { $in: ['active', 'reserved', 'spent'] } }).lean()
   return !!existing
 }
 
