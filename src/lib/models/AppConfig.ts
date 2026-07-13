@@ -38,6 +38,7 @@ export interface IVisibilityTier {
 
 export interface IVisibilityConfig {
   enabled: boolean // interrupteur maître ; si false, fallback legacy
+  requireKycForNotification: boolean // si false, les prestataires sans KYC reçoivent quand même les notifs (mais classés plus bas)
   defaultRadiusKm: number
   maxRadiusKm: number // borne haute d'escalade (région) — jamais tout le pays
   presenceFreshnessSec: number // GPS considéré "récent" en deçà de N secondes
@@ -149,6 +150,7 @@ const AppConfigSchema = new Schema<IAppConfig>({
   },
   visibility: {
     enabled: { type: Boolean, default: true },
+    requireKycForNotification: { type: Boolean, default: false },
     defaultRadiusKm: { type: Number, default: 10, min: 1 },
     maxRadiusKm: { type: Number, default: 200, min: 1 },
     presenceFreshnessSec: { type: Number, default: 600, min: 30 },

@@ -98,6 +98,7 @@ export async function enqueueDispatch(requestId: string): Promise<boolean> {
   )
 
   await getScheduler().schedule({ type: WAVE, requestId, stage: 0, runAt: new Date() })
+  console.log(`[Visibility] dispatch enqueued req=${requestId} loc=${lat.toFixed(5)},${lng.toFixed(5)} cat=${req.category}`)
   return true
 }
 
@@ -137,7 +138,15 @@ export async function runVisibilityWave(task: IScheduledTask): Promise<void> {
 
   const ctx = reqContext(req)
   const candidates = await getCandidates(dispatch.location, stage.radiusKm, config)
-  const rankedEligible = filterAndRank(candidates, ctx, config)
+  const { ranked: rankedEligible, reasons } = filterAndRank(candidates, ctx, config)
+
+  if (candidates.length === 0) {
+    console.log(`[Visibility] req=${requestId} stage=${stageIndex} radius=${stage.radiusKm}km → 0 candidate (no presence)`)
+  } else {
+    const ineligible = Object.entries(reasons).map(([id, r]) => `${id}:${r}`).join(', ')
+    console.log(`[Visibility] req=${requestId} stage=${stageIndex} radius=${stage.radiusKm}km → ${candidates.length} candidate(s), ${rankedEligible.length} eligible | ineligible=${ineligible || 'none'}`)
+  }
+
   const alreadyNotified = new Set<string>(dispatch.providersNotified)
   const selection = selectStageProviders(config, stageIndex, rankedEligible, alreadyNotified)
 

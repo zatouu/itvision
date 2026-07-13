@@ -136,7 +136,8 @@ console.log('▶ VisibilityEngine tests')
 {
   // Éligibilité
   assert.ok(isEligible(makeCandidate(), req), 'eligible candidate')
-  assert.ok(!isEligible(makeCandidate({ kycVerified: false }), req), 'KYC not verified → ineligible')
+  assert.ok(isEligible(makeCandidate({ kycVerified: false }), req), 'KYC not verified → still eligible by default')
+  assert.ok(!isEligible(makeCandidate({ kycVerified: false }), req, { ...config, requireKycForNotification: true }), 'KYC enforced when config requires it')
   assert.ok(!isEligible(makeCandidate({ categories: ['electricite'] }), req), 'wrong category → ineligible')
   assert.ok(!isEligible(makeCandidate({ distanceKm: null }), req), 'no position → ineligible')
   assert.ok(!isEligible(makeCandidate({ currentLoad: 3, maxConcurrentMissions: 3 }), req), 'overloaded → ineligible')
@@ -147,7 +148,7 @@ console.log('▶ VisibilityEngine tests')
 
 {
   // Sélection par palier : stage 0 (10km) ne doit pas inclure un provider à 15km
-  const ranked = filterAndRank([
+  const { ranked } = filterAndRank([
     makeCandidate({ providerId: 'close', distanceKm: 5 }),
     makeCandidate({ providerId: 'far', distanceKm: 15 }),
   ], req, config)
@@ -160,7 +161,7 @@ console.log('▶ VisibilityEngine tests')
 
 {
   // Stage 1 (20km) inclut le provider à 15km, pas déjà notifié
-  const ranked = filterAndRank([
+  const { ranked } = filterAndRank([
     makeCandidate({ providerId: 'close', distanceKm: 5 }),
     makeCandidate({ providerId: 'mid', distanceKm: 15 }),
   ], req, config)

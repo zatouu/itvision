@@ -13,6 +13,7 @@ import { connectMongoose } from '../mongoose'
 /** Défauts canoniques — utilisés aussi par les tests unitaires (sans DB). */
 export const DEFAULT_VISIBILITY_CONFIG: IVisibilityConfig = {
   enabled: true,
+  requireKycForNotification: false,
   defaultRadiusKm: 10,
   maxRadiusKm: 200,
   presenceFreshnessSec: 600,
@@ -49,6 +50,7 @@ export function mergeVisibilityConfig(partial?: Partial<IVisibilityConfig> | nul
   if (!partial) return { ...d }
   return {
     enabled: partial.enabled ?? d.enabled,
+    requireKycForNotification: partial.requireKycForNotification ?? d.requireKycForNotification,
     defaultRadiusKm: partial.defaultRadiusKm ?? d.defaultRadiusKm,
     maxRadiusKm: partial.maxRadiusKm ?? d.maxRadiusKm,
     presenceFreshnessSec: partial.presenceFreshnessSec ?? d.presenceFreshnessSec,

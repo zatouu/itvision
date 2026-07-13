@@ -37,7 +37,8 @@ import {
   Mail,
   Globe,
   Search,
-  ImageIcon
+  ImageIcon,
+  Eye
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -96,6 +97,12 @@ const menuItems: MenuItem[] = [
         label: 'KYC Prestataires',
         icon: Shield,
         href: '/admin/platform/kyc'
+      },
+      {
+        id: 'plateforme-visibility',
+        label: 'Visibilité & Notifications',
+        icon: Eye,
+        href: '/admin/platform/visibility'
       }
     ]
   },

@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     const current = await getVisibilityConfig(true)
     const merged: IVisibilityConfig = {
       enabled: body.enabled ?? current.enabled,
+      requireKycForNotification: body.requireKycForNotification ?? current.requireKycForNotification,
       defaultRadiusKm: clampNum(body.defaultRadiusKm, current.defaultRadiusKm, 1, 500),
       maxRadiusKm: clampNum(body.maxRadiusKm, current.maxRadiusKm, 1, 1000),
       presenceFreshnessSec: clampNum(body.presenceFreshnessSec, current.presenceFreshnessSec, 30, 86400),

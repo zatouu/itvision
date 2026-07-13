@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Créer un nouvel utilisateur mobile
-      const displayName = rawName && typeof rawName === 'string' ? rawName.trim().slice(0, 100) : ''
+      const displayName = rawName && typeof rawName === 'string' && rawName.trim() ? rawName.trim().slice(0, 100) : phone
       const referralCode = await createUniqueReferralCode()
       const newUser = await User.create({
         username: `mobile_${phone.replace('+', '')}`,

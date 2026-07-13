@@ -23,8 +23,8 @@ import { rankProviders } from './ranking'
  * - Position résolue (sinon on ne peut pas géolocaliser → jamais de blast national)
  * - Pas en surcharge (currentLoad < maxConcurrentMissions si défini)
  */
-export function isEligible(candidate: ProviderCandidate, req: DispatchRequestContext): boolean {
-  if (!candidate.kycVerified) return false
+export function isEligible(candidate: ProviderCandidate, req: DispatchRequestContext, config?: IVisibilityConfig): boolean {
+  if (config?.requireKycForNotification && !candidate.kycVerified) return false
   if (candidate.distanceKm == null) return false
   const cats = candidate.categories || []
   const categoryOk = cats.length === 0 || cats.includes(req.category)
@@ -38,9 +38,26 @@ export function filterAndRank(
   candidates: ProviderCandidate[],
   req: DispatchRequestContext,
   config: IVisibilityConfig,
-): RankedProvider[] {
-  const eligible = candidates.filter(c => isEligible(c, req))
-  return rankProviders(eligible, req, config)
+): { ranked: RankedProvider[]; reasons: Record<string, string> } {
+  const reasons: Record<string, string> = {}
+  const eligible: ProviderCandidate[] = []
+  for (const c of candidates) {
+    const ok = isEligible(c, req, config)
+    if (!ok) {
+      if (config.requireKycForNotification && !c.kycVerified) reasons[c.providerId] = 'kyc_missing'
+      else if (c.distanceKm == null) reasons[c.providerId] = 'no_distance'
+      else {
+        const cats = c.categories || []
+        const categoryOk = cats.length === 0 || cats.includes(req.category)
+        if (!categoryOk) reasons[c.providerId] = 'category_mismatch'
+        else if (c.maxConcurrentMissions != null && c.currentLoad >= c.maxConcurrentMissions) reasons[c.providerId] = 'max_load'
+        else reasons[c.providerId] = 'unknown'
+      }
+      continue
+    }
+    eligible.push(c)
+  }
+  return { ranked: rankProviders(eligible, req, config), reasons }
 }
 
 /**
@@ -88,7 +105,7 @@ export function buildNotificationPlan(
   req: DispatchRequestContext,
   config: IVisibilityConfig,
 ): NotificationPlan {
-  const rankedEligible = filterAndRank(candidates, req, config)
+  const { ranked: rankedEligible } = filterAndRank(candidates, req, config)
   const alreadyNotified = new Set<string>()
   const waves: WavePlan[] = []
 

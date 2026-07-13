@@ -126,22 +126,37 @@ function Home() {
   }, [loadRecent])
 
   useEffect(() => {
-    const activeIds = recent
-      .filter(it => it._id && !['completed', 'cancelled'].includes(it.status))
-      .map(it => String(it._id))
-    if (activeIds.length === 0) {
-      setLiveProviders([])
-      return
-    }
     let mounted = true
     const fetchLive = async () => {
       const merged = new Map<string, typeof liveProviders[0]>()
-      for (const id of activeIds) {
+      const activeIds = recent
+        .filter(it => it._id && !['completed', 'cancelled'].includes(it.status))
+        .map(it => String(it._id))
+
+      if (activeIds.length > 0) {
+        for (const id of activeIds) {
+          try {
+            const r: any = await apiGet(`/api/services/requests/${id}/live`)
+            ;[...(r.viewers || []), ...(r.offerors || []), ...(r.assigned ? [r.assigned] : []), ...(r.nearby || [])]
+              .filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
+              .forEach((p: any) => {
+                merged.set(String(p.providerId), {
+                  providerId: String(p.providerId),
+                  name: p.name,
+                  status: p.status || 'available',
+                  lat: Number(p.lat),
+                  lng: Number(p.lng),
+                  distanceKm: p.distanceKm ?? null,
+                  etaMinutes: p.etaMinutes ?? null,
+                })
+              })
+          } catch {}
+        }
+      } else if (userLocation) {
         try {
-          const r: any = await apiGet(`/api/services/requests/${id}/live`)
-          ;[...(r.viewers || []), ...(r.offerors || []), ...(r.assigned ? [r.assigned] : []), ...(r.nearby || [])]
-            .filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
-            .forEach((p: any) => {
+          const r: any = await apiGet(`/api/services/nearby-providers?lat=${userLocation.lat}&lng=${userLocation.lng}&radiusKm=10`)
+          ;(r.providers || []).forEach((p: any) => {
+            if (Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))) {
               merged.set(String(p.providerId), {
                 providerId: String(p.providerId),
                 name: p.name,
@@ -151,15 +166,17 @@ function Home() {
                 distanceKm: p.distanceKm ?? null,
                 etaMinutes: p.etaMinutes ?? null,
               })
-            })
+            }
+          })
         } catch {}
       }
+
       if (mounted) setLiveProviders(Array.from(merged.values()))
     }
     fetchLive()
     const interval = setInterval(fetchLive, 15000)
     return () => { mounted = false; clearInterval(interval) }
-  }, [recent])
+  }, [recent, userLocation])
 
   const offersPending = recent.filter(it => it.status === 'pending_offers' && it.pendingOfferCount > 0)
   const activeMissions = recent.filter(it => ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
@@ -301,9 +318,16 @@ function Home() {
         {/* 4. Carte autour de vous */}
         <View style={s.sectionRow}>
           <Text style={s.sectionTitle}>{t('home.nearbyMap')}</Text>
-          <TouchableOpacity onPress={() => loadRecent()}>
-            <Crosshair size={16} color={colors.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {liveProviders.length > 0 && (
+              <View style={s.nearbyCountBadge}>
+                <Text style={s.nearbyCountText}>{liveProviders.length}</Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={() => loadRecent()}>
+              <Crosshair size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={s.mapCard}>
           {Platform.OS === 'web' ? (
@@ -575,6 +599,8 @@ const s = StyleSheet.create({
   map: { ...StyleSheet.absoluteFillObject },
   mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.bg },
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
+  nearbyCountBadge: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, minWidth: 28, alignItems: 'center' },
+  nearbyCountText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: '#fff' },
   providerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 3, ...shadows.md },
   providerMarkerText: { fontSize: 13, fontWeight: typography.weight.extrabold as any },
   providerMarkerTail: { width: 0, height: 0, backgroundColor: 'transparent', borderStyle: 'solid', borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -3 },
