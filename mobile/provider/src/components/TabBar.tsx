@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { Home, ClipboardList, FileText, Bell, UserCircle } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
 import { colors, radius, spacing, typography } from '../design'
 import { hapticSelect } from '../haptics'
@@ -11,12 +12,13 @@ interface TabBarProps {
   active: TabKey
 }
 
-const TABS: { key: TabKey; label: string; icon: string; route: string }[] = [
-  { key: 'home',          label: 'Accueil',       icon: '⌂', route: '/' },
-  { key: 'requests',      label: 'Demandes',      icon: '≡', route: '/nearby-requests' },
-  { key: 'offers',        label: 'Offres',        icon: '≡', route: '/my-offers' },
-  { key: 'notifications', label: 'Notifications', icon: 'N', route: '/notifications' },
-  { key: 'profile',       label: 'Profil',        icon: '○', route: '/profile' },
+type IconProps = { size?: number; color?: string }
+const TABS: { key: TabKey; label: string; icon: React.ComponentType<IconProps>; route: string }[] = [
+  { key: 'home',          label: 'Accueil',       icon: Home,          route: '/' },
+  { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/nearby-requests' },
+  { key: 'offers',        label: 'Offres',        icon: FileText,      route: '/my-offers' },
+  { key: 'notifications', label: 'Notifications', icon: Bell,          route: '/notifications' },
+  { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/profile' },
 ]
 
 export default function TabBar({ active }: TabBarProps) {
@@ -46,6 +48,7 @@ export default function TabBar({ active }: TabBarProps) {
       {TABS.map(tab => {
         const isActive = tab.key === active
         const showBadge = tab.key === 'notifications' && unread > 0
+        const Icon = tab.icon
         return (
           <TouchableOpacity
             key={tab.key}
@@ -57,7 +60,7 @@ export default function TabBar({ active }: TabBarProps) {
             accessibilityState={{ selected: isActive }}
           >
             <View style={[s.iconWrap, isActive && s.iconWrapActive]}>
-              <Text style={isActive ? s.iconActive : s.icon}>{tab.icon}</Text>
+              <Icon size={20} color={isActive ? colors.primary : colors.textMuted} />
               {showBadge && (
                 <View style={s.badge}>
                   <Text style={s.badgeText}>{unread > 9 ? '9+' : String(unread)}</Text>
@@ -78,8 +81,6 @@ const s = StyleSheet.create({
   item: { flex: 1, alignItems: 'center', paddingTop: spacing.xs, paddingBottom: spacing.xs },
   iconWrap: { position: 'relative', width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   iconWrapActive: { backgroundColor: colors.primaryLight },
-  icon: { fontSize: 18, color: colors.textMuted, fontWeight: typography.weight.extrabold as any, lineHeight: 22 },
-  iconActive: { fontSize: 18, color: colors.primary, fontWeight: typography.weight.extrabold as any, lineHeight: 22 },
   label: { fontSize: 10, color: colors.textMuted, marginTop: 2, fontWeight: typography.weight.medium as any },
   labelActive: { fontSize: 10, color: colors.primary, marginTop: 2, fontWeight: typography.weight.extrabold as any },
   activeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: 2 },

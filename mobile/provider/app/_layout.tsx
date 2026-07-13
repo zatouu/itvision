@@ -150,25 +150,49 @@ export default function Layout(){
 
   // GPS emission: runs whenever logged in + foregrounded, independent of online toggle.
   // The online toggle only controls the 'status' field (available vs offline).
+  const sendGps = async (reason: string) => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync()
+      if (status !== 'granted') {
+        console.log('[GPS] permission not granted, skip', reason)
+        return
+      }
+      const pos = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ])
+      const statusFlag = isOnlineRef.current ? 'available' : 'offline'
+      console.log('[GPS] emit', reason, pos.coords.latitude, pos.coords.longitude, statusFlag)
+      emitGps(pos.coords.latitude, pos.coords.longitude, statusFlag)
+    } catch (e: any) {
+      console.log('[GPS] failed', reason, e?.message)
+    }
+  }
+
   useEffect(() => {
     if (!loggedIn) {
       if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
       return
     }
-    const sendGps = async () => {
-      try {
-        const { status } = await Location.getForegroundPermissionsAsync()
-        if (status !== 'granted') return
-        const pos = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-        ])
-        emitGps(pos.coords.latitude, pos.coords.longitude, isOnlineRef.current ? 'available' : 'offline')
-      } catch { /* silent */ }
-    }
-    sendGps()
-    gpsInterval.current = setInterval(sendGps, 30_000)
+    sendGps('initial')
+    gpsInterval.current = setInterval(() => sendGps('interval'), 10_000)
     return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
+  }, [loggedIn])
+
+  // Force GPS emission immediately when provider goes online so the Visibility Engine
+  // has presence data without waiting for the next interval tick.
+  useEffect(() => {
+    if (!loggedIn || !isOnline) return
+    sendGps('online-toggle')
+  }, [loggedIn, isOnline])
+
+  // Also send GPS as soon as the app returns to foreground.
+  useEffect(() => {
+    if (!loggedIn) return
+    const sub = AppState.addEventListener('change', next => {
+      if (next === 'active') sendGps('app-active')
+    })
+    return () => sub.remove()
   }, [loggedIn])
 
   if (!ready) {

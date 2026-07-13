@@ -205,10 +205,16 @@ app.prepare().then(() => {
 
     // Provider envoie sa position GPS globale pour le geofencing
     socket.on('provider:gps', (data) => {
-      if (!data?.lat || !data?.lng) return
+      if (!data?.lat || !data?.lng) {
+        console.log(`   ⚠️ ${userId} provider:gps missing lat/lng`)
+        return
+      }
       const now = Date.now()
       const existing = providerPresence.get(userId)
-      if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return
+      if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) {
+        console.log(`   ⏱️ ${userId} provider:gps throttled`)
+        return
+      }
       // Le status du payload (available/offline) prime sur l'inférence
       const payloadStatus = data?.status === 'offline' ? 'offline'
         : data?.status === 'available' ? 'available'
@@ -222,6 +228,7 @@ app.prepare().then(() => {
         email,
         lastEmitAt: now,
       })
+      console.log(`   📍 ${userId} provider:gps ${data.lat.toFixed(5)},${data.lng.toFixed(5)} status=${payloadStatus}`)
     })
 
     // Provider signale son statut de disponibilité (toggle en ligne)

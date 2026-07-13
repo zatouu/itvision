@@ -1,5 +1,5 @@
 import { Text, View, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Platform } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import * as Location from 'expo-location'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import { router } from 'expo-router'
@@ -58,6 +58,7 @@ function Home() {
   })
   const [loadingRecent, setLoadingRecent] = useState(true)
   const [cats, setCats] = useState<CatItem[]>(FALLBACK_CATS)
+  const mapRef = useRef<MapView | null>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [mapLoading, setMapLoading] = useState(false)
   const [onlineProviders, setOnlineProviders] = useState(0)
@@ -70,6 +71,17 @@ function Home() {
     distanceKm?: number | null
     etaMinutes?: number | null
   }>>([])
+
+  const focusOnUser = useCallback(() => {
+    if (mapRef.current && userLocation) {
+      mapRef.current.animateToRegion({
+        latitude: userLocation.lat,
+        longitude: userLocation.lng,
+        latitudeDelta: 0.06,
+        longitudeDelta: 0.06,
+      }, 500)
+    }
+  }, [userLocation])
   const [recommended, setRecommended] = useState<any[]>([])
   const [loadingRecommended, setLoadingRecommended] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -177,6 +189,18 @@ function Home() {
     const interval = setInterval(fetchLive, 15000)
     return () => { mounted = false; clearInterval(interval) }
   }, [recent, userLocation])
+
+  // Fit map to show user + all provider markers whenever they change
+  useEffect(() => {
+    if (!mapRef.current || !userLocation || liveProviders.length === 0) return
+    const coords = [
+      { latitude: userLocation.lat, longitude: userLocation.lng },
+      ...liveProviders.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => ({ latitude: p.lat, longitude: p.lng })),
+    ]
+    if (coords.length > 1) {
+      mapRef.current.fitToCoordinates(coords, { edgePadding: { top: 40, right: 40, bottom: 40, left: 40 }, animated: true })
+    }
+  }, [userLocation, liveProviders])
 
   const offersPending = recent.filter(it => it.status === 'pending_offers' && it.pendingOfferCount > 0)
   const activeMissions = recent.filter(it => ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
@@ -324,7 +348,7 @@ function Home() {
                 <Text style={s.nearbyCountText}>{liveProviders.length}</Text>
               </View>
             )}
-            <TouchableOpacity onPress={() => loadRecent()}>
+            <TouchableOpacity onPress={() => { focusOnUser(); loadRecent() }}>
               <Crosshair size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -342,6 +366,7 @@ function Home() {
             </View>
           ) : (
             <MapView
+              ref={mapRef}
               provider={PROVIDER_DEFAULT}
               style={s.map}
               initialRegion={{
@@ -356,12 +381,13 @@ function Home() {
             >
               <Circle
                 center={{ latitude: userLocation.lat, longitude: userLocation.lng }}
-                radius={1500}
+                radius={10000}
                 strokeColor="rgba(37,99,235,0.4)"
                 fillColor="rgba(37,99,235,0.06)"
                 strokeWidth={2}
               />
               {liveProviders.map(p => {
+                if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return null
                 const statusColor =
                   p.status === 'arriving' || p.status === 'in_progress' || p.status === 'selected' ? '#2563EB'
                   : p.status === 'offered' ? '#0F7B4F'
