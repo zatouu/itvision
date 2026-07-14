@@ -11,7 +11,7 @@ const { jwtVerify } = require('jose')
 const geo = require('./lib/redis-geo')
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = 'localhost'
+const hostname = process.env.HOSTNAME || 'localhost'
 const port = parseInt(process.env.PORT || '3000', 10)
 
 const app = next({ dev, hostname, port })
