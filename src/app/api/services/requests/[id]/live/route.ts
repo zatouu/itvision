@@ -5,9 +5,11 @@ import Offer from '@/lib/models/Offer'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import { haversineKm, minutesEta } from '@/lib/geo'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 
 const DEFAULT_SPEED_KMH = 25 // vitesse moyenne estimée pour ETA en ville
 const PRESENCE_STALE_MS = 10 * 60 * 1000
+const DEFAULT_RADIUS_KM = 10
 
 type PresenceEntry = {
   lat?: number
@@ -27,12 +29,43 @@ function toLatLng(p: any) {
   return null
 }
 
+function computeDistanceEtaFromLatLng(lat: number, lng: number, requestLat: number, requestLng: number) {
+  const distanceKm = haversineKm(lat, lng, requestLat, requestLng)
+  const etaMinutes = minutesEta(distanceKm, DEFAULT_SPEED_KMH)
+  return { distanceKm: Math.round(distanceKm * 10) / 10, etaMinutes }
+}
+
 function computeDistanceEta(provider: PresenceEntry, requestLat: number, requestLng: number) {
   const loc = toLatLng(provider)
   if (!loc) return { distanceKm: null, etaMinutes: null }
-  const distanceKm = haversineKm(loc.lat, loc.lng, requestLat, requestLng)
-  const etaMinutes = minutesEta(distanceKm, DEFAULT_SPEED_KMH)
-  return { distanceKm: Math.round(distanceKm * 10) / 10, etaMinutes }
+  return computeDistanceEtaFromLatLng(loc.lat, loc.lng, requestLat, requestLng)
+}
+
+async function resolveProviderLocation(providerId: string, requestLat: number, requestLng: number) {
+  const presenceMap = (global as any).providerPresence as Map<string, PresenceEntry> | undefined
+  const p = presenceMap?.get(providerId)
+  if (p && !isStale(p) && toLatLng(p)) {
+    const loc = toLatLng(p)!
+    const { distanceKm, etaMinutes } = computeDistanceEtaFromLatLng(loc.lat, loc.lng, requestLat, requestLng)
+    return { lat: loc.lat, lng: loc.lng, name: p.name, distanceKm, etaMinutes, updatedAt: p.updatedAt, source: 'presence' as const }
+  }
+
+  // Fallback ProviderProfile.zone
+  const profile = await ProviderProfile.findOne({ userId: providerId }).select('zone').lean().catch(() => null)
+  const coords = profile?.zone?.coordinates
+  if (Array.isArray(coords) && coords.length === 2) {
+    const [lng, lat] = coords
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const { distanceKm, etaMinutes } = computeDistanceEtaFromLatLng(lat, lng, requestLat, requestLng)
+      return { lat, lng, name: undefined, distanceKm, etaMinutes, updatedAt: new Date(profile?.zone?.updatedAt || Date.now()).getTime(), source: 'profile.zone' as const }
+    }
+  }
+
+  return null
+}
+
+function isStale(p: PresenceEntry) {
+  return Date.now() - (p.updatedAt || 0) > PRESENCE_STALE_MS
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -59,6 +92,43 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const presenceMap = ((global as any).providerPresence || new Map()) as Map<string, PresenceEntry>
     const now = Date.now()
 
+    // Helper: find nearby providers from redis-geo.js or ProviderProfile.zone as fallback
+    async function getNearbyFallback(): Promise<any[]> {
+      let geo = (global as any).geo
+      if (!geo || typeof geo.findNearbyProviders !== 'function') {
+        try {
+          // @ts-ignore
+          const geoMod = require('@/../lib/redis-geo')
+          if (geoMod && typeof geoMod.findNearbyProviders === 'function') geo = geoMod
+        } catch (e: any) { /* ignore */ }
+      }
+
+      if (geo && typeof geo.findNearbyProviders === 'function') {
+        try {
+          const raw = await geo.findNearbyProviders(reqLat, reqLng, DEFAULT_RADIUS_KM)
+          const fresh = (raw || []).filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)) && (now - Number(p.updatedAt || 0) <= PRESENCE_STALE_MS))
+          if (fresh.length > 0) return fresh
+        } catch (e: any) { /* ignore */ }
+      }
+
+      try {
+        const docs = await ProviderProfile.find({
+          'zone.coordinates': {
+            $near: {
+              $geometry: { type: 'Point', coordinates: [reqLng, reqLat] },
+              $maxDistance: DEFAULT_RADIUS_KM * 1000,
+            },
+          },
+        }).select('userId zone').limit(50).lean() as any[]
+        return docs.map((d: any) => {
+          const [lng, lat] = d.zone?.coordinates || [0, 0]
+          return { providerId: String(d.userId), lat: Number(lat), lng: Number(lng), status: 'available', updatedAt: new Date(d.zone?.updatedAt || Date.now()).getTime(), source: 'profile.zone' }
+        })
+      } catch (e: any) { /* ignore */ }
+
+      return []
+    }
+
     // Providers ayant envoyé une offre
     const offers = await Offer.find({ requestId: id, status: { $in: ['submitted', 'accepted'] } }).lean()
     const offerProviderIds = offers.map((o: any) => String(o.providerId))
@@ -67,19 +137,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let assigned: any = null
     if (sr.assignedProviderId) {
       const provider = await User.findById(sr.assignedProviderId).select('name phone').lean()
+      const loc = await resolveProviderLocation(String(sr.assignedProviderId), reqLat, reqLng)
       const p = presenceMap.get(String(sr.assignedProviderId))
-      const loc = p ? toLatLng(p) : null
-      const { distanceKm, etaMinutes } = p ? computeDistanceEta(p, reqLat, reqLng) : { distanceKm: null, etaMinutes: null }
       assigned = {
         providerId: String(sr.assignedProviderId),
-        name: (provider as any)?.name || p?.name || 'Prestataire',
+        name: (provider as any)?.name || p?.name || loc?.name || 'Prestataire',
         status: sr.status === 'provider_arriving' ? 'arriving' : sr.status === 'in_progress' ? 'in_progress' : 'selected',
         lat: loc?.lat ?? null,
         lng: loc?.lng ?? null,
-        distanceKm,
-        etaMinutes,
-        lastSeenAt: p?.updatedAt ? new Date(p.updatedAt).toISOString() : null,
-        stale: p ? now - (p.updatedAt || 0) > PRESENCE_STALE_MS : true,
+        distanceKm: loc?.distanceKm ?? null,
+        etaMinutes: loc?.etaMinutes ?? null,
+        lastSeenAt: loc ? new Date(loc.updatedAt || now).toISOString() : null,
+        stale: loc ? now - (loc.updatedAt || 0) > PRESENCE_STALE_MS : true,
       }
     }
 
@@ -88,20 +157,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     for (const offer of offers as any[]) {
       if (String(offer.providerId) === String(sr.assignedProviderId)) continue
       const p = presenceMap.get(String(offer.providerId))
-      const { distanceKm, etaMinutes } = p ? computeDistanceEta(p, reqLat, reqLng) : { distanceKm: null, etaMinutes: null }
+      const loc = await resolveProviderLocation(String(offer.providerId), reqLat, reqLng)
       const provider = await User.findById(offer.providerId).select('name').lean().catch(() => null)
       offerors.push({
         providerId: String(offer.providerId),
-        name: (provider as any)?.name || p?.name || 'Prestataire',
+        name: (provider as any)?.name || p?.name || loc?.name || 'Prestataire',
         status: 'offered',
         price: offer.price,
-        etaMinutes: offer.etaMinutes ?? etaMinutes,
-        lat: p ? toLatLng(p)?.lat ?? null : null,
-        lng: p ? toLatLng(p)?.lng ?? null : null,
-        distanceKm,
+        etaMinutes: offer.etaMinutes ?? loc?.etaMinutes ?? null,
+        lat: loc?.lat ?? null,
+        lng: loc?.lng ?? null,
+        distanceKm: loc?.distanceKm ?? null,
         offerId: String(offer._id),
-        lastSeenAt: p?.updatedAt ? new Date(p.updatedAt).toISOString() : null,
-        stale: p ? now - (p.updatedAt || 0) > PRESENCE_STALE_MS : true,
+        lastSeenAt: loc ? new Date(loc.updatedAt || now).toISOString() : null,
+        stale: loc ? now - (loc.updatedAt || 0) > PRESENCE_STALE_MS : true,
       })
     }
 
@@ -125,18 +194,36 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
-    // Providers proches disponibles (pour suggestion "il y a X providers autour")
-    const nearby = []
+    // Providers proches disponibles (fallback redis-geo / ProviderProfile.zone)
+    const nearbyProviders = new Map<string, any>()
+    const fallback = await getNearbyFallback()
+    for (const p of fallback) {
+      if (p.providerId === String(sr.assignedProviderId)) continue
+      if (offerProviderIds.includes(p.providerId)) continue
+      if (p.viewingRequestId === id) continue
+      const status = p.status === 'on_mission' ? 'busy' : 'available'
+      nearbyProviders.set(p.providerId, {
+        providerId: p.providerId,
+        name: p.name || 'Prestataire',
+        status,
+        lat: p.lat,
+        lng: p.lng,
+        distanceKm: Math.round(Number(p.distanceKm) * 10) / 10,
+        etaMinutes: p.etaMinutes ?? minutesEta(Number(p.distanceKm), DEFAULT_SPEED_KMH),
+        lastSeenAt: new Date(p.updatedAt || now).toISOString(),
+      })
+    }
+
+    // Overlays from in-memory presence when server.js is active
     for (const [pid, p] of presenceMap.entries()) {
       if (pid === String(sr.assignedProviderId)) continue
       if (offerProviderIds.includes(pid)) continue
-      if (p.viewingRequestId === id) continue
       if (isStale(p)) continue
       const loc = toLatLng(p)
       if (!loc) continue
       const distanceKm = haversineKm(loc.lat, loc.lng, reqLat, reqLng)
       if (distanceKm <= 10) {
-        nearby.push({
+        nearbyProviders.set(pid, {
           providerId: pid,
           name: p.name || 'Prestataire',
           status: p.status === 'on_mission' ? 'busy' : 'available',
@@ -148,11 +235,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         })
       }
     }
-    nearby.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999))
 
-    function isStale(p: PresenceEntry) {
-      return Date.now() - (p.updatedAt || 0) > PRESENCE_STALE_MS
-    }
+    const nearby = Array.from(nearbyProviders.values()).sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999))
 
     return NextResponse.json({
       requestId: id,

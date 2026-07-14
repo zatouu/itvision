@@ -193,7 +193,9 @@
     "status_withdrawn": "Ñu jëlat",
     "status_cancelled": "Ëpp",
     "voiceMessage": "Bataaxal bu ñu wax",
-    "media": "Média"
+    "media": "Média",
+    "typingOne": "{{name}} dina tontu...",
+    "typingMany": "{{count}} liggéeykat ñi ngi tontu..."
   },
   "requests": {
     "title": "Samay laaj",

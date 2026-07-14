@@ -133,6 +133,16 @@ export function emitMissionStatus(requestId: string, status: string) {
   socket?.emit('mission:status_updated', { requestId, status })
 }
 
+export function emitOfferTyping(requestId: string, isTyping: boolean, providerName?: string) {
+  socket?.emit('offer:typing', { requestId, isTyping, providerName })
+}
+
+export function onOfferTyping(callback: (data: { requestId: string; providerId: string; providerName?: string; isTyping: boolean }) => void) {
+  const s = getSocket()
+  s.on('offer:typing', callback)
+  return () => { s.off('offer:typing', callback) }
+}
+
 export function onMissionStatus(callback: (data: { requestId: string; status: string }) => void) {
   const s = connectSocket()
   s.on('mission:status_updated', callback)

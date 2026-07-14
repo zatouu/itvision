@@ -320,6 +320,18 @@ app.prepare().then(() => {
       })
     })
 
+    // Provider est en train de rédiger une offre → notifier le client
+    socket.on('offer:typing', (data) => {
+      const requestId = data?.requestId
+      if (!requestId) return
+      socket.to(`request-${requestId}`).emit('offer:typing', {
+        requestId,
+        providerId: userId,
+        providerName: data?.providerName || email?.split('@')[0] || 'Prestataire',
+        isTyping: data?.isTyping !== false,
+      })
+    })
+
     // Événement: Rejoindre un projet
     socket.on('join-project', (projectId) => {
       socket.join(`project-${projectId}`)

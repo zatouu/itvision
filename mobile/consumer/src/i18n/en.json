@@ -193,7 +193,9 @@
     "status_withdrawn": "Withdrawn",
     "status_cancelled": "Cancelled",
     "voiceMessage": "Voice message",
-    "media": "Media"
+    "media": "Media",
+    "typingOne": "{{name}} is responding...",
+    "typingMany": "{{count}} providers are responding..."
   },
   "requests": {
     "title": "My requests",

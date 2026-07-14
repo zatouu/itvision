@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPostQueued } from '../src/api'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
-import { connectSocket, joinNearbyRoom, leaveNearbyRoom } from '../src/socket'
+import { connectSocket, joinNearbyRoom, leaveNearbyRoom, emitOfferTyping } from '../src/socket'
 import { getProviderName } from '../src/user-profile'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { SkeletonCard } from '../src/components/Skeleton'
@@ -57,6 +57,17 @@ function NearbyRequests() {
   const [err, setErr] = useState<string | null>(null)
   const [unlockEnabled, setUnlockEnabled] = useState(false)
   const successScale = useRef(new Animated.Value(0))
+
+  // Notifier le client quand le prestataire est en train de rédiger une offre
+  useEffect(() => {
+    if (!selected) return
+    const requestId = selected._id
+    const providerName = getProviderName()
+    emitOfferTyping(requestId, true, providerName || undefined)
+    return () => {
+      emitOfferTyping(requestId, false, providerName || undefined)
+    }
+  }, [selected])
 
   const { t, i18n } = useTranslation()
   const [catMap, setCatMap] = useState<Record<string, { abbr: string; color: string; label: string }>>({})

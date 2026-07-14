@@ -203,7 +203,9 @@
     "statusOffered": "A fait une offre",
     "statusViewing": "Consulte votre demande",
     "voiceMessage": "Message vocal",
-    "media": "Médias"
+    "media": "Médias",
+    "typingOne": "{{name}} est en train de répondre...",
+    "typingMany": "{{count}} prestataires sont en train de répondre..."
   },
   "requests": {
     "title": "Mes demandes",

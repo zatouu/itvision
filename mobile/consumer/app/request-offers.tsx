@@ -6,7 +6,7 @@ import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { Image } from 'expo-image'
 import { Video, ResizeMode } from 'expo-av'
 import { apiGet, apiPost } from '../src/api'
-import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../src/socket'
+import { connectSocket, joinRequestRoom, leaveRequestRoom, onOfferTyping } from '../src/socket'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { confirm } from '../src/confirm'
 import { loadCategories, getCategoryLabel } from '../src/categories'
@@ -112,6 +112,7 @@ function RequestOffers() {
   const [counterPrice, setCounterPrice] = useState('')
   const [counterComment, setCounterComment] = useState('')
   const [counterLoading, setCounterLoading] = useState(false)
+  const [typingProviders, setTypingProviders] = useState<Record<string, { name: string; expiresAt: number }>>({})
 
   // Tick 1s pour countdown des offres (stop si demande terminée)
   const requestDone = serviceRequest && ['assigned','provider_arriving','in_progress','completed','cancelled','expired'].includes(serviceRequest.status)
@@ -178,6 +179,18 @@ function RequestOffers() {
         return next
       })
     }
+    const handleOfferTyping = (data: any) => {
+      if (!data?.providerId || data?.requestId !== id) return
+      setTypingProviders(prev => {
+        const next = { ...prev }
+        if (data?.isTyping === false) {
+          delete next[data.providerId]
+        } else {
+          next[data.providerId] = { name: data.providerName || 'Prestataire', expiresAt: Date.now() + 6000 }
+        }
+        return next
+      })
+    }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
@@ -189,6 +202,7 @@ function RequestOffers() {
     socket.on('provider:location', handleProviderLocation)
     socket.on('request:viewing', handleRequestViewing)
     socket.on('request:stop-viewing', handleStopViewing)
+    socket.on('offer:typing', handleOfferTyping)
 
     // Snapshot de présence provider depuis l'API (fallback + données complètes)
     const fetchLive = () => {
@@ -238,10 +252,24 @@ function RequestOffers() {
       })
     }, 10_000)
 
+    // Nettoyage des typing expirés (> 6s)
+    const typingCleanup = setInterval(() => {
+      const now = Date.now()
+      setTypingProviders(prev => {
+        const next = { ...prev }
+        let changed = false
+        Object.entries(next).forEach(([key, v]) => {
+          if (v.expiresAt < now) { delete next[key]; changed = true }
+        })
+        return changed ? next : prev
+      })
+    }, 2_000)
+
     return () => {
       clearInterval(interval)
       clearInterval(liveInterval)
       clearInterval(cleanup)
+      clearInterval(typingCleanup)
       leaveRequestRoom(id)
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
@@ -253,6 +281,7 @@ function RequestOffers() {
       socket.off('provider:location', handleProviderLocation)
       socket.off('request:viewing', handleRequestViewing)
       socket.off('request:stop-viewing', handleStopViewing)
+      socket.off('offer:typing', handleOfferTyping)
     }
   }, [id, load])
 
@@ -495,6 +524,17 @@ function RequestOffers() {
         <Text style={s.rtText}>{t('offers.realtimeUpdate')}</Text>
       </View>
 
+      {Object.keys(typingProviders).length > 0 && !requestDone && (
+        <View style={s.typingBanner}>
+          <View style={s.typingDot} />
+          <Text style={s.typingText}>
+            {Object.keys(typingProviders).length === 1
+              ? t('offers.typingOne', { name: Object.values(typingProviders)[0].name })
+              : t('offers.typingMany', { count: Object.keys(typingProviders).length })}
+          </Text>
+        </View>
+      )}
+
       {loading ? (
         <ScrollView contentContainerStyle={s.list}>
           <SkeletonCard />
@@ -731,6 +771,9 @@ const s = StyleSheet.create({
   rtDot: { width: 7, height: 7, borderRadius: 4 },
   rtDot2: { width: 5, height: 5, borderRadius: 3 },
   rtText: { fontSize: 12, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  typingBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.successLight, borderBottomWidth: 1, borderBottomColor: '#BBF7D0' },
+  typingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  typingText: { fontSize: 13, color: colors.success, fontWeight: typography.weight.extrabold as any },
   mapWrap: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.sm },
   mapHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   mapTitle: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text, flex: 1 },

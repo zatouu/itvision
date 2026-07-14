@@ -39,8 +39,23 @@ export async function GET(request: NextRequest) {
     const config = await getVisibilityConfig()
     const freshnessMs = (config.presenceFreshnessSec || 600) * 1000
 
-    const geo = (global as any).geo
     let raw: any[] = []
+    let source = 'global.geo'
+
+    // 1) Redis GEO via global.geo quand server.js est actif
+    let geo = (global as any).geo
+    if (!geo || typeof geo.findNearbyProviders !== 'function') {
+      try {
+        // @ts-ignore
+        const geoMod = require('@/../lib/redis-geo')
+        if (geoMod && typeof geoMod.findNearbyProviders === 'function') {
+          geo = geoMod
+          source = 'redis-geo.js'
+        }
+      } catch (e: any) {
+        console.warn('[nearby-providers] redis-geo.js load failed:', e?.message)
+      }
+    }
 
     if (geo && typeof geo.findNearbyProviders === 'function') {
       try {
@@ -51,12 +66,42 @@ export async function GET(request: NextRequest) {
     }
 
     const now = Date.now()
-    const candidates = raw.filter((p: any) => {
+    let candidates = raw.filter((p: any) => {
       if (!p || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng))) return false
       if (p.status === 'offline') return false
       if (now - Number(p.updatedAt || 0) > freshnessMs) return false
       return true
     })
+
+    // 2) Fallback last-known MongoDB si redis geo n'a rien
+    if (candidates.length === 0) {
+      try {
+        const docs = await ProviderProfile.find({
+          'zone.coordinates': {
+            $near: {
+              $geometry: { type: 'Point', coordinates: [lng, lat] },
+              $maxDistance: radiusKm * 1000,
+            },
+          },
+        }).select('userId zone serviceCategories').limit(50).lean() as any[]
+
+        candidates = docs.map((d: any) => {
+          const [pLng, pLat] = d.zone?.coordinates || [0, 0]
+          return {
+            providerId: String(d.userId),
+            lat: Number(pLat),
+            lng: Number(pLng),
+            distanceKm: haversineKm(lat, lng, Number(pLat), Number(pLng)),
+            status: 'available',
+            updatedAt: d.zone?.updatedAt?.getTime() || now,
+            categories: d.serviceCategories || [],
+          }
+        })
+        source = 'profile.zone'
+      } catch (e: any) {
+        console.warn('[nearby-providers] ProviderProfile fallback failed:', e.message)
+      }
+    }
 
     const userIds = candidates.map((p) => String(p.providerId))
     const users = userIds.length
@@ -102,6 +147,7 @@ export async function GET(request: NextRequest) {
       success: true,
       count: result.length,
       radiusKm,
+      source,
       providers: result.slice(0, 50),
     })
   } catch (err: any) {
