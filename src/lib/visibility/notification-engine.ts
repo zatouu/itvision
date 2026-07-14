@@ -78,6 +78,6 @@ export async function notifyWave(input: NotifyWaveInput): Promise<WaveDispatchRe
     console.warn('[Visibility] push wave failed:', err?.message)
   }
 
-  console.log(`[Visibility] wave stage=${stage} radius=${radiusKm}km → ${uniqueIds.length} provider(s) | socket=${socketCount} pushDelivered=${pushDelivered}`)
+  console.log(`[Visibility] wave requestId=${request.requestId} stage=${stage} radius=${radiusKm}km → ${uniqueIds.length} provider(s) | socket=${socketCount} pushDelivered=${pushDelivered}`)
   return { stage, radiusKm, providerIds: uniqueIds, socketCount, pushDelivered, pushTokenCount }
 }

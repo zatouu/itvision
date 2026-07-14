@@ -205,7 +205,7 @@ app.prepare().then(() => {
 
     // Provider envoie sa position GPS globale pour le geofencing
     socket.on('provider:gps', (data) => {
-      if (!data?.lat || !data?.lng) {
+      if (typeof data?.lat !== 'number' || typeof data?.lng !== 'number') {
         console.log(`   ⚠️ ${userId} provider:gps missing lat/lng`)
         return
       }
@@ -249,7 +249,7 @@ app.prepare().then(() => {
     })
 
     socket.on('provider:location', (data) => {
-      if (!data?.requestId || !data?.lat || !data?.lng) return
+      if (!data?.requestId || typeof data?.lat !== 'number' || typeof data?.lng !== 'number') return
       const now = Date.now()
       const existing = providerPresence.get(userId)
       if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return

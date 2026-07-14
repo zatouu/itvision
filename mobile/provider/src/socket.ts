@@ -82,7 +82,7 @@ export function emitStopViewing(requestId: string) {
 
 /** Emit provider GPS for geofencing (called periodically while app is foregrounded) */
 export function emitGps(lat: number, lng: number, status?: string) {
-  socket?.emit('provider:gps', { lat, lng, status })
+  connectSocket().emit('provider:gps', { lat, lng, status })
 }
 
 /** Listen for nearby request notifications (geofenced) */

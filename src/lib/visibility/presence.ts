@@ -41,9 +41,38 @@ interface RawPresence {
 /** Récupère les prestataires avec GPS récent via la présence partagée (global.geo). */
 async function getGpsPresence(center: GeoPoint, radiusKm: number): Promise<RawPresence[]> {
   const geo = (global as any).geo
-  if (!geo || typeof geo.findNearbyProviders !== 'function') return []
+  if (!geo || typeof geo.findNearbyProviders !== 'function') {
+    console.warn('[Visibility] getGpsPresence: global.geo not available')
+    return []
+  }
   try {
-    const nearby = await geo.findNearbyProviders(center.lat, center.lng, radiusKm)
+    let nearby = await geo.findNearbyProviders(center.lat, center.lng, radiusKm)
+
+    // Fallback sur la Map serveur synchronisée en direct (évite la race geo.updateProviderPosition)
+    if ((!nearby || nearby.length === 0) && (global as any).providerPresence) {
+      const now = Date.now()
+      const fallbackGps: any[] = []
+      const PRESENCE_STALE_MS = 10 * 60 * 1000
+      for (const [providerId, pos] of (global as any).providerPresence.entries()) {
+        if (typeof pos?.lat !== 'number' || typeof pos?.lng !== 'number') continue
+        if (now - (pos?.updatedAt || 0) > PRESENCE_STALE_MS) continue
+        const dist = haversineKm(center.lat, center.lng, pos.lat, pos.lng)
+        if (dist <= radiusKm) {
+          fallbackGps.push({
+            providerId: String(providerId),
+            lat: Number(pos.lat),
+            lng: Number(pos.lng),
+            dist,
+            status: pos.status || 'available',
+            name: pos.name || '',
+            email: pos.email || '',
+          })
+        }
+      }
+      if (fallbackGps.length) nearby = fallbackGps
+    }
+
+    console.log(`[Visibility] getGpsPresence lat=${center.lat.toFixed(5)} lng=${center.lng.toFixed(5)} r=${radiusKm}km → ${(nearby || []).length} GPS provider(s)`)
     return (nearby || []).map((p: any) => ({
       providerId: String(p.providerId),
       position: { lat: Number(p.lat), lng: Number(p.lng) },
@@ -91,6 +120,7 @@ async function getProfileFallback(
         source: 'last_known',
       })
     }
+    console.log(`[Visibility] getProfileFallback r=${radiusKm}km → ${out.length} provider(s)`)
     return out
   } catch (err: any) {
     console.warn('[Visibility] getProfileFallback failed:', err?.message)
@@ -136,6 +166,25 @@ export async function getCandidates(
   await connectMongoose()
 
   const gps = await getGpsPresence(center, radiusKm)
+
+  // Persister la dernière position GPS comme fallback "last_known" pour le futur
+  const zoneUpdates = gps
+    .map(p => {
+      const oid = toObjectId(p.providerId)
+      if (!oid) return null
+      return {
+        updateOne: {
+          filter: { userId: oid },
+          update: { $set: { 'zone.coordinates': [p.position.lng, p.position.lat], 'zone.updatedAt': new Date() } },
+          upsert: true,
+        },
+      }
+    })
+    .filter(Boolean) as any[]
+  if (zoneUpdates.length) {
+    ProviderProfile.bulkWrite(zoneUpdates).catch(() => {})
+  }
+
   const gpsIds = new Set(gps.map(p => p.providerId))
   const fallback = await getProfileFallback(center, radiusKm, gpsIds, config)
 
@@ -195,5 +244,6 @@ export async function getCandidates(
     })
   }
 
+  console.log(`[Visibility] getCandidates gps=${gps.length} fallback=${fallback.length} total=${candidates.length}`)
   return candidates
 }
