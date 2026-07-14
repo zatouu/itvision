@@ -57,7 +57,7 @@ async function resolveProviderLocation(providerId: string, requestLat: number, r
     const [lng, lat] = coords
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       const { distanceKm, etaMinutes } = computeDistanceEtaFromLatLng(lat, lng, requestLat, requestLng)
-      return { lat, lng, name: undefined, distanceKm, etaMinutes, updatedAt: new Date(profile?.zone?.updatedAt || Date.now()).getTime(), source: 'profile.zone' as const }
+      return { lat, lng, name: undefined, distanceKm, etaMinutes, updatedAt: new Date(profile?.updatedAt || Date.now()).getTime(), source: 'profile.zone' as const }
     }
   }
 
