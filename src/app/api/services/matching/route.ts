@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import MissionUnlock from '@/lib/models/MissionUnlock'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { computeUnlockCost } from '@/lib/credit-cost'
 import { releaseMissionReservation } from '@/lib/wallet'
@@ -52,6 +53,13 @@ export async function GET(request: NextRequest) {
     const { userId } = await requireAuth(request)
     const q = parseNearQuery(request)
     if (!q) return NextResponse.json({ error: 'Paramètres géo invalides' }, { status: 400 })
+
+    // Mettre à jour la zone du provider pour le fallback last_known du Visibility Engine
+    ProviderProfile.findOneAndUpdate(
+      { userId: userId },
+      { $set: { 'zone.coordinates': [q.lng, q.lat], 'zone.updatedAt': new Date() } },
+      { upsert: true, new: true }
+    ).catch(() => {})
 
     console.log(`[MATCHING] user=${userId} lng=${q.lng} lat=${q.lat} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
 

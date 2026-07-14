@@ -80,9 +80,28 @@ export function emitStopViewing(requestId: string) {
   socket?.emit('request:stop-viewing', { requestId })
 }
 
+function fallbackPostGps(lat: number, lng: number, status?: string) {
+  const token = getToken()
+  if (!token) return
+  fetch(`${getBaseUrl()}/api/provider/location`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ lat, lng, status }),
+  }).catch(() => {})
+}
+
 /** Emit provider GPS for geofencing (called periodically while app is foregrounded) */
 export function emitGps(lat: number, lng: number, status?: string) {
-  connectSocket().emit('provider:gps', { lat, lng, status })
+  const s = connectSocket()
+  s.emit('provider:gps', { lat, lng, status })
+  // Si le socket n'est pas connecté (ex: server.js non utilisé, standalone Next.js),
+  // on persiste la position via HTTP pour que le Visibility Engine puisse l'utiliser.
+  if (!s.connected) {
+    fallbackPostGps(lat, lng, status)
+  }
 }
 
 /** Listen for nearby request notifications (geofenced) */
