@@ -26,5 +26,8 @@ DEV_PROVIDER_TOKEN=dev-provider-token-456
 # OM_API_URL=
 # OM_API_TOKEN=
 
+# Redis (required for real-time provider geofencing / Visibility Engine)
+REDIS_URL=redis://127.0.0.1:6379
+
 # Upload
 UPLOAD_MAX_SIZE_MB=10

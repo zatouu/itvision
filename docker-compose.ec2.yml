@@ -23,6 +23,21 @@ services:
       timeout: 10s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: itvision-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - itvision-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   app:
     image: ${IMAGE}
     container_name: itvision-app
@@ -35,6 +50,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-${NEXT_PUBLIC_SITE_URL}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       UPLOAD_DIR: /app/public/uploads
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       SMTP_HOST: ${SMTP_HOST}
@@ -74,6 +90,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - itvision-internal
     healthcheck:
@@ -87,6 +105,7 @@ services:
 volumes:
   mongodb_data:
   mongodb_config:
+  redis_data:
   uploads_data:
   app_logs:
 

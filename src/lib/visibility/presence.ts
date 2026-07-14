@@ -40,10 +40,21 @@ interface RawPresence {
 
 /** Récupère les prestataires avec GPS récent via la présence partagée (global.geo). */
 async function getGpsPresence(center: GeoPoint, radiusKm: number): Promise<RawPresence[]> {
-  const geo = (global as any).geo
+  let geo = (global as any).geo
   if (!geo || typeof geo.findNearbyProviders !== 'function') {
-    console.warn('[Visibility] getGpsPresence: global.geo not available')
-    return []
+    try {
+      // @ts-ignore
+      geo = require('@/../lib/redis-geo')
+      if (geo && typeof geo.findNearbyProviders === 'function') {
+        console.log('[Visibility] getGpsPresence: loaded redis-geo.js directly')
+      } else {
+        console.warn('[Visibility] getGpsPresence: global.geo not available and redis-geo.js export invalid')
+        return []
+      }
+    } catch (e: any) {
+      console.warn('[Visibility] getGpsPresence: global.geo not available, redis-geo.js load failed:', e?.message)
+      return []
+    }
   }
   try {
     let nearby = await geo.findNearbyProviders(center.lat, center.lng, radiusKm)
