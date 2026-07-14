@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
-import { Image } from 'expo-image'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
+import MissionMediaGallery from '../../src/components/MissionMediaGallery'
+import { SkeletonCard } from '../../src/components/Skeleton'
 import * as Location from 'expo-location'
-import { apiGet, apiPost, apiPatchQueued, getBaseUrl } from '../../src/api'
+import { apiGet, apiPost, apiPatchQueued } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
@@ -13,21 +14,22 @@ import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
 import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation } from 'lucide-react-native'
+import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
-const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
-  pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: '#FFFBEB' },
-  held:      { key: 'mission.paymentHeld',     color: '#065F46', bg: '#ECFDF5' },
-  released:  { key: 'mission.paymentReleased', color: '#1E3A8A', bg: '#EFF6FF' },
-  refunded:  { key: 'mission.paymentRefunded', color: '#991B1B', bg: '#FEF2F2' },
-  failed:    { key: 'mission.paymentFailed',   color: '#991B1B', bg: '#FEF2F2' },
+const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string; dot: string }> = {
+  pending:   { key: 'mission.paymentPending',  color: colors.warning, bg: colors.warningLight, dot: colors.warning },
+  held:      { key: 'mission.paymentHeld',     color: colors.success, bg: colors.successLight, dot: colors.success },
+  released:  { key: 'mission.paymentReleased', color: colors.navy,    bg: colors.infoLight,    dot: colors.navy },
+  refunded:  { key: 'mission.paymentRefunded', color: colors.danger,  bg: colors.dangerLight,  dot: colors.danger },
+  failed:    { key: 'mission.paymentFailed',   color: colors.danger,  bg: colors.dangerLight,  dot: colors.danger },
 }
 
-const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
-  assigned:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
-  provider_arriving:  { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
-  in_progress:        { key: 'mission.inProgress',         color: '#5B21B6', bg: '#F5F3FF' },
-  completed:          { key: 'mission.completed',          color: '#374151', bg: '#F1F5F9' },
-  cancelled:          { key: 'mission.cancelled',          color: '#991B1B', bg: '#FEF2F2' },
+const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
+  assigned:           { key: 'mission.assigned',           color: colors.surface, bg: colors.success,  dot: colors.surface },
+  provider_arriving:  { key: 'mission.arriving',           color: colors.surface, bg: colors.success,  dot: colors.surface },
+  in_progress:        { key: 'mission.inProgress',         color: colors.surface, bg: colors.info,     dot: colors.surface },
+  completed:          { key: 'mission.completed',          color: colors.text,    bg: colors.surface,  dot: colors.textMuted },
+  cancelled:          { key: 'mission.cancelled',          color: colors.surface, bg: colors.danger,   dot: colors.surface },
 }
 
 const FLOW_STEPS = [
@@ -80,34 +82,6 @@ function formatElapsed(startedAt: unknown, endedAt?: unknown): string {
   return `${h}h ${remM}min`
 }
 
-function isImageMedia(type: unknown, url: unknown): boolean {
-  const mediaType = String(type || '').toLowerCase()
-  if (mediaType === 'image') return true
-  const mediaUrl = String(url || '')
-  return /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(mediaUrl)
-}
-
-function resolveMediaUrl(rawUrl: unknown): string | null {
-  if (typeof rawUrl !== 'string') return null
-  let v = rawUrl.trim()
-  if (!v) return null
-  if (/^(https?:|file:|blob:|data:)/i.test(v)) return v
-  if (v.startsWith('/api/uploads/')) {
-    v = v.replace('/api/uploads/', '/uploads/')
-  }
-  const base = getBaseUrl().replace(/\/$/, '')
-  if (v.startsWith('/')) return `${base}${v}`
-  return `${base}/${v}`
-}
-
-function getMediaLabel(type: unknown): string {
-  const mediaType = String(type || '').toLowerCase()
-  if (mediaType === 'audio') return 'Audio'
-  if (mediaType === 'video') return 'Vidéo'
-  if (mediaType === 'image') return 'Image'
-  return 'Fichier'
-}
-
 function hasValidCoords(location: any): location is { coordinates: [number, number]; address?: string } {
   return (
     Array.isArray(location?.coordinates)
@@ -129,6 +103,7 @@ function ActiveMission() {
   const [, setTick] = useState(0)
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
+  const [fitTrigger, setFitTrigger] = useState(0)
   const locationRef = useRef(mapLocation)
   const lastUiUpdateAt = useRef(0)
 
@@ -321,7 +296,13 @@ function ActiveMission() {
   }
 
   if (loading && !item) return (
-    <SafeAreaView style={s.safe}><ActivityIndicator style={{ marginTop: 40 }} color="#0F172A" /></SafeAreaView>
+    <SafeAreaView style={s.safe}>
+      <ScrollView contentContainerStyle={s.loadingBody}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </ScrollView>
+    </SafeAreaView>
   )
 
   if (!requestId) return (
@@ -331,24 +312,6 @@ function ActiveMission() {
       </View>
     </SafeAreaView>
   )
-
-  const openMedia = async (url?: string) => {
-    const mediaUrl = resolveMediaUrl(url)
-    if (!mediaUrl) {
-      notify(t('mission.mediaUnavailable'), t('mission.invalidMediaLink'))
-      return
-    }
-    try {
-      const canOpen = await Linking.canOpenURL(mediaUrl)
-      if (!canOpen) {
-        notify(t('mission.mediaUnavailable'), t('mission.cannotOpenLink'))
-        return
-      }
-      await Linking.openURL(mediaUrl)
-    } catch {
-      notify(t('mission.mediaUnavailable'), t('mission.cannotOpenMedia'))
-    }
-  }
 
   const st = item ? STATUS_CONFIG[item.status] || STATUS_CONFIG.assigned : null
   const loc = item?.location
@@ -368,9 +331,7 @@ function ActiveMission() {
 
   const focusRouteInApp = () => {
     if (!hasCoords) return
-    // Force the map to refit without re-rendering the entire screen
-    setRouteInfo(null)
-    setMapLocation(prev => prev ? { ...prev } : null)
+    setFitTrigger(v => v + 1)
   }
   const locationAddress = typeof item?.location?.address === 'string' ? item.location.address : undefined
   const missionRef = item?._id ? String(item._id).slice(-6).toUpperCase() : '------'
@@ -381,10 +342,10 @@ function ActiveMission() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={20} color="#111827" />
+          <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('mission.activeTitle')}</Text>
-        <View style={{ width: 36 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
@@ -396,35 +357,35 @@ function ActiveMission() {
         {item && (
           <>
             <View style={[s.statusBanner, { backgroundColor: st?.bg }]}>
+              {st?.dot && <View style={[s.statusBannerDot, { backgroundColor: st.dot }]} />}
               <Text style={[s.statusText, { color: st?.color }]}>{st ? t(st.key) : ''}</Text>
             </View>
 
             {/* Durée écoulée si mission en cours */}
             {item.status === 'in_progress' && item.startedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F5F3FF' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Clock size={16} color="#5B21B6" />
-                  <Text style={[s.statusText, { color: '#5B21B6' }]}>
-                    {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
-                  </Text>
-                </View>
+              <View style={[s.statusBanner, { backgroundColor: colors.infoLight }]}>
+                <Clock size={16} color={colors.info} />
+                <Text style={[s.statusText, { color: colors.info }]}>
+                  {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
+                </Text>
               </View>
             )}
             {/* Durée totale si mission terminée */}
             {item.status === 'completed' && item.startedAt && item.completedAt && (
-              <View style={[s.statusBanner, { backgroundColor: '#F1F5F9' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Clock size={16} color="#374151" />
-                  <Text style={[s.statusText, { color: '#374151' }]}>
-                    {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
-                  </Text>
-                </View>
+              <View style={[s.statusBanner, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                <Clock size={16} color={colors.text} />
+                <Text style={[s.statusText, { color: colors.text }]}>
+                  {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
+                </Text>
               </View>
             )}
 
             {item.payment && (
-              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || '#F1F5F9' }]}>
-                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status]?.color || '#64748B' }]}>
+              <View style={[s.statusBanner, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || colors.bg }]}>
+                {PAYMENT_BADGE[item.payment.status]?.dot && (
+                  <View style={[s.statusBannerDot, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.dot }]} />
+                )}
+                <Text style={[s.statusText, { color: PAYMENT_BADGE[item.payment.status]?.color || colors.textSecondary }]}>
                   {t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
                   {item.payment.provider === 'cash' ? ' · Cash' : ''}
                   {item.payment.phase === 'deposit' ? ` · Dépôt ${formatMoney(item.payment.depositAmount)} / Solde ${formatMoney(item.payment.balanceAmount)}` : ''}
@@ -442,7 +403,10 @@ function ActiveMission() {
                   origin={mapLocation || undefined}
                   providerLocation={mapLocation || undefined}
                   status={item.status}
+                  height={260}
+                  fitTrigger={fitTrigger}
                   onRouteInfo={setRouteInfo}
+                  interactive={false}
                 />
                 {routeInfo && (
                   <View style={s.routeInfo}>
@@ -450,13 +414,13 @@ function ActiveMission() {
                   </View>
                 )}
                 {['assigned', 'provider_arriving'].includes(item.status) && (
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                     <TouchableOpacity style={[s.navBtn, { flex: 1 }]} onPress={focusRouteInApp}>
-                      <Navigation size={18} color="#fff" />
+                      <Navigation size={18} color={colors.surface} />
                       <Text style={s.navBtnText}>{t('mission.viewRoute')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[s.navBtn, { flex: 0.5, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }]} onPress={openNavigation}>
-                      <Text style={[s.navBtnText, { color: '#475569' }]}>{t('mission.openMaps')}</Text>
+                    <TouchableOpacity style={[s.navBtn, { flex: 0.5, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]} onPress={openNavigation}>
+                      <Text style={[s.navBtnText, { color: colors.textSecondary }]}>{t('mission.openMaps')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -477,7 +441,7 @@ function ActiveMission() {
                             state === 'done' && s.timelineDotDone,
                             state === 'active' && s.timelineDotActive,
                           ]} />
-                          {idx < FLOW_STEPS.length - 1 && <View style={s.timelineLine} />}
+                          {idx < FLOW_STEPS.length - 1 && <View style={[s.timelineLine, state === 'done' && s.timelineLineDone]} />}
                         </View>
                         <Text style={[
                           s.timelineLabel,
@@ -525,25 +489,11 @@ function ActiveMission() {
             {/* Médias */}
             {hasValidMedia && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.clientMedia')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {item.media.filter((m: any) => m?.url || m?.uri).map((m: any, i: number) => {
-                      const mediaUrl = resolveMediaUrl(m?.url)
-                      const asImage = mediaUrl && isImageMedia(m?.type, mediaUrl)
-                      return asImage
-                        ? (
-                            <Image key={i} source={{ uri: mediaUrl }} style={s.mediaThumb} />
-                          )
-                        : (
-                            <TouchableOpacity key={i} style={s.mediaFile} onPress={() => openMedia(m?.url)}>
-                              <Text style={s.mediaFileType}>{getMediaLabel(m?.type)}</Text>
-                              <Text style={s.mediaFileText} numberOfLines={2}>{m?.title || t('mission.openMedia')}</Text>
-                            </TouchableOpacity>
-                          )
-                    })}
-                  </View>
-                </ScrollView>
+                <MissionMediaGallery
+                  media={item.media || []}
+                  mediaTitle={t('mission.clientMedia')}
+                  audioLabel={t('mission.voiceMessage') || 'Message vocal'}
+                />
               </View>
             )}
 
@@ -553,13 +503,13 @@ function ActiveMission() {
                 style={s.chatBtn}
                 onPress={() => router.push(`/mission-chat?id=${requestId}`)}
               >
-                <MessageCircle size={18} color="#1D4ED8" />
+                <MessageCircle size={18} color={colors.info} />
                 <Text style={s.chatBtnText}>{t('mission.contactClient')}</Text>
               </TouchableOpacity>
             )}
 
             {/* Actions */}
-            <View style={{ gap: 10, marginTop: 8 }}>
+            <View style={{ gap: spacing.md, marginTop: spacing.md }}>
               {item.status === 'assigned' && (
                 <TouchableOpacity style={[s.actionBtn, s.arrivingBtn]} onPress={handleArriving} disabled={updating}>
                   <Text style={s.arrivingBtnText}>{t('mission.arrivingBtn')}</Text>
@@ -577,7 +527,7 @@ function ActiveMission() {
               )}
               {item.payment?.provider === 'cash' && item.payment?.status === 'held' && item.status === 'completed' && (
                 <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={confirmCashReceived} disabled={updating}>
-                  <CheckCircle size={18} color="#fff" />
+                  <CheckCircle size={18} color={colors.surface} />
                   <Text style={s.completeBtnText}>Confirmer le cash reçu</Text>
                 </TouchableOpacity>
               )}
@@ -590,52 +540,50 @@ function ActiveMission() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  backIcon: { color: '#111827' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  backBtn: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+  headerTitle: { flex: 1, fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   centerBlock: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: 20, paddingBottom: 40, gap: 16 },
-  err: { color: '#DC2626', fontSize: 13, textAlign: 'center' },
-  statusBanner: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center' },
-  statusText: { fontSize: 14, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  cardTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
-  descText: { fontSize: 14, color: '#374151', lineHeight: 22 },
-  meta: { fontSize: 13, color: '#64748B' },
-  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  detailLabel: { fontSize: 13, color: '#64748B' },
-  detailValue: { flex: 1, textAlign: 'right', fontSize: 13, color: '#1E293B', fontWeight: '600' },
-  timeline: { gap: 8 },
+  body: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  loadingBody: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  err: { color: colors.danger, fontSize: typography.base.fontSize, textAlign: 'center' },
+  statusBanner: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  statusBannerDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  cardTitle: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  descText: { fontSize: typography.base.fontSize, color: colors.text, lineHeight: typography.base.lineHeight },
+  meta: { fontSize: typography.sm.fontSize, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  detailLabel: { fontSize: typography.base.fontSize, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  detailValue: { flex: 1, textAlign: 'right', fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  timeline: { gap: spacing.sm },
   timelineRow: { flexDirection: 'row', alignItems: 'flex-start' },
   timelineLeft: { width: 20, alignItems: 'center' },
-  timelineDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#CBD5E1', marginTop: 2 },
-  timelineDotDone: { backgroundColor: '#16A34A' },
-  timelineDotActive: { backgroundColor: '#2563EB' },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginTop: 4, marginBottom: -4 },
-  timelineLabel: { fontSize: 13, color: '#94A3B8', paddingBottom: 10 },
-  timelineLabelActive: { color: '#1E293B', fontWeight: '700' },
-  timelineLabelDone: { color: '#15803D', fontWeight: '600' },
-  mediaThumb: { width: 100, height: 100, borderRadius: 10 },
-  mediaFile: { width: 140, height: 100, borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#F8FAFC', padding: 10, justifyContent: 'center', gap: 4 },
-  mediaFileType: { fontSize: 11, color: '#334155', fontWeight: '700', textTransform: 'uppercase' },
-  mediaFileText: { fontSize: 12, color: '#475569', lineHeight: 16 },
-  actionBtn: { borderRadius: 12, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  startBtn: { backgroundColor: '#0F172A' },
-  startBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  completeBtn: { backgroundColor: '#16A34A' },
-  completeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  chatBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  chatBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
-  arrivingBtn: { backgroundColor: '#E0F2FE', borderWidth: 1, borderColor: '#7DD3FC' },
-  arrivingBtnText: { color: '#0369A1', fontWeight: '700', fontSize: 15 },
-  mapFallback: { backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0', marginTop: 8 },
-  mapFallbackText: { color: '#15803D', fontWeight: '700', fontSize: 14 },
-  routeInfo: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginTop: 8 },
-  routeInfoText: { color: '#1E293B', fontWeight: '700', fontSize: 14 },
-  navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2563EB', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
-  navBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.border, marginTop: 2 },
+  timelineDotDone: { backgroundColor: colors.success },
+  timelineDotActive: { backgroundColor: colors.success },
+  timelineLine: { width: 2, flex: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: -4 },
+  timelineLineDone: { backgroundColor: colors.success },
+  timelineLabel: { fontSize: typography.sm.fontSize, color: colors.textMuted, paddingBottom: 10, fontWeight: typography.weight.medium as any },
+  timelineLabelActive: { color: colors.text, fontWeight: typography.weight.extrabold as any },
+  timelineLabelDone: { color: colors.success, fontWeight: typography.weight.extrabold as any },
+  actionBtn: { borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
+  startBtn: { backgroundColor: colors.navy },
+  startBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
+  completeBtn: { backgroundColor: colors.success },
+  completeBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
+  chatBtn: { backgroundColor: colors.infoLight, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.info, flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
+  chatBtnText: { color: colors.info, fontWeight: typography.weight.extrabold as any, fontSize: typography.base.fontSize },
+  arrivingBtn: { backgroundColor: colors.infoLight, borderWidth: 1, borderColor: colors.info },
+  arrivingBtnText: { color: colors.info, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
+  mapFallback: { backgroundColor: colors.successLight, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.success, marginTop: spacing.md },
+  mapFallbackText: { color: colors.success, fontWeight: typography.weight.extrabold as any, fontSize: typography.base.fontSize },
+  routeInfo: { backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.border, marginTop: spacing.md },
+  routeInfoText: { color: colors.text, fontWeight: typography.weight.extrabold as any, fontSize: typography.base.fontSize },
+  navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.info, borderRadius: radius.lg, paddingVertical: spacing.lg, marginTop: spacing.md },
+  navBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
 })
 
 export default withScreenBoundary(ActiveMission, 'ActiveMission')

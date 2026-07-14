@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native'
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
 import { Navigation } from 'lucide-react-native'
+
+const DEFAULT_FIT_PADDING = { top: 80, right: 60, bottom: 80, left: 60 }
 
 export interface RouteInfo {
   polyline: Array<{ lat: number; lng: number }>
@@ -18,7 +20,10 @@ export interface LiveRouteMapProps {
   status?: string
   mode?: 'driving' | 'walking' | 'bicycling'
   height?: number
+  fitPadding?: { top: number; right: number; bottom: number; left: number }
+  fitTrigger?: number
   onRouteInfo?: (info: { distance: string; duration: string; distanceValue: number; durationValue: number }) => void
+  interactive?: boolean
 }
 
 const ROUTE_REFRESH_MIN_MS = 20000
@@ -81,15 +86,18 @@ function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   return points
 }
 
-export function LiveRouteMap({
+function LiveRouteMapComponent({
   origin,
   destination,
   destinationLabel,
   providerLocation,
   status,
   mode = 'driving',
-  height = 280,
+  height,
+  fitPadding = DEFAULT_FIT_PADDING,
+  fitTrigger,
   onRouteInfo,
+  interactive = true,
 }: LiveRouteMapProps) {
   const { t } = useTranslation()
   const mapRef = useRef<MapView>(null)
@@ -142,7 +150,7 @@ export function LiveRouteMap({
         coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
       }
       mapRef.current?.fitToCoordinates(coords, {
-        edgePadding: { top: 100, right: 100, bottom: 200, left: 100 },
+        edgePadding: fitPadding,
         animated,
       })
       fitToRouteLock.current = false
@@ -256,10 +264,15 @@ export function LiveRouteMap({
     fitToRoute(true)
   }, [route, fitToRoute])
 
+  useEffect(() => {
+    if (!mapRef.current || fitTrigger == null) return
+    fitToRoute(true)
+  }, [fitTrigger, fitToRoute])
+
   const fallbackStats = computeRouteFallback()
 
   return (
-    <View style={[s.outerContainer, { height }]}>
+    <View style={[s.outerContainer, height != null ? { height } : s.outerFlex]}>
       <View style={s.container}>
         <MapView
           ref={mapRef}
@@ -275,6 +288,14 @@ export function LiveRouteMap({
           showsMyLocationButton={false}
           showsCompass={false}
           mapType="standard"
+          maxZoomLevel={15}
+          minDelta={0.01}
+          scrollEnabled={interactive}
+          zoomEnabled={interactive}
+          pitchEnabled={interactive}
+          rotateEnabled={interactive}
+          moveOnMarkerPress={interactive}
+          pointerEvents={interactive ? 'auto' : 'none'}
         >
           <Marker coordinate={{ latitude: destination.lat, longitude: destination.lng }}>
             <View style={s.destinationMarker}>
@@ -341,10 +362,15 @@ export function LiveRouteMap({
   )
 }
 
+export const LiveRouteMap = React.memo(LiveRouteMapComponent)
+
 const s = StyleSheet.create({
   outerContainer: {
     width: '100%',
     minHeight: 200,
+  },
+  outerFlex: {
+    flex: 1,
   },
   container: {
     width: '100%',
@@ -354,7 +380,8 @@ const s = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

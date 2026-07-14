@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput, Alert, ActivityIndicator } from 'react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket } from '../src/socket'
@@ -30,12 +30,13 @@ const MISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: 
 
 function MyOffers() {
   const { t } = useTranslation()
+  const { filter } = useLocalSearchParams<{ filter?: string }>()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'done' | 'pending' | 'counter'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'done' | 'pending' | 'counter'>(filter === 'active' ? 'active' : 'all')
   const [respondLoading, setRespondLoading] = useState<string | null>(null)
 
   const busyRef = useRef(false)

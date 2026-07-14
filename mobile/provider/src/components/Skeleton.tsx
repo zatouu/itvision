@@ -1,4 +1,5 @@
 import { View, StyleSheet } from 'react-native'
+import { colors, radius, spacing, shadows } from '../design'
 
 type Props = {
   width?: number | `${number}%`
@@ -28,7 +29,7 @@ export function SkeletonCard() {
 }
 
 const s = StyleSheet.create({
-  base: { backgroundColor: '#E2E8F0' },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  base: { backgroundColor: colors.border },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 })

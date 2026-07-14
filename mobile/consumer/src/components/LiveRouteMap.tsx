@@ -4,6 +4,8 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'rea
 import { useTranslation } from 'react-i18next'
 import { Navigation } from 'lucide-react-native'
 
+const DEFAULT_FIT_PADDING = { top: 80, right: 60, bottom: 80, left: 60 }
+
 export interface RouteInfo {
   polyline: Array<{ lat: number; lng: number }>
   distance: { text: string; value: number }
@@ -18,6 +20,8 @@ export interface LiveRouteMapProps {
   status?: string
   mode?: 'driving' | 'walking' | 'bicycling'
   height?: number
+  fitPadding?: { top: number; right: number; bottom: number; left: number }
+  fitTrigger?: number
   onRouteInfo?: (info: { distance: string; duration: string; distanceValue: number; durationValue: number }) => void
 }
 
@@ -88,7 +92,9 @@ function LiveRouteMapComponent({
   providerLocation,
   status,
   mode = 'driving',
-  height = 280,
+  height,
+  fitPadding = DEFAULT_FIT_PADDING,
+  fitTrigger,
   onRouteInfo,
 }: LiveRouteMapProps) {
   const { t } = useTranslation()
@@ -144,7 +150,7 @@ function LiveRouteMapComponent({
         coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
       }
       mapRef.current?.fitToCoordinates(coords, {
-        edgePadding: { top: 100, right: 100, bottom: 200, left: 100 },
+        edgePadding: fitPadding,
         animated,
       })
       fitToRouteLock.current = false
@@ -265,10 +271,15 @@ function LiveRouteMapComponent({
     fitToRoute(true)
   }, [route, fitToRoute])
 
+  useEffect(() => {
+    if (!mapRef.current || fitTrigger == null) return
+    fitToRoute(true)
+  }, [fitTrigger, fitToRoute])
+
   const fallbackStats = computeRouteFallback()
 
   return (
-    <View style={[s.outerContainer, { height }]}>
+    <View style={[s.outerContainer, height != null ? { height } : s.outerFlex]}>
       <View style={s.container}>
         <MapView
           ref={mapRef}
@@ -284,6 +295,8 @@ function LiveRouteMapComponent({
           showsMyLocationButton={false}
           showsCompass={false}
           mapType="standard"
+          maxZoomLevel={15}
+          minDelta={0.01}
         >
           <Marker coordinate={{ latitude: destination.lat, longitude: destination.lng }}>
             <View style={s.destinationMarker}>
@@ -354,6 +367,9 @@ const s = StyleSheet.create({
   outerContainer: {
     width: '100%',
     minHeight: 200,
+  },
+  outerFlex: {
+    flex: 1,
   },
   container: {
     width: '100%',

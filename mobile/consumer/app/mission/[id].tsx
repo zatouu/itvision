@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -20,6 +20,9 @@ const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> 
   refunded:  { key: 'mission.paymentRefunded', color: '#991B1B', bg: '#FEF2F2' },
   failed:    { key: 'mission.paymentFailed',   color: '#991B1B', bg: '#FEF2F2' },
 }
+
+const SCREEN_HEIGHT = Dimensions.get('window').height
+const MAP_FIT_PADDING = { top: 120, right: 40, bottom: Math.round(SCREEN_HEIGHT * 0.45), left: 40 }
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
   assigned:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
@@ -247,6 +250,7 @@ function MissionDetail() {
             destinationLabel={loc?.address}
             providerLocation={providerLocation || undefined}
             status={item?.status || 'assigned'}
+            fitPadding={MAP_FIT_PADDING}
             onRouteInfo={setRouteInfo}
           />
 

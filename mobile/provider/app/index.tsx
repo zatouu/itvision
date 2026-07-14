@@ -80,6 +80,16 @@ function Home() {
     } catch (e) {
       console.warn('[Home] dashboard load failed', e)
     }
+    try {
+      const last = await Location.getLastKnownPositionAsync({ maxAge: 120_000, requiredAccuracy: 1000 })
+      if (last) {
+        const { latitude, longitude } = last.coords
+        const m: any = await apiGet(`/api/services/matching?lng=${longitude}&lat=${latitude}&radiusKm=10&excludeMine=true`)
+        setNearbyCount(Array.isArray(m?.items) ? m.items.length : 0)
+      }
+    } catch (e) {
+      console.warn('[Home] nearby count failed', e)
+    }
   }, [])
 
   useEffect(() => {
@@ -177,6 +187,7 @@ function Home() {
             icon={<Briefcase size={22} color={colors.success} />}
             iconBg="#F0FDF4"
             iconColor={colors.success}
+            onPress={() => router.push({ pathname: '/my-offers', params: { filter: 'active' } })}
           />
           <KpiCard
             value={hideRevenue ? '••••• FCFA' : formatMoney(dailyRevenue)}
