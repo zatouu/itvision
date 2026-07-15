@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, Pressable } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -349,74 +349,6 @@ function RequestOffers() {
     }).catch(() => {})
   }, [])
 
-  const viewerMap = useMemo(() => {
-    if (!requestLocation || requestDone) return null
-    return (
-      <View style={s.mapWrap}>
-        <View style={s.mapHeader}>
-          <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
-          <Text style={s.mapTitle}>{t('offers.liveViewers', { count: Object.keys(viewerLocations).length })}</Text>
-        </View>
-        {Platform.OS === 'web' ? (
-          <View style={s.mapPlaceholder}>
-            <Text style={s.mapPlaceholderText}>{t('offers.mapWebViewers')}</Text>
-          </View>
-        ) : (
-          <MapView
-            provider={PROVIDER_DEFAULT}
-            style={s.map}
-            initialRegion={{
-              latitude: requestLocation.lat,
-              longitude: requestLocation.lng,
-              latitudeDelta: 0.05,
-              longitudeDelta: 0.05,
-            }}
-          >
-            {/* Position de la demande */}
-            <Marker
-              coordinate={{ latitude: requestLocation.lat, longitude: requestLocation.lng }}
-              title={t('offers.requestLocation')}
-              pinColor={colors.primary}
-            />
-            {/* Prestataires en live avec statut, distance, ETA */}
-            {Object.entries(viewerLocations)
-              .filter(([, v]) => Number.isFinite(v.lat) && Number.isFinite(v.lng))
-              .map(([key, v]) => {
-                const statusColor = v.status === 'selected' || v.status === 'arriving' || v.status === 'in_progress' ? '#2563EB'
-                  : v.status === 'offered' ? '#0F7B4F'
-                  : v.status === 'viewing' ? '#10B981'
-                  : '#64748B'
-                const label = v.status === 'arriving' ? t('offers.statusArriving')
-                  : v.status === 'in_progress' ? t('offers.statusInProgress')
-                  : v.status === 'selected' ? t('offers.statusSelected')
-                  : v.status === 'offered' ? t('offers.statusOffered')
-                  : v.status === 'viewing' ? t('offers.statusViewing')
-                  : t('offers.viewer')
-                const sub = [v.distanceKm ? `${v.distanceKm} km` : null, v.etaMinutes ? `${v.etaMinutes} min` : null].filter(Boolean).join(' · ')
-                return (
-                  <Marker
-                    key={key}
-                    coordinate={{ latitude: v.lat, longitude: v.lng }}
-                  >
-                    <View style={[s.providerMarker, { borderColor: statusColor }]}>
-                      <Text style={[s.providerMarkerText, { color: statusColor }]}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
-                    </View>
-                    <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
-                    {(sub || label) ? (
-                      <View style={s.providerMarkerCallout}>
-                        <Text style={s.providerMarkerStatus}>{label}</Text>
-                        {!!sub && <Text style={s.providerMarkerSub}>{sub}</Text>}
-                      </View>
-                    ) : null}
-                  </Marker>
-                )
-              })}
-          </MapView>
-        )}
-      </View>
-    )
-  }, [requestLocation?.lat, requestLocation?.lng, requestDone, wsConnected, viewerLocations])
-
   return (
     <SafeAreaView style={s.safe}>
       {/* Header */}
@@ -690,7 +622,13 @@ function RequestOffers() {
       )}
 
       {/* Carte live des prestataires (mise en arrière-plan, offres en priorité) */}
-      {viewerMap}
+      <ViewerMap
+        requestLat={requestLocation?.lat}
+        requestLng={requestLocation?.lng}
+        requestDone={requestDone}
+        wsConnected={wsConnected}
+        viewerLocations={viewerLocations}
+      />
 
       {/* Modal de contre-offre */}
       <Modal
@@ -859,6 +797,87 @@ const s = StyleSheet.create({
   modalBtnCancelText: { color: colors.textSecondary, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   modalBtnSend: { backgroundColor: colors.navy },
   modalBtnSendText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
+})
+
+const ViewerMap = memo(function ViewerMap({
+  requestLat,
+  requestLng,
+  requestDone,
+  wsConnected,
+  viewerLocations,
+}: {
+  requestLat?: number
+  requestLng?: number
+  requestDone: boolean
+  wsConnected: boolean
+  viewerLocations: Record<string, { lat: number; lng: number; name?: string; providerId?: string; lastSeen: number; status?: string; distanceKm?: number; etaMinutes?: number }>
+}) {
+  const { t } = useTranslation()
+  if (requestDone || requestLat == null || requestLng == null || !Number.isFinite(requestLat) || !Number.isFinite(requestLng)) return null
+  return (
+    <View style={s.mapWrap}>
+      <View style={s.mapHeader}>
+        <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
+        <Text style={s.mapTitle}>{t('offers.liveViewers', { count: Object.keys(viewerLocations).length })}</Text>
+      </View>
+      {Platform.OS === 'web' ? (
+        <View style={s.mapPlaceholder}>
+          <Text style={s.mapPlaceholderText}>{t('offers.mapWebViewers')}</Text>
+        </View>
+      ) : (
+        <MapView
+          provider={PROVIDER_DEFAULT}
+          style={s.map}
+          initialRegion={{
+            latitude: requestLat,
+            longitude: requestLng,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }}
+        >
+          {/* Position de la demande */}
+          <Marker
+            coordinate={{ latitude: requestLat, longitude: requestLng }}
+            title={t('offers.requestLocation')}
+            pinColor={colors.primary}
+          />
+          {/* Prestataires en live avec statut, distance, ETA */}
+          {Object.entries(viewerLocations)
+            .filter(([, v]) => Number.isFinite(v.lat) && Number.isFinite(v.lng))
+            .map(([key, v]) => {
+              const statusColor = v.status === 'selected' || v.status === 'arriving' || v.status === 'in_progress' ? '#2563EB'
+                : v.status === 'offered' ? '#0F7B4F'
+                : v.status === 'viewing' ? '#10B981'
+                : '#64748B'
+              const label = v.status === 'arriving' ? t('offers.statusArriving')
+                : v.status === 'in_progress' ? t('offers.statusInProgress')
+                : v.status === 'selected' ? t('offers.statusSelected')
+                : v.status === 'offered' ? t('offers.statusOffered')
+                : v.status === 'viewing' ? t('offers.statusViewing')
+                : t('offers.viewer')
+              const sub = [v.distanceKm ? `${v.distanceKm} km` : null, v.etaMinutes ? `${v.etaMinutes} min` : null].filter(Boolean).join(' · ')
+              return (
+                <Marker
+                  key={key}
+                  coordinate={{ latitude: v.lat, longitude: v.lng }}
+                >
+                  <View style={[s.providerMarker, { borderColor: statusColor }]}>
+                    <Text style={[s.providerMarkerText, { color: statusColor }]}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                  <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
+                  {(sub || label) ? (
+                    <View style={s.providerMarkerCallout}>
+                      <Text style={s.providerMarkerStatus}>{label}</Text>
+                      {!!sub && <Text style={s.providerMarkerSub}>{sub}</Text>}
+                    </View>
+                  ) : null}
+                </Marker>
+              )
+            })}
+        </MapView>
+      )}
+    </View>
+  )
 })
 
 export default withScreenBoundary(RequestOffers, 'RequestOffers')
