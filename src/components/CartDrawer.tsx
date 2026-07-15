@@ -73,9 +73,9 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
       {/* Panel */}
       <div
-        className={`absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-950 shadow-2xl transition-transform ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-950 shadow-2xl transition-transform flex flex-col ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Votre Panier</h3>
           <button
             onClick={onClose}
@@ -87,7 +87,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         {/* Items */}
-        <div className="p-4 space-y-3 overflow-y-auto max-h-[55vh]">
+        <div className="p-4 space-y-3 overflow-y-auto flex-1 min-h-0">
           {items.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400">Votre panier est vide.</p>}
           {items.map(item => (
             <div
@@ -115,7 +115,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-3 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600 dark:text-gray-300">Total</span>
             <span className="text-lg font-bold text-gray-900 dark:text-white">{total.toLocaleString()} Fcfa</span>

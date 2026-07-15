@@ -30,7 +30,6 @@ interface CatalogProduct {
 }
 
 const fmt = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
-const CATS = ['Tous','Tech','Mode','Maison','Beauté','Auto','Brico','Sport','Alimentation']
 const SHIPPING_OPTS = [
   { key:'maritime_60j', label:'Maritime', delay:'~60 j', icon:Factory },
   { key:'air_15j', label:'Aérien', delay:'~15 j', icon:Package },
@@ -45,6 +44,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   const [prodLoading, setProdLoading] = useState(true)
   const [prodSearch, setProdSearch] = useState('')
   const [prodCat, setProdCat] = useState('Tous')
+  const [categories, setCategories] = useState<{ slug: string; name: string }[]>([])
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -105,6 +105,15 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
 
   useEffect(() => {
     let cancelled = false
+    async function fetchCategories() {
+      try {
+        const res = await fetch('/api/catalog/categories')
+        const data = await res.json()
+        if (!cancelled && data?.success && Array.isArray(data.items)) {
+          setCategories(data.items.map((c: any) => ({ slug: String(c.slug || c.id || ''), name: String(c.name || c.labelFr || '') })).filter((c: { slug: string; name: string }) => c.slug && c.name))
+        }
+      } catch { /* silent */ }
+    }
     async function fetchProducts() {
       try {
         setProdLoading(true)
@@ -118,6 +127,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       } catch { /* silent */ }
       finally { if (!cancelled) setProdLoading(false) }
     }
+    fetchCategories()
     fetchProducts()
     return () => { cancelled = true }
   }, [prodSearch, prodCat])
@@ -237,8 +247,9 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <input value={prodSearch} onChange={e=>setProdSearch(e.target.value)} placeholder="Nom du produit..." className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C4DFF]" />
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {CATS.map(c => (
-                      <button key={c} type="button" onClick={()=>setProdCat(c)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${prodCat===c?'bg-[#1A1A2E] text-white':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{c}</button>
+                    <button key="Tous" type="button" onClick={()=>setProdCat('Tous')} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${prodCat==='Tous'?'bg-[#1A1A2E] text-white':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Tous</button>
+                    {categories.map(c => (
+                      <button key={c.slug} type="button" onClick={()=>setProdCat(c.slug)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${prodCat===c.slug?'bg-[#1A1A2E] text-white':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{c.name}</button>
                     ))}
                   </div>
 
@@ -402,7 +413,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                       </div>
                       <div className="space-y-2">
                         {form.priceTiers.map((tier,i)=> (
-                          <div key={i} className="grid grid-cols-4 gap-2 items-center bg-gray-50 rounded-xl p-3">
+                          <div key={i} className="grid grid-cols-2 md:grid-cols-4 gap-2 items-center bg-gray-50 rounded-xl p-3">
                             <div>
                               <span className="text-[10px] text-gray-500">Min</span>
                               <input readOnly value={tier.minQty} className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white text-gray-600" />
@@ -484,7 +495,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                   <div className="bg-gradient-to-r from-[#1A1A2E] to-[#7C4DFF] text-white p-3 flex items-center gap-2 text-xs font-bold">
                     <Eye className="w-4 h-4"/> Aperçu de votre groupe
                   </div>
-                  <div className="p-5 flex gap-5">
+                  <div className="p-5 flex flex-col sm:flex-row gap-5">
                     <div className="w-24 h-24 bg-gray-100 rounded-xl shrink-0 overflow-hidden relative">
                       {form.productImage ? <Image src={form.productImage} alt="" fill className="object-cover"/> : <Package className="w-10 h-10 text-gray-300 absolute inset-0 m-auto"/>}
                     </div>
@@ -492,13 +503,13 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                       <h4 className="font-bold text-lg text-[#1A1A2E] truncate">{form.productName || 'Nom du produit'}</h4>
                       <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 rounded-full text-[10px] font-semibold text-gray-600">{form.productCategory}</span>
                       <p className="text-xs text-gray-500 mt-1 line-clamp-2">{form.productDescription}</p>
-                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-600 flex-wrap">
                         <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> 0/{form.targetQty}</span>
                         <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5"/> {form.shippingMethod==='maritime_60j'?'Maritime':form.shippingMethod==='air_15j'?'Aérien':'Express'}</span>
                         {form.deadline && <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5"/> {getDays(form.deadline)}j</span>}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 sm:mt-0 mt-2">
                       <div className="text-sm text-gray-400 line-through">{fmt(form.productBasePrice)}</div>
                       <div className="text-xl font-bold text-[#00C853]">{fmt(estimatedUnitPrice)}</div>
                       <div className="text-xs font-bold text-[#FF5252]">-{savingsPct}%</div>

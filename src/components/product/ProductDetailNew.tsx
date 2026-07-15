@@ -10,11 +10,10 @@ import {
   MessageCircle, ShoppingCart, Star, Plane, Ship, Lock, RefreshCw,
 } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
-import { BASE_SHIPPING_RATES, type ShippingMethodId } from '@/lib/logistics'
 import { useToast } from '@/components/ui/Toaster'
 
 import {
-  ProductDetailData, SimilarProductSummary, getProductStats,
+  ProductDetailData, SimilarProductSummary,
   formatCurrency,
 } from './types'
 import ProductGallery from './ProductGallery'
@@ -56,9 +55,11 @@ function LoaderSpinner() {
   return <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
 }
 
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '221774133440'
+
 export default function ProductDetailNew({ product, similar }: Props) {
   const { addToast } = useToast()
-  const baseGallery = product.gallery?.length ? product.gallery : [product.image || '/file.svg']
+  const baseGallery = product.gallery?.length ? product.gallery : [product.image || '/placeholder.svg']
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     product.variantGroups?.forEach(g => { const d = g.variants.find(v => v.isDefault) || g.variants[0]; if (d) initial[g.name] = d.id })
@@ -76,16 +77,33 @@ export default function ProductDetailNew({ product, similar }: Props) {
   const [activeTab, setActiveTab] = useState<'description'|'specs'|'shipping'|'reviews'>('description')
   const [showPriceDetails, setShowPriceDetails] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [productReviewStats, setProductReviewStats] = useState<{ rating: number; reviewCount: number }>({ rating: 0, reviewCount: 0 })
 
-  const stats = useMemo(() => getProductStats(product.id), [product.id])
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/reviews?productId=${encodeURIComponent(product.id)}&limit=1`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!cancelled && d?.success && d?.stats) {
+          setProductReviewStats({ rating: d.stats.avgRating || 0, reviewCount: d.stats.total || 0 })
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [product.id])
+
+  const stats = useMemo(() => ({
+    rating: productReviewStats.rating,
+    reviewCount: productReviewStats.reviewCount,
+    soldToday: 0,
+    liveViewers: 0,
+  }), [productReviewStats])
 
   const gallery = useMemo(() => {
     const vi = product.variantGroups?.flatMap(g => g.variants).find(v => Object.values(selectedVariants).includes(v.id))?.image
     return (vi && !baseGallery.includes(vi)) ? [vi, ...baseGallery] : baseGallery
   }, [selectedVariants, product.variantGroups, baseGallery])
 
-  const unitWeightKg = product?.logistics?.weightKg ?? null
-  const unitVolumeM3 = product?.logistics?.volumeM3 ?? null
   const baseUnitPrice = product.pricing.totalWithFees ?? product.pricing.salePrice ?? 0
   const originalPrice = product.pricing.baseCost ? Math.round(baseUnitPrice * 1.35) : null
   const discountPercent = originalPrice ? Math.round((1 - baseUnitPrice / originalPrice) * 100) : 0
@@ -105,18 +123,14 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
   const shippingEstimate = useMemo(() => {
     if (!selectedShippingId) return null
-    const rate = BASE_SHIPPING_RATES[selectedShippingId as ShippingMethodId]
-    if (!rate) return null
-    if (rate.billing === 'per_kg' && unitWeightKg) {
-      const totalWeight = unitWeightKg * quantity
-      return { cost: Math.max(totalWeight * rate.rate, rate.minimumCharge || 0), label: `${totalWeight.toFixed(2)} kg`, method: rate.label }
+    const opt = product.pricing.shippingOptions.find((s: any) => s.id === selectedShippingId)
+    if (!opt) return null
+    return {
+      cost: (opt.cost || 0) * quantity,
+      method: opt.label,
+      label: `${quantity} unité${quantity > 1 ? 's' : ''}`,
     }
-    if (rate.billing === 'per_cubic_meter' && unitVolumeM3) {
-      const totalVolume = unitVolumeM3 * quantity
-      return { cost: Math.max(totalVolume * rate.rate, rate.minimumCharge || 0), label: `${totalVolume.toFixed(3)} m³`, method: rate.label }
-    }
-    return null
-  }, [selectedShippingId, quantity, unitWeightKg, unitVolumeM3])
+  }, [selectedShippingId, quantity, product.pricing.shippingOptions])
 
   const grandTotal = totalProductPrice + (shippingEstimate?.cost ?? 0)
 
@@ -214,7 +228,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
   const whatsappUrl = () => {
     const selectedList = (product.variantGroups ?? []).flatMap(g => { const vid = selectedVariants[g.name]; if (!vid) return []; const v = g.variants.find(x => x.id === vid); return v ? [v.name] : [] })
     const variantInfo = selectedList.length > 0 ? `\nVariante: ${selectedList.join(' · ')}` : ''
-    return `https://wa.me/221774133440?text=${encodeURIComponent(`Bonjour, je souhaite un devis pour: ${product.name}.${variantInfo}\nQuantité: ${quantity}.\nMerci de me recontacter.`)}`
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Bonjour, je souhaite un devis pour: ${product.name}.${variantInfo}\nQuantité: ${quantity}.\nMerci de me recontacter.`)}`
   }
 
   const getShippingIcon = (id?: string) => { if (!id) return Plane; if (id.includes('sea')) return Ship; if (id.includes('truck')) return Truck; return Plane }
@@ -223,7 +237,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
     { id: 'description' as const, label: 'Description' },
     { id: 'specs' as const, label: 'Spécifications' },
     { id: 'shipping' as const, label: 'Expédition' },
-    { id: 'reviews' as const, label: `Avis (${stats.reviewCount})` },
+    { id: 'reviews' as const, label: `Avis${stats.reviewCount > 0 ? ` (${stats.reviewCount})` : ''}` },
   ]
 
   return (
@@ -273,7 +287,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
                           <div key={opt.id} className={clsx("p-3 rounded-lg border", selectedShippingId === opt.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800')}>
                             <div className="flex items-center gap-2 mb-1"><Icon className="w-4 h-4 text-gray-500 dark:text-slate-400" /><span className="font-medium text-gray-900 dark:text-slate-200">{opt.label}</span></div>
                             <p className="text-xs text-gray-500 dark:text-slate-400">{opt.deliveryDays ? `${opt.deliveryDays} jours` : 'Délai variable'}</p>
-                            <p className="text-sm font-bold text-emerald-600 mt-1">{opt.price ? `${opt.price.toLocaleString('fr-FR')} FCFA` : 'Sur devis'}</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-1">{typeof opt.cost === 'number' ? `${opt.cost.toLocaleString('fr-FR')} FCFA` : 'Sur devis'}</p>
                           </div>
                         )
                       })}
@@ -288,53 +302,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
                   </div>
                 )}
                 {activeTab === 'reviews' && (
-                  <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="text-4xl font-bold text-emerald-600">{stats.rating}</div>
-                        <div>
-                          <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={s <= Math.round(stats.rating) ? "w-4 h-4 text-amber-400 fill-amber-400" : "w-4 h-4 text-gray-300 dark:text-slate-600"} />)}</div>
-                          <p className="text-sm text-gray-500 dark:text-slate-400">{stats.reviewCount} avis vérifiés</p>
-                        </div>
-                      </div>
-                      <div className="flex-1 max-w-xs">
-                        {[5,4,3,2,1].map(star => {
-                          const pct = star === 5 ? 68 : star === 4 ? 22 : star === 3 ? 7 : star === 2 ? 2 : 1
-                          return (
-                            <div key={star} className="flex items-center gap-2 text-xs">
-                              <span className="w-3 text-gray-500 dark:text-slate-400">{star}</span>
-                              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                              <div className="flex-1 h-1.5 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="w-8 text-right text-gray-400 dark:text-slate-500">{pct}%</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                    {[
-                      { name: 'Amadou B.', rating: 5, date: 'il y a 3 jours', text: 'Excellent produit, conforme à la description. Qualité au rendez-vous et livraison rapide Dakar.' },
-                      { name: 'Fatima N.', rating: 5, date: 'il y a 1 semaine', text: 'Produit conforme, livraison rapide. Je recommande pour les achats professionnels.' },
-                      { name: 'Omar S.', rating: 4, date: 'il y a 2 semaines', text: 'Très satisfait de mon achat, rapport qualité-prix excellent. Service client réactif.' },
-                    ].map((review, i) => (
-                      <div key={i} className="border-b border-gray-100 dark:border-slate-700 pb-4 mb-4 last:border-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-violet-400 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                            {review.name.split(' ').map(n => n[0]).join('')}
-                          </div>
-                          <span className="text-sm font-medium text-gray-900 dark:text-slate-200">{review.name}</span>
-                          <span className="text-xs text-gray-400 dark:text-slate-500">{review.date}</span>
-                          <span className="text-xs text-emerald-600 font-medium ml-auto">Achat vérifié</span>
-                        </div>
-                        <div className="flex items-center gap-0.5 mb-1">
-                          {[1,2,3,4,5].map(s => <Star key={s} className={s <= review.rating ? "w-3 h-3 text-amber-400 fill-amber-400" : "w-3 h-3 text-gray-300 dark:text-slate-600"} />)}
-                        </div>
-                        <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">{review.text}</p>
-                      </div>
-                    ))}
-                    <button className="w-full py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center justify-center gap-1"><ChevronDown className="w-4 h-4" />Voir tous les avis</button>
-                  </div>
+                  <ProductReviews productId={product.id} />
                 )}
               </div>
             </div>
@@ -347,7 +315,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
                   {similar.slice(0, 3).map((item, i) => (
                     <Link key={item.id} href={`/produits/${item.id}`} className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 hover:border-emerald-300 hover:shadow-md transition group">
                       <div className="relative w-16 h-16 flex-shrink-0 bg-gray-50 dark:bg-slate-700 rounded-lg overflow-hidden">
-                        <Image src={item.image || '/file.svg'} alt={item.name} fill className="object-cover p-1 group-hover:scale-105 transition" sizes="64px" />
+                        <Image src={item.image || '/placeholder.svg'} alt={item.name} fill className="object-cover p-1 group-hover:scale-105 transition" sizes="64px" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-medium text-gray-900 dark:text-slate-200 line-clamp-2">{item.name}</h4>
@@ -369,7 +337,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {similar.slice(0, 6).map(item => (
                     <Link key={item.id} href={`/produits/${item.id}`} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden hover:border-emerald-300 hover:shadow-md transition group flex flex-col">
-                      <div className="relative aspect-square bg-gray-50 dark:bg-slate-700"><Image src={item.image || '/file.svg'} alt={item.name} fill className="object-cover p-3 group-hover:scale-105 transition" sizes="(max-width: 640px) 50vw, 33vw" /></div>
+                      <div className="relative aspect-square bg-gray-50 dark:bg-slate-700"><Image src={item.image || '/placeholder.svg'} alt={item.name} fill className="object-cover p-3 group-hover:scale-105 transition" sizes="(max-width: 640px) 50vw, 33vw" /></div>
                       <div className="p-3 flex-1 flex flex-col">
                         <h4 className="text-sm font-medium text-gray-900 dark:text-slate-200 line-clamp-2 mb-1">{item.name}</h4>
                         <div className="mt-auto flex items-center justify-between">
@@ -406,14 +374,17 @@ export default function ProductDetailNew({ product, similar }: Props) {
                 </div>
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-slate-200 leading-tight">{product.name}</h1>
                 {product.tagline && <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{product.tagline}</p>}
-                <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
-                  <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={s <= Math.round(stats.rating) ? "w-3.5 h-3.5 text-amber-400 fill-amber-400" : "w-3.5 h-3.5 text-gray-300 dark:text-slate-600"} />)}<span className="font-medium ml-1">{stats.rating}</span></div>
-                  <span className="text-gray-300 dark:text-slate-600">·</span><span className="text-gray-600 dark:text-slate-400">{stats.reviewCount} avis</span>
-                  <span className="text-gray-300 dark:text-slate-600">·</span><span className="text-gray-600 dark:text-slate-400">{stats.soldToday} vendus aujourd'hui</span>
-                </div>
+                {(stats.rating > 0 || stats.reviewCount > 0) && (
+                  <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
+                    {stats.rating > 0 && (
+                      <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={s <= Math.round(stats.rating) ? "w-3.5 h-3.5 text-amber-400 fill-amber-400" : "w-3.5 h-3.5 text-gray-300 dark:text-slate-600"} />)}<span className="font-medium ml-1">{stats.rating}</span></div>
+                    )}
+                    {stats.reviewCount > 0 && (
+                      <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-gray-600 dark:text-slate-400">{stats.reviewCount} avis</span></>
+                    )}
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                  <span className="text-emerald-600 flex items-center gap-1"><Eye className="w-3 h-3" />{stats.liveViewers} personnes regardent</span>
-                  <span className="text-orange-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" />{stats.soldToday} commandes aujourd'hui</span>
                   {product.availability.stockQuantity > 0 && product.availability.stockQuantity < 20 && (<span className="text-red-600 flex items-center gap-1 font-medium">⚠️ Plus que {product.availability.stockQuantity} en stock</span>)}
                   {product.availability.stockQuantity > 0 && product.availability.stockQuantity >= 20 && (<span className="text-emerald-600 flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> En stock</span>)}
                 </div>
@@ -470,22 +441,22 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
               {/* Group Buy Banner */}
               {product.groupBuyEnabled && (
-                <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-slate-800 via-violet-700 to-indigo-600 p-4 text-white shadow-md overflow-hidden relative">
-                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl" />
+                <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-500 to-teal-600 p-3 text-white shadow-sm overflow-hidden relative">
+                  <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
                   <div className="relative flex items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
-                        <TrendingUp className="h-5 w-5 text-white" />
+                      <div className="w-8 h-8 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-4 w-4 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-sm truncate">Achat groupé activé</p>
-                        <p className="text-[11px] text-white/80 truncate">
+                        <p className="font-bold text-xs truncate">Achat groupé activé</p>
+                        <p className="text-[10px] text-white/80 truncate">
                           Dès {product.groupBuyMinQty ?? 5} personnes · Objectif {product.groupBuyTargetQty ?? 20} unités
                         </p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold">{formatCurrency(product.groupBuyBestPrice)}</p>
+                      <p className="text-xs font-bold">{formatCurrency(product.groupBuyBestPrice)}</p>
                       <p className="text-[10px] text-white/80">/unité en groupe</p>
                     </div>
                   </div>
@@ -500,18 +471,18 @@ export default function ProductDetailNew({ product, similar }: Props) {
                       {product.groupBuyDiscount ? `-${Math.round(product.groupBuyDiscount)}% de réduction` : ''}
                     </p>
                   </div>
-                  <div className="relative mt-3 flex gap-2">
+                  <div className="relative mt-2 flex gap-2">
                     <Link
                       href={`/achats-groupes?productId=${product.id}`}
-                      className="flex-1 text-center bg-white text-violet-700 hover:bg-white/90 text-sm font-bold py-2 rounded-lg transition"
+                      className="flex-1 text-center bg-white text-emerald-700 hover:bg-white/90 text-xs font-bold py-1.5 rounded-lg transition"
                     >
-                      Rejoindre un groupe
+                      Rejoindre
                     </Link>
                     <Link
                       href={`/achats-groupes/nouveau?productId=${product.id}`}
-                      className="flex-1 text-center bg-white/15 hover:bg-white/25 text-white text-sm font-bold py-2 rounded-lg transition"
+                      className="flex-1 text-center bg-white/15 hover:bg-white/25 text-white text-xs font-bold py-1.5 rounded-lg transition"
                     >
-                      Créer un groupe
+                      Créer
                     </Link>
                   </div>
                 </div>
@@ -551,7 +522,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
                       <button key={opt.id} onClick={() => setSelectedShippingId(opt.id)} className={clsx("w-full flex items-center gap-3 p-3 rounded-lg border-2 transition text-left", selectedShippingId === opt.id ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" : "border-gray-200 dark:border-slate-700 hover:border-emerald-300")}>
                         <Icon className="w-5 h-5 text-gray-500 dark:text-slate-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 dark:text-slate-200">{opt.label}</p><p className="text-xs text-gray-500 dark:text-slate-400">{opt.deliveryDays ? `${opt.deliveryDays} jours` : 'Délai variable'}</p></div>
-                        <span className="text-sm font-bold text-emerald-600 flex-shrink-0">{opt.price ? `${opt.price.toLocaleString('fr-FR')} F` : 'Sur devis'}</span>
+                        <span className="text-sm font-bold text-emerald-600 flex-shrink-0">{typeof opt.cost === 'number' ? `${opt.cost.toLocaleString('fr-FR')} F` : 'Sur devis'}</span>
                       </button>
                     )
                   })}
@@ -576,32 +547,32 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
               {/* CTAs */}
               <div className="space-y-2">
-                <div className="flex items-stretch gap-2 h-9">
+                <div className="flex items-stretch gap-2 h-8">
                   <button
                     onClick={() => addToCart(false)}
                     disabled={adding}
-                    className="flex-1 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-800 text-orange-600 text-xs font-medium transition hover:bg-orange-50 dark:hover:bg-orange-950/30 disabled:bg-gray-100 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-slate-500 flex items-center justify-center gap-1"
+                    className="flex-1 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-800 text-orange-600 text-[11px] font-medium transition hover:bg-orange-50 dark:hover:bg-orange-950/30 disabled:bg-gray-100 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-slate-500 flex items-center justify-center gap-1"
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Ajouter au panier</span>
+                    <span className="hidden sm:inline">Panier</span>
                     <span className="sm:hidden">Panier</span>
                   </button>
                   <button
                     onClick={() => addToCart(true)}
                     disabled={adding}
-                    className="flex-[1.35] rounded-lg bg-emerald-500 text-white text-xs font-semibold transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-1 shadow-sm"
+                    className="flex-[1.35] rounded-lg bg-emerald-500 text-white text-[11px] font-semibold transition hover:bg-emerald-600 disabled:bg-gray-400 flex items-center justify-center gap-1 shadow-sm"
                   >
-                    {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-3.5 h-3.5" />Acheter maintenant</>}
+                    {adding ? <LoaderSpinner /> : <><ShoppingCart className="w-3.5 h-3.5" />Acheter</>}
                   </button>
                 </div>
                 <a
                   href={whatsappUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full h-8 border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition"
+                  className="w-full h-7 border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1 transition"
                 >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  Demander via WhatsApp
+                  <MessageCircle className="w-3 h-3" />
+                  WhatsApp
                 </a>
               </div>
 
@@ -634,11 +605,6 @@ export default function ProductDetailNew({ product, similar }: Props) {
           </div>
 
         </div>
-      </div>
-
-      {/* Reviews */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ProductReviews productId={product.id} />
       </div>
 
       <MobileBottomBar comboPrice={comboPrice} onWhatsApp={() => window.open(whatsappUrl(), '_blank')} onAddToCart={() => addToCart(false)} onBuyNow={() => addToCart(true)} />

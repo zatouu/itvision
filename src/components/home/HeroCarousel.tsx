@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -22,6 +22,7 @@ export default function HeroCarousel() {
   const [hovered, setHovered] = useState(false)
   const [pool, setPool] = useState<string[]>([])
   const [broken, setBroken] = useState<Record<string, number>>({})
+  const touchStartX = useRef<number | null>(null)
 
   // Fetch catalog images on mount
   useEffect(() => {
@@ -60,11 +61,22 @@ export default function HeroCarousel() {
       const idx = (current * 4 + slot + offset) % pool.length
       return pool[idx]
     }
-    return fallbackImages[slot] || '/file.svg'
+    return fallbackImages[slot] || '/placeholder.svg'
   }
 
   const handleError = (slot: number) => {
     setBroken(prev => ({ ...prev, [`${current}-${slot}`]: (prev[`${current}-${slot}`] || 0) + 1 }))
+  }
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current == null) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) next()
+      else prev()
+    }
+    touchStartX.current = null
   }
 
   return (
@@ -72,8 +84,10 @@ export default function HeroCarousel() {
       className="relative w-full overflow-hidden bg-slate-900"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
-      <div className="h-[340px] sm:h-[420px] md:h-[520px] relative">
+      <div className="h-[280px] sm:h-[400px] md:h-[520px] relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={current}

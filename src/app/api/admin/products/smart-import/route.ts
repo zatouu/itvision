@@ -345,7 +345,7 @@ export async function POST(req: NextRequest) {
           features,
           category: raw.category || 'Catalogue import Chine',
           tags: raw.tags || ['import-chine'],
-          image: finalImages[0] || '/file.svg',
+          image: finalImages[0] || '/placeholder.svg',
           gallery: finalImages,
           descriptionImages: cleanDescriptionImages,
           price,

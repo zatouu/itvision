@@ -21,6 +21,14 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
   const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 })
   const [showLightbox, setShowLightbox] = useState(false)
   const imageRef = useRef<HTMLDivElement>(null)
+  const touchStartX = useRef<number | null>(null)
+
+  const setIndex = useCallback((i: number) => {
+    setActiveImageIndex((i + gallery.length) % gallery.length)
+  }, [gallery.length])
+
+  const nextImage = useCallback(() => setIndex(activeImageIndex + 1), [activeImageIndex, setIndex])
+  const prevImage = useCallback(() => setIndex(activeImageIndex - 1), [activeImageIndex, setIndex])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -32,6 +40,17 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
 
   const activeMedia = gallery[activeImageIndex] || ''
   const isVideo = isVideoUrl(activeMedia)
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current == null || gallery.length <= 1) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) nextImage()
+      else prevImage()
+    }
+    touchStartX.current = null
+  }
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
@@ -49,9 +68,11 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
             onMouseLeave={() => setIsZoomed(false)}
             onMouseMove={handleMouseMove}
             onClick={() => setShowLightbox(true)}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
           >
             <Image
-              src={activeMedia || '/file.svg'}
+              src={activeMedia || '/placeholder.svg'}
               alt={productName}
               fill
               className={clsx(
@@ -158,7 +179,7 @@ export default function ProductGallery({ productName, gallery, isImported, isFav
             <video src={gallery[activeImageIndex]} controls autoPlay className="max-w-full max-h-[90vh]" onClick={e => e.stopPropagation()} />
           ) : (
             <Image
-              src={gallery[activeImageIndex] || '/file.svg'}
+              src={gallery[activeImageIndex] || '/placeholder.svg'}
               alt={productName}
               width={1200}
               height={1200}

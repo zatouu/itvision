@@ -318,10 +318,10 @@ export async function GET(request: NextRequest) {
          description: product.description ?? null,
          category: product.category ?? null,
          condition: product.condition ?? 'new',
-         image: product.image ?? '/file.svg',
+         image: product.image ?? '/placeholder.svg',
          gallery: Array.isArray(product.gallery) && product.gallery.length > 0
            ? product.gallery
-           : [product.image ?? '/file.svg'],
+           : [product.image ?? '/placeholder.svg'],
          features: Array.isArray(product.features) ? product.features : [],
          requiresQuote: product.requiresQuote ?? false,
          availability: {

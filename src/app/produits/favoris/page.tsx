@@ -427,7 +427,7 @@ export default function WishlistPage() {
                       deliveryDays={product.deliveryDays || 0}
                       features={product.features && product.features.length ? product.features.filter(Boolean) : [product.description]}
                       rating={product.rating || 4.7}
-                      images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/file.svg']}
+                      images={product.gallery && product.gallery.length ? product.gallery : [product.image || '/placeholder.svg']}
                       shippingOptions={product.shippingOptions}
                       availabilityStatus={product.availabilityStatus}
                       detailHref={`/produits/${pid}`}

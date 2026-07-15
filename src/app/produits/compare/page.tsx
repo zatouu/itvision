@@ -218,7 +218,7 @@ function CompareContent() {
                       <div className="flex flex-col items-center gap-3">
                         <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                           <Image
-                            src={product.image || '/file.svg'}
+                            src={product.image || '/placeholder.svg'}
                             alt={product.name}
                             fill
                             className="object-contain p-2"

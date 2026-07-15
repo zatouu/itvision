@@ -355,7 +355,7 @@ export default function ProductCard({
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 dark:bg-gray-800">
         <Image
-          src={images[activeIndex] || images[0] || '/file.svg'}
+          src={images[activeIndex] || images[0] || '/placeholder.svg'}
           alt={name}
           fill
           className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"

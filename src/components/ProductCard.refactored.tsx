@@ -80,7 +80,7 @@ export default function ProductCard({
   const imagesList = useMemo(() => {
     if (gallery.length > 0) return gallery
     if (image) return [image]
-    return ['/file.svg']
+    return ['/placeholder.svg']
   }, [gallery, image])
 
   // Badge nouveau
@@ -183,7 +183,7 @@ export default function ProductCard({
       {/* Image avec badges */}
       <div className="relative aspect-square bg-gray-100 overflow-hidden">
         <Image
-          src={imagesList[activeIndex] || '/file.svg'}
+          src={imagesList[activeIndex] || '/placeholder.svg'}
           alt={name}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-300"

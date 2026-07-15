@@ -58,38 +58,32 @@ const SORT_OPTIONS = [
   { label: 'Plus de participants', key: 'participants' },
 ]
 
-/* ─── Mock Data ─── */
-const MOCK_F: GroupOrder[] = [
-  { groupId:'GRP-001', status:'open', product:{productId:'p1',name:'iPhone reconditionné 128GB',image:'/file.svg',basePrice:245000,currency:'FCFA',category:'Électronique'}, minQty:5,targetQty:50,currentQty:47,currentUnitPrice:178000, priceTiers:[{minQty:10,price:210000},{minQty:25,price:195000},{minQty:50,price:178000}], participants:[{name:'Ahmed D.',qty:5},{name:'Fatou S.',qty:3},{name:'Moussa K.',qty:8},{name:'Aminata B.',qty:2}], deadline:new Date(Date.now()+2*24*60*60*1000).toISOString(), progress:94, daysLeft:2, isAlmostFull:true, isPopular:true, isNew:false, savingsPercent:27, participantCount:42 },
-  { groupId:'GRP-002', status:'open', product:{productId:'p2',name:'Set palette make-up pro',image:'/file.svg',basePrice:12500,currency:'FCFA',category:'Beauté'}, minQty:10,targetQty:50,currentQty:28,currentUnitPrice:8900, priceTiers:[{minQty:10,price:11000},{minQty:30,price:9500},{minQty:50,price:8900}], participants:[{name:'Omar N.',qty:4},{name:'Sophie L.',qty:5}], deadline:new Date(Date.now()+5*24*60*60*1000).toISOString(), progress:56, daysLeft:5, isAlmostFull:false, isPopular:true, isNew:true, savingsPercent:29, participantCount:24 },
-  { groupId:'GRP-003', status:'open', product:{productId:'p3',name:'Sneakers tendance unisex',image:'/file.svg',basePrice:22000,currency:'FCFA',category:'Mode'}, minQty:8,targetQty:40,currentQty:8,currentUnitPrice:15500, priceTiers:[{minQty:8,price:18000},{minQty:20,price:16500},{minQty:40,price:15500}], participants:[{name:'Khalil M.',qty:3}], deadline:new Date(Date.now()+10*24*60*60*1000).toISOString(), progress:20, daysLeft:10, isAlmostFull:false, isPopular:false, isNew:true, savingsPercent:30, participantCount:5 }
-]
-
-const MOCK_G: GroupOrder[] = [
-  { groupId:'GRP-004', status:'open', product:{productId:'p4',name:'Smartwatch Pro Sport GPS',image:'/file.svg',basePrice:55000,currency:'FCFA',category:'Tech'}, minQty:12,targetQty:30,currentQty:18,currentUnitPrice:32000, priceTiers:[], participants:[], deadline:new Date(Date.now()+5*24*60*60*1000).toISOString(), progress:60, daysLeft:5, savingsPercent:42, participantCount:2 },
-  { groupId:'GRP-005', status:'open', product:{productId:'p5',name:'Parfums premium lots',image:'/file.svg',basePrice:32000,currency:'FCFA',category:'Beauté'}, minQty:15,targetQty:60,currentQty:28,currentUnitPrice:19000, priceTiers:[], participants:[], deadline:new Date(Date.now()+8*24*60*60*1000).toISOString(), progress:47, daysLeft:8, savingsPercent:41, participantCount:2 },
-  { groupId:'GRP-006', status:'open', product:{productId:'p6',name:'GPS tracker voiture',image:'/file.svg',basePrice:42000,currency:'FCFA',category:'Auto'}, minQty:10,targetQty:45,currentQty:24,currentUnitPrice:28000, priceTiers:[], participants:[], deadline:new Date(Date.now()+6*24*60*60*1000).toISOString(), progress:53, daysLeft:6, savingsPercent:33, participantCount:3 },
-  { groupId:'GRP-007', status:'filled', product:{productId:'p7',name:'Air fryer nouveauté',image:'/file.svg',basePrice:65000,currency:'FCFA',category:'Maison'}, minQty:8,targetQty:40,currentQty:40,currentUnitPrice:39000, priceTiers:[], participants:[], deadline:new Date(Date.now()+3*24*60*60*1000).toISOString(), progress:100, daysLeft:3, savingsPercent:40, participantCount:5 },
-  { groupId:'GRP-008', status:'open', product:{productId:'p8',name:'Enceinte Bluetooth Waterproof',image:'/file.svg',basePrice:22000,currency:'FCFA',category:'Tech'}, minQty:15,targetQty:60,currentQty:28,currentUnitPrice:12000, priceTiers:[], participants:[], deadline:new Date(Date.now()+8*24*60*60*1000).toISOString(), progress:47, daysLeft:8, savingsPercent:45, participantCount:2 },
-  { groupId:'GRP-009', status:'open', product:{productId:'p9',name:'Sacs à main Cuir PU',image:'/file.svg',basePrice:28000,currency:'FCFA',category:'Mode'}, minQty:20,targetQty:50,currentQty:22,currentUnitPrice:14500, priceTiers:[], participants:[], deadline:new Date(Date.now()+12*24*60*60*1000).toISOString(), progress:44, daysLeft:12, savingsPercent:48, participantCount:2 },
-  { groupId:'GRP-010', status:'open', product:{productId:'p10',name:'Lampes LED Solaires',image:'/file.svg',basePrice:18000,currency:'FCFA',category:'Maison'}, minQty:25,targetQty:80,currentQty:34,currentUnitPrice:8500, priceTiers:[], participants:[], deadline:new Date(Date.now()+10*24*60*60*1000).toISOString(), progress:43, daysLeft:10, savingsPercent:53, participantCount:2 },
-  { groupId:'GRP-011', status:'open', product:{productId:'p11',name:'Écran LED Ultra Slim',image:'/file.svg',basePrice:145000,currency:'FCFA',category:'Tech'}, minQty:5,targetQty:20,currentQty:7,currentUnitPrice:98000, priceTiers:[], participants:[], deadline:new Date(Date.now()+14*24*60*60*1000).toISOString(), progress:35, daysLeft:14, savingsPercent:32, participantCount:1 },
-  { groupId:'GRP-012', status:'open', product:{productId:'p12',name:'Tondeuse électrique pro',image:'/file.svg',basePrice:18000,currency:'FCFA',category:'Beauté'}, minQty:20,targetQty:50,currentQty:12,currentUnitPrice:9500, priceTiers:[], participants:[], deadline:new Date(Date.now()+9*24*60*60*1000).toISOString(), progress:24, daysLeft:9, savingsPercent:47, participantCount:2 },
-  { groupId:'GRP-013', status:'open', product:{productId:'p13',name:'Chaussures bébé lot',image:'/file.svg',basePrice:15000,currency:'FCFA',category:'Mode'}, minQty:30,targetQty:100,currentQty:45,currentUnitPrice:6500, priceTiers:[], participants:[], deadline:new Date(Date.now()+7*24*60*60*1000).toISOString(), progress:45, daysLeft:7, savingsPercent:57, participantCount:3 }
-]
-
-const CATS = ['Tous','Mode','Beauté','Maison','Électronique','Auto']
-
 export default function GroupOrdersPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Tous')
+  const [categories, setCategories] = useState<string[]>(['Tous'])
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0])
   const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [calcQty, setCalcQty] = useState(50)
   const [calcDiscount, setCalcDiscount] = useState(45)
   const [calcSoloPrice, setCalcSoloPrice] = useState(50000)
   const [calcTransport, setCalcTransport] = useState<'maritime'|'air'|'express'>('maritime')
+
+  // Chargement des catégories depuis l'API
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/catalog/categories')
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled && data?.success && Array.isArray(data.items)) {
+          const names = data.items.map((c: any) => c.labelFr || c.name).filter(Boolean)
+          setCategories(['Tous', ...names])
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   /* ─── API Data ─── */
   const [groups, setGroups] = useState<GroupOrder[]>([])
@@ -117,9 +111,8 @@ export default function GroupOrdersPage() {
       } catch {
         if (!cancelled) {
           setApiError(true)
-          const enriched = [...MOCK_F, ...MOCK_G].map(g => enrichGroup(g as unknown as ApiGroupOrder))
-          setGroups(enriched)
-          setStats({ totalOpen: 12, totalFilled: 1, totalParticipants: 847 })
+          setGroups([])
+          setStats({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -304,7 +297,7 @@ export default function GroupOrdersPage() {
       </section>
 
       {/* SEARCH & FILTERS */}
-      <section className="sticky top-16 z-30 bg-white dark:bg-slate-900 py-6 shadow-sm border-b border-gray-100 dark:border-slate-800">
+      <section className="sticky top-20 md:top-28 z-30 bg-white dark:bg-slate-900 py-6 shadow-sm border-b border-gray-100 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4">
           <div className="relative max-w-3xl mx-auto mb-4">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -312,9 +305,9 @@ export default function GroupOrdersPage() {
           </div>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex flex-wrap gap-3 justify-center">
-              {CATS.map((cat)=>(
+              {categories.map((cat) => (
                 <button key={cat} onClick={()=>setCategoryFilter(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${categoryFilter===cat?'bg-[#1A1A2E] text-white dark:bg-slate-700':'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
-                  {cat}{cat==='Tous'?' (24)':''}
+                  {cat}
                 </button>
               ))}
             </div>

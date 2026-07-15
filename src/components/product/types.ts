@@ -96,16 +96,6 @@ export interface SimilarProductSummary {
   deliveryDays?: number | null
 }
 
-export function getProductStats(productId: string) {
-  const hash = productId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return {
-    liveViewers: Math.max(3, (hash % 25) + 3),
-    soldToday: Math.max(1, (hash % 35) + 1),
-    reviewCount: 40 + (hash % 250),
-    rating: +(4.0 + ((hash % 15) / 10)).toFixed(1),
-  }
-}
-
 export const formatCurrency = (amount?: number | null, currency = 'FCFA') => {
   if (typeof amount !== 'number' || Number.isNaN(amount)) return null
   return `${amount.toLocaleString('fr-FR')} ${currency}`

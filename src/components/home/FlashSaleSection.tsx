@@ -64,6 +64,8 @@ export default function FlashSaleSection() {
       .catch(() => setLoading(false))
   }, [])
 
+  if (!loading && products.length === 0) return null
+
   return (
     <section className="py-6 bg-white dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

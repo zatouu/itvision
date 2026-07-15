@@ -102,11 +102,11 @@ export default function SocialProofSection() {
         >
           <div className="flex items-center gap-2">
             <Rocket className="h-5 w-5 text-emerald-500" />
-            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">1200+ commandes livrées</span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Livraison rapide</span>
           </div>
           <div className="flex items-center gap-2">
             <Star className="h-5 w-5 text-emerald-500" />
-            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">4.8/5 satisfaction</span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Satisfaction client</span>
           </div>
           <div className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-emerald-500" />

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, ShoppingBag, Package, Users, Heart,
   Home, Store, UserRound, Truck, Sparkles, Gem,
-  BarChart3
+  BarChart3, Search
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
@@ -24,7 +24,7 @@ export default function MarketHeader() {
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    const sync = () => {
+    const syncCartAndCompare = () => {
       try {
         const cartRaw = localStorage.getItem('cart:items')
         const cartItems = cartRaw ? JSON.parse(cartRaw) : []
@@ -32,23 +32,37 @@ export default function MarketHeader() {
 
         const compareRaw = localStorage.getItem('compare:ids')
         setCompareCount(compareRaw ? compareRaw.split(',').filter(Boolean).length : 0)
-
-        const grainsRaw = localStorage.getItem('grains:balance')
-        setGrainsBalance(grainsRaw ? parseInt(grainsRaw, 10) : null)
       } catch {
         setCartCount(0)
         setCompareCount(0)
+      }
+    }
+
+    const syncGrains = async () => {
+      try {
+        const res = await fetch('/api/grains', { credentials: 'include' })
+        if (!res.ok) { setGrainsBalance(null); return }
+        const data = await res.json()
+        if (data?.success && typeof data.user?.balance === 'number') {
+          setGrainsBalance(data.user.balance)
+        } else {
+          setGrainsBalance(null)
+        }
+      } catch {
         setGrainsBalance(null)
       }
     }
-    sync()
-    window.addEventListener('cart:updated', sync)
-    window.addEventListener('grains:updated', sync)
-    window.addEventListener('storage', sync)
+
+    syncCartAndCompare()
+    syncGrains()
+
+    window.addEventListener('cart:updated', syncCartAndCompare)
+    window.addEventListener('grains:updated', syncGrains)
+    window.addEventListener('storage', syncCartAndCompare)
     return () => {
-      window.removeEventListener('cart:updated', sync)
-      window.removeEventListener('grains:updated', sync)
-      window.removeEventListener('storage', sync)
+      window.removeEventListener('cart:updated', syncCartAndCompare)
+      window.removeEventListener('grains:updated', syncGrains)
+      window.removeEventListener('storage', syncCartAndCompare)
     }
   }, [])
 
@@ -95,8 +109,8 @@ export default function MarketHeader() {
       </div>
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         {/* Logo */}
-        <Link href="/market" className="flex items-center gap-2">
-          <DDMLogo variant="horizontal" size="lg" showTagline={false} priority />
+        <Link href="/market" className="flex items-center gap-2 w-28 md:w-40">
+          <DDMLogo variant="horizontal" size="md" showTagline={false} priority className="w-full h-auto" />
         </Link>
 
         {/* Desktop nav */}
@@ -168,11 +182,11 @@ export default function MarketHeader() {
         {/* Mobile toggle */}
         <div className="flex items-center gap-2 md:hidden">
           <Link
-            href="/compte"
+            href="/produits"
             className="rounded-xl p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
-            aria-label="Mon compte"
+            aria-label="Rechercher"
           >
-            <UserRound className="h-5 w-5" />
+            <Search className="h-5 w-5" />
           </Link>
           <CartIcon count={cartCount} />
           {compareCount > 0 && (
@@ -242,6 +256,14 @@ export default function MarketHeader() {
               </Link>
             )}
 
+            <Link
+              href="/grains"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+            >
+              <Gem className="h-4 w-4" />
+              <span>{grainsBalance !== null ? grainsBalance.toLocaleString('fr-FR') : '—'} Grains</span>
+            </Link>
             <div className="flex items-center gap-2 pt-1">
               <ThemeToggle />
               <MarketAuthButton

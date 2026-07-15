@@ -107,11 +107,11 @@ export default function CatalogProductCard({
           )}
         </div>
 
-        {/* Heart favorite top-left (below discount) */}
+        {/* Heart favorite top-left (below discount) - always visible on mobile */}
         <button
           type="button"
           onClick={(e) => onToggleFavorite(e, product.id)}
-          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-full hover:bg-white dark:hover:bg-slate-900 shadow-sm transition-colors opacity-0 group-hover:opacity-100 z-10"
+          className="absolute top-2 left-2 mt-5 p-1.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-full hover:bg-white dark:hover:bg-slate-900 shadow-sm transition-colors z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100"
           aria-label="Ajouter aux favoris"
         >
           <Heart
@@ -119,8 +119,8 @@ export default function CatalogProductCard({
           />
         </button>
 
-        {/* Quick actions on hover (slide up from bottom) */}
-        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        {/* Quick actions - always visible on mobile / hover on desktop */}
+        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
           <div className="flex gap-1">
             <Link
               href={`/produits/${product.id}`}

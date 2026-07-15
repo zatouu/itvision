@@ -16,7 +16,7 @@ const features = [
   {
     title: '🤝 Achats Groupés',
     subtitle: 'Jusqu\'à -45% en groupe',
-    badge: '847 membres actifs',
+    badge: 'Membres actifs',
     cta: 'Rejoindre',
     href: '/achats-groupes',
     gradient: 'from-emerald-500 to-green-600',

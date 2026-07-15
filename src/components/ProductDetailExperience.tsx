@@ -243,7 +243,7 @@ const shippingIcon = (methodId?: string) => {
 
 export default function ProductDetailExperience({ product, similar }: ProductDetailExperienceProps) {
   // Galerie : images produit + images variantes
-  const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
+  const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/placeholder.svg']
 
   const isVideoUrl = (url: string) => {
     if (!url) return false
@@ -315,10 +315,10 @@ export default function ProductDetailExperience({ product, similar }: ProductDet
     | { kind: 'youtube'; src: string; embedUrl: string; poster: string }
 
   const galleryItems = useMemo<GalleryItem[]>(() => {
-    const firstImage = gallery.find((u) => u && !isVideoUrl(u) && !isYouTubeUrl(u)) || product.image || '/file.svg'
+    const firstImage = gallery.find((u) => u && !isVideoUrl(u) && !isYouTubeUrl(u)) || product.image || '/placeholder.svg'
 
     return gallery.map((src) => {
-      const safeSrc = src || '/file.svg'
+      const safeSrc = src || '/placeholder.svg'
       if (isYouTubeUrl(safeSrc)) {
         const id = getYouTubeId(safeSrc)
         const embedUrl = id ? `https://www.youtube.com/embed/${id}` : safeSrc
@@ -1070,7 +1070,7 @@ Merci de me recontacter.`
                     >
                       {galleryItems[activeImageIndex]?.kind === 'image' && (
                         <Image
-                          src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                          src={(galleryItems[activeImageIndex] as any)?.src || '/placeholder.svg'}
                           alt={product.name}
                           fill
                           className="object-contain p-6 transition-transform duration-200 group-hover:scale-105"
@@ -1457,7 +1457,7 @@ Merci de me recontacter.`
                   >
                     <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
                       <Image
-                        src={item.image || '/file.svg'}
+                        src={item.image || '/placeholder.svg'}
                         alt={item.name}
                         fill
                         className="object-contain p-4 group-hover:scale-105 transition-transform"
@@ -1583,7 +1583,7 @@ Merci de me recontacter.`
               <div className="relative aspect-[4/3] bg-gray-950">
                 {galleryItems[activeImageIndex]?.kind === 'image' && (
                   <Image
-                    src={(galleryItems[activeImageIndex] as any)?.src || '/file.svg'}
+                    src={(galleryItems[activeImageIndex] as any)?.src || '/placeholder.svg'}
                     alt={product.name}
                     fill
                     className="object-contain p-4"

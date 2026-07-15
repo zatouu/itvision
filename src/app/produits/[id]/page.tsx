@@ -60,13 +60,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       description,
       url: `${SITE_URL}/produits/${id}`,
       type: 'website',
-      images: image && image !== `${SITE_URL}/file.svg` ? [{ url: image, width: 1200, height: 630, alt: detail.name }] : undefined
+      images: image && image !== `${SITE_URL}/placeholder.svg` ? [{ url: image, width: 1200, height: 630, alt: detail.name }] : undefined
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: image && image !== `${SITE_URL}/file.svg` ? [image] : undefined
+      images: image && image !== `${SITE_URL}/placeholder.svg` ? [image] : undefined
     },
     other: {
       'product:price:amount': String(price),
@@ -96,7 +96,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: detail.name,
-    image: image === `${SITE_URL}/file.svg` ? undefined : image,
+    image: image === `${SITE_URL}/placeholder.svg` ? undefined : image,
     description: detail.description ?? detail.tagline ?? undefined,
     sku: detail.id,
     brand: {

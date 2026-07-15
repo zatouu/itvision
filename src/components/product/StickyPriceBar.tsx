@@ -22,11 +22,11 @@ export default function StickyPriceBar({ productName, gallery, comboPrice, show,
           initial={{ y: -100 }}
           animate={{ y: 0 }}
           exit={{ y: -100 }}
-          className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 shadow-lg"
+          className="fixed top-20 md:top-28 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 shadow-lg"
         >
           <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
             <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-              <Image src={gallery[0] || '/file.svg'} alt="" fill className="object-cover" sizes="48px" />
+              <Image src={gallery[0] || '/placeholder.svg'} alt="" fill className="object-cover" sizes="48px" />
             </div>
             <div className="flex-1 min-w-0 hidden sm:block">
               <p className="font-medium text-sm truncate dark:text-slate-200">{productName}</p>

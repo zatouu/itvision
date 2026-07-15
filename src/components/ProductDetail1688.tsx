@@ -221,7 +221,7 @@ interface ProductDetail1688Props {
 }
 
 export default function ProductDetail1688({ product, similar }: ProductDetail1688Props) {
-  const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/file.svg']
+  const baseGallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image || '/placeholder.svg']
 
   // ─── State ─────────────────────────────────────────────────────────────────
   const [activeImageIndex, setActiveImageIndex] = useState(0)
@@ -532,7 +532,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                       onClick={() => setShowImageModal(true)}
                     >
                       <Image
-                        src={gallery[activeImageIndex] || '/file.svg'}
+                        src={gallery[activeImageIndex] || '/placeholder.svg'}
                         alt={product.name}
                         fill
                         className={clsx("object-contain p-4 transition-transform duration-300", isZoomed && "scale-[2]")}
@@ -809,7 +809,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
                   {similar.slice(0, 6).map(item => (
                     <Link key={item.id} href={`/produits/${item.id}`} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-green-300 hover:shadow-md transition group">
                       <div className="relative aspect-square bg-gray-50">
-                        <Image src={item.image || '/file.svg'} alt={item.name} fill className="object-contain p-3 group-hover:scale-105 transition" sizes="(max-width: 640px) 50vw, 33vw" />
+                        <Image src={item.image || '/placeholder.svg'} alt={item.name} fill className="object-contain p-3 group-hover:scale-105 transition" sizes="(max-width: 640px) 50vw, 33vw" />
                       </div>
                       <div className="p-3">
                         <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">{item.name}</h4>
@@ -1168,7 +1168,7 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
               </>
             )}
             <div className="relative w-full max-w-5xl h-[85vh]" onClick={e => e.stopPropagation()}>
-              <Image src={gallery[activeImageIndex] || '/file.svg'} alt={product.name} fill className="object-contain" sizes="100vw" priority />
+              <Image src={gallery[activeImageIndex] || '/placeholder.svg'} alt={product.name} fill className="object-contain" sizes="100vw" priority />
             </div>
             {/* Thumbnails en bas */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">

@@ -8,7 +8,7 @@ const normalizeGallery = (product: any): string[] => {
   if (product.image) {
     return [product.image]
   }
-  return ['/file.svg']
+  return ['/placeholder.svg']
 }
 
   const normalizeTags = (product: any): string[] => {
@@ -72,7 +72,7 @@ export const formatProductDetail = (
     category: product.category ?? 'Catalogue import Chine',
     condition: product.condition ?? 'new',
       tags: normalizeTags(product),
-    image: product.image ?? '/file.svg',
+    image: product.image ?? '/placeholder.svg',
     gallery: normalizeGallery(product),
     descriptionImages: Array.isArray(product.descriptionImages) ? product.descriptionImages : [],
     features: Array.isArray(product.features) ? product.features : [],
@@ -150,7 +150,7 @@ export const formatSimilarProducts = (
       category: item.category ?? 'Catalogue import Chine',
       condition: item.condition ?? 'new',
         tags: normalizeTags(item),
-      image: normalizeGallery(item)[0] ?? '/file.svg',
+      image: normalizeGallery(item)[0] ?? '/placeholder.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
       // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice
       priceAmount: !item.requiresQuote ? (pricing.baseCost ?? pricing.salePrice) : null,

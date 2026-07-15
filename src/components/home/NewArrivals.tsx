@@ -28,6 +28,8 @@ export default function NewArrivals() {
       .catch(() => setLoading(false))
   }, [])
 
+  if (!loading && products.length === 0) return null
+
   return (
     <section className="py-10 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

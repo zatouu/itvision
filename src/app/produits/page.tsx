@@ -80,98 +80,6 @@ interface ApiProduct {
 
 // metadata export is not allowed in a client component; title handled elsewhere
 
-// Produits de fallback en cas d'erreur API
-const getFallbackProducts = (): ApiProduct[] => {
-  return [
-    {
-      id: 'fallback-1',
-      _id: 'fallback-1', // Compatibilité
-      name: 'Caméra IP Hikvision 4MP',
-      category: 'Vidéosurveillance',
-      description: 'Caméra de surveillance haute définition avec vision nocturne et IA détection humain/véhicule',
-      tagline: 'Livraison express 3 jours ou maritime économique 60 jours',
-      priceAmount: 198500,
-      currency: 'FCFA',
-      image: '/file.svg',
-      gallery: ['/file.svg'],
-      requiresQuote: false,
-      deliveryDays: 3,
-      features: ['IA AcuSense intégrée', 'Vision nocturne ColorVu', 'Garantie 2 ans'],
-      rating: 4.8,
-      shippingOptions: [
-        { id: 'air_express', label: 'Express aérien 3 jours', description: 'Livraison 72h Dakar', durationDays: 3, cost: 35000, total: 198500, currency: 'FCFA' },
-        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 22000, total: 185500, currency: 'FCFA' },
-        { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 95000, total: 258500, currency: 'FCFA' }
-      ],
-      availabilityLabel: 'Commande sur demande (15 jours)',
-      availabilityStatus: 'preorder'
-    },
-    {
-      id: 'fallback-2',
-      _id: 'fallback-2', // Compatibilité
-      name: 'Terminal Contrôle d\'accès Facial',
-      category: 'Contrôle d\'Accès',
-      description: 'Terminal biométrique reconnaissance faciale & RFID pour entreprise',
-      tagline: 'Sourcing direct usine Chine, installation Dakar',
-      priceAmount: 275000,
-      currency: 'FCFA',
-      image: '/file.svg',
-      gallery: ['/file.svg'],
-      requiresQuote: false,
-      deliveryDays: 15,
-      features: ['Reconnaissance faciale < 0.2s', 'Support RFID & QR code', 'Application mobile incluse'],
-      rating: 4.7,
-      shippingOptions: [
-        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 45000, total: 275000, currency: 'FCFA' },
-        { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 90000, total: 320000, currency: 'FCFA' }
-      ],
-      availabilityLabel: 'Commande sur demande (15 jours)',
-      availabilityStatus: 'preorder'
-    },
-    {
-      id: 'fallback-3',
-      _id: 'fallback-3', // Compatibilité
-      name: 'Kit alarme sans fil AX PRO',
-      category: 'Alarme',
-      description: 'Pack alarme résidentielle Hikvision AX PRO avec application mobile',
-      priceAmount: 325000,
-      currency: 'FCFA',
-      image: '/file.svg',
-      gallery: ['/file.svg'],
-      requiresQuote: false,
-      deliveryDays: 5,
-      features: ['Installation rapide Dakar', 'Sirène 110dB', 'Batterie secours 24h'],
-      rating: 4.9,
-      shippingOptions: [
-        { id: 'air_express', label: 'Express aérien 3 jours', description: 'Livraison 72h Dakar', durationDays: 3, cost: 65000, total: 325000, currency: 'FCFA' },
-        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 42000, total: 302000, currency: 'FCFA' }
-      ],
-      availabilityLabel: 'Disponible immédiatement à Dakar',
-      availabilityStatus: 'in_stock'
-    },
-    {
-      id: 'fallback-4',
-      _id: 'fallback-4', // Compatibilité
-      name: 'Switch PoE 16 ports Hikvision',
-      category: 'Réseau',
-      description: 'Switch PoE+ 16 ports pour infrastructure vidéosurveillance',
-      priceAmount: 415000,
-      currency: 'FCFA',
-      image: '/file.svg',
-      gallery: ['/file.svg'],
-      requiresQuote: false,
-      deliveryDays: 15,
-      features: ['Budget PoE 230W', 'Gestion web & VLAN', 'Garantie 3 ans'],
-      rating: 4.6,
-      shippingOptions: [
-        { id: 'air_15', label: 'Fret aérien 15 jours', description: 'Groupage aérien économique', durationDays: 15, cost: 65000, total: 415000, currency: 'FCFA' },
-        { id: 'sea_freight', label: 'Fret maritime 60 jours', description: 'Transport maritime groupé', durationDays: 60, cost: 120000, total: 470000, currency: 'FCFA' }
-      ],
-      availabilityLabel: 'Commande sur demande (15 jours)',
-      availabilityStatus: 'preorder'
-    }
-  ]
-}
 
 export default function ProduitsPage() {
   const [cartOpen, setCartOpen] = useState(false)
@@ -674,12 +582,12 @@ export default function ProduitsPage() {
                 condition: item.condition || undefined,
                 priceAmount,
                 currency: item.pricing?.currency || 'FCFA',
-                image: item.image || item.gallery?.[0] || '/file.svg',
+                image: item.image || item.gallery?.[0] || '/placeholder.svg',
                 gallery: Array.isArray(item.gallery) ? item.gallery : undefined,
                 requiresQuote: item.requiresQuote || !priceAmount,
                 deliveryDays: bestShipping?.durationDays ?? item.availability?.leadTimeDays ?? 0,
                 features: features.length ? features : ['Import direct Chine', 'Livraison Dakar sécurisée'],
-                rating: item.rating ?? (item.isFeatured ? 4.9 : 4.7),
+                rating: typeof item.rating === 'number' ? item.rating : undefined,
                 shippingOptions: shipping,
                 availabilityLabel: item.availability?.label || undefined,
                 availabilityStatus: (item.availability?.status === 'in_stock' || item.availability?.status === 'preorder' || item.availability?.status === 'out_of_stock')
@@ -716,18 +624,18 @@ export default function ProduitsPage() {
             setProducts(formatted)
           } else {
             if (currentPage === 1) {
-              setProducts(getFallbackProducts())
-              setAllProducts(getFallbackProducts())
+              setProducts([])
+              setAllProducts([])
             }
-            setError('Mode démonstration - Connexion API indisponible')
+            setError('Impossible de charger les produits. Veuillez réessayer.')
           }
         } catch (err) {
           console.error('Error fetching products:', err)
           if (currentPage === 1) {
-            setProducts(getFallbackProducts())
-            setAllProducts(getFallbackProducts())
+            setProducts([])
+            setAllProducts([])
           }
-          setError('Mode démonstration - Connexion API indisponible')
+          setError('Impossible de charger les produits. Veuillez réessayer.')
         } finally {
           setLoading(false)
           setLoadingMore(false)
@@ -903,7 +811,7 @@ export default function ProduitsPage() {
     return {
       id: p.id,
       name: p.name,
-      image: p.image ?? '/file.svg',
+      image: p.image ?? '/placeholder.svg',
       price: base,
       originalPrice: orig,
       currency: p.currency ?? 'FCFA',
@@ -948,7 +856,7 @@ export default function ProduitsPage() {
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       
       {/* === STICKY SEARCH HEADER === */}
-      <div className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+      <div className="sticky top-20 md:top-28 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-2">
           {/* Search bar compacte */}
           <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
@@ -956,7 +864,7 @@ export default function ProduitsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher dans 12 458 produits..."
+              placeholder="Rechercher un produit..."
               className="flex-1 outline-none bg-transparent px-2 text-sm min-w-0 dark:text-slate-200"
             />
             <button title="Recherche par image" onClick={() => setShowImageSearch(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full flex-shrink-0">
@@ -1223,7 +1131,7 @@ export default function ProduitsPage() {
                       >
                         <div className="flex gap-4">
                           <Link href={`/produits/${pid}`} className="relative w-28 h-28 flex-shrink-0 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-700">
-                            <img src={product.image || product.gallery?.[0] || '/file.svg'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                            <img src={product.image || product.gallery?.[0] || '/placeholder.svg'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                             {product.isFeatured && (
                               <span className="absolute top-1 left-1 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">✨ Nouveau</span>
                             )}

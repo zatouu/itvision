@@ -831,7 +831,7 @@ export default function EnhancedProjectPortal({ projectId, accessCode, onLogout 
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-6">Galerie Photos</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {['/file.svg','/window.svg','/globe.svg','/file.svg','/window.svg','/globe.svg','/file.svg','/window.svg'].map((src, i) => (
+                {['/placeholder.svg','/window.svg','/globe.svg','/placeholder.svg','/window.svg','/globe.svg','/placeholder.svg','/window.svg'].map((src, i) => (
                   <div key={i} className="relative group rounded-lg overflow-hidden border">
                     <Image src={src} alt="photo" width={320} height={128} className="w-full h-32 object-cover" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors"></div>

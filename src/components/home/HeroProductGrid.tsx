@@ -29,10 +29,10 @@ export default function HeroProductGrid() {
         .map((p: any) => ({
           id: p.id || p._id,
           name: p.name || 'Produit',
-          image: p.image || '/file.svg',
+          image: p.image || '/placeholder.svg',
           category: p.category || '',
         }))
-        .filter((p: CatalogProduct) => p.image && p.image !== '/file.svg')
+        .filter((p: CatalogProduct) => p.image && p.image !== '/placeholder.svg')
       setProducts(items)
     } catch {
       // Silencieux en cas d'erreur — le fallback gradient reste

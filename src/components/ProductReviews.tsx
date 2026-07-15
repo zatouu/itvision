@@ -283,7 +283,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
                   <button
                     type="button"
                     onClick={() => removePhoto(idx)}
-                    className="absolute inset-0 bg-black/50 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                    className="absolute inset-0 bg-black/50 text-white text-xs font-bold opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex items-center justify-center"
                   >
                     X
                   </button>
