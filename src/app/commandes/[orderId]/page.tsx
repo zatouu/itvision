@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import OrderChat from '@/components/OrderChat'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 import {
   CheckCircle,
   AlertCircle,
@@ -68,6 +69,21 @@ interface OrderDetails {
       label: string
     }
   }
+}
+
+function PushNotificationButton({ orderId }: { orderId: string }) {
+  const { supported, permission, subscribing, requestPermission } = usePushNotifications({ orderId })
+  if (!supported || permission === 'granted' || permission === 'denied') return null
+  return (
+    <button
+      onClick={requestPermission}
+      disabled={subscribing}
+      className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/20 border border-white/25 rounded-xl px-5 py-3 font-semibold transition disabled:opacity-60"
+    >
+      <Bell className="h-4 w-4" />
+      {subscribing ? 'Activation...' : 'Activer les notifications'}
+    </button>
+  )
 }
 
 function OrderConfirmationContent() {
@@ -533,6 +549,7 @@ function OrderConfirmationContent() {
               <Copy className="h-4 w-4" />
               {copiedLink ? 'Lien copié' : 'Copier le lien de suivi'}
             </button>
+            <PushNotificationButton orderId={orderId} />
             <div className="text-sm text-emerald-100/90">
               Gardez ce lien pour retrouver votre commande.
             </div>

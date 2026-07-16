@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { requireAuth } from '@/lib/jwt'
 import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 import { restoreProductStock } from '@/lib/inventory'
+import { sendWebPushToOrder } from '@/lib/push-web'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -241,6 +242,25 @@ export async function PATCH(
           console.error('[grains] Erreur reverse grains commande:', grainsErr)
         }
       }
+    }
+
+    // Envoyer une notification push web si le statut a changé
+    if (body.status && typeof body.status === 'string') {
+      const statusLabels: Record<string, string> = {
+        pending: 'en attente',
+        confirmed: 'confirmée',
+        processing: 'en traitement',
+        shipped: 'expédiée',
+        delivered: 'livrée',
+        cancelled: 'annulée',
+      }
+      void sendWebPushToOrder(orderId, {
+        title: 'DDM+ - Statut commande mis à jour',
+        body: `Votre commande ${orderId} est maintenant ${statusLabels[body.status] || body.status}.`,
+        icon: '/android-chrome-192x192.png',
+        url: `/commandes/${orderId}`,
+        tag: `order-status-${orderId}`,
+      }).catch((err: any) => console.error('[WebPush] order status push error:', err))
     }
 
     return NextResponse.json(
