@@ -40,6 +40,8 @@ export const MARKETPLACE_ROUTES = [
   '/payment',
   '/paiement',
   '/grains',
+  '/devenir-vendeur',
+  '/espace-vendeur',
 ]
 
 // Routes API transversales (mobile / app) autorisées en CORS
@@ -79,6 +81,7 @@ export function getRequiredRole(pathname: string): string | null {
   if (pathname === '/messages' || pathname.startsWith('/messages/')) return 'AUTH'
   if (pathname === '/compte' || pathname.startsWith('/compte/')) return 'AUTH'
   if (pathname === '/market/compte' || pathname.startsWith('/market/compte/')) return 'AUTH'
+  if (pathname === '/espace-vendeur' || pathname.startsWith('/espace-vendeur/')) return 'VENDOR'
 
   const adminRoutes = [
     '/admin',

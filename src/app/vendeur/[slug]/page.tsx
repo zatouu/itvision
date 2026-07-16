@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, Store, BadgeCheck, Star, AlertCircle } from 'lucide-react'
+import { Loader2, Store, BadgeCheck, Star, AlertCircle, CheckCircle, MapPin } from 'lucide-react'
 
 interface VendorProduct {
   id: string
@@ -140,6 +140,12 @@ export default function VendorStorefrontPage() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
+                  {typeof product.stockLeft === 'number' && product.stockLeft > 0 && (
+                    <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full shadow-sm">
+                      <CheckCircle className="w-3 h-3" />
+                      En stock
+                    </span>
+                  )}
                 </div>
                 <div className="p-3 md:p-4">
                   <h3 className="font-medium text-gray-900 text-sm md:text-base line-clamp-2 mb-2 group-hover:text-emerald-600 transition">
@@ -155,6 +161,12 @@ export default function VendorStorefrontPage() {
                       <span className="text-xs text-orange-600">{product.stockLeft} restant(s)</span>
                     ) : null}
                   </div>
+                  {typeof product.stockLeft === 'number' && product.stockLeft > 0 && (
+                    <p className="mt-1.5 text-[10px] text-slate-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      Disponible localement · prix revendeur
+                    </p>
+                  )}
                 </div>
               </Link>
             ))}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Loader2, Store, Package } from 'lucide-react'
+import { Loader2, Store, Package, CheckCircle, MapPin } from 'lucide-react'
 
 interface ProductItem {
   id: string
@@ -102,12 +102,24 @@ export default function ShopPageClient({ shopId, shopName, shopLogo, shopDescrip
                     <Package className="h-10 w-10" />
                   </div>
                 )}
+                {item.stockStatus === 'in_stock' && (item.stockQuantity ?? 0) > 0 && (
+                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full shadow-sm">
+                    <CheckCircle className="w-3 h-3" />
+                    En stock
+                  </span>
+                )}
               </div>
               <div className="p-4">
                 <h3 className="font-medium text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition">{item.name}</h3>
                 {item.price !== null && (
                   <p className="mt-2 font-bold text-emerald-700">
                     {item.price.toLocaleString('fr-FR')} {item.currency}
+                  </p>
+                )}
+                {item.stockStatus === 'in_stock' && (item.stockQuantity ?? 0) > 0 && (
+                  <p className="mt-1.5 text-[10px] text-slate-500 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    Disponible localement · prix revendeur
                   </p>
                 )}
               </div>

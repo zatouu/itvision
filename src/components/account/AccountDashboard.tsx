@@ -738,7 +738,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
               <h2 className="text-xl font-bold mb-1">Devenez vendeur sur DDM+</h2>
               <p className="text-white/90 text-sm">Rejoignez nos vendeurs et exposez vos produits à des milliers de clients.</p>
             </div>
-            <Link href="/devenir-vendeur" className="bg-white text-emerald-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0">
+            <Link href="/market/boutiques" className="bg-white text-emerald-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0">
               Commencer
             </Link>
           </div>

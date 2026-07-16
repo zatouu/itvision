@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Store, BadgeCheck, Package, ArrowRight } from 'lucide-react'
+import { Store, BadgeCheck, Package, ArrowRight, PlusCircle } from 'lucide-react'
 import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
 import Product from '@/lib/models/Product'
@@ -26,11 +26,20 @@ export default async function MarketBoutiquesPage() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-16">
       <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-200">Boutiques partenaires</h1>
-          <p className="mt-2 text-gray-600 dark:text-slate-400">
-            Découvrez les vendeurs et revendeurs sélectionnés par DDM+.
-          </p>
+        <div className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-200">Boutiques partenaires</h1>
+            <p className="mt-2 text-gray-600 dark:text-slate-400">
+              Découvrez les vendeurs et revendeurs sélectionnés par DDM+.
+            </p>
+          </div>
+          <Link
+            href="/devenir-vendeur"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm transition"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Créer ma boutique
+          </Link>
         </div>
 
         {shops.length === 0 ? (
