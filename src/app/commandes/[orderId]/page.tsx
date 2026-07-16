@@ -42,6 +42,14 @@ interface OrderDetails {
   status: string
   paymentStatus: string
   address: any
+  delivery?: {
+    carrier?: string
+    trackingNumber?: string
+    trackingUrl?: string
+    estimatedDeliveryDate?: string
+    status?: string
+    lastUpdate?: string
+  }
   createdAt: string
   currency: string
   // Nouveaux champs pour décomposition
@@ -793,6 +801,55 @@ function OrderConfirmationContent() {
               </div>
             </div>
           </motion.div>
+
+          {/* Bloc suivi transporteur */}
+          {(order.delivery?.trackingNumber || order.delivery?.carrier || order.status === 'shipped' || order.status === 'delivered') && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <Truck className="w-6 h-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Suivi livraison</h3>
+                  <p className="text-xs text-gray-500">{order.delivery?.carrier || 'Transporteur à confirmer'}</p>
+                </div>
+              </div>
+
+              {order.delivery?.trackingNumber ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-100">
+                    <p className="text-xs text-gray-600 mb-1">N° de suivi</p>
+                    <p className="font-mono font-semibold text-indigo-700 break-all">{order.delivery.trackingNumber}</p>
+                  </div>
+                  {order.delivery.estimatedDeliveryDate && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      Livraison estimée : {new Date(order.delivery.estimatedDeliveryDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    </div>
+                  )}
+                  {order.delivery.trackingUrl ? (
+                    <a
+                      href={order.delivery.trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full text-center text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 py-2.5 rounded-lg transition"
+                    >
+                      Suivre le colis
+                    </a>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Le lien de suivi sera ajouté dès qu&apos;il sera disponible.</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Votre commande sera expédiée prochainement. Le numéro de suivi apparaîtra ici.</p>
+              )}
+            </motion.div>
+          )}
         </div>
 
         {/* Bloc adresse modifiable */}

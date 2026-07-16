@@ -120,6 +120,7 @@ export async function GET(
           status: order.status,
           paymentStatus: order.paymentStatus,
           address: order.address,
+          delivery: order.delivery,
           createdAt: order.createdAt,
           currency: order.currency
         }
@@ -174,6 +175,11 @@ export async function PATCH(
     // Support de notes
     if (body.notes !== undefined) {
       updateData.notes = body.notes
+    }
+
+    // Support de mise à jour du suivi transporteur
+    if (body.delivery && typeof body.delivery === 'object') {
+      updateData.delivery = { ...body.delivery, lastUpdate: new Date() }
     }
 
     // Ajout à la timeline si action fournie

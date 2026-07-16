@@ -2,6 +2,15 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export type OrderDomain = 'marketplace' | 'corporate' | 'services'
 
+export interface IOrderItemDelivery {
+  carrier?: string
+  trackingNumber?: string
+  trackingUrl?: string
+  estimatedDeliveryDate?: Date
+  status?: string
+  lastUpdate?: Date
+}
+
 export interface IOrderItem {
   id: string
   variantId?: string
@@ -20,6 +29,7 @@ export interface IOrderItem {
     cost: number
     currency: string
   }
+  delivery?: IOrderItemDelivery
 }
 
 export interface IInventoryReservation {
@@ -108,6 +118,16 @@ export interface IOrder extends Document {
   confirmedAt?: Date
   shippedAt?: Date
   deliveredAt?: Date
+
+  // Suivi transporteur
+  delivery?: {
+    carrier?: string
+    trackingNumber?: string
+    trackingUrl?: string
+    estimatedDeliveryDate?: Date
+    status?: string
+    lastUpdate?: Date
+  }
   
   // Métadonnées
   currency: string
@@ -132,6 +152,14 @@ const OrderItemSchema = new Schema<IOrderItem>({
     durationDays: { type: Number },
     cost: { type: Number },
     currency: { type: String }
+  },
+  delivery: {
+    carrier: { type: String },
+    trackingNumber: { type: String },
+    trackingUrl: { type: String },
+    estimatedDeliveryDate: { type: Date },
+    status: { type: String },
+    lastUpdate: { type: Date }
   }
 }, { _id: false })
 
@@ -237,6 +265,15 @@ const OrderSchema = new Schema<IOrder>({
   confirmedAt: { type: Date, sparse: true },
   shippedAt: { type: Date, sparse: true },
   deliveredAt: { type: Date, sparse: true },
+
+  delivery: {
+    carrier: { type: String },
+    trackingNumber: { type: String },
+    trackingUrl: { type: String },
+    estimatedDeliveryDate: { type: Date },
+    status: { type: String },
+    lastUpdate: { type: Date }
+  },
   
   currency: { type: String, default: 'FCFA' },
   source: { type: String, enum: ['web', 'app', 'api'], default: 'web' },
