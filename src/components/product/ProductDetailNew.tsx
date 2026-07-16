@@ -21,6 +21,7 @@ import VariantSelectors from './VariantSelectors'
 import StickyPriceBar from './StickyPriceBar'
 import MobileBottomBar from './MobileBottomBar'
 import ProductReviews from '@/components/ProductReviews'
+import ProductQnA from './ProductQnA'
 
 interface Props { product: ProductDetailData; similar: SimilarProductSummary[] }
 
@@ -74,7 +75,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
   )
   const [isFavorite, setIsFavorite] = useState(false)
   const [showStickyBar, setShowStickyBar] = useState(false)
-  const [activeTab, setActiveTab] = useState<'description'|'specs'|'shipping'|'reviews'>('description')
+  const [activeTab, setActiveTab] = useState<'description'|'specs'|'shipping'|'reviews'|'qa'>('description')
   const [showPriceDetails, setShowPriceDetails] = useState(false)
   const [adding, setAdding] = useState(false)
   const [productReviewStats, setProductReviewStats] = useState<{ rating: number; reviewCount: number }>({ rating: 0, reviewCount: 0 })
@@ -265,6 +266,7 @@ export default function ProductDetailNew({ product, similar }: Props) {
     { id: 'specs' as const, label: 'Spécifications' },
     { id: 'shipping' as const, label: 'Expédition' },
     { id: 'reviews' as const, label: `Avis${stats.reviewCount > 0 ? ` (${stats.reviewCount})` : ''}` },
+    { id: 'qa' as const, label: 'Q&A' },
   ]
 
   return (
@@ -330,6 +332,9 @@ export default function ProductDetailNew({ product, similar }: Props) {
                 )}
                 {activeTab === 'reviews' && (
                   <ProductReviews productId={product.id} />
+                )}
+                {activeTab === 'qa' && (
+                  <ProductQnA productId={product.id} />
                 )}
               </div>
             </div>
