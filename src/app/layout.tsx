@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Fraunces, Plus_Jakarta_Sans, Caveat } from 'next/font/google'
 import './globals.css'
 import PageVisitTracker from '@/components/PageVisitTracker'
+import AnalyticsScripts from '@/components/AnalyticsScripts'
 import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -81,6 +82,7 @@ export default function RootLayout({
         />
         <SessionProviderClient>
           <ThemeProvider>
+            <AnalyticsScripts />
             <PageVisitTracker />
             {children}
             <Toaster />

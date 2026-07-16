@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { trackPageview } from '@/utils/analytics'
 
 /**
  * Composant pour tracker automatiquement les visites de pages
@@ -37,6 +38,7 @@ export default function PageVisitTracker() {
 
     // Tracker la visite après un court délai (pour éviter les bounces)
     const timer = setTimeout(() => {
+      trackPageview(pathname, pageName)
       trackVisit(pathname, pageName)
     }, 2000) // 2 secondes minimum
 

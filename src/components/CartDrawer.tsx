@@ -40,22 +40,53 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   }
 
   const remove = (id: string) => {
+    const removed = items.find(i => i.id === id)
     const next = items.filter(i => i.id !== id)
     save(next)
-    trackEvent('remove_from_cart', { productId: id })
+    trackEvent('remove_from_cart', {
+      currency,
+      value: removed ? (removed.price || 0) * removed.qty : 0,
+      items: removed ? [{
+        item_id: removed.id,
+        item_name: removed.name,
+        price: removed.price,
+        quantity: removed.qty,
+      }] : [],
+    })
   }
 
   const total = useMemo(() => items.reduce((sum, i) => sum + (i.price || 0) * i.qty, 0), [items])
+  const currency = items[0]?.currency || 'XOF'
+  const analyticsItems = useMemo(() => items.map(i => ({
+    item_id: i.id,
+    item_name: i.name,
+    price: i.price,
+    quantity: i.qty,
+  })), [items])
+
+  useEffect(() => {
+    if (open && items.length > 0) {
+      trackEvent('view_cart', { currency, value: total, items: analyticsItems })
+    }
+  }, [open, items, total, currency, analyticsItems])
 
   const submitOrder = async () => {
     try {
+      trackEvent('begin_checkout', { currency, value: total, items: analyticsItems })
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cart: items, name, phone, address })
       })
       if (!res.ok) throw new Error('Order failed')
-      trackEvent('order_submitted', { total, count: items.length })
+      const data = await res.json().catch(() => ({}))
+      const transactionId = data.orderId || data.id || `T-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      trackEvent('purchase', {
+        transaction_id: transactionId,
+        currency,
+        value: total,
+        items: analyticsItems,
+      })
       save([])
       onClose()
     } catch {

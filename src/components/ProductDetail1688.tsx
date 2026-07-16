@@ -389,7 +389,30 @@ export default function ProductDetail1688({ product, similar }: ProductDetail168
         }
       }
       window.localStorage.setItem('cart:items', JSON.stringify(items))
-      trackEvent('add_to_cart', { productId: product.id, quantity: variantCalculations.totalQuantity })
+      const analyticsValue = variantCalculations.hasVariantSelection
+        ? variantCalculations.selectedVariantsList.reduce((sum: number, { price, qty }: any) => sum + (price || 0) * qty, 0)
+        : baseUnitPrice * quantity
+      const analyticsItems = variantCalculations.hasVariantSelection
+        ? variantCalculations.selectedVariantsList.map(({ variant, qty, price }: any) => ({
+            item_id: `${product.id}-${variant.id}`,
+            item_name: `${product.name} — ${variant.name}`,
+            item_category: product.category || undefined,
+            price: price || 0,
+            quantity: qty,
+          }))
+        : [{
+            item_id: product.id,
+            item_name: product.name,
+            item_category: product.category || undefined,
+            price: baseUnitPrice,
+            quantity,
+          }]
+      trackEvent('add_to_cart', {
+        currency,
+        value: analyticsValue,
+        items: analyticsItems,
+        quantity: variantCalculations.totalQuantity,
+      })
       window.dispatchEvent(new CustomEvent('cart:updated'))
       if (redirect) setTimeout(() => { window.location.href = '/panier' }, 200)
     } finally { setAdding(false) }

@@ -163,7 +163,16 @@ export default function ProductCard({
       }
 
       localStorage.setItem('cart:items', JSON.stringify(items))
-      trackEvent('add_to_cart', { productId, quantity: 1 })
+      trackEvent('add_to_cart', {
+        currency,
+        value: priceAmount || 0,
+        items: [{
+          item_id: productId || '',
+          item_name: name,
+          price: priceAmount || 0,
+          quantity: 1,
+        }],
+      })
       window.dispatchEvent(new CustomEvent('cart:updated'))
       
       setTimeout(() => setAdding(false), 500)

@@ -463,7 +463,30 @@ export default function ProductDetailSidebar({
       }
 
       window.localStorage.setItem('cart:items', JSON.stringify(items))
-      trackEvent('add_to_cart', { productId: product.id, quantity: variantCalculations.totalQuantity })
+      const analyticsValue = variantCalculations.hasVariantSelection
+        ? variantCalculations.unitPrice * variantCalculations.totalQuantity
+        : baseUnitPrice * quantity
+      const analyticsItems = variantCalculations.hasVariantSelection
+        ? variantCalculations.selectedVariantsList.map(({ variant }: any) => ({
+            item_id: `${product.id}-${variant.id}`,
+            item_name: `${product.name} — ${variant.name}`,
+            item_category: product.category || undefined,
+            price: variantCalculations.unitPrice,
+            quantity: variantCalculations.totalQuantity,
+          }))
+        : [{
+            item_id: product.id,
+            item_name: product.name,
+            item_category: product.category || undefined,
+            price: baseUnitPrice,
+            quantity,
+          }]
+      trackEvent('add_to_cart', {
+        currency: product.pricing.currency,
+        value: analyticsValue,
+        items: analyticsItems,
+        quantity: variantCalculations.totalQuantity,
+      })
       window.dispatchEvent(new CustomEvent('cart:updated'))
 
       if (redirect) {

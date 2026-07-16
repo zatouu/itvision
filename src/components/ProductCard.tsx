@@ -308,7 +308,16 @@ export default function ProductCard({
         items[lastIndex].insurancePercent = insurancePercent
       }
       localStorage.setItem('cart:items', JSON.stringify(items))
-      trackEvent('add_to_cart', { productId })
+      trackEvent('add_to_cart', {
+        currency: effectiveCurrency,
+        value: basePrice,
+        items: [{
+          item_id: productId || '',
+          item_name: name,
+          price: basePrice,
+          quantity: 1,
+        }],
+      })
       try {
         window.dispatchEvent(new CustomEvent('cart:updated'))
       } catch {}

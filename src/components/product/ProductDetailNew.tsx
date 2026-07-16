@@ -134,6 +134,22 @@ export default function ProductDetailNew({ product, similar }: Props) {
 
   const grandTotal = totalProductPrice + (shippingEstimate?.cost ?? 0)
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const currency = product.pricing.currency || 'XOF'
+    trackEvent('view_item', {
+      currency,
+      value: comboPrice,
+      items: [{
+        item_id: product.id,
+        item_name: product.name,
+        item_category: product.category || undefined,
+        price: comboPrice,
+        quantity: 1,
+      }],
+    })
+  }, [product.id, comboPrice])
+
   useEffect(() => { const onScroll = () => setShowStickyBar(window.scrollY > 500); window.addEventListener('scroll', onScroll, { passive: true }); return () => window.removeEventListener('scroll', onScroll) }, [])
   useEffect(() => { if (typeof window === 'undefined') return; try { const favs = JSON.parse(localStorage.getItem('wishlist:items') || '[]'); setIsFavorite(favs.includes(product.id)) } catch { setIsFavorite(false) } }, [product.id])
 
@@ -219,7 +235,18 @@ export default function ProductDetailNew({ product, similar }: Props) {
       }
       window.localStorage.setItem('cart:items', JSON.stringify(items))
       window.dispatchEvent(new CustomEvent('cart:updated'))
-      trackEvent('add_to_cart', { productId: product.id, quantity })
+      trackEvent('add_to_cart', {
+        currency,
+        value: comboPrice * quantity,
+        items: [{
+          item_id: product.id,
+          item_name: product.name,
+          item_category: product.category || undefined,
+          item_variant: variantLabels.join(' · ') || undefined,
+          price: comboPrice,
+          quantity,
+        }],
+      })
       addToast(`${product.name} (${quantity} unité${quantity > 1 ? 's' : ''}) ajouté au panier`, 'success')
       if (redirect) setTimeout(() => { window.location.href = '/panier' }, 200)
     } finally { setAdding(false) }
