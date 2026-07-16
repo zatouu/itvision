@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import HeroCarousel from '@/components/home/HeroCarousel'
 import CompactSearchBar from '@/components/home/CompactSearchBar'
-import QuickCategoriesGrid from '@/components/home/QuickCategoriesGrid'
 import FeatureBanners from '@/components/home/FeatureBanners'
 import FlashSaleSection from '@/components/home/FlashSaleSection'
 import GroupBuySection from '@/components/home/GroupBuySection'
@@ -49,13 +48,10 @@ export default function MarketHomePage() {
       {/* 1. Hero Carousel en premier (full width) */}
       <HeroCarousel />
 
-      {/* 2. Search bar compacte centrée */}
+      {/* 2. Search bar compacte centrée + catégories icônes */}
       <CompactSearchBar onOpenImageSearch={() => setShowImageSearch(true)} />
 
-      {/* 3. Grille catégories rapides (12 icônes) */}
-      <QuickCategoriesGrid />
-
-      {/* 4. Badges de confiance */}
+      {/* 3. Badges de confiance */}
       <TrustBadges />
 
       {/* 5. Flash Sale */}

@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   Users, Package, Clock, ArrowRight, Search,
-  Zap, CheckCircle,
-  Briefcase, Calculator, Flame,
-  Sparkles, Truck, ChevronDown,
-  Factory
+  Zap, CheckCircle, Briefcase, Calculator, Flame,
+  Sparkles, Truck, ChevronDown, Filter,
 } from 'lucide-react'
 import MarketHeader from '@/components/MarketHeader'
 import MarketFooter from '@/components/MarketFooter'
@@ -17,31 +15,56 @@ import MarketBottomNav from '@/components/MarketBottomNav'
 
 /* ─── Types ─── */
 interface GroupOrder {
-  _id?: string; groupId: string; status: string
+  _id?: string
+  groupId: string
+  status: string
   product: { productId: string; name: string; image?: string; basePrice: number; currency: string; category?: string }
-  minQty: number; targetQty: number; currentQty: number; currentUnitPrice: number
+  minQty: number
+  targetQty: number
+  currentQty: number
+  currentUnitPrice: number
   priceTiers: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
   participants: Array<{ name: string; qty: number; joinedAt?: string }>
-  deadline: string; shippingMethod?: string; description?: string; createdAt?: string; createdBy?: { name?: string }
-  progress?: number; daysLeft?: number; isAlmostFull?: boolean; isNew?: boolean; isPopular?: boolean
-  soloPrice?: number; groupPrice?: number; savingsPercent?: number; participantCount?: number
-  recentParticipants?: Array<{ name: string; joinedAt?: string }>
+  deadline: string
+  shippingMethod?: string
+  shippingCostPerUnit?: number
+  description?: string
+  createdAt?: string
+  createdBy?: { name?: string }
+  progress?: number
+  daysLeft?: number
+  isAlmostFull?: boolean
+  isNew?: boolean
+  isPopular?: boolean
+  participantCount?: number
+  savingsPercent?: number
 }
 
-/* ─── Helpers ─── */
-const fmt = (v: number) => `${v.toLocaleString('fr-FR')} FCFA`
-
 interface ApiGroupOrder {
-  _id?: string; groupId: string; status: string
+  _id?: string
+  groupId: string
+  status: string
   product: { productId: string; name: string; image?: string; basePrice: number; currency: string; category?: string }
-  minQty: number; targetQty: number; currentQty: number; currentUnitPrice: number
+  minQty: number
+  targetQty: number
+  currentQty: number
+  currentUnitPrice: number
   priceTiers: Array<{ minQty: number; maxQty?: number; price: number; discount?: number }>
   participants: Array<{ name: string; qty: number; joinedAt?: string }>
-  deadline: string; shippingMethod?: string; description?: string; createdAt?: string; createdBy?: { name?: string }
+  deadline: string
+  shippingMethod?: string
+  shippingCostPerUnit?: number
+  description?: string
+  createdAt?: string
+  createdBy?: { name?: string }
+}
+
+function fmt(v: number, currency = 'FCFA') {
+  return `${v.toLocaleString('fr-FR')} ${currency}`
 }
 
 function enrichGroup(g: ApiGroupOrder): GroupOrder {
-  const progress = Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
+  const progress = g.targetQty > 0 ? Math.min(100, Math.round((g.currentQty / g.targetQty) * 100)) : 0
   const daysLeft = Math.max(0, Math.ceil((new Date(g.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
   const participantCount = g.participants?.length || 0
   const isAlmostFull = progress >= 80 && progress < 100
@@ -58,38 +81,44 @@ const SORT_OPTIONS = [
   { label: 'Plus de participants', key: 'participants' },
 ]
 
+const SHIPPING_LABELS: Record<string, { label: string; duration: string }> = {
+  maritime_60j: { label: 'Maritime', duration: '45-60 j' },
+  air_15j: { label: 'Aérien', duration: '10-15 j' },
+  express_3j: { label: 'Express', duration: '3-5 j' },
+}
+
 export default function GroupOrdersPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Tous')
-  const [categories, setCategories] = useState<string[]>(['Tous'])
+  const [categories, setCategories] = useState<{ label: string; slug: string }[]>([])
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0])
   const [showSortDropdown, setShowSortDropdown] = useState(false)
-  const [calcQty, setCalcQty] = useState(50)
-  const [calcDiscount, setCalcDiscount] = useState(45)
-  const [calcSoloPrice, setCalcSoloPrice] = useState(50000)
-  const [calcTransport, setCalcTransport] = useState<'maritime'|'air'|'express'>('maritime')
 
-  // Chargement des catégories depuis l'API
+  const [groups, setGroups] = useState<GroupOrder[]>([])
+  const [stats, setStats] = useState<{ totalOpen: number; totalFilled: number; totalParticipants: number }>({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState(false)
+
+  // Simulateur basé sur un groupe réel
+  const [calcGroupId, setCalcGroupId] = useState<string | null>(null)
+  const [calcQty, setCalcQty] = useState(50)
+
   useEffect(() => {
     let cancelled = false
     fetch('/api/catalog/categories')
       .then(r => r.json())
       .then(data => {
         if (!cancelled && data?.success && Array.isArray(data.items)) {
-          const names = data.items.map((c: any) => c.labelFr || c.name).filter(Boolean)
-          setCategories(['Tous', ...names])
+          const items = data.items
+            .filter((c: any) => c.labelFr || c.name)
+            .map((c: any) => ({ label: c.labelFr || c.name, slug: c.slug || c.name }))
+          setCategories([{ label: 'Tous', slug: 'Tous' }, ...items])
         }
       })
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
-
-  /* ─── API Data ─── */
-  const [groups, setGroups] = useState<GroupOrder[]>([])
-  const [stats, setStats] = useState<{ totalOpen: number; totalFilled: number; totalParticipants: number }>({ totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
-  const [loading, setLoading] = useState(true)
-  const [apiError, setApiError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -102,6 +131,7 @@ export default function GroupOrdersPage() {
           if (data.success && Array.isArray(data.groups)) {
             const enriched = data.groups.map(enrichGroup)
             setGroups(enriched)
+            if (!calcGroupId && enriched.length) setCalcGroupId(enriched[0].groupId)
             setStats(data.stats || { totalOpen: 0, totalFilled: 0, totalParticipants: 0 })
             setApiError(false)
           } else {
@@ -120,16 +150,8 @@ export default function GroupOrdersPage() {
     }
     fetchGroups()
     return () => { cancelled = true }
-  }, [])
+  }, [calcGroupId])
 
-  /* ─── Derived calculator ─── */
-  const calcGroupPrice = Math.round(calcSoloPrice * (1 - calcDiscount / 100))
-  const unitShip = calcTransport === 'maritime' ? 1500 : calcTransport === 'express' ? 5000 : 3500
-  const calcTotalUnit = calcGroupPrice + unitShip
-  const calcTotalSavings = (calcSoloPrice - calcTotalUnit) * calcQty
-  const calcMarginPct = calcTotalUnit > 0 ? Math.round(((calcSoloPrice - calcTotalUnit) / calcTotalUnit) * 100) : 0
-
-  /* ─── Filters & Sort ─── */
   const filtered = useMemo(() => {
     let res = [...groups]
     if (searchTerm.trim()) {
@@ -137,7 +159,8 @@ export default function GroupOrdersPage() {
       res = res.filter(g => g.product.name.toLowerCase().includes(q) || g.groupId.toLowerCase().includes(q))
     }
     if (categoryFilter !== 'Tous') {
-      res = res.filter(g => (g.product.category || '').toLowerCase().includes(categoryFilter.toLowerCase()))
+      const cat = categoryFilter.toLowerCase()
+      res = res.filter(g => (g.product.category || '').toLowerCase().includes(cat) || cat.includes((g.product.category || '').toLowerCase()))
     }
     return res
   }, [groups, searchTerm, categoryFilter])
@@ -161,478 +184,316 @@ export default function GroupOrdersPage() {
     return res
   }, [filtered, sortBy])
 
-  const featured = sorted.slice(0, 3)
-  const gridAll = sorted
+  const selectedGroup = useMemo(() => groups.find(g => g.groupId === calcGroupId), [groups, calcGroupId])
 
-  const totalSavingsFcfa = stats.totalParticipants * 25000
-  const savingsLabel = totalSavingsFcfa >= 1_000_000 ? `${Math.round(totalSavingsFcfa / 1_000_000)}M` : `${Math.round(totalSavingsFcfa / 1000)}k`
+  const calcResult = useMemo(() => {
+    if (!selectedGroup) return null
+    const ship = selectedGroup.shippingCostPerUnit || 0
+    const base = selectedGroup.product.basePrice
+    const groupUnit = selectedGroup.currentUnitPrice
+    const totalUnit = groupUnit + ship
+    const savingsPerUnit = Math.max(0, base - totalUnit)
+    const totalSavings = savingsPerUnit * calcQty
+    const discountPct = base > 0 ? Math.round((savingsPerUnit / base) * 100) : 0
+    const marginPct = totalUnit > 0 ? Math.round(((base - totalUnit) / totalUnit) * 100) : 0
+    return { base, groupUnit, ship, totalUnit, savingsPerUnit, totalSavings, discountPct, marginPct, currency: selectedGroup.product.currency }
+  }, [selectedGroup, calcQty])
 
-  function getProg(g: GroupOrder) {
-    return Math.min(100, Math.round((g.currentQty / g.targetQty) * 100))
-  }
-  function getDays(d: string) {
-    const diff = new Date(d).getTime() - Date.now()
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-  }
   function badgeFn(g: GroupOrder) {
-    if (g.isAlmostFull || (g.progress && g.progress >= 90)) return { text: `Plus que ${g.targetQty - g.currentQty} places !`, bg: 'bg-[#FF5252]', icon: Zap }
-    if (g.isPopular) return { text: 'Populaire', bg: 'bg-[#FFAB40]', icon: Flame }
-    if (g.isNew) return { text: 'Nouveau', bg: 'bg-[#00C853]', icon: Sparkles }
-    return { text: 'Ouvert', bg: 'bg-[#448AFF]', icon: Clock }
+    if (g.isAlmostFull || (g.progress && g.progress >= 90)) return { text: `Plus que ${g.targetQty - g.currentQty} places !`, bg: 'bg-rose-500', icon: Zap }
+    if (g.isPopular) return { text: 'Populaire', bg: 'bg-orange-500', icon: Flame }
+    if (g.isNew) return { text: 'Nouveau', bg: 'bg-emerald-500', icon: Sparkles }
+    return { text: 'Ouvert', bg: 'bg-blue-500', icon: Clock }
   }
+
   function initials(name: string) {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
   }
 
-  const featuredCards = loading ? (
-    [1,2,3].map(i => (
-      <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-lg overflow-hidden animate-pulse">
-        <div className="h-48 bg-gray-200 dark:bg-slate-700" />
-        <div className="p-5 space-y-3">
-          <div className="h-5 bg-gray-200 dark:bg-slate-700 rounded w-3/4" />
-          <div className="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2" />
-          <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-full" />
-        </div>
-      </div>
-    ))
-  ) : featured.length === 0 ? (
-    <div className="col-span-3 text-center py-12 text-gray-500 dark:text-slate-400">
-      Aucun groupe en vedette pour le moment.
-    </div>
-  ) : (
-    featured.map((g, i) => {
-      const b = badgeFn(g); const prog = getProg(g); const days = getDays(g.deadline)
-      const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
-      return (
-        <motion.div key={g.groupId} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}} whileHover={{y:-6}} className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="relative h-48 bg-gray-100 dark:bg-slate-700">
-            {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-slate-500">{g.product.name}</div>}
-            <span className={`absolute top-3 left-3 px-3 py-1.5 ${b.bg} text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-md`}><b.icon className="w-3.5 h-3.5"/>{b.text}</span>
-          </div>
-          <div className="p-5">
-            <h3 className="font-bold text-lg text-[#1A1A2E] dark:text-slate-200 mb-2 line-clamp-1">{g.product.name}</h3>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{g.currentQty}/{g.targetQty}</span>
-              <div className="w-32 h-2 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                <motion.div initial={{width:0}} animate={{width:`${prog}%`}} transition={{duration:0.8}} className={`h-full rounded-full ${prog>=100?'bg-[#00C853]':'bg-gradient-to-r from-[#00C853] to-[#7C4DFF]'}`}/>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex -space-x-2">
-                {(g.participants||[]).slice(0,4).map((p,i)=>(
-                  <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[10px] font-bold text-white border-2 border-white" title={p.name}>{initials(p.name)}</div>
-                ))}
-              </div>
-              <span className="text-xs text-gray-500 dark:text-slate-400">+{(g.participantCount||0)>4?(g.participantCount||0)-4:Math.max(0,(g.participantCount||0))} acheteurs</span>
-            </div>
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-sm text-gray-400 dark:text-slate-500 line-through">Solo: {fmt(solo)}</span>
-              <span className="text-base font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
-              <span className="text-xs bg-red-50 dark:bg-red-950/30 text-[#FF5252] rounded px-1.5 py-0.5 font-bold">(-{sav}%)</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-sm text-orange-500 mb-4">
-              <Clock className="w-4 h-4"/>{days>0?`⏱ ${days}j restantes`:'Terminé'}
-            </div>
-            <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-3 rounded-xl font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600 text-white shadow-lg shadow-red-200':'bg-[#00C853] hover:bg-emerald-600 text-white shadow-lg shadow-emerald-200'}`}>
-              {g.isAlmostFull?'Rejoindre maintenant':g.isNew?`Être le ${g.currentQty+1}ème`:'Rejoindre'}
-            </button>
-          </div>
-        </motion.div>
-      )
-    })
-  )
+  const totalSavingsFcfa = stats.totalParticipants * (groups.reduce((sum, g) => sum + (g.product.basePrice - g.currentUnitPrice - (g.shippingCostPerUnit || 0)), 0) / (groups.length || 1))
+  const savingsLabel = isFinite(totalSavingsFcfa) && Math.abs(totalSavingsFcfa) >= 1_000_000
+    ? `${Math.round(totalSavingsFcfa / 1_000_000)}M`
+    : `${Math.round((isFinite(totalSavingsFcfa) ? totalSavingsFcfa : 0) / 1000)}k`
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 md:pb-0">
       <MarketHeader />
 
       {/* HERO */}
-      <section className="relative min-h-[500px] overflow-hidden" style={{background:'linear-gradient(135deg, #1A1A2E 0%, #16213E 30%, #0F3460 60%, #00C853 100%)'}}>
-        <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize:'40px 40px'}} />
-        <div className="relative max-w-7xl mx-auto px-4 pt-12 pb-20">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <motion.div initial={{opacity:0,x:-30}} animate={{opacity:1,x:0}} transition={{duration:0.6}}>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur rounded-full text-white text-xs font-semibold mb-6">
-                <Sparkles className="w-3.5 h-3.5" /> DDM+ · Achetez à plusieurs
-              </div>
-              <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 tracking-tight">
-                🤝 Importez en groupe,<br/>économisez ensemble
-              </h1>
-              <p className="text-lg text-white/80 mb-8 max-w-lg">
-                Plus on est nombreux, moins c&apos;est cher. Jusqu&apos;à -45% sur vos commandes.
-              </p>
-              <div className="flex flex-wrap gap-3 mb-10">
-                <button onClick={()=>document.getElementById('all-groups')?.scrollIntoView({behavior:'smooth'})} className="px-6 py-3 bg-white text-[#1A1A2E] rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
-                  Voir les groupes actifs
-                </button>
-                <button onClick={()=>router.push('/achats-groupes/nouveau')} className="px-6 py-3 border-2 border-white/50 text-white rounded-xl font-semibold hover:bg-white/10 transition">
-                  Créer un groupe →
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-8 text-white/90 text-sm font-medium">
-                <span className="flex items-center gap-2">🔥 <strong className="text-white text-base">{stats.totalOpen}</strong> groupes ouverts</span>
-                <span className="flex items-center gap-2">👥 <strong className="text-white text-base">{stats.totalParticipants}</strong> participants</span>
-                <span className="flex items-center gap-2">💰 <strong className="text-white text-base">{savingsLabel}</strong> FCFA économisés</span>
-              </div>
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900">
+        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+        <div className="relative max-w-7xl mx-auto px-4 py-14 md:py-20">
+          <div className="max-w-2xl">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur rounded-full text-white text-xs font-semibold mb-5">
+              <Sparkles className="w-3.5 h-3.5" /> Import groupé · Moins cher ensemble
             </motion.div>
-
-            <div className="hidden lg:block relative">
-              <div className="w-[400px] h-[300px] bg-white/10 rounded-2xl flex items-center justify-center text-white/60 text-sm mx-auto border border-white/10">
-                <div className="text-center">
-                  <Package className="w-16 h-16 mx-auto mb-3 opacity-40" />
-                  Illustration 3D isométrique<br/>Import groupe
-                </div>
-              </div>
-              <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.4}} className="absolute -top-4 right-0 bg-white rounded-xl shadow-xl p-3 flex items-center gap-3 max-w-[220px]">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-white text-[10px] font-bold">AD</div>
-                <div className="text-xs"><span className="font-bold text-[#1A1A2E]">Ahmed D.</span> <span className="text-gray-500">a rejoint un groupe</span></div>
-              </motion.div>
-              <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.6}} className="absolute top-20 -right-4 bg-white rounded-xl shadow-xl p-3 flex items-center gap-3 max-w-[220px]">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF5252] to-[#FFAB40] flex items-center justify-center text-white text-[10px] font-bold">FS</div>
-                <div className="text-xs"><span className="font-bold text-[#1A1A2E]">Fatou S.</span> <span className="text-gray-500">a créé une cagnotte</span></div>
-              </motion.div>
-            </div>
+            <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4 tracking-tight">
+              Importez à plusieurs, payez moins cher
+            </motion.h1>
+            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-base md:text-lg text-white/80 mb-8 max-w-xl">
+              Rejoignez un groupe existant ou créez le vôtre. Plus on est nombreux, plus le prix unitaire baisse.
+            </motion.p>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="flex flex-wrap gap-3">
+              <button onClick={() => document.getElementById('groups')?.scrollIntoView({ behavior: 'smooth' })} className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold transition shadow-lg shadow-emerald-900/30">
+                Voir les groupes
+              </button>
+              <button onClick={() => router.push('/achats-groupes/nouveau')} className="px-6 py-3 border-2 border-white/30 hover:bg-white/10 text-white rounded-xl font-semibold transition">
+                Créer un groupe →
+              </button>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex flex-wrap gap-6 mt-10 text-white/90 text-sm font-medium">
+              <span className="flex items-center gap-2"><Flame className="w-4 h-4 text-orange-400" /><strong className="text-white text-base">{stats.totalOpen}</strong> groupes ouverts</span>
+              <span className="flex items-center gap-2"><Users className="w-4 h-4 text-emerald-400" /><strong className="text-white text-base">{stats.totalParticipants}</strong> participants</span>
+              <span className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-violet-400" /><strong className="text-white text-base">~{savingsLabel}</strong> FCFA économisés</span>
+            </motion.div>
           </div>
         </div>
       </section>
 
       {/* SEARCH & FILTERS */}
-      <section className="sticky top-20 md:top-28 z-30 bg-white dark:bg-slate-900 py-6 shadow-sm border-b border-gray-100 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="relative max-w-3xl mx-auto mb-4">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input type="text" placeholder="Rechercher un produit ou groupe..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="w-full h-14 bg-gray-100 dark:bg-slate-800 dark:text-slate-200 rounded-2xl pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#00C853] transition" />
-          </div>
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex flex-wrap gap-3 justify-center">
-              {categories.map((cat) => (
-                <button key={cat} onClick={()=>setCategoryFilter(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${categoryFilter===cat?'bg-[#1A1A2E] text-white dark:bg-slate-700':'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
-                  {cat}
-                </button>
-              ))}
+      <section className="sticky top-16 md:top-20 z-30 bg-white dark:bg-slate-900 py-4 shadow-sm border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un produit ou un groupe..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-12 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 rounded-xl pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+              />
             </div>
-            <div className="relative">
-              <button onClick={() => setShowSortDropdown(v => !v)} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                Trier: {sortBy.label} <ChevronDown className="w-4 h-4" />
-              </button>
-              <AnimatePresence>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button onClick={() => setShowSortDropdown(v => !v)} className="flex items-center gap-2 h-12 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                  <Filter className="w-4 h-4" /> {sortBy.label} <ChevronDown className="w-4 h-4" />
+                </button>
                 {showSortDropdown && (
-                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden">
                     {SORT_OPTIONS.map(opt => (
                       <button
                         key={opt.key}
                         onClick={() => { setSortBy(opt); setShowSortDropdown(false) }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition ${sortBy.key === opt.key ? 'bg-gray-50 dark:bg-slate-700 font-semibold text-[#1A1A2E] dark:text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition ${sortBy.key === opt.key ? 'bg-emerald-50 dark:bg-emerald-900/30 font-semibold text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                       >
                         {opt.label}
                       </button>
                     ))}
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* VALUE BADGES */}
-      <section className="py-6 bg-white dark:bg-slate-950">
-        <div className="max-w-6xl mx-auto px-4 flex flex-wrap gap-4 justify-center">
-          <div className="flex items-center gap-3 px-5 py-4 bg-[#E8F5E9] dark:bg-emerald-950/30 rounded-xl">
-            <span className="text-xl">💰</span>
-            <span className="text-sm font-bold text-[#00C853]">Économisez jusqu&apos;à -45%</span>
-          </div>
-          <div className="flex items-center gap-3 px-5 py-4 bg-[#EDE7F6] dark:bg-violet-950/30 rounded-xl">
-            <span className="text-xl">📦</span>
-            <span className="text-sm font-bold text-[#7C4DFF]">Stock négocié</span>
-          </div>
-          <div className="flex items-center gap-3 px-5 py-4 bg-orange-50 dark:bg-orange-950/30 rounded-xl">
-            <span className="text-xl">🚚</span>
-            <span className="text-sm font-bold text-[#FFAB40]">Transport groupé optimisé</span>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mt-3 snap-x">
+            {categories.map((cat) => (
+              <button
+                key={cat.slug}
+                onClick={() => setCategoryFilter(cat.label)}
+                className={`flex-shrink-0 snap-start px-4 py-2 rounded-full text-xs font-medium transition ${categoryFilter === cat.label ? 'bg-slate-900 text-white dark:bg-emerald-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}
+              >
+                {cat.label}
+              </button>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* FEATURED GROUPS */}
-      <section id="featured-groups" className="py-8 px-4 bg-white dark:bg-slate-950">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-5">
-            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1">GROUPES ACTIFS · HERO GROUP CARDS</p>
-            <h2 className="text-xl font-bold text-[#1A1A2E] dark:text-white flex items-center gap-2">
-              <Flame className="w-5 h-5 text-[#FFAB40]" />
-              Groupes en vedette – Rejoignez vite !
-            </h2>
+      {/* MAIN: GRID + SIMULATOR */}
+      <section id="groups" className="py-8 px-4 max-w-7xl mx-auto">
+        {apiError && (
+          <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 p-6 text-center mb-6">
+            <p className="text-red-700 dark:text-red-300 font-medium">Impossible de charger les groupes pour le moment.</p>
+            <button onClick={() => window.location.reload()} className="mt-2 text-sm text-red-700 dark:text-red-300 underline">Réessayer</button>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {featuredCards}
-          </div>
-        </div>
-      </section>
+        )}
 
-      {/* CALCULATOR + GROUPS — compact side-by-side */}
-      <section id="all-groups" className="py-6 px-4 bg-gray-50 dark:bg-slate-900">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-5">
-          {/* LEFT: Calculator */}
-          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-5">
-            <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white mb-4 flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-[#7C4DFF]" />
-              Calculez votre économie en temps réel
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-xs font-semibold text-[#1A1A2E] mb-1"><span>Prix unitaire solo</span><span className="text-[#7C4DFF]">{calcSoloPrice.toLocaleString('fr-FR')} F</span></div>
-                  <input type="range" min={5000} max={200000} step={5000} value={calcSoloPrice} onChange={(e)=>setCalcSoloPrice(Number(e.target.value))} className="w-full accent-[#7C4DFF] h-1"/>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-semibold text-[#1A1A2E] mb-1"><span>Réduction groupée</span><span className="text-[#00C853]">{calcDiscount}%</span></div>
-                  <input type="range" min={5} max={60} step={5} value={calcDiscount} onChange={(e)=>setCalcDiscount(Number(e.target.value))} className="w-full accent-[#00C853] h-1"/>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-semibold text-[#1A1A2E] mb-1"><span>Quantité</span><span className="text-[#7C4DFF]">{calcQty}</span></div>
-                  <input type="range" min={1} max={100} value={calcQty} onChange={(e)=>setCalcQty(Number(e.target.value))} className="w-full accent-[#7C4DFF] h-1"/>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#1A1A2E] mb-1 block">Produit</label>
-                  <select className="w-full px-2 py-1.5 bg-gray-50 dark:bg-slate-700 dark:text-slate-200 rounded-lg text-xs border border-gray-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#00C853]">
-                    <option>Caméra IP Hikvision 4MP</option>
-                    <option>iPhone reconditionné 128GB</option>
-                    <option>Sneakers Running Légères</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#1A1A2E] mb-1 block">Mode transport</label>
-                  <div className="flex gap-1.5">
-                    {['maritime','air','express'].map((t)=>(
-                      <button key={t} onClick={()=>setCalcTransport(t as any)} className={`flex-1 py-1 rounded-lg text-[10px] font-semibold border transition ${calcTransport===t?'bg-[#EDE7F6] border-[#7C4DFF] text-[#7C4DFF]':'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300'}`}>
-                        {t==='maritime'?'Maritime 45j':t==='air'?'Aérien 7j':'Express 3j'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* LEFT: groups grid */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-emerald-600" />
+                Groupes actifs
+              </h2>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{sorted.length} résultat{sorted.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {loading ? (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 h-80 animate-pulse" />
+                ))}
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-xs"><span className="text-gray-600 dark:text-slate-400">Prix unitaire individuel</span><span className="font-bold text-gray-500 dark:text-slate-400">{fmt(calcSoloPrice)}</span></div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-xs"><span className="text-gray-600 dark:text-slate-400">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">{fmt(calcGroupPrice)}</span></div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg text-xs"><span className="text-gray-600 dark:text-slate-400">Transport groupé</span><span className="font-bold text-gray-700 dark:text-slate-300">+{fmt(unitShip)}</span></div>
-                <div className="border-t border-gray-200 dark:border-slate-600 pt-2">
-                  <div className="flex justify-between items-center mb-1"><span className="text-xs font-bold text-[#1A1A2E] dark:text-white">Total par unité:</span><span className="text-lg font-extrabold text-[#00C853]">{fmt(calcTotalUnit)}</span></div>
-                  <span className="text-[10px] text-[#00C853] font-semibold block">💚 Économie: {fmt(calcTotalSavings)} (-{calcDiscount}%)</span>
-                  <span className="inline-block mt-1 text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] rounded-full px-2 py-0.5">📈 Marge: +{calcMarginPct}%</span>
-                </div>
-                <button className="w-full py-2 bg-[#00C853] text-white rounded-xl font-semibold text-xs hover:bg-emerald-600 transition shadow-md">
-                  Trouver un groupe pour ce produit
+            ) : sorted.length === 0 ? (
+              <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <p className="text-slate-600 dark:text-slate-300 mb-4">Aucun groupe ne correspond à votre recherche.</p>
+                <button onClick={() => router.push('/achats-groupes/nouveau')} className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold">
+                  Créer un groupe
                 </button>
               </div>
-            </div>
-          </motion.div>
-
-          {/* RIGHT: Compact groups */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white flex items-center gap-2">
-                <Package className="w-5 h-5 text-[#7C4DFF]" />
-                Tous les groupes
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {['Tous','Bientôt','Nouv.','Mode','Tech','Maison','Beauté'].map((f,i)=> (
-                <button key={f} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white dark:bg-slate-700':i===1?'bg-red-50 text-[#FF5252] border-red-100 dark:bg-red-950/30 dark:border-red-900':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900':'bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-100 dark:border-slate-700'}`}>{f}</button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {gridAll.slice(0,6).map((g) => {
-                const b = badgeFn(g); const prog = getProg(g); const days = getDays(g.deadline)
-                const solo = g.product.basePrice; const gp = g.currentUnitPrice; const sav = Math.round(((solo-gp)/solo)*100)
-                return (
-                  <motion.div key={g.groupId} whileHover={{y:-3}} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                    <div className="relative h-24 bg-gray-100 dark:bg-slate-700">
-                      {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-slate-500 text-[10px]">{g.product.name}</div>}
-                      <span className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 ${b.bg} text-white text-[8px] font-bold rounded-full`}>{b.text}</span>
-                    </div>
-                    <div className="p-2">
-                      <h3 className="font-bold text-[11px] text-[#1A1A2E] dark:text-slate-200 mb-0.5 line-clamp-1">{g.product.name}</h3>
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[10px] text-gray-500 dark:text-slate-400">{g.currentQty}/{g.targetQty}</span>
-                        <div className="w-10 h-1 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {sorted.map((g, i) => {
+                  const b = badgeFn(g)
+                  const prog = g.progress || 0
+                  const days = g.daysLeft || 0
+                  const solo = g.product.basePrice
+                  const gp = g.currentUnitPrice
+                  const sav = g.savingsPercent || 0
+                  return (
+                    <motion.div
+                      key={g.groupId}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      whileHover={{ y: -4 }}
+                      className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden flex flex-col"
+                    >
+                      <div className="relative h-44 bg-slate-100 dark:bg-slate-700">
+                        {g.product.image ? <Image src={g.product.image} alt={g.product.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">{g.product.name}</div>}
+                        <span className={`absolute top-3 left-3 px-3 py-1.5 ${b.bg} text-white text-[10px] font-bold rounded-full flex items-center gap-1.5 shadow`}><b.icon className="w-3.5 h-3.5" />{b.text}</span>
                       </div>
-                      <div className="flex items-center gap-0.5 mb-0.5">
-                        <div className="flex -space-x-1">
-                          {['AD','FS'].map((ini,i)=>(<div key={i} className="w-4 h-4 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[6px] font-bold text-white border border-white">{ini}</div>))}
+                      <div className="p-5 flex-1 flex flex-col">
+                        <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-1 line-clamp-1">{g.product.name}</h3>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{g.currentQty}/{g.targetQty} unités</span>
+                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{days > 0 ? `${days}j restantes` : 'Terminé'}</span>
                         </div>
-                        <span className="text-[8px] text-gray-400 dark:text-slate-500">+{Math.max(0,(g.participantCount||1)-2)}</span>
+                        <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-4">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${prog}%` }} transition={{ duration: 0.6 }} className={`h-full rounded-full ${prog >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-500 to-violet-500'}`} />
+                        </div>
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="flex -space-x-2">
+                            {(g.participants || []).slice(0, 4).map((p, idx) => (
+                              <div key={idx} className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white border-2 border-white dark:border-slate-800" title={p.name}>{initials(p.name)}</div>
+                            ))}
+                          </div>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">{(g.participantCount || 0) > 4 ? `+${(g.participantCount || 0) - 4} acheteurs` : `${g.participantCount || 0} participant${(g.participantCount || 0) > 1 ? 's' : ''}`}</span>
+                        </div>
+                        <div className="mt-auto">
+                          <div className="flex items-baseline gap-2 mb-2">
+                            <span className="text-sm text-slate-400 line-through">{fmt(solo, g.product.currency)}</span>
+                            <span className="text-lg font-bold text-emerald-600">{fmt(gp, g.product.currency)}</span>
+                            {sav > 0 && <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-900/30 rounded px-1.5 py-0.5">-{sav}%</span>}
+                          </div>
+                          <button onClick={() => router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-2.5 rounded-xl font-semibold text-white transition ${g.isAlmostFull ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-200' : 'bg-emerald-500 hover:bg-emerald-600'} shadow-md`}>
+                            {g.isAlmostFull ? 'Rejoindre maintenant' : 'Rejoindre le groupe'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-baseline gap-1 mb-0.5">
-                        <span className="text-[9px] text-gray-400 dark:text-slate-500 line-through">{fmt(solo)}</span>
-                        <span className="text-[11px] font-bold text-[#00C853]">{fmt(gp)}</span>
-                        <span className="text-[8px] bg-red-50 text-[#FF5252] rounded px-0.5 font-bold">-{sav}%</span>
-                      </div>
-                      <div className="flex items-center gap-0.5 text-[9px] text-orange-500 mb-1"><Clock className="w-2.5 h-2.5"/>{days}j</div>
-                      <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-1 rounded-lg text-[10px] font-semibold transition ${g.isAlmostFull?'bg-[#FF5252] text-white':'bg-[#00C853] text-white'}`}>
-                        {g.isAlmostFull?'Bientôt complet!':'Rejoindre'}
-                      </button>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: simulator */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-32 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg p-5">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-violet-600" />
+                Simulateur d&apos;économie
+              </h2>
+
+              {selectedGroup && calcResult ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">Groupe sélectionné</label>
+                    <select
+                      value={calcGroupId || ''}
+                      onChange={(e) => { setCalcGroupId(e.target.value); setCalcQty(50) }}
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200"
+                    >
+                      {groups.map(g => <option key={g.groupId} value={g.groupId}>{g.product.name} · {g.currentQty}/{g.targetQty}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      <span>Quantité</span>
+                      <span className="text-violet-600">{calcQty}</span>
                     </div>
-                  </motion.div>
-                )
-              })}
-            </div>
-            {/* Create group CTA */}
-            <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{background:'linear-gradient(135deg, #7C4DFF 0%, #00C853 100%)'}}>
-              <p className="text-[10px] opacity-80 mb-0.5">Vous ne trouvez pas ?</p>
-              <h3 className="text-sm font-bold mb-1">Créez votre propre groupe</h3>
-              <p className="text-[10px] opacity-90 mb-2">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
-              <button onClick={()=>router.push('/achats-groupes/nouveau')} className="px-3 py-1.5 bg-white text-[#7C4DFF] rounded-lg text-[10px] font-semibold hover:bg-gray-100 transition">
-                Créer un groupe →
-              </button>
+                    <input type="range" min={selectedGroup.minQty || 1} max={selectedGroup.targetQty * 2} value={calcQty} onChange={(e) => setCalcQty(Number(e.target.value))} className="w-full accent-violet-600 h-1.5" />
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                      <span className="text-slate-500 dark:text-slate-400">Prix unitaire solo</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">{fmt(calcResult.base, calcResult.currency)}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                      <span className="text-slate-500 dark:text-slate-400">Prix groupé</span>
+                      <span className="font-bold text-emerald-600">{fmt(calcResult.groupUnit, calcResult.currency)}</span>
+                    </div>
+                    {calcResult.ship > 0 && (
+                      <div className="flex justify-between p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                        <span className="text-slate-500 dark:text-slate-400">Transport ({SHIPPING_LABELS[selectedGroup.shippingMethod || 'maritime_60j']?.label || 'Maritime'})</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">+{fmt(calcResult.ship, calcResult.currency)}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-slate-200 dark:border-slate-600 pt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-semibold text-slate-900 dark:text-white">Total par unité</span>
+                        <span className="text-lg font-extrabold text-emerald-600">{fmt(calcResult.totalUnit, calcResult.currency)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-emerald-600 font-semibold">Économie: {fmt(calcResult.totalSavings, calcResult.currency)} (-{calcResult.discountPct}%)</span>
+                        {calcResult.marginPct > 0 && <span className="text-violet-600 font-semibold">Marge: +{calcResult.marginPct}%</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button onClick={() => router.push(`/achats-groupes/${selectedGroup.groupId}`)} className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition">
+                    Rejoindre ce groupe
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                  <Calculator className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Aucun groupe disponible pour le simulateur.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS — compact inline */}
-      <section className="py-6 px-4 bg-white dark:bg-slate-950 border-b border-gray-100 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white mb-4">Comment fonctionne un achat groupé ?</h2>
-          <div className="grid grid-cols-4 gap-4">
+      {/* HOW IT WORKS */}
+      <section className="py-10 px-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6 text-center">Comment ça marche ?</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              {num:'1', icon:Search, title:'Choisissez un groupe'},
-              {num:'2', icon:Users, title:'Rejoignez et réservez'},
-              {num:'3', icon:Factory, title:'Production en Chine'},
-              {num:'4', icon:Truck, title:'Livraison Sénégal'}
+              { num: '1', icon: Search, title: 'Trouvez un groupe' },
+              { num: '2', icon: Users, title: 'Réservez votre quantité' },
+              { num: '3', icon: Truck, title: 'Import groupé' },
+              { num: '4', icon: CheckCircle, title: 'Livraison Sénégal' },
             ].map((step, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-[#1A1A2E] dark:bg-slate-700 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{step.num}</div>
-                <div>
-                  <step.icon className="w-3.5 h-3.5 text-[#7C4DFF] mb-0.5" />
-                  <h3 className="font-bold text-[#1A1A2E] dark:text-slate-200 text-[11px]">{step.title}</h3>
-                </div>
-                {i < 3 && <ArrowRight className="w-4 h-4 text-gray-300 dark:text-slate-600 flex-shrink-0" />}
+              <div key={i} className="flex flex-col items-center text-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800">
+                <div className="w-10 h-10 bg-slate-900 dark:bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold mb-3">{step.num}</div>
+                <step.icon className="w-5 h-5 text-violet-600 mb-2" />
+                <h3 className="font-semibold text-slate-900 dark:text-slate-200 text-sm">{step.title}</h3>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ALL GROUPS — full width 4-col grid */}
-      <section className="py-8 px-4 bg-[#F8F9FA] dark:bg-slate-900">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">TOUS LES GROUPES ACTIFS · GRD</p>
-              <h2 className="text-xl font-bold text-[#1A1A2E] dark:text-white flex items-center gap-2">
-                <Package className="w-5 h-5 text-[#7C4DFF]"/>Tous les groupes actifs
-              </h2>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {['Tous','Bientôt complet','Nouveau','Mode','Tech','Maison','Beauté'].map((f,i)=>(
-              <button key={f} className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${i===0?'bg-[#1A1A2E] text-white border-[#1A1A2E] dark:bg-slate-700 dark:border-slate-600':i===1?'bg-red-50 text-[#FF5252] border-red-100 dark:bg-red-950/30 dark:border-red-900':i===2?'bg-emerald-50 text-[#00C853] border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900':'bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>{f}</button>
-            ))}
-          </div>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {gridAll.map((g)=>{
-              const b=badgeFn(g);const prog=getProg(g);const days=getDays(g.deadline)
-              const solo=g.product.basePrice;const gp=g.currentUnitPrice;const sav=Math.round(((solo-gp)/solo)*100)
-              return (
-                <motion.div key={g.groupId+'-grid'} whileHover={{y:-3}} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                  <div className="relative h-28 bg-gray-100 dark:bg-slate-700">
-                    {g.product.image&&<Image src={g.product.image} alt={g.product.name} fill className="object-cover"/>}
-                    <span className={`absolute top-2 left-2 px-2 py-0.5 ${b.bg} text-white text-[9px] font-bold rounded-full`}>{b.text}</span>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-xs text-[#1A1A2E] dark:text-slate-200 mb-1 line-clamp-1">{g.product.name}</h3>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-gray-500 dark:text-slate-400">{g.currentQty}/{g.targetQty}</span>
-                      <div className="w-14 h-1.5 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden"><div className="h-full bg-[#00C853] rounded-full" style={{width:`${prog}%`}}/></div>
-                    </div>
-                    <div className="flex -space-x-1 mb-1.5">
-                      {['AD','FS','MK'].slice(0,Math.min(3,g.participantCount||1)).map((ini,i)=>(
-                        <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#448AFF] flex items-center justify-center text-[7px] font-bold text-white border border-white">{ini}</div>
-                      ))}
-                      {(g.participantCount || 0) > 3 && (
-                        <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-slate-600 flex items-center justify-center text-[7px] font-bold text-gray-600 dark:text-slate-300 border border-white dark:border-slate-800">
-                          +{(g.participantCount || 0) - 3}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-1 mb-1">
-                      <span className="text-[9px] text-gray-400 dark:text-slate-500 line-through">Solo: {fmt(solo)}</span>
-                      <span className="text-xs font-bold text-[#00C853]">Groupe: {fmt(gp)}</span>
-                      <span className="text-[9px] bg-red-50 dark:bg-red-950/30 text-[#FF5252] rounded px-0.5 font-bold">(-{sav}%)</span>
-                    </div>
-                    <div className="text-[10px] text-orange-500 mb-2 flex items-center gap-0.5"><Clock className="w-3 h-3"/>{days}j restantes</div>
-                    <button onClick={()=>router.push(`/achats-groupes/${g.groupId}`)} className={`w-full py-1.5 rounded-lg text-[10px] font-semibold text-white transition ${prog>=100?'bg-gray-400':g.isAlmostFull?'bg-[#FF5252] hover:bg-red-600':'bg-[#00C853] hover:bg-emerald-600'}`}>
-                      {prog>=100?'Bientôt complet':g.isAlmostFull?'Rejoindre maintenant':'Rejoindre'}
-                    </button>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* CREATE GROUP CTA — full width banner */}
-      <section className="py-6 px-4 bg-white dark:bg-slate-950">
-        <div className="max-w-6xl mx-auto">
-          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} className="rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden" style={{background:'linear-gradient(135deg, #1A1A2E 0%, #7C4DFF 50%, #00C853 100%)'}}>
-            <div>
-              <p className="text-xs text-white/70 mb-1">Vous ne trouvez pas votre produit ?</p>
-              <h3 className="text-xl font-bold mb-1">Créez votre propre groupe</h3>
-              <p className="text-sm text-white/80">Choisissez un produit, fixez la cible et invitez d&apos;autres acheteurs.</p>
-            </div>
-            <button onClick={()=>router.push('/achats-groupes/nouveau')} className="flex-shrink-0 px-6 py-3 bg-white text-[#7C4DFF] rounded-xl font-semibold hover:bg-gray-100 dark:hover:bg-slate-200 transition shadow-lg">
-              Créer un groupe →
-            </button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ENTREPRENEURS */}
-      <section className="py-6 px-4 bg-white dark:bg-slate-950">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1">EXEMPLE DE RENTABILITÉ POUR REVENDEURS</p>
-          <h2 className="text-base font-bold text-[#1A1A2E] dark:text-white mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-[#7C4DFF]" />
-            Pour les entrepreneurs &amp; revendeurs
-          </h2>
-          <div className="grid md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              {[
-                'Bénéficiez de prix grossiste même à petite échelle',
-                'Économisez sur l\'importation et la logistique',
-                'Revendez avec une marge confortable',
-                'Rejoignez une communauté d\'entrepreneurs'
-              ].map((txt,i)=> (
-                <div key={i} className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-[#00C853] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs text-gray-700 dark:text-slate-300">{txt}</span>
-                </div>
-              ))}
-            </div>
-            <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 border border-gray-100 dark:border-slate-700">
-              <h3 className="font-bold text-[#1A1A2E] dark:text-slate-200 mb-3 text-xs">Exemple de rentabilité pour revendeurs</h3>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Prix unitaire individuel</span><span className="font-bold text-[#FF5252]">22 000 FCFA</span></div>
-                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Prix groupé (50+)</span><span className="font-bold text-[#00C853]">12 000 FCFA</span></div>
-                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Transport groupé</span><span className="font-bold text-gray-600 dark:text-slate-300">+8 000 FCFA</span></div>
-                <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between items-center">
-                  <span className="text-sm font-bold text-[#1A1A2E] dark:text-white">Total par unité:</span>
-                  <span className="text-lg font-extrabold text-[#00C853]">20 000 FCFA</span>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <span className="text-[10px] font-bold text-[#00C853] bg-emerald-50 dark:bg-emerald-950/30 rounded-full px-2 py-0.5">💚 Économie: -45%</span>
-                  <span className="text-[10px] font-bold text-[#7C4DFF] bg-[#EDE7F6] dark:bg-violet-950/30 rounded-full px-2 py-0.5">📈 Marge revente: +67%</span>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* CTA */}
+      <section className="py-10 px-4 bg-gradient-to-r from-violet-600 to-emerald-600 text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-xl md:text-2xl font-bold mb-3">Vous ne trouvez pas votre produit ?</h2>
+          <p className="text-white/90 mb-6">Créez un groupe et invitez d&apos;autres acheteurs pour réduire le prix.</p>
+          <button onClick={() => router.push('/achats-groupes/nouveau')} className="px-8 py-3.5 bg-white text-violet-700 rounded-xl font-bold hover:bg-slate-100 transition shadow-lg">
+            Créer un groupe →
+          </button>
         </div>
       </section>
 
       <MarketFooter />
       <MarketBottomNav />
-
     </div>
   )
 }

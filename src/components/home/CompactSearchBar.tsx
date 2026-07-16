@@ -2,8 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Camera } from 'lucide-react'
-import { searchChips } from '@/lib/home-data'
+import { Search, Camera, Smartphone, Shirt, Home, Sparkles, Car, Gamepad2, Dumbbell, ChefHat, Baby, Dog, Wrench, LayoutGrid } from 'lucide-react'
+import { quickCategories } from '@/lib/home-data'
+
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  Smartphone, Shirt, Home, Sparkles, Car, Gamepad2,
+  Dumbbell, ChefHat, Baby, Dog, Wrench, LayoutGrid,
+}
 
 interface CompactSearchBarProps {
   onOpenImageSearch?: () => void
@@ -34,7 +39,7 @@ export default function CompactSearchBar({ onOpenImageSearch }: CompactSearchBar
         <button
           type="button"
           onClick={onOpenImageSearch}
-          className="p-2 hover:bg-violet-50 rounded-full transition-colors"
+          className="p-2 hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-full transition-colors"
           title="Recherche par image"
         >
           <Camera className="w-5 h-5 text-violet-600" />
@@ -47,17 +52,27 @@ export default function CompactSearchBar({ onOpenImageSearch }: CompactSearchBar
         </button>
       </div>
 
-      {/* Chips suggestions */}
-      <div className="flex gap-2 mt-3 justify-center flex-wrap">
-        {searchChips.map((chip) => (
-          <button
-            key={chip}
-            onClick={() => handleSearch(chip)}
-            className="px-3 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full hover:border-emerald-500 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-400 transition text-slate-600 dark:text-slate-400"
-          >
-            {chip}
-          </button>
-        ))}
+      {/* Catégories rapides sous forme d'icônes */}
+      <div className="mt-3 -mx-4 px-4">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 snap-x">
+          {quickCategories.map((cat) => {
+            const Icon = iconMap[cat.icon] || LayoutGrid
+            return (
+              <button
+                key={cat.label}
+                onClick={() => router.push(cat.href)}
+                className="flex flex-col items-center gap-1.5 group flex-shrink-0 snap-start min-w-[3.5rem]"
+              >
+                <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center group-hover:border-emerald-500 group-hover:ring-2 ring-emerald-500/20 transition shadow-sm">
+                  <Icon className={`w-5 h-5 ${cat.color}`} />
+                </div>
+                <span className="text-[10px] text-slate-600 dark:text-slate-400 text-center leading-tight max-w-[4.5rem] line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  {cat.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
