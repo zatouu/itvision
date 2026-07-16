@@ -8,6 +8,7 @@ import { initiatePayment, InitiateResult, PaymentProvider } from '@/lib/payment'
 import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wallet'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { offerPaymentInitSchema, validate } from '@/lib/validation'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
@@ -24,15 +25,12 @@ export async function POST(request: NextRequest) {
 
     await connectMongoose()
     const { userId } = await requireAuth(request)
-    const body = await request.json()
-    const { offerId, provider, clientPhone, phase = 'full' } = body
-
-    if (!offerId || !provider || !VALID_PROVIDERS.includes(provider)) {
-      return NextResponse.json({ error: 'offerId et provider (wave|orange_money|free_money|cash) requis' }, { status: 400 })
+    const rawBody = await request.json()
+    const validated = validate(offerPaymentInitSchema, rawBody)
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error }, { status: 400 })
     }
-    if (!['deposit', 'balance', 'full'].includes(phase)) {
-      return NextResponse.json({ error: 'phase doit être deposit, balance ou full' }, { status: 400 })
-    }
+    const { offerId, provider, clientPhone, phase } = validated.data
 
     // Vérifier l'offre et la demande
     const offer = await Offer.findById(offerId)
@@ -89,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // ── Débit points escrow client ──
     const cfg = await getAppConfig()
-    const useEscrow = provider !== 'cash' && cfg.escrow.enabled && (cfg.escrow.mandatory || body.useEscrow !== false)
+    const useEscrow = provider !== 'cash' && cfg.escrow.enabled && (cfg.escrow.mandatory || validated.data.useEscrow !== false)
     const escrowCost = useEscrow ? cfg.monetization.escrowCostPoints : 0
     let escrowPointsCharged = 0
     if (escrowCost > 0) {

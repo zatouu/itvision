@@ -4,6 +4,7 @@ import { Order } from '@/lib/models/Order'
 import Payment from '@/lib/models/Payment'
 import { initiatePayment, PaymentProvider, InitiateResult } from '@/lib/payment'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { paymentInitSchema, validate } from '@/lib/validation'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
@@ -16,20 +17,12 @@ export async function POST(request: NextRequest) {
     }
 
     await connectDB()
-    const body = await request.json()
-    const { orderId, provider, clientPhone, phase = 'full' } = body
-
-    if (!orderId || typeof orderId !== 'string') {
-      return NextResponse.json({ error: 'orderId requis' }, { status: 400 })
+    const rawBody = await request.json()
+    const validated = validate(paymentInitSchema, rawBody)
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error }, { status: 400 })
     }
-
-    if (!provider || !VALID_PROVIDERS.includes(provider)) {
-      return NextResponse.json({ error: 'provider requis (wave|orange_money|free_money|cash)' }, { status: 400 })
-    }
-
-    if (!clientPhone || typeof clientPhone !== 'string') {
-      return NextResponse.json({ error: 'clientPhone requis' }, { status: 400 })
-    }
+    const { orderId, provider, clientPhone, phase } = validated.data
 
     const order = await Order.findOne({ orderId })
     if (!order) {

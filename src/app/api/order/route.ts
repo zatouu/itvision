@@ -19,6 +19,7 @@ import { syncUserToProfiles } from '@/lib/user-profiles'
 import mongoose from 'mongoose'
 import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { orderCreateSchema, validate } from '@/lib/validation'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -94,41 +95,15 @@ export async function POST(req: NextRequest) {
     // Si l'utilisateur est connecté, on lie la commande à son compte via clientId.
     const auth = await requireAuth(req).catch(() => null)
 
-    // Parser les données
-    const { cart, name, phone, email, address, shippingMethod } = await req.json()
-    
-    // Validation: panier
-    if (!Array.isArray(cart) || cart.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Panier invalide ou vide' },
-        { status: 400 }
-      )
+    // Parser et valider les données
+    const rawBody = await req.json()
+    const validated = validate(orderCreateSchema, rawBody)
+    if (!validated.success) {
+      return NextResponse.json({ success: false, error: validated.error }, { status: 400 })
     }
 
-    // Validation: données client
-    if (!name || !phone) {
-      return NextResponse.json(
-        { success: false, error: 'Nom et téléphone requis' },
-        { status: 400 }
-      )
-    }
-
-    // Validation: adresse structurée
-    if (!address || typeof address !== 'object') {
-      return NextResponse.json(
-        { success: false, error: 'Adresse invalide - veuillez remplir tous les champs' },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier les champs obligatoires de l'adresse
+    const { cart, name, phone, email, address, shippingMethod } = validated.data
     const { region, department, neighborhood, street } = address
-    if (!region || !department || !neighborhood || !street) {
-      return NextResponse.json(
-        { success: false, error: 'Adresse incomplète - région, département, quartier et rue obligatoires' },
-        { status: 400 }
-      )
-    }
 
     // Générer un numéro de commande unique
     const orderId = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
