@@ -6,6 +6,7 @@ import AnalyticsScripts from '@/components/AnalyticsScripts'
 import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/structured-data'
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -78,6 +79,15 @@ export default function RootLayout({
                 } catch (e) {}
               })()
             `,
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              buildOrganizationJsonLd(),
+              buildWebsiteJsonLd(),
+            ]),
           }}
         />
         <SessionProviderClient>
