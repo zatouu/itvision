@@ -5,6 +5,7 @@ import { Camera, Shield, Smartphone, Wifi, Cpu, Database, Star, ShoppingCart, Ch
 import CatalogProductCard from '@/components/catalog/CatalogProductCard'
 import CatalogToolbar from '@/components/catalog/CatalogToolbar'
 import CategoryPillsScroller, { type PillCategory } from '@/components/catalog/CategoryPillsScroller'
+import SearchAutocomplete from '@/components/SearchAutocomplete'
 import PromoStrip from '@/components/catalog/PromoStrip'
 import CartIcon from '@/components/CartIcon'
 import CartDrawer from '@/components/CartDrawer'
@@ -859,20 +860,18 @@ export default function ProduitsPage() {
       <div className="sticky top-20 md:top-28 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-2">
           {/* Search bar compacte */}
-          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
-            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 ml-3 flex-shrink-0" />
-            <input
+          <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-full p-1.5 shadow-sm focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
+            <SearchAutocomplete
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={setSearch}
+              onSearch={(term) => {
+                setSearch(term)
+                setDebouncedSearch(term)
+                setCurrentPage(1)
+              }}
+              onCameraClick={() => setShowImageSearch(true)}
               placeholder="Rechercher un produit..."
-              className="flex-1 outline-none bg-transparent px-2 text-sm min-w-0 dark:text-slate-200"
             />
-            <button title="Recherche par image" onClick={() => setShowImageSearch(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full flex-shrink-0">
-              <Camera className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-            </button>
-            <button className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-full text-sm font-medium flex-shrink-0">
-              Rechercher
-            </button>
           </div>
           {/* Breadcrumb */}
           <div className="flex items-center mt-1.5 text-xs text-slate-500 dark:text-slate-400">
