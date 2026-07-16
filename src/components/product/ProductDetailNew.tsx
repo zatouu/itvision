@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronRight, CheckCircle, Package, Truck,
   Eye, TrendingUp, ShieldCheck, Info, Minus, Plus,
   MessageCircle, ShoppingCart, Star, Plane, Ship, Lock, RefreshCw,
+  Store, BadgeCheck,
 } from 'lucide-react'
 import { trackEvent } from '@/utils/analytics'
 import { useToast } from '@/components/ui/Toaster'
@@ -426,6 +427,23 @@ export default function ProductDetailNew({ product, similar }: Props) {
                       <span key={i} className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-full capitalize">{tag}</span>
                     ))}
                   </div>
+                )}
+
+                {product.sellerName && product.sellerSlug && (
+                  <Link
+                    href={`/vendeur/${product.sellerSlug}`}
+                    className="mt-4 inline-flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 hover:border-emerald-400 hover:text-emerald-600 transition"
+                  >
+                    <Store className="w-4 h-4 text-emerald-600" />
+                    <span className="font-medium">{product.sellerName}</span>
+                    {product.sellerVerified && <BadgeCheck className="w-4 h-4 text-emerald-500" />}
+                    {typeof product.sellerRating === 'number' && product.sellerRating > 0 && (
+                      <span className="inline-flex items-center gap-0.5 text-xs text-amber-500">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        {product.sellerRating.toFixed(1)}
+                      </span>
+                    )}
+                  </Link>
                 )}
               </div>
 

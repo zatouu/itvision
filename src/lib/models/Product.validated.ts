@@ -59,7 +59,13 @@ export interface IProduct extends Document {
   // Canaux de distribution
   channels?: ProductChannel[]
   corporateVisible?: boolean
-  
+
+  // Espace vendeur / storefront public
+  sellerName?: string
+  sellerSlug?: string
+  sellerVerified?: boolean
+  sellerRating?: number
+
   // Logistique - Poids
   netWeightKg?: number // Poids net du produit
   weightKg?: number // Poids brut (avec emballage) - legacy, alias de grossWeightKg
@@ -380,7 +386,13 @@ const ProductSchema = new Schema<IProduct>({
     default: false,
     index: true
   },
-  
+
+  // Espace vendeur / storefront public
+  sellerName: { type: String, trim: true, index: true, sparse: true },
+  sellerSlug: { type: String, trim: true, index: true, sparse: true },
+  sellerVerified: { type: Boolean, default: false },
+  sellerRating: { type: Number, min: 0, max: 5 },
+
   // Logistique - Poids
   netWeightKg: {
     type: Number,
@@ -575,6 +587,16 @@ const calculatePackagingWeight = function(this: IProduct) {
   }
 }
 
+function slugifySeller(text: string): string {
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 // Validation des dimensions avant sauvegarde
 ProductSchema.pre('save', function(next) {
   try {
@@ -585,6 +607,13 @@ ProductSchema.pre('save', function(next) {
       this.imageEmbeddingError = undefined
       this.imageEmbeddingAttempts = 0
       this.imageEmbeddingVersion = undefined
+    }
+    if (this.sellerName && (this.isModified('sellerName') || !this.sellerSlug)) {
+      this.sellerSlug = slugifySeller(this.sellerName)
+    }
+    if (!this.sellerName && this.sourcing?.supplierName && !this.sellerSlug) {
+      this.sellerName = this.sourcing.supplierName
+      this.sellerSlug = slugifySeller(this.sourcing.supplierName)
     }
     validateDimensions.call(this)
     validateImportLogistics.call(this)

@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
       ? categoryRaw.split(',').map((s) => s.trim()).filter(Boolean)
       : []
     const shopId = (searchParams.get('shopId') || '').trim()
+    const sellerSlug = (searchParams.get('sellerSlug') || '').trim()
 
     const segment = (searchParams.get('segment') || 'all') as 'all' | 'import' | 'in_stock' | 'group_buy'
     const availability = (searchParams.get('availability') || 'all') as 'all' | 'in_stock' | 'preorder' | 'out_of_stock'
@@ -101,6 +102,10 @@ export async function GET(request: NextRequest) {
 
     if (shopId && mongoose.Types.ObjectId.isValid(shopId)) {
       match.shopId = new mongoose.Types.ObjectId(shopId)
+    }
+
+    if (sellerSlug) {
+      match.sellerSlug = sellerSlug
     }
 
     if (availability !== 'all') {
@@ -375,6 +380,10 @@ export async function GET(request: NextRequest) {
          priceTiers: product.priceTiers ?? [],
          groupBuyMinQty: product.groupBuyMinQty,
          groupBuyTargetQty: product.groupBuyTargetQty,
+         sellerName: product.sellerName ?? null,
+         sellerSlug: product.sellerSlug ?? null,
+         sellerVerified: product.sellerVerified ?? false,
+         sellerRating: product.sellerRating ?? null,
          createdAt: product.createdAt,
          updatedAt: product.updatedAt,
          isFeatured: product.isFeatured ?? false

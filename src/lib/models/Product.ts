@@ -70,6 +70,11 @@ export interface IProduct extends Document {
   groupBuyMinQty?: number             // Quantité min totale pour lancer la commande
   groupBuyTargetQty?: number          // Quantité cible idéale
   priceTiers?: IPriceTier[]           // Paliers de prix dégressifs
+  // Espace vendeur / storefront public
+  sellerName?: string
+  sellerSlug?: string
+  sellerVerified?: boolean
+  sellerRating?: number
   sourcing?: {
     platform?: string
     supplierName?: string
@@ -178,6 +183,11 @@ const ProductSchema = new Schema<IProduct>({
   groupBuyEnabled: { type: Boolean, default: false },
   groupBuyMinQty: { type: Number, default: 10 },
   groupBuyTargetQty: { type: Number, default: 50 },
+  // Espace vendeur / storefront public
+  sellerName: { type: String, index: true, sparse: true },
+  sellerSlug: { type: String, index: true, sparse: true },
+  sellerVerified: { type: Boolean, default: false },
+  sellerRating: { type: Number, min: 0, max: 5 },
   priceTiers: {
     type: [new Schema({
       minQty: { type: Number, required: true },
@@ -255,6 +265,14 @@ ProductSchema.pre('save', async function (next) {
       slug = `${base}-${counter++}`
     }
     this.slug = slug
+  }
+  // Normalise le slug vendeur si besoin
+  if (this.sellerName && (this.isModified('sellerName') || !this.sellerSlug)) {
+    this.sellerSlug = slugify(this.sellerName)
+  }
+  if (!this.sellerName && this.sourcing?.supplierName && !this.sellerSlug) {
+    this.sellerName = this.sourcing.supplierName
+    this.sellerSlug = slugify(this.sourcing.supplierName)
   }
   if (this.isModified('image')) {
     this.imageEmbedding = undefined

@@ -128,6 +128,11 @@ export const formatProductDetail = (
     groupBuyTargetQty: product.groupBuyTargetQty ?? null,
     // Prix wholesale B2B (activé à 5+ pcs ou compte Pro)
     b2bPrice: typeof product.b2bPrice === 'number' && product.b2bPrice > 0 ? product.b2bPrice : null,
+    // Espace vendeur / storefront public
+    sellerName: product.sellerName ?? null,
+    sellerSlug: product.sellerSlug ?? null,
+    sellerVerified: product.sellerVerified ?? false,
+    sellerRating: product.sellerRating ?? null,
     createdAt: product.createdAt ?? null,
     updatedAt: product.updatedAt ?? null
   }

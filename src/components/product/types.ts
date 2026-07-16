@@ -84,6 +84,10 @@ export interface ProductDetailData {
     transactions: number
     responseTime: string
   }
+  sellerName?: string | null
+  sellerSlug?: string | null
+  sellerVerified?: boolean
+  sellerRating?: number | null
 }
 
 export interface SimilarProductSummary {
