@@ -5,6 +5,8 @@ import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
+import { tokenizeQuery, expandToken } from '@/lib/search/synonyms'
+import { buildFacetStages, formatFacets } from '@/lib/search/facets'
 import mongoose from 'mongoose'
 
 const DEFAULT_EXCHANGE_RATE = 100
@@ -70,6 +72,7 @@ export async function GET(request: NextRequest) {
     const maxDeliveryDays = asNumber(searchParams.get('maxDeliveryDays'))
 
     const includeGroupStats = asBool(searchParams.get('includeGroupStats'))
+    const includeFacets = asBool(searchParams.get('includeFacets')) || asBool(searchParams.get('facets'))
 
     // Backwards-compatible alias: sort=popular -> sortBy=rating-desc
     const sortLegacy = (searchParams.get('sort') || '').trim().toLowerCase()
@@ -123,16 +126,25 @@ export async function GET(request: NextRequest) {
       match.requiresQuote = true
     }
 
-    // Server-side search
-    const searchMatch = q
-      ? {
-          $or: [
-            { name: { $regex: escapeRegex(q), $options: 'i' } },
-            { description: { $regex: escapeRegex(q), $options: 'i' } },
-            { tagline: { $regex: escapeRegex(q), $options: 'i' } }
-          ]
+    // Server-side search: tokenized, synonym-expanded and fuzzy-ish (substring regex)
+    const searchMatch = (() => {
+      if (!q) return null
+      const tokens = tokenizeQuery(q)
+      if (tokens.length === 0) return null
+      const tokenClauses = tokens.map((token) => {
+        const variants = [...new Set(expandToken(token).filter(Boolean))]
+        return {
+          $or: variants.flatMap((term) => [
+            { name: { $regex: escapeRegex(term), $options: 'i' } },
+            { tagline: { $regex: escapeRegex(term), $options: 'i' } },
+            { description: { $regex: escapeRegex(term), $options: 'i' } },
+            { tags: { $regex: escapeRegex(term), $options: 'i' } },
+            { 'sourcing.title': { $regex: escapeRegex(term), $options: 'i' } },
+          ]),
         }
-      : null
+      })
+      return tokenClauses.length === 1 ? tokenClauses[0] : { $and: tokenClauses }
+    })()
 
     // Derived fields used for filtering/sorting
     // shownPrice ~= ce que le catalogue affiche (baseCost si dispo, sinon prix calculé)
@@ -274,16 +286,21 @@ export async function GET(request: NextRequest) {
 
      pipeline.push({ $sort: isIdLookup ? { __imageSearchRank: 1 } : sort })
 
-     pipeline.push({
-       $facet: {
-         data: [{ $skip: skip }, { $limit: limit }],
-         totalCount: [{ $count: 'count' }]
-       }
-     })
+     const facetDefinition: any = {
+       data: [{ $skip: skip }, { $limit: limit }],
+       totalCount: [{ $count: 'count' }]
+     }
+     if (includeFacets) {
+       facetDefinition.facets = [{ $facet: buildFacetStages() }]
+     }
+
+     pipeline.push({ $facet: facetDefinition })
 
      const agg = await Product.aggregate(pipeline)
      const data = agg?.[0]?.data ?? []
      const total = agg?.[0]?.totalCount?.[0]?.count ?? 0
+     const rawFacets = includeFacets ? agg?.[0]?.facets?.[0] : undefined
+     const facets = rawFacets ? formatFacets(rawFacets) : undefined
 
      const shippingRates = getConfiguredShippingRates()
 
@@ -436,7 +453,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ 
+    const response: any = { 
       success: true, 
       products: payload,
       // Backwards compat: some pages expect `items`
@@ -448,7 +465,9 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
         hasMore: !isIdLookup && skip + limit < total
       }
-    })
+    }
+    if (includeFacets) response.facets = facets
+    return NextResponse.json(response)
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to load catalog' }, { status: 500 })
   }
