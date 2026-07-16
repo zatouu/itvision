@@ -3,12 +3,18 @@ import { connectDB } from '@/lib/db'
 import { Order } from '@/lib/models/Order'
 import Payment from '@/lib/models/Payment'
 import { initiatePayment, PaymentProvider, InitiateResult } from '@/lib/payment'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'market:payment:init' })
+    if (limit && !limit.ok) {
+      return tooManyResponse(limit.retryAfter)
+    }
+
     await connectDB()
     const body = await request.json()
     const { orderId, provider, clientPhone, phase = 'full' } = body

@@ -18,6 +18,7 @@ import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBala
 import { syncUserToProfiles } from '@/lib/user-profiles'
 import mongoose from 'mongoose'
 import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -82,8 +83,13 @@ function buildSeaFreightMetrics(items: Array<{
 
 export async function POST(req: NextRequest) {
   let mongoConnected = false
-  
+
   try {
+    const limit = rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'order:create' })
+    if (limit && !limit.ok) {
+      return tooManyResponse(limit.retryAfter)
+    }
+
     // Checkout invité: l'auth n'est pas obligatoire pour une commande simple.
     // Si l'utilisateur est connecté, on lie la commande à son compte via clientId.
     const auth = await requireAuth(req).catch(() => null)

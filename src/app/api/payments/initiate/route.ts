@@ -7,6 +7,7 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import { initiatePayment, InitiateResult, PaymentProvider } from '@/lib/payment'
 import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wallet'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
@@ -16,6 +17,11 @@ const MIN_DEPOSIT = 1000
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'payments:initiate' })
+    if (limit && !limit.ok) {
+      return tooManyResponse(limit.retryAfter)
+    }
+
     await connectMongoose()
     const { userId } = await requireAuth(request)
     const body = await request.json()
