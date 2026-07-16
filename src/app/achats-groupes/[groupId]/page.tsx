@@ -307,15 +307,18 @@ export default function GroupOrderDetailPage() {
 
   const shareForEntrepreneurs = () => {
     if (!group) return
-    const margin35 = Math.round(group.currentUnitPrice * 0.35)
+    const marketPrice = group.product.basePrice
+    const importPrice = group.currentUnitPrice
+    const savingPerUnit = Math.max(0, marketPrice - importPrice)
     const text = encodeURIComponent(
-      `💼 *OPPORTUNITÉ BUSINESS — Import Chine* 💼\n\n` +
+      `💼 *OPPORTUNITÉ BUSINESS — Import groupé* 💼\n\n` +
       `📦 *${group.product.name}*\n` +
-      `💰 Prix import groupé : *${formatCurrency(group.currentUnitPrice)}*\n` +
-      `� Marge estimée : *+${formatCurrency(margin35)}/unité* (revente ~${formatCurrency(group.currentUnitPrice + margin35)})\n\n` +
-      `✅ 10 unités = *${formatCurrency(margin35 * 10)} de bénéfice*\n` +
-      `✅ 20 unités = *${formatCurrency(margin35 * 20)} de bénéfice*\n\n` +
-      `⏰ ${daysLeft > 0 ? `Plus que ${daysLeft}j` : 'Dernières heures'} pour commander !\n\n` +
+      `💰 Prix import groupé : *${formatCurrency(importPrice)}*\n` +
+      (marketPrice > importPrice ? `🏷️ Prix du marché estimé : *${formatCurrency(marketPrice)}*\n` : '') +
+      (savingPerUnit > 0 ? `📉 Économie réelle : *${formatCurrency(savingPerUnit)}/unité*\n\n` : '\n') +
+      (savingPerUnit > 0 ? `✅ 10 unités = *${formatCurrency(savingPerUnit * 10)} d'économies*\n` : '') +
+      (savingPerUnit > 0 ? `✅ 20 unités = *${formatCurrency(savingPerUnit * 20)} d'économies*\n\n` : '') +
+      `⏰ ${daysLeft > 0 ? `Plus que ${daysLeft}j` : 'Dernières heures'} pour rejoindre !\n\n` +
       `👉 Détails et inscription :\n${window.location.href}`
     )
     window.open(`https://wa.me/?text=${text}`, '_blank')

@@ -210,10 +210,13 @@ export default function GroupOrdersPage() {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
   }
 
-  const totalSavingsFcfa = stats.totalParticipants * (groups.reduce((sum, g) => sum + (g.product.basePrice - g.currentUnitPrice - (g.shippingCostPerUnit || 0)), 0) / (groups.length || 1))
-  const savingsLabel = isFinite(totalSavingsFcfa) && Math.abs(totalSavingsFcfa) >= 1_000_000
-    ? `${Math.round(totalSavingsFcfa / 1_000_000)}M`
-    : `${Math.round((isFinite(totalSavingsFcfa) ? totalSavingsFcfa : 0) / 1000)}k`
+  const totalSavingsFcfa = groups.reduce((sum, g) => {
+    const savingPerUnit = Math.max(0, g.product.basePrice - g.currentUnitPrice - (g.shippingCostPerUnit || 0))
+    return sum + savingPerUnit * g.currentQty
+  }, 0)
+  const savingsLabel = totalSavingsFcfa >= 1_000_000_000
+    ? `${(totalSavingsFcfa / 1_000_000).toFixed(1)}M`
+    : `${Math.round(totalSavingsFcfa / 1000)}k`
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 md:pb-0">

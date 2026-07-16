@@ -112,9 +112,6 @@ export const popularProducts: HomeProduct[] = []
 // ─── Showcase Categories (deprecated: use API) ───
 export const showcaseCategories: ShowcaseCategory[] = []
 
-// ─── Search Chips ───
-export const searchChips = ['Caméra IP', 'Sac à main', 'Smartwatch', 'Cosmétique', 'Sneakers', 'Friteuse']
-
 // ─── Product Tabs ───
 export const productTabs = ['Tous', 'Mode', 'Maison', 'Tech', 'Beauté', 'Sport', 'Auto']
 
