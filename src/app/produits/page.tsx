@@ -12,6 +12,7 @@ import CartDrawer from '@/components/CartDrawer'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ImageSearchModal, { ImageSearchButton } from '@/components/ImageSearchModal'
 import SourcingRequestModal from '@/components/SourcingRequestModal'
+import QuickViewModal from '@/components/catalog/QuickViewModal'
 import MarketBottomNav from '@/components/MarketBottomNav'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
@@ -129,6 +130,8 @@ export default function ProduitsPage() {
   const [showSourcing, setShowSourcing] = useState(false)
   const [sourcingContext, setSourcingContext] = useState<{ file?: File | null; description?: string } | null>(null)
   const [sourcingUser, setSourcingUser] = useState<{ id?: string; name?: string; phone?: string; email?: string } | null>(null)
+  // Vue rapide
+  const [quickViewProduct, setQuickViewProduct] = useState<ApiProduct | null>(null)
 
   // Favoris (utilisé pour le mode liste)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
@@ -831,13 +834,14 @@ export default function ProduitsPage() {
     }
   }
 
-  function addToCart(product: any) {
+  function addToCart(product: any, qty = 1) {
     try {
+      const price = product.price ?? product.priceAmount ?? product.b2bPrice ?? 0
       const raw = localStorage.getItem('cart:items')
       const items = raw ? JSON.parse(raw) : []
       const existing = items.find((i: any) => i.id === product.id)
-      if (existing) existing.qty = (existing.qty || 1) + 1
-      else items.push({ id: product.id, name: product.name, price: product.price, currency: product.currency || 'FCFA', image: product.image, qty: 1 })
+      if (existing) existing.qty = (existing.qty || 0) + qty
+      else items.push({ id: product.id, name: product.name, price, currency: product.currency || 'FCFA', image: product.image, qty })
       localStorage.setItem('cart:items', JSON.stringify(items))
       window.dispatchEvent(new CustomEvent('cart:updated'))
       showToast(`${product.name} ajouté au panier`)
@@ -845,6 +849,29 @@ export default function ProduitsPage() {
       showToast('Erreur lors de l\'ajout au panier')
     }
   }
+
+  function handleQuickView(product: ApiProduct) {
+    setQuickViewProduct(product)
+  }
+
+  const quickViewData = quickViewProduct ? {
+    id: quickViewProduct.id,
+    name: quickViewProduct.name,
+    description: quickViewProduct.description,
+    image: quickViewProduct.image,
+    gallery: quickViewProduct.gallery,
+    priceAmount: quickViewProduct.priceAmount,
+    b2bPrice: quickViewProduct.b2bPrice,
+    currency: quickViewProduct.currency,
+    rating: quickViewProduct.rating,
+    availabilityStatus: quickViewProduct.availabilityStatus,
+    availabilityLabel: quickViewProduct.availabilityLabel,
+    deliveryDays: quickViewProduct.deliveryDays,
+    features: quickViewProduct.features,
+    shippingOptions: quickViewProduct.shippingOptions,
+    condition: quickViewProduct.condition,
+    origin: quickViewProduct.isImported ? 'Import Chine' : 'Stock Dakar',
+  } : null
 
   return (
     <ErrorBoundary>
@@ -1113,6 +1140,7 @@ export default function ProduitsPage() {
                         isFavorite={favoriteSet.has(pid)}
                         onToggleFavorite={toggleFavoriteFromList}
                         onAddToCart={addToCart}
+                        onQuickView={() => handleQuickView(product)}
                       />
                     )
                   })}
@@ -1181,12 +1209,12 @@ export default function ProduitsPage() {
                                 {product.priceAmount ? `${product.priceAmount.toLocaleString('fr-FR')} ${product.currency || 'FCFA'}` : 'Sur devis'}
                               </div>
                               <div className="flex items-center gap-2">
-                                <Link
-                                  href={`/produits/${pid}`}
+                                <button
+                                  onClick={() => handleQuickView(product)}
                                   className="text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-orange-600 transition"
                                 >
-                                  Voir
-                                </Link>
+                                  Vue rapide
+                                </button>
                                 <button
                                   onClick={() => addToCart(p)}
                                   className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"
@@ -1435,6 +1463,15 @@ export default function ProduitsPage() {
         currentUser={sourcingUser}
         initialContext={sourcingContext}
       />
+
+      {/* Modal Vue Rapide */}
+      {quickViewData && (
+        <QuickViewModal
+          product={quickViewData}
+          onClose={() => setQuickViewProduct(null)}
+          onAddToCart={(product, qty) => addToCart(product, qty)}
+        />
+      )}
 
       {/* Toast notification */}
       {toast && (

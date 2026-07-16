@@ -33,6 +33,7 @@ interface Props {
   isFavorite: boolean
   onToggleFavorite: (e: React.MouseEvent, id: string) => void
   onAddToCart: (product: CatalogProduct) => void
+  onQuickView?: (product: CatalogProduct) => void
 }
 
 function formatPrice(price: number, currency: string) {
@@ -45,6 +46,7 @@ export default function CatalogProductCard({
   isFavorite,
   onToggleFavorite,
   onAddToCart,
+  onQuickView,
 }: Props) {
   return (
     <motion.article
@@ -122,12 +124,21 @@ export default function CatalogProductCard({
         {/* Quick actions - always visible on mobile / hover on desktop */}
         <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
           <div className="flex gap-1">
-            <Link
-              href={`/produits/${product.id}`}
-              className="flex-1 bg-white text-slate-900 text-xs font-medium py-1.5 rounded text-center pointer-events-auto"
-            >
-              Voir
-            </Link>
+            {onQuickView ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); onQuickView(product) }}
+                className="flex-1 bg-white text-slate-900 text-xs font-medium py-1.5 rounded text-center pointer-events-auto"
+              >
+                Vue rapide
+              </button>
+            ) : (
+              <Link
+                href={`/produits/${product.id}`}
+                className="flex-1 bg-white text-slate-900 text-xs font-medium py-1.5 rounded text-center pointer-events-auto"
+              >
+                Voir
+              </Link>
+            )}
             <button
               onClick={() => onAddToCart(product)}
               className="flex-1 bg-orange-500 text-white text-xs font-medium py-1.5 rounded hover:bg-orange-600 pointer-events-auto"
