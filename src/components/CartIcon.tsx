@@ -13,14 +13,14 @@ export default function CartIcon({ count = 0, onClick }: { count?: number; onCli
   )
   if (onClick) {
     return (
-      <button aria-label="Open cart" onClick={onClick} className={className}>
+      <button aria-label="Ouvrir le panier" onClick={onClick} className={className}>
         <ShoppingCart className="h-5 w-5" />
         {badge}
       </button>
     )
   }
   return (
-    <Link href="/panier" aria-label="Open cart" className={className}>
+    <Link href="/panier" aria-label="Voir mon panier" className={className}>
       <ShoppingCart className="h-5 w-5" />
       {badge}
     </Link>

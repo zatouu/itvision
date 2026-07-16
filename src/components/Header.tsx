@@ -342,6 +342,9 @@ const Header = () => {
           <div className="md:hidden">
             <button
               ref={buttonRef}
+              aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-menu"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-700 dark:text-gray-200 hover:text-green-600 transition-colors duration-300 p-2"
             >

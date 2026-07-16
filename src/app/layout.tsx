@@ -3,6 +3,7 @@ import { Fraunces, Plus_Jakarta_Sans, Caveat } from 'next/font/google'
 import './globals.css'
 import PageVisitTracker from '@/components/PageVisitTracker'
 import AnalyticsScripts from '@/components/AnalyticsScripts'
+import SkipLink from '@/components/a11y/SkipLink'
 import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -71,6 +72,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cbu01.alicdn.com" crossOrigin="anonymous" />
       </head>
       <body className={`${jakarta.className} antialiased`}>
+        <SkipLink />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -103,7 +105,9 @@ export default function RootLayout({
           <ThemeProvider>
             <AnalyticsScripts />
             <PageVisitTracker />
-            {children}
+            <div id="main-content" role="main" tabIndex={-1} className="outline-none">
+              {children}
+            </div>
             <Toaster />
           </ThemeProvider>
         </SessionProviderClient>
