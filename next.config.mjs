@@ -5,6 +5,8 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  cacheOnFrontEndNav: true,
+  reloadOnOnline: false,
 });
 
 /** @type {import('next').NextConfig} */
@@ -82,6 +84,10 @@ const nextConfig = {
   
   // Autoriser les images externes (CDN AliExpress / 1688 / Alibaba)
   images: {
+    formats: ['image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       { protocol: 'https', hostname: '**.alicdn.com' },
       { protocol: 'https', hostname: '**.aliexpress.com' },

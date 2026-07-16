@@ -152,6 +152,9 @@ export default function HeroCarousel() {
                     <img
                       src={getSrc(slot)}
                       alt=""
+                      loading={current === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      fetchPriority={current === 0 ? 'high' : 'low'}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                       onError={() => handleError(slot)}
                     />
@@ -170,6 +173,9 @@ export default function HeroCarousel() {
                       <img
                         src={getSrc(slot)}
                         alt=""
+                        loading={current === 0 ? 'eager' : 'lazy'}
+                        decoding="async"
+                        fetchPriority={current === 0 ? 'high' : 'low'}
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                         onError={() => handleError(slot)}
                       />

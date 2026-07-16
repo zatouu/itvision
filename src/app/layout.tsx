@@ -61,6 +61,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning className={`${fraunces.variable} ${jakarta.variable} ${caveat.variable}`}>
+      <head>
+        {/* Préconnexion aux CDN d'images pour réduire le TTFB des images produits */}
+        <link rel="dns-prefetch" href="https://img.alicdn.com" />
+        <link rel="preconnect" href="https://img.alicdn.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://ae01.alicdn.com" />
+        <link rel="preconnect" href="https://ae01.alicdn.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cbu01.alicdn.com" />
+        <link rel="preconnect" href="https://cbu01.alicdn.com" crossOrigin="anonymous" />
+      </head>
       <body className={`${jakarta.className} antialiased`}>
         <script
           dangerouslySetInnerHTML={{

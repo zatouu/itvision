@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
+import DDMLogo from './branding/DDMLogo'
 import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, Package, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck, Heart, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import UnifiedLoginButton from './UnifiedLoginButton'
@@ -160,18 +160,7 @@ const Header = () => {
         <div className="flex justify-between items-center py-0">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-3 shrink-0">
-              <Image
-                src="/logo-it-vision.png"
-                alt="IT Vision"
-                width={610}
-                height={530}
-                className="h-20 sm:h-24 lg:h-28 xl:h-32 w-auto object-contain"
-                sizes="(max-width: 640px) 80px, (max-width: 1024px) 96px, (max-width: 1280px) 112px, 128px"
-                priority
-                style={{
-                  objectFit: "contain",
-                }}
-              />
+              <DDMLogo variant="horizontal" size="md" showTagline={false} priority className="h-10 sm:h-12 lg:h-14 w-auto" />
             </Link>
           </div>
 
