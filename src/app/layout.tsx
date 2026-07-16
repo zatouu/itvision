@@ -60,6 +60,25 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className={`${fraunces.variable} ${jakarta.variable} ${caveat.variable}`}>
       <body className={`${jakarta.className} antialiased`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const theme = localStorage.getItem('theme')
+                  const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+                  if (isDark) {
+                    document.documentElement.classList.add('dark')
+                    document.documentElement.style.colorScheme = 'dark'
+                  } else {
+                    document.documentElement.classList.remove('dark')
+                    document.documentElement.style.colorScheme = 'light'
+                  }
+                } catch (e) {}
+              })()
+            `,
+          }}
+        />
         <SessionProviderClient>
           <ThemeProvider>
             <PageVisitTracker />

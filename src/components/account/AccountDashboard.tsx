@@ -266,7 +266,7 @@ function MainActionCard({ icon: Icon, color, title, value, valueLabel, breakdown
 function SecondaryActionCard({ icon: Icon, label, subtitle, href, badge }: any) {
   return (
     <Link href={href} className="group bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+      <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
@@ -326,7 +326,7 @@ function RewardCard({ reward, canRedeem, onRedeem }: { reward: any; canRedeem: b
 
 function SettingsQuickButton({ icon: Icon, label, href, onClick }: any) {
   const content = (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 hover:bg-slate-50 transition-colors flex flex-col items-center text-center gap-1.5 min-h-[68px] justify-center">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex flex-col items-center text-center gap-1.5 min-h-[68px] justify-center">
       <Icon className="w-5 h-5 text-slate-600" />
       <span className="text-xs font-medium text-slate-700 leading-tight">{label}</span>
     </div>
@@ -563,7 +563,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
                   <Link
                     key={o.id}
                     href={`/commandes/${encodeURIComponent(o.id)}`}
-                    className="flex items-center gap-4 p-4 hover:bg-slate-50 transition border-b border-slate-100 last:border-b-0"
+                    className="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition border-b border-slate-100 last:border-b-0"
                   >
                     <div className={`w-10 h-10 rounded-full ${cfg.bg} flex items-center justify-center`}>
                       <Icon className="w-5 h-5" />
@@ -631,7 +631,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
         </div>
 
         {/* Section 8 — Grains DDM+ */}
-        <section id="grains" className="bg-gradient-to-br from-amber-50 via-white to-orange-50 border-2 border-amber-200 rounded-2xl p-6 mb-6">
+        <section id="grains" className="bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-amber-900/30 dark:via-slate-900 dark:to-orange-900/30 border-2 border-amber-200 dark:border-amber-700/50 rounded-2xl p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="flex items-center gap-3 mb-4">
@@ -695,7 +695,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
                   <p className="text-xs text-white/70">Votre code parrainage</p>
                   <p className="text-lg font-bold tracking-wider">{user.referralCode}</p>
                 </div>
-                <button onClick={copyCode} className="bg-white text-violet-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors">
+                <button onClick={copyCode} className="bg-white text-violet-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                   {copied ? '✓ Copié !' : 'Copier'}
                 </button>
               </div>
@@ -738,7 +738,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
               <h2 className="text-xl font-bold mb-1">Devenez vendeur sur DDM+</h2>
               <p className="text-white/90 text-sm">Rejoignez nos vendeurs et exposez vos produits à des milliers de clients.</p>
             </div>
-            <Link href="/devenir-vendeur" className="bg-white text-emerald-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors shrink-0">
+            <Link href="/devenir-vendeur" className="bg-white text-emerald-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0">
               Commencer
             </Link>
           </div>

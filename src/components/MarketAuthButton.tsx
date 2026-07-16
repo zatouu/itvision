@@ -37,9 +37,9 @@ export default function MarketAuthButton({
   const [resolvedAccountHref, setResolvedAccountHref] = useState<string>(accountHref)
 
   const TIER_BADGE: Record<string, { label: string; className: string }> = {
-    pro: { label: 'Pro', className: 'bg-green-100 text-green-700 border border-green-200' },
-    reseller: { label: 'Revendeur', className: 'bg-violet-100 text-violet-700 border border-violet-200' },
-    partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+    pro: { label: 'Pro', className: 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800' },
+    reseller: { label: 'Revendeur', className: 'bg-violet-100 text-violet-700 border border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-800' },
+    partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800' },
   }
 
   useEffect(() => {
