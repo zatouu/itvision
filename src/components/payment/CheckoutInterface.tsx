@@ -196,6 +196,46 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
     }
   }
 
+  const handleMobilePayment = async () => {
+    if (loading || selectedProvider === 'virement') return
+    setLoading(true)
+    try {
+      const providerMap: Record<string, string> = {
+        wave: 'wave',
+        om: 'orange_money',
+        free: 'free_money',
+      }
+      const apiProvider = providerMap[selectedProvider]
+      if (!apiProvider) {
+        showToast('Moyen de paiement non pris en charge')
+        return
+      }
+      const response = await fetch('/api/market/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: participant.reference,
+          provider: apiProvider,
+          clientPhone: participant.phone,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        showToast(data.error || 'Erreur lors du lancement du paiement')
+        return
+      }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+      } else {
+        showToast('Paiement lancé. Validez sur votre téléphone.', 'success')
+      }
+    } catch {
+      showToast('Erreur réseau')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const wavePhone = settings.providers.manual.waveMerchantPhone
   const omPhone = settings.providers.manual.orangeMerchantPhone
   const freePhone = settings.providers.manual.freeMoneyMerchantPhone
@@ -391,14 +431,28 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
                 </button>
               </div>
 
-              <a
-                href={whatsappHref(`Bonjour DDM+, je confirme mon paiement.\nRéférence: ${participant.reference}\nMontant: ${amount.toLocaleString('fr-FR')} FCFA\nMoyen: ${PROVIDERS.find(p => p.key === selectedProvider)?.label}`)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition"
-              >
-                <MessageCircle className="w-5 h-5" /> J'ai payé — confirmer sur WhatsApp
-              </a>
+              {selectedProvider === 'virement' ? (
+                <a
+                  href={whatsappHref(`Bonjour DDM+, je confirme mon virement.\nRéférence: ${participant.reference}\nMontant: ${amount.toLocaleString('fr-FR')} FCFA`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition"
+                >
+                  <MessageCircle className="w-5 h-5" /> J'ai payé — envoyer le reçu par WhatsApp
+                </a>
+              ) : (
+                <button
+                  onClick={handleMobilePayment}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-xl font-bold hover:from-emerald-700 hover:to-violet-700 transition disabled:opacity-60"
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> Chargement...</span>
+                  ) : (
+                    <><Wallet className="w-5 h-5" /> Payer maintenant</>
+                  )}
+                </button>
+              )}
             </div>
           ) : (
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">

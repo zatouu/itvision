@@ -3,12 +3,19 @@ import { Schema, model, models } from 'mongoose'
 export type PaymentStatus = 'pending' | 'held' | 'released' | 'refunded' | 'failed'
 export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 export type PaymentPhase = 'deposit' | 'balance' | 'full'
+export type PaymentDomain = 'services' | 'marketplace' | 'group'
 
 const PaymentSchema = new Schema({
-  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true },
-  offerId: { type: Schema.Types.ObjectId, ref: 'Offer', required: true },
+  // Lien vers une offre de service (services)
+  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest' },
+  offerId: { type: Schema.Types.ObjectId, ref: 'Offer' },
+  // Lien vers une commande marketplace/standard
+  orderId: { type: String, index: true },
+  orderType: { type: String, enum: ['marketplace', 'group'] },
+  domain: { type: String, enum: ['services', 'marketplace', 'group'], default: 'services' },
+
   clientId: { type: String, required: true },
-  providerId: { type: String, required: true },
+  providerId: { type: String },
   amount: { type: Number, required: true, min: 100 },
   depositAmount: { type: Number, default: 0, min: 0 },
   balanceAmount: { type: Number, default: 0, min: 0 },
@@ -31,6 +38,7 @@ const PaymentSchema = new Schema({
 }, { timestamps: true })
 
 PaymentSchema.index({ requestId: 1 })
+PaymentSchema.index({ orderId: 1 })
 PaymentSchema.index({ externalId: 1 }, { sparse: true })
 PaymentSchema.index({ status: 1, createdAt: -1 })
 

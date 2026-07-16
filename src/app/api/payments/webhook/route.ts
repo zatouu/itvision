@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Payment from '@/lib/models/Payment'
+import { Order } from '@/lib/models/Order'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { sendPushToUser } from '@/lib/push'
@@ -40,17 +41,29 @@ export async function POST(request: NextRequest) {
       payment.heldAt = new Date()
       await payment.save()
 
-      // Now accept the offer (same logic as /accept endpoint)
-      const sr = await ServiceRequest.findById(payment.requestId)
-      const offer = await Offer.findById(payment.offerId)
-      if (sr && offer) {
-        await acceptOfferForRequest({
-          serviceRequest: sr,
-          offer,
-          securePayment: payment.useEscrow !== false,
-          notifyClientPaymentHeld: payment.useEscrow !== false,
-          amount: payment.amount,
-        })
+      if (payment.orderId) {
+        // Marketplace order payment
+        const order = await Order.findOne({ orderId: payment.orderId })
+        if (order) {
+          order.paymentStatus = 'completed'
+          order.status = 'confirmed'
+          order.confirmedAt = new Date()
+          order.transactionId = payment.externalId || order.transactionId
+          await order.save()
+        }
+      } else {
+        // Services offer payment
+        const sr = await ServiceRequest.findById(payment.requestId)
+        const offer = await Offer.findById(payment.offerId)
+        if (sr && offer) {
+          await acceptOfferForRequest({
+            serviceRequest: sr,
+            offer,
+            securePayment: payment.useEscrow !== false,
+            notifyClientPaymentHeld: payment.useEscrow !== false,
+            amount: payment.amount,
+          })
+        }
       }
     } else if (isFailed && payment.status === 'pending') {
       payment.status = 'failed'
