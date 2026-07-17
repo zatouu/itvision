@@ -165,10 +165,12 @@ async function initPopup() {
         loadProducts();
         showNotification('Produit extrait avec succès!', 'success');
       } else {
-        showNotification('Erreur: ' + response.error, 'error');
+        showNotification('Erreur: ' + ((response && response.error) ? response.error : 'Aucune réponse du content script'), 'error');
       }
     } catch (err) {
-      showNotification('Erreur extraction: ' + err.message, 'error');
+      const msg = err && err.message ? err.message : String(err);
+      showNotification('Erreur extraction: ' + msg, 'error');
+      console.error('[IT Vision] Extraction échouée:', err);
     } finally {
       btnExtract.disabled = false;
       btnExtract.innerHTML = `
