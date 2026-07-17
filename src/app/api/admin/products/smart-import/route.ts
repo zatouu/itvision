@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 import { requireAuth } from '@/lib/jwt'
+import { defaultProductCategories } from '@/lib/data/default-categories'
 
 /**
  * POST /api/admin/products/smart-import
@@ -43,6 +44,105 @@ const IMAGE_BLACKLIST_PATTERNS = [
   /qrcode/i, /qr.*code/i, /wechat/i, /whatsapp/i,
   /\.gif$/i, // GIFs animees = presque toujours promo
 ]
+
+// Classification automatique dans les catégories IT Vision (fallback sans IA)
+const CATEGORY_KEYWORDS: Record<string, { name: string; keywords: string[]; subCategories: { name: string; slug: string; keywords: string[] }[] }> = {
+  securite: {
+    name: 'Sécurité',
+    keywords: ['camera', 'caméra', 'surveillance', 'cctv', 'dvr', 'nvr', 'ip camera', 'poe', 'alarme', 'intrusion', 'détecteur', 'detecteur', 'capteur', 'mouvement', 'présence', 'serrure', 'lock', 'empreinte', 'fingerprint', 'badge', 'portier', 'interphone', 'vidéo', 'video'],
+    subCategories: [
+      { name: 'Vidéosurveillance', slug: 'videosurveillance', keywords: ['camera', 'caméra', 'dvr', 'nvr', 'cctv', 'ip camera', 'poe', 'surveillance', 'vidéosurveillance', 'vidéo', 'video', 'enregistreur'] },
+      { name: 'Contrôle d\'Accès', slug: 'controle-acces', keywords: ['serrure', 'lock', 'empreinte', 'fingerprint', 'badge', 'portier', 'interphone', 'contrôle d\'accès', 'controle acces', 'access control'] },
+      { name: 'Alarme & Intrusion', slug: 'alarme-intrusion', keywords: ['alarme', 'intrusion', 'détecteur', 'detecteur', 'capteur', 'mouvement', 'sirène', 'siren'] }
+    ]
+  },
+  informatique: {
+    name: 'Informatique & Bureautique',
+    keywords: ['ordinateur', 'laptop', 'pc', 'clavier', 'souris', 'écran', 'ecran', 'cable', 'câble', 'switch', 'routeur', 'router', 'hub', 'usb', 'hdmi', 'réseau', 'reseau', 'network', 'bureautique', 'imprimante', 'scanner', 'disque dur', 'ssd', 'ram', 'mémoire', 'carte mère', 'clé usb', 'webcam', 'microphone'],
+    subCategories: [
+      { name: 'Réseau Informatique', slug: 'reseau-informatique', keywords: ['switch', 'routeur', 'router', 'hub', 'réseau', 'reseau', 'network', 'câble rj45', 'rj45', 'ethernet'] },
+      { name: 'Câbles & Connectique', slug: 'cables', keywords: ['cable', 'câble', 'hdmi', 'usb', 'connectique', 'rj45', 'adaptateur'] },
+      { name: 'Écrans', slug: 'ecrans', keywords: ['écran', 'ecran', 'monitor', 'moniteur', 'display'] },
+      { name: 'Ordinateurs', slug: 'ordinateurs', keywords: ['ordinateur', 'laptop', 'pc', 'desktop', 'notebook', 'serveur'] },
+      { name: 'Accessoires informatiques', slug: 'accessoires-informatique', keywords: ['clavier', 'souris', 'webcam', 'microphone', 'casque', 'support', 'hub usb'] }
+    ]
+  },
+  domotique: {
+    name: 'Domotique & Smart Home',
+    keywords: ['domotique', 'smart home', 'maison connectée', 'sonoff', 'tuya', 'zigbee', 'wifi switch', 'capteur', 'sensor', 'thermostat', 'interrupteur connecté', 'prise connectée', 'smart plug', 'automation'],
+    subCategories: [
+      { name: 'Domotique', slug: 'domotique-maison', keywords: ['domotique', 'interrupteur', 'thermostat', 'automation', 'knx', 'zwave'] },
+      { name: 'Smart Home', slug: 'smart-home', keywords: ['smart home', 'tuya', 'sonoff', 'zigbee', 'wifi', 'smart plug', 'prise connectée', 'alexa', 'google home'] }
+    ]
+  },
+  electronique: {
+    name: 'Électronique grand public',
+    keywords: ['smartphone', 'téléphone', 'telephone', 'earphone', 'écouteur', 'headphone', 'casque', 'chargeur', 'power bank', 'batterie', 'bluetooth', 'speaker', 'enceinte', 'tv box', 'android box', 'drone', 'montre connectée', 'smartwatch', 'tablette'],
+    subCategories: [
+      { name: 'Smartphones', slug: 'smartphones', keywords: ['smartphone', 'téléphone', 'telephone', 'mobile', 'iphone', 'android'] },
+      { name: 'Audio & Vidéo', slug: 'audio-video', keywords: ['earphone', 'écouteur', 'headphone', 'casque', 'speaker', 'enceinte', 'bluetooth', 'audio', 'vidéo', 'tv box'] },
+      { name: 'Électronique divers', slug: 'electronique-divers', keywords: ['power bank', 'chargeur', 'batterie', 'drone', 'montre connectée', 'smartwatch', 'tablette'] }
+    ]
+  },
+  mobilier: {
+    name: 'Mobilier & Installation',
+    keywords: ['rack', 'baie', 'armoire', 'server cabinet', 'coffret', 'bureau', 'chaise', 'table', 'mobilier', 'meuble', 'établi', 'poste de travail'],
+    subCategories: [
+      { name: 'Mobilier technique', slug: 'mobilier-technique', keywords: ['bureau', 'chaise', 'table', 'mobilier', 'meuble', 'poste de travail'] },
+      { name: 'Racks & Baies', slug: 'racks-baies', keywords: ['rack', 'baie', 'armoire', 'server cabinet', 'coffret'] }
+    ]
+  },
+  'packs-cadeaux': {
+    name: 'Packs & Cadeaux',
+    keywords: ['pack', 'lot', 'coffret', 'cadeau', 'gift', 'box', 'ensemble', 'kit'],
+    subCategories: [
+      { name: 'Lot de 10 Box cadeau', slug: 'lot-10-box-cadeau', keywords: ['box cadeau', 'coffret', 'gift box', 'lot de 10'] }
+    ]
+  }
+}
+
+function classifyCategoryFromKeywords(
+  name: string,
+  description: string,
+  specs: Record<string, unknown>
+): { category: string; subCategory?: string } | null {
+  const text = `${name} ${description} ${Object.entries(specs || {}).map(([k, v]) => `${k} ${v}`).join(' ')}`.toLowerCase()
+  let bestCategory: string | null = null
+  let bestCategoryName = ''
+  let bestSubCategory: string | undefined
+  let bestScore = 0
+
+  for (const [slug, cat] of Object.entries(CATEGORY_KEYWORDS)) {
+    let categoryScore = 0
+    for (const kw of cat.keywords) {
+      if (text.includes(kw.toLowerCase())) categoryScore += 1
+    }
+
+    let bestSubScore = 0
+    let bestSubName: string | undefined
+    for (const sub of cat.subCategories) {
+      let subScore = 0
+      for (const kw of sub.keywords) {
+        if (text.includes(kw.toLowerCase())) subScore += 1.5
+      }
+      if (subScore > bestSubScore) {
+        bestSubScore = subScore
+        bestSubName = sub.name
+      }
+    }
+
+    const total = categoryScore + bestSubScore
+    if (total > bestScore) {
+      bestScore = total
+      bestCategory = slug
+      bestCategoryName = cat.name
+      bestSubCategory = bestSubName
+    }
+  }
+
+  if (bestScore < 2) return null
+  return { category: bestCategoryName, subCategory: bestSubCategory }
+}
 
 function normalizeImageUrl(url: string): string {
   if (!url || typeof url !== 'string') return ''
@@ -99,17 +199,27 @@ function filterProductImages(images: string[]): string[] {
   return out
 }
 
-async function reformatDescription(
-  rawDescription: string,
-  productName: string
-): Promise<{ description: string; features: string[] }> {
+async function enrichProduct(
+  raw: Record<string, unknown>
+): Promise<{ name: string; category?: string; subCategory?: string; description: string; features: string[]; tags: string[] }> {
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey || !rawDescription || rawDescription.trim().length < 20) {
+  const rawName = String(raw.name || '')
+  const rawDescription = String(raw.description || '')
+
+  // Fallback si pas d'API key ou nom vide
+  if (!apiKey || !rawName.trim()) {
     return {
-      description: rawDescription || '',
-      features: [],
+      name: rawName,
+      description: rawDescription,
+      features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
+      tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : ['import-chine'],
     }
   }
+
+  // Catégories IT Vision pour le prompt
+  const categoriesList = defaultProductCategories
+    .map((c) => `- ${c.name}${c.subCategories ? ` (${c.subCategories.map((s) => s.name).join(', ')})` : ''}`)
+    .join('\n')
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -123,45 +233,66 @@ async function reformatDescription(
         messages: [
           {
             role: 'system',
-            content: `Tu es un redacteur e-commerce professionnel pour un marketplace d'import Chine destine a l'Afrique de l'Ouest francophone (Senegal, Cote d'Ivoire).
-Reformate les descriptions produit brutes en :
-1. Une description claire et vendeuse en francais (3-5 phrases max, pas de jargon technique inutile)
-2. Une liste de 4-8 caracteristiques cles (features) sous forme de bullet points courts
-
-Reponds UNIQUEMENT en JSON valide : { "description": "...", "features": ["...", "..."] }
-Ne traduis pas les noms de marque. Supprime le spam, les emojis excessifs, et les infos inutiles (politique retour du vendeur chinois, etc).`,
+            content: `Tu es un assistant e-commerce pour un marketplace d'import Chine destiné à l'Afrique de l'Ouest francophone (Sénégal, Côte d'Ivoire).\nTu reçois les données brutes d'un produit importé depuis 1688 ou AliExpress.\nNettoie-les et retourne UNIQUEMENT un JSON valide sans markdown avec cette structure exacte :\n{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "tags": ["..."] }\n\nRègles :\n- name : nom produit propre et vendeur en français (max 80 caractères). Traduis depuis le chinois/anglais. Conserve marque et modèle. Supprime spam, emojis excessifs, mentions vendeur/promo.\n- category : choisis EXACTEMENT une catégorie dans cette liste :\n${categoriesList}\n- subCategory : choisis une sous-catégorie pertinente parmi celles de la catégorie choisie, ou laisse vide.\n- description : 3-5 phrases claires en français, vendeuses, sans jargon inutile.\n- features : 4-8 bullet points courts en français.\n- tags : 3-6 tags pertinents en minuscules, en français.\nNe traduis pas les noms de marque. Supprime les infos inutiles (politique retour vendeur chinois, etc).`,
           },
           {
             role: 'user',
-            content: `Produit: ${productName}\n\nDescription brute:\n${rawDescription.slice(0, 3000)}`,
+            content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2000)}`,
           },
         ],
         temperature: 0.3,
-        max_tokens: 500,
+        max_tokens: 700,
       }),
     })
 
     if (!response.ok) {
       console.error('OpenAI API error:', response.status)
-      return { description: rawDescription, features: [] }
+      return {
+        name: rawName,
+        description: rawDescription,
+        features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
+        tags: ['import-chine'],
+      }
     }
 
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content?.trim()
-    if (!content) return { description: rawDescription, features: [] }
+    if (!content) {
+      return {
+        name: rawName,
+        description: rawDescription,
+        features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
+        tags: ['import-chine'],
+      }
+    }
 
-    // Parser le JSON de la reponse
     const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return { description: rawDescription, features: [] }
+    if (!jsonMatch) {
+      return {
+        name: rawName,
+        description: rawDescription,
+        features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
+        tags: ['import-chine'],
+      }
+    }
 
     const parsed = JSON.parse(jsonMatch[0])
     return {
+      name: parsed.name || rawName,
+      category: parsed.category || undefined,
+      subCategory: parsed.subCategory || undefined,
       description: parsed.description || rawDescription,
       features: Array.isArray(parsed.features) ? parsed.features : [],
+      tags: Array.isArray(parsed.tags) ? parsed.tags : ['import-chine'],
     }
   } catch (err) {
-    console.error('Erreur reformatage OpenAI:', err)
-    return { description: rawDescription, features: [] }
+    console.error('Erreur enrichissement OpenAI:', err)
+    return {
+      name: rawName,
+      description: rawDescription,
+      features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
+      tags: ['import-chine'],
+    }
   }
 }
 
@@ -190,7 +321,7 @@ export async function POST(req: NextRequest) {
     const exchangeRate = opts.exchangeRate || 85
     const serviceFeeRate = opts.serviceFeeRate || 10
     const b2bDiscountPercent = opts.b2bDiscountPercent || 15
-    const shouldReformat = opts.reformatDescriptions !== false && !!process.env.OPENAI_API_KEY
+    const shouldEnrich = opts.reformatDescriptions !== false && !!process.env.OPENAI_API_KEY
     const shouldFilterImages = opts.filterImages !== false
     const autoPublish = opts.autoPublish === true
 
@@ -289,18 +420,33 @@ export async function POST(req: NextRequest) {
         const finalImages = cleanImages.slice(0, 10)
         const cleanDescriptionImages = filterProductImages(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []).slice(0, 30)
 
-        // 2. Reformater la description
-        let description = raw.description || ''
+        // 2. Enrichissement IA (nom + catégorie + description + features + tags)
+        let productName = String(raw.name || '').trim()
+        let description = String(raw.description || '')
         let features = Array.isArray(raw.features) ? raw.features : []
-        let descReformatted = false
+        let tags = Array.isArray(raw.tags) ? raw.tags : ['import-chine']
+        let category = raw.category || undefined
+        let enriched = false
 
-        if (shouldReformat && description.length > 20) {
-          const reformatted = await reformatDescription(description, raw.name)
-          description = reformatted.description
-          if (reformatted.features.length > 0) {
-            features = reformatted.features
+        if (shouldEnrich) {
+          const enrichedData = await enrichProduct(raw)
+          productName = enrichedData.name || productName
+          description = enrichedData.description || description
+          features = enrichedData.features.length > 0 ? enrichedData.features : features
+          tags = enrichedData.tags.length > 0 ? enrichedData.tags : tags
+          category = enrichedData.category || category
+          enriched = true
+        }
+
+        // Fallback classification par mots-clés si pas de catégorie
+        if (!category || category === 'Catalogue import Chine') {
+          const keywordCategory = classifyCategoryFromKeywords(productName, description, raw.specifications as Record<string, unknown>)
+          if (keywordCategory) {
+            category = keywordCategory.category
+            if (keywordCategory.subCategory && !tags.includes(keywordCategory.subCategory)) {
+              tags.push(keywordCategory.subCategory)
+            }
           }
-          descReformatted = true
         }
 
         // 3. Calculer le pricing
@@ -340,11 +486,11 @@ export async function POST(req: NextRequest) {
 
         // 4. Creer le produit
         const productData: any = {
-          name: raw.name.trim(),
+          name: productName,
           description,
           features,
-          category: raw.category || 'Catalogue import Chine',
-          tags: raw.tags || ['import-chine'],
+          category: category || 'Catalogue import Chine',
+          tags: tags || ['import-chine'],
           image: finalImages[0] || '/placeholder.svg',
           gallery: finalImages,
           descriptionImages: cleanDescriptionImages,
@@ -388,7 +534,7 @@ export async function POST(req: NextRequest) {
           productId: String(created._id),
           imagesOriginal: rawImages.length,
           imagesFiltered: finalImages.length,
-          descriptionReformatted: descReformatted,
+          descriptionReformatted: enriched,
           pricing: typeof price === 'number' ? { price, b2bPrice: b2bPrice || 0 } : undefined,
         })
       } catch (err) {

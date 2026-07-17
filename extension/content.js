@@ -205,6 +205,188 @@
   };
 
   // ==========================================
+  // EXTRACTION DEPUIS L'ETAT JS DE LA PAGE
+  // ==========================================
+
+  /** Extraire la valeur d'une assignation window.xxx = {...} dans les scripts inline */
+  const extractScriptObject = (varName) => {
+    const scripts = document.querySelectorAll('script:not([src])');
+    for (const s of scripts) {
+      const text = s.textContent || '';
+      const idx = text.indexOf(varName);
+      if (idx === -1) continue;
+      // Cherche le '=' après le nom de variable
+      const eq = text.indexOf('=', idx + varName.length);
+      if (eq === -1) continue;
+      let start = eq + 1;
+      while (start < text.length && /\s/.test(text[start])) start++;
+      if (start >= text.length) continue;
+      const open = text[start];
+      if (open !== '{' && open !== '[') continue;
+      const close = open === '{' ? '}' : ']';
+      let end = start + 1;
+      let depth = 1;
+      while (end < text.length && depth > 0) {
+        const c = text[end];
+        if (c === open) depth++;
+        else if (c === close) depth--;
+        else if (c === '"' || c === "'" || c === '`') {
+          const quote = c;
+          end++;
+          while (end < text.length) {
+            const q = text[end];
+            if (q === '\\') { end += 2; continue; }
+            if (q === quote) { end++; break; }
+            end++;
+          }
+          continue;
+        }
+        end++;
+      }
+      if (depth === 0) {
+        try { return JSON.parse(text.slice(start, end)); } catch {}
+      }
+    }
+    return null;
+  };
+
+  /** Trouver un objet ressemblant à un produit dans un arbre JSON */
+  const findProductLikeObject = (root, depth = 5, seen = new WeakSet()) => {
+    if (!root || depth < 0) return null;
+    if (seen.has(root)) return null;
+    if (Array.isArray(root)) {
+      for (const item of root) {
+        const r = findProductLikeObject(item, depth - 1, seen);
+        if (r) return r;
+      }
+      return null;
+    }
+    if (typeof root === 'object') {
+      seen.add(root);
+      const hasTitle = root.title || root.subject || root.productTitle || root.name;
+      const hasPrice = root.price !== undefined || root.priceInfo || root.salePrice || root.amount || root.priceRange || root.minPrice || root.maxPrice;
+      const hasImages = root.images || root.image || root.imgList || root.gallery || root.picList || root.imageList || root.imageUrls;
+      if (hasTitle && hasPrice && hasImages) return root;
+      for (const v of Object.values(root)) {
+        const r = findProductLikeObject(v, depth - 1, seen);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+
+  /** Tenter de récupérer l'état produit depuis les variables globales/inline scripts */
+  const getPageProductState = () => {
+    const names = ['window.__INITIAL_STATE__', 'window.__APP_INITIAL_STATE__', 'window._DATA', 'window.__GLOBAL_DATA__', 'window.__DATA__', 'window.runParams', 'window.__INITIAL_STATE'];
+    for (const name of names) {
+      const extracted = extractScriptObject(name);
+      if (extracted) {
+        const found = findProductLikeObject(extracted);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  /** Extraction simple et générique depuis un objet produit d'état */
+  const parsePageProductState = (state) => {
+    const out = { name: '', price1688: 0, priceUSD: 0, gallery: [], descriptionImages: [], videos: [], variantGroups: [], specifications: {}, shopName: '', weightKg: 0, lengthCm: 0, widthCm: 0, heightCm: 0 };
+    if (!state) return out;
+
+    out.name = state.title || state.subject || state.productTitle || state.name || '';
+
+    const price = state.price || state.salePrice || state.amount || state.priceRange || state.minPrice || state.priceInfo;
+    if (typeof price === 'number') out.price1688 = price;
+    else if (price && typeof price === 'object') {
+      if (typeof price.amount === 'number') out.price1688 = price.amount;
+      else if (typeof price.price === 'number') out.price1688 = price.price;
+      else if (typeof price.minPrice === 'number') out.price1688 = price.minPrice;
+      else if (typeof price.value === 'number') out.price1688 = price.value;
+    }
+
+    const images = state.images || state.image || state.imgList || state.gallery || state.picList || state.imageList || state.imageUrls;
+    if (images) {
+      const arr = Array.isArray(images) ? images : [images];
+      out.gallery = arr
+        .map((img) => {
+          if (typeof img === 'string') return img;
+          return img?.url || img?.src || img?.imageUrl || img?.original || img?.big || img?.full || '';
+        })
+        .filter(Boolean)
+        .map(cleanImageUrl)
+        .filter((u) => !isNoiseImage(u));
+    }
+
+    const descImages = state.descriptionImages || state.descriptionImageList || state.detailImages || state.descImages;
+    if (descImages) {
+      const arr = Array.isArray(descImages) ? descImages : [descImages];
+      out.descriptionImages = arr
+        .map((img) => (typeof img === 'string' ? img : img?.url || img?.src || img?.imageUrl || ''))
+        .filter(Boolean)
+        .map(cleanImageUrl)
+        .filter((u) => !isNoiseImage(u));
+    }
+
+    const videos = state.videos || state.videoList || state.videoUrl;
+    if (videos) {
+      const arr = Array.isArray(videos) ? videos : [videos];
+      out.videos = arr
+        .map((v) => (typeof v === 'string' ? v : v?.url || v?.videoUrl || v?.src || ''))
+        .filter((u) => typeof u === 'string' && u.startsWith('http'));
+    }
+
+    const props = state.props || state.properties || state.attributes || state.specifications || state.productProps || state.skuProps;
+    if (props && typeof props === 'object') {
+      if (Array.isArray(props)) {
+        props.forEach((p) => {
+          if (p && p.name && p.value) out.specifications[p.name] = p.value;
+        });
+      } else {
+        Object.assign(out.specifications, props);
+      }
+    }
+
+    out.shopName = state.shopName || state.supplierName || state.supplier?.name || state.seller?.name || state.shopInfo?.name || state.storeName || '';
+
+    // Poids/dimensions depuis specs
+    if (state.weight) out.weightKg = state.weight;
+    if (state.width) out.widthCm = state.width;
+    if (state.height) out.heightCm = state.height;
+    if (state.length) out.lengthCm = state.length;
+
+    return out;
+  };
+
+  // ==========================================
+  // CLASSIFICATION CATEGORIE IT VISION
+  // ==========================================
+
+  const CATEGORY_RULES = [
+    { name: 'Sécurité', keywords: ['camera','caméra','surveillance','cctv','dvr','nvr','ip camera','poe','alarme','intrusion','détecteur','detecteur','capteur','mouvement','présence','serrure','lock','empreinte','fingerprint','badge','portier','interphone','vidéo','video'] },
+    { name: 'Informatique & Bureautique', keywords: ['ordinateur','laptop','pc','clavier','souris','écran','ecran','cable','câble','switch','routeur','router','hub','usb','hdmi','réseau','reseau','network','bureautique','imprimante','scanner','disque dur','ssd','ram','mémoire','webcam','microphone'] },
+    { name: 'Domotique & Smart Home', keywords: ['domotique','smart home','maison connectée','sonoff','tuya','zigbee','wifi switch','capteur','sensor','thermostat','interrupteur connecté','prise connectée','smart plug','automation'] },
+    { name: 'Électronique grand public', keywords: ['smartphone','téléphone','telephone','earphone','écouteur','headphone','casque','chargeur','power bank','batterie','bluetooth','speaker','enceinte','tv box','android box','drone','montre connectée','smartwatch','tablette'] },
+    { name: 'Mobilier & Installation', keywords: ['rack','baie','armoire','server cabinet','coffret','bureau','chaise','table','mobilier','meuble','établi','poste de travail'] },
+    { name: 'Packs & Cadeaux', keywords: ['pack','lot','coffret','cadeau','gift','box','ensemble','kit'] }
+  ];
+
+  const classifyCategory = (name, description, specs) => {
+    const text = `${name || ''} ${description || ''} ${Object.entries(specs || {}).map(([k, v]) => `${k} ${v}`).join(' ')}`.toLowerCase();
+    let best = null, bestScore = 0;
+    for (const cat of CATEGORY_RULES) {
+      let score = 0;
+      for (const kw of cat.keywords) {
+        if (text.includes(kw.toLowerCase())) score += 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = cat.name;
+      }
+    }
+    return bestScore >= 2 ? best : 'Catalogue import Chine';
+  };
+
+  // ==========================================
   // EXTRACTEUR 1688 (v2)
   // ==========================================
 
@@ -230,6 +412,9 @@
       features: [],
       specifications: {}
     };
+
+    // Données structurées depuis les scripts inline (fallback fiable si le DOM est React/minifié)
+    const pageState = parsePageProductState(getPageProductState());
 
     try {
       await wait(2000);
@@ -383,8 +568,13 @@
         return true;
       });
 
-      data.gallery = deduplicateImages(imageCategories.gallery).slice(0, 20);
+      data.gallery = deduplicateImages(imageCategories.gallery).length > 0
+        ? deduplicateImages(imageCategories.gallery).slice(0, 20)
+        : pageState.gallery.slice(0, 20);
       data.descriptionImages = deduplicateImages(imageCategories.description).slice(0, 30);
+      if (data.descriptionImages.length === 0 && pageState.descriptionImages.length) {
+        data.descriptionImages = deduplicateImages(pageState.descriptionImages).slice(0, 30);
+      }
       data.image = data.gallery[0] || imageCategories.main[0];
       data.imageCategories = {
         main: imageCategories.main.slice(0, 1),
@@ -508,6 +698,11 @@
       data.specifications = specs;
     } catch (e) { data.specifications = {}; }
 
+    // Fallback specs depuis l'état JS de la page
+    if (Object.keys(data.specifications || {}).length === 0 && Object.keys(pageState.specifications || {}).length > 0) {
+      data.specifications = pageState.specifications;
+    }
+
     // ── POIDS / DIMENSIONS ──
     let weightKg = 0, lengthCm = 0, widthCm = 0, heightCm = 0;
     try {
@@ -572,9 +767,16 @@
       presentationText
     });
 
+    // Fallback poids/dimensions depuis l'état JS de la page
+    if (!weightKg && pageState.weightKg) weightKg = pageState.weightKg;
+    if (!lengthCm && pageState.lengthCm) lengthCm = pageState.lengthCm;
+    if (!widthCm && pageState.widthCm) widthCm = pageState.widthCm;
+    if (!heightCm && pageState.heightCm) heightCm = pageState.heightCm;
+    if (pageState.shopName && !data.supplier) data.supplier = { name: pageState.shopName };
+
     // ── VALEURS PAR DÉFAUT ──
     try {
-      data.category = data.category || 'Catalogue import Chine';
+      data.category = classifyCategory(data.name, data.description, data.specifications) || 'Catalogue import Chine';
       data.tagline = 'Import 1688';
       data.availabilityNote = 'Import 1688 - vérifier poids/dimensions';
       data.currency = 'FCFA';
@@ -676,21 +878,8 @@
       });
     } catch {}
 
-    // ===== SOURCE 2: window.__INIT_DATA__ ou runParams (AliExpress interne) =====
-    let pageData = null;
-    try {
-      const scripts = document.querySelectorAll('script');
-      for (const s of scripts) {
-        const txt = s.textContent || '';
-        // AliExpress stocke les données dans window.runParams ou data
-        if (txt.includes('runParams') || txt.includes('"actionModule"') || txt.includes('"titleModule"')) {
-          const dataMatch = txt.match(/data:\s*(\{[\s\S]*?\})\s*[,;]/);
-          if (dataMatch) {
-            try { pageData = JSON.parse(dataMatch[1]); } catch {}
-          }
-        }
-      }
-    } catch {}
+    // ===== SOURCE 2: données structurées depuis scripts inline =====
+    const pageState = parsePageProductState(getPageProductState());
 
     // ===== TITRE =====
     if (jsonLdProduct?.name) {
@@ -708,6 +897,7 @@
         'h1', '.product-title'
       ]);
     }
+    if (!data.name && pageState.name) data.name = pageState.name;
     if (!data.name) data.name = document.title.replace(/-.*AliExpress.*$/i, '').trim() || 'Produit AliExpress';
 
     // ===== PRIX =====
@@ -866,7 +1056,8 @@
     });
 
     // Dédouper par nom de fichier (même image, résolutions différentes)
-    data.gallery = deduplicateImages(Array.from(imageSet)).slice(0, 20);
+    const rawGallery = deduplicateImages(Array.from(imageSet));
+    data.gallery = rawGallery.length > 0 ? rawGallery.slice(0, 20) : pageState.gallery.slice(0, 20);
     data.image = data.gallery[0];
     console.log('[IT Vision] Images galerie trouvées:', data.gallery.length);
 
@@ -1452,7 +1643,9 @@
       }
     });
 
-    data.descriptionImages = deduplicateImages(cleanDescImages).slice(0, 30);
+    data.descriptionImages = deduplicateImages(cleanDescImages).length > 0
+      ? deduplicateImages(cleanDescImages).slice(0, 30)
+      : pageState.descriptionImages.slice(0, 30);
 
     data.imageCategories = {
       main: data.gallery.slice(0, 1),
@@ -1483,14 +1676,16 @@
     ].filter(Boolean);
 
     // Données logistiques
-    data.specifications = specs;
-    data.weightKg = weightKg > 0 ? weightKg : undefined;
-    data.lengthCm = lengthCm > 0 ? lengthCm : undefined;
-    data.widthCm = widthCm > 0 ? widthCm : undefined;
-    data.heightCm = heightCm > 0 ? heightCm : undefined;
+    data.specifications = Object.keys(specs).length > 0 ? specs : (pageState.specifications || {});
+    if (Object.keys(data.specifications).length === 0) data.specifications = {};
+    data.weightKg = weightKg > 0 ? weightKg : (pageState.weightKg || undefined);
+    data.lengthCm = lengthCm > 0 ? lengthCm : (pageState.lengthCm || undefined);
+    data.widthCm = widthCm > 0 ? widthCm : (pageState.widthCm || undefined);
+    data.heightCm = heightCm > 0 ? heightCm : (pageState.heightCm || undefined);
+    if (pageState.shopName && !data.shopName) data.shopName = pageState.shopName;
 
     // Valeurs par défaut
-    data.category = 'Catalogue import Chine';
+    data.category = classifyCategory(data.name, data.description, data.specifications) || 'Catalogue import Chine';
     data.tagline = 'Import AliExpress';
     data.availabilityNote = 'Import AliExpress - freight 3j/15j/60j';
     data.currency = 'FCFA';

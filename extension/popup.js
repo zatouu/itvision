@@ -56,12 +56,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  // Score de confiance / qualité d'extraction
+  const getConfidence = (p) => {
+    let score = 100;
+    const warnings = [];
+    if (!p.name || p.name.length < 3 || /produit (1688|aliexpress)/i.test(p.name)) { score -= 25; warnings.push('nom douteux'); }
+    if (!(p.price1688 > 0 || p.price > 0)) { score -= 20; warnings.push('prix manquant'); }
+    if (!(p.image && p.gallery?.length > 0)) { score -= 20; warnings.push('images manquantes'); }
+    if (!p.weightKg) { score -= 10; warnings.push('poids manquant'); }
+    if (!(p.lengthCm && p.widthCm && p.heightCm)) { score -= 8; warnings.push('dimensions manquantes'); }
+    if (!p.category || p.category === 'Catalogue import Chine') { score -= 10; warnings.push('catégorie non détectée'); }
+    if (!(p.description && p.description.length > 20)) { score -= 7; warnings.push('description courte'); }
+    return { score: Math.max(0, score), warnings };
+  };
+
   // Render liste produits
   const renderProducts = (products) => {
     productsList.innerHTML = products.map((p, idx) => {
       const imgCount = (p.gallery?.length || 0) + (p.descriptionImages?.length || 0);
       const varCount = (p.variantGroups || []).reduce((acc, g) => acc + (g.variants?.length || 0), 0);
       const videoCount = p.videos?.length || 0;
+      const conf = getConfidence(p);
+      const confColor = conf.score >= 80 ? '#10b981' : (conf.score >= 50 ? '#f59e0b' : '#ef4444');
       const stats = [
         imgCount > 0 && `${imgCount} img`,
         varCount > 0 && `${varCount} var`,
@@ -74,7 +90,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="product-info">
           <div class="product-name">${p.name || 'Produit sans nom'}</div>
           <div class="product-price">${p.price1688 ? '¥' + p.price1688 : (p.price ? p.price + ' FCFA' : 'Prix non disponible')}</div>
-          ${stats ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">${stats}</div>` : ''}
+          <div style="font-size:10px;color:${confColor};margin-top:2px">Confiance ${conf.score}% ${conf.warnings.length ? `· ${conf.warnings.slice(0, 2).join(', ')}` : ''}</div>
+          ${stats ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${stats}</div>` : ''}
         </div>
         <button class="product-remove" data-idx="${idx}" title="Supprimer">×</button>
       </div>`;
@@ -336,6 +353,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const { products = [] } = await chrome.storage.local.get('products');
     if (products.length === 0) { showNotification('Aucun produit à exporter', 'error'); return; }
+
+    // Validation : avertir si certains produits manquent d'infos critiques
+    const lowConfidence = products.filter(p => getConfidence(p).score < 50);
+    if (lowConfidence.length > 0) {
+      const ok = confirm(`${lowConfidence.length} produit(s) ont des infos incomplètes (prix, images, poids...). Exporter quand même ?`);
+      if (!ok) return;
+    }
 
     // Déléguer au background script (plus robuste, pas de timeout popup)
     try {
