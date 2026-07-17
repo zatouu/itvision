@@ -1802,7 +1802,13 @@
   // LISTENERS (mode extension Chrome uniquement)
   // ==========================================
 
-  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+  const isExtensionRuntime =
+    typeof chrome !== 'undefined' &&
+    chrome.runtime &&
+    typeof chrome.runtime.onMessage !== 'undefined' &&
+    typeof chrome.runtime.onMessage.addListener === 'function';
+
+  if (isExtensionRuntime) {
     // Écouter messages du popup
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'EXTRACT_PRODUCT') {

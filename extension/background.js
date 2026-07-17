@@ -81,13 +81,14 @@ async function injectAndExtract(tabId, url) {
       console.log('[IT Vision] Injection dynamique sur', url);
       await chrome.scripting.executeScript({
         target: { tabId },
-        files: ['content.js']
+        files: ['content.js'],
+        world: 'ISOLATED'
       });
       await chrome.scripting.insertCSS({
         target: { tabId },
         files: ['content.css']
       });
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1000));
       response = await chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_PRODUCT' });
     }
 

@@ -2,7 +2,7 @@
  * Popup - Interface utilisateur de l'extension IT Vision
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initPopup() {
   // Éléments DOM
   const btnExtract = document.getElementById('btn-extract');
   const btnExport = document.getElementById('btn-export');
@@ -136,14 +136,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('[IT Vision] Content script absent, injection dynamique...');
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ['content.js']
+          files: ['content.js'],
+          world: 'ISOLATED'
         });
         await chrome.scripting.insertCSS({
           target: { tabId: tab.id },
           files: ['content.css']
         });
-        // Attendre que le script s'initialise
-        await new Promise(r => setTimeout(r, 1500));
+        // Attendre que le script s'initialise (le listener s'enregistre en synchrone)
+        await new Promise(r => setTimeout(r, 500));
         response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_PRODUCT' });
       }
       
@@ -430,7 +431,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initial load
   loadProducts();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPopup);
+} else {
+  initPopup();
+}
 
 // Animation CSS
 const style = document.createElement('style');
