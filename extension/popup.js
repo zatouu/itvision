@@ -391,7 +391,9 @@ async function initPopup() {
         showNotification('Erreur: ' + (result.error || 'Export échoué'), 'error');
       }
     } catch (err) {
-      showNotification('Erreur export: ' + err.message, 'error');
+      const msg = err && err.message ? err.message : String(err);
+      showNotification('Erreur export: ' + msg, 'error');
+      console.error('[IT Vision] Export échoué:', err);
     }
   };
 
