@@ -7,6 +7,8 @@
  */
 
 import { chromium, Browser, BrowserContext, Page } from 'playwright'
+import fs from 'fs/promises'
+import path from 'path'
 
 interface ScraperConfig {
   headless?: boolean
@@ -728,6 +730,31 @@ export class BrowserScraper {
         ...data,
         productUrl: url,
       }
+    })
+  }
+
+  /** Injecte l'extracteur de l'extension Chrome et retourne les données brutes */
+  async scrapeWithExtension(url: string): Promise<ScrapingResult<Record<string, unknown>>> {
+    return this.scrapeWithRetry(url, async (page) => {
+      // Injection du script de l'extension (mode headless, chrome.runtime est masqué)
+      const scriptPath = path.resolve(process.cwd(), 'extension/content.js')
+      const scriptContent = await fs.readFile(scriptPath, 'utf-8')
+      await page.addScriptTag({ content: scriptContent })
+
+      // Attendre que l'IIFE s'exécute et expose window.itVisionScrape
+      await page.waitForFunction(() => typeof (window as any).itVisionScrape === 'function', { timeout: 10000 })
+
+      // L'extraction interne fait déjà du scroll profond et attend le lazy-load
+      const data = await page.evaluate(async () => {
+        const scrape = (window as any).itVisionScrape as () => Promise<Record<string, unknown>>
+        return await scrape()
+      })
+
+      return {
+        ...data,
+        url,
+        platform: url.includes('1688.com') ? '1688' : 'aliexpress',
+      } as Record<string, unknown>
     })
   }
 

@@ -1,0 +1,5 @@
+# Liste des URLs à scraper automatiquement
+# Une URL par ligne, 1688 ou AliExpress uniquement
+# Exemples (décommentez et remplacez par vos vraies URLs) :
+# https://www.aliexpress.com/item/33012345678.html
+# https://detail.1688.com/offer/1234567890.html

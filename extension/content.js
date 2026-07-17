@@ -1788,27 +1788,40 @@
   };
 
   // ==========================================
-  // LISTENERS
+  // API HEADLESS / AUTOMATION
   // ==========================================
-  
-  // Écouter messages du popup
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'EXTRACT_PRODUCT') {
-      const is1688 = window.location.hostname.includes('1688.com');
-      
-      (is1688 ? scrape1688() : scrapeAliExpress())
-        .then(data => sendResponse({ success: true, data }))
-        .catch(err => sendResponse({ success: false, error: err.message }));
-      
-      return true; // Async response
-    }
-  });
 
-  // Injecter bouton flottant après chargement
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createFloatingButton);
-  } else {
-    createFloatingButton();
+  /** Expose un point d'entrée global utilisable par Playwright/Puppeteer */
+  window.itVisionScrape = async () => {
+    const is1688 = window.location.hostname.includes('1688.com');
+    const data = is1688 ? await scrape1688() : await scrapeAliExpress();
+    return data;
+  };
+
+  // ==========================================
+  // LISTENERS (mode extension Chrome uniquement)
+  // ==========================================
+
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    // Écouter messages du popup
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'EXTRACT_PRODUCT') {
+        const is1688 = window.location.hostname.includes('1688.com');
+
+        (is1688 ? scrape1688() : scrapeAliExpress())
+          .then(data => sendResponse({ success: true, data }))
+          .catch(err => sendResponse({ success: false, error: err.message }));
+
+        return true; // Async response
+      }
+    });
+
+    // Injecter bouton flottant après chargement
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', createFloatingButton);
+    } else {
+      createFloatingButton();
+    }
   }
 
 })();
