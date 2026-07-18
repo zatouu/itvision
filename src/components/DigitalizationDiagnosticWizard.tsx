@@ -641,9 +641,9 @@ export default function DigitalizationDiagnosticWizard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <a href="#" onClick={(e) => { e.preventDefault(); downloadSummary() }} className="flex items-center justify-center gap-2 px-4 py-3 border rounded-lg hover:bg-gray-50">
+              <button type="button" onClick={downloadSummary} className="flex items-center justify-center gap-2 px-4 py-3 border rounded-lg hover:bg-gray-50">
                 <FileDown className="h-4 w-4" /> Télécharger la synthèse
-              </a>
+              </button>
               <a
                 href="https://wa.me/221774133440?text=Bonjour%2C%20je%20souhaite%20finaliser%20mon%20diagnostic%20de%20digitalisation."
                 target="_blank"

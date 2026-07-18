@@ -55,8 +55,6 @@ import {
 } from 'lucide-react'
 import KPICard from '@/components/admin/KPICard'
 import ProgressRing from '@/components/admin/ProgressRing'
-import MiniChart from '@/components/admin/MiniChart'
-
 type ClientCard = {
   id: string
   name: string
@@ -362,9 +360,6 @@ export default function AdminDashboard() {
     return null
   }
 
-  // Données simulées pour les graphiques
-  const revenueData = [2.1, 2.4, 2.3, 2.8, 2.6, 3.0, 3.2]
-
   const formatCurrencyValue = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0 F CFA'
     if (value >= 1_000_000) {
@@ -527,27 +522,26 @@ export default function AdminDashboard() {
 
         {/* Graphiques de performance */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Graphique revenus */}
+          {/* Revenus contrats maintenance */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Revenus mensuels</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">3.2M CFA</p>
-                <span className="text-xs text-green-600 font-medium">+12% ce mois</span>
+                <h3 className="text-sm font-medium text-gray-500">Revenus annuels contrats</h3>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrencyValue(maintenanceMetrics.annualRevenue)}</p>
+                <span className="text-xs text-gray-500 font-medium">Maintenance</span>
               </div>
               <div className="bg-green-100 p-3 rounded-xl">
                 <BarChart3 className="h-5 w-5 text-green-600" />
               </div>
             </div>
-            <MiniChart data={revenueData} color="#10b981" height={60} />
           </div>
 
           {/* Taux de conversion */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Taux de conversion</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">68%</p>
+                <h3 className="text-sm font-medium text-gray-500">Conversion devis → projets</h3>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{kpis.quotes > 0 ? Math.round((kpis.projectsActive / kpis.quotes) * 100) : 0}%</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-xl">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -557,18 +551,18 @@ export default function AdminDashboard() {
               <ProgressRing 
                 radius={60} 
                 stroke={8} 
-                progress={68} 
+                progress={kpis.quotes > 0 ? Math.round((kpis.projectsActive / kpis.quotes) * 100) : 0} 
                 color="#3b82f6"
               />
             </div>
           </div>
 
-          {/* Satisfaction client */}
+          {/* Utilisation moyenne contrats maintenance */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Satisfaction</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">92%</p>
+                <h3 className="text-sm font-medium text-gray-500">Utilisation moyenne contrats</h3>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{maintenanceMetrics.avgUsageRate}%</p>
               </div>
               <div className="bg-purple-100 p-3 rounded-xl">
                 <Activity className="h-5 w-5 text-purple-600" />
@@ -578,7 +572,7 @@ export default function AdminDashboard() {
               <ProgressRing 
                 radius={60} 
                 stroke={8} 
-                progress={92} 
+                progress={maintenanceMetrics.avgUsageRate} 
                 color="#a855f7"
               />
             </div>
@@ -648,6 +642,16 @@ export default function AdminDashboard() {
                 <Package className="h-6 w-6 text-pink-600" />
               </div>
               <span className="text-sm font-medium text-gray-700 text-center">Catalogue</span>
+            </Link>
+
+            <Link 
+              href="/admin/auto-import" 
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
+            >
+              <div className="bg-orange-100 p-3 rounded-xl group-hover:bg-orange-200 transition">
+                <Download className="h-6 w-6 text-orange-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 text-center">Auto Import</span>
             </Link>
 
             <Link 

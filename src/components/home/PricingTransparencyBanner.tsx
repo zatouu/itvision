@@ -56,7 +56,7 @@ export default function PricingTransparencyBanner() {
           className="text-center mt-8"
         >
           <Link
-            href="#"
+            href="/prix-transparent"
             className="inline-flex items-center gap-1.5 text-violet-600 hover:text-violet-700 font-semibold text-sm transition-colors"
           >
             Voir le détail de notre tarification

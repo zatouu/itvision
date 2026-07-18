@@ -18,13 +18,14 @@ export default function MobileBottomBar({ comboPrice, onWhatsApp, onAddToCart, o
           <p className="text-[10px] text-slate-500 dark:text-slate-400">Total</p>
           <p className="text-sm font-bold text-emerald-600 truncate">{formatCurrency(comboPrice) || '-'}</p>
         </div>
-        <a
-          href="#" // WhatsApp link handled by parent
-          onClick={e => { e.preventDefault(); onWhatsApp() }}
+        <button
+          type="button"
+          aria-label="Contacter par WhatsApp"
+          onClick={onWhatsApp}
           className="flex flex-col items-center justify-center w-12 h-11 text-emerald-600 border border-emerald-200 dark:border-emerald-900 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition"
         >
           <MessageCircle className="w-5 h-5" />
-        </a>
+        </button>
         <button
           onClick={onAddToCart}
           className="flex-1 h-11 border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-800 text-orange-600 rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition"

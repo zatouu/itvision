@@ -194,9 +194,9 @@ export default function AuthPortal({ userType, onLogin }: AuthPortalProps) {
 
           {/* Liens utiles */}
           <div className="mt-6 text-center">
-            <a href="#" className="text-sm text-blue-600 hover:text-blue-500">
+            <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
               Mot de passe oublié ?
-            </a>
+            </Link>
           </div>
 
           {/* Informations de contact */}
