@@ -29,9 +29,18 @@ interface ScrapeResult {
   pricing?: { price: number; b2bPrice: number }
 }
 
-function parseArgs(): { file: string; dryRun: boolean; concurrency: number; baseUrl: string; token?: string } {
+interface ResolvedConfig {
+  urls: string[]
+  dryRun: boolean
+  concurrency: number
+  baseUrl: string
+  token?: string
+}
+
+function parseArgs(): { file?: string; configUrl?: string; dryRun: boolean; concurrency: number; baseUrl: string; token?: string } {
   const args = process.argv.slice(2)
   let file = ''
+  let configUrl = ''
   let dryRun = false
   let concurrency = 1
   let baseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
@@ -42,6 +51,10 @@ function parseArgs(): { file: string; dryRun: boolean; concurrency: number; base
       case '--file':
       case '-f':
         file = args[++i]
+        break
+      case '--config-url':
+      case '-c':
+        configUrl = args[++i]
         break
       case '--dry-run':
       case '-d':
@@ -65,8 +78,9 @@ Usage: npx tsx scripts/auto-scrape.ts [options]
 
 Options:
   -f, --file <path>      Fichier contenant une URL par ligne
+      --config-url <url> URL de l'API /api/admin/auto-import (prend le pas sur --file)
   -d, --dry-run          Scraper sans appeler l'API
-  -c, --concurrency <n>  Nombre d'URLs en parallèle (défaut 1)
+      --concurrency <n>  Nombre d'URLs en parallèle (défaut 1)
       --api <url>        Base URL de l'API IT Vision
   -t, --token <jwt>      Token admin (ou IMPORT_API_TOKEN)
   -h, --help             Afficher cette aide
@@ -75,21 +89,56 @@ Options:
     }
   }
 
-  if (!file) {
-    console.error('❌ Erreur: fichier d\'URLs requis (--file)')
-    process.exit(1)
-  }
-
-  return { file, dryRun, concurrency, baseUrl, token }
+  return { file: file || undefined, configUrl: configUrl || undefined, dryRun, concurrency, baseUrl, token }
 }
 
-async function loadUrls(filePath: string): Promise<string[]> {
+async function loadUrlsFromFile(filePath: string): Promise<string[]> {
   const content = await fs.readFile(path.resolve(filePath), 'utf-8')
   return content
     .split('\n')
     .map(l => l.trim())
     .filter(l => l && !l.startsWith('#'))
     .filter(l => l.includes('1688.com') || l.includes('aliexpress.com'))
+}
+
+async function loadConfigFromApi(configUrl: string, token?: string): Promise<ResolvedConfig> {
+  const authToken = token || await getAdminToken()
+  const res = await fetch(configUrl, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Impossible de charger la config (${res.status}): ${text}`)
+  }
+
+  const data = await res.json().catch(() => ({}))
+  if (!data.success || !data.config) {
+    throw new Error(`Réponse API invalide: ${JSON.stringify(data).slice(0, 200)}`)
+  }
+
+  const cfg = data.config as AutoImportConfig
+  const urls = (cfg.urls || [])
+    .map((u: string) => u.trim())
+    .filter((u: string) => u && (u.includes('1688.com') || u.includes('aliexpress.com')))
+
+  return {
+    urls,
+    dryRun: Boolean(cfg.dryRun),
+    concurrency: Math.min(10, Math.max(1, Number(cfg.concurrency) || 1)),
+    baseUrl: cfg.apiBaseUrl || process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    token: cfg.apiToken || undefined,
+  }
+}
+
+interface AutoImportConfig {
+  enabled?: boolean
+  schedule?: string
+  urls?: string[]
+  concurrency?: number
+  dryRun?: boolean
+  apiBaseUrl?: string
+  apiToken?: string
 }
 
 function toPositiveNumber(value: unknown): number | undefined {
@@ -287,11 +336,29 @@ async function runInBatches<T, R>(items: T[], batchSize: number, fn: (item: T) =
 }
 
 async function main() {
-  const { file, dryRun, concurrency, baseUrl, token } = parseArgs()
-  const urls = await loadUrls(file)
+  const { file, configUrl, dryRun: dryRunArg, concurrency: concurrencyArg, baseUrl: baseUrlArg, token: tokenArg } = parseArgs()
+
+  let resolved: ResolvedConfig
+  if (configUrl) {
+    resolved = await loadConfigFromApi(configUrl, tokenArg)
+  } else if (file) {
+    const urls = await loadUrlsFromFile(file)
+    resolved = {
+      urls,
+      dryRun: dryRunArg,
+      concurrency: concurrencyArg,
+      baseUrl: baseUrlArg,
+      token: tokenArg,
+    }
+  } else {
+    console.error('❌ Erreur: --file ou --config-url requis')
+    process.exit(1)
+  }
+
+  const { urls, dryRun, concurrency, baseUrl, token } = resolved
 
   if (urls.length === 0) {
-    console.error('❌ Aucune URL 1688/AliExpress trouvée dans', file)
+    console.error('❌ Aucune URL 1688/AliExpress trouvée')
     process.exit(1)
   }
 

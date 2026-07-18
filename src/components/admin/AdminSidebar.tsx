@@ -235,6 +235,12 @@ const menuItems: MenuItem[] = [
     href: '/admin/achats-chine'
   },
   {
+    id: 'auto-import',
+    label: 'Auto Import 1688/Ali',
+    icon: Download,
+    href: '/admin/auto-import'
+  },
+  {
     id: 'produits',
     label: 'Produits',
     icon: Package,

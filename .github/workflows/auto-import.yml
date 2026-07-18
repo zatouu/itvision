@@ -34,7 +34,8 @@ jobs:
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: npx tsx scripts/auto-scrape.ts --api ${{ secrets.NEXT_PUBLIC_SITE_URL }} --file data/auto-scrape-urls.txt
+          API_BASE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
+        run: npx tsx scripts/auto-scrape.ts --config-url "${{ vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}/api/admin/auto-import"
 
       - name: Upload results
         if: always()

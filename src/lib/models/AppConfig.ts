@@ -58,8 +58,34 @@ export interface IVisibilityConfig {
   }
 }
 
+export interface IAutoImportConfig {
+  enabled: boolean
+  /** Cron expression ou description du schedule côté GitHub Actions */
+  schedule: string
+  /** URLs 1688 / AliExpress à scraper automatiquement */
+  urls: string[]
+  /** Nombre d'URLs scrapées en parallèle */
+  concurrency: number
+  /** Si true, ne pas appeler l'API d'import (preview) */
+  dryRun: boolean
+  /** URL de base de l'API IT Vision (par défaut NEXT_PUBLIC_SITE_URL/API_BASE_URL) */
+  apiBaseUrl?: string
+  /** JWT admin optionnel pour l'import */
+  apiToken?: string
+  /** Dernier rapport d'exécution */
+  lastRun?: {
+    startedAt: string
+    finishedAt: string
+    created: number
+    failed: number
+    urls: number
+    errors?: string[]
+  }
+}
+
 export interface IAppConfig extends Document {
   key: string
+  autoImport: IAutoImportConfig
   monetization: {
     mode: MonetizationMode
     freeUntil?: Date
@@ -198,6 +224,24 @@ const AppConfigSchema = new Schema<IAppConfig>({
     fallback: {
       useLastKnownPosition: { type: Boolean, default: true },
       useProfileCity: { type: Boolean, default: true },
+    },
+  },
+  autoImport: {
+    enabled: { type: Boolean, default: false },
+    schedule: { type: String, default: '0 2 * * *' },
+    urls: { type: [String], default: [] },
+    concurrency: { type: Number, default: 1, min: 1, max: 10 },
+    dryRun: { type: Boolean, default: false },
+    apiBaseUrl: { type: String, default: '' },
+    apiToken: { type: String, default: '' },
+    lastRun: {
+      startedAt: String,
+      finishedAt: String,
+      created: Number,
+      failed: Number,
+      urls: Number,
+      errors: [String],
+      _id: false,
     },
   },
 }, { timestamps: true })
