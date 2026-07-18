@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { 
   HelpCircle, 
   X, 
@@ -370,9 +371,8 @@ export default function AdminHelpGuide() {
             {/* Footer */}
             <div className="border-t border-gray-200 bg-gray-50 p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <a
-                  href="/CORRECTIONS_ET_AMELIORATIONS.md"
-                  target="_blank"
+                <Link
+                  href="/admin/administration/how-to"
                   className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group"
                 >
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -383,7 +383,7 @@ export default function AdminHelpGuide() {
                     <p className="text-xs text-gray-500">Guide complet</p>
                   </div>
                   <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
-                </a>
+                </Link>
 
                 <a
                   href="https://wa.me/221774133440"

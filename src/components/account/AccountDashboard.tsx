@@ -596,7 +596,7 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
           <section className="bg-white border border-slate-200 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold flex items-center gap-2"><Activity className="w-5 h-5 text-violet-600" /> Activité récente</h2>
-              <Link href="/compte/activite" className="text-sm text-violet-600 hover:underline">Voir tout →</Link>
+              <Link href="/compte" className="text-sm text-violet-600 hover:underline">Voir tout →</Link>
             </div>
             <div className="space-y-3">
               {activities.length > 0 ? activities.map(a => <ActivityTimelineItem key={a._id} activity={a} />) : (
@@ -660,9 +660,9 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
                   </div>
                 ))}
               </div>
-              <Link href="/compte/grains" className="text-xs text-amber-700 hover:underline mt-3 inline-flex items-center gap-1">
+              <button onClick={() => alert('Programme de fidélité bientôt disponible')} className="text-xs text-amber-700 hover:underline mt-3 inline-flex items-center gap-1">
                 Comment gagner plus ? <ArrowRight className="w-3 h-3" />
-              </Link>
+              </button>
             </div>
             <div>
               <h3 className="font-bold mb-3 flex items-center gap-2">🎁 Récompenses disponibles</h3>
@@ -722,11 +722,11 @@ export default function AccountDashboard({ data }: { data: DashboardData }) {
         <section className="mb-6">
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">⚙️ Paramètres rapides</h2>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            <SettingsQuickButton icon={Bell} label="Notifications" href="/compte/notifications" />
-            <SettingsQuickButton icon={MapPin} label="Adresses" href="/compte/adresses" />
-            <SettingsQuickButton icon={CreditCard} label="Paiements" href="/compte/paiements" />
-            <SettingsQuickButton icon={Lock} label="Sécurité" href="/compte/securite" />
-            <SettingsQuickButton icon={Sliders} label="Préférences" href="/compte/preferences" />
+            <SettingsQuickButton icon={Bell} label="Notifications" onClick={() => alert('Bientôt disponible')} />
+            <SettingsQuickButton icon={MapPin} label="Adresses" onClick={() => alert('Bientôt disponible')} />
+            <SettingsQuickButton icon={CreditCard} label="Paiements" onClick={() => alert('Bientôt disponible')} />
+            <SettingsQuickButton icon={Lock} label="Sécurité" onClick={() => alert('Bientôt disponible')} />
+            <SettingsQuickButton icon={Sliders} label="Préférences" onClick={() => alert('Bientôt disponible')} />
             <SettingsQuickButton icon={Moon} label="Thème" onClick={() => alert('Bientôt disponible')} />
           </div>
         </section>

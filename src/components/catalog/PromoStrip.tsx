@@ -42,7 +42,7 @@ export default function PromoStrip() {
 
         {/* Image Search */}
         <Link
-          href="/trouver-pour-moi"
+          href="/produits"
           className="relative overflow-hidden bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg p-2.5 flex items-center gap-2.5 hover:shadow-md transition-shadow"
         >
           <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">

@@ -75,7 +75,7 @@ export default function FlashSaleSection() {
             <h2 className="font-bold text-lg">⚡ Vente Flash</h2>
             <CountdownTimer endTime={flashSaleEndTime} />
           </div>
-          <Link href="/flash-sale" className="text-sm underline hover:text-white/80 transition">
+          <Link href="/produits" className="text-sm underline hover:text-white/80 transition">
             Voir tout →
           </Link>
         </div>

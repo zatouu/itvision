@@ -466,7 +466,7 @@ export default function DisputePage() {
               </motion.button>
             </Link>
             
-            <Link href="/support" className="flex-1">
+            <Link href="/contact" className="flex-1">
               <motion.button
                 className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white font-medium"
                 whileHover={{ scale: 1.02 }}

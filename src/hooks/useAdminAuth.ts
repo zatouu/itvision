@@ -70,9 +70,9 @@ export function useAdminAuth(redirectOnFail = true): UseAdminAuthReturn {
             } else if (userRole === 'TECHNICIAN') {
               router.replace('/tech-interface')
             } else if (userRole === 'PRODUCT_MANAGER') {
-              router.replace('/admin/products')
+              router.replace('/admin/produits')
             } else if (userRole === 'ACCOUNTANT') {
-              router.replace('/admin/accounting')
+              router.replace('/admin/comptabilite')
             } else {
               router.replace('/login')
             }
