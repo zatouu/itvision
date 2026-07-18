@@ -2,7 +2,7 @@
  * Popup - Interface utilisateur de l'extension IT Vision
  */
 
-async function initPopup() {
+document.addEventListener('DOMContentLoaded', async () => {
   // Éléments DOM
   const btnExtract = document.getElementById('btn-extract');
   const btnExport = document.getElementById('btn-export');
@@ -136,15 +136,14 @@ async function initPopup() {
         console.log('[IT Vision] Content script absent, injection dynamique...');
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ['content.js'],
-          world: 'ISOLATED'
+          files: ['content.js']
         });
         await chrome.scripting.insertCSS({
           target: { tabId: tab.id },
           files: ['content.css']
         });
-        // Attendre que le script s'initialise (le listener s'enregistre en synchrone)
-        await new Promise(r => setTimeout(r, 500));
+        // Attendre que le script s'initialise
+        await new Promise(r => setTimeout(r, 1500));
         response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_PRODUCT' });
       }
       
@@ -165,12 +164,10 @@ async function initPopup() {
         loadProducts();
         showNotification('Produit extrait avec succès!', 'success');
       } else {
-        showNotification('Erreur: ' + ((response && response.error) ? response.error : 'Aucune réponse du content script'), 'error');
+        showNotification('Erreur: ' + response.error, 'error');
       }
     } catch (err) {
-      const msg = err && err.message ? err.message : String(err);
-      showNotification('Erreur extraction: ' + msg, 'error');
-      console.error('[IT Vision] Extraction échouée:', err);
+      showNotification('Erreur extraction: ' + err.message, 'error');
     } finally {
       btnExtract.disabled = false;
       btnExtract.innerHTML = `
@@ -391,9 +388,7 @@ async function initPopup() {
         showNotification('Erreur: ' + (result.error || 'Export échoué'), 'error');
       }
     } catch (err) {
-      const msg = err && err.message ? err.message : String(err);
-      showNotification('Erreur export: ' + msg, 'error');
-      console.error('[IT Vision] Export échoué:', err);
+      showNotification('Erreur export: ' + err.message, 'error');
     }
   };
 
@@ -435,13 +430,7 @@ async function initPopup() {
 
   // Initial load
   loadProducts();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initPopup);
-} else {
-  initPopup();
-}
+});
 
 // Animation CSS
 const style = document.createElement('style');
