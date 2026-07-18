@@ -299,7 +299,12 @@ async function scrapeOneUrl(
     }
 
     const product = raw.data
-    console.log(`   └─ ${product.name || 'sans nom'} | ${(product.gallery as any[])?.length || 0} img | ${(product.price1688 as number) || '?'} ¥`)
+    const priceLog = product.price1688
+      ? `${product.price1688} ¥`
+      : product.price
+      ? `${product.price} FCFA`
+      : 'prix N/A'
+    console.log(`   └─ ${product.name || 'sans nom'} | ${(product.gallery as any[])?.length || 0} img | ${priceLog}`)
 
     if (dryRun) {
       return { url, ok: true, name: String(product.name || ''), imported: false }

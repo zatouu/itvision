@@ -901,17 +901,28 @@
     if (!data.name) data.name = document.title.replace(/-.*AliExpress.*$/i, '').trim() || 'Produit AliExpress';
 
     // ===== PRIX =====
+    // Convertit un prix brut en FCFA selon la devise détectée
+    const convertToFcfa = (rawPrice, currency, textSource = '') => {
+      const val = Number(rawPrice);
+      if (!Number.isFinite(val) || val <= 0) return null;
+      const curr = String(currency || '').toUpperCase();
+      const sourceText = String(textSource).toUpperCase();
+      const isDh = /\bDH\b|DIRHAM|MAD|د\.م|درهم/.test(sourceText) || sourceText.includes('DH');
+      if (curr === 'EUR') return Math.round(val * 656);
+      if (curr === 'XOF' || curr === 'FCFA') return Math.round(val);
+      if (curr === 'MAD' || isDh) return Math.round(val * 61);
+      // USD / GBP / autres -> on considère USD par défaut
+      return Math.round(val * 620);
+    };
+
     // JSON-LD price
     if (jsonLdProduct?.offers) {
-      const offers = jsonLdProduct.offers;
-      const price = offers.price || offers.lowPrice;
-      if (price) {
-        data.priceUSD = parseFloat(price);
-        const curr = (offers.priceCurrency || 'USD').toUpperCase();
-        // Convertir en FCFA selon la devise
-        if (curr === 'EUR') data.price = Math.round(data.priceUSD * 656);
-        else if (curr === 'XOF' || curr === 'FCFA') data.price = Math.round(data.priceUSD);
-        else data.price = Math.round(data.priceUSD * 620); // USD par défaut
+      const offers = Array.isArray(jsonLdProduct.offers) ? jsonLdProduct.offers[0] : jsonLdProduct.offers;
+      const offerPrice = offers?.price || offers?.lowPrice;
+      if (offerPrice) {
+        data.priceUSD = parseFloat(offerPrice);
+        const converted = convertToFcfa(offerPrice, offers?.priceCurrency, jsonLdProduct.name);
+        if (converted) data.price = converted;
       }
     }
     if (!data.price) {
@@ -919,15 +930,17 @@
       const allEls = document.querySelectorAll('[data-pl="product-price"], [class*="Price"], [class*="price"]');
       for (const el of allEls) {
         const text = el.textContent || '';
-        // Chercher un pattern prix: €12.34 ou $12.34 ou 12,34€
-        const m = text.match(/(?:[\$€£]|US\$|EUR)\s*(\d+[.,]\d+)|(\d+[.,]\d+)\s*(?:[\$€£]|US\$|EUR)/);
+        // Chercher un pattern prix: €12.34, $12.34, 12,34€, DH 12.34, 12.34 MAD...
+        const m = text.match(/(?:[\$€£]|US\$|EUR|MAD|AED|SAR|DH)\s*(\d+[.,]\d+)|(\d+[.,]\d+)\s*(?:[\$€£]|US\$|EUR|MAD|AED|SAR|DH)/i);
         if (m) {
           const val = parseFloat((m[1] || m[2]).replace(',', '.'));
           if (val > 0 && val < 100000) {
-            data.priceUSD = val;
-            if (text.includes('€') || text.includes('EUR')) data.price = Math.round(val * 656);
-            else data.price = Math.round(val * 620);
-            break;
+            const converted = convertToFcfa(val, '', text);
+            if (converted) {
+              data.priceUSD = val;
+              data.price = converted;
+              break;
+            }
           }
         }
       }
