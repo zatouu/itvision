@@ -7,7 +7,7 @@ import { requireAuth } from '@/lib/jwt'
 import { sendPushToUser } from '@/lib/push'
 import { closeDispatch } from '@/lib/visibility'
 import { creditReferrerOnFirstMission } from '@/lib/referral'
-import { refundEscrowPoints, refundMissionUnlock, releaseMissionReservation } from '@/lib/wallet'
+import { getAppConfig, refundEscrowPoints, refundMissionUnlock, releaseMissionReservation, creditCashBalance } from '@/lib/wallet'
 import MissionUnlock from '@/lib/models/MissionUnlock'
 import {
   incrementProviderCompleted,
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let payment = null
     if (sr.selectedOfferId) {
       payment = await Payment.findOne({ requestId: id, status: { $in: ['pending', 'held', 'released', 'refunded', 'failed'] } })
-        .select('status provider amount useEscrow').lean()
+        .select('status provider phase amount depositAmount balanceAmount useEscrow').lean()
     }
     return NextResponse.json({ item: { ...sr, offerCount, pendingOfferCount, acceptedOffer, payment } })
   } catch (e: any) {
@@ -118,6 +118,42 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (sr.assignedProviderId) {
           void incrementProviderCompleted(String(sr.assignedProviderId))
         }
+
+        // ─── Libération automatique des paiements en escrow ───
+        try {
+          const heldPayments = await Payment.find({ requestId: id, status: 'held' }).sort({ createdAt: 1 })
+          const cfg = await getAppConfig()
+          const commissionRate = Number(cfg.monetization?.commissionRate) || 0
+          for (const payment of heldPayments) {
+            const rawAmount = payment.phase === 'deposit' ? payment.depositAmount : payment.amount
+            if (rawAmount <= 0) continue
+
+            const commission = Math.round((rawAmount * commissionRate) / 100)
+            const net = rawAmount - commission
+
+            if (payment.provider !== 'cash' && net > 0) {
+              await creditCashBalance(String(payment.providerId), net, {
+                relatedMissionId: String(id),
+                paymentRef: String(payment._id),
+                description: `Reversement mission terminée ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
+              })
+            }
+
+            payment.status = 'released'
+            payment.releasedAt = now
+            await payment.save()
+          }
+          if (heldPayments.length && sr.assignedProviderId) {
+            void sendPushToUser(String(sr.assignedProviderId), {
+              title: 'Paiement reçu',
+              body: 'Mission terminée : les fonds ont été crédités sur votre portefeuille.',
+              data: { type: 'payment:released', requestId: String(id) },
+              appType: 'provider',
+            })
+          }
+        } catch (releaseErr) {
+          console.error('[PATCH completed] auto release payments', releaseErr)
+        }
       }
       if (nextStatus === 'cancelled') {
         (sr as any).cancelledAt = now
@@ -145,13 +181,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             // Client annule après provider_arriving → le deposit est conservé comme pénalité
             const clientLateCancellation = isClient && prevStatus === 'provider_arriving'
             if (clientLateCancellation && heldPayment.depositAmount > 0) {
+              const cfg = await getAppConfig()
+              const commissionRate = Number(cfg.monetization?.commissionRate) || 0
+              const rawAmount = heldPayment.depositAmount
+              const commission = Math.round((rawAmount * commissionRate) / 100)
+              const net = rawAmount - commission
+
+              if (heldPayment.provider !== 'cash' && net > 0) {
+                await creditCashBalance(String(heldPayment.providerId), net, {
+                  relatedMissionId: String(id),
+                  paymentRef: String(heldPayment._id),
+                  description: 'Dépôt de garantie suite à annulation tardive client',
+                })
+              }
+
               heldPayment.status = 'released'
               heldPayment.releasedAt = now
               await heldPayment.save()
               // Notify provider
               void sendPushToUser(String(sr.assignedProviderId), {
-                title: '💰 Dépôt de garantie reçu',
-                body: `${heldPayment.depositAmount.toLocaleString('fr-FR')} FCFA conservés suite à l'annulation tardive du client.`,
+                title: 'Dépôt de garantie reçu',
+                body: `${net.toLocaleString('fr-FR')} FCFA crédités sur votre portefeuille suite à l'annulation tardive du client.`,
                 data: { type: 'payment:released', requestId: String(id) },
                 appType: 'provider',
               })

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
 
     // Rate limiting strict pour les inscriptions (3 par 15min par IP)
-    const limited = applyRateLimit(request, registerRateLimiter)
+    const limited = await applyRateLimit(request, registerRateLimiter)
     if (limited) return limited
 
     const { email, password, name, phone, role = 'CLIENT', captchaToken = '', website = '', formLoadTime = 0, referredBy = '' } = await request.json()

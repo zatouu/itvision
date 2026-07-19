@@ -102,7 +102,7 @@ function MyOffers() {
     return items.filter(it => {
       const missionStatus = it.requestStatus || it.status
       const matchesStatus =
-        statusFilter === 'all'
+        (statusFilter === 'all' && !['completed', 'cancelled', 'rejected', 'expired', 'withdrawn'].includes(missionStatus))
         || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress'].includes(missionStatus))
         || (statusFilter === 'done' && ['completed', 'cancelled', 'rejected', 'expired', 'withdrawn'].includes(missionStatus))
         || (statusFilter === 'pending' && it.status === 'submitted')

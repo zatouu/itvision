@@ -182,6 +182,30 @@ export async function refundEscrowPoints(
   })
 }
 
+/**
+ * Crédite le solde cash (FCFA) d'un utilisateur (reversement prestataire, etc.).
+ */
+export async function creditCashBalance(
+  userId: string,
+  amount: number,
+  opts: { description?: string; relatedMissionId?: string; paymentRef?: string } = {}
+): Promise<{ balance: number }> {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Montant de crédit cash invalide')
+  }
+  await connectMongoose()
+  const wallet = await Wallet.findOneAndUpdate(
+    { userId },
+    {
+      $inc: { balance: amount },
+      $push: { txns: { type: 'payout', amount, ref: opts.paymentRef, meta: { description: opts.description, relatedMissionId: opts.relatedMissionId }, createdAt: new Date() } },
+      $setOnInsert: { escrow: 0, points: 0, reservedPoints: 0, lifetimePointsEarned: 0, lifetimePointsSpent: 0 },
+    },
+    { new: true, upsert: true }
+  )
+  return { balance: wallet?.balance || 0 }
+}
+
 export type CreditReservationResult =
   | { ok: true; balance: number; reservedPoints: number; reservationId: string; cost: number }
   | { ok: false; reason: 'insufficient' | 'already_reserved' | 'not_enabled' | 'not_found' | 'server'; balance?: number }

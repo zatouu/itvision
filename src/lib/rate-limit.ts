@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getRedisClient } from '@/lib/redis'
 
 interface LimitEntry {
   count: number
@@ -27,13 +28,38 @@ function getClientIp(req: NextRequest): string {
   return 'unknown'
 }
 
-export function rateLimitRequest(req: NextRequest, options: RateLimitOptions = {}): { ok: boolean; retryAfter: number } | null {
+export async function rateLimitRequest(
+  req: NextRequest,
+  options: RateLimitOptions = {}
+): Promise<{ ok: boolean; retryAfter: number } | null> {
   const { windowMs = 60_000, max = 10, keyPrefix = '' } = options
   const now = Date.now()
   const ip = getClientIp(req)
   const key = `${keyPrefix}:${ip}`
 
   cleanup(now)
+
+  try {
+    const redis = getRedisClient()
+    if (redis && redis.status === 'ready') {
+      const ttlSec = Math.max(1, Math.ceil(windowMs / 1000))
+      const redisKey = `rate:simple:${keyPrefix}:${ip}`
+      const results = await redis.multi().incr(redisKey).expire(redisKey, ttlSec, 'NX').exec()
+
+      let count = 0
+      if (Array.isArray(results) && results[0]) {
+        const first = results[0]
+        count = Array.isArray(first) ? ((first[1] as number) || 0) : ((first as number) || 0)
+      }
+
+      if (count >= max) {
+        return { ok: false, retryAfter: ttlSec }
+      }
+      return { ok: true, retryAfter: 0 }
+    }
+  } catch (err) {
+    console.error('[rateLimitRequest] Redis error, fallback mémoire', err)
+  }
 
   const entry = store.get(key)
   if (!entry || entry.resetAt <= now) {

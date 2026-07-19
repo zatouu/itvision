@@ -7,7 +7,7 @@ import ServiceReview from '@/lib/models/ServiceReview'
 import User from '@/lib/models/User'
 
 export async function GET(request: NextRequest) {
-  const rl = applyRateLimit(request, serviceReadRateLimiter)
+  const rl = await applyRateLimit(request, serviceReadRateLimiter)
   if (rl) return rl
 
   try {

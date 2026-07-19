@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -158,6 +158,14 @@ function MissionDetail() {
     }
   }, [requestId])
 
+  const destination = useMemo(() => {
+    const loc = item?.location
+    if (hasValidCoords(loc)) {
+      return { lat: Number(loc.coordinates[1]), lng: Number(loc.coordinates[0]) }
+    }
+    return { lat: 0, lng: 0 }
+  }, [item?.location])
+
   const doUpdateStatus = async (nextStatus: string) => {
     if (!requestId) return
     setUpdating(true)
@@ -181,7 +189,8 @@ function MissionDetail() {
   const payBalance = () => {
     const offer = item?.acceptedOffer
     if (!offer || !item?.payment) return
-    router.push(`/payment?offerId=${offer._id}&amount=${offer.price}&requestId=${requestId}&phase=balance`)
+    const balanceAmount = item?.payment?.balanceAmount || (offer.price - (item?.payment?.depositAmount || 0))
+    router.push(`/payment?offerId=${offer._id}&amount=${balanceAmount}&requestId=${requestId}&phase=balance`)
   }
 
   if (loading && !item) return (
@@ -246,7 +255,7 @@ function MissionDetail() {
       {hasCoords ? (
         <View style={s.mapContainer}>
           <LiveRouteMap
-            destination={{ lat, lng }}
+            destination={destination}
             destinationLabel={loc?.address}
             providerLocation={providerLocation || undefined}
             status={item?.status || 'assigned'}

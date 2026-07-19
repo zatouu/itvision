@@ -83,7 +83,17 @@ export async function GET(
     } else {
       const or: any[] = []
       if (tokenHash) {
-        or.push({ trackingAccessTokenHash: tokenHash, trackingAccessTokenCreatedAt: { $gte: minCreatedAt } })
+        const tokenNow = new Date()
+        or.push({
+          trackingAccessTokenHash: tokenHash,
+          $or: [
+            { trackingAccessTokenExpiresAt: { $gt: tokenNow } },
+            {
+              trackingAccessTokenExpiresAt: { $exists: false },
+              trackingAccessTokenCreatedAt: { $gte: minCreatedAt }
+            }
+          ]
+        })
       }
       if (clientUserId) {
         or.push({ clientId: clientUserId })
@@ -208,12 +218,19 @@ export async function PATCH(
 
     const minCreatedAt = getTrackingTokenMinDate()
 
+    const tokenNow = new Date()
     const query = isAdmin
       ? { orderId }
       : {
           orderId,
           trackingAccessTokenHash: tokenHash || '__invalid__',
-          trackingAccessTokenCreatedAt: { $gte: minCreatedAt }
+          $or: [
+            { trackingAccessTokenExpiresAt: { $gt: tokenNow } },
+            {
+              trackingAccessTokenExpiresAt: { $exists: false },
+              trackingAccessTokenCreatedAt: { $gte: minCreatedAt }
+            }
+          ]
         }
 
     const order = (await Order.findOneAndUpdate(query, updateData, { new: true }).lean()) as any

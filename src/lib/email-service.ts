@@ -5,9 +5,13 @@ interface EmailConfig {
   host: string
   port: number
   secure: boolean
-  auth: {
+  pool?: boolean
+  auth?: {
     user: string
     pass: string
+  }
+  tls?: {
+    rejectUnauthorized?: boolean
   }
 }
 
@@ -28,49 +32,114 @@ interface EmailData {
 class EmailService {
   private transporter: nodemailer.Transporter | null = null
   private isConfigured = false
+  private verified = false
+  private verifyPromise: Promise<boolean> | null = null
 
   constructor() {
     this.initializeTransporter()
   }
 
+  private getSmtpFromAddress(): string {
+    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@itvisionplus.sn'
+    const fromName = process.env.SMTP_FROM_NAME || 'DDM+'
+    return `"${fromName}" <${fromEmail}>`
+  }
+
+  private getBccRecipients(extraBcc?: string): string {
+    const defaultBcc = process.env.SMTP_BCC || 'contact@itvisionplus.sn'
+    if (extraBcc) return `${extraBcc}, ${defaultBcc}`
+    return defaultBcc
+  }
+
   private initializeTransporter() {
     try {
-      // Configuration par défaut pour Gmail/SMTP
-      const config: EmailConfig = {
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER || '',
-          pass: process.env.SMTP_PASS || ''
-        }
+      const host = process.env.SMTP_HOST?.trim() || ''
+      if (!host) {
+        console.warn('[EMAIL] SMTP_HOST non défini — emails simulés en console')
+        this.isConfigured = false
+        this.verified = false
+        return
       }
 
-      // Vérifier si les variables d'environnement sont configurées
-      if (!config.auth.user || !config.auth.pass) {
-        console.warn('[EMAIL] Variables d\'environnement SMTP non configurées')
+      const port = parseInt(process.env.SMTP_PORT || '587', 10)
+      const secure = process.env.SMTP_SECURE === 'true' || (port === 465 || port === 4650)
+      const user = process.env.SMTP_USER || ''
+      const pass = process.env.SMTP_PASS || ''
+      const requireAuth = process.env.SMTP_REQUIRE_AUTH !== 'false'
+
+      if (requireAuth && (!user || !pass)) {
+        console.warn('[EMAIL] SMTP_USER/SMTP_PASS manquants — emails simulés')
         this.isConfigured = false
+        this.verified = false
         return
+      }
+
+      const config: EmailConfig = {
+        host,
+        port,
+        secure,
+        pool: process.env.SMTP_POOL === 'true',
+        ...(requireAuth ? { auth: { user, pass } } : {}),
+        tls: {
+          rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false'
+        }
       }
 
       this.transporter = nodemailer.createTransport(config)
       this.isConfigured = true
-      
-      console.log('[EMAIL] Service d\'email initialisé avec succès')
+      this.verified = false
+
+      console.log('[EMAIL] Transport SMTP créé pour', host)
     } catch (error) {
       console.error('[EMAIL] Erreur lors de l\'initialisation:', error)
       this.isConfigured = false
+      this.verified = false
     }
   }
 
+  private async ensureTransporterVerified(): Promise<boolean> {
+    if (!this.transporter) return false
+    if (this.verified) return true
+    if (this.verifyPromise) return this.verifyPromise
+
+    this.verifyPromise = (async () => {
+      try {
+        await this.transporter!.verify()
+        this.verified = true
+        console.log('[EMAIL] Vérification SMTP réussie')
+        return true
+      } catch (err) {
+        console.error('[EMAIL] Vérification SMTP échouée:', err)
+        this.isConfigured = false
+        this.verified = false
+        return false
+      } finally {
+        this.verifyPromise = null
+      }
+    })()
+
+    return this.verifyPromise
+  }
+
   async sendEmail(emailData: EmailData): Promise<boolean> {
-    const bccRecipients = emailData.bcc
-      ? `${emailData.bcc}, contact@itvisionplus.sn`
-      : 'contact@itvisionplus.sn'
-    const fromAddress = `"DDM+" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`
+    const bccRecipients = this.getBccRecipients(emailData.bcc)
+    const fromAddress = this.getSmtpFromAddress()
 
     if (!this.isConfigured || !this.transporter) {
       console.warn('[EMAIL] Service non configuré, email simulé:', emailData.subject)
+      this.logEmailToConsole(emailData)
+      await this.logEmailToDb({
+        emailData,
+        fromAddress,
+        bccRecipients,
+        status: 'simulated'
+      })
+      return true
+    }
+
+    const smtpReady = await this.ensureTransporterVerified()
+    if (!smtpReady) {
+      console.warn('[EMAIL] Transport SMTP non vérifié, email simulé:', emailData.subject)
       this.logEmailToConsole(emailData)
       await this.logEmailToDb({
         emailData,

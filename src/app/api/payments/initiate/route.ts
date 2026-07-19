@@ -18,7 +18,7 @@ const MIN_DEPOSIT = 1000
 
 export async function POST(request: NextRequest) {
   try {
-    const limit = rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'payments:initiate' })
+    const limit = await rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'payments:initiate' })
     if (limit && !limit.ok) {
       return tooManyResponse(limit.retryAfter)
     }
@@ -51,13 +51,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cette offre a expiré' }, { status: 410 })
     }
 
-    // Vérifier que l'offre est encore disponible (pas déjà acceptée/refusée/retirée)
-    if (offer.status !== 'submitted') {
+    const isBalancePhase = phase === 'balance'
+
+    // Vérifier que l'offre est encore disponible
+    if (isBalancePhase) {
+      if (offer.status !== 'accepted') {
+        return NextResponse.json({ error: `Cette offre n'a pas été retenue (${offer.status})` }, { status: 409 })
+      }
+    } else if (offer.status !== 'submitted') {
       return NextResponse.json({ error: `Cette offre n'est plus disponible (${offer.status})` }, { status: 409 })
     }
 
     // Vérifier que la demande est encore ouverte
-    if (!['created', 'pending_offers'].includes(sr.status)) {
+    if (isBalancePhase) {
+      if (!['assigned', 'provider_arriving', 'in_progress'].includes(sr.status)) {
+        return NextResponse.json({ error: `Paiement du solde impossible (${sr.status})` }, { status: 409 })
+      }
+    } else if (!['created', 'pending_offers'].includes(sr.status)) {
       return NextResponse.json({ error: `Cette demande n'est plus ouverte (${sr.status})` }, { status: 409 })
     }
     if (sr.expiresAt && new Date(sr.expiresAt).getTime() < Date.now()) {
@@ -67,27 +77,38 @@ export async function POST(request: NextRequest) {
     // Vérifier pas de double paiement
     const existing = await Payment.findOne({ offerId, status: { $in: ['pending', 'held'] } })
     if (existing) {
-      return NextResponse.json({ 
-        success: true, 
-        payment: existing,
-        message: 'Paiement déjà initié' 
-      })
+      if (isBalancePhase && existing.phase === 'deposit' && existing.status === 'held') {
+        // allowed to pay the remaining balance
+      } else {
+        return NextResponse.json({
+          success: true,
+          payment: existing,
+          message: 'Paiement déjà initié'
+        })
+      }
     }
 
     const totalAmount = offer.price
-    const depositAmount = phase === 'deposit'
+    let depositAmount = phase === 'deposit'
       ? Math.max(Math.round(totalAmount * DEPOSIT_RATE), MIN_DEPOSIT)
       : 0
-    const balanceAmount = totalAmount - depositAmount
-    const amountToPayNow = provider === 'cash'
+    let balanceAmount = totalAmount - depositAmount
+    let amountToPayNow = provider === 'cash'
       ? totalAmount
       : (phase === 'deposit' ? depositAmount : phase === 'balance' ? balanceAmount : totalAmount)
+
+    if (isBalancePhase) {
+      const alreadyPaid = existing?.phase === 'deposit' ? existing.depositAmount : 0
+      depositAmount = 0
+      balanceAmount = Math.max(0, totalAmount - alreadyPaid)
+      amountToPayNow = balanceAmount
+    }
     const description = `Xeuy – ${sr.category} #${String(sr._id).slice(-6)}`
     const phone = clientPhone || ''
 
     // ── Débit points escrow client ──
     const cfg = await getAppConfig()
-    const useEscrow = provider !== 'cash' && cfg.escrow.enabled && (cfg.escrow.mandatory || validated.data.useEscrow !== false)
+    const useEscrow = provider !== 'cash' && phase !== 'balance' && cfg.escrow.enabled && (cfg.escrow.mandatory || validated.data.useEscrow !== false)
     const escrowCost = useEscrow ? cfg.monetization.escrowCostPoints : 0
     let escrowPointsCharged = 0
     if (escrowCost > 0) {
@@ -127,7 +148,7 @@ export async function POST(request: NextRequest) {
         offerId: offer._id,
         clientId: userId,
         providerId: offer.providerId,
-        amount: totalAmount,
+        amount: amountToPayNow,
         depositAmount,
         balanceAmount,
         provider,
@@ -157,7 +178,7 @@ export async function POST(request: NextRequest) {
           offer,
           securePayment: useEscrow,
           notifyClientPaymentHeld: useEscrow,
-          amount: totalAmount,
+          amount: amountToPayNow,
         })
       }
     }

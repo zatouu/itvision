@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Animated } from 'react-native'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Animated, AppState } from 'react-native'
 import { Image } from 'expo-image'
 import BottomSheet from '../src/components/BottomSheet'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
@@ -82,6 +82,7 @@ function NearbyRequests() {
 
   const mapRef = useRef<MapView>(null)
   const lastCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
+  const loadInFlightRef = useRef(false)
 
   const locate = async (): Promise<{ lat: number; lng: number } | null> => {
     let { status } = await Location.getForegroundPermissionsAsync()
@@ -124,37 +125,40 @@ function NearbyRequests() {
     }
   }
 
-  const load = useCallback(async (c?: { lat: number; lng: number } | null, isRefresh = false) => {
+  const load = useCallback(async (c?: { lat: number; lng: number } | null, isRefresh = false, silent = false) => {
     const target = c ?? coords
-    if (!target) return
+    if (!target || loadInFlightRef.current) return
+    loadInFlightRef.current = true
     const key = `nearby-${Math.round(target.lat * 10)}-${Math.round(target.lng * 10)}`
     if (isRefresh) {
       setRefreshing(true)
       await cacheClear(key)
-    } else {
+    } else if (!silent) {
       setLoading(true)
     }
-    setErr(null)
+    if (!silent) setErr(null)
     try {
       await fetchWithCache(
         key,
         () => apiGet(`/api/services/matching?lng=${target.lng}&lat=${target.lat}&radiusKm=${RADIUS_KM}&excludeMine=true`).then(r => r.items || []),
-        (items, fromCache) => {
+        (items) => {
           setItems(items)
-          if (!fromCache) {
-            setLoading(false)
-            setRefreshing(false)
-          }
+          setLoading(false)
+          setErr(null)
         },
         2 * 60 * 1000 // 2 min TTL pour les demandes proches
       )
     } catch (e: any) {
-      const msg = e?.message || String(e)
-      setErr(t('nearby.loadError', { msg }))
+      if (!silent) {
+        const msg = e?.message || String(e)
+        setErr(t('nearby.loadError', { msg }))
+      }
+    } finally {
+      loadInFlightRef.current = false
       setLoading(false)
       setRefreshing(false)
     }
-  }, [coords])
+  }, [coords, t])
 
   useEffect(() => {
     (async () => {
@@ -178,6 +182,12 @@ function NearbyRequests() {
   // WebSocket: connexion + écouter acceptation d'offre + nouvelles demandes
   useEffect(() => {
     const socket = connectSocket()
+    const rejoinAndRefresh = () => {
+      const c = coordsRef.current
+      if (!c) return
+      joinNearbyRoom(c.lat, c.lng, RADIUS_KM)
+      loadRef.current(c, false, true)
+    }
     const handleAccepted = (_data: any) => {
       Alert.alert(t('nearby.offerAccepted'), t('nearby.offerAcceptedMsg'))
       const c = coordsRef.current
@@ -186,17 +196,24 @@ function NearbyRequests() {
     const handleRequestNew = (_data: any) => {
       // Reload silencieux (pas de popup bloquante)
       const c = coordsRef.current
-      if (c) loadRef.current(c, true)
+      if (c) loadRef.current(c, false, true)
     }
+    const handleAppState = (next: string) => {
+      if (next === 'active') rejoinAndRefresh()
+    }
+    socket.on('connect', rejoinAndRefresh)
     socket.on('offer:accepted', handleAccepted)
     socket.on('request:new', handleRequestNew)
     socket.on('request:nearby', handleRequestNew)
+    const appStateSubscription = AppState.addEventListener('change', handleAppState)
     return () => {
+      appStateSubscription.remove()
+      socket.off('connect', rejoinAndRefresh)
       socket.off('offer:accepted', handleAccepted)
       socket.off('request:new', handleRequestNew)
       socket.off('request:nearby', handleRequestNew)
     }
-  }, [])
+  }, [t])
 
   const sendOffer = async () => {
     if (!selected || !price) return
@@ -231,12 +248,12 @@ function NearbyRequests() {
   }
 
   // Zoom serré: ~0.04 ≈ couvre environ 4-5 km. (RADIUS_KM*0.018 = 0.18 → trop large)
-  const mapRegion = coords ? {
+  const mapRegion = useMemo(() => coords ? {
     latitude: coords.lat,
     longitude: coords.lng,
     latitudeDelta: 0.06,
     longitudeDelta: 0.06,
-  } : undefined
+  } : undefined, [coords?.lat, coords?.lng])
 
   // Recentre automatiquement la map quand la position est affinée
   useEffect(() => {

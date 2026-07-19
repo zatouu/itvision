@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
   let mongoConnected = false
 
   try {
-    const limit = rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'order:create' })
+    const limit = await rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'order:create' })
     if (limit && !limit.ok) {
       return tooManyResponse(limit.retryAfter)
     }
@@ -111,6 +111,8 @@ export async function POST(req: NextRequest) {
     // Générer un token secret pour le suivi invité (non devinable)
     const trackingToken = crypto.randomBytes(32).toString('base64url')
     const trackingAccessTokenHash = hashTrackingToken(trackingToken)
+    const trackingTokenTtlDays = (process.env.ORDER_TRACKING_TOKEN_TTL_DAYS ? Number(process.env.ORDER_TRACKING_TOKEN_TTL_DAYS) : NaN) || 90
+    const trackingAccessTokenExpiresAt = new Date(Date.now() + trackingTokenTtlDays * 24 * 60 * 60 * 1000)
 
     // Mapping des méthodes de livraison
     const methodMap: Record<string, ShippingMethodId> = {
@@ -274,6 +276,7 @@ export async function POST(req: NextRequest) {
 
       trackingAccessTokenHash,
       trackingAccessTokenCreatedAt: new Date(),
+      trackingAccessTokenExpiresAt,
       
       // Domaine métier : marketplace (route catalogue / panier)
       domain: 'marketplace',

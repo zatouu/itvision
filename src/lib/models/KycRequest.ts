@@ -15,7 +15,6 @@ const KycRequestSchema = new Schema({
   reviewedAt: { type: Date },
 }, { timestamps: true })
 
-KycRequestSchema.index({ providerId: 1 })
 KycRequestSchema.index({ status: 1, createdAt: -1 })
 
 const KycRequest = models.KycRequest || model('KycRequest', KycRequestSchema)

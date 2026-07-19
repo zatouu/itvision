@@ -25,7 +25,7 @@ function generateOtp(): string {
 
 export async function POST(request: NextRequest) {
   // Rate limit
-  const rl = applyRateLimit(request, otpSendLimiter)
+  const rl = await applyRateLimit(request, otpSendLimiter)
   if (rl) return rl
 
   try {

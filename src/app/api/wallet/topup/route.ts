@@ -13,7 +13,7 @@ const MAX_POINTS = 10000
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
 
 export async function POST(request: NextRequest) {
-  const rl = applyRateLimit(request, serviceWriteRateLimiter)
+  const rl = await applyRateLimit(request, serviceWriteRateLimiter)
   if (rl) return rl
 
   try {

@@ -23,7 +23,7 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
 export async function POST(request: NextRequest) {
   try {
     // SÉCURITÉ: Rate limiting (10 uploads par heure)
-    const rateLimitResponse = applyRateLimit(request, uploadRateLimiter)
+    const rateLimitResponse = await applyRateLimit(request, uploadRateLimiter)
     if (rateLimitResponse) return rateLimitResponse
 
     // SÉCURITÉ: Vérifier l'authentification

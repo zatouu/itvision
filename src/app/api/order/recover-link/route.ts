@@ -21,6 +21,16 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function getTrackingTokenTtlDays(): number {
+  const raw = process.env.ORDER_TRACKING_TOKEN_TTL_DAYS
+  const parsed = raw ? Number(raw) : NaN
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 90
+}
+
+function getTrackingTokenExpirationDate(): Date {
+  return new Date(Date.now() + getTrackingTokenTtlDays() * 24 * 60 * 60 * 1000)
+}
+
 const GENERIC_RESPONSE = {
   success: true,
   message: "Si les informations sont correctes, vous recevrez un email avec vos liens de suivi."
@@ -34,7 +44,7 @@ const GENERIC_RESPONSE = {
  * - Always returns a generic success message to prevent enumeration.
  */
 export async function POST(request: NextRequest) {
-  const rateLimitResponse = applyRateLimit(request, apiRateLimiter)
+  const rateLimitResponse = await applyRateLimit(request, apiRateLimiter)
   if (rateLimitResponse) return rateLimitResponse
 
   try {
@@ -83,7 +93,7 @@ export async function POST(request: NextRequest) {
 
       await Order.updateOne(
         { orderId },
-        { $set: { trackingAccessTokenHash: newHash, trackingAccessTokenCreatedAt: new Date() } }
+        { $set: { trackingAccessTokenHash: newHash, trackingAccessTokenCreatedAt: new Date(), trackingAccessTokenExpiresAt: getTrackingTokenExpirationDate() } }
       )
 
       const trackingUrl = `${baseUrl}/commandes/${encodeURIComponent(orderId)}?token=${encodeURIComponent(newToken)}`

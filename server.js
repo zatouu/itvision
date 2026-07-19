@@ -14,6 +14,36 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || 'localhost'
 const port = parseInt(process.env.PORT || '3000', 10)
 
+// Origines autorisées pour Socket.io en production (apps natives n'envoient pas d'origin)
+const DEFAULT_ALLOWED_ORIGINS = 'https://itvisionplus.sn,https://*.itvisionplus.sn,https://staging.itvisionplus.sn,https://*.staging.itvisionplus.sn,http://localhost:3000,http://localhost:8081,http://localhost:8082,http://localhost:8083'
+const ALLOWED_ORIGINS = (process.env.ALLOWED_SOCKET_ORIGINS || DEFAULT_ALLOWED_ORIGINS)
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean)
+
+function wildcardToRegExp(pattern) {
+  // Échappe les caractères spéciaux sauf * qui devient .+
+  return new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.+') + '$', 'i')
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true
+  return ALLOWED_ORIGINS.some(allowed => {
+    if (allowed === origin) return true
+    if (allowed.includes('*')) return wildcardToRegExp(allowed).test(origin)
+    return false
+  })
+}
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[UnhandledRejection]', reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('[UncaughtException]', err)
+  process.exit(1)
+})
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
@@ -107,12 +137,17 @@ app.prepare().then(() => {
   // Configuration Socket.io
   const io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: (origin, callback) => {
+        if (dev || isAllowedOrigin(origin)) return callback(null, true)
+        console.warn('[WS] CORS refusé:', origin)
+        return callback(new Error('CORS origin not allowed'))
+      },
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],
     pingTimeout: 60000,
-    pingInterval: 25000
+    pingInterval: 25000,
+    maxHttpBufferSize: 5 * 1024 * 1024, // limite la taille des paquets WS
   })
 
   // Middleware d'authentification Socket.io
@@ -443,7 +478,7 @@ app.prepare().then(() => {
   })
 
   // Periodic cleanup of stale provider positions (every 10 min)
-  setInterval(async () => {
+  const cleanupInterval = setInterval(async () => {
     // In-memory cleanup
     const now = Date.now()
     let cleaned = 0
@@ -498,6 +533,25 @@ app.prepare().then(() => {
       console.log(`🌍 Environnement: ${dev ? 'development' : 'production'}`)
       console.log('='.repeat(70) + '\n')
     })
+
+  // Arrêt gracieux pour éviter les connexions orphelines et les fuites d'interval
+  function gracefulShutdown(signal) {
+    console.log(`\n${signal} reçu — arrêt gracieux…`)
+    if (cleanupInterval) clearInterval(cleanupInterval)
+    io.close()
+    httpServer.close(() => {
+      console.log('✅ Serveur arrêté proprement')
+      process.exit(0)
+    })
+    // Forçage au bout de 10s
+    setTimeout(() => {
+      console.error('❌ Forçage de l\'arrêt')
+      process.exit(1)
+    }, 10000).unref()
+  }
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 })
 
 

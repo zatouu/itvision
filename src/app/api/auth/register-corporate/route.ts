@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
 
-    const limited = applyRateLimit(request, registerRateLimiter)
+    const limited = await applyRateLimit(request, registerRateLimiter)
     if (limited) return limited
 
     const body = await request.json()

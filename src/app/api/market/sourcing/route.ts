@@ -121,7 +121,7 @@ async function buildBaseSiteUrl(request: NextRequest): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  const limited = applyRateLimit(request, sourcingCreateLimiter)
+  const limited = await applyRateLimit(request, sourcingCreateLimiter)
   if (limited) return limited
 
   // Détecter l'utilisateur connecté (optionnel)

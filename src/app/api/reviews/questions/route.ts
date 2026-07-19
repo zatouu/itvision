@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const limit = rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'product:question' })
+    const limit = await rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'product:question' })
     if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
 
     await connectMongoose()

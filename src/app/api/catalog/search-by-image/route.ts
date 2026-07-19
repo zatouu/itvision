@@ -70,7 +70,7 @@ interface ScoredResult {
 
 export async function POST(request: NextRequest) {
   // 1. Rate limit
-  const limited = applyRateLimit(request, imageSearchLimiter)
+  const limited = await applyRateLimit(request, imageSearchLimiter)
   if (limited) return limited
 
   // 2. Parse + validation image

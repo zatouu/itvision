@@ -131,6 +131,7 @@ export default function Layout(){
   // REGARDLESS of the online toggle. The toggle only affects the status flag (available/offline)
   // sent with the GPS payload, which the Visibility Engine uses for scoring/eligibility.
   const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const gpsInFlight = useRef(false)
   const [isOnline, setIsOnline] = useState(false)
   const isOnlineRef = useRef(false)
 
@@ -151,6 +152,8 @@ export default function Layout(){
   // GPS emission: runs whenever logged in + foregrounded, independent of online toggle.
   // The online toggle only controls the 'status' field (available vs offline).
   const sendGps = async (reason: string) => {
+    if (gpsInFlight.current || AppState.currentState !== 'active') return
+    gpsInFlight.current = true
     try {
       const { status } = await Location.getForegroundPermissionsAsync()
       if (status !== 'granted') {
@@ -166,6 +169,8 @@ export default function Layout(){
       emitGps(pos.coords.latitude, pos.coords.longitude, statusFlag)
     } catch (e: any) {
       console.log('[GPS] failed', reason, e?.message)
+    } finally {
+      gpsInFlight.current = false
     }
   }
 

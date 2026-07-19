@@ -3,9 +3,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import Payment from '@/lib/models/Payment'
 import ServiceRequest from '@/lib/models/ServiceRequest'
-import User from '@/lib/models/User'
-import { releasePayment } from '@/lib/payment'
 import { sendPushToUser } from '@/lib/push'
+import { getAppConfig, creditCashBalance } from '@/lib/wallet'
 
 /**
  * Release escrow payment to provider when mission is completed.
@@ -35,45 +34,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La mission doit être terminée pour libérer le paiement' }, { status: 400 })
     }
 
-    const payment = await Payment.findOne({ requestId, status: 'held' })
-    if (!payment) {
+    const heldPayments = await Payment.find({ requestId, status: 'held' }).sort({ createdAt: 1 })
+    if (!heldPayments.length) {
       return NextResponse.json({ error: 'Aucun paiement en escrow trouvé' }, { status: 404 })
     }
 
-    // Amount to release: deposit only if phase was deposit, else full amount
-    const releaseAmount = payment.phase === 'deposit' ? payment.depositAmount : payment.amount
-    if (releaseAmount <= 0) {
+    const cfg = await getAppConfig()
+    const commissionRate = Number(cfg.monetization?.commissionRate) || 0
+    const now = new Date()
+    let totalReleased = 0
+    let totalCommission = 0
+    const releasedPayments: any[] = []
+
+    for (const payment of heldPayments) {
+      const rawAmount = payment.phase === 'deposit' ? payment.depositAmount : payment.amount
+      if (rawAmount <= 0) continue
+
+      const commission = Math.round((rawAmount * commissionRate) / 100)
+      const net = rawAmount - commission
+      totalCommission += commission
+
+      // Cash already exchanged physically; other providers credit the wallet
+      if (payment.provider !== 'cash' && net > 0) {
+        await creditCashBalance(String(payment.providerId), net, {
+          relatedMissionId: String(requestId),
+          paymentRef: String(payment._id),
+          description: `Reversement mission ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
+        })
+      }
+
+      payment.status = 'released'
+      payment.releasedAt = now
+      await payment.save()
+      totalReleased += net
+      releasedPayments.push(payment)
+    }
+
+    if (!releasedPayments.length) {
       return NextResponse.json({ error: 'Montant à libérer invalide' }, { status: 400 })
     }
 
-    // Get provider phone for payout
-    const provider = await User.findById(payment.providerId).select('phone').lean()
-    const providerPhone = (provider as any)?.phone || ''
-
-    const result = await releasePayment(
-      payment.provider as any,
-      payment.externalId,
-      releaseAmount,
-      providerPhone,
-    )
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error || 'Échec du payout' }, { status: 502 })
+    const providerIds = [...new Set(releasedPayments.map((p: any) => String(p.providerId)))]
+    for (const providerId of providerIds) {
+      void sendPushToUser(providerId, {
+        title: 'Paiement reçu',
+        body: `${totalReleased.toLocaleString('fr-FR')} FCFA crédités sur votre portefeuille Xeuy.`,
+        data: { type: 'payment:released', requestId: String(requestId) },
+        appType: 'provider',
+      })
     }
 
-    payment.status = 'released'
-    payment.releasedAt = new Date()
-    await payment.save()
-
-    // Notify provider
-    await sendPushToUser(String(payment.providerId), {
-      title: '💰 Paiement reçu !',
-      body: `${releaseAmount.toLocaleString('fr-FR')} FCFA envoyés sur votre compte ${payment.provider}.`,
-      data: { type: 'payment:released', requestId: String(requestId) },
-      appType: 'provider',
+    return NextResponse.json({
+      success: true,
+      releasedAmount: totalReleased,
+      commissionAmount: totalCommission,
+      releasedCount: releasedPayments.length,
     })
-
-    return NextResponse.json({ success: true, payment, releasedAmount: releaseAmount })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/payments/release]', e)

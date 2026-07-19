@@ -7,7 +7,7 @@ import { getOrCreateWallet, getAppConfig, isPointsModeActive } from '@/lib/walle
 import { loadUserWithProfiles } from '@/lib/user-profiles'
 
 export async function GET(request: NextRequest) {
-  const rl = applyRateLimit(request, serviceReadRateLimiter)
+  const rl = await applyRateLimit(request, serviceReadRateLimiter)
   if (rl) return rl
 
   try {

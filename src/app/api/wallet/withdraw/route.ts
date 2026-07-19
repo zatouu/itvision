@@ -8,7 +8,7 @@ import WithdrawalRequest from '@/lib/models/WithdrawalRequest'
 const OPERATORS = ['wave', 'orange_money', 'free_money'] as const
 
 export async function POST(request: NextRequest) {
-  const rl = applyRateLimit(request, serviceWriteRateLimiter)
+  const rl = await applyRateLimit(request, serviceWriteRateLimiter)
   if (rl) return rl
 
   try {

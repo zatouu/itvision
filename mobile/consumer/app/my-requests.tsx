@@ -105,7 +105,7 @@ function MyRequests() {
     const q = query.trim().toLowerCase()
     return items.filter(it => {
       const matchesStatus =
-        statusFilter === 'all'
+        (statusFilter === 'all' && !['completed', 'cancelled', 'expired'].includes(it.status))
         || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
         || (statusFilter === 'offers' && (it.status === 'pending_offers' || it.pendingOfferCount > 0))
         || (statusFilter === 'done' && ['completed', 'cancelled', 'expired'].includes(it.status))

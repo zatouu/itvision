@@ -74,18 +74,19 @@ function PaymentScreen() {
   useEffect(() => () => stopPolling(), [stopPolling])
 
   const totalAmount = Number(amount || 0)
-  const depositAmount = selected === 'cash'
+  const isBalance = phase === 'balance'
+  const isCash = selected === 'cash'
+  const depositAmount = isCash || isBalance
     ? 0
     : (paymentMode === 'deposit'
         ? Math.max(Math.round(totalAmount * DEPOSIT_RATE), MIN_DEPOSIT)
         : totalAmount)
-  const balanceAmount = totalAmount - depositAmount
-  const payNowAmount = selected === 'cash' ? totalAmount : depositAmount
-  const isCash = selected === 'cash'
+  const balanceAmount = isBalance ? totalAmount : totalAmount - depositAmount
+  const payNowAmount = isCash || isBalance ? totalAmount : depositAmount
 
   const initiate = async () => {
     if (!selected || !offerId) return
-    if (!hasEnoughEscrowPoints && !isCash) {
+    if (!hasEnoughEscrowPoints && !isCash && !isBalance) {
       Alert.alert(
         t('payment.insufficientPoints'),
         `${escrowCost} XC ${t('payment.insufficientPoints').toLowerCase()}. ${wallet?.points || 0} XC.`,
@@ -103,7 +104,7 @@ function PaymentScreen() {
         offerId,
         provider: selected,
         clientPhone: user?.phone || '',
-        useEscrow: escrowSelected && !isCash,
+        useEscrow: escrowSelected && !isCash && !isBalance,
         phase: requestPhase,
       })
       if (res.checkoutUrl) {
@@ -174,9 +175,9 @@ function PaymentScreen() {
         {/* Amount card */}
         <View style={s.amountCard}>
           <Text style={s.amountLabel}>{t('payment.amount')}</Text>
-          <Text style={s.amountValue}>{totalAmount.toLocaleString('fr-FR')} FCFA</Text>
+          <Text style={s.amountValue}>{payNowAmount.toLocaleString('fr-FR')} FCFA</Text>
 
-          {selected !== 'cash' && paymentMode === 'deposit' && (
+          {selected !== 'cash' && !isBalance && paymentMode === 'deposit' && (
             <View style={s.depositBox}>
               <Text style={s.depositLabel}>{t('payment.depositLabel')}</Text>
               <Text style={s.depositValue}>{depositAmount.toLocaleString('fr-FR')} FCFA</Text>
@@ -184,8 +185,12 @@ function PaymentScreen() {
             </View>
           )}
 
-          {selected !== 'cash' && paymentMode === 'full' && (
+          {selected !== 'cash' && !isBalance && paymentMode === 'full' && (
             <Text style={s.escrowHint}>{t('payment.escrowSub')}</Text>
+          )}
+
+          {selected !== 'cash' && isBalance && (
+            <Text style={s.escrowHint}>Paiement du solde restant</Text>
           )}
 
           {selected === 'cash' && (
@@ -248,7 +253,7 @@ function PaymentScreen() {
         </View>
 
         {/* Payment mode selector */}
-        {selected !== 'cash' && (
+        {selected !== 'cash' && !isBalance && (
           <View style={s.modeSelector}>
             <TouchableOpacity
               style={[s.modeBtn, paymentMode === 'deposit' && s.modeBtnActive]}

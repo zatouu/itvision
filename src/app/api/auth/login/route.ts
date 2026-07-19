@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const { email, password, userType, remember } = await request.json()
 
     // Rate limit tentatives de login
-    const limited = applyRateLimit(request, authRateLimiter)
+    const limited = await applyRateLimit(request, authRateLimiter)
     if (limited) return limited
 
     if (!email || !password) {

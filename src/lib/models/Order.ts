@@ -83,6 +83,7 @@ export interface IOrder extends Document {
   // Accès invité (suivi / modification adresse) via token secret
   trackingAccessTokenHash?: string
   trackingAccessTokenCreatedAt?: Date
+  trackingAccessTokenExpiresAt?: Date
   
   // Domaine métier de la commande
   domain: OrderDomain
@@ -216,6 +217,7 @@ const OrderSchema = new Schema<IOrder>({
 
   trackingAccessTokenHash: { type: String, sparse: true, index: true },
   trackingAccessTokenCreatedAt: { type: Date, sparse: true },
+  trackingAccessTokenExpiresAt: { type: Date, sparse: true },
   
   // Domaine métier de la commande
   domain: {

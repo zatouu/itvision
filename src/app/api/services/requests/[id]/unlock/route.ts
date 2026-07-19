@@ -12,7 +12,7 @@ import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
  * Retourne le coût, le solde restant, et l'unlockId.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const rl = applyRateLimit(request, serviceWriteRateLimiter)
+  const rl = await applyRateLimit(request, serviceWriteRateLimiter)
   if (rl) return rl
 
   try {

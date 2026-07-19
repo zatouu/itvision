@@ -68,7 +68,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  const limited = applyRateLimit(request, decisionLimiter)
+  const limited = await applyRateLimit(request, decisionLimiter)
   if (limited) return limited
 
   const resolved = await params

@@ -46,7 +46,7 @@ async function verifyAdminToken(request: NextRequest) {
 // POST - Valider ou rejeter un rapport
 export async function POST(request: NextRequest) {
   // Appliquer le rate limiting
-  const rateLimitResponse = applyRateLimit(request, apiRateLimiter)
+  const rateLimitResponse = await applyRateLimit(request, apiRateLimiter)
   if (rateLimitResponse) {
     return rateLimitResponse
   }

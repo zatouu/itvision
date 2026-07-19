@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
 // POST - Créer un nouvel achat groupé
 export async function POST(req: NextRequest) {
   try {
-    const rateLimitResponse = applyRateLimit(req, serviceWriteRateLimiter)
+    const rateLimitResponse = await applyRateLimit(req, serviceWriteRateLimiter)
     if (rateLimitResponse) return rateLimitResponse
 
     const settings = readPaymentSettings()

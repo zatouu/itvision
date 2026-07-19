@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { getRedisClient } from '@/lib/redis'
 
 interface RateLimitStore {
   [key: string]: {
@@ -46,14 +47,39 @@ export class RateLimiter {
     })
   }
 
-  public check(request: NextRequest): { 
+  public async check(request: NextRequest): Promise<{ 
     allowed: boolean
     remaining: number
     resetTime: number
     retryAfter?: number
-  } {
+  }> {
     const key = this.getKey(request)
     const now = Date.now()
+
+    try {
+      const redis = getRedisClient()
+      if (redis && redis.status === 'ready') {
+        const ttlSec = Math.max(1, Math.ceil(this.windowMs / 1000))
+        const redisKey = `rate:${this.windowMs}:${this.maxRequests}:${key}`
+        const results = await redis.multi().incr(redisKey).expire(redisKey, ttlSec, 'NX').exec()
+
+        let count = 0
+        if (Array.isArray(results) && results[0]) {
+          const first = results[0]
+          count = Array.isArray(first) ? ((first[1] as number) || 0) : ((first as number) || 0)
+        }
+
+        const allowed = count <= this.maxRequests
+        return {
+          allowed,
+          remaining: Math.max(0, this.maxRequests - count),
+          resetTime: now + this.windowMs,
+          retryAfter: allowed ? undefined : Math.ceil(this.windowMs / 1000)
+        }
+      }
+    } catch (err) {
+      console.error('[RateLimiter] Redis error, fallback mémoire', err)
+    }
     
     if (!this.store[key] || this.store[key].resetTime < now) {
       // Nouvelle fenêtre
@@ -98,11 +124,11 @@ export const serviceWriteRateLimiter = new RateLimiter(15 * 60 * 1000, 10) // 10
 export const serviceReadRateLimiter = new RateLimiter(60 * 1000, 30) // 30 requêtes read par minute
 
 // Helper function pour appliquer le rate limiting
-export function applyRateLimit(
+export async function applyRateLimit(
   request: NextRequest, 
   limiter: RateLimiter = apiRateLimiter
-): Response | null {
-  const result = limiter.check(request)
+): Promise<Response | null> {
+  const result = await limiter.check(request)
   
   if (!result.allowed) {
     return new Response(

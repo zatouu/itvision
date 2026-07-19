@@ -445,7 +445,6 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
 
 // Index pour les recherches fréquentes
 MaintenanceReportSchema.index({ status: 1, interventionDate: -1 })
-MaintenanceReportSchema.index({ interventionId: 1 })
 MaintenanceReportSchema.index({ technicianId: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ clientId: 1, interventionDate: -1 })
 MaintenanceReportSchema.index({ projectId: 1 })

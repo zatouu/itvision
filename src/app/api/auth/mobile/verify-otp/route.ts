@@ -16,7 +16,7 @@ const otpVerifyLimiter = new RateLimiter(15 * 60 * 1000, 10)
 const MAX_ATTEMPTS = 5
 
 export async function POST(request: NextRequest) {
-  const rl = applyRateLimit(request, otpVerifyLimiter)
+  const rl = await applyRateLimit(request, otpVerifyLimiter)
   if (rl) return rl
 
   try {

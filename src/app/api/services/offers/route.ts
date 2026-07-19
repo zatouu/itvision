@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   // Rate limit
-  const rateLimitResponse = applyRateLimit(request, serviceWriteRateLimiter)
+  const rateLimitResponse = await applyRateLimit(request, serviceWriteRateLimiter)
   if (rateLimitResponse) return rateLimitResponse
 
   try {

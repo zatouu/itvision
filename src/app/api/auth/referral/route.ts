@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceReadRateLimiter } from '@/lib/rate-limiter'
 
 export async function GET(request: NextRequest) {
-  const rl = applyRateLimit(request, serviceReadRateLimiter)
+  const rl = await applyRateLimit(request, serviceReadRateLimiter)
   if (rl) return rl
 
   try {

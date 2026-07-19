@@ -116,7 +116,7 @@ function LiveRouteMapComponent({
   const activeOrigin = useMemo(() => {
     if (providerLocation) return { lat: providerLocation.lat, lng: providerLocation.lng }
     return origin || null
-  }, [providerLocation, origin])
+  }, [providerLocation?.lat, providerLocation?.lng, origin?.lat, origin?.lng])
 
   const hasRoute = !!route?.polyline?.length
   const isTracking = status === 'provider_arriving' || status === 'in_progress' || status === 'assigned'
@@ -155,7 +155,7 @@ function LiveRouteMapComponent({
       })
       fitToRouteLock.current = false
     },
-    [activeOrigin, destination, route]
+    [activeOrigin, destination, route, fitPadding]
   )
 
   const fetchRoute = useCallback(async () => {
@@ -276,7 +276,14 @@ function LiveRouteMapComponent({
     fitToRoute(true)
   }, [fitTrigger, fitToRoute])
 
-  const fallbackStats = computeRouteFallback()
+  const fallbackStats = useMemo(() => computeRouteFallback(), [activeOrigin, destination])
+
+  const initialRegion = useMemo(() => ({
+    latitude: destination.lat,
+    longitude: destination.lng,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  }), [destination.lat, destination.lng])
 
   return (
     <View style={[s.outerContainer, height != null ? { height } : s.outerFlex]}>
@@ -285,12 +292,7 @@ function LiveRouteMapComponent({
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
           style={s.map}
-          initialRegion={{
-            latitude: destination.lat,
-            longitude: destination.lng,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
+          initialRegion={initialRegion}
           showsUserLocation={false}
           showsMyLocationButton={false}
           showsCompass={false}

@@ -46,7 +46,7 @@ function parseCoord(value: string | null): { lat: number; lng: number } | null {
 }
 
 export async function GET(request: NextRequest) {
-  const rateLimit = applyRateLimit(request, apiRateLimiter)
+  const rateLimit = await applyRateLimit(request, apiRateLimiter)
   if (rateLimit) return rateLimit
 
   try {

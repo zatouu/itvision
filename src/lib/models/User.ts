@@ -102,7 +102,6 @@ const UserSchema = new Schema<IUser>({
   },
 }, { timestamps: true })
 
-UserSchema.index({ referralCode: 1 })
 UserSchema.index({ referredBy: 1 })
 
 // Index uniques déjà définis via unique:true dans les champs ci-dessus

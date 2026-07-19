@@ -12,7 +12,7 @@ import { applyRateLimit, serviceReadRateLimiter } from '@/lib/rate-limiter'
  * Falls back to city-wide stats if not enough local data.
  */
 export async function GET(request: NextRequest) {
-  const rateLimitResponse = applyRateLimit(request, serviceReadRateLimiter)
+  const rateLimitResponse = await applyRateLimit(request, serviceReadRateLimiter)
   if (rateLimitResponse) return rateLimitResponse
 
   const { searchParams } = request.nextUrl

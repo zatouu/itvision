@@ -1,8 +1,7 @@
-import { useEffect, useState, useCallback, memo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, Pressable } from 'react-native'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Pressable, AppState } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { Image } from 'expo-image'
 import { Video, ResizeMode } from 'expo-av'
 import { apiGet, apiPost } from '../src/api'
@@ -18,6 +17,7 @@ import { hapticSuccess, hapticWarning, hapticLight } from '../src/haptics'
 import { ArrowLeft, Star, Clock, Hourglass, Play, X, Volume2 } from 'lucide-react-native'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { resolveMediaUrl } from '../src/media'
+import RequestOffersMap from '../src/components/RequestOffersMap'
 
 const STATUS_OFFER: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   submitted: { key: 'offers.status_submitted',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
@@ -58,6 +58,42 @@ function isValidLatLng(value: any): value is { lat: number; lng: number } {
   )
 }
 
+function OfferCountdown({ validUntil, requestDone, isAccepted }: { validUntil: string; requestDone: boolean; isAccepted: boolean }) {
+  const { t } = useTranslation()
+  const [remainingMs, setRemainingMs] = useState(() => new Date(validUntil).getTime() - Date.now())
+
+  useEffect(() => {
+    if (requestDone || isAccepted) return
+    const initialRemaining = new Date(validUntil).getTime() - Date.now()
+    setRemainingMs(initialRemaining)
+    if (initialRemaining <= 0) return
+    const interval = setInterval(() => {
+      const nextRemaining = new Date(validUntil).getTime() - Date.now()
+      setRemainingMs(nextRemaining)
+      if (nextRemaining <= 0) clearInterval(interval)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [validUntil, requestDone, isAccepted])
+
+  if (requestDone || isAccepted) return null
+  const isExpired = remainingMs <= 0
+  return (
+    <View style={[
+      s.chip,
+      isExpired && s.chipExpired,
+      !isExpired && remainingMs < 120_000 && s.chipUrgent,
+    ]}>
+      <Text style={[
+        s.chipText,
+        isExpired && s.chipExpiredText,
+        !isExpired && remainingMs < 120_000 && s.chipUrgentText,
+      ]}>
+        {isExpired ? <Hourglass size={11} color={colors.textMuted} /> : <Clock size={11} color={colors.textSecondary} />} {isExpired ? t('offers.expired') : formatCountdown(remainingMs)}
+      </Text>
+    </View>
+  )
+}
+
 function RequestOffers() {
   const { t, i18n } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -69,32 +105,34 @@ function RequestOffers() {
   const [err, setErr] = useState<string | null>(null)
 
   const cacheKey = id ? `offers-${id}` : ''
+  const loadInFlightRef = useRef(false)
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!id) return
+  const load = useCallback(async (isRefresh = false, silent = false) => {
+    if (!id || loadInFlightRef.current) return
+    loadInFlightRef.current = true
     if (isRefresh) {
       setRefreshing(true)
       await cacheClear(cacheKey)
-    } else {
+    } else if (!silent) {
       setLoading(true)
     }
-    setErr(null)
+    if (!silent) setErr(null)
     try {
       await fetchWithCache(
         cacheKey,
         () => apiGet(`/api/services/requests/${id}/offers`),
-        (data, fromCache) => {
+        (data) => {
           setOffers(data.offers || [])
           setServiceRequest(data.request || null)
-          if (!fromCache) {
-            setLoading(false)
-            setRefreshing(false)
-          }
+          setLoading(false)
+          setErr(null)
         },
         2 * 60 * 1000 // 2 min TTL pour les offres
       )
     } catch (e: any) {
-      setErr(e.message)
+      if (!silent) setErr(e.message)
+    } finally {
+      loadInFlightRef.current = false
       setLoading(false)
       setRefreshing(false)
     }
@@ -103,9 +141,7 @@ function RequestOffers() {
   useEffect(() => { load() }, [load])
 
   const [wsConnected, setWsConnected] = useState(false)
-  const [now, setNow] = useState<number>(Date.now())
-  const [viewerLocations, setViewerLocations] = useState<Record<string, { lat: number; lng: number; name?: string; providerId?: string; lastSeen: number; status?: string; distanceKm?: number; etaMinutes?: number }>>({})
-  const [liveData, setLiveData] = useState<any>(null)
+  const [, setExpiryVersion] = useState(0)
   // Contre-offre modal
   const [counterModal, setCounterModal] = useState(false)
   const [counterOfferId, setCounterOfferId] = useState<string | null>(null)
@@ -115,12 +151,18 @@ function RequestOffers() {
   const [typingProviders, setTypingProviders] = useState<Record<string, { name: string; expiresAt: number }>>({})
 
   // Tick 1s pour countdown des offres (stop si demande terminée)
-  const requestDone = serviceRequest && ['assigned','provider_arriving','in_progress','completed','cancelled','expired'].includes(serviceRequest.status)
+  const requestDone = Boolean(serviceRequest && ['assigned','provider_arriving','in_progress','completed','cancelled','expired'].includes(serviceRequest.status))
   useEffect(() => {
     if (requestDone) return
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [requestDone])
+    const nextExpiry = offers
+      .filter(offer => offer.status === 'submitted' && offer.validUntil)
+      .map(offer => new Date(offer.validUntil).getTime())
+      .filter(timestamp => Number.isFinite(timestamp) && timestamp > Date.now())
+      .sort((a, b) => a - b)[0]
+    if (!nextExpiry) return
+    const timeout = setTimeout(() => setExpiryVersion(version => version + 1), Math.max(0, nextExpiry - Date.now() + 50))
+    return () => clearTimeout(timeout)
+  }, [offers, requestDone])
 
   // WebSocket: rejoindre la room de la demande
   useEffect(() => {
@@ -134,51 +176,11 @@ function RequestOffers() {
       joinRequestRoom(id) // s'assurer que la room est rejointe après reconnexion
     }
     const handleDisconnect = () => setWsConnected(false)
-    const handleOfferNew = () => { load(true) }
-    const handleAssigned = () => { load(true) }
-    const handleCounterAccepted = () => { load(true) }
-    const handleCounterRejected = () => { load(true) }
-    const handleOfferUpdated = () => { load(true) }
-    const handleProviderLocation = (data: any) => {
-      if (!data?.providerId) return
-      if (!Number.isFinite(Number(data?.lat)) || !Number.isFinite(Number(data?.lng))) return
-      setViewerLocations(prev => ({
-        ...prev,
-        [data.providerId]: {
-          lat: Number(data.lat),
-          lng: Number(data.lng),
-          name: data.providerName,
-          providerId: data.providerId,
-          lastSeen: Number(data.timestamp) || Date.now(),
-          status: data.status || 'assigned',
-          distanceKm: data.distance,
-          etaMinutes: data.eta,
-        },
-      }))
-    }
-    const handleRequestViewing = (data: any) => {
-      if (!data?.providerId) return
-      const viewerLocation = toLatLng(data)
-      if (!viewerLocation) return
-      setViewerLocations(prev => ({
-        ...prev,
-        [data.providerId]: {
-          ...viewerLocation,
-          name: data.providerName,
-          providerId: data.providerId,
-          lastSeen: Number(data.timestamp) || Date.now(),
-          status: 'viewing',
-        },
-      }))
-    }
-    const handleStopViewing = (data: any) => {
-      if (!data?.providerId) return
-      setViewerLocations(prev => {
-        const next = { ...prev }
-        delete next[data.providerId]
-        return next
-      })
-    }
+    const handleOfferNew = () => { load(false, true) }
+    const handleAssigned = () => { load(false, true) }
+    const handleCounterAccepted = () => { load(false, true) }
+    const handleCounterRejected = () => { load(false, true) }
+    const handleOfferUpdated = () => { load(false, true) }
     const handleOfferTyping = (data: any) => {
       if (!data?.providerId || data?.requestId !== id) return
       setTypingProviders(prev => {
@@ -199,59 +201,19 @@ function RequestOffers() {
     socket.on('offer:counter-accepted', handleCounterAccepted)
     socket.on('offer:counter-rejected', handleCounterRejected)
     socket.on('offer:updated', handleOfferUpdated)
-    socket.on('provider:location', handleProviderLocation)
-    socket.on('request:viewing', handleRequestViewing)
-    socket.on('request:stop-viewing', handleStopViewing)
     socket.on('offer:typing', handleOfferTyping)
 
-    // Snapshot de présence provider depuis l'API (fallback + données complètes)
-    const fetchLive = () => {
-      apiGet(`/api/services/requests/${id}/live`).then(data => {
-        setLiveData(data)
-        setViewerLocations(prev => {
-          const next = { ...prev }
-          const merge = (p: any) => {
-            if (!p || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng))) return
-            next[String(p.providerId)] = {
-              lat: Number(p.lat),
-              lng: Number(p.lng),
-              name: p.name,
-              providerId: String(p.providerId),
-              lastSeen: new Date(p.lastSeenAt || Date.now()).getTime(),
-              status: p.status,
-              distanceKm: p.distanceKm,
-              etaMinutes: p.etaMinutes,
-            }
-          }
-          data.assigned && merge(data.assigned)
-          ;(data.offerors || []).forEach(merge)
-          ;(data.viewers || []).forEach(merge)
-          ;(data.nearby || []).forEach(merge)
-          return next
-        })
-      }).catch(() => {})
-    }
-    fetchLive()
-    const liveInterval = setInterval(fetchLive, 15_000)
-
-    // Fallback: auto-refresh toutes les 10s si WS déconnecté
+    // Fallback: auto-refresh toutes les 30s si WS déconnecté
     const interval = setInterval(() => {
-      if (!socket.connected) load(true)
-    }, 10000)
-    // Nettoyage des viewers inactifs (> 60s)
-    const cleanup = setInterval(() => {
-      const cutoff = Date.now() - 60_000
-      setViewerLocations(prev => {
-        const next: typeof prev = {}
-        let changed = false
-        Object.entries(prev).forEach(([key, v]) => {
-          if (v.lastSeen >= cutoff) next[key] = v
-          else changed = true
-        })
-        return changed ? next : prev
-      })
-    }, 10_000)
-
+      if (!socket.connected && AppState.currentState === 'active') load(false, true)
+    }, 30000)
+    const appStateSubscription = AppState.addEventListener('change', next => {
+      if (next !== 'active') return
+      const activeSocket = connectSocket()
+      setWsConnected(activeSocket.connected)
+      joinRequestRoom(id)
+      load(false, true)
+    })
     // Nettoyage des typing expirés (> 6s)
     const typingCleanup = setInterval(() => {
       const now = Date.now()
@@ -267,9 +229,8 @@ function RequestOffers() {
 
     return () => {
       clearInterval(interval)
-      clearInterval(liveInterval)
-      clearInterval(cleanup)
       clearInterval(typingCleanup)
+      appStateSubscription.remove()
       leaveRequestRoom(id)
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
@@ -278,9 +239,6 @@ function RequestOffers() {
       socket.off('offer:counter-accepted', handleCounterAccepted)
       socket.off('offer:counter-rejected', handleCounterRejected)
       socket.off('offer:updated', handleOfferUpdated)
-      socket.off('provider:location', handleProviderLocation)
-      socket.off('request:viewing', handleRequestViewing)
-      socket.off('request:stop-viewing', handleStopViewing)
       socket.off('offer:typing', handleOfferTyping)
     }
   }, [id, load])
@@ -499,9 +457,7 @@ function RequestOffers() {
               const isAccepted = offer.status === 'accepted'
               const isRejected = offer.status === 'rejected'
               // Expiration
-              const validMs = offer.validUntil ? new Date(offer.validUntil).getTime() - now : Infinity
-              const isExpired = offer.status === 'expired' || (offer.status === 'submitted' && validMs <= 0)
-              const countdownLabel = formatCountdown(validMs)
+              const isExpired = offer.status === 'expired' || (offer.status === 'submitted' && offer.validUntil && new Date(offer.validUntil).getTime() <= Date.now())
               const displayName = offer.providerName || null
               const initials = displayName
                 ? displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -530,20 +486,8 @@ function RequestOffers() {
                         {offer.status === 'submitted' && !isExpired ? (
                           <View style={s.chipAvail}><Text style={s.chipAvailText}>{t('offers.available')}</Text></View>
                         ) : null}
-                        {offer.validUntil && !isAccepted && !requestDone ? (
-                          <View style={[
-                            s.chip,
-                            isExpired && s.chipExpired,
-                            !isExpired && validMs < 120_000 && s.chipUrgent,
-                          ]}>
-                            <Text style={[
-                              s.chipText,
-                              isExpired && s.chipExpiredText,
-                              !isExpired && validMs < 120_000 && s.chipUrgentText,
-                            ]}>
-                              {isExpired ? <Hourglass size={11} color={colors.textMuted} /> : <Clock size={11} color={colors.textSecondary} />} {isExpired ? t('offers.expired') : countdownLabel}
-                            </Text>
-                          </View>
+                        {offer.validUntil ? (
+                          <OfferCountdown validUntil={offer.validUntil} requestDone={requestDone} isAccepted={isAccepted} />
                         ) : null}
                       </View>
                     </View>
@@ -622,12 +566,12 @@ function RequestOffers() {
       )}
 
       {/* Carte live des prestataires (mise en arrière-plan, offres en priorité) */}
-      <ViewerMap
+      <RequestOffersMap
+        requestId={id || ''}
         requestLat={requestLocation?.lat}
         requestLng={requestLocation?.lng}
         requestDone={requestDone}
         wsConnected={wsConnected}
-        viewerLocations={viewerLocations}
       />
 
       {/* Modal de contre-offre */}
@@ -797,87 +741,6 @@ const s = StyleSheet.create({
   modalBtnCancelText: { color: colors.textSecondary, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   modalBtnSend: { backgroundColor: colors.navy },
   modalBtnSendText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-})
-
-const ViewerMap = memo(function ViewerMap({
-  requestLat,
-  requestLng,
-  requestDone,
-  wsConnected,
-  viewerLocations,
-}: {
-  requestLat?: number
-  requestLng?: number
-  requestDone: boolean
-  wsConnected: boolean
-  viewerLocations: Record<string, { lat: number; lng: number; name?: string; providerId?: string; lastSeen: number; status?: string; distanceKm?: number; etaMinutes?: number }>
-}) {
-  const { t } = useTranslation()
-  if (requestDone || requestLat == null || requestLng == null || !Number.isFinite(requestLat) || !Number.isFinite(requestLng)) return null
-  return (
-    <View style={s.mapWrap}>
-      <View style={s.mapHeader}>
-        <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
-        <Text style={s.mapTitle}>{t('offers.liveViewers', { count: Object.keys(viewerLocations).length })}</Text>
-      </View>
-      {Platform.OS === 'web' ? (
-        <View style={s.mapPlaceholder}>
-          <Text style={s.mapPlaceholderText}>{t('offers.mapWebViewers')}</Text>
-        </View>
-      ) : (
-        <MapView
-          provider={PROVIDER_DEFAULT}
-          style={s.map}
-          initialRegion={{
-            latitude: requestLat,
-            longitude: requestLng,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
-        >
-          {/* Position de la demande */}
-          <Marker
-            coordinate={{ latitude: requestLat, longitude: requestLng }}
-            title={t('offers.requestLocation')}
-            pinColor={colors.primary}
-          />
-          {/* Prestataires en live avec statut, distance, ETA */}
-          {Object.entries(viewerLocations)
-            .filter(([, v]) => Number.isFinite(v.lat) && Number.isFinite(v.lng))
-            .map(([key, v]) => {
-              const statusColor = v.status === 'selected' || v.status === 'arriving' || v.status === 'in_progress' ? '#2563EB'
-                : v.status === 'offered' ? '#0F7B4F'
-                : v.status === 'viewing' ? '#10B981'
-                : '#64748B'
-              const label = v.status === 'arriving' ? t('offers.statusArriving')
-                : v.status === 'in_progress' ? t('offers.statusInProgress')
-                : v.status === 'selected' ? t('offers.statusSelected')
-                : v.status === 'offered' ? t('offers.statusOffered')
-                : v.status === 'viewing' ? t('offers.statusViewing')
-                : t('offers.viewer')
-              const sub = [v.distanceKm ? `${v.distanceKm} km` : null, v.etaMinutes ? `${v.etaMinutes} min` : null].filter(Boolean).join(' · ')
-              return (
-                <Marker
-                  key={key}
-                  coordinate={{ latitude: v.lat, longitude: v.lng }}
-                >
-                  <View style={[s.providerMarker, { borderColor: statusColor }]}>
-                    <Text style={[s.providerMarkerText, { color: statusColor }]}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>
-                  </View>
-                  <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
-                  {(sub || label) ? (
-                    <View style={s.providerMarkerCallout}>
-                      <Text style={s.providerMarkerStatus}>{label}</Text>
-                      {!!sub && <Text style={s.providerMarkerSub}>{sub}</Text>}
-                    </View>
-                  ) : null}
-                </Marker>
-              )
-            })}
-        </MapView>
-      )}
-    </View>
-  )
 })
 
 export default withScreenBoundary(RequestOffers, 'RequestOffers')

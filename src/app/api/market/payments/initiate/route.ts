@@ -11,7 +11,7 @@ const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK
 
 export async function POST(request: NextRequest) {
   try {
-    const limit = rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'market:payment:init' })
+    const limit = await rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'market:payment:init' })
     if (limit && !limit.ok) {
       return tooManyResponse(limit.retryAfter)
     }

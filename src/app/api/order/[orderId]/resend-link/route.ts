@@ -17,6 +17,16 @@ function normalizePhone(phone: string): string {
   return String(phone || '').replace(/\D/g, '')
 }
 
+function getTrackingTokenTtlDays(): number {
+  const raw = process.env.ORDER_TRACKING_TOKEN_TTL_DAYS
+  const parsed = raw ? Number(raw) : NaN
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 90
+}
+
+function getTrackingTokenExpirationDate(): Date {
+  return new Date(Date.now() + getTrackingTokenTtlDays() * 24 * 60 * 60 * 1000)
+}
+
 /**
  * POST /api/order/[orderId]/resend-link
  * Body: { email: string, phone?: string }
@@ -27,7 +37,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const rateLimitResponse = applyRateLimit(request, apiRateLimiter)
+  const rateLimitResponse = await applyRateLimit(request, apiRateLimiter)
   if (rateLimitResponse) return rateLimitResponse
 
   try {
@@ -90,7 +100,7 @@ export async function POST(
     const newHash = hashTrackingToken(newToken)
     await Order.updateOne(
       { orderId },
-      { $set: { trackingAccessTokenHash: newHash, trackingAccessTokenCreatedAt: new Date() } }
+      { $set: { trackingAccessTokenHash: newHash, trackingAccessTokenCreatedAt: new Date(), trackingAccessTokenExpiresAt: getTrackingTokenExpirationDate() } }
     )
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
