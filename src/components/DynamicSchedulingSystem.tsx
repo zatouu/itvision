@@ -114,6 +114,12 @@ const DynamicSchedulingSystem = ({
   const [searchTerm, setSearchTerm] = useState('')
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null)
+  const [manualAssign, setManualAssign] = useState({
+    technicianId: '',
+    scheduledDate: new Date().toISOString().split('T')[0],
+    scheduledTime: '09:00',
+    submitting: false
+  })
   const [activitiesMap, setActivitiesMap] = useState<Record<string, MarketplaceActivityInfo>>({})
   const [publishingVisitId, setPublishingVisitId] = useState<string | null>(null)
   const [showNewInterventionModal, setShowNewInterventionModal] = useState(false)
@@ -197,6 +203,40 @@ const DynamicSchedulingSystem = ({
       setNewInterventionError(error instanceof Error ? error.message : 'Erreur réseau')
     } finally {
       setNewInterventionSubmitting(false)
+    }
+  }
+
+  const handleManualAssign = async () => {
+    if (!selectedIntervention || !manualAssign.technicianId) {
+      alert('Veuillez sélectionner un technicien.')
+      return
+    }
+    setManualAssign(prev => ({ ...prev, submitting: true }))
+    try {
+      const updated = await assignInterventionToTechnician(
+        selectedIntervention.id,
+        manualAssign.technicianId,
+        manualAssign.scheduledDate,
+        manualAssign.scheduledTime
+      )
+      if (updated) {
+        setInterventions(prev => prev.map(int => (int.id === updated.id ? updated : int)))
+        const previousTechId = selectedIntervention.assignedTechnician
+        setTechnicians(prev =>
+          prev.map(tech => {
+            if (tech.id === manualAssign.technicianId) {
+              return { ...tech, currentLoad: Math.min(100, tech.currentLoad + (updated.estimatedDuration * 10)) }
+            }
+            if (previousTechId && tech.id === previousTechId && previousTechId !== manualAssign.technicianId) {
+              return { ...tech, currentLoad: Math.max(0, tech.currentLoad - (updated.estimatedDuration * 10)) }
+            }
+            return tech
+          })
+        )
+        setShowAssignmentModal(false)
+      }
+    } finally {
+      setManualAssign(prev => ({ ...prev, submitting: false }))
     }
   }
 
@@ -432,33 +472,31 @@ const publishActivityPayload = (
     return scoredTechnicians.sort((a, b) => b.score - a.score)[0]
   }
 
-  const autoAssignIntervention = (intervention: Intervention) => {
+  const autoAssignIntervention = async (intervention: Intervention) => {
     const bestTechnician = findBestTechnician(intervention)
-    
-    if (bestTechnician) {
-      // Mettre à jour l'intervention
-      setInterventions(prev => prev.map(int => 
-        int.id === intervention.id 
-          ? { 
-              ...int, 
-              assignedTechnician: bestTechnician.id,
-              status: 'scheduled',
-              scheduledDate: selectedDate,
-              scheduledTime: '09:00'
-            }
-          : int
-      ))
 
-      // Mettre à jour la charge du technicien
-      setTechnicians(prev => prev.map(tech => 
-        tech.id === bestTechnician.id 
-          ? { ...tech, currentLoad: tech.currentLoad + (intervention.estimatedDuration * 10) }
+    if (!bestTechnician) {
+      alert('❌ Aucun technicien disponible avec les compétences requises')
+      return
+    }
+
+    const updated = await assignInterventionToTechnician(
+      intervention.id,
+      bestTechnician.id,
+      selectedDate,
+      '09:00'
+    )
+
+    if (updated) {
+      setInterventions(prev => prev.map(int =>
+        int.id === updated.id ? updated : int
+      ))
+      setTechnicians(prev => prev.map(tech =>
+        tech.id === bestTechnician.id
+          ? { ...tech, currentLoad: Math.min(100, tech.currentLoad + (updated.estimatedDuration * 10)) }
           : tech
       ))
-
       alert(`✅ Intervention assignée à ${bestTechnician.name}`)
-    } else {
-      alert('❌ Aucun technicien disponible avec les compétences requises')
     }
   }
 
@@ -475,27 +513,47 @@ const markAsContractual = (
   )
 }
 
-const assignPreferredTechnician = (
+const assignPreferredTechnician = async (
   intervention: Intervention,
-  setInterventions: React.Dispatch<React.SetStateAction<Intervention[]>>
+  setInterventions: React.Dispatch<React.SetStateAction<Intervention[]>>,
+  setTechnicians?: React.Dispatch<React.SetStateAction<Technician[]>>
 ) => {
   if (!intervention.preferredTechnicians?.length) {
     alert('Aucun technicien référent n’est défini pour ce contrat.')
     return
   }
   const candidate = intervention.preferredTechnicians[0]
-  setInterventions((prev) =>
-    prev.map((int) =>
-      int.id === intervention.id
-        ? {
-            ...int,
-            assignedTechnician: candidate._id || candidate.name,
-            status: 'scheduled'
-          }
-        : int
-    )
+  const technicianId = candidate._id || candidate.name
+  const scheduledDate = intervention.scheduledDate || new Date().toISOString().split('T')[0]
+  const scheduledTime = intervention.scheduledTime || '09:00'
+  const updated = await assignInterventionToTechnician(
+    intervention.id,
+    technicianId,
+    scheduledDate,
+    scheduledTime
   )
-  alert(`Intervention assignée à ${candidate.name}`)
+  if (!updated) return
+
+  setInterventions((prev) =>
+    prev.map((int) => (int.id === intervention.id ? updated : int))
+  )
+
+  if (setTechnicians) {
+    const previousTechId = intervention.assignedTechnician
+    setTechnicians((prev) =>
+      prev.map((tech) => {
+        if (tech.id === technicianId) {
+          return { ...tech, currentLoad: Math.min(100, tech.currentLoad + (updated.estimatedDuration * 10)) }
+        }
+        if (previousTechId && tech.id === previousTechId && previousTechId !== technicianId) {
+          return { ...tech, currentLoad: Math.max(0, tech.currentLoad - (updated.estimatedDuration * 10)) }
+        }
+        return tech
+      })
+    )
+  }
+
+  alert(`✅ Intervention assignée à ${candidate.name}`)
 }
 
 const handleMarketplacePublish = (
@@ -548,6 +606,38 @@ const normalizeInterventionFromApi = (payload: any): Intervention => ({
   isContractual: Boolean(payload.isCoveredByContract),
   preferredTechnicians: Array.isArray(payload.preferredTechnicians) ? payload.preferredTechnicians : []
 })
+
+async function assignInterventionToTechnician(
+  interventionId: string,
+  technicianId: string,
+  scheduledDate?: string,
+  scheduledTime?: string
+): Promise<Intervention | null> {
+  try {
+    const res = await fetch('/api/interventions', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        interventionId,
+        technicianId,
+        scheduledDate,
+        scheduledTime,
+        status: 'scheduled'
+      })
+    })
+    const data = await res.json()
+    if (!res.ok || !data?.intervention) {
+      throw new Error(data.error || 'Affectation impossible')
+    }
+    return normalizeInterventionFromApi(data.intervention)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erreur réseau'
+    console.error('[assignInterventionToTechnician]', error)
+    alert(`❌ ${message}`)
+    return null
+  }
+}
 
 const publishVisitToMarketplace = async (
   visit: Intervention,
@@ -936,7 +1026,7 @@ const publishVisitToMarketplace = async (
                         )}
                         {intervention.isContractual && intervention.preferredTechnicians?.length ? (
                           <button
-                            onClick={() => assignPreferredTechnician(intervention, setInterventions)}
+                            onClick={() => assignPreferredTechnician(intervention, setInterventions, setTechnicians)}
                             className="border border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
                           >
                             <Users className="h-4 w-4" />
@@ -980,12 +1070,18 @@ const publishVisitToMarketplace = async (
                         <button
                           onClick={() => {
                             setSelectedIntervention(intervention)
+                            setManualAssign({
+                              technicianId: intervention.assignedTechnician || '',
+                              scheduledDate: intervention.scheduledDate || selectedDate,
+                              scheduledTime: intervention.scheduledTime || '09:00',
+                              submitting: false
+                            })
                             setShowAssignmentModal(true)
                           }}
                           className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
                         >
                           <Settings className="h-4 w-4" />
-                          <span>Modifier</span>
+                          <span>Affecter / Planifier</span>
                         </button>
                       </div>
                     </div>
@@ -1379,6 +1475,77 @@ const publishVisitToMarketplace = async (
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
               >
                 {newInterventionSubmitting ? 'Création...' : 'Créer & publier'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignmentModal && selectedIntervention && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Affecter / Planifier</h3>
+                <p className="text-sm text-gray-500">{selectedIntervention.title}</p>
+              </div>
+              <button
+                onClick={() => setShowAssignmentModal(false)}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              <div>
+                <label className="text-xs text-gray-500">Technicien</label>
+                <select
+                  value={manualAssign.technicianId}
+                  onChange={(e) => setManualAssign(prev => ({ ...prev, technicianId: e.target.value }))}
+                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="">Choisir un technicien</option>
+                  {technicians.map((tech) => (
+                    <option key={tech.id} value={tech.id}>
+                      {tech.name} — {tech.zone} ({tech.currentLoad}% charge)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500">Date</label>
+                  <input
+                    type="date"
+                    value={manualAssign.scheduledDate}
+                    onChange={(e) => setManualAssign(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Heure</label>
+                  <input
+                    type="time"
+                    value={manualAssign.scheduledTime}
+                    onChange={(e) => setManualAssign(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowAssignmentModal(false)}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleManualAssign}
+                disabled={manualAssign.submitting || !manualAssign.technicianId}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {manualAssign.submitting ? 'Affectation...' : 'Affecter'}
               </button>
             </div>
           </div>
