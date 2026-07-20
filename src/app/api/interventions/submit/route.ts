@@ -26,18 +26,45 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const auth = await requireInterventionSubmitAccess(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-    
+
     const body = await request.json()
-    const { 
-      technicienId, clientId, projectId, date, heureDebut, heureFin, 
-      typeIntervention, description, activites, observations, 
-      recommandations, photosAvant, photosApres, 
-      site, signatures, gpsLocation, status, priority 
+    const {
+      technicienId: bodyTechnicienId, clientId, projectId, date, heureDebut, heureFin,
+      typeIntervention, description, activites, observations,
+      recommandations, photosAvant, photosApres,
+      site, signatures, gpsLocation, status, priority
     } = body || {}
-    
+
+    // Résoudre le technicien connecté si non précisé
+    let technicienId = bodyTechnicienId
+    if (!technicienId && auth.userId) {
+      const tech = await Technician.findOne({ userId: auth.userId }).lean() as any
+      if (tech?._id) technicienId = String(tech._id)
+    }
+
     if (!clientId || !date || !technicienId || !typeIntervention) {
       return NextResponse.json({ error: 'Champs obligatoires manquants' }, { status: 400 })
     }
+
+    const scheduledDate = date ? new Date(date) : new Date()
+    const startTime = heureDebut || '09:00'
+    const durationHours = Number(body.estimatedDuration) || 2
+    const computeEndTime = (start: string, duration: number) => {
+      const [h, m] = start.split(':').map((part: string) => parseInt(part, 10))
+      if (Number.isNaN(h) || Number.isNaN(m)) return '10:00'
+      const d = new Date()
+      d.setHours(h)
+      d.setMinutes(m)
+      d.setSeconds(0)
+      d.setMilliseconds(0)
+      d.setHours(d.getHours() + Math.max(duration, 1))
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    }
+
+    const statusLabels = new Set(['pending', 'scheduled', 'in_progress', 'completed', 'cancelled', 'brouillon', 'soumis'])
+    const rawStatus = status && statusLabels.has(status) ? status : 'pending'
+    const normalizedStatus = rawStatus === 'brouillon' ? 'pending' : (rawStatus === 'soumis' ? 'pending' : rawStatus)
+    const submitted = rawStatus === 'soumis'
 
     // Format photos avec métadonnées si nécessaire
     const formatPhotos = (photos: any[]): any[] => {
@@ -57,9 +84,11 @@ export async function POST(request: NextRequest) {
       technicienId,
       clientId,
       projectId: projectId || undefined,
-      date: new Date(date),
-      heureDebut,
-      heureFin,
+      date: scheduledDate,
+      scheduledDate: scheduledDate.toISOString().split('T')[0],
+      scheduledTime: startTime,
+      heureDebut: startTime,
+      heureFin: heureFin || computeEndTime(startTime, durationHours),
       // La durée sera calculée automatiquement par le pre-save hook
       typeIntervention,
       site: site || undefined,
@@ -71,23 +100,23 @@ export async function POST(request: NextRequest) {
       photosApres: formatPhotos(photosApres || []),
       signatures: signatures || undefined,
       gpsLocation: gpsLocation ? { ...gpsLocation, timestamp: new Date() } : undefined,
-      status: status || 'pending',
+      status: normalizedStatus,
       priority: priority || 'medium',
       title: `Intervention ${typeIntervention}`,
       service: typeIntervention
     })
-    
+
     // Ajouter entrée historique
     if (intervention.addHistoryEntry) {
-      intervention.addHistoryEntry('created', technicienId, { status: intervention.status })
+      intervention.addHistoryEntry('created', technicienId, { status: intervention.status, submitted })
       await intervention.save()
     }
 
-    // Génération automatique de devis si recommandations et status = 'soumis'
+    // Génération automatique de devis si recommandations et soumission effective (status = 'soumis')
     let generatedQuote = null
     const hasRecommendations = recommandations && Array.isArray(recommandations) && recommandations.length > 0
-    
-    if (hasRecommendations && status === 'pending') {
+
+    if (submitted && hasRecommendations) {
       try {
         // Récupérer les informations des produits recommandés
         const productPromises = recommandations.map(async (rec: any) => {
@@ -103,15 +132,15 @@ export async function POST(request: NextRequest) {
             commentaire: rec.commentaire
           }
         })
-        
+
         const products = await Promise.all(productPromises)
-        
+
         // Calculer les totaux
         const subtotal = products.reduce((sum, p) => sum + p.totalPrice, 0)
         const marginTotal = products.reduce((sum, p) => sum + (p.totalPrice * (p.marginRate / 100)), 0)
         const totalHT = subtotal + marginTotal
         const totalTTC = totalHT * 1.18 // TVA 18%
-        
+
         // Créer le devis
         const quote = await Quote.create({
           clientId,
@@ -134,12 +163,12 @@ export async function POST(request: NextRequest) {
           assignedTechnicianId: technicienId,
           notes: `Devis généré automatiquement depuis l'intervention ${intervention.interventionNumber || intervention._id}\n\nObservations: ${observations || 'N/A'}`
         })
-        
+
         // Lier le devis à l'intervention
         intervention.quoteId = quote._id as mongoose.Types.ObjectId
         intervention.quoteGenerated = true
         await intervention.save()
-        
+
         generatedQuote = {
           id: String(quote._id),
           totalTTC: quote.totalTTC,
@@ -160,14 +189,14 @@ export async function POST(request: NextRequest) {
         : hasRecommendations
         ? `${techName} a soumis une intervention avec ${recommandations.length} recommandation(s) — devis à générer par l'admin`
         : `${techName} a soumis une intervention — en attente de validation`
-      
+
       addNotification({
         userId: 'admin',
         type: generatedQuote ? 'success' : 'info',
         title: generatedQuote ? 'Intervention + Devis créés' : 'Nouvelle intervention soumise',
         message,
-        actionUrl: generatedQuote 
-          ? `/admin/quotes?id=${generatedQuote.id}` 
+        actionUrl: generatedQuote
+          ? `/admin/quotes?id=${generatedQuote.id}`
           : `/admin/interventions?id=${intervention._id}`,
         metadata: {
           interventionId: String(intervention._id),

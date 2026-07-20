@@ -15,6 +15,7 @@ export interface IMaintenanceActivity extends Document {
   bidsCount: number
   bestBidAmount?: number
   assignedBidId?: Types.ObjectId
+  interventionId?: Types.ObjectId
   createdBy?: Types.ObjectId
   marketplaceReason?: string
   status: 'open' | 'assigned' | 'closed'
@@ -60,6 +61,7 @@ const MaintenanceActivitySchema = new Schema<IMaintenanceActivity>({
   bidsCount: { type: Number, default: 0 },
   bestBidAmount: { type: Number },
   assignedBidId: { type: Schema.Types.ObjectId, ref: 'MaintenanceBid' },
+  interventionId: { type: Schema.Types.ObjectId, ref: 'Intervention' },
   createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   marketplaceReason: { type: String },
   productId: { type: String },

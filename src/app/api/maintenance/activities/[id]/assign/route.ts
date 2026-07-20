@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceBid from '@/lib/models/MaintenanceBid'
+import Intervention from '@/lib/models/Intervention'
 import { jwtVerify } from 'jose'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 
@@ -75,13 +76,79 @@ export async function PATCH(
       }
     )
 
+    // Créer ou lier l'intervention associée
+    let intervention = null
+    if (activity.interventionId) {
+      intervention = await Intervention.findById(activity.interventionId)
+    }
+
+    if (!intervention) {
+      const date = activity.date || new Date()
+      const dateString = date.toISOString().split('T')[0]
+      const typeIntervention = activity.category === 'product_install' ? 'installation' : 'maintenance'
+      const title = activity.productName
+        ? `Installation — ${activity.productName}`
+        : (activity.contractName
+            ? `Intervention ${activity.contractName}`
+            : `Intervention ${activity.category}`)
+
+      intervention = await Intervention.create({
+        title,
+        description: `Affectée depuis l'activité ${activity._id} et l'offre ${bid._id}`,
+        clientId: activity.clientId || undefined,
+        maintenanceContractId: activity.contractId || undefined,
+        maintenanceActivityId: activity._id,
+        isCoveredByContract: activity.isContractual ?? true,
+        typeIntervention,
+        service: typeIntervention,
+        priority: 'medium',
+        status: 'scheduled',
+        date,
+        scheduledDate: dateString,
+        scheduledTime: '09:00',
+        heureDebut: '09:00',
+        heureFin: '13:00',
+        site: activity.site || 'Site client',
+        technicienId: bid.technicianId,
+        assignedTechnician: bid.technicianId,
+        client: activity.clientId
+          ? undefined
+          : {
+              name: activity.clientName || 'Client',
+              address: activity.site || 'Site client',
+              phone: activity.clientContact?.phone,
+              email: activity.clientContact?.email
+            },
+        requiredSkills: []
+      })
+    } else {
+      intervention.technicienId = bid.technicianId
+      intervention.assignedTechnician = bid.technicianId
+      if (intervention.status === 'pending') {
+        intervention.status = 'scheduled'
+      }
+      await intervention.save()
+    }
+
+    activity.interventionId = intervention._id
+    await activity.save()
+
+    intervention.maintenanceActivityId = activity._id
+    await intervention.save()
+
     return NextResponse.json({
       success: true,
       message: 'Offre affectée avec succès',
       activity: {
         id: activity._id.toString(),
         status: activity.status,
-        assignedBidId: activity.assignedBidId?.toString()
+        assignedBidId: activity.assignedBidId?.toString(),
+        interventionId: activity.interventionId?.toString()
+      },
+      intervention: {
+        id: intervention._id.toString(),
+        interventionNumber: (intervention as any).interventionNumber,
+        status: intervention.status
       }
     })
   } catch (error) {

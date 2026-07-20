@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
+import Technician from '@/lib/models/Technician'
 import Client from '@/lib/models/Client'
 import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { emailService } from '@/lib/email-service'
@@ -143,6 +144,13 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json({
         error: 'Un compte existe déjà avec cette adresse email'
+      }, { status: 409 })
+    }
+
+    const existingTechnician = await Technician.findOne({ email: normalizedEmail }).lean()
+    if (existingTechnician) {
+      return NextResponse.json({
+        error: 'Cet email est déjà utilisé par un compte technicien'
       }, { status: 409 })
     }
 

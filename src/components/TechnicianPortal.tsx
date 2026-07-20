@@ -33,7 +33,6 @@ import {
   Briefcase
 } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
-import AuthPortal from './AuthPortal'
 import EnhancedMaintenanceForm from './EnhancedMaintenanceForm'
 import TechnicianMarketplace from './TechnicianMarketplace'
 import SoftMessage from '@/components/ui/SoftMessage'
@@ -58,6 +57,7 @@ interface ClientSummary {
   address?: string
   activeContracts: Array<{
     contractId: string
+    projectId?: string
     type: string
     startDate: string | Date
     endDate?: string | Date
@@ -232,13 +232,19 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         allInterventions = (data.interventions || []).map((i: any) => ({
           id: i._id,
           _id: i._id,
-          site: i.client || i.title || 'Non spécifié',
+          kind: 'intervention',
+          site: i.site || i.client || i.title || 'Non spécifié',
           status: i.status || 'pending',
           priority: i.priority || 'medium',
           scheduledTime: i.heureDebut || '',
-          estimatedDuration: i.estimatedDuration ? `${i.estimatedDuration}h` : '',
+          estimatedDuration: i.duree
+            ? `${Math.floor(i.duree / 60)}h${i.duree % 60 > 0 ? ` ${i.duree % 60}min` : ''}`
+            : (i.estimatedDuration ? `${i.estimatedDuration}h` : ''),
           interventionDate: i.date,
-          clientName: i.client || ''
+          clientName: i.client || i.clientId?.name || '',
+          projectId: i.projectId?._id || i.projectId,
+          interventionId: i._id,
+          raw: i
         }))
       }
 
@@ -899,7 +905,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Détail du rapport</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{r.kind === 'intervention' ? 'Détail de l\'intervention' : 'Détail du rapport'}</h2>
             <p className="text-sm text-gray-500 mt-1">{r.id}</p>
           </div>
           <div className="flex gap-2">
@@ -1046,6 +1052,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       status: raw.status || 'draft',
       reportId: raw.reportId || raw._id || ''
     }
+    const projectId = raw.projectId?._id || raw.projectId
+    const interventionId = raw.interventionId?._id || raw.interventionId || (raw.typeIntervention ? raw._id : undefined)
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -1059,6 +1067,9 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         </div>
 
         <EnhancedMaintenanceForm
+          projectId={projectId}
+          interventionId={interventionId}
+          existingReportId={raw._id}
           existingReport={existing}
           onSave={handleSaveReport}
           onSubmit={handleSubmitReport}
@@ -1069,6 +1080,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
   const renderCreateReport = () => {
     const prefill: any = {}
+    const projectId = prefillClient?.activeContracts?.[0]?.projectId
     if (prefillClient) {
       prefill.site = prefillClient.address || prefillClient.company || prefillClient.name || ''
       prefill.clientName = prefillClient.company || prefillClient.name || ''
@@ -1087,6 +1099,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         </div>
 
         <EnhancedMaintenanceForm
+          projectId={projectId}
           existingReport={Object.keys(prefill).length > 0 ? prefill : undefined}
           onSave={handleSaveReport}
           onSubmit={handleSubmitReport}

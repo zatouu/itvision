@@ -36,6 +36,11 @@ export default function UnifiedLoginPage() {
         setReturnTo(candidate)
       }
 
+      const prefillType = params.get('type')
+      if (prefillType && userTypes.some(t => t.type === prefillType)) {
+        setSelectedUserType(prefillType as 'client' | 'technician' | 'admin')
+      }
+
       const prefillEmail = params.get('email')
       if (prefillEmail) {
         setCredentials(prev => ({ ...prev, email: prefillEmail }))
@@ -95,13 +100,11 @@ export default function UnifiedLoginPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ...credentials, remember })
+        body: JSON.stringify({ ...credentials, userType: selectedUserType, remember })
       })
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Login response:', data) // Debug log
-        
         if (data.mfa_required && data.userId) {
           setMfaRequired({ required: true, userId: data.userId })
           return
@@ -110,7 +113,6 @@ export default function UnifiedLoginPage() {
         // Redirection selon rôle, avec PRODUCT_MANAGER vers admin/produits
         if (data.user?.role) {
           const role = String(data.user.role).toUpperCase()
-          console.log('User role:', role, 'Redirecting to:', data.redirectUrl) // Debug log
 
           if (returnTo) {
             window.location.href = returnTo
@@ -127,12 +129,8 @@ export default function UnifiedLoginPage() {
             '/compte'
           )
           
-          console.log('Final redirect URL:', redirectUrl) // Debug log
-          
-          // Utiliser window.location.href pour forcer la redirection
           window.location.href = redirectUrl
         } else {
-          console.log('No user role found, redirecting to client-portal') // Debug log
           router.push(returnTo || '/compte')
         }
         
@@ -141,7 +139,7 @@ export default function UnifiedLoginPage() {
         }
       } else {
         const errorData = await response.json()
-        setError(errorData.message || 'Identifiants incorrects')
+        setError(errorData.error || errorData.message || 'Identifiants incorrects')
       }
     } catch (error) {
       setError('Erreur de connexion. Veuillez réessayer.')
@@ -181,13 +179,31 @@ export default function UnifiedLoginPage() {
           <p className="text-gray-600">Accédez à votre espace personnalisé</p>
         </div>
 
-        {/* Sélection de profil retirée: un seul formulaire */}
-
         {/* Formulaire de connexion */}
         {true && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            {/* Header du formulaire */}
-            <div className="flex items-center mb-6" />
+            {/* Sélection du type de compte */}
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {userTypes.map((type) => {
+                const Icon = type.icon
+                const isSelected = selectedUserType === type.type
+                return (
+                  <button
+                    key={type.type}
+                    type="button"
+                    onClick={() => setSelectedUserType(type.type)}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                      isSelected
+                        ? 'bg-blue-50 border-blue-500 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon className={`h-6 w-6 mb-2 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className="text-sm font-semibold">{type.title}</span>
+                  </button>
+                )
+              })}
+            </div>
 
             {/* Formulaire */}
             {!mfaRequired.required ? (

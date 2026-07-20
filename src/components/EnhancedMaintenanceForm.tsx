@@ -136,6 +136,8 @@ interface ClientOption {
 
 interface EnhancedMaintenanceFormProps {
   projectId?: string
+  interventionId?: string
+  existingReportId?: string
   isReadOnly?: boolean
   existingReport?: Partial<MaintenanceFormData>
   onSave?: (data: MaintenanceFormData) => void
@@ -144,7 +146,9 @@ interface EnhancedMaintenanceFormProps {
 }
 
 export default function EnhancedMaintenanceForm({ 
-  projectId, 
+  projectId,
+  interventionId,
+  existingReportId,
   isReadOnly = false,
   existingReport = {},
   onSave,
@@ -240,7 +244,7 @@ export default function EnhancedMaintenanceForm({
   const [uploadedPhotosBefore, setUploadedPhotosBefore] = useState<string[]>([])
   const [uploadedPhotosAfter, setUploadedPhotosAfter] = useState<string[]>([])
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [createdReportId, setCreatedReportId] = useState<string | null>(null)
+  const [createdReportId, setCreatedReportId] = useState<string | null>(existingReportId || null)
 
   // Charger les infos du technicien connecté
   useEffect(() => {
@@ -277,19 +281,23 @@ export default function EnhancedMaintenanceForm({
     }
   }, [isReadOnly])
 
-  // Calcul automatique de la durée
+  // Calcul automatique de la durée (gère le passage à minuit)
   useEffect(() => {
     if (formData.startTime && formData.endTime) {
-      const start = new Date(`2000-01-01T${formData.startTime}:00`)
-      const end = new Date(`2000-01-01T${formData.endTime}:00`)
-      const diff = end.getTime() - start.getTime()
-      
-      if (diff > 0) {
-        const hours = Math.floor(diff / (1000 * 60 * 60))
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-        setFormData(prev => ({ 
-          ...prev, 
-          duration: `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` 
+      const parse = (t: string) => {
+        const [h, m] = t.split(':').map(Number)
+        return Number.isNaN(h) || Number.isNaN(m) ? null : h * 60 + m
+      }
+      const start = parse(formData.startTime)
+      const end = parse(formData.endTime)
+      if (start !== null && end !== null) {
+        let diff = end - start
+        if (diff < 0) diff += 24 * 60
+        const hours = Math.floor(diff / 60)
+        const minutes = diff % 60
+        setFormData(prev => ({
+          ...prev,
+          duration: `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`
         }))
       }
     }
@@ -603,6 +611,7 @@ export default function EnhancedMaintenanceForm({
         technician: formData.technician,
         technicianId: formData.technicianId,
         projectId: projectId || undefined,
+        interventionId: interventionId || undefined,
         photosBefore: uploadedPhotosBefore.length > 0 ? uploadedPhotosBefore : undefined,
         photosAfter: uploadedPhotosAfter.length > 0 ? uploadedPhotosAfter : undefined,
         technicianSignature: formData.technicianSignature,
@@ -612,20 +621,39 @@ export default function EnhancedMaintenanceForm({
         status: 'draft'
       }
 
-      const res = await fetch('/api/maintenance/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-dev-bypass-csrf': 'true' },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      })
+      const reportId = createdReportId || existingReportId || null
+      let id = ''
 
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
-        throw new Error(j?.error || 'Echec de la création du rapport')
+      if (reportId) {
+        const res = await fetch('/api/maintenance/reports', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-dev-bypass-csrf': 'true' },
+          credentials: 'include',
+          body: JSON.stringify({ ...payload, reportId })
+        })
+
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j?.error || 'Echec de la mise à jour du rapport')
+        }
+        id = reportId
+      } else {
+        const res = await fetch('/api/maintenance/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-dev-bypass-csrf': 'true' },
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        })
+
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j?.error || 'Echec de la création du rapport')
+        }
+
+        const j = await res.json()
+        id = String(j?.report?._id || j?.report?.id || '')
       }
 
-      const j = await res.json()
-      const id = String(j?.report?._id || j?.report?.id || '')
       if (id) {
         setCreatedReportId(id)
       }
@@ -648,11 +676,8 @@ export default function EnhancedMaintenanceForm({
 
     setIsGenerating(true)
     try {
-      let id = createdReportId
-      if (!id) {
-        id = await handleSave()
-        if (!id) throw new Error('Création du rapport échouée')
-      }
+      const id = await handleSave()
+      if (!id) throw new Error('Création/mise à jour du rapport échouée')
 
       const submitRes = await fetch('/api/maintenance/reports/submit', {
         method: 'POST',
@@ -1002,7 +1027,7 @@ export default function EnhancedMaintenanceForm({
                 const files = Array.from(e.target.files || [])
                 const urls = await uploadPhotos(files as File[], 'before')
                 setFormData(prev=>({ ...prev, photosBefore: files as File[] }))
-                if (urls.length > 0) setUploadedPhotosBefore(prev => [...prev, ...urls])
+                if (urls.length > 0) setUploadedPhotosBefore(prev => [...new Set([...prev, ...urls])])
               }}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
           </div>
@@ -1013,7 +1038,7 @@ export default function EnhancedMaintenanceForm({
                 const files = Array.from(e.target.files || [])
                 const urls = await uploadPhotos(files as File[], 'after')
                 setFormData(prev=>({ ...prev, photosAfter: files as File[] }))
-                if (urls.length > 0) setUploadedPhotosAfter(prev => [...prev, ...urls])
+                if (urls.length > 0) setUploadedPhotosAfter(prev => [...new Set([...prev, ...urls])])
               }}
               className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
           </div>

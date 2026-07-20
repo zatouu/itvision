@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
+import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
 import { resolveUserCategory, type UserCategory } from '@/lib/user-segmentation'
 import { createUserProfiles, syncUserToProfiles } from '@/lib/user-profiles'
@@ -99,8 +100,14 @@ export async function POST(request: NextRequest) {
     const normalizedRole = String(role || '').toUpperCase()
     const normalizedCompanyClientId = normalizedRole === 'CLIENT' && companyClientId ? companyClientId : undefined
 
-    const exists = await User.findOne({ $or: [{ username }, { email: email.toLowerCase() }] }).lean()
+    const normalizedEmail = email.toLowerCase()
+    const exists = await User.findOne({ $or: [{ username }, { email: normalizedEmail }] }).lean()
     if (exists) return NextResponse.json({ error: 'Utilisateur déjà existant' }, { status: 409 })
+
+    const existingTechnician = await Technician.findOne({ email: normalizedEmail }).lean()
+    if (existingTechnician) {
+      return NextResponse.json({ error: 'Cet email est déjà utilisé par un compte technicien' }, { status: 409 })
+    }
 
     const passwordHash = await bcrypt.hash(password, 12)
     const created = await User.create({

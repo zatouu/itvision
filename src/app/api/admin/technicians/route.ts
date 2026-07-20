@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import { safeSearchRegex } from '@/lib/security-utils'
 import Technician from '@/lib/models/Technician'
+import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 
 function requireAdmin(request: NextRequest) {
@@ -96,13 +97,24 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const normalizedEmail = String(email).toLowerCase().trim()
+
     // Vérifier si l'email existe déjà
-    const existingTech = await Technician.findOne({ email })
+    const existingTech = await Technician.findOne({ email: normalizedEmail })
     if (existingTech) {
       return NextResponse.json({ 
         success: false, 
         error: 'Un technicien avec cet email existe déjà' 
       }, { status: 400 })
+    }
+
+    // Empêcher un conflit avec un compte client/marketplace/corporate existant
+    const existingUser = await User.findOne({ email: normalizedEmail }).lean() as any
+    if (existingUser && existingUser.role !== 'TECHNICIAN') {
+      return NextResponse.json({
+        success: false,
+        error: 'Cet email est déjà utilisé par un compte client ou marketplace'
+      }, { status: 409 })
     }
 
     // Hasher le mot de passe
@@ -151,6 +163,20 @@ export async function POST(request: NextRequest) {
         language: 'fr'
       }
     })
+
+    // Créer le User TECHNICIAN associé s'il n'existe pas déjà
+    if (!existingUser) {
+      const username = normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36)
+      await User.create({
+        username,
+        email: normalizedEmail,
+        passwordHash,
+        name,
+        phone: phone || '',
+        role: 'TECHNICIAN',
+        isActive: true
+      })
+    }
 
     // Retourner sans les données sensibles
     const techData = technician.toObject()

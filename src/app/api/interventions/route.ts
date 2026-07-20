@@ -18,6 +18,18 @@ export async function requireInterventionAccess(request: NextRequest) {
   }
 }
 
+function computeEndTime(start: string, durationHours: number) {
+  const [h, m] = start.split(':').map((part) => parseInt(part, 10))
+  if (Number.isNaN(h) || Number.isNaN(m)) return '10:00'
+  const date = new Date()
+  date.setHours(h)
+  date.setMinutes(m)
+  date.setSeconds(0)
+  date.setMilliseconds(0)
+  date.setHours(date.getHours() + Math.max(durationHours, 1))
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 // GET - Récupérer toutes les interventions
 export async function GET(request: NextRequest) {
   try {
@@ -28,13 +40,18 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const service = searchParams.get('service')
     const zone = searchParams.get('zone')
+    const technicianId = searchParams.get('technicianId')
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0)
     const query: any = {}
     if (date) query.scheduledDate = date
-    if (status) query.status = status
+    if (status) {
+      const statuses = status.split(',').filter(Boolean)
+      query.status = statuses.length > 1 ? { $in: statuses } : statuses[0]
+    }
     if (service && service !== 'all') query.service = service
     if (zone && zone !== 'all') query['client.zone'] = zone
+    if (technicianId) query.technicienId = technicianId
 
     const [items, total] = await Promise.all([
       Intervention.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -56,15 +73,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const auth = await requireInterventionAccess(request)
-    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-    
+    const auth = await requireAuth(request).catch(() => null)
+    const access = await requireInterventionAccess(request)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const body = await request.json()
-    
+
     // Validation des données
-    if (!body.title || !body.client || !body.service) {
+    if (!body.title || !body.service || (!body.client && !body.clientId)) {
       return NextResponse.json(
-        { error: 'Données manquantes' },
+        { error: 'Données manquantes: title, service et client (id ou objet) requis' },
         { status: 400 }
       )
     }
@@ -72,17 +90,6 @@ export async function POST(request: NextRequest) {
     const scheduledDate = body.scheduledDate ? new Date(body.scheduledDate) : new Date()
     const startTime = body.scheduledTime || '09:00'
     const durationHours = Number(body.estimatedDuration) || 2
-    const computeEndTime = (start: string, duration: number) => {
-      const [h, m] = start.split(':').map((part: string) => parseInt(part, 10))
-      if (Number.isNaN(h) || Number.isNaN(m)) return '10:00'
-      const date = new Date()
-      date.setHours(h)
-      date.setMinutes(m)
-      date.setSeconds(0)
-      date.setMilliseconds(0)
-      date.setHours(date.getHours() + Math.max(duration, 1))
-      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-    }
 
     // Auto-détection contrat de maintenance actif
     let maintenanceContractId = undefined
@@ -99,39 +106,54 @@ export async function POST(request: NextRequest) {
       if (activeContract) {
         const used = activeContract.coverage?.interventionsUsed || 0
         const included = activeContract.coverage?.interventionsIncluded || 0
-        if (included > 0 && used >= included) {
-          isCoveredByContract = false
-          overageAlert = true
-        } else {
-          maintenanceContractId = activeContract._id
+        maintenanceContractId = activeContract._id
+        if (included === 0 || used < included) {
           isCoveredByContract = true
+        } else {
+          overageAlert = true
         }
       }
     }
 
+    // Auto-affectation du technicien connecté si non précisé
+    let technicienId = body.technicienId
+    if (!technicienId && auth?.role === 'TECHNICIAN') {
+      const tech = await Technician.findOne({ userId: auth.userId }).lean() as any
+      if (tech?._id) technicienId = String(tech._id)
+    }
+
+    const scheduledDateString = scheduledDate.toISOString().split('T')[0]
+
     const created = await Intervention.create({
       title: body.title,
       description: body.description || '',
-      client: body.client,
+      client: body.client || undefined,
       service: body.service,
       priority: body.priority || 'medium',
       estimatedDuration: durationHours,
       requiredSkills: body.requiredSkills || [],
-      status: 'pending',
+      status: technicienId ? 'scheduled' : 'pending',
       projectId: body.projectId || undefined,
       typeIntervention: body.typeIntervention || 'maintenance',
       date: scheduledDate,
+      scheduledDate: scheduledDateString,
+      scheduledTime: startTime,
       heureDebut: startTime,
       heureFin: computeEndTime(startTime, durationHours),
       clientId: body.clientId || undefined,
-      technicienId: body.technicienId || undefined,
+      technicienId: technicienId || undefined,
+      assignedTechnician: technicienId || undefined,
       maintenanceContractId,
       isCoveredByContract
     })
 
+    if (created.addHistoryEntry) {
+      created.addHistoryEntry('created', auth?.userId || 'system', { status: created.status, technicianAssigned: !!technicienId })
+      await created.save()
+    }
+
     // Temps réel + audit
     try {
-      const auth = await requireAuth(request).catch(() => null)
       await logAuditEvent({
         entityType: 'Intervention',
         entityId: String(created._id),
@@ -142,7 +164,7 @@ export async function POST(request: NextRequest) {
         ip: request.headers.get('x-forwarded-for') || undefined,
         userAgent: request.headers.get('user-agent') || undefined
       })
-      emitInterventionUpdate(String(created._id), { id: String(created._id), status: 'pending' })
+      emitInterventionUpdate(String(created._id), { id: String(created._id), status: created.status })
       if (body.clientId) {
         emitUserNotification(body.clientId, {
           type: 'info',
@@ -172,8 +194,9 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await connectMongoose()
-    const auth = await requireInterventionAccess(request)
-    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+    const auth = await requireAuth(request).catch(() => null)
+    const access = await requireInterventionAccess(request)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const body = await request.json()
     const { interventionId, technicianId, scheduledDate, scheduledTime, status } = body
@@ -229,55 +252,94 @@ export async function PUT(request: NextRequest) {
         }
         updatePayload.assignedTechnician = technicianId
         updatePayload.technicienId = technicianId
-        updatePayload.status = 'scheduled'
+        if (intervention.status === 'pending') {
+          updatePayload.status = 'scheduled'
+        }
+        // S'assurer qu'une date/horaire soit renseignée lors de l'assignation
+        if (!intervention.scheduledDate && !scheduledDate) {
+          const fallbackDate = intervention.date || new Date()
+          updatePayload.scheduledDate = fallbackDate.toISOString().split('T')[0]
+        }
+        if (!intervention.heureDebut && !scheduledTime) {
+          updatePayload.scheduledTime = '09:00'
+          updatePayload.heureDebut = '09:00'
+        }
       } else {
         // Désassignation
-        updatePayload.assignedTechnician = undefined
-        updatePayload.technicienId = undefined
+        updatePayload.assignedTechnician = null
+        updatePayload.technicienId = null
         updatePayload.status = 'pending'
       }
     }
 
-    if (scheduledDate !== undefined) updatePayload.scheduledDate = scheduledDate
-    if (scheduledTime !== undefined) updatePayload.scheduledTime = scheduledTime
+    if (scheduledDate !== undefined) {
+      updatePayload.scheduledDate = scheduledDate
+      const parsed = new Date(scheduledDate)
+      if (!Number.isNaN(parsed.getTime())) {
+        updatePayload.date = parsed
+      }
+    }
+    if (scheduledTime !== undefined) {
+      updatePayload.scheduledTime = scheduledTime
+      updatePayload.heureDebut = scheduledTime
+      const durationHours = Number(intervention.estimatedDuration) || 2
+      updatePayload.heureFin = computeEndTime(scheduledTime, durationHours)
+    }
 
     // Transition de statut explicite
+    let statusChanged = false
     if (status && ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(status)) {
       updatePayload.status = status
+      statusChanged = true
 
-      // Décrémentation compteur contrat lors du passage à completed
-      if (status === 'completed' && intervention.isCoveredByContract && intervention.maintenanceContractId) {
+      // Quand une intervention est marquée terminée, mettre à jour le contrat et l'historique
+      if (status === 'completed' && intervention.maintenanceContractId) {
         const contract = await MaintenanceContract.findById(intervention.maintenanceContractId)
         if (contract) {
           const used = (contract.coverage?.interventionsUsed || 0)
           const included = (contract.coverage?.interventionsIncluded || 0)
-          if (included > 0 && used < included) {
+          if (included === 0 || used < included) {
             contract.coverage.interventionsUsed = used + 1
-            await contract.save()
           }
+          contract.stats.totalInterventions = (contract.stats.totalInterventions || 0) + 1
+          if (intervention.typeIntervention === 'maintenance' || intervention.typeIntervention === 'preventive') {
+            contract.stats.preventiveInterventions = (contract.stats.preventiveInterventions || 0) + 1
+          } else {
+            contract.stats.curativeInterventions = (contract.stats.curativeInterventions || 0) + 1
+          }
+          await contract.save()
         }
       }
     }
 
     const previousState = intervention.toObject ? intervention.toObject() : intervention
     await Intervention.updateOne({ _id: interventionId }, { $set: updatePayload })
-    const updated = await Intervention.findById(interventionId).lean()
+    const updated = await Intervention.findById(interventionId)
+
+    if (updated?.addHistoryEntry) {
+      updated.addHistoryEntry('updated', auth?.userId || 'system', {
+        previousStatus: intervention.status,
+        newStatus: updatePayload.status,
+        statusChanged,
+        technicianAssigned: !!technicianId
+      })
+      await updated.save()
+    }
 
     // Temps réel + audit
     try {
-      const auth = await requireAuth(request).catch(() => null)
       await logAuditEvent({
         entityType: 'Intervention',
         entityId: interventionId,
         action: 'updated',
         previousState,
-        newState: updated as any,
+        newState: updated ? (updated.toObject ? updated.toObject() : updated) : {},
         changedFields: Object.keys(updatePayload),
         userId: (auth as any)?.userId,
         userRole: (auth as any)?.role,
         ip: request.headers.get('x-forwarded-for') || undefined,
         userAgent: request.headers.get('user-agent') || undefined,
-        metadata: { statusChanged: !!status, technicianAssigned: !!technicianId }
+        metadata: { statusChanged, technicianAssigned: !!technicianId }
       })
       const updatedAny = updated as any
       emitInterventionUpdate(interventionId, { id: interventionId, status: updatedAny?.status as string })

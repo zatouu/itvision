@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Client from '@/lib/models/Client'
+import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { requireAuth } from '@/lib/jwt'
 
 type DecodedToken = {
@@ -52,25 +53,47 @@ export async function GET(request: NextRequest) {
       Client.countDocuments({ 'permissions.canAccessPortal': true })
     ])
 
-    const sanitized = clients.map((client) => ({
-      id: String(client._id),
-      clientId: client.clientId,
-      name: client.name,
-      company: client.company,
-      contactPerson: client.contactPerson,
-      email: client.email,
-      phone: client.phone,
-      address: client.address,
-      isActive: client.isActive,
-      permissions: client.permissions,
-      activeContracts: Array.isArray(client.contracts)
-        ? client.contracts.filter((contract) => contract.status === 'active').map((contract) => ({
-            contractId: contract.contractId,
-            type: contract.type,
-            startDate: contract.startDate,
-            endDate: contract.endDate
-          }))
+    const sanitized = await Promise.all(clients.map(async (client) => {
+      const activeContracts = Array.isArray(client.contracts)
+        ? client.contracts.filter((contract) => contract.status === 'active')
         : []
+
+      const contractsWithProject = await Promise.all(activeContracts.map(async (contract) => {
+        let projectId: string | undefined
+        try {
+          const contractDoc = await MaintenanceContract.findOne({
+            $or: [
+              { contractNumber: contract.contractId },
+              ...(String(contract.contractId).match(/^[0-9a-fA-F]{24}$/) ? [{ _id: contract.contractId }] : [])
+            ],
+            status: 'active'
+          }).select('projectId').lean() as any
+          projectId = contractDoc?.projectId?.toString?.()
+        } catch (e) {
+          console.error('[tech/clients] Erreur recherche contrat:', e)
+        }
+        return {
+          contractId: contract.contractId,
+          projectId,
+          type: contract.type,
+          startDate: contract.startDate,
+          endDate: contract.endDate
+        }
+      }))
+
+      return {
+        id: String(client._id),
+        clientId: client.clientId,
+        name: client.name,
+        company: client.company,
+        contactPerson: client.contactPerson,
+        email: client.email,
+        phone: client.phone,
+        address: client.address,
+        isActive: client.isActive,
+        permissions: client.permissions,
+        activeContracts: contractsWithProject
+      }
     }))
 
     return NextResponse.json({

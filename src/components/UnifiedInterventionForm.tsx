@@ -61,7 +61,7 @@ export default function UnifiedInterventionForm({ onSuccess, projectId }: Unifie
     interventionDate: new Date().toISOString().split('T')[0],
     startTime: new Date().toTimeString().slice(0, 5),
     endTime: '',
-    typeIntervention: 'maintenance' as 'maintenance' | 'installation' | 'repair' | 'inspection' | 'emergency',
+    typeIntervention: 'maintenance' as 'maintenance' | 'preventive' | 'installation' | 'repair' | 'inspection' | 'emergency',
     initialObservations: '',
     problemDescription: '',
     problemSeverity: 'medium' as 'low' | 'medium' | 'high' | 'critical',
@@ -393,7 +393,7 @@ export default function UnifiedInterventionForm({ onSuccess, projectId }: Unifie
       const payload = {
         technicienId: technicianId,
         clientId: formData.clientId,
-        projectId: projectId || formData.site ? undefined : undefined,
+        projectId: projectId || undefined,
         date: formData.interventionDate,
         heureDebut: formData.startTime,
         heureFin: formData.endTime,
@@ -749,6 +749,7 @@ export default function UnifiedInterventionForm({ onSuccess, projectId }: Unifie
               required
             >
               <option value="maintenance">Maintenance</option>
+              <option value="preventive">Visite préventive</option>
               <option value="emergency">Urgence</option>
               <option value="installation">Installation</option>
               <option value="repair">Réparation</option>

@@ -107,12 +107,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Si un userType est spécifié, vérifier la correspondance
-    if (userType && user.role.toLowerCase() !== userType.toLowerCase()) {
-      logLoginAttempt(false, request, user.id, { reason: 'role_mismatch', expectedRole: userType, actualRole: user.role })
-      return NextResponse.json(
-        { error: `Ce compte n'est pas un compte ${userType}` },
-        { status: 403 }
-      )
+    // Le type 'admin' accepte à la fois ADMIN et SUPER_ADMIN
+    if (userType) {
+      const expected = String(userType).toLowerCase()
+      const role = String(user.role).toUpperCase()
+      const matches = expected === 'admin'
+        ? ['ADMIN', 'SUPER_ADMIN'].includes(role)
+        : role === expected.toUpperCase()
+      if (!matches) {
+        logLoginAttempt(false, request, user.id, { reason: 'role_mismatch', expectedRole: userType, actualRole: user.role })
+        return NextResponse.json(
+          { error: `Ce compte n'est pas un compte ${userType}` },
+          { status: 403 }
+        )
+      }
     }
 
     // 2FA: si activé, générer code et demander vérification

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
+import Technician from '@/lib/models/Technician'
 import emailService from '@/lib/email-service'
 import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { createUserProfiles } from '@/lib/user-profiles'
@@ -188,10 +189,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si l'email existe déjà
-    const existingUser = await User.findOne({ email: email.toLowerCase() })
+    const normalizedEmail = email.toLowerCase()
+    const existingUser = await User.findOne({ email: normalizedEmail })
     if (existingUser) {
       return NextResponse.json({ 
         error: 'Un compte existe déjà avec cette adresse email' 
+      }, { status: 409 })
+    }
+
+    // Empêcher qu'un email de technicien soit recyclé en compte marketplace
+    const existingTechnician = await Technician.findOne({ email: normalizedEmail }).lean()
+    if (existingTechnician) {
+      return NextResponse.json({
+        error: 'Cet email est déjà utilisé par un compte technicien'
       }, { status: 409 })
     }
 

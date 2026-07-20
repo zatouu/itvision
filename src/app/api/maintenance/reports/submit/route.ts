@@ -166,7 +166,8 @@ export async function POST(request: NextRequest) {
         status: { $ne: 'draft' }
       })
       
-      technician.stats.completionRate = (totalSubmitted / technician.stats.totalReports) * 100
+      const totalReports = technician.stats.totalReports || 0
+      technician.stats.completionRate = totalReports > 0 ? (totalSubmitted / totalReports) * 100 : 0
       await technician.save()
     }
     
@@ -212,18 +213,24 @@ function validateReportForSubmission(report: any): string[] {
     errors.push('Heures de début et fin d\'intervention requises')
   }
   
-  // Vérification durée cohérente
+  // Vérification durée cohérente (gère le passage à minuit)
   if (report.startTime && report.endTime) {
-    const start = new Date(`2000-01-01T${report.startTime}`)
-    const end = new Date(`2000-01-01T${report.endTime}`)
-    
-    if (end <= start) {
-      errors.push('L\'heure de fin doit être postérieure à l\'heure de début')
+    const parse = (t: string) => {
+      const [h, m] = t.split(':').map(Number)
+      if (Number.isNaN(h) || Number.isNaN(m)) return null
+      return h * 60 + m
     }
-    
-    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-    if (durationHours > 12) {
-      errors.push('Durée d\'intervention anormalement longue (>12h)')
+    const start = parse(report.startTime)
+    const end = parse(report.endTime)
+    if (start === null || end === null) {
+      errors.push('Format des heures invalide')
+    } else {
+      let diffMinutes = end - start
+      if (diffMinutes < 0) diffMinutes += 24 * 60
+      const durationHours = diffMinutes / 60
+      if (durationHours <= 0 || durationHours > 12) {
+        errors.push('Durée d\'intervention anormalement longue (>12h)')
+      }
     }
   }
   

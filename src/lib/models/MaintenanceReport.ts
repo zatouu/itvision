@@ -77,7 +77,7 @@ export interface IMaintenanceReport extends Document {
   endTime: string
   duration: number // en minutes
   site: string
-  interventionType: 'maintenance' | 'installation' | 'repair' | 'inspection' | 'emergency'
+  interventionType: 'maintenance' | 'preventive' | 'installation' | 'repair' | 'inspection' | 'emergency'
   
   // Template utilisé
   templateId: string
@@ -210,7 +210,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
   site: { type: String, required: true },
   interventionType: { 
     type: String, 
-    enum: ['maintenance', 'installation', 'repair', 'inspection', 'emergency'],
+    enum: ['maintenance', 'preventive', 'installation', 'repair', 'inspection', 'emergency'],
     required: true 
   },
   
@@ -464,9 +464,12 @@ MaintenanceReportSchema.pre('save', function(next) {
 
 // Méthodes d'instance
 MaintenanceReportSchema.methods.addHistoryEntry = function(action: string, userId: string, details?: any) {
+  const safeUserId = mongoose.isValidObjectId(userId)
+    ? new mongoose.Types.ObjectId(userId)
+    : new mongoose.Types.ObjectId() // fallback pour tokens dev
   this.history.push({
     action,
-    userId,
+    userId: safeUserId,
     details,
     timestamp: new Date()
   })
@@ -474,9 +477,18 @@ MaintenanceReportSchema.methods.addHistoryEntry = function(action: string, userI
 
 MaintenanceReportSchema.methods.calculateDuration = function() {
   if (this.startTime && this.endTime) {
-    const start = new Date(`2000-01-01T${this.startTime}`)
-    const end = new Date(`2000-01-01T${this.endTime}`)
-    this.duration = Math.round((end.getTime() - start.getTime()) / 60000) // minutes
+    const parse = (t: string) => {
+      const [h, m] = t.split(':').map(Number)
+      if (Number.isNaN(h) || Number.isNaN(m)) return null
+      return h * 60 + m
+    }
+    const start = parse(this.startTime)
+    const end = parse(this.endTime)
+    if (start !== null && end !== null) {
+      let diff = end - start
+      if (diff < 0) diff += 24 * 60
+      this.duration = diff
+    }
   }
 }
 

@@ -11,6 +11,7 @@ export interface IIntervention extends Document {
   projectId?: mongoose.Types.ObjectId
   technicienId?: mongoose.Types.ObjectId
   maintenanceContractId?: mongoose.Types.ObjectId
+  maintenanceActivityId?: mongoose.Types.ObjectId
   isCoveredByContract?: boolean
   
   // Informations anciennes (compatibilité)
@@ -22,7 +23,7 @@ export interface IIntervention extends Document {
   }
   
   // Type et planning
-  typeIntervention?: 'maintenance' | 'installation' | 'repair' | 'inspection' | 'emergency'
+  typeIntervention?: 'maintenance' | 'preventive' | 'installation' | 'repair' | 'inspection' | 'emergency'
   service: string
   priority: 'low' | 'medium' | 'high' | 'critical' | 'urgent'
   estimatedDuration?: number
@@ -121,6 +122,7 @@ const InterventionSchema = new Schema<IIntervention>({
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
   technicienId: { type: Schema.Types.ObjectId, ref: 'Technician', index: true },
   maintenanceContractId: { type: Schema.Types.ObjectId, ref: 'MaintenanceContract', index: true },
+  maintenanceActivityId: { type: Schema.Types.ObjectId, ref: 'MaintenanceActivity' },
   isCoveredByContract: { type: Boolean, default: false },
   
   // Informations anciennes (compatibilité)
@@ -134,7 +136,7 @@ const InterventionSchema = new Schema<IIntervention>({
   // Type et planning
   typeIntervention: {
     type: String,
-    enum: ['maintenance', 'installation', 'repair', 'inspection', 'emergency'],
+    enum: ['maintenance', 'preventive', 'installation', 'repair', 'inspection', 'emergency'],
     default: 'maintenance',
     index: true
   },
@@ -244,27 +246,41 @@ InterventionSchema.index({ clientId: 1, date: -1 })
 InterventionSchema.index({ status: 1, date: -1 })
 InterventionSchema.index({ 'client.zone': 1 })
 
-// Auto-génération du numéro d'intervention
+// Calcul de durée en minutes, gère le passage à minuit
+function calculateDurationMinutes(startTime?: string, endTime?: string): number | undefined {
+  if (!startTime || !endTime) return undefined
+  const parse = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return null
+    return h * 60 + m
+  }
+  const start = parse(startTime)
+  const end = parse(endTime)
+  if (start === null || end === null) return undefined
+  let diff = end - start
+  if (diff < 0) diff += 24 * 60 // passage minuit
+  return diff
+}
+
+// Auto-génération du numéro d'intervention (séquence par année)
 InterventionSchema.pre('save', async function(next) {
   if (this.isNew && !this.interventionNumber) {
     const year = new Date().getFullYear()
-    const count = await mongoose.model('Intervention').countDocuments()
-    this.interventionNumber = `INT-${year}-${String(count + 1).padStart(5, '0')}`
+    const last = await mongoose.model('Intervention')
+      .findOne({ interventionNumber: new RegExp(`^INT-${year}-`) })
+      .sort({ interventionNumber: -1 })
+      .select('interventionNumber')
+      .lean() as any
+    const lastNum = last?.interventionNumber?.match?.(/-(\d+)$/)?.[1]
+    const nextNum = (lastNum ? parseInt(lastNum, 10) : 0) + 1
+    this.interventionNumber = `INT-${year}-${String(nextNum).padStart(5, '0')}`
   }
-  
+
   // Calculer la durée si heures sont fournies
   if (this.heureDebut && this.heureFin) {
-    try {
-      const [startH, startM] = this.heureDebut.split(':').map(Number)
-      const [endH, endM] = this.heureFin.split(':').map(Number)
-      const startMinutes = startH * 60 + startM
-      const endMinutes = endH * 60 + endM
-      this.duree = endMinutes - startMinutes
-    } catch (error) {
-      console.error('Erreur calcul durée:', error)
-    }
+    this.duree = calculateDurationMinutes(this.heureDebut, this.heureFin)
   }
-  
+
   next()
 })
 
@@ -273,9 +289,12 @@ InterventionSchema.methods.addHistoryEntry = function(action: string, userId: st
   if (!this.history) {
     this.history = []
   }
+  const safeUserId = mongoose.isValidObjectId(userId)
+    ? new mongoose.Types.ObjectId(userId)
+    : new mongoose.Types.ObjectId() // fallback pour tokens dev
   this.history.push({
     action,
-    userId: new mongoose.Types.ObjectId(userId),
+    userId: safeUserId,
     timestamp: new Date(),
     details
   })

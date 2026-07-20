@@ -65,6 +65,17 @@ export const generateMaintenanceVisits = (
   const effectiveStart = startDate > from ? startDate : from
   const intervalDays = inferIntervalDays(contract)
 
+  const now = new Date()
+  const daysUntilExpiration = contract.endDate
+    ? Math.floor((new Date(contract.endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 999
+  const priority: MaintenanceVisit['priority'] = daysUntilExpiration <= 60 && daysUntilExpiration > 0 ? 'high' : 'medium'
+
+  const clientId = (contract as any).clientId?._id
+    ? (contract as any).clientId._id.toString()
+    : (contract as any).clientId?.toString?.() || ''
+  const clientName = (contract as any).clientId?.company || (contract as any).clientId?.name || 'Client'
+
   const sites =
     contract.equipment?.length
       ? Array.from(
@@ -83,11 +94,11 @@ export const generateMaintenanceVisits = (
         id: `${(contract as any)._id}-${site}-${cursor.toISOString().slice(0, 10)}`,
         contractId: (contract as any)._id.toString(),
         contractName: contract.name,
-        clientId: (contract as any).clientId.toString(),
-        clientName: (contract as any).clientId?.company || (contract as any).clientId?.name || 'Client',
+        clientId,
+        clientName,
         date: cursor.toISOString(),
         site,
-        priority: (contract as any).isNearExpiration?.() ? 'high' : 'medium',
+        priority,
         estimatedDurationHours: 4,
         zone: undefined,
         isContractual: true,

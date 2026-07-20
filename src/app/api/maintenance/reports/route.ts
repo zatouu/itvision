@@ -11,6 +11,8 @@ import type {
   IMaintenanceReportNextAction
 } from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
+import Project from '@/lib/models/Project'
+import Intervention from '@/lib/models/Intervention'
 import { verifyJwtPayload } from '@/lib/jwt'
 
 async function verifyTechnicianToken(request: NextRequest) {
@@ -366,126 +368,173 @@ export async function GET(request: NextRequest) {
 // POST - Créer nouveau rapport
 export async function POST(request: NextRequest) {
   try {
-      await connectMongoose()
+    await connectMongoose()
 
-      const tokenData = await verifyTechnicianToken(request)
-      const reportData = await request.json()
-      const structuredFields = extractStructuredFields(reportData, { includeEmpty: true })
+    const tokenData = await verifyTechnicianToken(request)
+    const reportData = await request.json()
+    const structuredFields = extractStructuredFields(reportData, { includeEmpty: true })
 
-    // Assouplir les champs requis: on fournira des valeurs par défaut si absents
     if (!reportData.interventionDate || !reportData.site) {
       return NextResponse.json(
         { error: 'Champs requis manquants: interventionDate et site' },
         { status: 400 }
       )
     }
-    
-    // Vérification que le technicien existe (chercher par _id puis par email en fallback)
-      let technician = await Technician.findById(tokenData.technicianId).catch(() => null)
-      if (!technician && tokenData.email) {
-        technician = await Technician.findOne({ email: String(tokenData.email).toLowerCase() })
+
+    // Résoudre le vrai technicien (par _id, userId, puis email)
+    let technicianId = reportData.technicianId || tokenData.technicianId
+    let technician = null
+    if (technicianId) {
+      technician = await Technician.findById(technicianId).catch(() => null)
+      if (!technician && mongoose.isValidObjectId(technicianId)) {
+        technician = await Technician.findOne({ userId: technicianId }).catch(() => null)
       }
+    }
+    if (!technician && tokenData.userId) {
+      technician = await Technician.findOne({ userId: tokenData.userId }).catch(() => null)
+    }
+    if (!technician && tokenData.email) {
+      technician = await Technician.findOne({ email: String(tokenData.email).toLowerCase() })
+    }
     if (!technician || !technician.isActive) {
       return NextResponse.json(
         { error: 'Technicien non autorisé' },
         { status: 403 }
       )
     }
-      const technicianId = String(technician._id)
-      
-      // Calcul automatique de la durée si startTime/endTime fournis
-      let duration = reportData.duration
-    if (reportData.startTime && reportData.endTime && !duration) {
-      const start = new Date(`2000-01-01T${reportData.startTime}`)
-      const end = new Date(`2000-01-01T${reportData.endTime}`)
-      duration = Math.round((end.getTime() - start.getTime()) / 60000)
+    technicianId = String(technician._id)
+
+    // Résoudre client/projet/site via l'intervention si fournie, sinon via le projectId
+    let interventionId: string | undefined = reportData.interventionId
+    let clientId: string | undefined = reportData.clientId
+    let projectId: string | undefined = reportData.projectId
+    let interventionDate = new Date(reportData.interventionDate)
+    let site = reportData.site
+    let interventionType = reportData.interventionType || 'maintenance'
+
+    if (interventionId) {
+      const intervention = await Intervention.findById(interventionId).lean() as any
+      if (!intervention) {
+        return NextResponse.json({ error: 'Intervention introuvable' }, { status: 404 })
+      }
+      clientId = intervention.clientId?.toString?.() || clientId
+      projectId = intervention.projectId?.toString?.() || projectId
+      interventionDate = intervention.date || interventionDate
+      site = intervention.site || site
+      interventionType = intervention.typeIntervention || interventionType
+      // On hérite du technicien assigné si le rapport n'en précise pas
+      if (!reportData.technicianId && intervention.technicienId) {
+        technicianId = intervention.technicienId.toString()
+        technician = await Technician.findById(technicianId) || technician
+      }
     }
-      
-      const sanitizedTasks = sanitizeStringArray(reportData.tasksPerformed)
-      const sanitizedRecommendations = sanitizeStringArray(reportData.recommendations)
-      const initialObservations = toNonEmptyString(reportData.initialObservations) || 'Observations non renseignées'
-      const results = toNonEmptyString(reportData.results) || 'N/A'
-      const problemSeverityCandidate = String(reportData.problemSeverity || '').toLowerCase()
-      const problemSeverity = ISSUE_SEVERITIES.has(problemSeverityCandidate)
-        ? problemSeverityCandidate
-        : 'medium'
-      const priorityCandidate = String(reportData.priority || '').toLowerCase()
-      const priority = REPORT_PRIORITIES.has(priorityCandidate)
-        ? priorityCandidate
-        : 'medium'
 
-      const {
-        issuesDetected,
-        materialsUsed,
-        followUpRecommendations,
-        nextActions,
-        billing,
-        clientAcknowledgement
-      } = structuredFields as {
-        issuesDetected: IMaintenanceReportIssue[]
-        materialsUsed: IMaintenanceReportMaterial[]
-        followUpRecommendations: IMaintenanceReportRecommendation[]
-        nextActions: IMaintenanceReportNextAction[]
-        billing: IMaintenanceReportBilling
-        clientAcknowledgement?: {
-          status: string
-          name?: string
-          signedAt?: Date
-          comments?: string
-        }
+    // Si projectId fourni sans clientId, on tente de récupérer le client du projet
+    if (!clientId && projectId) {
+      const project = await Project.findById(projectId).select('clientId').lean() as any
+      if (project?.clientId) {
+        clientId = project.clientId.toString()
       }
+    }
 
-      // Support photos en format nested {before:[], after:[]} ou flat photosBefore/photosAfter
-      const parsePhotos = (input: any): Array<{url: string, caption?: string, timestamp: Date, gps?: any}> => {
-        if (!Array.isArray(input)) return []
-        return input
-          .map((photo: any) => {
-            if (typeof photo === 'string') return { url: photo, timestamp: new Date() }
-            if (typeof photo === 'object' && photo !== null) {
-              return {
-                url: toNonEmptyString(photo.url) || '',
-                caption: toNonEmptyString(photo.caption),
-                timestamp: toDate(photo.timestamp) || new Date(),
-                gps: photo.gps
-              }
+    if (!clientId || !projectId) {
+      return NextResponse.json(
+        { error: 'Impossible de déterminer le client et le projet pour ce rapport' },
+        { status: 400 }
+      )
+    }
+
+    // Calcul automatique de la durée si startTime/endTime fournis
+    const startTime = reportData.startTime || '08:00'
+    const endTime = reportData.endTime || '09:00'
+    const duration = reportData.duration ?? computeDurationMinutes(startTime, endTime)
+
+    const sanitizedTasks = sanitizeStringArray(reportData.tasksPerformed)
+    const sanitizedRecommendations = sanitizeStringArray(reportData.recommendations)
+    const initialObservations = toNonEmptyString(reportData.initialObservations) || 'Observations non renseignées'
+    const results = toNonEmptyString(reportData.results) || 'N/A'
+    const problemSeverityCandidate = String(reportData.problemSeverity || '').toLowerCase()
+    const problemSeverity = ISSUE_SEVERITIES.has(problemSeverityCandidate)
+      ? problemSeverityCandidate
+      : 'medium'
+    const priorityCandidate = String(reportData.priority || '').toLowerCase()
+    const priority = REPORT_PRIORITIES.has(priorityCandidate)
+      ? priorityCandidate
+      : 'medium'
+
+    const {
+      issuesDetected,
+      materialsUsed,
+      followUpRecommendations,
+      nextActions,
+      billing,
+      clientAcknowledgement
+    } = structuredFields as {
+      issuesDetected: IMaintenanceReportIssue[]
+      materialsUsed: IMaintenanceReportMaterial[]
+      followUpRecommendations: IMaintenanceReportRecommendation[]
+      nextActions: IMaintenanceReportNextAction[]
+      billing: IMaintenanceReportBilling
+      clientAcknowledgement?: {
+        status: string
+        name?: string
+        signedAt?: Date
+        comments?: string
+      }
+    }
+
+    // Support photos en format nested {before:[], after:[]} ou flat photosBefore/photosAfter
+    const parsePhotos = (input: any): Array<{url: string, caption?: string, timestamp: Date, gps?: any}> => {
+      if (!Array.isArray(input)) return []
+      return input
+        .map((photo: any) => {
+          if (typeof photo === 'string') return { url: photo, timestamp: new Date() }
+          if (typeof photo === 'object' && photo !== null) {
+            return {
+              url: toNonEmptyString(photo.url) || '',
+              caption: toNonEmptyString(photo.caption),
+              timestamp: toDate(photo.timestamp) || new Date(),
+              gps: photo.gps
             }
-            return null
-          })
-          .filter((p: any): p is {url: string, caption?: string, timestamp: Date, gps?: any} => p !== null && p.url)
-      }
+          }
+          return null
+        })
+        .filter((p: any): p is {url: string, caption?: string, timestamp: Date, gps?: any} => p !== null && p.url)
+    }
 
-      const photos = {
-        before: parsePhotos(reportData.photos?.before || reportData.photosBefore),
-        after: parsePhotos(reportData.photos?.after || reportData.photosAfter)
-      }
-    
+    const photos = {
+      before: parsePhotos(reportData.photos?.before || reportData.photosBefore),
+      after: parsePhotos(reportData.photos?.after || reportData.photosAfter)
+    }
+
     // Création du rapport avec valeurs par défaut compatibles schéma
     const newReport = new MaintenanceReport({
       technicianId,
-        clientId: reportData.clientId ?? new mongoose.Types.ObjectId(),
-        projectId: reportData.projectId ?? new mongoose.Types.ObjectId(),
-      interventionDate: new Date(reportData.interventionDate),
-      startTime: reportData.startTime || '08:00',
-      endTime: reportData.endTime || '09:00',
+      clientId: new mongoose.Types.ObjectId(clientId),
+      projectId: new mongoose.Types.ObjectId(projectId),
+      interventionId: interventionId ? new mongoose.Types.ObjectId(interventionId) : undefined,
+      interventionDate,
+      startTime,
+      endTime,
       duration,
-      site: reportData.site,
-      interventionType: (reportData.interventionType || 'maintenance'),
+      site,
+      interventionType,
       templateId: reportData.templateId || 'generic',
-        templateVersion: reportData.templateVersion || '1.0',
-        formData: reportData.formData || {},
-        initialObservations,
-        problemDescription: reportData.problemDescription || '',
-        problemSeverity,
-        tasksPerformed: sanitizedTasks,
-        results,
-        recommendations: sanitizedRecommendations,
-        issuesDetected,
-        materialsUsed,
-        followUpRecommendations,
-        nextActions,
-        billing,
-        clientAcknowledgement,
-        photos,
+      templateVersion: reportData.templateVersion || '1.0',
+      formData: reportData.formData || {},
+      initialObservations,
+      problemDescription: reportData.problemDescription || '',
+      problemSeverity,
+      tasksPerformed: sanitizedTasks,
+      results,
+      recommendations: sanitizedRecommendations,
+      issuesDetected,
+      materialsUsed,
+      followUpRecommendations,
+      nextActions,
+      billing,
+      clientAcknowledgement,
+      photos,
       signatures: {
         technician: reportData.technicianSignature
           ? { signature: reportData.technicianSignature, name: reportData.technician || 'Technicien', timestamp: new Date() }
@@ -494,35 +543,49 @@ export async function POST(request: NextRequest) {
           ? { signature: reportData.clientSignature, name: reportData.clientName || '', title: reportData.clientTitle || '', timestamp: new Date() }
           : undefined,
       },
-        gpsLocation: reportData.gpsLocation,
-        status: reportData.status || 'draft',
-        priority,
+      gpsLocation: reportData.gpsLocation,
+      status: reportData.status || 'draft',
+      priority,
       version: 1,
       analytics: {
         timeToComplete: 0,
         revisionCount: 0
       }
     })
-    
+
+    newReport.calculateDuration()
+
     // Ajout entrée historique
-      newReport.addHistoryEntry('created', technicianId, {
-        initialStatus: newReport.status,
-        followUpCount: followUpRecommendations.length,
-        issuesDetected: issuesDetected.length
-      })
-    
+    newReport.addHistoryEntry('created', technicianId, {
+      initialStatus: newReport.status,
+      followUpCount: followUpRecommendations.length,
+      issuesDetected: issuesDetected.length
+    })
+
     await newReport.save()
-    
+
     // Mise à jour stats technicien
     technician.stats.totalReports += 1
     await technician.save()
-    
+
+    // Si le rapport est lié à une intervention, on met à jour le statut de l'intervention
+    if (interventionId) {
+      try {
+        await Intervention.updateOne(
+          { _id: interventionId },
+          { status: 'in_progress' }
+        )
+      } catch (e) {
+        console.error('[MaintenanceReport] Impossible de mettre à jour l\'intervention liée:', e)
+      }
+    }
+
     // Population pour réponse
     const populatedReport = await MaintenanceReport.findById(newReport._id)
       .populate('clientId', 'name company')
       .populate('projectId', 'name')
       .lean()
-    
+
     return NextResponse.json({
       success: true,
       report: populatedReport,
@@ -536,6 +599,20 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+function computeDurationMinutes(startTime: string, endTime: string): number | undefined {
+  const parse = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return null
+    return h * 60 + m
+  }
+  const start = parse(startTime)
+  const end = parse(endTime)
+  if (start === null || end === null) return undefined
+  let diff = end - start
+  if (diff < 0) diff += 24 * 60
+  return diff
 }
 
 // PUT - Mettre à jour rapport
@@ -594,11 +671,9 @@ export async function PUT(request: NextRequest) {
       )
     }
     
-    // Calcul durée si nécessaire
+    // Calcul durée si nécessaire (gère le passage à minuit)
     if (updateData.startTime && updateData.endTime && !updateData.duration) {
-      const start = new Date(`2000-01-01T${updateData.startTime}`)
-      const end = new Date(`2000-01-01T${updateData.endTime}`)
-      updateData.duration = Math.round((end.getTime() - start.getTime()) / 60000)
+      updateData.duration = computeDurationMinutes(updateData.startTime, updateData.endTime)
     }
 
       if (Object.prototype.hasOwnProperty.call(updateData, 'tasksPerformed')) {

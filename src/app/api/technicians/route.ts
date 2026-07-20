@@ -71,6 +71,15 @@ export async function POST(request: NextRequest) {
     const existsTech = await Technician.findOne({ email: normalizedEmail }).lean()
     if (existsTech) return NextResponse.json({ error: 'Technicien déjà existant' }, { status: 409 })
 
+    // Empêcher un conflit avec un compte client/marketplace/corporate existant
+    const existingUser = await User.findOne({ email: normalizedEmail }).lean() as any
+    if (existingUser && existingUser.role !== 'TECHNICIAN') {
+      return NextResponse.json(
+        { error: 'Cet email est déjà utilisé par un compte client ou marketplace' },
+        { status: 409 }
+      )
+    }
+
     const passwordHash = await bcrypt.hash(password, 12)
 
     // Créer le technicien dans la collection Technician
@@ -86,7 +95,6 @@ export async function POST(request: NextRequest) {
 
     // Créer un User TECHNICIAN si aucun n'existe déjà pour cet email
     // (le User peut déjà exister s'il a été créé via /api/admin/users)
-    const existingUser = await User.findOne({ email: normalizedEmail }).lean() as any
     if (!existingUser) {
       const username = normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36)
       await User.create({
@@ -98,9 +106,6 @@ export async function POST(request: NextRequest) {
         role: 'TECHNICIAN',
         isActive: true
       })
-    } else if (existingUser.role !== 'TECHNICIAN') {
-      // Si le User existe mais n'est pas TECHNICIAN, mettre à jour son rôle
-      await User.updateOne({ _id: existingUser._id }, { $set: { role: 'TECHNICIAN' } })
     }
 
     return NextResponse.json({ success: true, technician: { id: String(created._id), name: created.name, email: created.email, phone: created.phone, isAvailable: created.isAvailable, specialties: created.specialties } }, { status: 201 })

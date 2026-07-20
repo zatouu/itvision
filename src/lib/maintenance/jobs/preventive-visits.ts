@@ -34,15 +34,33 @@ export async function runPreventiveVisitsJob(): Promise<{
         const visits = generateMaintenanceVisits(contract, { from: now, to })
 
         for (const visit of visits) {
-          // Vérifier qu'une intervention identique n'existe pas déjà
-          const exists = await Intervention.findOne({
+          const visitId = visit.id
+
+          // Éviter les duplications : une intervention et une activité existent déjà pour cette visite
+          const existingIntervention = (await Intervention.findOne({
             maintenanceContractId: contract._id,
             site: visit.site,
             date: new Date(visit.date)
-          }).select('_id').lean()
+          }).select('_id maintenanceActivityId').lean()) as any
 
-          if (exists) continue
+          const existingActivity = (await MaintenanceActivity.findOne({ visitId }).select('_id interventionId').lean()) as any
 
+          if (existingIntervention && existingActivity) {
+            // S'assurer que l'activité pointe vers l'intervention si ce n'est pas déjà fait
+            if (!existingActivity.interventionId) {
+              await MaintenanceActivity.updateOne(
+                { _id: existingActivity._id },
+                { interventionId: existingIntervention._id }
+              )
+              await Intervention.updateOne(
+                { _id: existingIntervention._id },
+                { maintenanceActivityId: existingActivity._id }
+              )
+            }
+            continue
+          }
+
+          // Créer l'intervention et l'activité de manière cohérente
           const intervention = await Intervention.create({
             title: `Visite préventive — ${contract.name}`,
             description: `Visite contractuelle programmée sur le site ${visit.site}`,
@@ -50,17 +68,22 @@ export async function runPreventiveVisitsJob(): Promise<{
             projectId: contract.projectId,
             maintenanceContractId: contract._id,
             isCoveredByContract: true,
-            typeIntervention: 'maintenance',
+            typeIntervention: 'preventive',
             service: 'maintenance',
             priority: visit.priority,
             estimatedDuration: visit.estimatedDurationHours,
             status: 'scheduled',
             date: new Date(visit.date),
+            scheduledDate: visit.date.slice(0, 10),
+            scheduledTime: '09:00',
+            heureDebut: '09:00',
+            heureFin: '13:00',
             site: visit.site,
             requiredSkills: contract.services?.map((s: any) => s.name) || []
           })
 
-          await MaintenanceActivity.create({
+          const activity = await MaintenanceActivity.create({
+            visitId,
             category: 'contract_visit',
             contractId: contract._id,
             clientId: contract.clientId,
@@ -69,9 +92,13 @@ export async function runPreventiveVisitsJob(): Promise<{
             site: visit.site,
             isContractual: true,
             allowMarketplace: false,
-            preferredTechnicians: visit.preferredTechnicians?.map((t: any) => t._id) || [],
-            status: 'pending'
+            preferredTechnicians: visit.preferredTechnicians?.map((t: any) => t._id).filter(Boolean) || [],
+            status: 'open',
+            interventionId: intervention._id
           })
+
+          intervention.maintenanceActivityId = activity._id
+          await intervention.save()
 
           visitsCreated++
         }
