@@ -28,6 +28,16 @@ const KIND_META: Record<string, { labelKey: string; icon: any; positive?: boolea
   escrow_refund: { labelKey: 'providerWallet.kindEscrowRefund', icon: Banknote, positive: true },
   escrow_charge: { labelKey: 'providerWallet.kindEscrowCharge', icon: Minus, positive: false },
   withdrawal: { labelKey: 'providerWallet.kindWithdrawal', icon: ArrowUpRight, positive: false },
+  welcome: { labelKey: 'Crédits de bienvenue', icon: Zap, positive: true },
+  referral_bonus: { labelKey: 'Bonus parrainage', icon: Zap, positive: true },
+}
+
+const CASH_KIND_META: Record<string, { label: string; icon: any; positive: boolean }> = {
+  escrow_release: { label: 'Paiement mission reçu', icon: Banknote, positive: true },
+  payout: { label: 'Retrait', icon: ArrowUpRight, positive: false },
+  refund: { label: 'Remboursement', icon: Banknote, positive: true },
+  topup: { label: 'Rechargement', icon: Zap, positive: true },
+  escrow_hold: { label: 'Fonds bloqués (escrow)', icon: Minus, positive: false },
 }
 
 type WalletData = {
@@ -43,6 +53,13 @@ type WalletData = {
     points: number
     balanceAfter: number
     description: string | null
+    createdAt: string
+  }>
+  cashHistory?: Array<{
+    id: string
+    type: string
+    amount: number
+    ref: string | null
     createdAt: string
   }>
   config?: {
@@ -226,40 +243,68 @@ export default function Wallet() {
         </View>
 
         <View style={s.historyList}>
-          {(!data?.history || data.history.length === 0) ? (
-            <View style={s.emptyRow}>
-              <Text style={s.emptyText}>{t('providerWallet.noHistory')}</Text>
-            </View>
-          ) : (
-            data.history.map((item) => {
+          {(() => {
+            const cashRows = (data?.cashHistory || []).map(txn => {
+              const meta = CASH_KIND_META[txn.type] || { label: txn.type, icon: Banknote, positive: txn.amount >= 0 }
+              return {
+                id: `cash-${txn.id}`,
+                label: meta.label,
+                description: txn.ref ? `Réf. ${txn.ref}` : null,
+                amountText: `${meta.positive ? '+' : '-'}${format(Math.abs(txn.amount))} FCFA`,
+                positive: meta.positive,
+                icon: meta.icon,
+                createdAt: txn.createdAt,
+              }
+            })
+            const creditRows = (data?.history || []).map(item => {
               const meta = KIND_META[item.kind] || { labelKey: item.kind, icon: Banknote }
-              const Icon = meta.icon
               const positive = meta.positive ?? item.points >= 0
-              const fcfa = item.points * 100
+              return {
+                id: `credit-${item.id}`,
+                label: t(meta.labelKey),
+                description: item.description || null,
+                amountText: `${positive ? '+' : ''}${format(item.points)} crédits`,
+                positive,
+                icon: meta.icon,
+                createdAt: item.createdAt,
+              }
+            })
+            const rows = [...cashRows, ...creditRows]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 50)
+            if (rows.length === 0) {
               return (
-                <View key={item.id} style={s.historyRow}>
-                  <View style={[s.historyIcon, !positive && s.historyIconRed]}>
-                    <Icon size={18} color={positive ? colors.success : colors.danger} />
+                <View style={s.emptyRow}>
+                  <Text style={s.emptyText}>{t('providerWallet.noHistory')}</Text>
+                </View>
+              )
+            }
+            return rows.map((row) => {
+              const Icon = row.icon
+              return (
+                <View key={row.id} style={s.historyRow}>
+                  <View style={[s.historyIcon, !row.positive && s.historyIconRed]}>
+                    <Icon size={18} color={row.positive ? colors.success : colors.danger} />
                   </View>
                   <View style={s.historyText}>
-                    <Text style={s.historyLabel}>{t(meta.labelKey)}</Text>
-                    {!!item.description && <Text style={s.historyDesc}>{item.description}</Text>}
-                    <Text style={s.historyDate}>{new Date(item.createdAt).toLocaleDateString('fr-FR')}</Text>
+                    <Text style={s.historyLabel}>{row.label}</Text>
+                    {!!row.description && <Text style={s.historyDesc}>{row.description}</Text>}
+                    <Text style={s.historyDate}>{new Date(row.createdAt).toLocaleDateString('fr-FR')}</Text>
                   </View>
                   <View style={s.historyRight}>
-                    <Text style={[s.historyAmount, !positive && s.historyAmountRed]}>
-                      {positive ? '+' : ''}{format(fcfa)} FCFA
+                    <Text style={[s.historyAmount, !row.positive && s.historyAmountRed]}>
+                      {row.amountText}
                     </Text>
                     <StatusChip
-                      label={positive ? t('providerWallet.credit') : t('providerWallet.debit')}
-                      variant={positive ? 'success' : 'danger'}
+                      label={row.positive ? t('providerWallet.credit') : t('providerWallet.debit')}
+                      variant={row.positive ? 'success' : 'danger'}
                       small
                     />
                   </View>
                 </View>
               )
             })
-          )}
+          })()}
         </View>
 
         <View style={s.infoCard}>

@@ -93,7 +93,7 @@ function MyOffers() {
 
   const totalAccepted = items.filter(it => it.status === 'accepted').length
   const totalRevenu = items
-    .filter(it => it.status === 'accepted')
+    .filter(it => it.requestStatus === 'completed' || (it.status === 'accepted' && it.requestStatus === 'completed'))
     .reduce((sum, it) => sum + (it.price || 0), 0)
   const counterCount = items.filter(it => it.status === 'submitted' && it.clientCounterStatus === 'pending').length
 
@@ -103,7 +103,7 @@ function MyOffers() {
       const missionStatus = it.requestStatus || it.status
       const matchesStatus =
         (statusFilter === 'all' && !['completed', 'cancelled', 'rejected', 'expired', 'withdrawn'].includes(missionStatus))
-        || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress'].includes(missionStatus))
+        || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress', 'accepted'].includes(missionStatus))
         || (statusFilter === 'done' && ['completed', 'cancelled', 'rejected', 'expired', 'withdrawn'].includes(missionStatus))
         || (statusFilter === 'pending' && it.status === 'submitted')
         || (statusFilter === 'counter' && it.status === 'submitted' && it.clientCounterStatus === 'pending')

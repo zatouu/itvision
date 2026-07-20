@@ -56,6 +56,16 @@ export async function GET(request: NextRequest) {
         description: t.description || null,
         createdAt: t.createdAt,
       })),
+      cashHistory: (wallet.txns || [])
+        .slice(-50)
+        .reverse()
+        .map((t: any, i: number) => ({
+          id: `${t.ref || 'txn'}-${t.createdAt ? new Date(t.createdAt).getTime() : i}`,
+          type: t.type,
+          amount: t.amount,
+          ref: t.ref || null,
+          createdAt: t.createdAt,
+        })),
       profile: {
         loyaltyTier: marketplaceProfile?.loyaltyTier || marketplaceProfile?.marketplaceTier || 'standard',
         referralBalance: marketplaceProfile?.referralBalance || 0,
