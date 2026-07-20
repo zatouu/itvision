@@ -1,0 +1,49 @@
+HTTP/1.1 301 Moved Permanently
+Content-Length: 0
+Server: Kestrel
+Location: https://aka.ms/download-jdk/microsoft-jdk-17.0.19-windows-x64.zip
+Request-Context: appId=cid-v1:d94c0f68-64bf-4036-8409-a0e761bb7ee1
+X-Response-Cache-Status: True
+Expires: Sun, 19 Jul 2026 18:25:02 GMT
+Cache-Control: max-age=0, no-cache, no-store
+Pragma: no-cache
+Date: Sun, 19 Jul 2026 18:25:02 GMT
+Connection: keep-alive
+Strict-Transport-Security: max-age=31536000 ; includeSubDomains
+
+HTTP/1.1 301 Moved Permanently
+Content-Length: 0
+Server: Kestrel
+Location: https://download.visualstudio.microsoft.com/download/pr/8fdc33a5-2cf8-4e3a-82a8-abe718da0aea/f09364512aaaabfd27bcd1014f3f66a6/microsoft-jdk-17.0.19-windows-x64.zip
+Request-Context: appId=cid-v1:d94c0f68-64bf-4036-8409-a0e761bb7ee1
+X-Response-Cache-Status: True
+Expires: Sun, 19 Jul 2026 18:25:02 GMT
+Cache-Control: max-age=0, no-cache, no-store
+Pragma: no-cache
+Date: Sun, 19 Jul 2026 18:25:02 GMT
+Connection: keep-alive
+Strict-Transport-Security: max-age=31536000 ; includeSubDomains
+
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 186907952
+Content-Type: application/octet-stream
+Cache-Control: public, max-age=259200
+ETag: "0x4FE425AFF70371FC86109465FB1675A61D6A264361DD360354AA10B81D9D461B"
+Last-Modified: Tue, 21 Apr 2026 05:37:45 GMT
+X-Ms-ApiVersion: Distribute 1.2
+X-Ms-Region: prod-weu-z1
+Content-Disposition: attachment; filename=microsoft-jdk-17.0.19-windows-x64.zip; filename*=UTF-8''microsoft-jdk-17.0.19-windows-x64.zip
+Via: 1.1 varnish, 1.1 varnish, 1.1 varnish
+Accept-Ranges: bytes
+Date: Sun, 19 Jul 2026 18:25:03 GMT
+Age: 241642
+X-Served-By: cache-ams2100140-AMS, cache-ams-eham8680048-AMS, cache-mxp6983-MXP
+X-Cache: HIT, HIT, HIT
+X-Cache-Hits: 18409, 19324, 1374
+X-Timer: S1784485503.289514,VS0,VE0
+X-CID: 3
+X-OSID: 3
+x-rewritten-path: /DSDownloadAPI/Download.ashx/dscdnstatic/VSSETUPPROD/8fdc33a5-2cf8-4e3a-82a8-abe718da0aea/f09364512aaaabfd27bcd1014f3f66a6/microsoft-jdk-17.0.19-windows-x64.zip
+X-CCC: IT
+
