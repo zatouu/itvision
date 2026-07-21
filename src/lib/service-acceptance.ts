@@ -21,20 +21,13 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
   const losingOffers = await Offer.find({ requestId: sr._id, _id: { $ne: offer._id } }).select('_id providerId').lean()
   const cfg = await getAppConfig()
 
-  const assignedAt = new Date()
-  const claimedRequest = await ServiceRequest.findOneAndUpdate(
-    { _id: sr._id, status: { $in: ['created', 'pending_offers'] } },
-    {
-      $set: {
-        status: 'assigned',
-        assignedProviderId: offer.providerId,
-        selectedOfferId: offer._id,
-        assignedAt,
-      },
-    },
-    { new: true }
-  )
-  if (!claimedRequest) {
+  // Utiliser le Mission Lifecycle Manager pour toute transition d'état.
+  const lifecycle = await import('./mission-lifecycle')
+  const acceptedRequest = await lifecycle.transition(String(sr._id), 'accepted', {
+    actor: { userId: String(sr.clientId), role: 'client' },
+    metadata: { acceptedOfferId: String(offer._id), assignedProviderId: String(offer.providerId) },
+  })
+  if (!acceptedRequest) {
     throw new Error('Mission déjà attribuée ou indisponible')
   }
 
@@ -55,19 +48,19 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
     }
   } catch (error) {
     await ServiceRequest.updateOne(
-      { _id: sr._id, status: 'assigned', selectedOfferId: offer._id },
+      { _id: sr._id, status: 'accepted', selectedOfferId: offer._id },
       {
-        $set: { status: 'pending_offers' },
+        $set: { status: 'broadcasted' },
         $unset: { assignedProviderId: 1, selectedOfferId: 1, assignedAt: 1 },
       }
     )
     throw error
   }
 
-  sr.status = claimedRequest.status
-  sr.assignedProviderId = claimedRequest.assignedProviderId
-  sr.selectedOfferId = claimedRequest.selectedOfferId
-  sr.assignedAt = claimedRequest.assignedAt
+  sr.status = acceptedRequest.status
+  sr.assignedProviderId = acceptedRequest.assignedProviderId
+  sr.selectedOfferId = acceptedRequest.selectedOfferId
+  sr.assignedAt = acceptedRequest.assignedAt
 
   await Offer.updateOne({ _id: offer._id }, { status: 'accepted' })
   await Offer.updateMany(
@@ -99,6 +92,11 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
         text: description,
       })
     }
+  }
+
+  if (initialChatMessage) {
+    const lifecycle = await import('./mission-lifecycle')
+    await lifecycle.touch(requestId, 'chat', clientId)
   }
 
   if (io) {

@@ -17,29 +17,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || undefined
     const mine = searchParams.get('mine')
+    const includeArchived = searchParams.get('includeArchived') === '1'
     const q: any = {}
     if (status) q.status = status
-    else q.status = { $ne: 'expired' } // masquer les demandes expirées par défaut
+    else q.status = { $nin: includeArchived ? ['expired'] : ['expired', 'archived'] } // masquer expirées et archivées par défaut
     if (mine === '1') {
       const { userId } = await requireAuth(request)
       q.clientId = userId
     }
 
-    // Auto-expiration paresseuse: marque "expired" toute demande non assignée dont expiresAt est dépassé.
-    // On gère aussi les anciennes demandes créées AVANT l'ajout du champ expiresAt (legacy):
-    // dans ce cas on se base sur l'âge via createdAt.
+    // Auto-expiration paresseuse: seulement pour les missions qui n'ont jamais commencé.
+    // created / broadcasted / pending_offers (legacy) peuvent passer à expired si expiresAt est dépassé.
     const now = new Date()
     const legacyCutoff = new Date(now.getTime() - REQUEST_TTL_HOURS * 60 * 60 * 1000)
     await ServiceRequest.updateMany(
       {
-        status: { $in: ['created', 'pending_offers'] },
+        status: { $in: ['created', 'broadcasted', 'pending_offers'] },
         $or: [
           { expiresAt: { $lt: now } },
           // expiresAt null OU absent (legacy) → expirer si la demande est plus vieille que le TTL
           { expiresAt: null, createdAt: { $lt: legacyCutoff } },
         ],
       },
-      { $set: { status: 'expired', expiredAt: now } }
+      { $set: { status: 'expired', expiredAt: now, archivedAt: null, archivedReason: null } }
     ).catch(() => {})
 
     const items = await ServiceRequest.find(q).sort({ createdAt: -1 }).limit(100).lean()

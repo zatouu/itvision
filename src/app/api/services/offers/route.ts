@@ -176,7 +176,16 @@ export async function POST(request: NextRequest) {
       }
     }
     const created = offer
-    if (sr.status === 'created') { sr.status = 'pending_offers'; await sr.save() }
+    if (sr.status === 'created') {
+      const lifecycle = await import('@/lib/mission-lifecycle')
+      await lifecycle.transition(String(sr._id), 'broadcasted', {
+        actor: { userId, role: 'provider' },
+        metadata: { source: 'first-offer' },
+      })
+    } else {
+      const lifecycle = await import('@/lib/mission-lifecycle')
+      await lifecycle.touch(String(sr._id), 'offer', userId)
+    }
 
     if (cfg.credits?.unlockEnabled === true) {
       await MissionUnlock.updateOne(

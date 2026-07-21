@@ -8,6 +8,7 @@ const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
 const { jwtVerify } = require('jose')
+const cron = require('node-cron')
 const geo = require('./lib/redis-geo')
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -476,6 +477,17 @@ app.prepare().then(() => {
       timestamp: new Date()
     })
   })
+
+  // Mission lifecycle inactivity job: toutes les heures
+  try {
+    const { runInactivityJob } = require('./src/lib/mission-inactivity-job')
+    cron.schedule('0 * * * *', () => {
+      runInactivityJob().catch((err) => console.error('[cron] inactivity job', err))
+    })
+    console.log('⏰ Inactivity job planifié (toutes les heures)')
+  } catch (err) {
+    console.error('[server] Impossible de planifier le job d\'inactivité:', err.message)
+  }
 
   // Periodic cleanup of stale provider positions (every 10 min)
   const cleanupInterval = setInterval(async () => {

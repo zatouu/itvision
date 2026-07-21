@@ -23,8 +23,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
 
-    // Cas idempotent: si le même prestataire a déjà été assigné (ex: timeout client), répondre succès
-    if (sr.status === 'assigned' || sr.status === 'in_progress') {
+    // Cas idempotent: si le même prestataire a déjà été accepté (ex: timeout client), répondre succès
+    if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(sr.status)) {
       if (String(sr.selectedOfferId || '') === String(offerId)) {
         return NextResponse.json({ success: true, alreadyAssigned: true, requestId: id })
       }
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Une mission clôturée ne peut plus accepter d'offre
-    if (sr.status === 'completed' || sr.status === 'cancelled') {
+    if (['completed', 'cancelled', 'expired', 'archived', 'dispute'].includes(sr.status)) {
       return NextResponse.json({ error: 'Mission déjà clôturée' }, { status: 409 })
     }
 

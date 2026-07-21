@@ -1,6 +1,6 @@
 import mongoose, { Schema, model, models } from 'mongoose'
 
-export type ServiceRequestStatus = 'created' | 'pending_offers' | 'assigned' | 'provider_arriving' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
+export type ServiceRequestStatus = 'created' | 'broadcasted' | 'pending_offers' | 'accepted' | 'assigned' | 'on_the_way' | 'provider_arriving' | 'arrived' | 'in_progress' | 'paused' | 'awaiting_validation' | 'completed' | 'cancelled' | 'expired' | 'dispute' | 'archived'
 
 const MediaSchema = new Schema({
   url: { type: String, required: true },
@@ -14,6 +14,16 @@ const GeoPointSchema = new Schema({
   address: { type: String },
 }, { _id: false })
 
+const PauseLogSchema = new Schema({
+  startedAt: { type: Date, required: true },
+  endedAt: { type: Date },
+  pausedBy: { type: String, enum: ['client', 'provider', 'admin', 'system'], required: true },
+  pausedById: { type: String, required: true },
+  reason: { type: String, required: true },
+  comment: { type: String, maxlength: 1000 },
+  estimatedResumeAt: { type: Date },
+}, { _id: true })
+
 const ServiceRequestSchema = new Schema({
   clientId: { type: String, required: true },
   category: { type: String, required: true },
@@ -23,21 +33,53 @@ const ServiceRequestSchema = new Schema({
   budget: { type: Number, min: 0 },
   channel: { type: String, enum: ['web', 'pwa', 'mobile', 'whatsapp', 'callcenter'], default: 'web' },
   attributes: { type: Schema.Types.Mixed, default: {} },
-  status: { type: String, enum: ['created','pending_offers','assigned','provider_arriving','in_progress','completed','cancelled','expired'], default: 'created' },
+  status: { type: String, enum: [
+    'created',
+    'broadcasted',
+    'pending_offers',
+    'accepted',
+    'assigned',
+    'on_the_way',
+    'provider_arriving',
+    'arrived',
+    'in_progress',
+    'paused',
+    'awaiting_validation',
+    'completed',
+    'cancelled',
+    'expired',
+    'dispute',
+    'archived'
+  ], default: 'created' },
   assignedProviderId: { type: Schema.Types.ObjectId, ref: 'User' },
   selectedOfferId: { type: Schema.Types.ObjectId, ref: 'Offer' },
   assignedAt: { type: Date },
   providerArrivingAt: { type: Date },
+  arrivedAt: { type: Date },
   startedAt: { type: Date },
   completedAt: { type: Date },
+  validatedByClientAt: { type: Date },
+  providerCompletedAt: { type: Date },
   cancelledAt: { type: Date },
   cancelledBy: { type: String, enum: ['client', 'provider', 'admin', 'system'] },
   cancelReason: { type: String, maxlength: 500 },
   // Durée de validité d'une demande (par défaut 24h après création)
   expiresAt: { type: Date },
   expiredAt: { type: Date },
+  broadcastedAt: { type: Date },
+  archivedAt: { type: Date },
+  archivedReason: { type: String },
+  disputeOpenedAt: { type: Date },
+  disputeReason: { type: String },
+  pausedFromStatus: { type: String },
+  pauseLog: { type: [PauseLogSchema], default: [] },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },
+  lastActivityAt: { type: Date, default: Date.now },
+  lastActivityType: { type: String },
+  lastActivityBy: { type: String },
+  inactivityReminderCount: { type: Number, default: 0 },
+  inactivityReminderAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })

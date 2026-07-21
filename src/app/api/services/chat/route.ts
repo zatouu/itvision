@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     const isProvider = String(sr.assignedProviderId) === String(userId)
     if (!isClient && !isProvider) return NextResponse.json({ error: 'Interdit' }, { status: 403 })
 
-    // Mission doit être active
-    if (!['assigned', 'in_progress', 'provider_arriving'].includes(sr.status)) {
+    // Mission doit être active (statuts legacy + nouveaux)
+    if (!['assigned', 'accepted', 'provider_arriving', 'on_the_way', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(sr.status)) {
       return NextResponse.json({ error: 'Chat disponible uniquement pendant la mission active' }, { status: 400 })
     }
 
@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
       senderRole,
       text: text.trim().slice(0, 1000),
     })
+
+    // Mettre à jour la fraîcheur de la mission
+    const lifecycle = await import('@/lib/mission-lifecycle')
+    await lifecycle.touch(requestId, 'chat', userId)
 
     // Push notification au destinataire (fire & forget)
     const recipientId = isClient ? String(sr.assignedProviderId) : String(sr.clientId)
