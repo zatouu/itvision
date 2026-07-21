@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (String(sr.clientId) !== String(userId)) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
-    const offers = await Offer.find({ requestId: id }).sort({ price: 1 }).lean()
+    const offers = await Offer.find({ requestId: id }).sort({ updatedAt: -1 }).lean()
 
     // Enrichir chaque offre avec la note moyenne du provider
     const providerIds = [...new Set(offers.map((o: any) => String(o.providerId)))]

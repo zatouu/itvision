@@ -9,6 +9,7 @@ import { closeDispatch } from '@/lib/visibility'
 import { creditReferrerOnFirstMission } from '@/lib/referral'
 import { getAppConfig, refundEscrowPoints, refundMissionUnlock, releaseMissionReservation, creditCashBalance } from '@/lib/wallet'
 import MissionUnlock from '@/lib/models/MissionUnlock'
+import User from '@/lib/models/User'
 import {
   incrementProviderCompleted,
   penalizeProviderCancellation,
@@ -28,18 +29,46 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!isClient && !isProvider) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
-    const offerCount = await Offer.countDocuments({ requestId: id })
-    const pendingOfferCount = await Offer.countDocuments({ requestId: id, status: 'submitted' })
+
+    const [clientUser, providerUser] = await Promise.all([
+      User.findById(sr.clientId).select('name phone').lean(),
+      sr.assignedProviderId ? User.findById(sr.assignedProviderId).select('name phone').lean() : null,
+    ])
+
+    const allOffers = await Offer.find({ requestId: id }).select('status createdAt updatedAt').lean()
+    const offerCount = allOffers.length
+    const pendingOfferCount = allOffers.filter((o: any) => o.status === 'submitted').length
+    const readAt = (sr as any).clientOffersReadAt
+    const unseenOfferCount = allOffers.filter((o: any) => {
+      if (o.status !== 'submitted') return false
+      const offerUpdatedAt = (o as any).updatedAt || o.createdAt
+      return !readAt || (offerUpdatedAt && new Date(offerUpdatedAt).getTime() > new Date(readAt).getTime())
+    }).length
     let acceptedOffer = null
     if (sr.selectedOfferId) {
-      acceptedOffer = await Offer.findById(sr.selectedOfferId).lean()
+      acceptedOffer = await Offer.findById(sr.selectedOfferId).lean() as any
+      if (acceptedOffer && providerUser) {
+        acceptedOffer.providerName = acceptedOffer.providerName || providerUser.name
+        acceptedOffer.providerPhone = providerUser.phone
+      }
     }
     let payment = null
     if (sr.selectedOfferId) {
       payment = await Payment.findOne({ requestId: id, status: { $in: ['pending', 'held', 'released', 'refunded', 'failed'] } })
         .select('status provider phase amount depositAmount balanceAmount useEscrow').lean()
     }
-    return NextResponse.json({ item: { ...sr, offerCount, pendingOfferCount, acceptedOffer, payment } })
+    return NextResponse.json({ item: {
+      ...sr,
+      offerCount,
+      pendingOfferCount,
+      unseenOfferCount,
+      acceptedOffer,
+      payment,
+      clientName: clientUser?.name,
+      clientPhone: clientUser?.phone,
+      providerName: providerUser?.name,
+      providerPhone: providerUser?.phone,
+    }})
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[GET /api/services/requests/:id]', e)

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       ))
     }
 
-    const items = await Offer.find(q).sort({ createdAt: -1 }).limit(100).lean()
+    const items = await Offer.find(q).sort({ updatedAt: -1 }).limit(100).lean()
 
     // Si c'est la vue "mes offres" du provider, enrichir avec le statut de la mission
     if (mine === '1' && items.length > 0) {
@@ -197,6 +197,7 @@ export async function POST(request: NextRequest) {
         validityMinutes: vm,
         validUntil,
         createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
       })
       // Notifier le client dans sa room user-{clientId} pour rafraîchir my-requests / home
       io.to(`user-${sr.clientId}`).emit('user:offer-received', {

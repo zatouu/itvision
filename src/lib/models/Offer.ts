@@ -17,11 +17,10 @@ const OfferSchema = new Schema({
   clientCounterAt: { type: Date },
   clientCounterComment: { type: String },
   clientCounterStatus: { type: String, enum: ['pending','accepted','rejected'] },
-  createdAt: { type: Date, default: Date.now }
-}, { timestamps: { createdAt: 'createdAt', updatedAt: false } })
+}, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 
-OfferSchema.index({ requestId: 1, createdAt: -1 })
-OfferSchema.index({ providerId: 1, createdAt: -1 })
+OfferSchema.index({ requestId: 1, updatedAt: -1 })
+OfferSchema.index({ providerId: 1, updatedAt: -1 })
 OfferSchema.index({ requestId: 1, providerId: 1 }, { unique: true })
 
 const Offer = models.Offer || model('Offer', OfferSchema)

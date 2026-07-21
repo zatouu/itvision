@@ -36,6 +36,8 @@ const ServiceRequestSchema = new Schema({
   // Durée de validité d'une demande (par défaut 24h après création)
   expiresAt: { type: Date },
   expiredAt: { type: Date },
+  // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
+  clientOffersReadAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })

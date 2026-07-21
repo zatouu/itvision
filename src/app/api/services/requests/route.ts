@@ -44,17 +44,31 @@ export async function GET(request: NextRequest) {
 
     const items = await ServiceRequest.find(q).sort({ createdAt: -1 }).limit(100).lean()
 
-    // Enrichir avec offerCount en une seule requête agrégée
+    // Enrichir avec offerCount / pendingOfferCount / unseenOfferCount
     if (items.length > 0) {
       const ids = items.map((i: any) => i._id)
-      const counts = await Offer.aggregate([
-        { $match: { requestId: { $in: ids } } },
-        { $group: { _id: '$requestId', count: { $sum: 1 }, pending: { $sum: { $cond: [{ $eq: ['$status', 'submitted'] }, 1, 0] } } } }
-      ])
-      const countMap = Object.fromEntries(counts.map((c: any) => [String(c._id), { total: c.count, pending: c.pending }]))
+      const offers = await Offer.find({ requestId: { $in: ids } }).select('requestId status createdAt updatedAt').lean()
+      const countsByRequest = new Map<string, { total: number; pending: number; unseen: number }>()
+      for (const item of items as any[]) {
+        countsByRequest.set(String(item._id), { total: 0, pending: 0, unseen: 0 })
+      }
+      for (const offer of offers as any[]) {
+        const reqId = String(offer.requestId)
+        const entry = countsByRequest.get(reqId)
+        if (!entry) continue
+        entry.total++
+        if (offer.status === 'submitted') {
+          entry.pending++
+          const readAt = (items as any[]).find((it: any) => String(it._id) === reqId)?.clientOffersReadAt
+          const offerUpdatedAt = offer.updatedAt || offer.createdAt
+          if (!readAt || (offerUpdatedAt && new Date(offerUpdatedAt).getTime() > new Date(readAt).getTime())) {
+            entry.unseen++
+          }
+        }
+      }
       const enriched = items.map((item: any) => {
-        const c = countMap[String(item._id)] || { total: 0, pending: 0 }
-        return { ...item, offerCount: c.total, pendingOfferCount: c.pending }
+        const c = countsByRequest.get(String(item._id)) || { total: 0, pending: 0, unseen: 0 }
+        return { ...item, offerCount: c.total, pendingOfferCount: c.pending, unseenOfferCount: c.unseen }
       })
       return NextResponse.json({ items: enriched })
     }

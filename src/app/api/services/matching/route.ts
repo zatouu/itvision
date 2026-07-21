@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
+import Offer from '@/lib/models/Offer'
 import MissionUnlock from '@/lib/models/MissionUnlock'
 import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
@@ -121,6 +122,13 @@ export async function GET(request: NextRequest) {
     }).select('requestId status').lean()
     const unlockedSet = new Set(myUnlocks.map((u: any) => String(u.requestId)))
 
+    const myOffers = await Offer.find({
+      requestId: { $in: requestIds },
+      providerId: userId,
+      status: { $in: ['submitted', 'expired'] },
+    }).select('requestId price etaMinutes comment validityMinutes validUntil createdAt updatedAt status').lean()
+    const myOfferMap = new Map(myOffers.map((o: any) => [String(o.requestId), o]))
+
     const withScore = await Promise.all(items.map(async (it: any) => {
       const [lng, lat] = (it.location?.coordinates || [q.lng, q.lat])
       const distMeters = haversineMeters(q.lat, q.lng, lat, lng)
@@ -136,12 +144,15 @@ export async function GET(request: NextRequest) {
       const hasAudio = (it.media || []).some((m: any) => m.type === 'audio')
       const hasPhoto = (it.media || []).some((m: any) => m.type === 'image')
       const hasVideo = (it.media || []).some((m: any) => m.type === 'video')
+      const myOffer = myOfferMap.get(String(it._id)) || null
       return {
         ...it,
         _score: score(distMeters, it.createdAt),
         _distance: Math.round(distMeters),
         _unlockCost: cost.cost,
         _unlockedByMe: unlockedSet.has(String(it._id)),
+        _hasOffered: !!myOffer,
+        _myOffer: myOffer,
         _hasAudio: hasAudio,
         _hasPhoto: hasPhoto,
         _hasVideo: hasVideo,
