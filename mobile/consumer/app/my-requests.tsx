@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPatch } from '../src/api'
 import { confirm, notify } from '../src/confirm'
@@ -88,16 +88,24 @@ function MyRequests() {
 
   useEffect(() => { load() }, [])
 
-  // WebSocket: rafraîchir quand une offre arrive ou qu'un provider est assigné
+  useFocusEffect(
+    useCallback(() => {
+      load(true)
+    }, [load])
+  )
+
+  // WebSocket: rafraîchir quand une offre arrive, qu'un provider est assigné ou qu'un statut change
   // Le serveur joint automatiquement user-{userId} à la connexion (cf server.js:111)
   useEffect(() => {
     const socket = connectSocket()
     const refresh = () => load(true)
     socket.on('user:offer-received', refresh)
     socket.on('user:request-assigned', refresh)
+    socket.on('request:status-changed', refresh)
     return () => {
       socket.off('user:offer-received', refresh)
       socket.off('user:request-assigned', refresh)
+      socket.off('request:status-changed', refresh)
     }
   }, [load])
 
@@ -217,9 +225,9 @@ function MyRequests() {
                     <View style={s.cardTitleRow}>
                       <Text style={s.cardTitle} numberOfLines={1}>{title}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                        {it.pendingOfferCount > 0 && (
+                        {(it.unseenOfferCount ?? it.pendingOfferCount) > 0 && (
                           <View style={s.offerCountBadge}>
-                            <Text style={s.offerCountText}>{it.pendingOfferCount}</Text>
+                            <Text style={s.offerCountText}>{it.unseenOfferCount ?? it.pendingOfferCount}</Text>
                           </View>
                         )}
                         <View style={[s.statusBadge, { backgroundColor: st.bg }]}>

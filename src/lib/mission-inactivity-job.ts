@@ -1,7 +1,7 @@
 import { connectMongoose } from './mongoose'
 import ServiceRequest from './models/ServiceRequest'
 import { sendPushToUser } from './push'
-import { archive } from './mission-lifecycle'
+import { archive, expire } from './mission-lifecycle'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -11,6 +11,9 @@ export async function runInactivityJob() {
   const now = new Date()
 
   const activeStatuses = ['created', 'broadcasted', 'pending_offers', 'accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
+
+  // Expiration automatique des demandes non acceptées dont expiresAt est dépassé
+  await expireOldRequests(now)
 
   const missions = await ServiceRequest.find({
     status: { $in: activeStatuses },
@@ -69,6 +72,24 @@ export async function runInactivityJob() {
 
   console.log(`[InactivityJob] processed=${missions.length} archived=${archivedCount} notified=${notifiedCount}`)
   return { processed: missions.length, archived: archivedCount, notified: notifiedCount }
+}
+
+async function expireOldRequests(now: Date) {
+  const expired = await ServiceRequest.find({
+    status: { $in: ['created', 'broadcasted', 'pending_offers'] },
+    $or: [
+      { expiresAt: { $lte: now } },
+      { createdAt: { $lte: new Date(now.getTime() - 7 * DAY) }, expiresAt: { $exists: false } },
+    ],
+  }).select('_id').lean() as any[]
+
+  for (const m of expired) {
+    try {
+      await expire(String(m._id))
+    } catch (err) {
+      console.error('[expireOldRequests]', String(m._id), err)
+    }
+  }
 }
 
 async function sendInactivityReminder(mission: any, body: string) {

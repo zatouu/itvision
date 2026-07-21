@@ -58,11 +58,6 @@ function Home() {
     return unsub
   }, [])
 
-  useEffect(() => {
-    const unsub = onNearbyRequest(() => setNearbyCount(c => c + 1))
-    return unsub
-  }, [])
-
   const handleToggle = async () => {
     if (busy) return
     setBusy(true)
@@ -85,7 +80,8 @@ function Home() {
       if (last) {
         const { latitude, longitude } = last.coords
         const m: any = await apiGet(`/api/services/matching?lng=${longitude}&lat=${latitude}&radiusKm=10&excludeMine=true`)
-        setNearbyCount(Array.isArray(m?.items) ? m.items.length : 0)
+        const newItems = Array.isArray(m?.items) ? m.items : []
+        setNearbyCount(newItems.filter((it: any) => !it._hasOffered).length)
       }
     } catch (e) {
       console.warn('[Home] nearby count failed', e)
@@ -98,6 +94,7 @@ function Home() {
       onOfferAccepted(() => loadDashboard()),
       onOfferRejected(() => loadDashboard()),
       onMissionStatusChanged(() => loadDashboard()),
+      onNearbyRequest(() => loadDashboard()),
     ]
     return () => { unsubs.forEach(u => u()) }
   }, [loadDashboard])

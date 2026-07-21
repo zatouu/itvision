@@ -131,7 +131,7 @@ function PaymentScreen() {
         pollRef.current = setInterval(async () => {
           try {
             const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
-            if (r.item?.status === 'assigned' || r.item?.status === 'provider_arriving') {
+            if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
               stopPolling()
               Alert.alert(
                 t('payment.initiated'),

@@ -120,7 +120,7 @@ function LiveRouteMapComponent({
   }, [providerLocation?.lat, providerLocation?.lng, origin?.lat, origin?.lng])
 
   const hasRoute = !!route?.polyline?.length
-  const isTracking = status === 'provider_arriving' || status === 'in_progress' || status === 'assigned'
+  const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(status || '')
   const showVehicle = isTracking && activeOrigin
 
   const computeRouteFallback = useCallback(() => {

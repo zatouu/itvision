@@ -71,7 +71,12 @@ const ServiceRequestSchema = new Schema({
   archivedReason: { type: String },
   disputeOpenedAt: { type: Date },
   disputeReason: { type: String },
+  escrowLocked: { type: Boolean, default: false },
+  escrowLockedAt: { type: Date },
+  escrowLockedBy: { type: String },
   pausedFromStatus: { type: String },
+  anomalyFlags: { type: [String], default: [] },
+  anomalyScore: { type: Number, default: 0 },
   pauseLog: { type: [PauseLogSchema], default: [] },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },

@@ -2,7 +2,7 @@ import { Text, View, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { useEffect, useState, useCallback, useRef } from 'react'
 import * as Location from 'expo-location'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
 import { getAuthUser } from '../src/auth'
@@ -77,8 +77,8 @@ function Home() {
       mapRef.current.animateToRegion({
         latitude: userLocation.lat,
         longitude: userLocation.lng,
-        latitudeDelta: 0.06,
-        longitudeDelta: 0.06,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
       }, 500)
     }
   }, [userLocation])
@@ -108,8 +108,25 @@ function Home() {
     const unsub = onOnlineProvidersCount((data) => setOnlineProviders(data.count))
     requestOnlineProviders()
     const interval = setInterval(() => requestOnlineProviders(), 15000)
-    return () => { unsub(); clearInterval(interval) }
-  }, [])
+    // Temps réel : offres et changements de statut
+    const refresh = () => loadRecent()
+    socket.on('user:offer-received', refresh)
+    socket.on('user:request-assigned', refresh)
+    socket.on('request:status-changed', refresh)
+    return () => {
+      unsub()
+      clearInterval(interval)
+      socket.off('user:offer-received', refresh)
+      socket.off('user:request-assigned', refresh)
+      socket.off('request:status-changed', refresh)
+    }
+  }, [loadRecent])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecent()
+    }, [loadRecent])
+  )
 
   useEffect(() => {
     Location.requestForegroundPermissionsAsync()
@@ -190,19 +207,10 @@ function Home() {
     return () => { mounted = false; clearInterval(interval) }
   }, [recent, userLocation])
 
-  // Fit map to show user + all provider markers whenever they change
-  useEffect(() => {
-    if (!mapRef.current || !userLocation || liveProviders.length === 0) return
-    const coords = [
-      { latitude: userLocation.lat, longitude: userLocation.lng },
-      ...liveProviders.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => ({ latitude: p.lat, longitude: p.lng })),
-    ]
-    if (coords.length > 1) {
-      mapRef.current.fitToCoordinates(coords, { edgePadding: { top: 40, right: 40, bottom: 40, left: 40 }, animated: true })
-    }
-  }, [userLocation, liveProviders])
-
-  const offersPending = recent.filter(it => it.status === 'pending_offers' && it.pendingOfferCount > 0)
+  const offersPending = recent.filter(it => {
+    const unseen = it.unseenOfferCount ?? it.pendingOfferCount
+    return it.status === 'pending_offers' && unseen > 0
+  })
   const activeMissions = recent.filter(it => ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
   const otherRecent = recent.filter(it => !['pending_offers', 'assigned', 'provider_arriving', 'in_progress'].includes(it.status))
   const hasNoActivity = recent.length === 0 && !loadingRecent
@@ -372,8 +380,8 @@ function Home() {
               initialRegion={{
                 latitude: userLocation.lat,
                 longitude: userLocation.lng,
-                latitudeDelta: 0.06,
-                longitudeDelta: 0.06,
+                latitudeDelta: 0.015,
+                longitudeDelta: 0.015,
               }}
               showsUserLocation
               showsMyLocationButton={false}
@@ -404,17 +412,14 @@ function Home() {
                   <Marker
                     key={p.providerId}
                     coordinate={{ latitude: p.lat, longitude: p.lng }}
+                    anchor={{ x: 0.5, y: 1 }}
                   >
-                    <View style={[s.providerMarker, { borderColor: statusColor }]}>
-                      <Text style={[s.providerMarkerText, { color: statusColor }]}>{(p.name || 'P').slice(0, 1).toUpperCase()}</Text>
-                    </View>
-                    <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
-                    {(sub || label) ? (
-                      <View style={s.providerMarkerCallout}>
-                        <Text style={s.providerMarkerStatus}>{label}</Text>
-                        {!!sub && <Text style={s.providerMarkerSub}>{sub}</Text>}
+                    <View style={{ alignItems: 'center' }}>
+                      <View style={[s.providerMarker, { borderColor: statusColor }]}>
+                        <View style={[s.providerMarkerDot, { backgroundColor: statusColor }]} />
                       </View>
-                    ) : null}
+                      <View style={[s.providerMarkerTail, { borderTopColor: statusColor }]} />
+                    </View>
                   </Marker>
                 )
               })}
@@ -627,12 +632,9 @@ const s = StyleSheet.create({
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
   nearbyCountBadge: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, minWidth: 28, alignItems: 'center' },
   nearbyCountText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: '#fff' },
-  providerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 3, ...shadows.md },
-  providerMarkerText: { fontSize: 13, fontWeight: typography.weight.extrabold as any },
-  providerMarkerTail: { width: 0, height: 0, backgroundColor: 'transparent', borderStyle: 'solid', borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -3 },
-  providerMarkerCallout: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 8, paddingVertical: 4, ...shadows.md, alignSelf: 'center', marginBottom: 6, minWidth: 80 },
-  providerMarkerStatus: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
-  providerMarkerSub: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 2 },
+  providerMarker: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, ...shadows.sm },
+  providerMarkerDot: { width: 7, height: 7, borderRadius: 4 },
+  providerMarkerTail: { width: 0, height: 0, backgroundColor: 'transparent', borderStyle: 'solid', borderLeftWidth: 4, borderRightWidth: 4, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -2 },
   onlineBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.md },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
   onlineText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },

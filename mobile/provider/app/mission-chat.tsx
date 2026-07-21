@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,8 @@ import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
 import { getAuthUser } from '../src/auth'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import { ArrowLeft, Send } from 'lucide-react-native'
+import { ArrowLeft, Send, Phone, MessageCircle } from 'lucide-react-native'
+import { colors, spacing, radius, typography, shadows } from '../src/design'
 
 type Message = {
   _id: string
@@ -16,6 +17,54 @@ type Message = {
   text: string
   createdAt: string
   pending?: boolean
+}
+
+function getInitials(name?: string) {
+  return (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+}
+
+function normalizePhone(raw?: string) {
+  if (!raw) return ''
+  return raw.replace(/[\s\-\(\)\.]/g, '')
+}
+
+function callPhone(phone?: string) {
+  if (!phone) return
+  const p = normalizePhone(phone)
+  if (!p) return
+  const url = `tel:${p}`
+  Linking.canOpenURL(url).then(supported => {
+    if (supported) return Linking.openURL(url)
+    return Linking.openURL(url)
+  }).catch(() => {
+    Alert.alert('Appel impossible', `Impossible d'appeler ${p}`)
+  })
+}
+
+function openWhatsApp(phone?: string) {
+  if (!phone) return
+  const digits = phone.replace(/[^0-9]/g, '')
+  if (!digits) return
+  const url = `https://wa.me/${digits}`
+  Linking.canOpenURL(url).then(supported => {
+    if (supported) return Linking.openURL(url)
+    return Linking.openURL(url)
+  }).catch(() => {})
+}
+
+function isSameDay(a: string, b: string) {
+  const da = new Date(a)
+  const db = new Date(b)
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate()
+}
+
+function formatDay(dateStr: string, t: (k: string) => string) {
+  const now = new Date()
+  if (isSameDay(dateStr, now.toISOString())) return t('chat.today') || "Aujourd'hui"
+  const y = new Date(now)
+  y.setDate(y.getDate() - 1)
+  if (isSameDay(dateStr, y.toISOString())) return t('chat.yesterday') || 'Hier'
+  return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 function MissionChat() {
@@ -43,7 +92,6 @@ function MissionChat() {
 
   useEffect(() => { loadMessages() }, [loadMessages])
 
-  // WebSocket temps réel
   useEffect(() => {
     if (!id) return
     const socket = connectSocket()
@@ -52,7 +100,6 @@ function MissionChat() {
     const handleMessage = (msg: Message) => {
       setMessages(prev => {
         if (prev.some(m => m._id === msg._id)) return prev
-        // Réconcilie un message optimiste local (même texte, encore pending)
         const optimisticIdx = prev.findIndex(m => m.pending && m.text === msg.text && m.senderRole === msg.senderRole)
         if (optimisticIdx >= 0) {
           const next = [...prev]
@@ -76,7 +123,6 @@ function MissionChat() {
     if (!trimmed || sending || !id) return
     setSending(true)
     setText('')
-    // Affichage optimiste immédiat
     const optimistic: Message = {
       _id: `local-${Date.now()}`,
       senderId: myId,
@@ -98,49 +144,60 @@ function MissionChat() {
     }
   }
 
-  const openWhatsApp = () => {
-    if (!clientPhone) return
-    const phone = clientPhone.replace(/[^0-9+]/g, '')
-    const url = `https://wa.me/${phone.replace('+', '')}`
-    Linking.openURL(url).catch(() => {})
-  }
-
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr)
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isMe = item.senderId === myId || item.senderRole === 'provider'
+    const showDate = index === 0 || !isSameDay(item.createdAt, messages[index - 1].createdAt)
     return (
-      <View style={[st.bubble, isMe ? st.bubbleMe : st.bubbleThem, item.pending && st.bubblePending]}>
-        <Text style={[st.bubbleText, isMe ? st.bubbleTextMe : st.bubbleTextThem]}>{item.text}</Text>
-        <Text style={[st.time, isMe ? st.timeMe : st.timeThem]}>{item.pending ? '⏳' : formatTime(item.createdAt)}</Text>
+      <View>
+        {showDate && (
+          <View style={st.dateRow}>
+            <Text style={st.dateChip}>{formatDay(item.createdAt, t)}</Text>
+          </View>
+        )}
+        <View style={[st.bubble, isMe ? st.bubbleMe : st.bubbleThem, item.pending && st.bubblePending]}>
+          <Text style={[st.bubbleText, isMe ? st.bubbleTextMe : st.bubbleTextThem]}>{item.text}</Text>
+          <Text style={[st.time, isMe ? st.timeMe : st.timeThem]}>{item.pending ? '⏳' : formatTime(item.createdAt)}</Text>
+        </View>
       </View>
     )
   }
 
+  const otherName = clientName || t('chat.defaultClient') || 'Client'
+  const hasPhone = !!clientPhone
+
   return (
     <SafeAreaView style={st.safe}>
-      {/* Header */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-          <ArrowLeft size={18} color="#0F172A" />
+          <ArrowLeft size={18} color={colors.text} />
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={st.headerTitle}>{clientName || 'Client'}</Text>
-          <Text style={st.headerSub}>{t('chat.title')}</Text>
+        <View style={st.avatar}>
+          <Text style={st.avatarText}>{getInitials(otherName)}</Text>
         </View>
-        {clientPhone && (
-          <TouchableOpacity onPress={openWhatsApp} style={st.waBtn}>
-            <Text style={st.waText}>{t('chat.whatsapp')}</Text>
-          </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={st.headerTitle}>{otherName}</Text>
+          <Text style={st.headerSub}>{hasPhone ? clientPhone : t('chat.title')}</Text>
+        </View>
+        {hasPhone && (
+          <View style={st.headerActions}>
+            <TouchableOpacity style={st.headerAction} onPress={() => callPhone(clientPhone)}>
+              <Phone size={20} color={colors.success} />
+            </TouchableOpacity>
+            <TouchableOpacity style={st.headerAction} onPress={() => openWhatsApp(clientPhone)}>
+              <MessageCircle size={20} color={colors.success} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         {loading ? (
-          <View style={st.center}><ActivityIndicator size="large" color="#059669" /></View>
+          <View style={st.center}><ActivityIndicator size="large" color={colors.success} /></View>
         ) : (
           <FlatList
             ref={flatListRef}
@@ -151,18 +208,18 @@ function MissionChat() {
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
               <View style={st.empty}>
+                <MessageCircle size={48} color={colors.textMuted} />
                 <Text style={st.emptyText}>{t('chat.empty')}</Text>
               </View>
             }
           />
         )}
 
-        {/* Input */}
         <View style={st.inputRow}>
           <TextInput
             style={st.input}
             placeholder={t('chat.placeholder')}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             value={text}
             onChangeText={setText}
             maxLength={1000}
@@ -183,33 +240,35 @@ function MissionChat() {
 }
 
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  backIcon: { color: '#0F172A' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  headerSub: { fontSize: 12, color: '#64748B' },
-  waBtn: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#DCFCE7', borderRadius: 8, borderWidth: 1, borderColor: '#BBF7D0' },
-  waText: { fontSize: 12, fontWeight: '700', color: '#15803D' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  backBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  headerTitle: { fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  headerSub: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerAction: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 16, paddingBottom: 8, gap: 6 },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyText: { fontSize: 14, color: '#94A3B8' },
-  bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 2 },
-  bubbleMe: { alignSelf: 'flex-end', backgroundColor: '#059669', borderBottomRightRadius: 4 },
-  bubbleThem: { alignSelf: 'flex-start', backgroundColor: '#fff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#E2E8F0' },
+  list: { padding: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
+  empty: { alignItems: 'center', paddingTop: spacing.xxxl },
+  emptyText: { fontSize: typography.base.fontSize, color: colors.textMuted, marginTop: spacing.md },
+  dateRow: { alignItems: 'center', marginVertical: spacing.sm },
+  dateChip: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.semibold as any, color: colors.textMuted, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
+  bubble: { maxWidth: '78%', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.xs, ...shadows.sm },
+  bubbleMe: { alignSelf: 'flex-end', backgroundColor: colors.success, borderBottomRightRadius: radius.sm },
+  bubbleThem: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
   bubblePending: { opacity: 0.6 },
-  bubbleText: { fontSize: 14, lineHeight: 20 },
-  bubbleTextMe: { color: '#fff' },
-  bubbleTextThem: { color: '#1E293B' },
-  time: { fontSize: 10, marginTop: 4 },
+  bubbleText: { fontSize: typography.base.fontSize, lineHeight: typography.base.lineHeight },
+  bubbleTextMe: { color: colors.surface },
+  bubbleTextThem: { color: colors.text },
+  time: { fontSize: typography.xs.fontSize, marginTop: spacing.xs },
   timeMe: { color: 'rgba(255,255,255,0.5)', textAlign: 'right' },
-  timeThem: { color: '#94A3B8' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  input: { flex: 1, borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: '#0F172A', maxHeight: 100, backgroundColor: '#F8FAFC' },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  timeThem: { color: colors.textMuted },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, padding: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
+  input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, fontSize: typography.base.fontSize, color: colors.text, maxHeight: 100, backgroundColor: colors.bg },
+  sendBtn: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.3 },
-  sendBtnText: { color: '#fff' },
 })
 
 export default withScreenBoundary(MissionChat, 'MissionChat')

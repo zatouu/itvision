@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Pressable, AppState } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, AppState, FlatList, Dimensions } from 'react-native'
+
+const { width: SCREEN_W } = Dimensions.get('screen')
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
@@ -98,7 +100,7 @@ function RequestOffers() {
   const { t, i18n } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const [offers, setOffers] = useState<any[]>([])
-  const [fullMedia, setFullMedia] = useState<{ uri: string; type: string } | null>(null)
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null)
   const [serviceRequest, setServiceRequest] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -106,6 +108,18 @@ function RequestOffers() {
 
   const cacheKey = id ? `offers-${id}` : ''
   const loadInFlightRef = useRef(false)
+  const initialMarkDone = useRef(false)
+
+  useEffect(() => { initialMarkDone.current = false }, [id])
+
+  const markOffersRead = useCallback(async () => {
+    if (!id) return
+    try {
+      await apiPost(`/api/services/requests/${id}/mark-offers-read`, {})
+      await cacheClear('my-requests')
+      await cacheClear('home-requests')
+    } catch {}
+  }, [id])
 
   const load = useCallback(async (isRefresh = false, silent = false) => {
     if (!id || loadInFlightRef.current) return
@@ -121,11 +135,16 @@ function RequestOffers() {
       await fetchWithCache(
         cacheKey,
         () => apiGet(`/api/services/requests/${id}/offers`),
-        (data) => {
+        (data, fromCache) => {
           setOffers(data.offers || [])
           setServiceRequest(data.request || null)
           setLoading(false)
           setErr(null)
+          // Marquer comme lues dès le premier affichage réel (pas silent)
+          if (!initialMarkDone.current && !silent) {
+            initialMarkDone.current = true
+            markOffersRead()
+          }
         },
         2 * 60 * 1000 // 2 min TTL pour les offres
       )
@@ -136,7 +155,7 @@ function RequestOffers() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [id, cacheKey])
+  }, [id, cacheKey, markOffersRead])
 
   useEffect(() => { load() }, [load])
 
@@ -151,7 +170,7 @@ function RequestOffers() {
   const [typingProviders, setTypingProviders] = useState<Record<string, { name: string; expiresAt: number }>>({})
 
   // Tick 1s pour countdown des offres (stop si demande terminée)
-  const requestDone = Boolean(serviceRequest && ['assigned','provider_arriving','in_progress','completed','cancelled','expired'].includes(serviceRequest.status))
+  const requestDone = Boolean(serviceRequest && ['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation','completed','cancelled','expired','dispute','archived'].includes(serviceRequest.status))
   useEffect(() => {
     if (requestDone) return
     const nextExpiry = offers
@@ -361,7 +380,7 @@ function RequestOffers() {
                 const uri = resolveMediaUrl(m.url || m.uri)
                 const isVideo = m.type === 'video'
                 return (
-                  <TouchableOpacity key={i} style={s.thumb} onPress={() => setFullMedia({ uri, type: m.type || 'image' })}>
+                  <TouchableOpacity key={i} style={s.thumb} onPress={() => setActiveMediaIndex(i)}>
                     {isVideo ? (
                       <View style={s.thumbImage}>
                         <Video
@@ -387,26 +406,44 @@ function RequestOffers() {
         </View>
       ) : null}
 
-      <Modal visible={!!fullMedia} transparent animationType="fade" onRequestClose={() => setFullMedia(null)}>
-        <Pressable style={s.mediaModalOverlay} onPress={() => setFullMedia(null)}>
-          <View style={s.mediaModalContent}>
-            <TouchableOpacity style={s.mediaModalClose} onPress={() => setFullMedia(null)}>
-              <X size={24} color="#fff" />
-            </TouchableOpacity>
-            {fullMedia?.type === 'video' ? (
-              <Video
-                source={{ uri: fullMedia.uri }}
-                style={s.fullMedia}
-                resizeMode={ResizeMode.CONTAIN}
-                useNativeControls
-                shouldPlay
-                isLooping={false}
-              />
-            ) : fullMedia ? (
-              <Image source={{ uri: fullMedia.uri }} style={s.fullMedia} contentFit="contain" />
-            ) : null}
-          </View>
-        </Pressable>
+      <Modal visible={activeMediaIndex !== null} transparent animationType="fade" onRequestClose={() => setActiveMediaIndex(null)}>
+        <View style={s.mediaModalOverlay}>
+          <TouchableOpacity style={s.mediaModalClose} onPress={() => setActiveMediaIndex(null)}>
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+          {activeMediaIndex !== null && (
+            <FlatList
+              data={serviceRequest.media.filter((m: any) => ['image', 'video'].includes(m.type || 'image'))}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={{ flex: 1 }}
+              initialScrollIndex={activeMediaIndex}
+              keyExtractor={(item, index) => `media-${index}`}
+              getItemLayout={(data, index) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+              renderItem={({ item }) => {
+                const uri = resolveMediaUrl(item.url || item.uri)
+                const isVideo = item.type === 'video'
+                return (
+                  <View style={{ width: SCREEN_W, height: '100%' }}>
+                    {isVideo ? (
+                      <Video
+                        source={{ uri }}
+                        style={{ width: SCREEN_W, height: '100%' }}
+                        resizeMode={ResizeMode.CONTAIN}
+                        useNativeControls
+                        shouldPlay={false}
+                        isLooping={false}
+                      />
+                    ) : (
+                      <Image source={{ uri }} style={{ width: SCREEN_W, height: '100%' }} contentFit="contain" />
+                    )}
+                  </View>
+                )
+              }}
+            />
+          )}
+        </View>
       </Modal>
 
       {/* Indicateur temps réel */}
@@ -651,10 +688,8 @@ const s = StyleSheet.create({
   thumb: { width: 80, height: 80, borderRadius: radius.lg, overflow: 'hidden' },
   thumbImage: { width: '100%', height: '100%' },
   playOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-  mediaModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.md },
-  mediaModalContent: { width: '100%', height: '80%', alignItems: 'center', justifyContent: 'center' },
-  mediaModalClose: { position: 'absolute', top: 0, right: 0, zIndex: 10, padding: spacing.sm },
-  fullMedia: { width: '100%', height: '100%', borderRadius: radius.lg },
+  mediaModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },
+  mediaModalClose: { position: 'absolute', top: 48, right: 16, zIndex: 10, padding: spacing.sm },
   rtRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.border },
   rtDot: { width: 7, height: 7, borderRadius: 4 },
   rtDot2: { width: 5, height: 5, borderRadius: 3 },

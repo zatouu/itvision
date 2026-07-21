@@ -34,9 +34,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La mission doit être terminée pour libérer le paiement' }, { status: 400 })
     }
 
-    const heldPayments = await Payment.find({ requestId, status: 'held' }).sort({ createdAt: 1 })
-    if (!heldPayments.length) {
-      return NextResponse.json({ error: 'Aucun paiement en escrow trouvé' }, { status: 404 })
+    if (sr.escrowLocked) {
+      return NextResponse.json({ error: 'Paiement bloqué par un litige' }, { status: 403 })
     }
 
     const cfg = await getAppConfig()
@@ -44,9 +43,18 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     let totalReleased = 0
     let totalCommission = 0
-    const releasedPayments: any[] = []
+    let releasedCount = 0
+    const providerIds = new Set<string>()
 
-    for (const payment of heldPayments) {
+    while (true) {
+      const payment = await Payment.findOneAndUpdate(
+        { requestId, status: 'held' },
+        { $set: { status: 'released', releasedAt: now, releasedBy: userId } },
+        { sort: { createdAt: 1 } }
+      )
+      if (!payment) break
+      if (payment.providerId) providerIds.add(String(payment.providerId))
+
       const rawAmount = payment.phase === 'deposit' ? payment.depositAmount : payment.amount
       if (rawAmount <= 0) continue
 
@@ -54,7 +62,6 @@ export async function POST(request: NextRequest) {
       const net = rawAmount - commission
       totalCommission += commission
 
-      // Cash already exchanged physically; other providers credit the wallet
       if (payment.provider !== 'cash' && net > 0) {
         await creditCashBalance(String(payment.providerId), net, {
           relatedMissionId: String(requestId),
@@ -63,18 +70,14 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      payment.status = 'released'
-      payment.releasedAt = now
-      await payment.save()
       totalReleased += net
-      releasedPayments.push(payment)
+      releasedCount++
     }
 
-    if (!releasedPayments.length) {
-      return NextResponse.json({ error: 'Montant à libérer invalide' }, { status: 400 })
+    if (releasedCount === 0) {
+      return NextResponse.json({ error: 'Aucun paiement en escrow trouvé' }, { status: 404 })
     }
 
-    const providerIds = [...new Set(releasedPayments.map((p: any) => String(p.providerId)))]
     for (const providerId of providerIds) {
       void sendPushToUser(providerId, {
         title: 'Paiement reçu',
@@ -88,7 +91,7 @@ export async function POST(request: NextRequest) {
       success: true,
       releasedAmount: totalReleased,
       commissionAmount: totalCommission,
-      releasedCount: releasedPayments.length,
+      releasedCount,
     })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })

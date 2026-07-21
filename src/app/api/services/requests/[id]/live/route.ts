@@ -142,7 +142,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       assigned = {
         providerId: String(sr.assignedProviderId),
         name: (provider as any)?.name || p?.name || loc?.name || 'Prestataire',
-        status: sr.status === 'provider_arriving' ? 'arriving' : sr.status === 'in_progress' ? 'in_progress' : 'selected',
+        status: sr.status === 'provider_arriving' || sr.status === 'on_the_way' ? 'arriving' : sr.status === 'in_progress' ? 'in_progress' : 'selected',
         lat: loc?.lat ?? null,
         lng: loc?.lng ?? null,
         distanceKm: loc?.distanceKm ?? null,

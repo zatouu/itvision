@@ -8,13 +8,14 @@ import User from '@/lib/models/User'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
-    const { userId } = await requireAuth(request)
+    const { userId, role } = await requireAuth(request)
     const { id } = await params
     const sr = await ServiceRequest.findById(id).lean() as any
     if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
     const isClient = String(sr.clientId) === String(userId)
     const isProvider = String(sr.assignedProviderId) === String(userId)
-    if (!isClient && !isProvider) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role)
+    if (!isClient && !isProvider && !isAdmin) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
 
@@ -67,7 +68,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         activeFormatted: lifecycle.formatDuration(metrics.activeMs),
         pausedFormatted: lifecycle.formatDuration(metrics.pausedMs),
         lastActivityAgo: lifecycle.formatDuration(Date.now() - new Date(metrics.lastActivityAt).getTime()),
+        anomalyFlags: sr.anomalyFlags || [],
+        anomalyScore: sr.anomalyScore || 0,
       },
+      escrowLocked: !!sr.escrowLocked,
     }})
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
@@ -92,12 +96,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
     const isClient = String(sr.clientId) === String(userId)
     const isProvider = String(sr.assignedProviderId) === String(userId)
-    if (!isClient && !isProvider) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role)
+    if (!isClient && !isProvider && !isAdmin) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
 
     const body = await request.json()
-    const missionRole = MISSION_ROLE_MAP[role] || (isClient ? 'client' : 'provider')
+    const missionRole = isAdmin ? 'admin' : (MISSION_ROLE_MAP[role] || (isClient ? 'client' : 'provider'))
+    const context = {
+      ip: request.headers.get('x-forwarded-for') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+      platform: body.platform as string | undefined,
+    }
+
+    // Une seule action métier par requête
+    const actionCount = [body.status !== undefined, body.action === 'pause', body.action === 'resume', body.action === 'validate', body.action === 'dispute'].filter(Boolean).length
+    if (actionCount > 1) {
+      return NextResponse.json({ error: 'Une seule action à la fois' }, { status: 400 })
+    }
 
     // ─── Changement de statut via le Mission Lifecycle Manager ───
     if (body.status !== undefined) {
@@ -106,6 +122,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         await lifecycle.transition(id, body.status, {
           actor: { userId, role: missionRole },
           reason: body.cancelReason || body.reason,
+          context,
         })
       } catch (err: any) {
         return NextResponse.json({ error: err.message || 'Transition interdite' }, { status: 409 })
@@ -122,6 +139,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           reason: body.reason,
           comment: body.comment,
           estimatedResumeAt: body.estimatedResumeAt,
+          context,
         })
       } catch (err: any) {
         return NextResponse.json({ error: err.message || 'Pause impossible' }, { status: 409 })
@@ -132,7 +150,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.action === 'resume') {
       const lifecycle = await import('@/lib/mission-lifecycle')
       try {
-        await lifecycle.resume(id, { userId, role: missionRole })
+        await lifecycle.resume(id, { userId, role: missionRole }, context)
       } catch (err: any) {
         return NextResponse.json({ error: err.message || 'Reprise impossible' }, { status: 409 })
       }
@@ -140,10 +158,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     // ─── Validation client de la fin de mission ───
     if (body.action === 'validate') {
-      if (!isClient) return NextResponse.json({ error: 'Seul le client peut valider' }, { status: 403 })
+      if (!isClient && !isAdmin) return NextResponse.json({ error: 'Seul le client peut valider' }, { status: 403 })
       const lifecycle = await import('@/lib/mission-lifecycle')
       try {
-        await lifecycle.validateCompletion(id, { userId, role: 'client' })
+        await lifecycle.validateCompletion(id, { userId, role: isAdmin ? 'admin' : 'client' }, context)
       } catch (err: any) {
         return NextResponse.json({ error: err.message || 'Validation impossible' }, { status: 409 })
       }
@@ -154,7 +172,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (!body.reason) return NextResponse.json({ error: 'Le motif du litige est obligatoire' }, { status: 400 })
       const lifecycle = await import('@/lib/mission-lifecycle')
       try {
-        await lifecycle.openDispute(id, body.reason, { userId, role: missionRole })
+        await lifecycle.openDispute(id, body.reason, { userId, role: missionRole }, context)
       } catch (err: any) {
         return NextResponse.json({ error: err.message || 'Litige impossible' }, { status: 409 })
       }

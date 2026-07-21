@@ -4,7 +4,7 @@ import { Image } from 'expo-image'
 import BottomSheet from '../src/components/BottomSheet'
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPostQueued } from '../src/api'
 import { getProviderWallet } from '../src/wallet'
@@ -57,6 +57,27 @@ function NearbyRequests() {
   const [err, setErr] = useState<string | null>(null)
   const [unlockEnabled, setUnlockEnabled] = useState(false)
   const successScale = useRef(new Animated.Value(0))
+
+  const openOfferSheet = useCallback((it: any) => {
+    hapticLight()
+    setSelected(it)
+    setSentId(null)
+    if (it?._myOffer) {
+      const mo = it._myOffer
+      setPrice(mo.price ? String(mo.price) : '')
+      setEta(mo.etaMinutes ? String(mo.etaMinutes) : '30')
+      setComment(mo.comment || '')
+      setValidityMinutes(mo.validityMinutes || 30)
+    } else {
+      setPrice('')
+      setEta('30')
+      setComment('')
+      setValidityMinutes(30)
+      setTravelIncluded(true)
+      setMaterialIncluded(false)
+      setAvailableNow(true)
+    }
+  }, [])
 
   // Notifier le client quand le prestataire est en train de rédiger une offre
   useEffect(() => {
@@ -173,6 +194,13 @@ function NearbyRequests() {
     return () => { leaveNearbyRoom() }
   }, [])
 
+  useFocusEffect(
+    useCallback(() => {
+      const c = coordsRef.current ?? coords
+      if (c) load(c, true, true)
+    }, [coords])
+  )
+
   // Refs stables pour éviter de réabonner les listeners à chaque changement de coords/load
   const coordsRef = useRef(coords)
   const loadRef = useRef(load)
@@ -188,12 +216,16 @@ function NearbyRequests() {
       joinNearbyRoom(c.lat, c.lng, RADIUS_KM)
       loadRef.current(c, false, true)
     }
-    const handleAccepted = (_data: any) => {
+    const handleAccepted = (data: any) => {
       Alert.alert(t('nearby.offerAccepted'), t('nearby.offerAcceptedMsg'))
+      const requestId = data?.requestId
+      if (requestId) {
+        setItems(prev => prev.filter(it => String(it._id) !== String(requestId)))
+      }
       const c = coordsRef.current
       if (c) cacheClear(`nearby-${Math.round(c.lat * 10)}-${Math.round(c.lng * 10)}`)
     }
-    const handleRequestNew = (_data: any) => {
+    const handleRequestNew = (data: any) => {
       // Reload silencieux (pas de popup bloquante)
       const c = coordsRef.current
       if (c) loadRef.current(c, false, true)
@@ -237,7 +269,22 @@ function NearbyRequests() {
       setTimeout(() => Animated.timing(successScale.current, { toValue: 0, duration: 200, useNativeDriver: true }).start(), 3000)
       setSelected(null)
       setPrice(''); setComment(''); setEta('30'); setValidityMinutes(30); setTravelIncluded(true); setMaterialIncluded(false); setAvailableNow(true)
-      if (r) setItems(prev => prev.filter(it => it._id !== selected._id))
+      const created = (r as any)?.item
+      setItems(prev => prev.map(it => it._id === selected._id
+        ? {
+            ...it,
+            _hasOffered: true,
+            _myOffer: created || {
+              price: Number(price.replace(/\s/g, '')),
+              etaMinutes: Number(eta) || 30,
+              comment,
+              validityMinutes,
+              validUntil: undefined,
+              status: 'submitted',
+            },
+          }
+        : it
+      ))
     } catch (e: any) { setErr(t('nearby.sendError', { msg: e.message })) }
     setSending(false)
   }
@@ -357,7 +404,7 @@ function NearbyRequests() {
                     <Marker
                       key={it._id}
                       coordinate={{ latitude: loc[1], longitude: loc[0] }}
-                      onPress={() => { hapticLight(); setSelected(it); setSentId(null) }}
+                      onPress={() => { openOfferSheet(it) }}
                     >
                       <View style={s.markerWrap}>
                         <View style={[s.mapMarker, { backgroundColor: color }]}>
@@ -416,7 +463,7 @@ function NearbyRequests() {
           )}
 
           {items.map(it => (
-            <TouchableOpacity key={it._id} style={s.card} activeOpacity={0.88} onPress={() => { hapticLight(); setSelected(it); setSentId(null) }}>
+            <TouchableOpacity key={it._id} style={s.card} activeOpacity={0.88} onPress={() => { openOfferSheet(it) }}>
               <View style={s.cardHead}>
                 <View style={s.catRow}>
                   <View style={[s.catMonogram, { backgroundColor: catMap[it.category]?.color || '#475569' }]}>
@@ -427,6 +474,11 @@ function NearbyRequests() {
                 <View style={s.distBadge}>
                   <Text style={s.distText}>{distLabel(it._distance)}</Text>
                 </View>
+                {it._hasOffered && (
+                  <View style={s.offeredBadge}>
+                    <Text style={s.offeredBadgeText}>{t('nearby.alreadyOffered') || 'Offre envoyée'}</Text>
+                  </View>
+                )}
               </View>
               {it.media?.some((m: any) => m.type === 'audio') && (
                 <View style={s.audioBadge}>
@@ -455,8 +507,8 @@ function NearbyRequests() {
               })()}
               <View style={s.cardFoot}>
                 {it.budget ? <Text style={s.budget}>{t('nearby.budget', { amount: Number(it.budget).toLocaleString('fr-FR') })}</Text> : <Text style={s.budgetNone}>{t('nearby.budgetNone')}</Text>}
-                <TouchableOpacity style={s.offerChip} onPress={() => { hapticSelect(); setSelected(it); setSentId(null) }}>
-                  <Text style={s.offerChipText}>{t('nearby.makeOffer')}</Text>
+                <TouchableOpacity style={[s.offerChip, it._hasOffered && s.offerChipOffered]} onPress={() => { hapticSelect(); openOfferSheet(it) }}>
+                  <Text style={[s.offerChipText, it._hasOffered && s.offerChipTextOffered]}>{it._hasOffered ? t('nearby.updateOfferShort') || 'Modifier' : t('nearby.makeOffer')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -470,7 +522,7 @@ function NearbyRequests() {
           <TouchableOpacity onPress={() => setSelected(null)} style={s.modalBackBtn}>
             <ArrowLeft size={18} color={colors.text} />
           </TouchableOpacity>
-          <Text style={s.modalTitle}>Faire une offre</Text>
+          <Text style={s.modalTitle}>{selected?._hasOffered ? 'Mettre à jour mon offre' : 'Faire une offre'}</Text>
           <TouchableOpacity onPress={() => setSelected(null)} style={s.modalCloseBtn}>
             <X size={20} color={colors.text} />
           </TouchableOpacity>
@@ -600,7 +652,7 @@ function NearbyRequests() {
           {err && <Text style={s.errText}>{err}</Text>}
 
           <TouchableOpacity style={[s.sendOfferBtn, (!price || sending) && s.sendOfferBtnDisabled]} disabled={!price || sending} onPress={sendOffer}>
-            {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>{t('nearby.sendOffer')}</Text>}
+            {sending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={s.sendOfferBtnText}>{selected?._hasOffered ? 'Mettre à jour' : t('nearby.sendOffer')}</Text>}
           </TouchableOpacity>
         </View>
       </BottomSheet>
@@ -656,7 +708,11 @@ const s = StyleSheet.create({
   budget: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
   budgetNone: { fontSize: 14, color: colors.textMuted },
   offerChip: { backgroundColor: colors.navy, borderRadius: radius.md, paddingHorizontal: 18, paddingVertical: 9 },
+  offerChipOffered: { backgroundColor: colors.success },
   offerChipText: { color: colors.surface, fontSize: 13, fontWeight: typography.weight.extrabold as any },
+  offerChipTextOffered: { color: colors.surface },
+  offeredBadge: { backgroundColor: '#ECFDF5', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#BBF7D0' },
+  offeredBadgeText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: '#065F46' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errText: { color: colors.danger, fontSize: 13, textAlign: 'center' },
   retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: radius.lg },

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
@@ -13,7 +13,7 @@ import { confirm, notify } from '../../src/confirm'
 import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation } from 'lucide-react-native'
+import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation, Pause, Play, AlertTriangle, XCircle } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string; dot: string }> = {
@@ -25,23 +25,35 @@ const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string; do
 }
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
+  created:            { key: 'mission.created',            color: colors.text,    bg: colors.bg,       dot: colors.textMuted },
+  broadcasted:        { key: 'mission.broadcasted',        color: colors.text,    bg: colors.warningLight, dot: colors.warning },
+  accepted:           { key: 'mission.assigned',           color: colors.surface, bg: colors.success,  dot: colors.surface },
   assigned:           { key: 'mission.assigned',           color: colors.surface, bg: colors.success,  dot: colors.surface },
+  on_the_way:         { key: 'mission.arriving',           color: colors.surface, bg: colors.success,  dot: colors.surface },
   provider_arriving:  { key: 'mission.arriving',           color: colors.surface, bg: colors.success,  dot: colors.surface },
+  arrived:            { key: 'mission.arrived',            color: colors.surface, bg: colors.info,     dot: colors.surface },
   in_progress:        { key: 'mission.inProgress',         color: colors.surface, bg: colors.info,     dot: colors.surface },
+  paused:             { key: 'mission.paused',             color: colors.surface, bg: colors.warning,  dot: colors.surface },
+  awaiting_validation:{ key: 'mission.awaitingValidation', color: colors.surface, bg: colors.warning,  dot: colors.surface },
   completed:          { key: 'mission.completed',          color: colors.text,    bg: colors.surface,  dot: colors.textMuted },
   cancelled:          { key: 'mission.cancelled',          color: colors.surface, bg: colors.danger,   dot: colors.surface },
+  expired:            { key: 'mission.expired',            color: colors.surface, bg: colors.textMuted,dot: colors.surface },
+  dispute:            { key: 'mission.dispute',            color: colors.surface, bg: colors.danger,   dot: colors.surface },
+  archived:           { key: 'mission.archived',           color: colors.surface, bg: colors.textMuted,dot: colors.surface },
 }
 
 const FLOW_STEPS = [
-  { key: 'assigned', labelKey: 'mission.step_assigned' },
-  { key: 'provider_arriving', labelKey: 'mission.step_arriving' },
+  { key: 'accepted', labelKey: 'mission.step_assigned' },
+  { key: 'on_the_way', labelKey: 'mission.step_arriving' },
+  { key: 'arrived', labelKey: 'mission.step_arrived' },
   { key: 'in_progress', labelKey: 'mission.step_in_progress' },
+  { key: 'awaiting_validation', labelKey: 'mission.step_awaiting_validation' },
   { key: 'completed', labelKey: 'mission.step_completed' },
 ] as const
 
 function getStepState(currentStatus: string, stepKey: string): 'done' | 'active' | 'todo' {
-  if (currentStatus === 'cancelled') return 'todo'
-  const order: Record<string, number> = { assigned: 0, provider_arriving: 1, in_progress: 2, completed: 3 }
+  if (['cancelled', 'expired', 'dispute', 'archived'].includes(currentStatus)) return 'todo'
+  const order: Record<string, number> = { accepted: 0, assigned: 0, on_the_way: 1, provider_arriving: 1, arrived: 2, in_progress: 3, awaiting_validation: 4, completed: 5 }
   const current = order[currentStatus] ?? 0
   const target = order[stepKey] ?? 0
   if (target < current) return 'done'
@@ -89,6 +101,50 @@ function hasValidCoords(location: any): location is { coordinates: [number, numb
     && Number.isFinite(Number(location.coordinates[0]))
     && Number.isFinite(Number(location.coordinates[1]))
   )
+}
+
+const PAUSE_REASONS = [
+  { key: 'attente_pieces', label: 'Attente de pièces' },
+  { key: 'attente_client', label: 'Attente du client' },
+  { key: 'meteo', label: 'Météo' },
+  { key: 'attente_intervenant', label: 'Attente d\'un autre intervenant' },
+  { key: 'autre', label: 'Autre' },
+]
+
+function promptPauseReason(): Promise<string | null> {
+  return new Promise((resolve) => {
+    Alert.alert('Pause', 'Raison de la pause', [
+      ...PAUSE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
+      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
+    ])
+  })
+}
+
+const DISPUTE_REASONS = [
+  { key: 'paiement', label: 'Paiement' },
+  { key: 'qualite', label: 'Qualité' },
+  { key: 'retard', label: 'Retard' },
+  { key: 'comportement', label: 'Comportement' },
+  { key: 'autre', label: 'Autre' },
+]
+
+function promptDisputeReason(): Promise<string | null> {
+  return new Promise((resolve) => {
+    Alert.alert('Litige', 'Motif du litige', [
+      ...DISPUTE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
+      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
+    ])
+  })
+}
+
+function healthColor(health: 'active' | 'idle' | 'stale' | 'paused') {
+  switch (health) {
+    case 'paused': return { bg: colors.warningLight, dot: colors.warning, color: colors.warning }
+    case 'active': return { bg: colors.successLight, dot: colors.success, color: colors.success }
+    case 'idle': return { bg: colors.warningLight, dot: colors.warning, color: colors.warning }
+    case 'stale': return { bg: colors.dangerLight, dot: colors.danger, color: colors.danger }
+    default: return { bg: colors.bg, dot: colors.textMuted, color: colors.textSecondary }
+  }
 }
 
 function ActiveMission() {
@@ -180,7 +236,7 @@ function ActiveMission() {
   }, [requestId])
 
   useEffect(() => {
-    if (!requestId || !['assigned', 'provider_arriving', 'in_progress'].includes(item?.status || '')) return
+    if (!requestId || !['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(item?.status || '')) return
     let cancelled = false
     let watcher: Location.LocationSubscription | null = null
 
@@ -267,7 +323,14 @@ function ActiveMission() {
     const ok = await confirm(t('mission.arrivingTitle'), t('mission.arrivingMsg'))
     if (!ok) return
     hapticSuccess()
-    doUpdateStatus('provider_arriving')
+    doUpdateStatus('on_the_way')
+  }
+
+  const handleArrived = async () => {
+    const ok = await confirm(t('mission.arrivedTitle'), t('mission.arrivedMsg'))
+    if (!ok) return
+    hapticSuccess()
+    doUpdateStatus('arrived')
   }
 
   const handleStart = async () => {
@@ -277,11 +340,51 @@ function ActiveMission() {
     doUpdateStatus('in_progress')
   }
 
+  const handlePause = async () => {
+    const reason = await promptPauseReason()
+    if (!reason || !requestId) return
+    setUpdating(true)
+    try {
+      const r = await apiPatchQueued(`/api/services/requests/${requestId}`, { action: 'pause', reason }, t('mission.offlineStatusChange'))
+      if (r) await load(true)
+    } catch (e: any) { notify(t('common.error'), e.message) }
+    finally { setUpdating(false) }
+  }
+
+  const handleResume = async () => {
+    if (!requestId) return
+    setUpdating(true)
+    try {
+      const r = await apiPatchQueued(`/api/services/requests/${requestId}`, { action: 'resume' }, t('mission.offlineStatusChange'))
+      if (r) await load(true)
+    } catch (e: any) { notify(t('common.error'), e.message) }
+    finally { setUpdating(false) }
+  }
+
   const handleComplete = async () => {
     const ok = await confirm(t('mission.completeTitle'), t('mission.completeMsg'))
     if (!ok) return
     hapticSuccess()
-    doUpdateStatus('completed')
+    doUpdateStatus('awaiting_validation')
+  }
+
+  const handleCancel = async () => {
+    const ok = await confirm(t('mission.cancelConfirmTitle'), t('mission.cancelConfirmMsg'))
+    if (!ok) return
+    hapticSuccess()
+    doUpdateStatus('cancelled')
+  }
+
+  const handleDispute = async () => {
+    if (!requestId) return
+    const reason = await promptDisputeReason()
+    if (!reason) return
+    setUpdating(true)
+    try {
+      const r = await apiPatchQueued(`/api/services/requests/${requestId}`, { action: 'dispute', reason }, t('mission.offlineStatusChange'))
+      if (r) await load(true)
+    } catch (e: any) { notify(t('common.error'), e.message) }
+    finally { setUpdating(false) }
   }
 
   const confirmCashReceived = async () => {
@@ -369,22 +472,58 @@ function ActiveMission() {
               <Text style={[s.statusText, { color: st?.color }]}>{st ? t(st.key) : ''}</Text>
             </View>
 
-            {/* Durée écoulée si mission en cours */}
-            {item.status === 'in_progress' && item.startedAt && (
-              <View style={[s.statusBanner, { backgroundColor: colors.infoLight }]}>
-                <Clock size={16} color={colors.info} />
-                <Text style={[s.statusText, { color: colors.info }]}>
-                  {t('mission.elapsed', { duration: formatElapsed(item.startedAt) })}
+            {/* Indicateur de fraîcheur */}
+            {item.metrics && (
+              <View style={[s.statusBanner, { backgroundColor: healthColor(item.metrics.health).bg }]}>
+                <View style={[s.statusBannerDot, { backgroundColor: healthColor(item.metrics.health).dot }]} />
+                <Text style={[s.statusText, { color: healthColor(item.metrics.health).color }]}>
+                  {item.metrics.isPaused ? `⏸️ ${t('mission.paused')}` : `● ${t(`mission.health.${item.metrics.health}`)}`}
                 </Text>
               </View>
             )}
-            {/* Durée totale si mission terminée */}
-            {item.status === 'completed' && item.startedAt && item.completedAt && (
-              <View style={[s.statusBanner, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                <Clock size={16} color={colors.text} />
-                <Text style={[s.statusText, { color: colors.text }]}>
-                  {t('mission.totalDuration', { duration: formatElapsed(item.startedAt, item.completedAt) })}
+
+            {/* Durée écoulée si mission en cours */}
+            {(item.status === 'in_progress' || item.status === 'paused') && item.startedAt && (
+              <View style={[s.statusBanner, { backgroundColor: colors.infoLight }]}>
+                <Clock size={16} color={colors.info} />
+                <Text style={[s.statusText, { color: colors.info }]}>
+                  {t('mission.elapsed', { duration: item.metrics?.activeFormatted || formatElapsed(item.startedAt) })}
                 </Text>
+              </View>
+            )}
+
+            {/* Carte métriques cycle de vie */}
+            {item.metrics && (
+              <View style={s.card}>
+                <Text style={s.cardTitle}>{t('mission.lifecycleTitle')}</Text>
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
+                  <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
+                </View>
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('mission.totalDuration')}</Text>
+                  <Text style={s.detailValue}>{item.metrics.elapsedFormatted}</Text>
+                </View>
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('mission.activeDuration')}</Text>
+                  <Text style={s.detailValue}>{item.metrics.activeFormatted}</Text>
+                </View>
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('mission.pausedDuration')}</Text>
+                  <Text style={s.detailValue}>{item.metrics.pausedFormatted} · {item.metrics.pauseCount} {t('mission.pauses')}</Text>
+                </View>
+                {item.metrics.estimatedResumeAt && (
+                  <View style={s.detailRow}>
+                    <Text style={s.detailLabel}>{t('mission.estimatedResume')}</Text>
+                    <Text style={s.detailValue}>{formatDateTime(item.metrics.estimatedResumeAt)}</Text>
+                  </View>
+                )}
+                {item.metrics.currentPauseReason && (
+                  <View style={s.detailRow}>
+                    <Text style={s.detailLabel}>{t('mission.pauseReason')}</Text>
+                    <Text style={s.detailValue}>{item.metrics.currentPauseReason}</Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -506,10 +645,10 @@ function ActiveMission() {
             )}
 
             {/* Chat */}
-            {['assigned', 'provider_arriving', 'in_progress'].includes(item.status) && (
+            {['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(item.status) && (
               <TouchableOpacity
                 style={s.chatBtn}
-                onPress={() => router.push(`/mission-chat?id=${requestId}`)}
+                onPress={() => router.push(`/mission-chat?id=${requestId}&clientName=${encodeURIComponent(item.clientName || '')}&clientPhone=${encodeURIComponent(item.clientPhone || '')}`)}
               >
                 <MessageCircle size={18} color={colors.info} />
                 <Text style={s.chatBtnText}>{t('mission.contactClient')}</Text>
@@ -518,19 +657,54 @@ function ActiveMission() {
 
             {/* Actions */}
             <View style={{ gap: spacing.md, marginTop: spacing.md }}>
-              {item.status === 'assigned' && (
+              {(item.status === 'accepted' || item.status === 'assigned') && (
                 <TouchableOpacity style={[s.actionBtn, s.arrivingBtn]} onPress={handleArriving} disabled={updating}>
                   <Text style={s.arrivingBtnText}>{t('mission.arrivingBtn')}</Text>
                 </TouchableOpacity>
               )}
-              {item.status === 'provider_arriving' && (
+              {(item.status === 'on_the_way' || item.status === 'provider_arriving') && (
+                <TouchableOpacity style={[s.actionBtn, s.arrivingBtn]} onPress={handleArrived} disabled={updating}>
+                  <Text style={s.arrivingBtnText}>{t('mission.arrivedBtn')}</Text>
+                </TouchableOpacity>
+              )}
+              {(item.status === 'arrived' || item.status === 'paused') && (
                 <TouchableOpacity style={[s.actionBtn, s.startBtn]} onPress={handleStart} disabled={updating}>
                   <Text style={s.startBtnText}>{t('mission.startBtn')}</Text>
                 </TouchableOpacity>
               )}
               {item.status === 'in_progress' && (
-                <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={handleComplete} disabled={updating}>
-                  <Text style={s.completeBtnText}>{t('mission.completeBtn')}</Text>
+                <>
+                  <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={handleComplete} disabled={updating}>
+                    <Text style={s.completeBtnText}>{t('mission.completeBtn')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning }]} onPress={handlePause} disabled={updating}>
+                    <Pause size={18} color={colors.warning} />
+                    <Text style={[s.startBtnText, { color: colors.warning }]}>{t('mission.pauseBtn')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {item.status === 'paused' && (
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.successLight, borderWidth: 1, borderColor: colors.success }]} onPress={handleResume} disabled={updating}>
+                  <Play size={18} color={colors.success} />
+                  <Text style={[s.startBtnText, { color: colors.success }]}>{t('mission.resumeBtn')}</Text>
+                </TouchableOpacity>
+              )}
+              {item.status === 'awaiting_validation' && (
+                <View style={[s.actionBtn, { backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning }]}>
+                  <Clock size={18} color={colors.warning} />
+                  <Text style={[s.startBtnText, { color: colors.warning }]}>{t('mission.awaitingValidation')}</Text>
+                </View>
+              )}
+              {(item.status === 'accepted' || item.status === 'assigned' || item.status === 'on_the_way' || item.status === 'provider_arriving') && (
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger }]} onPress={handleCancel} disabled={updating}>
+                  <XCircle size={18} color={colors.danger} />
+                  <Text style={[s.startBtnText, { color: colors.danger }]}>{t('mission.cancelBtn')}</Text>
+                </TouchableOpacity>
+              )}
+              {(item.status === 'in_progress' || item.status === 'paused' || item.status === 'awaiting_validation') && (
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger }]} onPress={handleDispute} disabled={updating}>
+                  <AlertTriangle size={18} color={colors.danger} />
+                  <Text style={[s.startBtnText, { color: colors.danger }]}>{t('mission.disputeBtn')}</Text>
                 </TouchableOpacity>
               )}
               {item.payment?.provider === 'cash' && item.payment?.status === 'held' && item.status === 'completed' && (

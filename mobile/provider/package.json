@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "test": "jest",
     "type-check": "tsc --noEmit",
-    "build:apk": "eas build --platform android --profile ec2"
+    "build:apk": "eas build --platform android --profile ec2",
+    "update:ota": "eas update --branch ec2"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "~1.23.1",

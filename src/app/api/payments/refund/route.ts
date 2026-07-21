@@ -3,11 +3,11 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import Payment from '@/lib/models/Payment'
 import ServiceRequest from '@/lib/models/ServiceRequest'
-import { refundEscrowPoints } from '@/lib/wallet'
 
 /**
- * Refund an escrow payment (client or admin initiated).
- * Typically called when a mission is cancelled before completion.
+ * Refund an escrow payment (admin override or explicit client refund).
+ * En production, ce endpoint ne marque que le statut interne : il faut
+ * déclencher le remboursement chez le fournisseur de paiement (à brancher).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -28,37 +28,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
-    // Only refund if payment is held (not already released/refunded/failed)
-    const payment = await Payment.findOne({ requestId, status: 'held' })
-    if (!payment) {
-      return NextResponse.json({ error: 'Aucun paiement en escrow remboursable' }, { status: 404 })
+    // Bloquer si la mission est déjà terminée ou en litige sans être admin
+    if (!isAdmin && ['completed', 'dispute', 'archived'].includes(sr.status)) {
+      return NextResponse.json({ error: 'Remboursement impossible pour cette mission' }, { status: 409 })
     }
 
-    // Update payment status
-    payment.status = 'refunded'
-    payment.refundedAt = new Date()
-    await payment.save()
-
-    // Refund escrow points if any
-    try {
-      const escrowCost = payment.escrowPointsCharged || 0
-      if (escrowCost > 0) {
-        await refundEscrowPoints(String(payment.clientId), String(requestId), escrowCost)
-      }
-    } catch (refundErr) {
-      console.error('[refund] Erreur remboursement points escrow', refundErr)
-    }
-
-    // Optionally update service request status
+    // Annuler via le lifecycle manager (effets de bord + remboursement atomiques)
     if (sr.status !== 'cancelled') {
-      sr.status = 'cancelled'
-      await sr.save()
+      const lifecycle = await import('@/lib/mission-lifecycle')
+      await lifecycle.transition(requestId, 'cancelled', {
+        actor: { userId, role: isAdmin ? 'admin' : 'client' },
+        reason: body.reason || 'refund',
+      })
     }
+
+    // Si un paiement est encore held (admin override ou annulation sans paiement lifecycle), le rembourser
+    const payment = await Payment.findOneAndUpdate(
+      { requestId, status: 'held' },
+      { $set: { status: 'refunded', refundedAt: new Date(), refundedBy: userId } },
+      { new: true }
+    )
 
     return NextResponse.json({ success: true, payment })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/payments/refund]', e)
-    return NextResponse.json({ error: 'Erreur refund' }, { status: 500 })
+    return NextResponse.json({ error: e.message || 'Erreur refund' }, { status: 500 })
   }
 }

@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
     if (String(sr.clientId) !== String(userId)) {
       return NextResponse.json({ error: 'Seul le client peut initier le paiement' }, { status: 403 })
     }
+    if (sr.escrowLocked) {
+      return NextResponse.json({ error: 'Paiement bloqué : un litige est en cours' }, { status: 403 })
+    }
 
     // Vérifier l'expiration de l'offre
     if (offer.validUntil && new Date(offer.validUntil).getTime() < Date.now()) {
@@ -64,10 +67,10 @@ export async function POST(request: NextRequest) {
 
     // Vérifier que la demande est encore ouverte
     if (isBalancePhase) {
-      if (!['assigned', 'provider_arriving', 'in_progress'].includes(sr.status)) {
+      if (!['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(sr.status)) {
         return NextResponse.json({ error: `Paiement du solde impossible (${sr.status})` }, { status: 409 })
       }
-    } else if (!['created', 'pending_offers'].includes(sr.status)) {
+    } else if (!['created', 'pending_offers', 'broadcasted'].includes(sr.status)) {
       return NextResponse.json({ error: `Cette demande n'est plus ouverte (${sr.status})` }, { status: 409 })
     }
     if (sr.expiresAt && new Date(sr.expiresAt).getTime() < Date.now()) {

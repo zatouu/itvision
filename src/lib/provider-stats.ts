@@ -23,7 +23,7 @@ const PENALTY: Record<CancelSeverity, number> = {
 
 export function severityFromStatus(prevStatus: string): CancelSeverity {
   if (prevStatus === 'in_progress') return 'after_in_progress'
-  if (prevStatus === 'provider_arriving') return 'after_arriving'
+  if (prevStatus === 'provider_arriving' || prevStatus === 'on_the_way') return 'after_arriving'
   return 'after_assigned'
 }
 

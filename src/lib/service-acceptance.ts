@@ -25,7 +25,11 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
   const lifecycle = await import('./mission-lifecycle')
   const acceptedRequest = await lifecycle.transition(String(sr._id), 'accepted', {
     actor: { userId: String(sr.clientId), role: 'client' },
-    metadata: { acceptedOfferId: String(offer._id), assignedProviderId: String(offer.providerId) },
+    metadata: {
+      acceptedOfferId: String(offer._id),
+      assignedProviderId: String(offer.providerId),
+      selectedOfferId: String(offer._id),
+    },
   })
   if (!acceptedRequest) {
     throw new Error('Mission déjà attribuée ou indisponible')

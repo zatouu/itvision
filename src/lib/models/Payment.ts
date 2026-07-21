@@ -32,7 +32,9 @@ const PaymentSchema = new Schema({
   // Timestamps
   heldAt: { type: Date },
   releasedAt: { type: Date },
+  releasedBy: { type: String },
   refundedAt: { type: Date },
+  refundedBy: { type: String },
   failedAt: { type: Date },
   failReason: { type: String },
 }, { timestamps: true })

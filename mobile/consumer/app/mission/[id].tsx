@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions, Alert } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -10,7 +10,7 @@ import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/sock
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle } from 'lucide-react-native'
+import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle, AlertTriangle, Pause } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
@@ -25,11 +25,31 @@ const SCREEN_HEIGHT = Dimensions.get('window').height
 const MAP_FIT_PADDING = { top: 120, right: 40, bottom: Math.round(SCREEN_HEIGHT * 0.45), left: 40 }
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
+  created:            { key: 'mission.created',            color: '#374151', bg: '#F1F5F9' },
+  broadcasted:        { key: 'mission.broadcasted',        color: '#92400E', bg: '#FFFBEB' },
+  accepted:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
   assigned:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
+  on_the_way:         { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
   provider_arriving:  { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
+  arrived:            { key: 'mission.arrived',            color: '#5B21B6', bg: '#F5F3FF' },
   in_progress:        { key: 'mission.inProgress',         color: '#5B21B6', bg: '#F5F3FF' },
+  paused:             { key: 'mission.paused',             color: '#92400E', bg: '#FFFBEB' },
+  awaiting_validation:{ key: 'mission.awaitingValidation', color: '#92400E', bg: '#FFFBEB' },
   completed:          { key: 'mission.completed',          color: '#374151', bg: '#F1F5F9' },
   cancelled:          { key: 'mission.cancelled',          color: '#991B1B', bg: '#FEF2F2' },
+  expired:            { key: 'mission.expired',            color: '#374151', bg: '#F1F5F9' },
+  dispute:            { key: 'mission.dispute',            color: '#991B1B', bg: '#FEF2F2' },
+  archived:           { key: 'mission.archived',           color: '#374151', bg: '#F1F5F9' },
+}
+
+function healthColor(health: 'active' | 'idle' | 'stale' | 'paused') {
+  switch (health) {
+    case 'paused': return { bg: '#FFFBEB', dot: '#92400E', color: '#92400E' }
+    case 'active': return { bg: '#ECFDF5', dot: '#065F46', color: '#065F46' }
+    case 'idle': return { bg: '#FFFBEB', dot: '#92400E', color: '#92400E' }
+    case 'stale': return { bg: '#FEF2F2', dot: '#991B1B', color: '#991B1B' }
+    default: return { bg: '#F1F5F9', dot: '#6B7280', color: '#6B7280' }
+  }
 }
 
 function normalizeId(value: string | string[] | undefined): string | null {
@@ -67,6 +87,40 @@ function hasValidCoords(location: any): location is { coordinates: [number, numb
   )
 }
 
+const PAUSE_REASONS = [
+  { key: 'attente_pieces', label: 'Attente de pièces' },
+  { key: 'attente_client', label: 'Attente du client' },
+  { key: 'meteo', label: 'Météo' },
+  { key: 'attente_intervenant', label: 'Attente d\'un autre intervenant' },
+  { key: 'autre', label: 'Autre' },
+]
+
+function promptPauseReason(): Promise<string | null> {
+  return new Promise((resolve) => {
+    Alert.alert('Pause', 'Raison de la pause', [
+      ...PAUSE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
+      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
+    ])
+  })
+}
+
+const DISPUTE_REASONS = [
+  { key: 'paiement', label: 'Paiement' },
+  { key: 'qualite', label: 'Qualité' },
+  { key: 'retard', label: 'Retard' },
+  { key: 'comportement', label: 'Comportement' },
+  { key: 'autre', label: 'Autre' },
+]
+
+function promptDisputeReason(): Promise<string | null> {
+  return new Promise((resolve) => {
+    Alert.alert('Litige', 'Motif du litige', [
+      ...DISPUTE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
+      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
+    ])
+  })
+}
+
 function MissionDetail() {
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
@@ -82,7 +136,7 @@ function MissionDetail() {
   const [, setTick] = useState(0)
 
   useEffect(() => {
-    if (item?.status !== 'in_progress') return
+    if (!['arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(item?.status)) return
     const interval = setInterval(() => setTick(v => v + 1), 1000)
     return () => clearInterval(interval)
   }, [item?.status])
@@ -180,10 +234,42 @@ function MissionDetail() {
     finally { setUpdating(false) }
   }
 
+  const doAction = async (body: Record<string, unknown>) => {
+    if (!requestId) return
+    setUpdating(true)
+    try {
+      const r = await apiPatchQueued(`/api/services/requests/${requestId}`, body, t('mission.offlineAction'))
+      if (r) await load(true)
+    } catch (e: any) { notify(t('common.error'), e.message) }
+    finally { setUpdating(false) }
+  }
+
   const handleCancel = async () => {
     const ok = await confirm(t('mission.cancelConfirmTitle'), t('mission.cancelConfirmMsg'))
     if (!ok) return
     doUpdateStatus('cancelled')
+  }
+
+  const handleValidate = async () => {
+    const ok = await confirm(t('mission.validateTitle'), t('mission.validateMsg'))
+    if (!ok || !requestId) return
+    doAction({ action: 'validate' })
+  }
+
+  const handlePause = async () => {
+    const reason = await promptPauseReason()
+    if (!reason) return
+    doAction({ action: 'pause', reason })
+  }
+
+  const handleResume = async () => {
+    doAction({ action: 'resume' })
+  }
+
+  const handleDispute = async () => {
+    const reason = await promptDisputeReason()
+    if (!reason) return
+    doAction({ action: 'dispute', reason })
   }
 
   const payBalance = () => {
@@ -218,12 +304,16 @@ function MissionDetail() {
   const distanceDisplay = routeInfo?.distance || t('mission.notProvided')
 
   const stepLabels: Record<string, string> = {
+    accepted: t('mission.stepAssigned'),
     assigned: t('mission.stepAssigned'),
+    on_the_way: t('mission.stepArriving'),
     provider_arriving: t('mission.stepArriving'),
+    arrived: t('mission.stepArrived'),
     in_progress: t('mission.stepInProgress'),
+    awaiting_validation: t('mission.stepAwaitingValidation'),
     completed: t('mission.stepCompleted'),
   }
-  const stepOrder = ['assigned', 'provider_arriving', 'in_progress', 'completed']
+  const stepOrder = ['accepted', 'on_the_way', 'arrived', 'in_progress', 'awaiting_validation', 'completed']
   const status = item?.status || 'assigned'
   const currentStepIdx = stepOrder.indexOf(status)
   const categoryLabel = item?.category ? String(item.category).charAt(0).toUpperCase() + String(item.category).slice(1) : null
@@ -231,15 +321,27 @@ function MissionDetail() {
   const hasRating = Number.isFinite(ratingAvg) && ratingAvg > 0
 
   const STATUS_BANNER: Record<string, { label: string; color: string; dot: string }> = {
+    accepted:          { label: t('mission.bannerAssigned'),    color: colors.success, dot: '#86EFAC' },
     assigned:          { label: t('mission.bannerAssigned'),    color: colors.success, dot: '#86EFAC' },
+    on_the_way:        { label: t('mission.bannerArriving'),    color: colors.success, dot: '#86EFAC' },
     provider_arriving: { label: t('mission.bannerArriving'),    color: colors.success, dot: '#86EFAC' },
+    arrived:           { label: t('mission.bannerArrived'),     color: '#5B21B6',      dot: '#C4B5FD' },
     in_progress:       { label: t('mission.bannerInProgress'),  color: '#5B21B6',      dot: '#C4B5FD' },
-    completed:         { label: t('mission.bannerCompleted'),    color: '#334155',      dot: '#CBD5E1' },
-    cancelled:         { label: t('mission.bannerCancelled'),    color: '#991B1B',      dot: '#FCA5A5' },
+    paused:            { label: t('mission.bannerPaused'),      color: '#92400E',      dot: '#FCD34D' },
+    awaiting_validation:{ label: t('mission.bannerAwaitingValidation'), color: '#92400E', dot: '#FCD34D' },
+    completed:         { label: t('mission.bannerCompleted'),   color: '#334155',      dot: '#CBD5E1' },
+    cancelled:         { label: t('mission.bannerCancelled'),   color: '#991B1B',      dot: '#FCA5A5' },
+    expired:           { label: t('mission.bannerExpired'),     color: '#6B7280',      dot: '#D1D5DB' },
+    dispute:           { label: t('mission.bannerDispute'),     color: '#991B1B',      dot: '#FCA5A5' },
+    archived:          { label: t('mission.bannerArchived'),    color: '#6B7280',      dot: '#D1D5DB' },
   }
   const banner = STATUS_BANNER[status] || STATUS_BANNER.assigned
-  const isTracking = status === 'assigned' || status === 'provider_arriving'
-  const canCancel = status === 'assigned' || status === 'provider_arriving'
+  const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived'].includes(status)
+  const canCancel = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status)
+  const canValidate = status === 'awaiting_validation'
+  const canPause = status === 'in_progress'
+  const canResume = status === 'paused'
+  const canDispute = ['in_progress', 'paused', 'awaiting_validation'].includes(status)
   const canRate = status === 'completed' && !hasReview
 
   const shareMission = async () => {
@@ -438,6 +540,66 @@ function MissionDetail() {
             )}
           </View>
 
+          {/* Métriques cycle de vie */}
+          {item.metrics && (
+            <View style={s.detailsCard}>
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
+                <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
+              </View>
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.totalDuration')}</Text>
+                <Text style={s.detailValue}>{item.metrics.elapsedFormatted}</Text>
+              </View>
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.activeDuration')}</Text>
+                <Text style={s.detailValue}>{item.metrics.activeFormatted}</Text>
+              </View>
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.pausedDuration')}</Text>
+                <Text style={s.detailValue}>{item.metrics.pausedFormatted} · {item.metrics.pauseCount} {t('mission.pauses')}</Text>
+              </View>
+              {item.metrics.estimatedResumeAt && (
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('mission.estimatedResume')}</Text>
+                  <Text style={s.detailValue}>{new Date(item.metrics.estimatedResumeAt).toLocaleString()}</Text>
+                </View>
+              )}
+              {item.metrics.currentPauseReason && (
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('mission.pauseReason')}</Text>
+                  <Text style={s.detailValue}>{item.metrics.currentPauseReason}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Actions */}
+          {canValidate && (
+            <TouchableOpacity style={s.validateBtn} onPress={handleValidate} disabled={updating} activeOpacity={0.8}>
+              <CheckCircle2 size={18} color={colors.surface} />
+              <Text style={s.validateBtnText}>{t('mission.validateBtn')}</Text>
+            </TouchableOpacity>
+          )}
+          {canPause && (
+            <TouchableOpacity style={s.pauseBtn} onPress={handlePause} disabled={updating} activeOpacity={0.8}>
+              <Clock size={18} color={colors.warning} />
+              <Text style={s.pauseBtnText}>{t('mission.pauseBtn')}</Text>
+            </TouchableOpacity>
+          )}
+          {canResume && (
+            <TouchableOpacity style={s.validateBtn} onPress={handleResume} disabled={updating} activeOpacity={0.8}>
+              <CheckCircle2 size={18} color={colors.surface} />
+              <Text style={s.validateBtnText}>{t('mission.resumeBtn')}</Text>
+            </TouchableOpacity>
+          )}
+          {canDispute && (
+            <TouchableOpacity style={s.cancelBtn} onPress={handleDispute} disabled={updating} activeOpacity={0.6}>
+              <AlertTriangle size={16} color={colors.danger} />
+              <Text style={s.cancelBtnText}>{t('mission.disputeBtn')}</Text>
+            </TouchableOpacity>
+          )}
+
           {canRate && (
             <TouchableOpacity style={s.rateBtn} onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)} activeOpacity={0.8}>
               <Star size={18} color={colors.surface} fill={colors.surface} />
@@ -512,6 +674,10 @@ const s = StyleSheet.create({
   payBalanceBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   rateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
   rateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
+  validateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
+  validateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
+  pauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
+  pauseBtnText: { color: colors.warning, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.semibold as any },
 })

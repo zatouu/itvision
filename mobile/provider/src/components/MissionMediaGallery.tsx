@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, FlatList, Dimensions } from 'react-native'
+
+const { width: SCREEN_W } = Dimensions.get('screen')
 import { Image } from 'expo-image'
 import { Video, ResizeMode } from 'expo-av'
 import { Play, X, Volume2 } from 'lucide-react-native'
@@ -37,7 +39,7 @@ function getMediaLabel(type: string | undefined): string {
 }
 
 export default function MissionMediaGallery({ media, audioLabel, mediaTitle, emptyLabel }: Props) {
-  const [fullMedia, setFullMedia] = useState<{ uri: string; type: string } | null>(null)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   const validMedia = (media || []).filter(m => m?.url || m?.uri)
   const audioMedia = validMedia.find(m => String(m.type || '').toLowerCase() === 'audio')
@@ -69,7 +71,7 @@ export default function MissionMediaGallery({ media, audioLabel, mediaTitle, emp
                 const uri = resolveMediaUrl(m.url || m.uri)
                 const isVideo = String(m.type || '').toLowerCase() === 'video'
                 return (
-                  <TouchableOpacity key={i} style={s.thumb} onPress={() => setFullMedia({ uri, type: m.type || 'image' })}>
+                  <TouchableOpacity key={i} style={s.thumb} onPress={() => setActiveIndex(i)}>
                     {isVideo ? (
                       <View style={s.thumbImage}>
                         <Video
@@ -99,26 +101,44 @@ export default function MissionMediaGallery({ media, audioLabel, mediaTitle, emp
         <Text style={s.emptyLabel}>{emptyLabel}</Text>
       ) : null}
 
-      <Modal visible={!!fullMedia} transparent animationType="fade" onRequestClose={() => setFullMedia(null)}>
-        <Pressable style={s.mediaModalOverlay} onPress={() => setFullMedia(null)}>
-          <View style={s.mediaModalContent}>
-            <TouchableOpacity style={s.mediaModalClose} onPress={() => setFullMedia(null)}>
-              <X size={24} color="#fff" />
-            </TouchableOpacity>
-            {fullMedia?.type === 'video' ? (
-              <Video
-                source={{ uri: fullMedia.uri }}
-                style={s.fullMedia}
-                resizeMode={ResizeMode.CONTAIN}
-                useNativeControls
-                shouldPlay
-                isLooping={false}
-              />
-            ) : fullMedia ? (
-              <Image source={{ uri: fullMedia.uri }} style={s.fullMedia} contentFit="contain" />
-            ) : null}
-          </View>
-        </Pressable>
+      <Modal visible={activeIndex !== null} transparent animationType="fade" onRequestClose={() => setActiveIndex(null)}>
+        <View style={s.mediaModalOverlay}>
+          <TouchableOpacity style={s.mediaModalClose} onPress={() => setActiveIndex(null)}>
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+          {activeIndex !== null && (
+            <FlatList
+              data={visualMedia}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={{ flex: 1 }}
+              initialScrollIndex={activeIndex}
+              keyExtractor={(item, index) => `media-${index}`}
+              getItemLayout={(data, index) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+              renderItem={({ item }) => {
+                const uri = resolveMediaUrl(item.url || item.uri)
+                const isVideo = String(item.type || '').toLowerCase() === 'video'
+                return (
+                  <View style={{ width: SCREEN_W, height: '100%' }}>
+                    {isVideo ? (
+                      <Video
+                        source={{ uri }}
+                        style={{ width: SCREEN_W, height: '100%' }}
+                        resizeMode={ResizeMode.CONTAIN}
+                        useNativeControls
+                        shouldPlay={false}
+                        isLooping={false}
+                      />
+                    ) : (
+                      <Image source={{ uri }} style={{ width: SCREEN_W, height: '100%' }} contentFit="contain" />
+                    )}
+                  </View>
+                )
+              }}
+            />
+          )}
+        </View>
       </Modal>
     </>
   )
@@ -132,9 +152,7 @@ const s = StyleSheet.create({
   thumb: { width: 80, height: 80, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.bg },
   thumbImage: { width: '100%', height: '100%' },
   playOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-  mediaModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.md },
-  mediaModalContent: { width: '100%', height: '80%', alignItems: 'center', justifyContent: 'center' },
-  mediaModalClose: { position: 'absolute', top: 0, right: 0, zIndex: 10, padding: spacing.sm },
-  fullMedia: { width: '100%', height: '100%', borderRadius: radius.lg },
+  mediaModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },
+  mediaModalClose: { position: 'absolute', top: 48, right: 16, zIndex: 10, padding: spacing.sm },
   emptyLabel: { fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' },
 })

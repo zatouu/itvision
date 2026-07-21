@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 import ServiceRequest from './models/ServiceRequest'
+import MissionAuditLog from './models/MissionAuditLog'
 import Payment from './models/Payment'
+import { refreshMissionAnomalies } from './mission-anomalies'
 import {
   getAppConfig,
   creditCashBalance,
@@ -78,13 +80,13 @@ export const DISPLAY_LABELS: Record<MissionStatus, string> = {
 }
 
 export const STATUS_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
-  created: ['broadcasted', 'cancelled', 'expired'],
+  created: ['broadcasted', 'accepted', 'cancelled', 'expired'],
   broadcasted: ['accepted', 'cancelled', 'expired'],
   accepted: ['on_the_way', 'cancelled', 'dispute'],
   on_the_way: ['arrived', 'cancelled', 'dispute'],
   arrived: ['in_progress', 'paused', 'cancelled', 'dispute'],
-  in_progress: ['paused', 'awaiting_validation', 'completed', 'cancelled', 'dispute'],
-  paused: ['in_progress', 'awaiting_validation', 'completed', 'cancelled', 'dispute'],
+  in_progress: ['paused', 'awaiting_validation', 'cancelled', 'dispute'],
+  paused: ['in_progress', 'cancelled', 'dispute'],
   awaiting_validation: ['completed', 'cancelled', 'dispute', 'in_progress'],
   completed: ['archived'],
   cancelled: ['archived'],
@@ -96,6 +98,8 @@ export const STATUS_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
 const ACTIVE_STATUSES: MissionStatus[] = ['accepted', 'on_the_way', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
 
 const STARTED_STATUSES: MissionStatus[] = ['arrived', 'in_progress', 'paused', 'awaiting_validation', 'completed', 'dispute']
+
+const PAUSABLE_STATUSES: MissionStatus[] = ['arrived', 'in_progress']
 
 export function isMissionActive(status: MissionStatus): boolean {
   return ACTIVE_STATUSES.includes(status)
@@ -113,26 +117,50 @@ export function canTransition(fromRaw: string, toRaw: string, role?: MissionRole
   if (!allowed.includes(to)) return { ok: false, reason: `Transition interdite: ${DISPLAY_LABELS[from]} → ${DISPLAY_LABELS[to]}` }
 
   if (role) {
-    // Provider cannot complete directly; needs validation by client.
-    if (role === 'provider' && to === 'completed') return { ok: false, reason: 'Seul le client peut valider la fin de la mission' }
-    // Provider cannot cancel once mission started (arrived/in_progress...)
+    // Seul le client (ou admin) peut valider la fin de mission, et uniquement depuis awaiting_validation.
+    if (to === 'completed' && role !== 'client' && role !== 'admin') {
+      return { ok: false, reason: 'Seul le client peut valider la fin de la mission' }
+    }
+    if (to === 'completed' && from !== 'awaiting_validation' && from !== 'dispute') {
+      return { ok: false, reason: 'Validation impossible : la mission n\'est pas en attente de validation' }
+    }
+    // Le prestataire ne peut pas annuler une mission démarrée.
     if (role === 'provider' && to === 'cancelled' && missionStarted(from)) {
       return { ok: false, reason: 'Vous ne pouvez plus annuler une mission démarrée' }
     }
-    // System/admin explicit only for dispute/archive/expire
+    // Archivage et expiration : admin/system uniquement.
     if (role !== 'admin' && role !== 'system') {
-      if (['dispute', 'archived'].includes(to)) {
-        return { ok: false, reason: 'Action réservée au support' }
-      }
+      if (to === 'archived') return { ok: false, reason: 'Archivage réservé au support' }
+      if (to === 'expired') return { ok: false, reason: 'Expiration automatique uniquement' }
     }
+    // Un litige ne peut être ouvert que par client/provider/admin (pas system sans raison).
+    if (to === 'dispute' && role !== 'client' && role !== 'provider' && role !== 'admin') {
+      return { ok: false, reason: 'Ouverture de litige non autorisée' }
+    }
+    // Sortie d'un litige : admin/system uniquement (résolution).
+    if (from === 'dispute' && role !== 'admin' && role !== 'system') {
+      return { ok: false, reason: 'Résolution de litige réservée au support' }
+    }
+    // Retour en cours depuis awaiting_validation : seul le client (corrections) ou admin.
+    if (from === 'awaiting_validation' && to === 'in_progress' && role !== 'client' && role !== 'admin') {
+      return { ok: false, reason: 'Seul le client peut demander des corrections' }
+    }
+    // Pause depuis arrived/in_progress uniquement (vérifié plus bas via PAUSABLE_STATUSES).
   }
   return { ok: true }
+}
+
+export type TransitionContext = {
+  ip?: string
+  userAgent?: string
+  platform?: string
 }
 
 export type TransitionOptions = {
   actor: { userId: string; role: MissionRole }
   reason?: string
   metadata?: Record<string, unknown>
+  context?: TransitionContext
   dontSave?: boolean
 }
 
@@ -144,70 +172,107 @@ export async function transition(
   await connectIfNeeded()
   const sr = await ServiceRequest.findById(requestId)
   if (!sr) throw new Error('Mission introuvable')
+
   const from = normalizeStatus(sr.status)
   const to = normalizeStatus(toRaw)
-  const { actor, reason, metadata } = options
+  const { actor, reason, metadata, context } = options
 
   const check = canTransition(from, to, actor.role)
   if (!check.ok) throw new Error(check.reason)
 
   const isOwner = String(sr.clientId) === String(actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(actor.userId)
+  // Provider non assigné peut soumettre la première offre (created → broadcasted).
+  const isBroadcastingCreated = actor.role === 'provider' && from === 'created' && to === 'broadcasted'
   if (actor.role === 'client' && !isOwner) throw new Error('Action interdite')
-  if (actor.role === 'provider' && !isProvider) throw new Error('Action interdite')
+  if (actor.role === 'provider' && !isProvider && !isBroadcastingCreated) throw new Error('Action interdite')
+
+  // Transition vers 'accepted' : doit fournir l'offre retenue et le prestataire.
+  if (to === 'accepted') {
+    const assignedProviderId = metadata?.assignedProviderId as string | undefined
+    const selectedOfferId = metadata?.selectedOfferId as string | undefined
+    if (!assignedProviderId || !selectedOfferId) {
+      throw new Error('acceptation impossible : offre/prestataire manquant')
+    }
+  }
+
+  // Transition vers 'paused' interdite ici : utiliser pause()
+  if (to === 'paused') throw new Error('Utilisez pause() pour mettre en pause')
 
   const prevStatus = sr.status
   const now = new Date()
 
-  // Apply canonical status
-  sr.status = to
-  sr.lastActivityAt = now
+  const $set: Record<string, any> = {
+    status: to,
+    lastActivityAt: now,
+  }
 
-  // Timestamps
-  if (to === 'broadcasted') { (sr as any).broadcastedAt = now; }
-  if (to === 'accepted') { (sr as any).assignedAt = now; }
-  if (to === 'on_the_way') { (sr as any).providerArrivingAt = now; }
-  if (to === 'arrived') { (sr as any).arrivedAt = now; }
-  if (to === 'in_progress') {
-    if (!(sr as any).startedAt) { (sr as any).startedAt = now; }
+  if (to === 'broadcasted') $set.broadcastedAt = now
+  if (to === 'accepted') {
+    $set.assignedAt = now
+    $set.assignedProviderId = (metadata?.assignedProviderId as any) || sr.assignedProviderId
+    $set.selectedOfferId = (metadata?.selectedOfferId as any) || sr.selectedOfferId
   }
-  if (to === 'awaiting_validation') {
-    (sr as any).providerCompletedAt = now;
-  }
+  if (to === 'on_the_way') $set.providerArrivingAt = now
+  if (to === 'arrived') $set.arrivedAt = now
+  if (to === 'in_progress' && !sr.startedAt) $set.startedAt = now
+  if (to === 'awaiting_validation') $set.providerCompletedAt = now
   if (to === 'completed') {
-    (sr as any).completedAt = now;
-    (sr as any).validatedByClientAt = now;
-    // Financial release
-    await releaseHeldPayments(sr, actor.userId);
-    if (sr.assignedProviderId) {
-      void incrementProviderCompleted(String(sr.assignedProviderId));
-      void creditReferrerOnFirstMission(String(sr.clientId), 1000);
+    $set.completedAt = now
+    $set.validatedByClientAt = now
+  }
+  if (to === 'cancelled') {
+    $set.cancelledAt = now
+    $set.cancelledBy = actor.role === 'provider' ? 'provider' : isOwner ? 'client' : actor.role
+    if (reason) $set.cancelReason = String(reason).slice(0, 500)
+  }
+  if (to === 'expired') $set.expiredAt = now
+  if (to === 'dispute') {
+    $set.disputeOpenedAt = now
+    if (reason) $set.disputeReason = String(reason).slice(0, 500)
+    // Verrouiller l'escrow : ajouter un flag pour interdire toute libération.
+    $set.escrowLocked = true
+    $set.escrowLockedAt = now
+    $set.escrowLockedBy = actor.userId
+  }
+  if (to === 'archived') {
+    $set.archivedAt = now
+    $set.archivedReason = reason || 'manual'
+  }
+
+  // Mise à jour atomique : seul le document avec le statut actuel est modifié.
+  const conditions: any = { _id: requestId, status: { $in: [sr.status, from] } }
+  const updated = await ServiceRequest.findOneAndUpdate(conditions, { $set }, { new: true, runValidators: true })
+  if (!updated) {
+    throw new Error('Conflit de mise à jour : la mission a déjà changé de statut, veuillez réessayer')
+  }
+
+  // Effets de bord post-transition (hors transaction, idempotents ou atomisés)
+  if (to === 'completed') {
+    await releaseHeldPayments(updated, actor.userId)
+    if (updated.assignedProviderId) {
+      void incrementProviderCompleted(String(updated.assignedProviderId))
+      void creditReferrerOnFirstMission(String(updated.clientId), 1000)
     }
   }
   if (to === 'cancelled') {
-    (sr as any).cancelledAt = now;
-    (sr as any).cancelledBy = actor.role === 'provider' ? 'provider' : isOwner ? 'client' : actor.role;
-    if (reason) { (sr as any).cancelReason = String(reason).slice(0, 500); }
-    await handleCancellationSideEffects(sr, prevStatus, actor);
-  }
-  if (to === 'expired') {
-    (sr as any).expiredAt = now;
-  }
-  if (to === 'paused') {
-    // pause is handled by pause() function; transition alone should not create pauseLog
-  }
-  if (to === 'dispute') {
-    (sr as any).disputeOpenedAt = now;
-    if (reason) { (sr as any).disputeReason = String(reason).slice(0, 500); }
-  }
-  if (to === 'archived') {
-    (sr as any).archivedAt = now;
-    (sr as any).archivedReason = reason || 'manual';
+    await handleCancellationSideEffects(updated, prevStatus, actor)
   }
 
-  await sr.save()
-  await notifyStatusChange(sr, prevStatus, actor, metadata)
-  return sr
+  await notifyStatusChange(updated, prevStatus, actor, metadata)
+  await logAudit({
+    requestId,
+    actorId: actor.userId,
+    actorRole: actor.role,
+    action: 'status_changed',
+    fromStatus: prevStatus,
+    toStatus: to,
+    reason,
+    metadata,
+    context,
+  })
+  void refreshMissionAnomalies(requestId)
+  return updated
 }
 
 export type PauseOptions = {
@@ -215,6 +280,7 @@ export type PauseOptions = {
   reason: string
   comment?: string
   estimatedResumeAt?: string | Date
+  context?: TransitionContext
 }
 
 export async function pause(requestId: string, options: PauseOptions) {
@@ -223,7 +289,7 @@ export async function pause(requestId: string, options: PauseOptions) {
   if (!sr) throw new Error('Mission introuvable')
   const from = normalizeStatus(sr.status)
   if (from === 'paused') throw new Error('Mission déjà en pause')
-  if (!isMissionActive(from)) throw new Error('Impossible de mettre en pause cette mission')
+  if (!PAUSABLE_STATUSES.includes(from)) throw new Error('Impossible de mettre en pause cette mission avant le démarrage')
 
   const isOwner = String(sr.clientId) === String(options.actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(options.actor.userId)
@@ -242,17 +308,33 @@ export async function pause(requestId: string, options: PauseOptions) {
     endedAt: undefined as Date | undefined,
   }
 
-  ;(sr as any).pauseLog = [...((sr as any).pauseLog || []), pauseEntry]
-  ;(sr as any).pausedFromStatus = sr.status
-  sr.status = 'paused'
-  sr.lastActivityAt = now
+  const previous = sr.status
+  const updated = await ServiceRequest.findOneAndUpdate(
+    { _id: requestId, status: { $in: [sr.status, from] } },
+    {
+      $set: { status: 'paused', pausedFromStatus: previous, lastActivityAt: now },
+      $push: { pauseLog: pauseEntry },
+    },
+    { new: true, runValidators: true }
+  )
+  if (!updated) throw new Error('Conflit : la mission a déjà changé de statut')
 
-  await sr.save()
-  await notifyStatusChange(sr, from, options.actor, { type: 'pause' })
-  return sr
+  await notifyStatusChange(updated, from, options.actor, { type: 'pause' })
+  await logAudit({
+    requestId,
+    actorId: options.actor.userId,
+    actorRole: options.actor.role,
+    action: 'pause',
+    fromStatus: previous,
+    toStatus: 'paused',
+    reason: options.reason,
+    context: options.context,
+  })
+  void refreshMissionAnomalies(requestId)
+  return updated
 }
 
-export async function resume(requestId: string, actor: { userId: string; role: MissionRole }) {
+export async function resume(requestId: string, actor: { userId: string; role: MissionRole }, context?: TransitionContext) {
   await connectIfNeeded()
   const sr = await ServiceRequest.findById(requestId)
   if (!sr) throw new Error('Mission introuvable')
@@ -265,28 +347,55 @@ export async function resume(requestId: string, actor: { userId: string; role: M
   if (actor.role === 'provider' && !isProvider) throw new Error('Action interdite')
 
   const now = new Date()
-  const log = ((sr as any).pauseLog || []) as any[]
-  const currentPause = log[log.length - 1]
-  if (currentPause && !currentPause.endedAt) {
-    currentPause.endedAt = now
-  }
-  ;(sr as any).pauseLog = log
-
   const previous = normalizeStatus((sr as any).pausedFromStatus || 'in_progress')
-  sr.status = STATUS_TRANSITIONS['paused'].includes(previous) ? previous : 'in_progress'
-  sr.lastActivityAt = now
+  const target = STATUS_TRANSITIONS['paused'].includes(previous) ? previous : 'in_progress'
 
-  await sr.save()
-  await notifyStatusChange(sr, 'paused', actor, { type: 'resume' })
-  return sr
+  const updated = await ServiceRequest.findOneAndUpdate(
+    { _id: requestId, status: { $in: [sr.status, from] }, 'pauseLog.endedAt': { $exists: false } },
+    {
+      $set: { status: target, lastActivityAt: now, 'pauseLog.$[p].endedAt': now },
+      $unset: { pausedFromStatus: 1 },
+    },
+    {
+      new: true,
+      runValidators: true,
+      arrayFilters: [{ 'p.endedAt': { $exists: false } }],
+    }
+  )
+  if (!updated) throw new Error('Conflit : la mission a déjà changé de statut ou la pause est terminée')
+
+  await notifyStatusChange(updated, 'paused', actor, { type: 'resume' })
+  await logAudit({
+    requestId,
+    actorId: actor.userId,
+    actorRole: actor.role,
+    action: 'resume',
+    fromStatus: 'paused',
+    toStatus: target,
+    context,
+  })
+  void refreshMissionAnomalies(requestId)
+  return updated
 }
 
-export async function validateCompletion(requestId: string, actor: { userId: string; role: MissionRole }) {
-  return transition(requestId, 'completed', { actor })
+export async function validateCompletion(
+  requestId: string,
+  actor: { userId: string; role: MissionRole },
+  context?: TransitionContext
+) {
+  if (actor.role !== 'client' && actor.role !== 'admin') {
+    throw new Error('Seul le client peut valider la fin de mission')
+  }
+  return transition(requestId, 'completed', { actor, context })
 }
 
-export async function openDispute(requestId: string, reason: string, actor: { userId: string; role: MissionRole }) {
-  return transition(requestId, 'dispute', { actor, reason })
+export async function openDispute(
+  requestId: string,
+  reason: string,
+  actor: { userId: string; role: MissionRole },
+  context?: TransitionContext
+) {
+  return transition(requestId, 'dispute', { actor, reason, context })
 }
 
 export async function archive(requestId: string, archiveReason: string, actor: { userId: string; role: MissionRole }) {
@@ -332,7 +441,11 @@ export function computeMetrics(sr: any): LifecycleMetrics {
   const now = Date.now()
   const createdAt = sr.createdAt ? new Date(sr.createdAt).toISOString() : new Date().toISOString()
   const lastActivityAt = sr.lastActivityAt ? new Date(sr.lastActivityAt).toISOString() : createdAt
-  const elapsedMs = now - new Date(createdAt).getTime()
+  const closedAt = sr.completedAt || sr.cancelledAt || sr.expiredAt || sr.archivedAt || sr.disputeOpenedAt
+  const elapsedEndMs = ['completed', 'cancelled', 'expired', 'archived', 'dispute'].includes(status)
+    ? (closedAt ? new Date(closedAt).getTime() : now)
+    : now
+  const elapsedMs = Math.max(0, elapsedEndMs - new Date(createdAt).getTime())
 
   const pauseLog: any[] = (sr.pauseLog || [])
   let pausedMs = 0
@@ -397,6 +510,36 @@ async function connectIfNeeded() {
   }
 }
 
+async function logAudit(entry: {
+  requestId: string
+  actorId?: string
+  actorRole?: MissionRole
+  action: any
+  fromStatus?: string
+  toStatus?: string
+  reason?: string
+  metadata?: Record<string, unknown>
+  context?: TransitionContext
+}) {
+  try {
+    await MissionAuditLog.create({
+      requestId: entry.requestId,
+      actorId: entry.actorId,
+      actorRole: entry.actorRole,
+      action: entry.action,
+      fromStatus: entry.fromStatus,
+      toStatus: entry.toStatus,
+      reason: entry.reason,
+      metadata: entry.metadata || {},
+      ip: entry.context?.ip,
+      userAgent: entry.context?.userAgent,
+      platform: entry.context?.platform,
+    })
+  } catch (e) {
+    console.error('[lifecycle] logAudit error', e)
+  }
+}
+
 async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: string; role: MissionRole }, metadata?: Record<string, unknown>) {
   const io = (global as any).io
   const id = String(sr._id)
@@ -424,13 +567,19 @@ async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: 
   }
   const label = statusLabels[sr.status]
   if (label) {
-    const recipient = actor.role === 'provider' ? String(sr.clientId) : sr.assignedProviderId ? String(sr.assignedProviderId) : null
-    if (recipient) {
-      void sendPushToUser(recipient, {
+    const recipients: { userId: string; appType: 'consumer' | 'provider' }[] = []
+    if (sr.clientId) {
+      recipients.push({ userId: String(sr.clientId), appType: 'consumer' })
+    }
+    if (sr.assignedProviderId) {
+      recipients.push({ userId: String(sr.assignedProviderId), appType: 'provider' })
+    }
+    for (const r of recipients) {
+      void sendPushToUser(r.userId, {
         title: label,
         body: `Mission ${id.slice(-6).toUpperCase()} — ${DISPLAY_LABELS[normalizeStatus(sr.status)]}`,
-        data: { type: 'request:status-changed', requestId: id, status: sr.status },
-        appType: actor.role === 'provider' ? 'consumer' : 'provider',
+        data: { type: 'request:status-changed', requestId: id, status: sr.status, prevStatus },
+        appType: r.appType,
       })
     }
   }
@@ -443,30 +592,45 @@ async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: 
 
 async function releaseHeldPayments(sr: any, validatedByUserId: string) {
   try {
-    const heldPayments = await Payment.find({ requestId: sr._id, status: 'held' }).sort({ createdAt: 1 })
+    if (sr.escrowLocked) {
+      throw new Error('Paiement bloqué : un litige est en cours')
+    }
     const cfg = await getAppConfig()
     const commissionRate = Number(cfg.monetization?.commissionRate) || 0
     const now = new Date()
-    for (const payment of heldPayments as any[]) {
+    let releasedCount = 0
+    let totalNet = 0
+
+    // Boucle atomique : on récupère un paiement held non-cash, on le passe released avec findOneAndUpdate.
+    // Les paiements cash restent held jusqu'à confirmation manuelle du prestataire.
+    while (true) {
+      const payment = await Payment.findOneAndUpdate(
+        { requestId: sr._id, status: 'held', provider: { $ne: 'cash' } },
+        { $set: { status: 'released', releasedAt: now, releasedBy: validatedByUserId } },
+        { sort: { createdAt: 1 } }
+      )
+      if (!payment) break
+
       const rawAmount = payment.phase === 'deposit' ? payment.depositAmount : payment.amount
       if (rawAmount <= 0) continue
       const commission = Math.round((rawAmount * commissionRate) / 100)
       const net = rawAmount - commission
-      if (payment.provider !== 'cash' && net > 0) {
+
+      if (net > 0) {
         await creditCashBalance(String(payment.providerId), net, {
           relatedMissionId: String(sr._id),
           paymentRef: String(payment._id),
           description: `Reversement mission validée ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
         })
       }
-      payment.status = 'released'
-      payment.releasedAt = now
-      await payment.save()
+      releasedCount++
+      totalNet += net
     }
-    if (heldPayments.length && sr.assignedProviderId) {
+
+    if (releasedCount && sr.assignedProviderId) {
       void sendPushToUser(String(sr.assignedProviderId), {
         title: 'Paiement reçu',
-        body: 'Mission validée : les fonds ont été crédités sur votre portefeuille.',
+        body: `${totalNet.toLocaleString('fr-FR')} FCFA crédités sur votre portefeuille.`,
         data: { type: 'payment:released', requestId: String(sr._id) },
         appType: 'provider',
       })
@@ -478,7 +642,7 @@ async function releaseHeldPayments(sr: any, validatedByUserId: string) {
 
 async function handleCancellationSideEffects(sr: any, prevStatus: string, actor: { userId: string; role: MissionRole }) {
   try {
-    // Provider cancellation impact
+    // Impact sur le classement du prestataire
     if (sr.assignedProviderId && ['accepted', 'on_the_way', 'arrived'].includes(prevStatus)) {
       if (actor.role === 'provider') {
         void penalizeProviderCancellation(String(sr.assignedProviderId), severityFromStatus(prevStatus))
@@ -492,14 +656,26 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
 
   try {
     const now = new Date()
-    const heldPayment = await Payment.findOne({ requestId: sr._id, status: 'held' })
-    if (heldPayment) {
-      const isClient = String(sr.clientId) === String(actor.userId)
-      const clientLateCancellation = isClient && ['on_the_way', 'arrived'].includes(prevStatus)
-      if (clientLateCancellation && heldPayment.depositAmount > 0) {
-        const cfg = await getAppConfig()
-        const commissionRate = Number(cfg.monetization?.commissionRate) || 0
-        const rawAmount = heldPayment.depositAmount
+    const isClient = String(sr.clientId) === String(actor.userId)
+    const clientLateCancellation = isClient && ['on_the_way', 'arrived'].includes(prevStatus)
+
+    while (true) {
+      const heldPayment = await Payment.findOneAndUpdate(
+        { requestId: sr._id, status: 'held' },
+        {
+          $set: clientLateCancellation
+            ? { status: 'released', releasedAt: now, releasedBy: actor.userId }
+            : { status: 'refunded', refundedAt: now, refundedBy: actor.userId },
+        },
+        { sort: { createdAt: 1 } }
+      )
+      if (!heldPayment) break
+
+      const cfg = await getAppConfig()
+      const commissionRate = Number(cfg.monetization?.commissionRate) || 0
+      const rawAmount = heldPayment.depositAmount > 0 ? heldPayment.depositAmount : heldPayment.amount
+
+      if (clientLateCancellation) {
         const commission = Math.round((rawAmount * commissionRate) / 100)
         const net = rawAmount - commission
         if (heldPayment.provider !== 'cash' && net > 0) {
@@ -509,9 +685,6 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
             description: 'Dépôt de garantie suite à annulation tardive client',
           })
         }
-        heldPayment.status = 'released'
-        heldPayment.releasedAt = now
-        await heldPayment.save()
         if (sr.assignedProviderId) {
           void sendPushToUser(String(sr.assignedProviderId), {
             title: 'Dépôt de garantie reçu',
@@ -521,13 +694,16 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
           })
         }
       } else {
-        heldPayment.status = 'refunded'
-        heldPayment.refundedAt = now
-        await heldPayment.save()
         const escrowCost = heldPayment.escrowPointsCharged || 0
         if (escrowCost > 0) {
           await refundEscrowPoints(String(heldPayment.clientId), String(sr._id), escrowCost)
         }
+        void sendPushToUser(String(heldPayment.clientId), {
+          title: 'Paiement remboursé',
+          body: `${rawAmount.toLocaleString('fr-FR')} FCFA remboursés suite à l'annulation.`,
+          data: { type: 'payment:refunded', requestId: String(sr._id) },
+          appType: 'consumer',
+        })
       }
     }
   } catch (e) {

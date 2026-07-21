@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput, Alert, ActivityIndicator } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket } from '../src/socket'
@@ -9,7 +9,7 @@ import { SkeletonCard } from '../src/components/Skeleton'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Map, AlertTriangle, Inbox, Search, MessageSquare, CheckCircle2, XCircle, Truck, Wrench } from 'lucide-react-native'
+import { ArrowLeft, Map, AlertTriangle, Inbox, Search, MessageSquare, CheckCircle2, XCircle, Truck, Wrench, MapPin, Pause, Clock } from 'lucide-react-native'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   submitted: { label: 'En attente',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
@@ -22,10 +22,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 
 const MISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; banner: string }> = {
   assigned:          { label: 'À démarrer',     color: '#065F46', bg: '#ECFDF5', dot: '#16A34A', banner: 'Le client vous a sélectionné. Préparez-vous !' },
+  on_the_way:        { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
   provider_arriving: { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
+  arrived:           { label: 'Arrivé',         color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes arrivé chez le client.' },
   in_progress:       { label: 'En cours',       color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED', banner: 'Mission en cours.' },
+  paused:            { label: 'En pause',       color: '#B45309', bg: '#FEF3C7', dot: '#F59E0B', banner: 'Mission en pause.' },
+  awaiting_validation:{ label: 'Validation client', color: '#B45309', bg: '#FEF3C7', dot: '#F59E0B', banner: 'En attente de validation client.' },
   completed:         { label: 'Terminée',       color: '#374151', bg: '#F1F5F9', dot: '#6B7280', banner: 'Mission terminée avec succès.' },
   cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: 'Mission annulée.' },
+  dispute:           { label: 'Litige',         color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: 'Un litige est ouvert.' },
 }
 
 function MyOffers() {
@@ -60,6 +65,12 @@ function MyOffers() {
 
   useEffect(() => { load() }, [load])
 
+  useFocusEffect(
+    useCallback(() => {
+      load(true)
+    }, [load])
+  )
+
   // WebSocket: écouter les notifications du canal provider
   useEffect(() => {
     const socket = connectSocket()
@@ -72,11 +83,13 @@ function MyOffers() {
     }
     const onRejected = () => { load(true) }
     const onCounter = () => { load(true) }
+    const onUpdated = () => { load(true) }
     const onStatus = () => { load(true) }
 
     socket.on('offer:accepted', onAccepted)
     socket.on('offer:rejected', onRejected)
     socket.on('offer:counter', onCounter)
+    socket.on('offer:updated', onUpdated)
     socket.on('mission:status-changed', onStatus)
 
     // Fallback si la notif temps réel est manquée (silencieux)
@@ -87,6 +100,7 @@ function MyOffers() {
       socket.off('offer:accepted', onAccepted)
       socket.off('offer:rejected', onRejected)
       socket.off('offer:counter', onCounter)
+      socket.off('offer:updated', onUpdated)
       socket.off('mission:status-changed', onStatus)
     }
   }, [load])
@@ -103,7 +117,7 @@ function MyOffers() {
       const missionStatus = it.requestStatus || it.status
       const matchesStatus =
         (statusFilter === 'all' && !['completed', 'cancelled', 'rejected', 'expired', 'withdrawn'].includes(missionStatus))
-        || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress', 'accepted'].includes(missionStatus))
+        || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'on_the_way', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(missionStatus))
         || (statusFilter === 'done' && ['completed', 'cancelled', 'rejected', 'expired', 'withdrawn'].includes(missionStatus))
         || (statusFilter === 'pending' && it.status === 'submitted')
         || (statusFilter === 'counter' && it.status === 'submitted' && it.clientCounterStatus === 'pending')
@@ -313,10 +327,13 @@ function MyOffers() {
                   <View style={[s.acceptedBanner, { backgroundColor: missionSt.bg, borderColor: missionSt.color + '33' }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       {it.requestStatus === 'assigned' && <CheckCircle2 size={14} color={missionSt.color} />}
-                      {it.requestStatus === 'provider_arriving' && <Truck size={14} color={missionSt.color} />}
+                      {(it.requestStatus === 'provider_arriving' || it.requestStatus === 'on_the_way') && <Truck size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'arrived' && <MapPin size={14} color={missionSt.color} />}
                       {it.requestStatus === 'in_progress' && <Wrench size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'paused' && <Pause size={14} color={missionSt.color} />}
+                      {it.requestStatus === 'awaiting_validation' && <Clock size={14} color={missionSt.color} />}
                       {it.requestStatus === 'completed' && <CheckCircle2 size={14} color={missionSt.color} />}
-                      {it.requestStatus === 'cancelled' && <XCircle size={14} color={missionSt.color} />}
+                      {(it.requestStatus === 'cancelled' || it.requestStatus === 'dispute') && <XCircle size={14} color={missionSt.color} />}
                       <Text style={[s.acceptedText, { color: missionSt.color }]}>{missionSt.banner}</Text>
                     </View>
                   </View>

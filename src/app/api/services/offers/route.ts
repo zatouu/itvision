@@ -105,6 +105,10 @@ export async function POST(request: NextRequest) {
     if (String(sr.clientId) === String(userId)) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
+    // Refuse offers on missions that are no longer open
+    if (!['created', 'broadcasted', 'pending_offers'].includes(sr.status)) {
+      return NextResponse.json({ error: 'Cette demande n\'est plus ouverte aux offres' }, { status: 409 })
+    }
 
     const cfg = await getAppConfig()
     const existing = await Offer.findOne({ requestId, providerId: userId })
@@ -184,7 +188,7 @@ export async function POST(request: NextRequest) {
       })
     } else {
       const lifecycle = await import('@/lib/mission-lifecycle')
-      await lifecycle.touch(String(sr._id), 'offer', userId)
+      lifecycle.touch(String(sr._id), 'offer', userId).catch(() => {})
     }
 
     if (cfg.credits?.unlockEnabled === true) {
@@ -215,8 +219,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Push notification au consumer
-    await sendPushToUser(String(sr.clientId), {
+    // Push notification au consumer (fire-and-forget, ne pas bloquer la réponse HTTP)
+    void sendPushToUser(String(sr.clientId), {
       title: isUpdate ? '💰 Offre mise à jour' : '💰 Nouvelle offre reçue',
       body: `${price.toLocaleString('fr-FR')} FCFA — ${comment ? comment.slice(0, 60) : 'Voir l\'offre'}`,
       data: { type: 'offer:new', requestId, offerId: String(created._id) },

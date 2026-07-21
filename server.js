@@ -284,11 +284,23 @@ app.prepare().then(() => {
       socket.emit('online-providers-count', { count })
     })
 
-    socket.on('provider:location', (data) => {
+    socket.on('provider:location', async (data) => {
       if (!data?.requestId || typeof data?.lat !== 'number' || typeof data?.lng !== 'number') return
       const now = Date.now()
       const existing = providerPresence.get(userId)
       if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return
+
+      // Vérifier que le provider est bien assigné à cette mission
+      try {
+        const { default: ServiceRequest } = await import('./src/lib/models/ServiceRequest')
+        const sr = await ServiceRequest.findById(data.requestId).select('assignedProviderId status').lean()
+        if (!sr || String(sr.assignedProviderId) !== String(userId)) return
+        if (!['accepted', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(sr.status)) return
+      } catch (verifyErr) {
+        console.error('[WS] provider:location verification error', verifyErr)
+        return
+      }
+
       updatePresence(userId, {
         lat: data.lat,
         lng: data.lng,
