@@ -2,7 +2,7 @@ name: Build Expo Apps (EAS)
 
 on:
   push:
-    branches: [main, master, feat/provider-profile-dashboard]
+    branches: [main, master]
     paths:
       - 'mobile/**'
       - '.github/workflows/build-eas.yml'
