@@ -40,6 +40,7 @@ const PaymentSchema = new Schema({
 }, { timestamps: true })
 
 PaymentSchema.index({ requestId: 1 })
+PaymentSchema.index({ requestId: 1, status: 1 })
 PaymentSchema.index({ externalId: 1 }, { sparse: true })
 PaymentSchema.index({ status: 1, createdAt: -1 })
 PaymentSchema.index({ providerId: 1, status: 1, releasedAt: -1 })

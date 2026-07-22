@@ -92,6 +92,7 @@ const ServiceRequestSchema = new Schema({
 ServiceRequestSchema.index({ 'location': '2dsphere' })
 ServiceRequestSchema.index({ status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, expiresAt: 1 })
+ServiceRequestSchema.index({ status: 1, lastActivityAt: -1 })
 ServiceRequestSchema.index({ clientId: 1, status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ assignedProviderId: 1, status: 1 })
 

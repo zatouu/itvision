@@ -121,6 +121,7 @@ export const registerRateLimiter = new RateLimiter(15 * 60 * 1000, 3, true) // 3
 export const apiRateLimiter = new RateLimiter(15 * 60 * 1000, 100) // 100 requêtes API par 15 min
 export const uploadRateLimiter = new RateLimiter(60 * 60 * 1000, 10) // 10 uploads par heure
 export const serviceWriteRateLimiter = new RateLimiter(15 * 60 * 1000, 10) // 10 créations requêtes/offres par 15 min
+export const missionTransitionRateLimiter = new RateLimiter(5 * 1000, 2) // 2 transitions de mission par 5 sec (anti double-clic)
 export const serviceReadRateLimiter = new RateLimiter(60 * 1000, 30) // 30 requêtes read par minute
 
 // Helper function pour appliquer le rate limiting

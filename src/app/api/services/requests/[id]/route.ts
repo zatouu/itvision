@@ -4,6 +4,7 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { requireAuth } from '@/lib/jwt'
 import User from '@/lib/models/User'
+import { applyRateLimit, missionTransitionRateLimiter } from '@/lib/rate-limiter'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -88,6 +89,9 @@ const MISSION_ROLE_MAP: Record<string, 'client' | 'provider' | 'admin'> = {
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const rl = await applyRateLimit(request, missionTransitionRateLimiter)
+  if (rl) return rl
+
   try {
     await connectMongoose()
     const { userId, role } = await requireAuth(request)

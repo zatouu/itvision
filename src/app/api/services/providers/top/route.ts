@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceReadRateLimiter } from '@/lib/rate-limiter'
 import Offer from '@/lib/models/Offer'
-import ServiceReview from '@/lib/models/ServiceReview'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 import User from '@/lib/models/User'
 
 export async function GET(request: NextRequest) {
@@ -27,21 +27,20 @@ export async function GET(request: NextRequest) {
 
     const providerIds = acceptedCounts.map((c: any) => c._id)
 
-    // Notes moyennes
-    const ratings = await ServiceReview.aggregate([
-      { $match: { providerId: { $in: providerIds } } },
-      { $group: { _id: '$providerId', avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+    // Notes moyennes précalculées dans ProviderProfile
+    const [users, profiles] = await Promise.all([
+      User.find({ _id: { $in: providerIds } }).select('name phone').lean(),
+      ProviderProfile.find({ userId: { $in: providerIds } }).select('userId performance').lean(),
     ])
-
-    const users = await User.find({ _id: { $in: providerIds } }).lean()
+    const profileMap = new Map(profiles.map((p: any) => [String(p.userId), p]))
 
     const result = acceptedCounts.map((c: any) => {
       const user = users.find((u: any) => String(u._id) === String(c._id))
-      const r = ratings.find((r: any) => String(r._id) === String(c._id))
+      const perf: any = profileMap.get(String(c._id))?.performance || {}
       return {
         id: String(c._id),
         name: user?.name || user?.phone || 'Prestataire',
-        rating: r ? { avg: Number(r.avg.toFixed(1)), count: r.count } : { avg: 0, count: 0 },
+        rating: perf.ratingAvg ? { avg: Number(perf.ratingAvg.toFixed(1)), count: perf.ratingCount || 0 } : { avg: 0, count: 0 },
         completedMissions: c.acceptedCount,
       }
     }).slice(0, limit)

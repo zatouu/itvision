@@ -1,4 +1,6 @@
 import User from '@/lib/models/User'
+import ProviderProfile from '@/lib/models/ProviderProfile'
+import ServiceReview from '@/lib/models/ServiceReview'
 
 /**
  * Helpers pour gérer les stats de fiabilité du provider.
@@ -19,6 +21,52 @@ const PENALTY: Record<CancelSeverity, number> = {
   after_assigned: 5,
   after_arriving: 10,
   after_in_progress: 15,
+}
+
+async function updateProviderProfilePerformance(providerId: string) {
+  try {
+    const user = await User.findById(providerId).select('providerStats').lean() as any
+    const stats = user?.providerStats || { completedMissions: 0, cancelledByProvider: 0, cancelledByClient: 0, reliabilityScore: 100 }
+    const completed = stats.completedMissions || 0
+    const cancelledProvider = stats.cancelledByProvider || 0
+    const cancelledClient = stats.cancelledByClient || 0
+    const total = completed + cancelledProvider + cancelledClient
+    const successRate = total > 0 ? completed / total : 0
+    const cancellationRate = total > 0 ? (cancelledProvider + cancelledClient) / total : 0
+    await ProviderProfile.findOneAndUpdate(
+      { userId: providerId },
+      {
+        $set: {
+          providerStats: stats,
+          'performance.completedMissions': completed,
+          'performance.successRate': successRate,
+          'performance.cancellationRate': cancellationRate,
+          'performance.totalMissions': total,
+        },
+      },
+      { upsert: true }
+    )
+  } catch (e) {
+    console.error('[providerStats] updateProviderProfilePerformance', providerId, e)
+  }
+}
+
+export async function recomputeProviderRating(providerId: string) {
+  try {
+    const agg = await ServiceReview.aggregate([
+      { $match: { providerId } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+    ])
+    const avg = agg[0] ? Math.round(agg[0].avg * 10) / 10 : 0
+    const count = agg[0] ? agg[0].count : 0
+    await ProviderProfile.findOneAndUpdate(
+      { userId: providerId },
+      { $set: { 'performance.ratingAvg': avg, 'performance.ratingCount': count } },
+      { upsert: true }
+    )
+  } catch (e) {
+    console.error('[providerStats] recomputeProviderRating', providerId, e)
+  }
 }
 
 export function severityFromStatus(prevStatus: string): CancelSeverity {
@@ -43,6 +91,7 @@ export async function incrementProviderCompleted(providerId: string) {
       { _id: providerId, 'providerStats.reliabilityScore': { $lt: 100 } },
       { $inc: { 'providerStats.reliabilityScore': 1 } }
     )
+    void updateProviderProfilePerformance(providerId)
   } catch (e) {
     console.error('[providerStats] increment completed', e)
   }
@@ -70,6 +119,7 @@ export async function penalizeProviderCancellation(
       { _id: providerId, 'providerStats.reliabilityScore': { $lt: 0 } },
       { $set: { 'providerStats.reliabilityScore': 0 } }
     )
+    void updateProviderProfilePerformance(providerId)
   } catch (e) {
     console.error('[providerStats] penalize cancellation', e)
   }
@@ -84,6 +134,7 @@ export async function recordClientCancellation(providerId: string) {
         $set: { 'providerStats.lastUpdatedAt': new Date() },
       }
     )
+    void updateProviderProfilePerformance(providerId)
   } catch (e) {
     console.error('[providerStats] record client cancellation', e)
   }

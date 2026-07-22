@@ -415,3 +415,177 @@ Proceeding with outdated version.
 
 Unsupported platform, macOS or Linux is required to build apps for Android
     Error: build command failed.
+[consumer] Fichiers modifies depuis c42af67b911770a3cab515e56c014c98d58a0b6b :
+  - mobile/consumer/XeuyBi-consumer.apk
+  - mobile/consumer/app.json
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/payment.tsx
+  - mobile/consumer/app/request-offers.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/consumer-ota-chat.log
+  - mobile/consumer/consumer-ota-map.log
+  - mobile/consumer/consumer-ota-media.log
+  - mobile/consumer/consumer-ota-zoom.log
+  - mobile/consumer/consumer-ota.log
+  - mobile/consumer/package-lock.json
+  - mobile/consumer/package.json
+  - mobile/consumer/src/components/LiveRouteMap.tsx
+  - mobile/consumer/src/components/RequestOffersMap.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/app.json
+    NATIF: mobile/consumer/package.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.0.2 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis c42af67b911770a3cab515e56c014c98d58a0b6b :
+  - mobile/consumer/.env
+  - mobile/consumer/XeuyBi-consumer.apk
+  - mobile/consumer/app.json
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/payment.tsx
+  - mobile/consumer/app/request-offers.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/consumer-ota-chat.log
+  - mobile/consumer/consumer-ota-map.log
+  - mobile/consumer/consumer-ota-media.log
+  - mobile/consumer/consumer-ota-zoom.log
+  - mobile/consumer/consumer-ota.log
+  - mobile/consumer/package-lock.json
+  - mobile/consumer/package.json
+  - mobile/consumer/src/components/LiveRouteMap.tsx
+  - mobile/consumer/src/components/RequestOffersMap.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/app.json
+    NATIF: mobile/consumer/package.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.0.3 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis c42af67b911770a3cab515e56c014c98d58a0b6b :
+  - mobile/consumer/.env
+  - mobile/consumer/XeuyBi-consumer.apk
+  - mobile/consumer/app.json
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/payment.tsx
+  - mobile/consumer/app/request-offers.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/consumer-ota-chat.log
+  - mobile/consumer/consumer-ota-map.log
+  - mobile/consumer/consumer-ota-media.log
+  - mobile/consumer/consumer-ota-zoom.log
+  - mobile/consumer/consumer-ota.log
+  - mobile/consumer/package-lock.json
+  - mobile/consumer/package.json
+  - mobile/consumer/src/components/LiveRouteMap.tsx
+  - mobile/consumer/src/components/RequestOffersMap.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/app.json
+    NATIF: mobile/consumer/package.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.0.3 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis c42af67b911770a3cab515e56c014c98d58a0b6b :
+  - mobile/consumer/.env
+  - mobile/consumer/XeuyBi-consumer.apk
+  - mobile/consumer/app.json
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/payment.tsx
+  - mobile/consumer/app/request-offers.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/consumer-ota-chat.log
+  - mobile/consumer/consumer-ota-map.log
+  - mobile/consumer/consumer-ota-media.log
+  - mobile/consumer/consumer-ota-zoom.log
+  - mobile/consumer/consumer-ota.log
+  - mobile/consumer/package-lock.json
+  - mobile/consumer/package.json
+  - mobile/consumer/src/components/LiveRouteMap.tsx
+  - mobile/consumer/src/components/RequestOffersMap.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/app.json
+    NATIF: mobile/consumer/package.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.0.3 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis c42af67b911770a3cab515e56c014c98d58a0b6b :
+  - mobile/consumer/.env
+  - mobile/consumer/XeuyBi-consumer.apk
+  - mobile/consumer/app.json
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/payment.tsx
+  - mobile/consumer/app/request-offers.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/consumer-ota-chat.log
+  - mobile/consumer/consumer-ota-map.log
+  - mobile/consumer/consumer-ota-media.log
+  - mobile/consumer/consumer-ota-zoom.log
+  - mobile/consumer/consumer-ota.log
+  - mobile/consumer/package-lock.json
+  - mobile/consumer/package.json
+  - mobile/consumer/src/components/LiveRouteMap.tsx
+  - mobile/consumer/src/components/RequestOffersMap.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/app.json
+    NATIF: mobile/consumer/package.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.0.3 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.

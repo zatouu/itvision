@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceReview from '@/lib/models/ServiceReview'
 import ServiceRequest from '@/lib/models/ServiceRequest'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { creditGrainsForReview, updateTierFromBalance } from '@/lib/grains'
+import { recomputeProviderRating } from '@/lib/provider-stats'
 
 // GET /api/services/reviews?providerId=xxx — notes d'un provider
 export async function GET(request: NextRequest) {
@@ -23,14 +25,12 @@ export async function GET(request: NextRequest) {
 
     const reviews = await ServiceReview.find(q).sort({ createdAt: -1 }).limit(50).lean()
 
-    // Calculer agrégat si provider
+    // Utiliser le rating précalculé dans ProviderProfile si provider
     let stats = null
     if (providerId) {
-      const agg = await ServiceReview.aggregate([
-        { $match: { providerId } },
-        { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }
-      ])
-      stats = agg[0] ? { average: Math.round(agg[0].avg * 10) / 10, count: agg[0].count } : { average: 0, count: 0 }
+      const profile: any = await ProviderProfile.findOne({ userId: providerId }).select('performance').lean()
+      const perf = profile?.performance || { ratingAvg: 0, ratingCount: 0 }
+      stats = { average: perf.ratingAvg || 0, count: perf.ratingCount || 0 }
     }
 
     return NextResponse.json({ reviews, stats })
@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
       comment: comment ? String(comment).slice(0, 500) : undefined,
       tags: Array.isArray(tags) ? tags.slice(0, 5).map((t: any) => String(t).slice(0, 30)) : [],
     })
+
+    // Recalculer le rating du provider (non bloquant)
+    void recomputeProviderRating(String(sr.assignedProviderId))
 
     // Créditer les grains de fidélité (best effort)
     try {

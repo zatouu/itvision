@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Offer from '@/lib/models/Offer'
 import ServiceRequest from '@/lib/models/ServiceRequest'
-import ServiceReview from '@/lib/models/ServiceReview'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
-import User from '@/lib/models/User'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,27 +17,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
     const offers = await Offer.find({ requestId: id }).sort({ updatedAt: -1 }).lean()
 
-    // Enrichir chaque offre avec la note moyenne du provider
+    // Enrichir chaque offre avec les stats précalculées du provider
     const providerIds = [...new Set(offers.map((o: any) => String(o.providerId)))]
-    const ratings = await ServiceReview.aggregate([
-      { $match: { providerId: { $in: providerIds } } },
-      { $group: { _id: '$providerId', avg: { $avg: '$rating' }, count: { $sum: 1 } } }
-    ])
-    const ratingsMap = new Map(ratings.map((r: any) => [r._id, { avg: Math.round(r.avg * 10) / 10, count: r.count }]))
-
-    // Fetch KYC verified status + reliability stats for providers
-    const users = await User.find({ _id: { $in: providerIds } })
-      .select('kycVerified providerStats')
+    const profiles = await ProviderProfile.find({ userId: { $in: providerIds } })
+      .select('userId kycVerified providerStats performance')
       .lean()
-    const userMap = new Map(users.map((u: any) => [String(u._id), u]))
+    const profileMap = new Map(profiles.map((p: any) => [String(p.userId), p]))
 
     const enriched = offers.map((o: any) => {
-      const u: any = userMap.get(String(o.providerId)) || {}
-      const stats = u.providerStats || {}
+      const p: any = profileMap.get(String(o.providerId)) || {}
+      const stats = p.providerStats || {}
+      const perf = p.performance || {}
+      const rating = perf.ratingAvg && perf.ratingCount ? { avg: perf.ratingAvg, count: perf.ratingCount } : null
       return {
         ...o,
-        providerRating: ratingsMap.get(String(o.providerId)) || null,
-        providerVerified: !!u.kycVerified,
+        providerRating: rating,
+        providerVerified: !!p.kycVerified,
         providerReliability: {
           score: typeof stats.reliabilityScore === 'number' ? stats.reliabilityScore : 100,
           completed: stats.completedMissions || 0,

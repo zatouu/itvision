@@ -14,7 +14,6 @@
 import { IVisibilityConfig } from '../models/AppConfig'
 import ProviderProfile from '../models/ProviderProfile'
 import ProviderSubscription from '../models/ProviderSubscription'
-import Rating from '../models/Rating'
 import User from '../models/User'
 import { connectMongoose } from '../mongoose'
 import { resolveTier } from './config'
@@ -139,22 +138,6 @@ async function getProfileFallback(
   }
 }
 
-/** Moyenne des notes par prestataire (rateeId) pour un ensemble d'IDs. */
-async function getRatingAverages(providerIds: string[]): Promise<Map<string, number>> {
-  const map = new Map<string, number>()
-  if (!providerIds.length) return map
-  try {
-    const rows = await Rating.aggregate([
-      { $match: { rateeId: { $in: providerIds.map(id => toObjectId(id)).filter(Boolean) } } },
-      { $group: { _id: '$rateeId', avg: { $avg: '$score' } } },
-    ])
-    for (const r of rows) map.set(String(r._id), Number(r.avg))
-  } catch (err: any) {
-    console.warn('[Visibility] getRatingAverages failed:', err?.message)
-  }
-  return map
-}
-
 function toObjectId(id: string): any {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -205,14 +188,13 @@ export async function getCandidates(
 
   const oids = providerIds.map(toObjectId).filter(Boolean)
 
-  const [profiles, users, subs, ratings] = await Promise.all([
+  const [profiles, users, subs] = await Promise.all([
     ProviderProfile.find({ userId: { $in: oids } })
-      .select('userId kycVerified serviceCategories currentLoad maxConcurrentMissions')
+      .select('userId kycVerified serviceCategories currentLoad maxConcurrentMissions performance')
       .lean() as any,
     User.find({ _id: { $in: oids } }).select('name kycVerified providerStats').lean() as any,
     ProviderSubscription.find({ userId: { $in: oids }, status: 'active' })
       .select('userId tier visibilityRadiusKm priorityLevel boostMultiplier').lean() as any,
-    getRatingAverages(providerIds),
   ])
 
   const profileByUser = new Map<string, any>((profiles as any[]).map(p => [String(p.userId), p]))
@@ -246,7 +228,7 @@ export async function getCandidates(
       presenceStatus: p.status,
       currentLoad: profile?.currentLoad ?? 0,
       maxConcurrentMissions: profile?.maxConcurrentMissions ?? null,
-      ratingAvg: ratings.get(p.providerId) ?? null,
+      ratingAvg: profile?.performance?.ratingAvg ?? null,
       avgResponseSec: null,
       tier: tierDef.id || 'free',
       visibilityRadiusKm: tierDef.radiusKm ?? config.defaultRadiusKm,
