@@ -205,34 +205,31 @@ function buildAppNotification(message: PushMessage, appType: 'consumer' | 'provi
   }
 }
 
-/**
- * Envoie une push notification à tous les appareils d'un utilisateur.
- * Utilise l'API Expo Push (gratuit, pas de clé nécessaire pour Expo tokens).
- */
-export async function sendPushToUser(userId: string, message: PushMessage): Promise<PushResult> {
+async function sendPushToUserInternal(
+  userId: string,
+  message: PushMessage,
+  tokens: Array<{ token: string }>
+): Promise<PushResult> {
+  if (!tokens.length) {
+    console.warn(`[Push] sendPushToUser(${userId}/${message.appType || 'any'}): aucun token enregistré`)
+    return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token enregistré pour cet utilisateur' }
+  }
+  console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
+
+  // Persist an in-app notification so it appears in the mobile notification tab even when
+  // the push was received in the background or the local cache was cleared.
   try {
-    await connectMongoose()
-    const query: any = { userId }
-    if (message.appType) query.appType = message.appType
-    const tokens = await PushToken.find(query).select('token').lean()
-    if (!tokens.length) {
-      console.warn(`[Push] sendPushToUser(${userId}/${message.appType || 'any'}): aucun token enregistré`)
-      return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token enregistré pour cet utilisateur' }
-    }
-    console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
+    const safeAppType: 'consumer' | 'provider' | undefined =
+      message.appType === 'consumer' || message.appType === 'provider' ? message.appType : undefined
+    const { kind, link } = buildAppNotification(message, safeAppType)
+    addAppNotification(userId, kind, message.title, message.body, link, message.data)
+  } catch (err) {
+    console.warn('[Push] Failed to persist app notification:', err)
+  }
 
-    // Persist an in-app notification so it appears in the mobile notification tab even when
-    // the push was received in the background or the local cache was cleared.
-    try {
-      const safeAppType: 'consumer' | 'provider' | undefined =
-        message.appType === 'consumer' || message.appType === 'provider' ? message.appType : undefined
-      const { kind, link } = buildAppNotification(message, safeAppType)
-      addAppNotification(userId, kind, message.title, message.body, link, message.data)
-    } catch (err) {
-      console.warn('[Push] Failed to persist app notification:', err)
-    }
-
-    const messages = tokens.map((t: any) => ({
+  const messages = tokens
+    .filter((t) => isValidPushToken(t.token))
+    .map((t) => ({
       to: t.token,
       title: message.title,
       body: message.body,
@@ -243,10 +240,28 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
       priority: 'high',
     }))
 
-    const chunks = chunkArray(messages, 100)
-    let delivered = 0
-    for (const chunk of chunks) delivered += await sendExpoBatch(chunk)
-    return { success: delivered > 0, tokenCount: tokens.length, deliveredCount: delivered }
+  if (!messages.length) {
+    return { success: false, tokenCount: tokens.length, deliveredCount: 0, error: 'Aucun token valide' }
+  }
+
+  const chunks = chunkArray(messages, 100)
+  let delivered = 0
+  for (const chunk of chunks) delivered += await sendExpoBatch(chunk)
+  return { success: delivered > 0, tokenCount: tokens.length, deliveredCount: delivered }
+}
+
+/**
+ * Envoie une push notification à tous les appareils d'un utilisateur.
+ * Utilise l'API Expo Push (gratuit, pas de clé nécessaire pour Expo tokens).
+ */
+export async function sendPushToUser(userId: string, message: PushMessage): Promise<PushResult> {
+  try {
+    await connectMongoose()
+    const query: any = { userId }
+    if (message.appType) query.appType = message.appType
+    const rawTokens = await PushToken.find(query).select('token').lean()
+    const tokens = (rawTokens || []).map((t: any) => ({ token: t.token as string })).filter(t => !!t.token)
+    return sendPushToUserInternal(userId, message, tokens)
   } catch (err: any) {
     console.error('[Push] sendPushToUser error:', err)
     return { success: false, tokenCount: 0, deliveredCount: 0, error: err.message || 'Erreur envoi push' }
@@ -255,10 +270,30 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
 
 /**
  * Envoie une push notification à plusieurs utilisateurs.
+ * Récupère tous les tokens en une seule requête pour éviter le N+1.
  */
 export async function sendPushToUsers(userIds: string[], message: PushMessage): Promise<PushResult[]> {
-  const results = await Promise.allSettled(userIds.map(uid => sendPushToUser(uid, message)))
-  return results.map(r => r.status === 'fulfilled' ? r.value : { success: false, tokenCount: 0, deliveredCount: 0, error: String(r.reason) })
+  if (!userIds.length) return []
+  try {
+    await connectMongoose()
+    const query: any = { userId: { $in: userIds } }
+    if (message.appType) query.appType = message.appType
+    const tokens = await PushToken.find(query).select('userId token').lean()
+    const tokensByUser = new Map<string, Array<{ token: string }>>()
+    for (const t of tokens) {
+      const uid = String((t as any).userId)
+      if (!tokensByUser.has(uid)) tokensByUser.set(uid, [])
+      tokensByUser.get(uid)!.push({ token: String((t as any).token) })
+    }
+
+    const results = await Promise.allSettled(
+      userIds.map((uid) => sendPushToUserInternal(uid, message, tokensByUser.get(uid) || []))
+    )
+    return results.map(r => r.status === 'fulfilled' ? r.value : { success: false, tokenCount: 0, deliveredCount: 0, error: String(r.reason) })
+  } catch (err: any) {
+    console.error('[Push] sendPushToUsers error:', err)
+    return userIds.map(() => ({ success: false, tokenCount: 0, deliveredCount: 0, error: err.message || 'Erreur envoi push' }))
+  }
 }
 
 /**
