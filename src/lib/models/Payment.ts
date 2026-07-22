@@ -42,6 +42,7 @@ const PaymentSchema = new Schema({
 PaymentSchema.index({ requestId: 1 })
 PaymentSchema.index({ externalId: 1 }, { sparse: true })
 PaymentSchema.index({ status: 1, createdAt: -1 })
+PaymentSchema.index({ providerId: 1, status: 1, releasedAt: -1 })
 
 const Payment = models.Payment || model('Payment', PaymentSchema)
 export default Payment

@@ -517,6 +517,16 @@ app.prepare().then(() => {
     await geo.cleanupStale()
   }, STALE_POSITION_MS)
 
+  // Offer expiration cleanup (every 5 min)
+  setInterval(async () => {
+    try {
+      const { expireOldOffers } = require('./src/lib/mission-inactivity-job')
+      await expireOldOffers(new Date())
+    } catch (err) {
+      console.error('[server] offer expiration interval', err)
+    }
+  }, 5 * 60 * 1000)
+
   // Exposer io et la présence provider globalement pour pouvoir l'utiliser dans les API routes
   global.io = io
   global.providerPresence = providerPresence

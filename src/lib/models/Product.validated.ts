@@ -633,6 +633,8 @@ ProductSchema.index({ channels: 1, isPublished: 1 })
 ProductSchema.index({ corporateVisible: 1, isPublished: 1 })
 ProductSchema.index({ price1688: 1 })
 ProductSchema.index({ stockStatus: 1, stockQuantity: 1 })
+ProductSchema.index({ isPublished: 1, groupBuyEnabled: 1, updatedAt: -1 })
+ProductSchema.index({ isPublished: 1, requiresQuote: 1 })
 
 // Export
 const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)

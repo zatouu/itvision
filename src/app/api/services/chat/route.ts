@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       io.to(`${isClient ? 'provider' : 'user'}-${recipientId}`).emit('chat:message', payload)
     }
     if (recipientId) {
-      await sendPushToUser(recipientId, {
+      void sendPushToUser(recipientId, {
         title: `💬 ${isClient ? 'Client' : 'Prestataire'}: ${msg.text.slice(0, 50)}`,
         body: msg.text.slice(0, 100),
         data: { type: 'chat:message', requestId, senderRole },

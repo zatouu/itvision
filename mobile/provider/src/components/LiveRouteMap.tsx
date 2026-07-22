@@ -26,8 +26,8 @@ export interface LiveRouteMapProps {
   interactive?: boolean
 }
 
-const ROUTE_REFRESH_MIN_MS = 20000
-const ROUTE_REFETCH_MIN_MOVE_M = 80
+const ROUTE_REFRESH_MIN_MS = 60000
+const ROUTE_REFETCH_MIN_MOVE_M = 150
 const DEGS_TO_RADS = Math.PI / 180
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -113,19 +113,37 @@ function LiveRouteMapComponent({
   ).current
   const lastHeading = useRef(0)
   const fitToRouteLock = useRef(false)
+  const hasFittedToRoute = useRef(false)
 
   const activeOrigin = useMemo(() => {
     if (providerLocation) return { lat: providerLocation.lat, lng: providerLocation.lng }
     return origin || null
   }, [providerLocation?.lat, providerLocation?.lng, origin?.lat, origin?.lng])
 
+  const activeOriginRef = useRef<{ lat: number; lng: number } | null>(null)
+  const destinationRef = useRef(destination)
+  const routeRef = useRef<RouteInfo | null>(null)
+  const fitPaddingRef = useRef(fitPadding)
+  const onRouteInfoRef = useRef(onRouteInfo)
+  const tRef = useRef(t)
+  const modeRef = useRef(mode)
+
+  useEffect(() => { activeOriginRef.current = activeOrigin }, [activeOrigin])
+  useEffect(() => { destinationRef.current = destination }, [destination])
+  useEffect(() => { routeRef.current = route }, [route])
+  useEffect(() => { fitPaddingRef.current = fitPadding }, [fitPadding])
+  useEffect(() => { onRouteInfoRef.current = onRouteInfo }, [onRouteInfo])
+  useEffect(() => { tRef.current = t }, [t])
+  useEffect(() => { modeRef.current = mode }, [mode])
+
   const hasRoute = !!route?.polyline?.length
   const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(status || '')
   const showVehicle = isTracking && activeOrigin
 
   const computeRouteFallback = useCallback(() => {
-    if (!activeOrigin) return null
-    const dist = haversineKm(activeOrigin, destination)
+    const origin = activeOriginRef.current
+    if (!origin) return null
+    const dist = haversineKm(origin, destinationRef.current)
     const distanceM = Math.round(dist * 1000)
     const durationSec = Math.round((dist / 30) * 3600)
     return {
@@ -134,32 +152,37 @@ function LiveRouteMapComponent({
       distanceValue: distanceM,
       durationValue: durationSec,
     }
-  }, [activeOrigin, destination])
+  }, [])
 
   const fitToRoute = useCallback(
     async (animated = true) => {
       if (!mapRef.current || fitToRouteLock.current) return
       fitToRouteLock.current = true
       await new Promise(resolve => setTimeout(resolve, 50))
+      const origin = activeOriginRef.current
+      const dest = destinationRef.current
+      const r = routeRef.current
       const coords: Array<{ latitude: number; longitude: number }> = [
-        { latitude: destination.lat, longitude: destination.lng },
+        { latitude: dest.lat, longitude: dest.lng },
       ]
-      if (activeOrigin) {
-        coords.push({ latitude: activeOrigin.lat, longitude: activeOrigin.lng })
-      } else if (route?.polyline?.length) {
-        coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
+      if (origin) {
+        coords.push({ latitude: origin.lat, longitude: origin.lng })
+      } else if (r?.polyline?.length) {
+        coords.push(...r.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
       }
       mapRef.current?.fitToCoordinates(coords, {
-        edgePadding: fitPadding,
+        edgePadding: fitPaddingRef.current,
         animated,
       })
       fitToRouteLock.current = false
     },
-    [activeOrigin, destination, route, fitPadding]
+    []
   )
 
   const fetchRoute = useCallback(async () => {
-    if (!activeOrigin) return
+    const origin = activeOriginRef.current
+    if (!origin) return
+    const hadRoute = !!routeRef.current
     const now = Date.now()
     if (now - lastFetchAt.current < ROUTE_REFRESH_MIN_MS) {
       if (pendingFetch.current) clearTimeout(pendingFetch.current)
@@ -167,7 +190,7 @@ function LiveRouteMapComponent({
       return
     }
     if (lastFetchOrigin.current) {
-      const movedM = haversineKm(lastFetchOrigin.current, activeOrigin) * 1000
+      const movedM = haversineKm(lastFetchOrigin.current, origin) * 1000
       if (movedM < ROUTE_REFETCH_MIN_MOVE_M) return
     }
     lastFetchAt.current = now
@@ -178,11 +201,12 @@ function LiveRouteMapComponent({
       if (!apiKey) {
         throw new Error('Google Maps API key missing')
       }
+      const dest = destinationRef.current
       const url =
         `https://maps.googleapis.com/maps/api/directions/json` +
-        `?origin=${activeOrigin.lat},${activeOrigin.lng}` +
-        `&destination=${destination.lat},${destination.lng}` +
-        `&mode=${mode}&key=${apiKey}`
+        `?origin=${origin.lat},${origin.lng}` +
+        `&destination=${dest.lat},${dest.lng}` +
+        `&mode=${modeRef.current}&key=${apiKey}`
       const res = await fetch(url)
       const data = await res.json()
       if (data.status !== 'OK' || !data.routes?.length) {
@@ -196,9 +220,9 @@ function LiveRouteMapComponent({
         duration: { text: leg.duration?.text || '', value: leg.duration?.value || 0 },
       }
       setRoute(newRoute)
-      lastFetchOrigin.current = { lat: activeOrigin.lat, lng: activeOrigin.lng }
-      if (onRouteInfo) {
-        onRouteInfo({
+      lastFetchOrigin.current = { lat: origin.lat, lng: origin.lng }
+      if (onRouteInfoRef.current) {
+        onRouteInfoRef.current({
           distance: newRoute.distance.text || formatKm(newRoute.distance.value),
           duration: newRoute.duration.text || formatDuration(newRoute.duration.value),
           distanceValue: newRoute.distance.value,
@@ -209,16 +233,16 @@ function LiveRouteMapComponent({
       const isApiKeyMissing = e?.message?.toLowerCase().includes('api key missing')
       const fallback = computeRouteFallback()
       if (!isApiKeyMissing) {
-        setError(e.message || t('common.error'))
+        setError(e.message || tRef.current('common.error'))
       }
-      setRoute(null)
-      if (fallback && onRouteInfo) {
-        onRouteInfo(fallback)
+      if (!hadRoute) setRoute(null)
+      if (fallback && onRouteInfoRef.current) {
+        onRouteInfoRef.current(fallback)
       }
     } finally {
       setLoading(false)
     }
-  }, [activeOrigin, destination, mode, onRouteInfo, t, computeRouteFallback])
+  }, [])
 
   useEffect(() => {
     if (!activeOrigin) return
@@ -233,7 +257,7 @@ function LiveRouteMapComponent({
       cancelled = true
       if (pendingFetch.current) clearTimeout(pendingFetch.current)
     }
-  }, [activeOrigin, fetchRoute])
+  }, [!!activeOrigin])
 
   useEffect(() => {
     if (!activeOrigin) return
@@ -261,7 +285,13 @@ function LiveRouteMapComponent({
 
   useEffect(() => {
     if (!mapRef.current) return
-    fitToRoute(true)
+    if (route?.polyline?.length && !hasFittedToRoute.current) {
+      hasFittedToRoute.current = true
+      fitToRoute(true)
+    }
+    if (!route?.polyline?.length) {
+      hasFittedToRoute.current = false
+    }
   }, [route, fitToRoute])
 
   useEffect(() => {
@@ -271,11 +301,14 @@ function LiveRouteMapComponent({
 
   const fallbackStats = useMemo(() => computeRouteFallback(), [activeOrigin, destination])
 
+  const routeCoordinates = useMemo(() => route?.polyline?.map(p => ({ latitude: p.lat, longitude: p.lng })) || [], [route?.polyline])
+  const destCoordinate = useMemo(() => ({ latitude: destination.lat, longitude: destination.lng }), [destination.lat, destination.lng])
+
   const initialRegion = useMemo(() => ({
     latitude: destination.lat,
     longitude: destination.lng,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitudeDelta: 0.08,
+    longitudeDelta: 0.08,
   }), [destination.lat, destination.lng])
 
   return (
@@ -290,8 +323,8 @@ function LiveRouteMapComponent({
           showsMyLocationButton={false}
           showsCompass={false}
           mapType="standard"
-          maxZoomLevel={15}
-          minDelta={0.01}
+          maxZoomLevel={13}
+          minDelta={0.03}
           scrollEnabled={interactive}
           zoomEnabled={interactive}
           pitchEnabled={interactive}
@@ -299,7 +332,7 @@ function LiveRouteMapComponent({
           moveOnMarkerPress={interactive}
           pointerEvents={interactive ? 'auto' : 'none'}
         >
-          <Marker coordinate={{ latitude: destination.lat, longitude: destination.lng }}>
+          <Marker coordinate={destCoordinate}>
             <View style={s.destinationMarker}>
               <View style={s.destinationDot} />
               <View style={s.destinationPin} />
@@ -318,7 +351,7 @@ function LiveRouteMapComponent({
 
           {hasRoute && (
             <Polyline
-              coordinates={route.polyline.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+              coordinates={routeCoordinates}
               strokeColor="#2563EB"
               strokeWidth={5}
             />
@@ -332,7 +365,7 @@ function LiveRouteMapComponent({
             </View>
           ) : null}
 
-          {loading && (
+          {loading && !route && (
             <View style={[s.badge, s.loadingBadge]}>
               <ActivityIndicator size="small" color="#2563EB" />
               <Text style={s.loadingText}>{t('mission.routeLoading')}</Text>

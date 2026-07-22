@@ -245,6 +245,12 @@ const ProductSchema = new Schema<IProduct>({
   priceAlertThreshold: { type: Number, default: 10 } // 10% par défaut
 }, { timestamps: true })
 
+// Index pour les filtres catalogue fréquents
+ProductSchema.index({ isPublished: 1, category: 1, createdAt: -1 })
+ProductSchema.index({ isPublished: 1, groupBuyEnabled: 1, updatedAt: -1 })
+ProductSchema.index({ isPublished: 1, requiresQuote: 1 })
+ProductSchema.index({ isPublished: 1, corporateVisible: 1, createdAt: -1 })
+
 function slugify(text: string): string {
   return text
     .toString()

@@ -10,7 +10,7 @@ import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/sock
 import { confirm, notify } from '../../src/confirm'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle, AlertTriangle, Pause } from 'lucide-react-native'
+import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle, AlertTriangle, Pause, ChevronDown, ChevronUp } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
@@ -126,13 +126,29 @@ function MissionDetail() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; heading?: number | null; timestamp: number } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
   const [hasReview, setHasReview] = useState(false)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ details: true, lifecycle: true })
+  const toggleSection = (key: string) => setExpanded(p => ({ ...p, [key]: !p[key] }))
+
+  function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+    const isOpen = expanded[id]
+    return (
+      <View style={s.section}>
+        <TouchableOpacity onPress={() => toggleSection(id)} style={s.sectionHeader} activeOpacity={0.7}>
+          <Text style={s.sectionTitle}>{title}</Text>
+          {isOpen ? <ChevronUp size={18} color={colors.textSecondary} /> : <ChevronDown size={18} color={colors.textSecondary} />}
+        </TouchableOpacity>
+        {isOpen && <View style={s.sectionContent}>{children}</View>}
+      </View>
+    )
+  }
+
   const [, setTick] = useState(0)
 
   useEffect(() => {
@@ -279,14 +295,25 @@ function MissionDetail() {
     router.push(`/payment?offerId=${offer._id}&amount=${balanceAmount}&requestId=${requestId}&phase=balance`)
   }
 
-  if (loading && !item) return (
-    <SafeAreaView style={s.safe}><ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} /></SafeAreaView>
-  )
-
   if (!requestId) return (
     <SafeAreaView style={s.safe}>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: colors.danger, fontSize: 14 }}>{t('mission.invalid')}</Text>
+      </View>
+    </SafeAreaView>
+  )
+
+  if (loading && !item) return (
+    <SafeAreaView style={s.safe}><ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} /></SafeAreaView>
+  )
+
+  if (!item) return (
+    <SafeAreaView style={s.safe}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg }}>
+        <Text style={{ color: colors.danger, fontSize: 14, textAlign: 'center' }}>{err || t('common.error')}</Text>
+        <TouchableOpacity onPress={() => load()} style={{ marginTop: spacing.md }}>
+          <Text style={{ color: colors.primary, fontSize: 14 }}>{t('common.retry')}</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   )
@@ -493,7 +520,7 @@ function MissionDetail() {
           )}
 
           {/* Details */}
-          <View style={s.detailsCard}>
+          <Section id="details" title={t('mission.detailsTitle')}>
             <View style={s.detailRow}>
               <Text style={s.detailLabel}>{t('mission.reference')}</Text>
               <Text style={s.detailValue}>#{missionRef}</Text>
@@ -538,11 +565,11 @@ function MissionDetail() {
                 )}
               </View>
             )}
-          </View>
+          </Section>
 
           {/* Métriques cycle de vie */}
           {item.metrics && (
-            <View style={s.detailsCard}>
+            <Section id="lifecycle" title={t('mission.lifecycleTitle')}>
               <View style={s.detailRow}>
                 <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
                 <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
@@ -571,7 +598,7 @@ function MissionDetail() {
                   <Text style={s.detailValue}>{item.metrics.currentPauseReason}</Text>
                 </View>
               )}
-            </View>
+            </Section>
           )}
 
           {/* Actions */}
@@ -664,6 +691,10 @@ const s = StyleSheet.create({
   etaTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
   etaSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   detailsCard: { backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  section: { backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  sectionTitle: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionContent: { gap: spacing.sm },
   detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
   detailLabel: { fontSize: 14, color: colors.textSecondary },
   detailValue: { fontSize: 14, color: colors.text, fontWeight: typography.weight.extrabold as any },

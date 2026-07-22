@@ -68,6 +68,8 @@ const VisibilityDispatchSchema = new Schema<IVisibilityDispatch>({
   nextRunAt: { type: Date },
 }, { timestamps: true })
 
+VisibilityDispatchSchema.index({ status: 1, nextRunAt: 1 })
+
 const VisibilityDispatch = (models.VisibilityDispatch as mongoose.Model<IVisibilityDispatch>) ||
   model<IVisibilityDispatch>('VisibilityDispatch', VisibilityDispatchSchema)
 export default VisibilityDispatch

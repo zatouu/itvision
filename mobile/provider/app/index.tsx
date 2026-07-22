@@ -1,5 +1,5 @@
 import { Text, View, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import { colors, spacing, radius, shadows, typography } from '../src/design'
 import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff } from 'lucide-react-native'
+import Logo from '../src/components/Logo'
 import { apiGet } from '../src/api'
 
 function Home() {
@@ -39,6 +40,7 @@ function Home() {
   const [dailyRevenue, setDailyRevenue] = useState(0)
   const [hideRevenue, setHideRevenue] = useState(false)
   const [initials, setInitials] = useState('')
+  const lastDashboardLoad = useRef(0)
 
   useEffect(() => {
     return subscribeProfile(p => {
@@ -65,6 +67,9 @@ function Home() {
   }
 
   const loadDashboard = useCallback(async () => {
+    const now = Date.now()
+    if (now - lastDashboardLoad.current < 5000) return
+    lastDashboardLoad.current = now
     try {
       const d: any = await apiGet('/api/services/provider-dashboard')
       if (d.success) {
@@ -122,22 +127,30 @@ function Home() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Menu size={24} color={colors.text} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, marginHorizontal: spacing.sm }}>
-            <Text style={s.greeting} numberOfLines={1}>{greeting}</Text>
+          <View style={s.logoRow}>
+            <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Menu size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Logo size={28} />
+            <Text style={s.appName}>Xeuy Bi Pro</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
-            <BellRing size={18} color={colors.text} />
-            <View style={s.notifDot} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn} accessibilityLabel="Profil">
-            <Text style={s.avatarText}>{initials}</Text>
-          </TouchableOpacity>
+          <View style={s.headerRight}>
+            <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
+              <BellRing size={18} color={colors.text} />
+              <View style={s.notifDot} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn} accessibilityLabel="Profil">
+              <Text style={s.avatarText}>{initials}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <OfflineQueueBadge />
+
+        {/* Greeting */}
+        <View style={s.greetingBlock}>
+          <Text style={s.greetingTitle}>{greeting}</Text>
+        </View>
 
         {/* Status card */}
         <View style={[s.statusCard, online && s.statusCardOnline]}>
@@ -232,8 +245,12 @@ function Home() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
-  greeting: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xs },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  appName: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.3 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  greetingBlock: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl },
+  greetingTitle: { fontSize: 26, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
   iconBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
   iconBtnText: { color: colors.text },
   notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },

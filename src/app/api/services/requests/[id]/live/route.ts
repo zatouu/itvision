@@ -41,7 +41,12 @@ function computeDistanceEta(provider: PresenceEntry, requestLat: number, request
   return computeDistanceEtaFromLatLng(loc.lat, loc.lng, requestLat, requestLng)
 }
 
-async function resolveProviderLocation(providerId: string, requestLat: number, requestLng: number) {
+async function resolveProviderLocation(
+  providerId: string,
+  requestLat: number,
+  requestLng: number,
+  profileByUserId?: Map<string, any>
+) {
   const presenceMap = (global as any).providerPresence as Map<string, PresenceEntry> | undefined
   const p = presenceMap?.get(providerId)
   if (p && !isStale(p) && toLatLng(p)) {
@@ -50,8 +55,11 @@ async function resolveProviderLocation(providerId: string, requestLat: number, r
     return { lat: loc.lat, lng: loc.lng, name: p.name, distanceKm, etaMinutes, updatedAt: p.updatedAt, source: 'presence' as const }
   }
 
-  // Fallback ProviderProfile.zone
-  const profile = await ProviderProfile.findOne({ userId: providerId }).select('zone').lean().catch(() => null)
+  // Fallback ProviderProfile.zone (priorise le cache batché si fourni)
+  let profile = profileByUserId?.get(providerId) || null
+  if (!profile) {
+    profile = await ProviderProfile.findOne({ userId: providerId }).select('zone').lean().catch(() => null)
+  }
   const coords = profile?.zone?.coordinates
   if (Array.isArray(coords) && coords.length === 2) {
     const [lng, lat] = coords
@@ -133,15 +141,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const offers = await Offer.find({ requestId: id, status: { $in: ['submitted', 'accepted'] } }).lean()
     const offerProviderIds = offers.map((o: any) => String(o.providerId))
 
+    // Pré-chargement groupé des noms et zones pour éviter le N+1
+    const providerIdsToEnrich = [...new Set([...(sr.assignedProviderId ? [String(sr.assignedProviderId)] : []), ...offerProviderIds])]
+    const [users, profiles] = await Promise.all([
+      User.find({ _id: { $in: providerIdsToEnrich } }).select('name').lean().catch(() => [] as any[]),
+      ProviderProfile.find({ userId: { $in: providerIdsToEnrich } }).select('userId zone').lean().catch(() => [] as any[]),
+    ])
+    const userNameById = new Map<string, string>()
+    for (const u of users) userNameById.set(String(u._id), (u as any).name)
+    const profileByUserId = new Map<string, any>()
+    for (const p of profiles) profileByUserId.set(String((p as any).userId), p)
+
     // Assigned provider profile
     let assigned: any = null
     if (sr.assignedProviderId) {
-      const provider = await User.findById(sr.assignedProviderId).select('name phone').lean()
-      const loc = await resolveProviderLocation(String(sr.assignedProviderId), reqLat, reqLng)
-      const p = presenceMap.get(String(sr.assignedProviderId))
+      const pid = String(sr.assignedProviderId)
+      const loc = await resolveProviderLocation(pid, reqLat, reqLng, profileByUserId)
+      const p = presenceMap.get(pid)
       assigned = {
-        providerId: String(sr.assignedProviderId),
-        name: (provider as any)?.name || p?.name || loc?.name || 'Prestataire',
+        providerId: pid,
+        name: userNameById.get(pid) || p?.name || loc?.name || 'Prestataire',
         status: sr.status === 'provider_arriving' || sr.status === 'on_the_way' ? 'arriving' : sr.status === 'in_progress' ? 'in_progress' : 'selected',
         lat: loc?.lat ?? null,
         lng: loc?.lng ?? null,
@@ -155,13 +174,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Providers ayant envoyé une offre
     const offerors = []
     for (const offer of offers as any[]) {
-      if (String(offer.providerId) === String(sr.assignedProviderId)) continue
-      const p = presenceMap.get(String(offer.providerId))
-      const loc = await resolveProviderLocation(String(offer.providerId), reqLat, reqLng)
-      const provider = await User.findById(offer.providerId).select('name').lean().catch(() => null)
+      const pid = String(offer.providerId)
+      if (pid === String(sr.assignedProviderId)) continue
+      const p = presenceMap.get(pid)
+      const loc = await resolveProviderLocation(pid, reqLat, reqLng, profileByUserId)
       offerors.push({
-        providerId: String(offer.providerId),
-        name: (provider as any)?.name || p?.name || loc?.name || 'Prestataire',
+        providerId: pid,
+        name: userNameById.get(pid) || p?.name || loc?.name || 'Prestataire',
         status: 'offered',
         price: offer.price,
         etaMinutes: offer.etaMinutes ?? loc?.etaMinutes ?? null,

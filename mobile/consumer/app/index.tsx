@@ -59,6 +59,8 @@ function Home() {
   const [loadingRecent, setLoadingRecent] = useState(true)
   const [cats, setCats] = useState<CatItem[]>(FALLBACK_CATS)
   const mapRef = useRef<MapView | null>(null)
+  const lastRecentLoad = useRef(0)
+  const lastLiveLoad = useRef(0)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [mapLoading, setMapLoading] = useState(false)
   const [onlineProviders, setOnlineProviders] = useState(0)
@@ -92,6 +94,9 @@ function Home() {
   }, [])
 
   const loadRecent = useCallback(async () => {
+    const now = Date.now()
+    if (now - lastRecentLoad.current < 5000) return
+    lastRecentLoad.current = now
     setLoadingRecent(true)
     try {
       await fetchWithCache(
@@ -107,7 +112,7 @@ function Home() {
     const socket = connectSocket()
     const unsub = onOnlineProvidersCount((data) => setOnlineProviders(data.count))
     requestOnlineProviders()
-    const interval = setInterval(() => requestOnlineProviders(), 15000)
+    const interval = setInterval(() => requestOnlineProviders(), 30000)
     // Temps réel : offres et changements de statut
     const refresh = () => loadRecent()
     socket.on('user:offer-received', refresh)
@@ -157,13 +162,16 @@ function Home() {
   useEffect(() => {
     let mounted = true
     const fetchLive = async () => {
+      const now = Date.now()
+      if (now - lastLiveLoad.current < 10000) return
+      lastLiveLoad.current = now
       const merged = new Map<string, typeof liveProviders[0]>()
       const activeIds = recent
         .filter(it => it._id && !['completed', 'cancelled'].includes(it.status))
         .map(it => String(it._id))
 
       if (activeIds.length > 0) {
-        for (const id of activeIds) {
+        await Promise.all(activeIds.map(async (id) => {
           try {
             const r: any = await apiGet(`/api/services/requests/${id}/live`)
             ;[...(r.viewers || []), ...(r.offerors || []), ...(r.assigned ? [r.assigned] : []), ...(r.nearby || [])]
@@ -180,7 +188,7 @@ function Home() {
                 })
               })
           } catch {}
-        }
+        }))
       } else if (userLocation) {
         try {
           const r: any = await apiGet(`/api/services/nearby-providers?lat=${userLocation.lat}&lng=${userLocation.lng}&radiusKm=10`)
@@ -203,7 +211,7 @@ function Home() {
       if (mounted) setLiveProviders(Array.from(merged.values()))
     }
     fetchLive()
-    const interval = setInterval(fetchLive, 15000)
+    const interval = setInterval(fetchLive, 30000)
     return () => { mounted = false; clearInterval(interval) }
   }, [recent, userLocation])
 

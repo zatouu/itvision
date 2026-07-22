@@ -13,7 +13,7 @@ import { confirm, notify } from '../../src/confirm'
 import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation, Pause, Play, AlertTriangle, XCircle } from 'lucide-react-native'
+import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation, Pause, Play, AlertTriangle, XCircle, ChevronDown, ChevronUp } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string; dot: string }> = {
@@ -160,6 +160,15 @@ function ActiveMission() {
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
   const [fitTrigger, setFitTrigger] = useState(0)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    lifecycle: true,
+    tracking: true,
+    progress: true,
+    details: true,
+    request: true,
+    media: true,
+  })
+  const toggleSection = useCallback((key: string) => setExpanded(p => ({ ...p, [key]: !p[key] })), [])
   const locationRef = useRef(mapLocation)
   const lastUiUpdateAt = useRef(0)
 
@@ -303,7 +312,7 @@ function ActiveMission() {
       return { lat: Number(loc.coordinates[1]), lng: Number(loc.coordinates[0]) }
     }
     return { lat: 0, lng: 0 }
-  }, [item?.location])
+  }, [item?.location?.coordinates?.[0], item?.location?.coordinates?.[1]])
 
   const doUpdateStatus = async (nextStatus: string) => {
     if (!requestId) return
@@ -494,8 +503,7 @@ function ActiveMission() {
 
             {/* Carte métriques cycle de vie */}
             {item.metrics && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.lifecycleTitle')}</Text>
+              <Section id="lifecycle" title={t('mission.lifecycleTitle')} expanded={expanded} onToggle={toggleSection}>
                 <View style={s.detailRow}>
                   <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
                   <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
@@ -524,7 +532,7 @@ function ActiveMission() {
                     <Text style={s.detailValue}>{item.metrics.currentPauseReason}</Text>
                   </View>
                 )}
-              </View>
+              </Section>
             )}
 
             {item.payment && (
@@ -542,8 +550,7 @@ function ActiveMission() {
 
             {/* Carte */}
             {hasCoords && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.tracking')}</Text>
+              <Section id="tracking" title={t('mission.tracking')} expanded={expanded} onToggle={toggleSection}>
                 <LiveRouteMap
                   destination={destination}
                   destinationLabel={locationAddress}
@@ -560,7 +567,7 @@ function ActiveMission() {
                     <Text style={s.routeInfoText}>{routeInfo.distance} · {routeInfo.duration}</Text>
                   </View>
                 )}
-                {['assigned', 'provider_arriving'].includes(item.status) && (
+                {['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress'].includes(item.status) && (
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                     <TouchableOpacity style={[s.navBtn, { flex: 1 }]} onPress={focusRouteInApp}>
                       <Navigation size={18} color={colors.surface} />
@@ -571,12 +578,11 @@ function ActiveMission() {
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
+              </Section>
             )}
 
             {item.status !== 'cancelled' && (
-              <View style={s.card}>
-                <Text style={s.cardTitle}>{t('mission.progress')}</Text>
+              <Section id="progress" title={t('mission.progress')} expanded={expanded} onToggle={toggleSection}>
                 <View style={s.timeline}>
                   {FLOW_STEPS.map((step, idx) => {
                     const state = getStepState(item.status, step.key)
@@ -599,11 +605,10 @@ function ActiveMission() {
                     )
                   })}
                 </View>
-              </View>
+              </Section>
             )}
 
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{t('mission.detailsTitle')}</Text>
+            <Section id="details" title={t('mission.detailsTitle')} expanded={expanded} onToggle={toggleSection}>
               <View style={s.detailRow}>
                 <Text style={s.detailLabel}>{t('mission.reference')}</Text>
                 <Text style={s.detailValue}>#{missionRef}</Text>
@@ -624,24 +629,22 @@ function ActiveMission() {
                 <Text style={s.detailLabel}>{t('mission.yourOffer')}</Text>
                 <Text style={s.detailValue}>{offer ? `${formatMoney(offer.price)} · ETA ${etaLabel}` : t('mission.notAvailable')}</Text>
               </View>
-            </View>
+            </Section>
 
             {/* Client / Demande */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{t('mission.request')}</Text>
+            <Section id="request" title={t('mission.request')} expanded={expanded} onToggle={toggleSection}>
               <Text style={s.descText}>{item.description || t('mission.noDescription')}</Text>
               {item.budget ? <Text style={s.meta}>{t('mission.estimatedBudget', { budget: item.budget.toLocaleString() })}</Text> : null}
-            </View>
+            </Section>
 
             {/* Médias */}
             {hasValidMedia && (
-              <View style={s.card}>
+              <Section id="media" title={t('mission.clientMedia')} expanded={expanded} onToggle={toggleSection}>
                 <MissionMediaGallery
                   media={item.media || []}
-                  mediaTitle={t('mission.clientMedia')}
-                  audioLabel={t('mission.voiceMessage') || 'Message vocal'}
+                  audioLabel={t('mission.voiceMessage')}
                 />
-              </View>
+              </Section>
             )}
 
             {/* Chat */}
@@ -710,7 +713,7 @@ function ActiveMission() {
               {item.payment?.provider === 'cash' && item.payment?.status === 'held' && item.status === 'completed' && (
                 <TouchableOpacity style={[s.actionBtn, s.completeBtn]} onPress={confirmCashReceived} disabled={updating}>
                   <CheckCircle size={18} color={colors.surface} />
-                  <Text style={s.completeBtnText}>Confirmer le cash reçu</Text>
+                  <Text style={s.completeBtnText}>{t('payment.cashReceivedBtn')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -734,6 +737,8 @@ const s = StyleSheet.create({
   statusBannerDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionContent: { gap: spacing.md },
   cardTitle: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
   descText: { fontSize: typography.base.fontSize, color: colors.text, lineHeight: typography.base.lineHeight },
   meta: { fontSize: typography.sm.fontSize, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
@@ -767,5 +772,26 @@ const s = StyleSheet.create({
   navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.info, borderRadius: radius.lg, paddingVertical: spacing.lg, marginTop: spacing.md },
   navBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
 })
+
+type SectionProps = {
+  id: string
+  title: string
+  children: React.ReactNode
+  expanded: Record<string, boolean>
+  onToggle: (id: string) => void
+}
+
+function Section({ id, title, children, expanded, onToggle }: SectionProps) {
+  const isOpen = expanded[id]
+  return (
+    <View style={s.card}>
+      <TouchableOpacity onPress={() => onToggle(id)} style={s.sectionHeader} activeOpacity={0.7}>
+        <Text style={s.cardTitle}>{title}</Text>
+        {isOpen ? <ChevronUp size={20} color={colors.textSecondary} /> : <ChevronDown size={20} color={colors.textSecondary} />}
+      </TouchableOpacity>
+      {isOpen && <View style={s.sectionContent}>{children}</View>}
+    </View>
+  )
+}
 
 export default withScreenBoundary(ActiveMission, 'ActiveMission')

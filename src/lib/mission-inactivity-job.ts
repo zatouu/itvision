@@ -1,7 +1,9 @@
 import { connectMongoose } from './mongoose'
 import ServiceRequest from './models/ServiceRequest'
+import Offer from './models/Offer'
 import { sendPushToUser } from './push'
 import { archive, expire } from './mission-lifecycle'
+import { releaseMissionReservation } from './wallet'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -12,8 +14,9 @@ export async function runInactivityJob() {
 
   const activeStatuses = ['created', 'broadcasted', 'pending_offers', 'accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
 
-  // Expiration automatique des demandes non acceptées dont expiresAt est dépassé
+  // Expiration automatique des demandes et offres périmées
   await expireOldRequests(now)
+  await expireOldOffers(now)
 
   const missions = await ServiceRequest.find({
     status: { $in: activeStatuses },
@@ -88,6 +91,28 @@ async function expireOldRequests(now: Date) {
       await expire(String(m._id))
     } catch (err) {
       console.error('[expireOldRequests]', String(m._id), err)
+    }
+  }
+}
+
+export async function expireOldOffers(now: Date) {
+  const expired = await Offer.find({
+    status: 'submitted',
+    validUntil: { $lte: now },
+  }).select('_id requestId providerId').lean() as any[]
+
+  if (expired.length === 0) return
+
+  await Offer.updateMany(
+    { _id: { $in: expired.map((o) => o._id) } },
+    { $set: { status: 'expired' } }
+  )
+
+  for (const offer of expired) {
+    try {
+      await releaseMissionReservation(String(offer.providerId), String(offer.requestId), 'Offre expirée')
+    } catch (err) {
+      console.error('[expireOldOffers] releaseMissionReservation', String(offer._id), err)
     }
   }
 }

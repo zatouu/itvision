@@ -249,14 +249,14 @@ export async function transition(
 
   // Effets de bord post-transition (hors transaction, idempotents ou atomisés)
   if (to === 'completed') {
-    await releaseHeldPayments(updated, actor.userId)
+    void releaseHeldPayments(updated, actor.userId)
     if (updated.assignedProviderId) {
       void incrementProviderCompleted(String(updated.assignedProviderId))
       void creditReferrerOnFirstMission(String(updated.clientId), 1000)
     }
   }
   if (to === 'cancelled') {
-    await handleCancellationSideEffects(updated, prevStatus, actor)
+    void handleCancellationSideEffects(updated, prevStatus, actor)
   }
 
   await notifyStatusChange(updated, prevStatus, actor, metadata)

@@ -47,17 +47,16 @@ export async function notifyWave(input: NotifyWaveInput): Promise<WaveDispatchRe
     return { stage, radiusKm, providerIds: uniqueIds, socketCount, pushDelivered, pushTokenCount }
   }
 
-  // 1) Temps réel Socket.IO
+  // 1) Temps réel Socket.IO (émission groupée vers toutes les rooms provider-{id})
   const io = (global as any).io
-  if (io && typeof io.to === 'function') {
-    const payload = buildRealtimePayload(request, stage, radiusKm)
-    for (const id of uniqueIds) {
-      try {
-        io.to(`provider-${id}`).emit('request:nearby', payload)
-        socketCount++
-      } catch (err: any) {
-        console.warn(`[Visibility] socket emit failed for ${id}:`, err?.message)
-      }
+  if (io && typeof io.to === 'function' && uniqueIds.length > 0) {
+    try {
+      const rooms = uniqueIds.map((id) => `provider-${id}`)
+      const payload = buildRealtimePayload(request, stage, radiusKm)
+      io.to(rooms).emit('request:nearby', payload)
+      socketCount = uniqueIds.length
+    } catch (err: any) {
+      console.warn('[Visibility] socket emit failed:', err?.message)
     }
   }
 
