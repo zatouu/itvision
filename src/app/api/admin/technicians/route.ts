@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     const technician = await Technician.create({
       technicianId,
       name,
-      email,
+      email: normalizedEmail,
       phone,
       passwordHash,
       specialties: specialties || [],

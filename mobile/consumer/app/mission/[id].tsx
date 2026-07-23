@@ -541,7 +541,7 @@ function MissionDetail() {
           </View>
 
           {/* Métriques cycle de vie */}
-          {item.metrics && (
+          {item?.metrics && (
             <View style={s.detailsCard}>
               <View style={s.detailRow}>
                 <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>

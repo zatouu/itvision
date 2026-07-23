@@ -81,7 +81,7 @@ export interface ITechnician extends Document {
 const TechnicianSchema = new Schema<ITechnician>({
   technicianId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, required: true },
   passwordHash: { type: String, required: true },
   

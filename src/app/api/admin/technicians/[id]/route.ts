@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import Technician from '@/lib/models/Technician'
+import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 
 function requireAdmin(request: NextRequest) {
@@ -69,9 +70,11 @@ export async function PUT(
       }, { status: 404 })
     }
 
+    const normalizedEmail = email ? String(email).toLowerCase().trim() : undefined
+
     // Si l'email change, vérifier qu'il n'existe pas déjà
-    if (email && email !== existingTech.email) {
-      const emailExists = await Technician.findOne({ email, _id: { $ne: id } })
+    if (normalizedEmail && normalizedEmail !== String(existingTech.email).toLowerCase()) {
+      const emailExists = await Technician.findOne({ email: normalizedEmail, _id: { $ne: id } })
       if (emailExists) {
         return NextResponse.json({ 
           success: false, 
@@ -83,7 +86,7 @@ export async function PUT(
     // Préparer les données de mise à jour
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
-    if (email !== undefined) updateData.email = email
+    if (normalizedEmail !== undefined) updateData.email = normalizedEmail
     if (phone !== undefined) updateData.phone = phone
     if (specialties !== undefined) updateData.specialties = specialties
     if (certifications !== undefined) updateData.certifications = certifications
@@ -95,8 +98,10 @@ export async function PUT(
     }
     
     // Si un nouveau mot de passe est fourni
+    let newPasswordHash: string | undefined
     if (password && password.trim()) {
-      updateData.passwordHash = await bcrypt.hash(password, 10)
+      newPasswordHash = await bcrypt.hash(password, 10)
+      updateData.passwordHash = newPasswordHash
     }
 
     const technician = await Technician.findByIdAndUpdate(
@@ -104,6 +109,36 @@ export async function PUT(
       { $set: updateData },
       { new: true, runValidators: true }
     ).select('-passwordHash -deviceTokens')
+
+    // Synchroniser le User TECHNICIAN associé (email + mot de passe)
+    try {
+      const userEmailRegex = new RegExp('^' + String(existingTech.email).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
+      const userUpdate: any = {}
+      if (normalizedEmail !== undefined) userUpdate.email = normalizedEmail
+      if (newPasswordHash !== undefined) userUpdate.passwordHash = newPasswordHash
+      if (name !== undefined) userUpdate.name = name
+      if (phone !== undefined) userUpdate.phone = phone
+      if (isActive !== undefined) userUpdate.isActive = isActive
+      if (Object.keys(userUpdate).length > 0) {
+        const user = await User.findOne({ email: { $regex: userEmailRegex }, role: 'TECHNICIAN' })
+        if (user) {
+          await User.updateOne({ _id: user._id }, { $set: userUpdate })
+        } else if (normalizedEmail !== undefined) {
+          // Si le User n'existe pas encore, le créer à partir du technicien mis à jour
+          await User.create({
+            username: normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36),
+            email: normalizedEmail,
+            passwordHash: newPasswordHash || existingTech.passwordHash,
+            name: name || existingTech.name,
+            phone: phone || existingTech.phone || '',
+            role: 'TECHNICIAN',
+            isActive: isActive !== undefined ? isActive : existingTech.isActive
+          })
+        }
+      }
+    } catch (syncError) {
+      console.error('[PUT /api/admin/technicians/[id]] sync user failed', syncError)
+    }
 
     return NextResponse.json({ 
       success: true, 

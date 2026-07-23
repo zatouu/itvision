@@ -26,20 +26,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const normalizedEmail = email.toLowerCase().trim()
+    const emailRegex = new RegExp('^' + normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
+
     // Recherche de l'utilisateur dans la base de données
-    let user = (await User.findOne({ email: email.toLowerCase() }).lean()) as any
+    let user = (await User.findOne({ email: { $regex: emailRegex } }).lean()) as any
     
     // Si pas trouvé dans User, chercher dans Technician et créer le User manquant
     if (!user) {
-      const tech = await Technician.findOne({ email: email.toLowerCase() }).lean() as any
+      const tech = await Technician.findOne({ email: { $regex: emailRegex } }).lean() as any
       if (tech && tech.passwordHash) {
         const techPasswordValid = await bcrypt.compare(password, tech.passwordHash)
         if (techPasswordValid) {
           // Créer le User manquant à partir du Technician
-          const username = email.toLowerCase().split('@')[0] + '_tech_' + Date.now().toString(36)
+          const username = normalizedEmail.split('@')[0] + '_tech_' + Date.now().toString(36)
           const created = await User.create({
             username,
-            email: email.toLowerCase(),
+            email: normalizedEmail,
             passwordHash: tech.passwordHash,
             name: tech.name || email.split('@')[0],
             phone: tech.phone || '',
@@ -79,7 +82,7 @@ export async function POST(request: NextRequest) {
     // Fallback: si le mot de passe échoue dans User, vérifier dans Technician
     // (les hash peuvent différer si créés par deux routes séparées)
     if (!isValidPassword && String(user.role).toUpperCase() === 'TECHNICIAN') {
-      const tech = await Technician.findOne({ email: email.toLowerCase() }).lean() as any
+      const tech = await Technician.findOne({ email: { $regex: emailRegex } }).lean() as any
       if (tech?.passwordHash) {
         const techPasswordValid = await bcrypt.compare(password, tech.passwordHash)
         if (techPasswordValid) {
