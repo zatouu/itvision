@@ -695,3 +695,38 @@ Proceeding with outdated version.
 
 Unsupported platform, macOS or Linux is required to build apps for Android
     Error: build command failed.
+[consumer] Aucun changement detecte depuis 6a2755021dc2ba99776ad5d446db616c56caef03. Skip.
+[provider] Fichiers modifies depuis c42af67b911770a3cab515e56c014c98d58a0b6b :
+  - mobile/provider/XeuyBi-pro.apk
+  - mobile/provider/app.json
+  - mobile/provider/app/_layout.tsx
+  - mobile/provider/app/active-mission/[id].tsx
+  - mobile/provider/app/index.tsx
+  - mobile/provider/app/mission-chat.tsx
+  - mobile/provider/app/my-offers.tsx
+  - mobile/provider/app/nearby-requests.tsx
+  - mobile/provider/app/wallet/index.tsx
+  - mobile/provider/ota-push.log
+  - mobile/provider/package-lock.json
+  - mobile/provider/package.json
+  - mobile/provider/provider-build4.log
+  - mobile/provider/provider-ota-chat.log
+  - mobile/provider/provider-ota-media.log
+  - mobile/provider/provider-ota.log
+  - mobile/provider/src/components/LiveRouteMap.tsx
+  - mobile/provider/src/components/MissionMediaGallery.tsx
+  - mobile/provider/src/i18n/en.json
+  - mobile/provider/src/i18n/fr.json
+  - mobile/provider/src/i18n/wo.json
+  - mobile/provider/src/types.ts
+[provider] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/provider/app.json
+    NATIF: mobile/provider/package.json
+[provider] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.0.3 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
