@@ -13,51 +13,156 @@ export async function GET(request: NextRequest) {
     const match: any = {}
     if (category) match.category = category
 
-    const baseQuery = ServiceRequest.find(match)
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
+    if (from || to) {
+      match.createdAt = {}
+      if (from) match.createdAt.$gte = new Date(from)
+      if (to) match.createdAt.$lte = new Date(to)
+    }
 
-    const [missions, completed, archived, expired] = await Promise.all([
-      baseQuery.clone().lean() as any,
-      ServiceRequest.countDocuments({ ...match, status: { $in: ['completed'] } }),
-      ServiceRequest.countDocuments({ ...match, status: 'archived' }),
-      ServiceRequest.countDocuments({ ...match, status: 'expired' }),
+    const [row] = await ServiceRequest.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          archived: { $sum: { $cond: [{ $eq: ['$status', 'archived'] }, 1, 0] } },
+          expired: { $sum: { $cond: [{ $eq: ['$status', 'expired'] }, 1, 0] } },
+          completedDurationSum: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$status', 'completed'] }, '$completedAt', '$startedAt'] },
+                { $subtract: ['$completedAt', '$startedAt'] },
+                0,
+              ],
+            },
+          },
+          completedDurationCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$status', 'completed'] }, '$completedAt', '$startedAt'] },
+                1,
+                0,
+              ],
+            },
+          },
+          acceptanceSum: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    '$assignedAt',
+                    { $not: { $in: ['$status', ['created', 'broadcasted', 'pending_offers', 'expired']] } },
+                    '$createdAt',
+                  ],
+                },
+                { $subtract: ['$assignedAt', '$createdAt'] },
+                0,
+              ],
+            },
+          },
+          acceptanceCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    '$assignedAt',
+                    { $not: { $in: ['$status', ['created', 'broadcasted', 'pending_offers', 'expired']] } },
+                    '$createdAt',
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          arrivalSum: {
+            $sum: {
+              $cond: [
+                { $and: ['$arrivedAt', '$startedAt', '$assignedAt'] },
+                { $subtract: ['$arrivedAt', '$assignedAt'] },
+                0,
+              ],
+            },
+          },
+          arrivalCount: {
+            $sum: {
+              $cond: [
+                { $and: ['$arrivedAt', '$startedAt', '$assignedAt'] },
+                1,
+                0,
+              ],
+            },
+          },
+          pausedCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $isArray: '$pauseLog' }, { $gt: [{ $size: '$pauseLog' }, 0] }] },
+                1,
+                0,
+              ],
+            },
+          },
+          pausedDurationSum: {
+            $sum: {
+              $cond: [
+                { $and: [{ $isArray: '$pauseLog' }, { $gt: [{ $size: '$pauseLog' }, 0] }] },
+                {
+                  $reduce: {
+                    input: '$pauseLog',
+                    initialValue: 0,
+                    in: {
+                      $add: [
+                        '$$value',
+                        {
+                          $let: {
+                            vars: {
+                              start: { $toLong: { $toDate: '$$this.startedAt' } },
+                              end: { $toLong: { $ifNull: ['$$this.endedAt', '$$NOW'] } },
+                            },
+                            in: { $cond: [{ $gt: ['$$end', '$$start'] }, { $subtract: ['$$end', '$$start'] }, 0] },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+          pauseEntriesSum: {
+            $sum: {
+              $cond: [
+                { $and: [{ $isArray: '$pauseLog' }, { $gt: [{ $size: '$pauseLog' }, 0] }] },
+                { $size: '$pauseLog' },
+                0,
+              ],
+            },
+          },
+        },
+      },
     ])
 
-    const completedMissions = missions.filter((m: any) => m.status === 'completed')
-    const acceptedMissions = missions.filter((m: any) => m.assignedAt && (m.status !== 'created' && m.status !== 'broadcasted' && m.status !== 'pending_offers' && m.status !== 'expired'))
-    const arrivedMissions = missions.filter((m: any) => m.arrivedAt && m.startedAt)
-    const pausedMissions = missions.filter((m: any) => Array.isArray(m.pauseLog) && m.pauseLog.length > 0)
+    const r = row || { total: 0, completed: 0, archived: 0, expired: 0, completedDurationSum: 0, completedDurationCount: 0, acceptanceSum: 0, acceptanceCount: 0, arrivalSum: 0, arrivalCount: 0, pausedCount: 0, pausedDurationSum: 0, pauseEntriesSum: 0 }
 
-    const avgDurationMs = average(completedMissions.map((m: any) =>
-      m.completedAt && m.startedAt ? new Date(m.completedAt).getTime() - new Date(m.startedAt).getTime() : 0
-    ))
+    const avgDurationMs = safeDivide(r.completedDurationSum, r.completedDurationCount)
+    const avgAcceptanceMs = safeDivide(r.acceptanceSum, r.acceptanceCount)
+    const avgArrivalMs = safeDivide(r.arrivalSum, r.arrivalCount)
+    const avgPausedMs = safeDivide(r.pausedDurationSum, r.pausedCount)
+    const avgPauses = safeDivide(r.pauseEntriesSum, r.pausedCount)
 
-    const avgAcceptanceMs = average(acceptedMissions.map((m: any) =>
-      m.assignedAt && m.createdAt ? new Date(m.assignedAt).getTime() - new Date(m.createdAt).getTime() : 0
-    ))
-
-    const avgArrivalMs = average(arrivedMissions.map((m: any) =>
-      m.arrivedAt && m.assignedAt ? new Date(m.arrivedAt).getTime() - new Date(m.assignedAt).getTime() : 0
-    ))
-
-    const avgPausedMs = average(pausedMissions.map((m: any) =>
-      (m.pauseLog || []).reduce((sum: number, p: any) => {
-        const start = new Date(p.startedAt).getTime()
-        const end = p.endedAt ? new Date(p.endedAt).getTime() : Date.now()
-        return sum + (end > start ? end - start : 0)
-      }, 0)
-    ))
-
-    const avgPauses = average(pausedMissions.map((m: any) => (m.pauseLog || []).length))
-
-    const total = missions.length || 1
-    const totalCompletedOrClosed = completed + archived + expired || 1
+    const total = r.total || 1
+    const totalCompletedOrClosed = (r.completed + r.archived + r.expired) || 1
 
     return NextResponse.json({
       stats: {
-        missionCount: missions.length,
-        completedCount: completed,
-        archivedCount: archived,
-        expiredCount: expired,
+        missionCount: r.total,
+        completedCount: r.completed,
+        archivedCount: r.archived,
+        expiredCount: r.expired,
         averageDurationMs: avgDurationMs,
         averageDurationFormatted: formatDuration(avgDurationMs),
         averageAcceptanceMs: avgAcceptanceMs,
@@ -67,9 +172,9 @@ export async function GET(request: NextRequest) {
         averagePausedMs: avgPausedMs,
         averagePausedFormatted: formatDuration(avgPausedMs),
         averagePauses: Number.isFinite(avgPauses) ? Number(avgPauses.toFixed(2)) : 0,
-        archivedRate: Number(((archived / total) * 100).toFixed(2)),
-        expiredRate: Number(((expired / total) * 100).toFixed(2)),
-        completionRate: Number(((completed / totalCompletedOrClosed) * 100).toFixed(2)),
+        archivedRate: Number(((r.archived / total) * 100).toFixed(2)),
+        expiredRate: Number(((r.expired / total) * 100).toFixed(2)),
+        completionRate: Number(((r.completed / totalCompletedOrClosed) * 100).toFixed(2)),
       },
     })
   } catch (e: any) {
@@ -79,10 +184,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function average(values: number[]): number {
-  const valid = values.filter(v => Number.isFinite(v) && v > 0)
-  if (valid.length === 0) return 0
-  return valid.reduce((a, b) => a + b, 0) / valid.length
+function safeDivide(sum: number, count: number): number {
+  if (!count || !Number.isFinite(sum)) return 0
+  return sum / count
 }
 
 function formatDuration(ms: number): string {
