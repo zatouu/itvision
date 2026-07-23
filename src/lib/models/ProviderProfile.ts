@@ -11,13 +11,19 @@ export interface IProviderProfile extends Document {
     lastUpdatedAt?: Date
   }
   serviceCategories: string[]
+  secondaryCategories?: string[]
   zone?: {
     city?: string
     region?: string
     coordinates?: [number, number]
+    radiusKm?: number
+    departments?: string[]
+    regions?: string[]
   }
-  currentLoad: number
+  coverUrl?: string
   maxConcurrentMissions?: number
+  preferences?: any
+  currentLoad: number
   createdAt: Date
   updatedAt: Date
 }
@@ -39,13 +45,19 @@ const ProviderProfileSchema = new Schema<IProviderProfile>({
     lastUpdatedAt: { type: Date }
   },
   serviceCategories: { type: [String], default: [] },
+  secondaryCategories: { type: [String], default: [] },
   zone: {
     city: { type: String, trim: true },
     region: { type: String, trim: true },
-    coordinates: { type: [Number], index: '2dsphere' }
+    coordinates: { type: [Number], index: '2dsphere' },
+    radiusKm: { type: Number, default: 10, min: 1 },
+    departments: { type: [String], default: [] },
+    regions: { type: [String], default: [] }
   },
+  coverUrl: { type: String },
   currentLoad: { type: Number, default: 0, min: 0 },
-  maxConcurrentMissions: { type: Number, min: 1 }
+  maxConcurrentMissions: { type: Number, min: 1 },
+  preferences: { type: Schema.Types.Mixed, default: {} }
 }, { timestamps: true })
 
 export default (mongoose.models.ProviderProfile as mongoose.Model<IProviderProfile>) ||

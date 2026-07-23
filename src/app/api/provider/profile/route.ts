@@ -1,0 +1,179 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
+import { connectMongoose } from '@/lib/mongoose'
+import User from '@/lib/models/User'
+import ProviderProfile from '@/lib/models/ProviderProfile'
+import KycRequest from '@/lib/models/KycRequest'
+import ServiceReview from '@/lib/models/ServiceReview'
+import { getJwtSecretKey } from '@/lib/jwt-secret'
+
+interface DecodedToken {
+  userId: string
+  role: string
+  email: string
+}
+
+async function verifyToken(request: NextRequest): Promise<DecodedToken> {
+  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
+  if (!token) throw new Error('Non authentifié')
+
+  const secret = getJwtSecretKey()
+  const { payload } = await jwtVerify(token, secret)
+
+  if (!payload.userId || !payload.role || !payload.email) throw new Error('Token invalide')
+
+  return {
+    userId: payload.userId as string,
+    role: payload.role as string,
+    email: payload.email as string,
+  }
+}
+
+function normalizeUser(user: any) {
+  return {
+    _id: user._id.toString(),
+    name: user.name || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    avatarUrl: user.avatarUrl || '',
+    company: user.company || '',
+    address: user.address || '',
+    city: user.city || '',
+    country: user.country || '',
+    createdAt: user.createdAt,
+    referralCode: user.referralCode || '',
+    referralBalance: user.referralBalance || 0,
+    referralCount: user.referralCount || 0,
+    kycVerified: user.kycVerified || false,
+    providerStats: user.providerStats || {
+      completedMissions: 0,
+      cancelledByProvider: 0,
+      cancelledByClient: 0,
+      reliabilityScore: 100,
+    },
+  }
+}
+
+function normalizeProvider(pp: any) {
+  return {
+    _id: pp._id.toString(),
+    kycVerified: pp.kycVerified || false,
+    serviceCategories: pp.serviceCategories || [],
+    secondaryCategories: pp.secondaryCategories || [],
+    zone: pp.zone || { city: '', region: '', radiusKm: 10, departments: [], regions: [] },
+    coverUrl: pp.coverUrl || '',
+    maxConcurrentMissions: pp.maxConcurrentMissions || 3,
+    currentLoad: pp.currentLoad || 0,
+    preferences: pp.preferences || {},
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { userId } = await verifyToken(request)
+    await connectMongoose()
+
+    const user = await User.findById(userId).select('-passwordHash').lean() as any
+    if (!user) {
+      return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
+    }
+
+    if (user.role !== 'TECHNICIAN') {
+      return NextResponse.json({ error: 'Réservé aux prestataires' }, { status: 403 })
+    }
+
+    let providerProfile = await ProviderProfile.findOne({ userId }).lean() as any
+    if (!providerProfile) {
+      providerProfile = await ProviderProfile.create({
+        userId,
+        kycVerified: user.kycVerified || false,
+        serviceCategories: [],
+        secondaryCategories: [],
+        zone: { city: user.city || '', region: '', radiusKm: 10, departments: [], regions: [] },
+        preferences: {},
+        currentLoad: 0,
+      })
+    }
+
+    const kyc = await KycRequest.findOne({ providerId: userId }).lean() as any
+
+    const [reviewAgg] = await ServiceReview.aggregate([
+      { $match: { providerId: userId } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+    ])
+
+    return NextResponse.json({
+      success: true,
+      user: normalizeUser(user),
+      provider: normalizeProvider(providerProfile),
+      kyc: {
+        status: kyc?.status || 'pending',
+        rejectionReason: kyc?.rejectionReason || '',
+      },
+      reviews: {
+        average: reviewAgg ? Math.round(reviewAgg.avg * 10) / 10 : 0,
+        count: reviewAgg?.count || 0,
+      },
+    })
+  } catch (error) {
+    console.error('[provider/profile] GET error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erreur serveur' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { userId } = await verifyToken(request)
+    await connectMongoose()
+
+    const body = await request.json()
+    const { user: userPatch = {}, provider: providerPatch = {} } = body
+
+    const user = await User.findById(userId)
+    if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
+    if ((user as any).role !== 'TECHNICIAN') {
+      return NextResponse.json({ error: 'Réservé aux prestataires' }, { status: 403 })
+    }
+
+    const allowedUserFields = ['name', 'email', 'phone', 'company', 'address', 'city', 'country', 'avatarUrl']
+    allowedUserFields.forEach((field) => {
+      if (userPatch[field] !== undefined) (user as any)[field] = userPatch[field]
+    })
+    await user.save()
+
+    let providerProfile = await ProviderProfile.findOne({ userId })
+    if (!providerProfile) {
+      providerProfile = new ProviderProfile({ userId, kycVerified: (user as any).kycVerified || false })
+    }
+
+    if (providerPatch.serviceCategories !== undefined) providerProfile.serviceCategories = providerPatch.serviceCategories
+    if (providerPatch.secondaryCategories !== undefined) providerProfile.secondaryCategories = providerPatch.secondaryCategories
+    if (providerPatch.zone !== undefined) {
+      providerProfile.zone = { ...(providerProfile.zone || {}), ...providerPatch.zone }
+    }
+    if (providerPatch.coverUrl !== undefined) providerProfile.coverUrl = providerPatch.coverUrl
+    if (providerPatch.maxConcurrentMissions !== undefined) {
+      providerProfile.maxConcurrentMissions = providerPatch.maxConcurrentMissions
+    }
+    if (providerPatch.preferences !== undefined) {
+      providerProfile.preferences = { ...(providerProfile.preferences || {}), ...providerPatch.preferences }
+    }
+
+    await providerProfile.save()
+
+    return NextResponse.json({
+      success: true,
+      user: normalizeUser(user.toObject()),
+      provider: normalizeProvider(providerProfile.toObject()),
+    })
+  } catch (error) {
+    console.error('[provider/profile] PATCH error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erreur serveur' },
+      { status: 500 }
+    )
+  }
+}
