@@ -5,9 +5,7 @@ import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
 import emailService from '@/lib/email-service'
 import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
+import { getBrandFromHost, BrandConfig } from '@/lib/branding'
 
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
 
@@ -26,7 +24,7 @@ function normalizeQuoteForResponse(quote: any) {
   }
 }
 
-function buildAdminNotificationHtml(quote: any, action: string, message: string, counterAmount?: number, clientName?: string) {
+function buildAdminNotificationHtml(quote: any, action: string, message: string, brand: BrandConfig, counterAmount?: number, clientName?: string) {
   const actionLabel = action === 'accepted' ? 'Accepté' : action === 'rejected' ? 'Refusé' : action === 'counter_proposed' ? 'Contre-proposition' : 'Commentaire'
   const color = action === 'accepted' ? '#16a34a' : action === 'rejected' ? '#dc2626' : '#7c3aed'
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -50,13 +48,13 @@ function buildAdminNotificationHtml(quote: any, action: string, message: string,
         <strong>Date :</strong> ${new Date().toLocaleDateString('fr-FR')}
       </div>
       ${message ? `<div class="box"><strong>Message du client :</strong><br><em>${message}</em></div>` : ''}
-      <a href="${SITE_URL}/admin" class="btn">Voir dans l'admin</a>
+      <a href="${brand.url}/admin" class="btn">Voir dans l'admin</a>
     </div>
-    <div class="footer">© ${new Date().getFullYear()} IT Vision Plus</div>
+    <div class="footer">© ${new Date().getFullYear()} ${brand.name}</div>
   </div></body></html>`
 }
 
-function buildClientConfirmHtml(quote: any, action: string, clientName: string) {
+function buildClientConfirmHtml(quote: any, action: string, clientName: string, brand: BrandConfig) {
   const actionLabel = action === 'accepted' ? 'accepté' : action === 'rejected' ? 'refusé' : action === 'counter_proposed' ? 'transmis (contre-proposition)' : 'reçu'
   const nextStep = action === 'accepted'
     ? 'Notre équipe va préparer la commande et vous contacter sous 24h pour la suite.'
@@ -82,15 +80,16 @@ function buildClientConfirmHtml(quote: any, action: string, clientName: string) 
         <strong>Date :</strong> ${new Date().toLocaleDateString('fr-FR')}
       </div>
       <p>${nextStep}</p>
-      <a href="${SITE_URL}/portail-entreprise/documents" class="btn">Voir mes documents</a>
-      <p style="margin-top:16px">📧 contact@itvisionplus.sn &nbsp;|&nbsp; 📱 +221 77 413 34 40</p>
+      <a href="${brand.url}/portail-entreprise/documents" class="btn">Voir mes documents</a>
+      <p style="margin-top:16px">📧 ${brand.contactEmail} &nbsp;|&nbsp; 📱 ${brand.whatsapp}</p>
     </div>
-    <div class="footer">© ${new Date().getFullYear()} IT Vision Plus</div>
+    <div class="footer">© ${new Date().getFullYear()} ${brand.name}</div>
   </div></body></html>`
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const brand = getBrandFromHost(request.nextUrl.host)
   const auth = await verifyAuthServer(request)
   if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
@@ -169,19 +168,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Emails
   const clientName = auth.user.name || auth.user.email || 'Client'
   const clientEmail = auth.user.email || quote.client?.email
+  const adminEmail = process.env.ADMIN_EMAIL || brand.contactEmail
 
   await Promise.allSettled([
     // Notifier l'admin
     emailService.sendEmail({
-      to: ADMIN_EMAIL,
+      to: adminEmail,
+      fromName: brand.name,
+      brand,
       subject: `[Portail Client] Devis ${quote.numero} — ${action === 'accepted' ? 'Accepté' : action === 'rejected' ? 'Refusé' : action === 'counter_proposed' ? 'Contre-proposition' : 'Commentaire'} par ${clientName}`,
-      html: buildAdminNotificationHtml(quote, action, trimmedMessage, counterAmount, clientName)
+      html: buildAdminNotificationHtml(quote, action, trimmedMessage, brand, counterAmount, clientName)
     }),
     // Confirmer au client
     clientEmail && action !== 'comment' ? emailService.sendEmail({
       to: clientEmail,
+      fromName: brand.name,
+      brand,
       subject: `Confirmation — Devis ${quote.numero} ${action === 'accepted' ? 'accepté' : action === 'rejected' ? 'refusé' : 'contre-proposition envoyée'}`,
-      html: buildClientConfirmHtml(quote, action, clientName)
+      html: buildClientConfirmHtml(quote, action, clientName, brand)
     }) : Promise.resolve()
   ])
 

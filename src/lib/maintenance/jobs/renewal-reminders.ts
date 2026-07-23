@@ -1,6 +1,7 @@
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { emailService } from '@/lib/email-service'
+import { CORPORATE_BRAND } from '@/lib/branding'
 
 export const JOB_NAME = 'maintenance.renewal-reminders'
 
@@ -27,7 +28,8 @@ export async function runRenewalRemindersJob(): Promise<ReminderResult> {
     await connectMongoose()
 
     const now = new Date()
-    const adminEmail = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
+    const brand = CORPORATE_BRAND
+    const adminEmail = process.env.ADMIN_EMAIL || brand.contactEmail
 
     const contracts = await MaintenanceContract.find({
       status: 'active',
@@ -50,7 +52,7 @@ export async function runRenewalRemindersJob(): Promise<ReminderResult> {
         if (alreadySent) continue
 
         // Envoi email admin + client
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+        const siteUrl = brand.url
         const subject = `Renouvellement contrat — ${contract.name} (${daysUntil}j restants)`
         const html = `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -67,7 +69,7 @@ export async function runRenewalRemindersJob(): Promise<ReminderResult> {
           </div>
         `
 
-        await emailService.sendEmail({ to: adminEmail, subject, html })
+        await emailService.sendEmail({ to: adminEmail, fromName: brand.name, brand, subject, html })
 
         // Marquer comme notifié
         await MaintenanceContract.updateOne(

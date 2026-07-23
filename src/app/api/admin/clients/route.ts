@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { getClientInvitationEmail } from '@/lib/email-templates'
+import { getBrandFromHost } from '@/lib/branding'
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
     await requireAdmin(request)
+    const brand = getBrandFromHost(request.nextUrl.host)
 
     const body = await request.json()
     const { name, email, phone, company, address, city, country, canAccessPortal, notes, tags, category, rating, contacts, contactPrincipal } = body
@@ -200,10 +202,11 @@ export async function POST(request: NextRequest) {
         })
 
         if (shouldEnablePortal) {
-          const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
-          const emailContent = getClientInvitationEmail(name, resetUrl)
+          const resetUrl = `${brand.url}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
+          const emailContent = getClientInvitationEmail(name, resetUrl, brand)
           await emailService.sendEmail({
             to: normalizedEmail,
+            brand,
             subject: emailContent.subject,
             html: emailContent.html,
             text: emailContent.text

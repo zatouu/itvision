@@ -9,6 +9,7 @@ import { emailService } from '@/lib/email-service'
 import { getClientContactEmails } from '@/lib/client-contacts'
 import { emitInterventionUpdate, emitGroupNotification } from '@/lib/socket-emit'
 import { logAuditEvent } from '@/lib/audit'
+import { getBrandFromHost, BrandConfig } from '@/lib/branding'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
@@ -28,6 +29,7 @@ async function verifyTechnicianToken(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectDB()
+    const brand = getBrandFromHost(request.nextUrl.host)
     
     const tokenData = await verifyTechnicianToken(request)
     const { reportId, finalChecks } = await request.json()
@@ -147,13 +149,13 @@ export async function POST(request: NextRequest) {
 
     // Notification admin
     try {
-      await notifyAdminNewReport(report)
+      await notifyAdminNewReport(report, brand)
     } catch {}
 
     // Notification contacts client (si le rapport est lié à un client)
     try {
       if (report.clientId) {
-        await notifyClientContacts(report)
+        await notifyClientContacts(report, brand)
       }
     } catch {}
     
@@ -291,7 +293,7 @@ function validateReportForSubmission(report: any): string[] {
 }
 
 // Fonction de notification admin (à implémenter selon vos besoins)
-async function notifyAdminNewReport(report: any) {
+async function notifyAdminNewReport(report: any, brand: BrandConfig) {
   // Ici vous pouvez ajouter :
   // - Envoi email
   // - Notification push
@@ -312,7 +314,7 @@ async function notifyAdminNewReport(report: any) {
   
   // Envoi d'email de notification à l'admin
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+    const siteUrl = brand.url
     const dateStr = report.interventionDate
       ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
       : 'Non spécifiée'
@@ -321,7 +323,9 @@ async function notifyAdminNewReport(report: any) {
       report.priority === 'medium' ? '🟡 Moyenne' : '🟢 Faible'
 
     await emailService.sendEmail({
-      to: 'contact@itvisionplus.sn',
+      to: brand.contactEmail,
+      fromName: brand.name,
+      brand,
       subject: `Nouveau rapport à valider - ${report.reportId}`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -349,25 +353,27 @@ async function notifyAdminNewReport(report: any) {
 }
 
 // Notification des contacts client lors de la soumission d'un rapport
-async function notifyClientContacts(report: any) {
+async function notifyClientContacts(report: any, brand: BrandConfig) {
   try {
     const clientId = String(report.clientId)
     const emails = await getClientContactEmails(clientId)
     if (emails.length === 0) return
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+    const siteUrl = brand.url
     const dateStr = report.interventionDate
       ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
       : 'Non spécifiée'
 
     await emailService.sendEmail({
       to: emails.join(', '),
-      subject: `Fiche d'intervention ${report.reportId} - IT Vision Plus`,
+      fromName: brand.name,
+      brand,
+      subject: `Fiche d'intervention ${report.reportId} - ${brand.name}`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
           <div style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:20px;border-radius:10px 10px 0 0">
             <h2 style="margin:0">📋 Fiche d'intervention</h2>
-            <p style="margin:5px 0 0;opacity:0.9">IT Vision Plus - Sécurité Électronique</p>
+            <p style="margin:5px 0 0;opacity:0.9">${brand.name} - ${brand.tagline}</p>
           </div>
           <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
             <p>Bonjour,</p>
@@ -384,7 +390,7 @@ async function notifyClientContacts(report: any) {
                 Accéder à mon espace
               </a>
             </p>
-            <p style="color:#6b7280;font-size:13px">Merci de votre confiance.<br>L'équipe IT Vision Plus</p>
+            <p style="color:#6b7280;font-size:13px">Merci de votre confiance.<br>L'équipe ${brand.name}</p>
           </div>
         </div>
       `,

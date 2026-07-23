@@ -3,6 +3,7 @@ import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { emailService } from '@/lib/email-service'
 import { addNotification } from '@/lib/notifications-memory'
+import { CORPORATE_BRAND } from '@/lib/branding'
 
 export const JOB_NAME = 'maintenance.sla-monitoring'
 
@@ -31,7 +32,8 @@ export async function runSLAMonitoringJob(): Promise<SLAResult> {
     await connectMongoose()
 
     const now = new Date()
-    const adminEmail = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
+    const brand = CORPORATE_BRAND
+    const adminEmail = process.env.ADMIN_EMAIL || brand.contactEmail
 
     // 1. Interventions pending sans technicien assigné depuis > responseTime
     const pendingInterventions = await Intervention.find({
@@ -68,6 +70,8 @@ export async function runSLAMonitoringJob(): Promise<SLAResult> {
             escalations++
             await emailService.sendEmail({
               to: adminEmail,
+              fromName: brand.name,
+              brand,
               subject: `ESCALADE SLA — ${intervention.interventionNumber || 'INT-?' }`,
               html: `
                 <p><strong>Intervention :</strong> ${intervention.title}</p>

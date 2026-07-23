@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/email-service'
+import { getBrandFromHost } from '@/lib/branding'
 
 export async function GET(request: NextRequest) {
   try {
-    
+    const brand = getBrandFromHost(request.nextUrl.host)
+
     console.log('📧 Test d\'envoi d\'email vers zatou1900@gmail.com')
     console.log('Configuration SMTP:')
     console.log('- Host:', process.env.SMTP_HOST)
@@ -14,7 +16,9 @@ export async function GET(request: NextRequest) {
 
     const result = await emailService.sendEmail({
       to: 'zatou1900@gmail.com',
-      subject: 'Test SMTP - IT Vision Plus',
+      fromName: brand.name,
+      brand,
+      subject: `Test SMTP - ${brand.name}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -35,14 +39,14 @@ export async function GET(request: NextRequest) {
             </div>
             <div class="content">
               <h2>Bonjour,</h2>
-              <p>Ceci est un email de test pour vérifier la configuration SMTP OVH d'IT Vision Plus.</p>
+              <p>Ceci est un email de test pour vérifier la configuration SMTP OVH de ${brand.name}.</p>
               
               <div class="info">
                 <p><strong>📋 Configuration utilisée:</strong></p>
                 <ul>
                   <li>Serveur: ssl0.ovh.net</li>
                   <li>Port: 465 (SSL)</li>
-                  <li>Expéditeur: contact@itvisionplus.sn</li>
+                  <li>Expéditeur: ${process.env.SMTP_FROM || brand.contactEmail}</li>
                   <li>Date: ${new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Dakar' })}</li>
                 </ul>
               </div>
@@ -58,9 +62,9 @@ export async function GET(request: NextRequest) {
               </ul>
               
               <div class="footer">
-                <p><strong>IT Vision Plus</strong></p>
-                <p>Solutions de Sécurité Électronique</p>
-                <p>📧 contact@itvisionplus.sn | 🌐 itvisionplus.sn</p>
+                <p><strong>${brand.name}</strong></p>
+                <p>${brand.tagline}</p>
+                <p>📧 ${brand.contactEmail} | 🌐 ${brand.url.replace(/^https?:\/\//, '')}</p>
               </div>
             </div>
           </div>
@@ -68,16 +72,16 @@ export async function GET(request: NextRequest) {
         </html>
       `,
       text: `
-Test SMTP - IT Vision Plus
+Test SMTP - ${brand.name}
 
 Bonjour,
 
-Ceci est un email de test pour vérifier la configuration SMTP OVH d'IT Vision Plus.
+Ceci est un email de test pour vérifier la configuration SMTP OVH de ${brand.name}.
 
 Configuration utilisée:
 - Serveur: ssl0.ovh.net
 - Port: 465 (SSL)
-- Expéditeur: contact@itvisionplus.sn
+- Expéditeur: ${process.env.SMTP_FROM || brand.contactEmail}
 - Date: ${new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Dakar' })}
 
 Si vous recevez cet email, la configuration SMTP fonctionne parfaitement!
@@ -88,9 +92,9 @@ Les emails suivants seront envoyés automatiquement :
 - Notifications de projets
 - Alertes de tickets support
 
-IT Vision Plus
-Solutions de Sécurité Électronique
-contact@itvisionplus.sn | itvisionplus.sn
+${brand.name}
+${brand.tagline}
+${brand.contactEmail} | ${brand.url.replace(/^https?:\/\//, '')}
       `
     })
 

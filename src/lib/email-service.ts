@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import SentEmail from '@/lib/models/SentEmail'
+import { BrandConfig, getDefaultBrand } from './branding'
 
 interface EmailConfig {
   host: string
@@ -27,6 +28,8 @@ interface EmailData {
     content: Buffer
     contentType?: string
   }>
+  brand?: BrandConfig
+  fromName?: string
 }
 
 class EmailService {
@@ -39,10 +42,10 @@ class EmailService {
     this.initializeTransporter()
   }
 
-  private getSmtpFromAddress(): string {
+  private getSmtpFromAddress(fromName?: string): string {
     const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@itvisionplus.sn'
-    const fromName = process.env.SMTP_FROM_NAME || 'DDM+'
-    return `"${fromName}" <${fromEmail}>`
+    const name = fromName || process.env.SMTP_FROM_NAME || getDefaultBrand().name
+    return `"${name}" <${fromEmail}>`
   }
 
   private getBccRecipients(extraBcc?: string): string {
@@ -123,7 +126,7 @@ class EmailService {
 
   async sendEmail(emailData: EmailData): Promise<boolean> {
     const bccRecipients = this.getBccRecipients(emailData.bcc)
-    const fromAddress = this.getSmtpFromAddress()
+    const fromAddress = this.getSmtpFromAddress(emailData.fromName || emailData.brand?.name)
 
     if (!this.isConfigured || !this.transporter) {
       console.warn('[EMAIL] Service non configuré, email simulé:', emailData.subject)
@@ -233,8 +236,10 @@ class EmailService {
   }
 
   // Template pour reset de mot de passe
-  generatePasswordResetEmail(userEmail: string, resetToken: string): EmailData {
-    const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
+  generatePasswordResetEmail(userEmail: string, resetToken: string, brand: BrandConfig = getDefaultBrand()): EmailData {
+    const resetUrl = `${brand.url}/reset-password?token=${resetToken}`
+    const primary = brand.primaryColor || '#667eea'
+    const secondary = brand.secondaryColor || '#764ba2'
     
     const html = `
       <!DOCTYPE html>
@@ -242,13 +247,13 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Réinitialisation de mot de passe - DDM+</title>
+        <title>Réinitialisation de mot de passe - ${brand.name}</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .button { display: inline-block; background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
           .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
@@ -257,11 +262,11 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>🔐 Réinitialisation de mot de passe</h1>
-            <p>DDM+ - Sécurité Électronique</p>
+            <p>${brand.name} - ${brand.tagline}</p>
           </div>
           <div class="content">
             <h2>Bonjour,</h2>
-            <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte DDM+.</p>
+            <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte ${brand.name}.</p>
             
             <p>Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
             
@@ -284,11 +289,11 @@ class EmailService {
             </div>
             
             <p>Si vous avez des questions, contactez notre support :</p>
-            <p>📧 Email: support@itvisionplus.sn<br>
-            📱 WhatsApp: +221 77 413 34 40</p>
+            <p>📧 Email: ${brand.supportEmail}<br>
+            📱 WhatsApp: ${brand.whatsapp}</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} ${brand.name} - Tous droits réservés</p>
             <p>Cet email a été envoyé à ${userEmail}</p>
           </div>
         </div>
@@ -298,10 +303,11 @@ class EmailService {
 
     return {
       to: userEmail,
-      subject: '🔐 Réinitialisation de votre mot de passe - DDM+',
+      subject: `🔐 Réinitialisation de votre mot de passe - ${brand.name}`,
+      brand,
       html,
       text: `
-        Réinitialisation de mot de passe - DDM+
+        Réinitialisation de mot de passe - ${brand.name}
         
         Bonjour,
         
@@ -314,13 +320,13 @@ class EmailService {
         
         Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.
         
-        Support: support@itvisionplus.sn | WhatsApp: +221 77 413 34 40
+        Support: ${brand.supportEmail} | WhatsApp: ${brand.whatsapp}
       `
     }
   }
 
   // Template pour confirmation de rendez-vous
-  generateAppointmentConfirmationEmail(bookingData: any): EmailData {
+  generateAppointmentConfirmationEmail(bookingData: any, brand: BrandConfig = getDefaultBrand()): EmailData {
     const services = {
       'audit': 'Audit sécurité gratuit',
       'installation': 'Installation équipement',
@@ -348,17 +354,21 @@ class EmailService {
       'critical': 'Critique (24h)'
     }
 
+    const primary = brand.primaryColor || '#667eea'
+    const secondary = brand.secondaryColor || '#764ba2'
+    const siteUrl = brand.url
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirmation de Rendez-vous - DDM+</title>
+        <title>Confirmation de Rendez-vous - ${brand.name}</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
           .appointment-card { background: white; border-radius: 10px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
           .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
@@ -366,7 +376,7 @@ class EmailService {
           .detail-label { font-weight: bold; color: #6b7280; }
           .detail-value { color: #1f2937; }
           .urgency-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; color: white; }
-          .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .button { display: inline-block; background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
           .contact-info { background: #e5f3ff; border: 1px solid #b3d9ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .calendar-link { background: #f0f9ff; border: 1px solid #0ea5e9; padding: 15px; border-radius: 5px; margin: 10px 0; text-align: center; }
@@ -376,7 +386,7 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>📅 Confirmation de Rendez-vous</h1>
-            <p>DDM+ - Sécurité Électronique</p>
+            <p>${brand.name} - ${brand.tagline}</p>
           </div>
           <div class="content">
             <h2>Bonjour ${bookingData.clientInfo.name},</h2>
@@ -431,7 +441,7 @@ class EmailService {
             <div class="calendar-link">
               <h3>📅 Ajouter à votre calendrier</h3>
               <p>Cliquez sur le lien ci-dessous pour ajouter ce rendez-vous à votre calendrier :</p>
-              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/booking/ics?title=${encodeURIComponent(`RDV ${serviceName}`)}&description=${encodeURIComponent(`Client: ${bookingData.clientInfo.name}\\nTéléphone: ${bookingData.clientInfo.phone}\\nDétails: ${bookingData.details || ''}`)}&location=${encodeURIComponent(bookingData.address)}&start=${encodeURIComponent(`${bookingData.date}T${bookingData.time}`)}&end=${encodeURIComponent(`${bookingData.date}T${bookingData.time.split(':').map((n: string, i: number) => i === 0 ? String(Math.min(23, parseInt(n) + 2)).padStart(2, '0') : n).join(':')}`)}" 
+              <a href="${siteUrl}/api/booking/ics?title=${encodeURIComponent(`RDV ${serviceName}`)}&description=${encodeURIComponent(`Client: ${bookingData.clientInfo.name}\\nTéléphone: ${bookingData.clientInfo.phone}\\nDétails: ${bookingData.details || ''}`)}&location=${encodeURIComponent(bookingData.address)}&start=${encodeURIComponent(`${bookingData.date}T${bookingData.time}`)}&end=${encodeURIComponent(`${bookingData.date}T${bookingData.time.split(':').map((n: string, i: number) => i === 0 ? String(Math.min(23, parseInt(n) + 2)).padStart(2, '0') : n).join(':')}`)}" 
                  class="button">
                 📅 Télécharger le fichier .ics
               </a>
@@ -443,17 +453,17 @@ class EmailService {
               <p>Notre équipe va vous contacter dans les plus brefs délais pour confirmer définitivement ce créneau.</p>
               <p>En cas d'urgence ou pour toute modification, contactez-nous :</p>
               <ul>
-                <li>📧 Email: contact@itvisionplus.sn</li>
-                <li>📱 WhatsApp: +221 77 413 34 40</li>
+                <li>📧 Email: ${brand.contactEmail}</li>
+                <li>📱 WhatsApp: ${brand.whatsapp}</li>
                 <li>☎️ Téléphone: +221 33 xxx xx xx</li>
               </ul>
             </div>
 
             <p><strong>Merci de votre confiance !</strong></p>
-            <p>L'équipe DDM+</p>
+            <p>L'équipe ${brand.name}</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} ${brand.name} - Tous droits réservés</p>
             <p>Cet email a été envoyé à ${bookingData.clientInfo.email}</p>
           </div>
         </div>
@@ -464,9 +474,10 @@ class EmailService {
     return {
       to: bookingData.clientInfo.email,
       subject: `🗓️ Confirmation de RDV - ${serviceName} le ${appointmentDate}`,
+      brand,
       html,
       text: `
-        Confirmation de Rendez-vous - DDM+
+        Confirmation de Rendez-vous - ${brand.name}
         
         Bonjour ${bookingData.clientInfo.name},
         
@@ -483,41 +494,45 @@ class EmailService {
         
         Notre équipe va vous contacter pour confirmation définitive.
         
-        Contact: contact@itvisionplus.sn | WhatsApp: +221 77 413 34 40
+        Contact: ${brand.contactEmail} | WhatsApp: ${brand.whatsapp}
         
         Merci de votre confiance !
-        L'équipe DDM+
+        L'équipe ${brand.name}
       `
     }
   }
 
   // Template pour confirmation d'inscription
-  generateWelcomeEmail(userEmail: string, userName: string): EmailData {
+  generateWelcomeEmail(userEmail: string, userName: string, brand: BrandConfig = getDefaultBrand()): EmailData {
+    const primary = brand.primaryColor || '#667eea'
+    const secondary = brand.secondaryColor || '#764ba2'
+    const siteUrl = brand.url
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Bienvenue chez DDM+</title>
+        <title>Bienvenue chez ${brand.name}</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .button { display: inline-block; background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>🎉 Bienvenue chez DDM+ !</h1>
-            <p>Votre partenaire en sécurité électronique</p>
+            <h1>🎉 Bienvenue chez ${brand.name} !</h1>
+            <p>${brand.tagline}</p>
           </div>
           <div class="content">
             <h2>Bonjour ${userName},</h2>
-            <p>Félicitations ! Votre compte DDM+ a été créé avec succès.</p>
+            <p>Félicitations ! Votre compte ${brand.name} a été créé avec succès.</p>
             
             <p>Vous pouvez maintenant accéder à votre espace personnel pour :</p>
             <ul>
@@ -528,17 +543,17 @@ class EmailService {
             </ul>
             
             <div style="text-align: center;">
-              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/login" class="button">Accéder à mon compte</a>
+              <a href="${siteUrl}/login" class="button">Accéder à mon compte</a>
             </div>
             
-            <p>Notre équipe est là pour vous accompagner dans tous vos projets de sécurité électronique.</p>
+            <p>Notre équipe est là pour vous accompagner dans tous vos projets.</p>
             
-            <p>📧 Email: support@itvisionplus.sn<br>
-            📱 WhatsApp: +221 77 413 34 40<br>
-            🌐 Site web: www.itvisionplus.sn</p>
+            <p>📧 Email: ${brand.supportEmail}<br>
+            📱 WhatsApp: ${brand.whatsapp}<br>
+            🌐 Site web: ${brand.url.replace(/^https?:\/\//, '')}</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} ${brand.name} - Tous droits réservés</p>
           </div>
         </div>
       </body>
@@ -547,37 +562,41 @@ class EmailService {
 
     return {
       to: userEmail,
-      subject: '🎉 Bienvenue chez DDM+ !',
+      subject: `🎉 Bienvenue chez ${brand.name} !`,
+      brand,
       html,
       text: `
-        Bienvenue chez DDM+ !
+        Bienvenue chez ${brand.name} !
         
         Bonjour ${userName},
         
         Votre compte a été créé avec succès.
         
-        Connectez-vous sur : ${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/login
+        Connectez-vous sur : ${siteUrl}/login
         
-        Support: support@itvisionplus.sn | WhatsApp: +221 77 413 34 40
+        Support: ${brand.supportEmail} | WhatsApp: ${brand.whatsapp}
       `
     }
   }
 
   // Template pour notification de changement d'email du compte client
-  generateEmailChangedNotification(userEmail: string, userName: string, resetUrl: string): EmailData {
+  generateEmailChangedNotification(userEmail: string, userName: string, resetUrl: string, brand: BrandConfig = getDefaultBrand()): EmailData {
+    const primary = brand.primaryColor || '#667eea'
+    const secondary = brand.secondaryColor || '#764ba2'
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Changement d'email - DDM+</title>
+        <title>Changement d'email - ${brand.name}</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .button { display: inline-block; background: linear-gradient(135deg, ${primary} 0%, ${secondary} 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
           .info { background: #e0f2fe; border: 1px solid #bae6fd; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
@@ -586,11 +605,11 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>📧 Votre email a été mis à jour</h1>
-            <p>DDM+ - Espace Client</p>
+            <p>${brand.name} - Espace Client</p>
           </div>
           <div class="content">
             <h2>Bonjour ${userName},</h2>
-            <p>L'email de votre compte DDM+ a été modifié par notre équipe.</p>
+            <p>L'email de votre compte ${brand.name} a été modifié par notre équipe.</p>
 
             <div class="info">
               <strong>Nouvel email :</strong> ${userEmail}
@@ -610,11 +629,11 @@ class EmailService {
             <p><strong>Ce lien expire dans 24 heures.</strong></p>
             <p>Si vous n'êtes pas à l'origine de cette demande, contactez immédiatement notre support.</p>
 
-            <p>📧 Email: support@itvisionplus.sn<br>
-            📱 WhatsApp: +221 77 413 34 40</p>
+            <p>📧 Email: ${brand.supportEmail}<br>
+            📱 WhatsApp: ${brand.whatsapp}</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DDM+ - Tous droits réservés</p>
+            <p>© ${new Date().getFullYear()} ${brand.name} - Tous droits réservés</p>
             <p>Cet email a été envoyé à ${userEmail}</p>
           </div>
         </div>
@@ -624,14 +643,15 @@ class EmailService {
 
     return {
       to: userEmail,
-      subject: '📧 Votre email de connexion a été mis à jour - DDM+',
+      subject: `📧 Votre email de connexion a été mis à jour - ${brand.name}`,
+      brand,
       html,
       text: `
-        Changement d'email - DDM+
+        Changement d'email - ${brand.name}
 
         Bonjour ${userName},
 
-        L'email de votre compte DDM+ a été modifié par notre équipe.
+        L'email de votre compte ${brand.name} a été modifié par notre équipe.
         Nouvel email: ${userEmail}
 
         Définissez votre nouveau mot de passe ici :
@@ -639,7 +659,7 @@ class EmailService {
 
         Ce lien expire dans 24 heures.
 
-        Support: support@itvisionplus.sn | WhatsApp: +221 77 413 34 40
+        Support: ${brand.supportEmail} | WhatsApp: ${brand.whatsapp}
       `
     }
   }

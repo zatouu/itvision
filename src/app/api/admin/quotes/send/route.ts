@@ -6,6 +6,7 @@ import { generateITVisionQuotePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
 import { getClientEmailRecipients } from '@/lib/client-contacts'
 import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
+import { getBrandFromHost } from '@/lib/branding'
 import fs from 'fs'
 import path from 'path'
 
@@ -24,6 +25,7 @@ const loadImage = (relativePath: string) : string | undefined => {
 
 export async function POST(request: NextRequest) {
   try {
+    const brand = getBrandFromHost(request.nextUrl.host)
     const auth = await requireAdminApi(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
@@ -89,11 +91,13 @@ export async function POST(request: NextRequest) {
 
     const pdfBytes = Buffer.from(new Uint8Array(pdfArrayBuffer))
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const siteUrl = brand.url
 
     const ok = await emailService.sendEmail({
       to: recipient,
-      subject: `Devis ${quote.numero} - IT Vision Plus`,
+      fromName: brand.name,
+      brand,
+      subject: `Devis ${quote.numero} - ${brand.name}`,
       html: `
         <p>Bonjour,</p>
         <p>Veuillez trouver ci-joint votre devis <strong>${quote.numero}</strong>.</p>

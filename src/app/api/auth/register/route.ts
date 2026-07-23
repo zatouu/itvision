@@ -4,6 +4,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Technician from '@/lib/models/Technician'
 import emailService from '@/lib/email-service'
+import { getBrandFromHost } from '@/lib/branding'
 import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { createUserProfiles } from '@/lib/user-profiles'
 
@@ -121,6 +122,7 @@ function generateUsername(email: string, name: string): string {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+    const brand = getBrandFromHost(request.nextUrl.host)
 
     // Rate limiting strict pour les inscriptions (3 par 15min par IP)
     const limited = await applyRateLimit(request, registerRateLimiter)
@@ -246,7 +248,7 @@ export async function POST(request: NextRequest) {
 
     // Envoyer l'email de bienvenue
     try {
-      const emailData = emailService.generateWelcomeEmail(email, name)
+      const emailData = emailService.generateWelcomeEmail(email, name, brand)
       await emailService.sendEmail(emailData)
       console.log(`[REGISTER] Email de bienvenue envoyé à: ${email}`)
     } catch (emailError) {

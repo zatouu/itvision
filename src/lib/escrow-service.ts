@@ -6,6 +6,7 @@
 import { EscrowTransaction, EscrowStatus, escrowStatusLabels } from './models/EscrowTransaction'
 import { emailService } from './email-service'
 import dbConnect from './mongodb'
+import { MARKET_BRAND, BrandConfig } from './branding'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
@@ -203,16 +204,19 @@ export async function updateEscrowStatus(
 async function sendStatusNotification(
   transaction: any,
   previousStatus: EscrowStatus,
-  newStatus: EscrowStatus
+  newStatus: EscrowStatus,
+  brand: BrandConfig = MARKET_BRAND
 ) {
   const statusInfo = escrowStatusLabels[newStatus]
-  const trackingUrl = `${siteUrl}/suivi/${transaction.reference}`
+  const trackingUrl = `${brand.url}/suivi/${transaction.reference}`
   
-  const html = generateStatusEmail(transaction, statusInfo, trackingUrl)
+  const html = generateStatusEmail(transaction, statusInfo, trackingUrl, brand)
   
   try {
     await emailService.sendEmail({
       to: transaction.client.email,
+      fromName: brand.name,
+      brand,
       subject: `${statusInfo.icon} ${statusInfo.label} - Commande ${transaction.reference}`,
       html
     })
@@ -228,7 +232,7 @@ async function sendStatusNotification(
   }
 }
 
-function generateStatusEmail(transaction: any, statusInfo: any, trackingUrl: string): string {
+function generateStatusEmail(transaction: any, statusInfo: any, trackingUrl: string, brand: BrandConfig): string {
   const progressSteps = [
     { status: 'payment_received', label: 'Paiement', icon: '💰' },
     { status: 'funds_secured', label: 'Sécurisé', icon: '🔒' },
@@ -300,7 +304,7 @@ function generateStatusEmail(transaction: any, statusInfo: any, trackingUrl: str
           </div>
           
           <div class="guarantee-box">
-            <h4>🛡️ Vos garanties IT Vision Plus</h4>
+            <h4>🛡️ Vos garanties ${brand.name}</h4>
             <ul style="margin: 0; padding-left: 20px;">
               <li><strong>Remboursement intégral</strong> si non livré</li>
               <li><strong>Remplacement gratuit</strong> si produit défectueux</li>
@@ -329,8 +333,8 @@ function generateStatusEmail(transaction: any, statusInfo: any, trackingUrl: str
         </div>
         
         <div class="footer">
-          <p>Une question ? Répondez à cet email ou appelez-nous.</p>
-          <p>© ${new Date().getFullYear()} IT Vision Plus - Votre partenaire de confiance</p>
+          <p>Une question ? Répondez à cet email ou appelez-nous au ${brand.whatsapp}.</p>
+          <p>© ${new Date().getFullYear()} ${brand.name} - ${brand.tagline}</p>
         </div>
       </div>
     </body>

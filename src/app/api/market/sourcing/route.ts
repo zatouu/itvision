@@ -33,6 +33,7 @@ import User from '@/lib/models/User'
 import { extractAuthToken, verifyAuthToken } from '@/lib/jwt'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
 import { sendSms, normalizePhone } from '@/lib/sms'
+import { MARKET_BRAND } from '@/lib/branding'
 import Product from '@/lib/models/Product'
 import {
   computeImageEmbedding,
@@ -307,7 +308,7 @@ export async function POST(request: NextRequest) {
   const baseUrl = await buildBaseSiteUrl(request)
   const trackUrl = `${baseUrl}/market/sourcing/${publicToken}`
   const smsBody =
-    `IT Vision Market — Demande ${reference} reçue. ` +
+    `${MARKET_BRAND.name} — Demande ${reference} reçue. ` +
     `Nous recherchons votre produit en Chine. Proposition de prix + délai logistique sous 24h ouvrées. ` +
     `Suivi : ${trackUrl}`
   try {

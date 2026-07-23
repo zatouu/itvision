@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db'
 import { Order } from '@/lib/models/Order'
 import { emailService } from '@/lib/email-service'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
+import { getBrandFromHost } from '@/lib/branding'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -103,7 +104,8 @@ export async function POST(
       { $set: { trackingAccessTokenHash: newHash, trackingAccessTokenCreatedAt: new Date(), trackingAccessTokenExpiresAt: getTrackingTokenExpirationDate() } }
     )
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
+    const brand = getBrandFromHost(request.nextUrl.host)
+    const baseUrl = brand.url || request.nextUrl.origin
     const trackingUrl = `${baseUrl}/commandes/${encodeURIComponent(orderId)}?token=${encodeURIComponent(newToken)}`
 
     const subject = `Votre lien de suivi - ${orderId}`
@@ -116,7 +118,7 @@ export async function POST(
       </div>
     `.trim()
 
-    await emailService.sendEmail({ to: email, subject, html })
+    await emailService.sendEmail({ to: email, fromName: brand.name, brand, subject, html })
 
     return NextResponse.json(
       {

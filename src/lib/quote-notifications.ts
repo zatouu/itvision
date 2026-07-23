@@ -1,5 +1,6 @@
 import InAppNotification from '@/lib/models/InAppNotification'
 import { addNotification } from '@/lib/notifications-memory'
+import { CORPORATE_BRAND } from '@/lib/branding'
 
 type QuoteEventType =
   | 'quote_sent'
@@ -83,7 +84,7 @@ function buildPayload(params: QuoteNotificationParams) {
         client: {
           type: 'info' as const,
           title: `Contre-proposition envoyée (${quoteNumber})`,
-          message: 'Votre contre-proposition a été transmise à l\'équipe IT Vision.',
+          message: `Votre contre-proposition a été transmise à l'équipe ${CORPORATE_BRAND.name}`,
           actionUrl: '/portail-entreprise/documents'
         }
       }

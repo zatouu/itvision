@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/jwt'
 import { emailService } from '@/lib/email-service'
 import KycRequest from '@/lib/models/KycRequest'
 import User from '@/lib/models/User'
+import { getBrandFromHost } from '@/lib/branding'
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
 const MIN_RESUBMIT_MS = 60_000
@@ -27,6 +28,7 @@ function normalizeUploadUrl(value: string): string {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+    const brand = getBrandFromHost(request.nextUrl.host)
     const { userId } = await requireAuth(request)
     const body = await request.json()
     const { idCardFrontUrl, idCardBackUrl, selfieUrl, trade, fullName } = body
@@ -99,12 +101,14 @@ export async function POST(request: NextRequest) {
     // Notifier l'admin par email (fire-and-forget)
     try {
       const user = await User.findById(userId).select('phone email name').lean()
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://itvisionplus.sn'
+      const baseUrl = brand.url
       const absolute = (u: string) => (u.startsWith('http') ? u : `${baseUrl}${u}`)
       const adminLink = `${baseUrl}/admin/kyc`
 
       void emailService.sendEmail({
-        to: ADMIN_EMAIL,
+        to: ADMIN_EMAIL || brand.contactEmail,
+        fromName: brand.name,
+        brand,
         subject: `🆔 Nouvelle soumission KYC - ${name}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">

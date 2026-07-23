@@ -8,6 +8,7 @@ import Client from '@/lib/models/Client'
 import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { emailService } from '@/lib/email-service'
 import { getClientInvitationEmail } from '@/lib/email-templates'
+import { getBrandFromHost } from '@/lib/branding'
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 
@@ -79,6 +80,7 @@ function generateUsername(email: string): string {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+    const brand = getBrandFromHost(request.nextUrl.host)
 
     const limited = await applyRateLimit(request, registerRateLimiter)
     if (limited) return limited
@@ -215,17 +217,18 @@ export async function POST(request: NextRequest) {
 
     // Envoyer l'email de confirmation de demande
     try {
-      const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
-      const emailContent = getClientInvitationEmail(String(name).trim(), resetUrl)
+      const resetUrl = `${brand.url}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`
+      const emailContent = getClientInvitationEmail(String(name).trim(), resetUrl, brand)
       await emailService.sendEmail({
         to: normalizedEmail,
-        subject: 'Demande de compte entreprise reçue — IT Vision',
+        brand,
+        subject: `Demande de compte entreprise reçue — ${brand.name}`,
         html: `<p>Bonjour ${String(name).trim()},</p>
           <p>Nous avons bien reçu votre demande de création de compte entreprise. Votre compte sera activé après validation par notre équipe.</p>
           <p>Vous recevrez un email de confirmation dès que votre accès sera ouvert.</p>
           <p>En attendant, vous pouvez définir votre mot de passe via ce lien : <a href="${resetUrl}">${resetUrl}</a></p>
-          <p>Cordialement,<br/>L'équipe IT Vision</p>`,
-        text: `Bonjour ${String(name).trim()},\n\nNous avons bien reçu votre demande de création de compte entreprise. Votre compte sera activé après validation par notre équipe.\n\nLien pour définir votre mot de passe : ${resetUrl}\n\nCordialement,\nL'équipe IT Vision`
+          <p>Cordialement,<br/>L'équipe ${brand.name}</p>`,
+        text: `Bonjour ${String(name).trim()},\n\nNous avons bien reçu votre demande de création de compte entreprise. Votre compte sera activé après validation par notre équipe.\n\nLien pour définir votre mot de passe : ${resetUrl}\n\nCordialement,\nL'équipe ${brand.name}`
       })
     } catch (emailError) {
       console.error('[REGISTER-CORP] Email notification failed:', emailError)

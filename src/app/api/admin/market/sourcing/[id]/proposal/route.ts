@@ -23,6 +23,7 @@ import SourcingRequest from '@/lib/models/SourcingRequest'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import { sendSms } from '@/lib/sms'
+import { MARKET_BRAND } from '@/lib/branding'
 
 export const dynamic = 'force-dynamic'
 
@@ -192,7 +193,7 @@ export async function POST(
     const baseUrl = buildBaseSiteUrl(request)
     const trackUrl = `${baseUrl}/market/sourcing/${doc.publicToken}`
     const sms =
-      `IT Vision Market — ${doc.reference} : votre proposition est prête. ` +
+      `${MARKET_BRAND.name} — ${doc.reference} : votre proposition est prête. ` +
       `${productName.slice(0, 40)} — ${fmtFcfa(totalClientPrice)} livré en ${deliveryDays}j. ` +
       `Valider : ${trackUrl}`
     try {

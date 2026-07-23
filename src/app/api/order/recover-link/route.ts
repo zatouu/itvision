@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db'
 import { Order } from '@/lib/models/Order'
 import { emailService } from '@/lib/email-service'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
+import { getBrandFromHost } from '@/lib/branding'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -80,7 +81,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(GENERIC_RESPONSE, { status: 200 })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
+    const brand = getBrandFromHost(request.nextUrl.host)
+    const baseUrl = brand.url || request.nextUrl.origin
 
     const links: Array<{ orderId: string; url: string }> = []
 
@@ -118,7 +120,7 @@ export async function POST(request: NextRequest) {
       </div>
     `.trim()
 
-    await emailService.sendEmail({ to: email, subject, html })
+    await emailService.sendEmail({ to: email, fromName: brand.name, brand, subject, html })
 
     return NextResponse.json(GENERIC_RESPONSE, { status: 200 })
   } catch (error) {

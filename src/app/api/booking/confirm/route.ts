@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import emailService from '@/lib/email-service'
+import { getBrandFromHost } from '@/lib/branding'
 
 interface BookingData {
   service: string
@@ -20,6 +21,7 @@ interface BookingData {
 
 export async function POST(request: NextRequest) {
   try {
+    const brand = getBrandFromHost(request.nextUrl.host)
     const body = (await request.json()) as BookingData
     if (!body?.service || !body?.date || !body?.time || !body?.clientInfo?.name || !body?.clientInfo?.phone || !body?.address) {
       return NextResponse.json({ error: 'Champs requis manquants' }, { status: 400 })
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Envoi d'email de confirmation
     if (channels.email && body.clientInfo.email) {
       try {
-        const emailData = emailService.generateAppointmentConfirmationEmail(body)
+        const emailData = emailService.generateAppointmentConfirmationEmail(body, brand)
         const emailSent = await emailService.sendEmail(emailData)
         
         events.push({
@@ -55,14 +57,14 @@ export async function POST(request: NextRequest) {
 
     // SMS (stub - à implémenter avec un provider comme Twilio)
     if (channels.sms) {
-      const smsMessage = `🗓️ RDV IT Vision confirmé:
+      const smsMessage = `🗓️ RDV ${brand.name} confirmé:
 ${body.service}
 📅 ${new Date(body.date).toLocaleDateString('fr-FR')} à ${body.time}
 📍 ${body.address}
 👤 ${body.clientInfo.name}
 
 Notre équipe vous contactera pour confirmation définitive.
-Contact: +221 77 413 34 40`
+Contact: ${brand.whatsapp}`
 
       events.push({
         type: 'sms',
@@ -85,7 +87,8 @@ Contact: +221 77 413 34 40`
       const serviceName = services[body.service as keyof typeof services] || body.service
       const waText = `🗓️ DEMANDE DE RENDEZ-VOUS%0A%0A📋 SERVICE: ${serviceName}%0A📅 DATE: ${new Date(body.date).toLocaleDateString('fr-FR')}%0A🕐 HEURE: ${body.time}%0A📍 ADRESSE: ${body.address}%0A👤 CLIENT: ${body.clientInfo.name}%0A📞 CONTACT: ${body.clientInfo.phone}${body.clientInfo.company ? `%0A🏢 ENTREPRISE: ${body.clientInfo.company}` : ''}${body.details ? `%0A%0A📝 DÉTAILS:%0A${body.details}` : ''}%0A%0AMerci de confirmer ce rendez-vous.`
       
-      const waUrl = `https://wa.me/221774133440?text=${waText}`
+      const waNumber = brand.whatsapp.replace(/\s/g, '').replace(/\+/g, '')
+      const waUrl = `https://wa.me/${waNumber}?text=${waText}`
       events.push({ 
         type: 'whatsapp', 
         url: waUrl,

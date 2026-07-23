@@ -4,6 +4,7 @@
  */
 
 import { emailService } from './email-service'
+import { MARKET_BRAND, BrandConfig } from './branding'
 
 interface GroupOrderData {
   groupId: string
@@ -45,7 +46,8 @@ const formatCurrency = (amount: number, currency = 'FCFA') =>
 const formatDate = (date: Date | string) => 
   new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+const defaultBrand = MARKET_BRAND
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || defaultBrand.url
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Templates d'emails
@@ -80,22 +82,24 @@ const baseStyles = `
   table th { background: #f8fafc; font-weight: 600; color: #475569; }
 `
 
-function wrapEmailTemplate(content: string, title: string): string {
+function wrapEmailTemplate(content: string, title: string, brand: BrandConfig = defaultBrand): string {
+  const siteDisplay = brand.url.replace(/^https?:\/\//, '')
+  const phoneHref = 'tel:' + brand.whatsapp.replace(/\s/g, '')
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${title} - DDM+</title>
+      <title>${title} - ${brand.name}</title>
       <style>${baseStyles}</style>
     </head>
     <body>
       <div class="container">
         ${content}
         <div class="footer">
-          <p>© ${new Date().getFullYear()} DDM+ - Votre partenaire import</p>
-          <p><a href="${siteUrl}">www.itvisionplus.com</a> | <a href="tel:+221338000000">+221 33 800 00 00</a></p>
+          <p>© ${new Date().getFullYear()} ${brand.name} - ${brand.tagline}</p>
+          <p><a href="${brand.url}">${siteDisplay}</a> | <a href="${phoneHref}">${brand.whatsapp}</a></p>
         </div>
       </div>
     </body>
@@ -183,6 +187,7 @@ export async function notifyGroupJoinConfirmation(
   `
 
   return emailService.sendEmail({
+    fromName: defaultBrand.name,
     to: participant.email,
     subject: `✅ Inscription confirmée - Achat Groupé ${group.product.name}`,
     html: wrapEmailTemplate(content, 'Inscription confirmée')
@@ -245,6 +250,7 @@ export async function notifyNewParticipant(
     `
 
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `👥 ${newParticipant.name} a rejoint l'achat groupé - ${group.product.name}`,
       html: wrapEmailTemplate(content, 'Nouveau participant')
@@ -311,6 +317,7 @@ export async function notifyObjectiveReached(
     `
 
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `🎯 Objectif atteint ! Achat Groupé ${group.product.name}`,
       html: wrapEmailTemplate(content, 'Objectif atteint')
@@ -395,6 +402,7 @@ export async function notifyStatusUpdate(
     `
 
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `${statusInfo.emoji} ${statusInfo.title} - Achat Groupé ${group.product.name}`,
       html: wrapEmailTemplate(content, statusInfo.title)
@@ -455,6 +463,7 @@ export async function notifyDeadlineReminder(
     `
 
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `⏰ Plus que ${daysLeft} jour${daysLeft > 1 ? 's' : ''} - Achat Groupé ${group.product.name}`,
       html: wrapEmailTemplate(content, 'Rappel deadline')
@@ -541,6 +550,7 @@ export async function notifyPaymentRequest(
 
   try {
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `💰 Paiement requis - Achat Groupé ${group.product.name}`,
       html: wrapEmailTemplate(content, 'Demande de paiement')
@@ -644,6 +654,7 @@ export async function notifyPaymentWithCheckoutLink(
 
   try {
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `💰 Paiement requis — Achat Groupé ${group.product.name} (${formatCurrency(participant.totalAmount, group.product.currency)})`,
       html: wrapEmailTemplate(content, 'Demande de paiement')
@@ -700,6 +711,7 @@ export async function notifyGroupPaymentConfirmed(
 
   try {
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: participant.email,
       subject: `✅ Paiement confirmé — Achat Groupé ${group.product.name}`,
       html: wrapEmailTemplate(content, 'Paiement confirmé')
@@ -764,6 +776,7 @@ export async function notifyStandardOrderPaymentConfirmed(
 
   try {
     await emailService.sendEmail({
+    fromName: defaultBrand.name,
       to: order.clientEmail,
       subject: `✅ Paiement confirmé — Commande ${order.orderId}`,
       html: wrapEmailTemplate(content, 'Paiement confirmé')

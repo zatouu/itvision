@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import emailService from '@/lib/email-service'
+import { getBrandFromHost } from '@/lib/branding'
 import crypto from 'crypto'
 
 function generateSecureToken() {
@@ -11,6 +13,8 @@ function generateSecureToken() {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
+    const host = (await headers()).get('host')
+    const brand = getBrandFromHost(host)
     const { email } = await request.json()
     
     if (!email) {
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Envoyer l'email de réinitialisation
     try {
-      const emailData = emailService.generatePasswordResetEmail(user.email, token)
+      const emailData = emailService.generatePasswordResetEmail(user.email, token, brand)
       const emailSent = await emailService.sendEmail(emailData)
       
       if (emailSent) {

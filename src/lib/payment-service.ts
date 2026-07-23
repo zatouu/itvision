@@ -9,6 +9,7 @@
  */
 
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { BrandConfig, MARKET_BRAND } from '@/lib/branding'
 
 export interface PaymentRequest {
   amount: number
@@ -197,7 +198,8 @@ export function generateAllPaymentLinks(request: PaymentRequest): PaymentLink[] 
  */
 export function generatePaymentInstructionsEmail(
   request: PaymentRequest,
-  groupInfo: { groupId: string; productName: string; deadline: string }
+  groupInfo: { groupId: string; productName: string; deadline: string },
+  brand: BrandConfig = MARKET_BRAND
 ): { subject: string; html: string } {
   const settings = readPaymentSettings()
   const waveLink = generateWavePaymentLink(request)
@@ -280,8 +282,8 @@ export function generatePaymentInstructionsEmail(
         </div>
         
         <div class="footer">
-          <p>© ${new Date().getFullYear()} IT Vision Plus - Votre partenaire sécurité</p>
-          <p>Des questions ? Répondez à cet email ou appelez-nous.</p>
+          <p>© ${new Date().getFullYear()} ${brand.name} - ${brand.tagline}</p>
+          <p>Des questions ? Répondez à cet email ou appelez-nous au ${brand.whatsapp}.</p>
         </div>
       </div>
     </body>

@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import { emailService } from '@/lib/email-service'
+import { MARKET_BRAND } from '@/lib/branding'
 
 const VALID_TIERS = ['standard', 'pro', 'reseller', 'partner'] as const
 
@@ -62,12 +63,15 @@ export async function PUT(
     // Envoyer un email de confirmation au client (best effort)
     if (user.email && tier !== 'standard' && tier !== previousTier) {
       try {
+        const brand = MARKET_BRAND
         const benefits = TIER_BENEFITS[tier] || []
         const benefitsList = benefits.map(b => `<li style="padding:4px 0;color:#374151">${b}</li>`).join('')
 
         await emailService.sendEmail({
           to: user.email,
-          subject: `Votre compte ITVision Market a ete mis a niveau - ${TIER_LABELS[tier]}`,
+          fromName: brand.name,
+          brand,
+          subject: `Votre compte ${brand.name} a ete mis a niveau - ${TIER_LABELS[tier]}`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
               <div style="background:linear-gradient(135deg,#10b981,#8b5cf6);padding:24px;border-radius:12px 12px 0 0;text-align:center">
@@ -75,7 +79,7 @@ export async function PUT(
               </div>
               <div style="background:#f8fafc;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
                 <p style="color:#374151">Bonjour ${user.name || ''},</p>
-                <p style="color:#374151">Votre compte ITVision Market a ete mis a niveau vers <strong>${TIER_LABELS[tier]}</strong>.</p>
+                <p style="color:#374151">Votre compte ${brand.name} a ete mis a niveau vers <strong>${TIER_LABELS[tier]}</strong>.</p>
                 ${benefitsList ? `<p style="color:#374151;font-weight:600;margin-bottom:8px">Vos avantages :</p><ul style="list-style:none;padding:0;margin:0 0 16px">${benefitsList}</ul>` : ''}
                 <p style="color:#6b7280;font-size:12px;margin-top:16px">Ces avantages sont appliques automatiquement a vos prochaines commandes.</p>
               </div>

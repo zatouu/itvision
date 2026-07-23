@@ -16,6 +16,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { notifyGroupPaymentConfirmed } from '@/lib/group-order-notifications'
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
+import { MARKET_BRAND } from '@/lib/branding'
 
 // Générer une référence de paiement unique
 function generatePaymentReference(groupId: string, participantPhone: string): string {
@@ -118,18 +119,22 @@ export async function POST(
     // Envoyer l'email si demandé
     if (shouldSendEmail && (participant.email || email)) {
       const recipientEmail = participant.email || email
+      const brand = MARKET_BRAND
       const { subject, html } = generatePaymentInstructionsEmail(
         { ...paymentRequest, customerEmail: recipientEmail },
         {
           groupId: (group as any).groupId,
           productName: (group as any).product?.name || 'Produit',
           deadline: group.deadline instanceof Date ? group.deadline.toISOString() : String(group.deadline)
-        }
+        },
+        brand
       )
       
       try {
         await emailService.sendEmail({
           to: recipientEmail,
+          fromName: brand.name,
+          brand,
           subject,
           html
         })

@@ -5,6 +5,7 @@ import AdminInvoice from '@/lib/models/AdminInvoice'
 import { generateITVisionInvoicePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
 import { getClientEmailRecipients } from '@/lib/client-contacts'
+import { getBrandFromHost } from '@/lib/branding'
 import fs from 'fs'
 import path from 'path'
 
@@ -23,6 +24,7 @@ const loadImage = (relativePath: string) => {
 
 export async function POST(request: NextRequest) {
   try {
+    const brand = getBrandFromHost(request.nextUrl.host)
     const auth = await requireAdminApi(request)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
@@ -88,11 +90,13 @@ export async function POST(request: NextRequest) {
 
     const pdfBytes = Buffer.from(new Uint8Array(pdfArrayBuffer))
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const siteUrl = brand.url
 
     const ok = await emailService.sendEmail({
       to: recipient,
-      subject: `Facture ${invoice.numero} - IT Vision Plus`,
+      fromName: brand.name,
+      brand,
+      subject: `Facture ${invoice.numero} - ${brand.name}`,
       html: `
         <p>Bonjour,</p>
         <p>Veuillez trouver ci-joint votre facture <strong>${invoice.numero}</strong>.</p>
