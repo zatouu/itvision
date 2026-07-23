@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 
     // Résoudre le vrai Technician._id depuis le token (qui contient User._id)
     let technicianId = tokenData.technicianId || tokenData.userId
-    const techRecord = await Technician.findById(technicianId).select('_id').lean().catch(() => null) as any
-      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id').lean() as any : null)
+    const techRecord = await Technician.findById(technicianId).select('_id stats').lean().catch(() => null) as any
+      || (tokenData.email ? await Technician.findOne({ email: String(tokenData.email).toLowerCase() }).select('_id stats').lean() as any : null)
     if (techRecord && techRecord._id) technicianId = String(techRecord._id)
     
     // Récupération et vérification du rapport
@@ -158,17 +158,19 @@ export async function POST(request: NextRequest) {
     } catch {}
     
     // Mise à jour statistiques technicien
-    const technician = await Technician.findById(technicianId)
-    if (technician) {
+    if (techRecord && techRecord._id) {
       // Calcul du taux de complétion (rapports soumis vs créés)
       const totalSubmitted = await MaintenanceReport.countDocuments({
         technicianId,
         status: { $ne: 'draft' }
       })
-      
-      const totalReports = technician.stats.totalReports || 0
-      technician.stats.completionRate = totalReports > 0 ? (totalSubmitted / totalReports) * 100 : 0
-      await technician.save()
+
+      const totalReports = techRecord.stats?.totalReports || 0
+      const completionRate = totalReports > 0 ? (totalSubmitted / totalReports) * 100 : 0
+      await Technician.updateOne(
+        { _id: technicianId },
+        { $set: { 'stats.completionRate': completionRate } }
+      )
     }
     
     return NextResponse.json({

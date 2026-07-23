@@ -113,6 +113,7 @@ const ProductCategorySchema = new Schema<IProductCategory>({
   commissionRate: { type: Number, default: 0.08 }
 }, { timestamps: true })
 
+ProductCategorySchema.index({ isActive: 1, order: 1, name: 1 })
 ProductCategorySchema.index({ isActive: 1, order: 1 })
 ProductCategorySchema.index({ isActive: 1, parentSlug: 1 })
 ProductCategorySchema.index({ isActive: 1, level: 1 })

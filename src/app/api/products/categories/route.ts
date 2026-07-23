@@ -6,6 +6,8 @@ import { defaultProductCategories } from '@/lib/data/default-categories'
 import { aggregateProductCounts } from '@/lib/taxonomy/category-api-format'
 import { getProductCategoriesCache, setProductCategoriesCache } from '@/lib/catalog-cache'
 
+const PRODUCT_CATEGORIES_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
+
 const fallbackCategories = defaultProductCategories.map((category, index) => ({
   slug: category.id,
   name: category.name,
@@ -36,7 +38,7 @@ const fallbackCategories = defaultProductCategories.map((category, index) => ({
 export async function GET() {
   try {
     const cached = await getProductCategoriesCache()
-    if (cached) return NextResponse.json(cached)
+    if (cached) return NextResponse.json(cached, { headers: PRODUCT_CATEGORIES_CACHE_HEADERS })
 
     await connectMongoose()
 
@@ -83,7 +85,7 @@ export async function GET() {
 
     const response = { success: true, items }
     await setProductCategoriesCache(response)
-    return NextResponse.json(response)
+    return NextResponse.json(response, { headers: PRODUCT_CATEGORIES_CACHE_HEADERS })
   } catch (error) {
     console.error('GET /api/products/categories error', error)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })

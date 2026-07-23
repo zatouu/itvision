@@ -26,6 +26,7 @@ const asNumber = (value: string | null) => {
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const CATALOG_CACHE_TTL = 60 // secondes
+const CATALOG_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
 
 function sortedCatalogCacheKey(searchParams: URLSearchParams): string {
   const sorted = new URLSearchParams()
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const cacheKey = sortedCatalogCacheKey(searchParams)
     const cached = await getCatalogCache(cacheKey)
-    if (cached) return NextResponse.json(cached)
+    if (cached) return NextResponse.json(cached, { headers: CATALOG_CACHE_HEADERS })
 
     const ids = (searchParams.get('ids') || '')
       .split(',')
@@ -523,7 +524,7 @@ export async function GET(request: NextRequest) {
     }
     if (includeFacets) response.facets = facets
     await setCatalogCache(cacheKey, response)
-    return NextResponse.json(response)
+    return NextResponse.json(response, { headers: CATALOG_CACHE_HEADERS })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to load catalog' }, { status: 500 })
   }

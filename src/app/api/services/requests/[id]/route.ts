@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       sr.assignedProviderId ? User.findById(sr.assignedProviderId).select('name phone').lean() : null,
     ])
 
-    const allOffers = await Offer.find({ requestId: id }).select('status createdAt updatedAt').lean()
+    const allOffers = await Offer.find({ requestId: id }).lean()
     const offerCount = allOffers.length
     const pendingOfferCount = allOffers.filter((o: any) => o.status === 'submitted').length
     const readAt = (sr as any).clientOffersReadAt
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }).length
     let acceptedOffer = null
     if (sr.selectedOfferId) {
-      acceptedOffer = await Offer.findById(sr.selectedOfferId).lean() as any
+      acceptedOffer = allOffers.find((o: any) => String(o._id) === String(sr.selectedOfferId)) || null
       if (acceptedOffer && providerUser) {
         acceptedOffer.providerName = acceptedOffer.providerName || providerUser.name
         acceptedOffer.providerPhone = providerUser.phone

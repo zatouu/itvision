@@ -7,6 +7,7 @@ import { getRedisClient } from '@/lib/redis'
 
 const CATEGORIES_CACHE_KEY = 'catalog:categories:v1'
 const CATEGORIES_CACHE_TTL = 300 // 5 min
+const CATEGORIES_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
 
 const fallbackCategories = defaultProductCategories.map((category, index) => ({
   slug: category.id,
@@ -41,7 +42,7 @@ export async function GET() {
     const redis = getRedisClient()
     if (redis && redis.status === 'ready') {
       const cached = await redis.get(CATEGORIES_CACHE_KEY)
-      if (cached) return NextResponse.json(JSON.parse(cached))
+      if (cached) return NextResponse.json(JSON.parse(cached), { headers: CATEGORIES_CACHE_HEADERS })
     }
 
     await connectMongoose()
@@ -60,7 +61,7 @@ export async function GET() {
       await redis.set(CATEGORIES_CACHE_KEY, JSON.stringify(response), 'EX', CATEGORIES_CACHE_TTL)
     }
 
-    return NextResponse.json(response)
+    return NextResponse.json(response, { headers: CATEGORIES_CACHE_HEADERS })
   } catch (error) {
     console.error('GET /api/catalog/categories error', error)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
