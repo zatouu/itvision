@@ -1,6 +1,7 @@
 import AppConfig, { ICreditPack } from './models/AppConfig'
 import MissionUnlock from './models/MissionUnlock'
 import { connectMongoose } from './mongoose'
+import { getAppConfig } from './wallet'
 
 export interface UnlockCostInput {
   requestId: string
@@ -37,7 +38,7 @@ export interface UnlockCostResult {
  */
 export async function computeUnlockCost(input: UnlockCostInput): Promise<UnlockCostResult> {
   await connectMongoose()
-  const cfgDoc = await AppConfig.findOne({ key: 'global' }).lean() as any
+  const cfgDoc = await getAppConfig()
   const cfg = cfgDoc?.credits || {}
 
   const tiers: { maxBudget: number; cost: number }[] = cfg.budgetTiers?.length

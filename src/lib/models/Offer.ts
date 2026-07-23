@@ -22,6 +22,7 @@ const OfferSchema = new Schema({
 OfferSchema.index({ requestId: 1, updatedAt: -1 })
 OfferSchema.index({ providerId: 1, updatedAt: -1 })
 OfferSchema.index({ requestId: 1, providerId: 1 }, { unique: true })
+OfferSchema.index({ status: 1, validUntil: 1 })
 
 const Offer = models.Offer || model('Offer', OfferSchema)
 export default Offer

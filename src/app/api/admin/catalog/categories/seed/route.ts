@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
 import { requireAdminApi } from '@/lib/api-auth'
 import { defaultProductCategories } from '@/lib/data/default-categories'
+import { invalidateCatalogCache } from '@/lib/catalog-cache'
 
 function toSeedCategories() {
   return defaultProductCategories.map((category, index) => ({
@@ -60,6 +61,8 @@ export async function POST(request: NextRequest) {
         created += 1
       }
     }
+
+    void invalidateCatalogCache()
 
     return NextResponse.json({
       success: true,

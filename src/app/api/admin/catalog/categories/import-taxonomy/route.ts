@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { seedTaxonomyToMongoDB } from '@/lib/taxonomy/mongodb'
 import { requireAdminApi } from '@/lib/api-auth'
+import { invalidateCatalogCache } from '@/lib/catalog-cache'
 
 /**
  * POST /api/admin/catalog/categories/import-taxonomy
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest) {
 
     const { dryRun = false } = await request.json().catch(() => ({}))
     const result = await seedTaxonomyToMongoDB(Boolean(dryRun))
+
+    if (!dryRun) void invalidateCatalogCache()
 
     return NextResponse.json({
       success: true,

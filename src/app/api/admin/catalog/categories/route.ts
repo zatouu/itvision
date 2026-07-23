@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
 import { requireAdminApi } from '@/lib/api-auth'
+import { invalidateCatalogCache } from '@/lib/catalog-cache'
 
 const DEFAULT_COLOR = '#f97316'
 
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
         setDefaultsOnInsert: true,
       }
     )
+    void invalidateCatalogCache()
 
     return NextResponse.json({
       success: true,

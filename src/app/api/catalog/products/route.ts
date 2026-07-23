@@ -5,8 +5,9 @@ import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
-import { tokenizeQuery, expandToken } from '@/lib/search/synonyms'
+import { tokenizeQuery, expandToken, expandQuery } from '@/lib/search/synonyms'
 import { buildFacetStages, formatFacets } from '@/lib/search/facets'
+import { getRedisClient } from '@/lib/redis'
 import mongoose from 'mongoose'
 
 const DEFAULT_EXCHANGE_RATE = 100
@@ -24,6 +25,39 @@ const asNumber = (value: string | null) => {
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+const CATALOG_CACHE_TTL = 60 // secondes
+
+function sortedCatalogCacheKey(searchParams: URLSearchParams): string {
+  const sorted = new URLSearchParams()
+  for (const key of Array.from(searchParams.keys()).sort()) {
+    for (const value of searchParams.getAll(key).sort()) {
+      sorted.append(key, value)
+    }
+  }
+  return `catalog:v1:${sorted.toString()}`
+}
+
+async function getCatalogCache(key: string): Promise<any | null> {
+  const redis = getRedisClient()
+  if (!redis || redis.status !== 'ready') return null
+  try {
+    const data = await redis.get(key)
+    return data ? JSON.parse(data) : null
+  } catch {
+    return null
+  }
+}
+
+async function setCatalogCache(key: string, payload: any): Promise<void> {
+  const redis = getRedisClient()
+  if (!redis || redis.status !== 'ready') return
+  try {
+    await redis.set(key, JSON.stringify(payload), 'EX', CATALOG_CACHE_TTL)
+  } catch {
+    // ignore
+  }
+}
+
 const computeVolumeM3 = (product: any): number | null => {
   const direct = typeof product.volumeM3 === 'number' && product.volumeM3 > 0 ? product.volumeM3 : null
   if (direct !== null) return direct
@@ -40,6 +74,10 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)
+    const cacheKey = sortedCatalogCacheKey(searchParams)
+    const cached = await getCatalogCache(cacheKey)
+    if (cached) return NextResponse.json(cached)
+
     const ids = (searchParams.get('ids') || '')
       .split(',')
       .map((s) => s.trim())
@@ -131,25 +169,26 @@ export async function GET(request: NextRequest) {
       match.requiresQuote = true
     }
 
-    // Server-side search: tokenized, synonym-expanded and fuzzy-ish (substring regex)
-    const searchMatch = (() => {
-      if (!q) return null
-      const tokens = tokenizeQuery(q)
-      if (tokens.length === 0) return null
-      const tokenClauses = tokens.map((token) => {
-        const variants = [...new Set(expandToken(token).filter(Boolean))]
-        return {
-          $or: variants.flatMap((term) => [
-            { name: { $regex: escapeRegex(term), $options: 'i' } },
-            { tagline: { $regex: escapeRegex(term), $options: 'i' } },
-            { description: { $regex: escapeRegex(term), $options: 'i' } },
-            { tags: { $regex: escapeRegex(term), $options: 'i' } },
-            { 'sourcing.title': { $regex: escapeRegex(term), $options: 'i' } },
-          ]),
-        }
-      })
-      return tokenClauses.length === 1 ? tokenClauses[0] : { $and: tokenClauses }
-    })()
+    // Server-side search: $text index quand possible, regex fallback pour tokens courts
+    let useTextSearch = false
+    let regexSearchMatch: any = null
+    if (!isIdLookup && q) {
+      const tokens = tokenizeQuery(q).filter(Boolean)
+      const allLong = tokens.length > 0 && tokens.every((t: string) => t.length >= 3)
+      if (allLong) {
+        const terms = [...new Set(tokens.flatMap((t: string) => expandToken(t)).filter((t: string) => t.length >= 2))].slice(0, 30)
+        match.$text = { $search: terms.join(' ') }
+        useTextSearch = true
+      } else if (tokens.length > 0) {
+        const terms = [...new Set(expandQuery(q).filter((t: string) => t.length >= 1))].slice(0, 20)
+        const clauses = terms.flatMap((term: string) => [
+          { name: { $regex: escapeRegex(term), $options: 'i' } },
+          { tagline: { $regex: escapeRegex(term), $options: 'i' } },
+          { tags: { $regex: escapeRegex(term), $options: 'i' } },
+        ])
+        regexSearchMatch = clauses.length === 1 ? clauses[0] : { $or: clauses }
+      }
+    }
 
     // Derived fields used for filtering/sorting
     // shownPrice ~= ce que le catalogue affiche (baseCost si dispo, sinon prix calculé)
@@ -233,14 +272,18 @@ export async function GET(request: NextRequest) {
        ]
      }
 
+     if (useTextSearch) {
+       addDerivedFields.__textScore = { $meta: 'textScore' }
+     }
+
      const pipeline: any[] = [{ $match: match }, { $addFields: addDerivedFields }]
 
     if (isIdLookup) {
       pipeline.push({ $addFields: { __imageSearchRank: { $indexOfArray: [productIds, '$_id'] } } })
     }
 
-     if (searchMatch) {
-       pipeline.push({ $match: searchMatch })
+     if (regexSearchMatch) {
+       pipeline.push({ $match: regexSearchMatch })
      }
 
      // onlyPrice: produits avec prix affichable (hors devis)
@@ -269,6 +312,9 @@ export async function GET(request: NextRequest) {
 
      // Tri
      const sort: any = (() => {
+       if (useTextSearch && (sortBy === 'default' || sortBy === 'rating-desc')) {
+         return { __textScore: -1, isFeatured: -1, createdAt: -1 }
+       }
        switch (sortBy) {
          case 'price-asc':
            return { __shownPrice: 1, isFeatured: -1, createdAt: -1 }
@@ -476,6 +522,7 @@ export async function GET(request: NextRequest) {
       }
     }
     if (includeFacets) response.facets = facets
+    await setCatalogCache(cacheKey, response)
     return NextResponse.json(response)
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to load catalog' }, { status: 500 })

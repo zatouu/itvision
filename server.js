@@ -501,6 +501,16 @@ app.prepare().then(() => {
     console.error('[server] Impossible de planifier le job d\'inactivité:', err.message)
   }
 
+  // Offer expiration cleanup (every 5 min)
+  setInterval(async () => {
+    try {
+      const { expireOldOffers } = require('./src/lib/mission-inactivity-job')
+      await expireOldOffers(new Date())
+    } catch (err) {
+      console.error('[server] offer expiration interval', err)
+    }
+  }, 5 * 60 * 1000)
+
   // Periodic cleanup of stale provider positions (every 10 min)
   const cleanupInterval = setInterval(async () => {
     // In-memory cleanup

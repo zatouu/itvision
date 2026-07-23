@@ -1,7 +1,10 @@
 import { connectMongoose } from './mongoose'
 import ServiceRequest from './models/ServiceRequest'
+import Offer from './models/Offer'
+import MissionUnlock from './models/MissionUnlock'
 import { sendPushToUser } from './push'
 import { archive, expire } from './mission-lifecycle'
+import { releaseMissionReservation } from './wallet'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -14,6 +17,7 @@ export async function runInactivityJob() {
 
   // Expiration automatique des demandes non acceptées dont expiresAt est dépassé
   await expireOldRequests(now)
+  await expireOldOffers(now)
 
   const missions = await ServiceRequest.find({
     status: { $in: activeStatuses },
@@ -79,15 +83,53 @@ async function expireOldRequests(now: Date) {
     status: { $in: ['created', 'broadcasted', 'pending_offers'] },
     $or: [
       { expiresAt: { $lte: now } },
-      { createdAt: { $lte: new Date(now.getTime() - 7 * DAY) }, expiresAt: { $exists: false } },
+      { createdAt: { $lte: new Date(now.getTime() - 2 * HOUR) }, expiresAt: { $exists: false } },
     ],
   }).select('_id').lean() as any[]
+
+  if (expired.length === 0) return
 
   for (const m of expired) {
     try {
       await expire(String(m._id))
     } catch (err) {
       console.error('[expireOldRequests]', String(m._id), err)
+    }
+  }
+
+  const expiredIds = expired.map((m) => m._id)
+  const reservations = await MissionUnlock.find({
+    requestId: { $in: expiredIds },
+    status: 'reserved',
+  }).select('requestId providerId').lean() as any[]
+
+  for (const reservation of reservations) {
+    try {
+      await releaseMissionReservation(String(reservation.providerId), String(reservation.requestId), 'Mission expirée')
+    } catch (err) {
+      console.error('[expireOldRequests] releaseMissionReservation', String(reservation._id), err)
+    }
+  }
+}
+
+export async function expireOldOffers(now: Date) {
+  const expired = await Offer.find({
+    status: 'submitted',
+    validUntil: { $lte: now },
+  }).select('_id requestId providerId').lean() as any[]
+
+  if (expired.length === 0) return
+
+  await Offer.updateMany(
+    { _id: { $in: expired.map((o) => o._id) } },
+    { $set: { status: 'expired' } }
+  )
+
+  for (const offer of expired) {
+    try {
+      await releaseMissionReservation(String(offer.providerId), String(offer.requestId), 'Offre expirée')
+    } catch (err) {
+      console.error('[expireOldOffers] releaseMissionReservation', String(offer._id), err)
     }
   }
 }

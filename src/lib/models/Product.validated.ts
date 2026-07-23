@@ -626,7 +626,7 @@ ProductSchema.pre('save', function(next) {
 })
 
 // Index pour performances
-ProductSchema.index({ name: 'text', description: 'text', tagline: 'text' })
+ProductSchema.index({ name: 'text', description: 'text', tagline: 'text', tags: 'text', 'sourcing.title': 'text' })
 ProductSchema.index({ category: 1, isPublished: 1 })
 ProductSchema.index({ isFeatured: 1, createdAt: -1 })
 ProductSchema.index({ channels: 1, isPublished: 1 })

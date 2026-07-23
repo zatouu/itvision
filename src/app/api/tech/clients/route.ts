@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
+import mongoose from 'mongoose'
 import Client from '@/lib/models/Client'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { requireAuth } from '@/lib/jwt'
@@ -53,32 +54,54 @@ export async function GET(request: NextRequest) {
       Client.countDocuments({ 'permissions.canAccessPortal': true })
     ])
 
-    const sanitized = await Promise.all(clients.map(async (client) => {
+    // Collecter tous les identifiants de contrats actifs pour une seule requête batch
+    const activeContractsByClient = new Map<string, any[]>()
+    const contractNumberSet = new Set<string>()
+    const objectIdSet = new Set<string>()
+
+    for (const client of clients) {
       const activeContracts = Array.isArray(client.contracts)
         ? client.contracts.filter((contract) => contract.status === 'active')
         : []
+      activeContractsByClient.set(String(client._id), activeContracts)
 
-      const contractsWithProject = await Promise.all(activeContracts.map(async (contract) => {
-        let projectId: string | undefined
-        try {
-          const contractDoc = await MaintenanceContract.findOne({
-            $or: [
-              { contractNumber: contract.contractId },
-              ...(String(contract.contractId).match(/^[0-9a-fA-F]{24}$/) ? [{ _id: contract.contractId }] : [])
-            ],
-            status: 'active'
-          }).select('projectId').lean() as any
-          projectId = contractDoc?.projectId?.toString?.()
-        } catch (e) {
-          console.error('[tech/clients] Erreur recherche contrat:', e)
+      for (const contract of activeContracts) {
+        const cid = String(contract.contractId)
+        contractNumberSet.add(cid)
+        if (mongoose.Types.ObjectId.isValid(cid)) {
+          objectIdSet.add(cid)
         }
-        return {
-          contractId: contract.contractId,
-          projectId,
-          type: contract.type,
-          startDate: contract.startDate,
-          endDate: contract.endDate
-        }
+      }
+    }
+
+    const contractNumberList = Array.from(contractNumberSet)
+    const objectIdList = Array.from(objectIdSet)
+
+    const contractDocs = await MaintenanceContract.find({
+      status: 'active',
+      $or: [
+        ...(contractNumberList.length > 0 ? [{ contractNumber: { $in: contractNumberList } }] : []),
+        ...(objectIdList.length > 0 ? [{ _id: { $in: objectIdList.map((id) => new mongoose.Types.ObjectId(id)) } }] : []),
+      ],
+    }).select('contractNumber projectId').lean() as any[]
+
+    const projectByContractId = new Map<string, string>()
+    for (const doc of contractDocs) {
+      if (doc.projectId) {
+        projectByContractId.set(String(doc._id), String(doc.projectId))
+        if (doc.contractNumber) projectByContractId.set(doc.contractNumber, String(doc.projectId))
+      }
+    }
+
+    const sanitized = clients.map((client) => {
+      const activeContracts = activeContractsByClient.get(String(client._id)) || []
+
+      const contractsWithProject = activeContracts.map((contract) => ({
+        contractId: contract.contractId,
+        projectId: projectByContractId.get(String(contract.contractId)),
+        type: contract.type,
+        startDate: contract.startDate,
+        endDate: contract.endDate,
       }))
 
       return {
@@ -94,7 +117,7 @@ export async function GET(request: NextRequest) {
         permissions: client.permissions,
         activeContracts: contractsWithProject
       }
-    }))
+    })
 
     return NextResponse.json({
       success: true,

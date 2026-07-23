@@ -261,9 +261,10 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
   timestamps: true
 })
 
-// Index composé pour recherche rapide
+// Index composés pour recherche rapide
 MaintenanceContractSchema.index({ clientId: 1, status: 1 })
 MaintenanceContractSchema.index({ endDate: 1, status: 1 }) // Pour les renouvellements
+MaintenanceContractSchema.index({ contractNumber: 1, status: 1 })
 
 // Méthode pour générer un numéro de contrat
 MaintenanceContractSchema.pre('validate', async function(next) {

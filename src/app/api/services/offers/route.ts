@@ -27,20 +27,12 @@ export async function GET(request: NextRequest) {
       q.providerId = userId
     }
 
-    // Auto-expiration paresseuse : marque "expired" toute offre dont validUntil est dépassé et statut encore "submitted"
+    // Exclure les offres "submitted" dont la validité est dépassée sans faire d'écriture en GET
     const now = new Date()
-    const expiredOffers = await Offer.find({ ...q, status: 'submitted', validUntil: { $lt: now } })
-      .select('requestId providerId')
-      .lean()
-    if (expiredOffers.length > 0) {
-      await Offer.updateMany(
-        { _id: { $in: expiredOffers.map((offer: any) => offer._id) } },
-        { $set: { status: 'expired' } }
-      )
-      await Promise.all(expiredOffers.map((offer: any) =>
-        releaseMissionReservation(String(offer.providerId), String(offer.requestId), 'Offre expirée').catch(() => {})
-      ))
-    }
+    q.$or = [
+      { status: { $ne: 'submitted' } },
+      { status: 'submitted', validUntil: { $gte: now } },
+    ]
 
     const items = await Offer.find(q).sort({ updatedAt: -1 }).limit(100).lean()
 

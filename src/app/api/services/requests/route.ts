@@ -19,28 +19,28 @@ export async function GET(request: NextRequest) {
     const mine = searchParams.get('mine')
     const includeArchived = searchParams.get('includeArchived') === '1'
     const q: any = {}
-    if (status) q.status = status
-    else q.status = { $nin: includeArchived ? ['expired'] : ['expired', 'archived'] } // masquer expirées et archivées par défaut
+    if (status) {
+      q.status = status
+    } else {
+      // Exclure les demandes périmées sans faire d'écriture en GET (expiration gérée par le job)
+      const now = new Date()
+      const legacyCutoff = new Date(now.getTime() - REQUEST_TTL_HOURS * 60 * 60 * 1000)
+      const excludeStatuses = includeArchived ? ['expired'] : ['expired', 'archived']
+      q.$and = [
+        { status: { $nin: excludeStatuses } },
+        {
+          $or: [
+            { status: { $nin: ['created', 'broadcasted', 'pending_offers'] } },
+            { expiresAt: { $gte: now } },
+            { expiresAt: { $exists: false }, createdAt: { $gte: legacyCutoff } },
+          ],
+        },
+      ]
+    }
     if (mine === '1') {
       const { userId } = await requireAuth(request)
       q.clientId = userId
     }
-
-    // Auto-expiration paresseuse: seulement pour les missions qui n'ont jamais commencé.
-    // created / broadcasted / pending_offers (legacy) peuvent passer à expired si expiresAt est dépassé.
-    const now = new Date()
-    const legacyCutoff = new Date(now.getTime() - REQUEST_TTL_HOURS * 60 * 60 * 1000)
-    await ServiceRequest.updateMany(
-      {
-        status: { $in: ['created', 'broadcasted', 'pending_offers'] },
-        $or: [
-          { expiresAt: { $lt: now } },
-          // expiresAt null OU absent (legacy) → expirer si la demande est plus vieille que le TTL
-          { expiresAt: null, createdAt: { $lt: legacyCutoff } },
-        ],
-      },
-      { $set: { status: 'expired', expiredAt: now, archivedAt: null, archivedReason: null } }
-    ).catch(() => {})
 
     const items = await ServiceRequest.find(q).sort({ createdAt: -1 }).limit(100).lean()
 

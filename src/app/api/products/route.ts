@@ -5,6 +5,7 @@ import type { ProductVariantGroup, ProductChannel } from '@/lib/types/product.ty
 import { randomUUID } from 'crypto'
 import { requireAuth } from '@/lib/jwt'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
+import { invalidateCatalogCache } from '@/lib/catalog-cache'
 
 async function requireManagerRole(request: NextRequest) {
   try {
@@ -388,6 +389,7 @@ export async function POST(request: NextRequest) {
     }
 
     const created = await Product.create(payload)
+    void invalidateCatalogCache()
     return NextResponse.json({ success: true, item: created }, { status: 201 })
   } catch (e: any) {
     console.error('Erreur création produit:', e)
@@ -442,6 +444,7 @@ export async function PATCH(request: NextRequest) {
 
     await Product.updateOne({ _id: id }, { $set: payload })
     const updated = await Product.findById(id).lean()
+    void invalidateCatalogCache()
     return NextResponse.json({ success: true, item: updated })
   } catch (e: any) {
     console.error('Erreur mise à jour produit:', e)
@@ -466,6 +469,7 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 })
     await Product.deleteOne({ _id: id })
+    void invalidateCatalogCache()
     return NextResponse.json({ success: true })
   } catch (e) {
     return NextResponse.json({ success: false, error: 'Failed to delete' }, { status: 500 })
