@@ -79,6 +79,8 @@ interface MaintenanceFormData {
   site: string
   clientName: string
   clientContact: string
+  clientId?: string
+  projectId?: string
   interventionDate: string
   startTime: string
   endTime: string
@@ -132,10 +134,12 @@ interface ClientOption {
   email: string
   phone: string
   address?: string
+  activeContracts?: Array<{ projectId?: string; [key: string]: any }>
 }
 
 interface EnhancedMaintenanceFormProps {
   projectId?: string
+  clientId?: string
   interventionId?: string
   existingReportId?: string
   isReadOnly?: boolean
@@ -147,6 +151,7 @@ interface EnhancedMaintenanceFormProps {
 
 export default function EnhancedMaintenanceForm({ 
   projectId,
+  clientId,
   interventionId,
   existingReportId,
   isReadOnly = false,
@@ -161,6 +166,8 @@ export default function EnhancedMaintenanceForm({
     site: existingReport?.site || '',
     clientName: existingReport?.clientName || '',
     clientContact: existingReport?.clientContact || '',
+    clientId: (existingReport?.clientId as string | undefined) || clientId || '',
+    projectId: (existingReport?.projectId as string | undefined) || projectId || '',
     interventionDate: existingReport?.interventionDate || new Date().toISOString().split('T')[0],
     startTime: existingReport?.startTime || new Date().toTimeString().slice(0,5),
     endTime: existingReport?.endTime || '',
@@ -505,6 +512,8 @@ export default function EnhancedMaintenanceForm({
     const errors: string[] = []
     if (!formData.site.trim()) errors.push('Le nom du site est requis')
     if (!formData.clientName.trim()) errors.push('Le nom du client est requis')
+    if (!formData.clientId?.trim()) errors.push('Le client est requis (sélectionnez un client dans la liste)')
+    if (!formData.projectId?.trim()) errors.push('Le projet est requis (sélectionnez un client avec un contrat actif)')
     setValidationErrors(errors)
     return errors.length === 0
   }
@@ -550,6 +559,8 @@ export default function EnhancedMaintenanceForm({
         site: formData.site,
         clientName: formData.clientName,
         clientContact: formData.clientContact,
+        clientId: formData.clientId || clientId,
+        projectId: formData.projectId || projectId,
         interventionDate: formData.interventionDate,
         startTime: formData.startTime,
         endTime: formData.endTime,
@@ -610,7 +621,6 @@ export default function EnhancedMaintenanceForm({
         templateVersion: '1.0',
         technician: formData.technician,
         technicianId: formData.technicianId,
-        projectId: projectId || undefined,
         interventionId: interventionId || undefined,
         photosBefore: uploadedPhotosBefore.length > 0 ? uploadedPhotosBefore : undefined,
         photosAfter: uploadedPhotosAfter.length > 0 ? uploadedPhotosAfter : undefined,
@@ -806,10 +816,13 @@ export default function EnhancedMaintenanceForm({
                   onChange={(e) => {
                     const c = clients.find(cl => cl.id === e.target.value)
                     if (c) {
+                      const firstProjectId = c.activeContracts?.[0]?.projectId
                       setFormData(prev => ({
                         ...prev,
                         clientName: c.company || c.name,
                         clientContact: c.contactPerson || '',
+                        clientId: c.id,
+                        projectId: firstProjectId || prev.projectId || projectId || '',
                         site: prev.site || c.address || c.company || c.name
                       }))
                     }

@@ -1033,10 +1033,14 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   const renderEditReport = () => {
     if (!selectedReport) return null
     const raw = selectedReport.raw || selectedReport
+    const clientId = raw.clientId?._id || raw.clientId
+    const projectId = raw.projectId?._id || raw.projectId
     const existing: any = {
       site: raw.site || '',
       clientName: raw.clientName || raw.clientId?.name || '',
       clientContact: raw.clientContact || '',
+      clientId,
+      projectId,
       interventionDate: raw.interventionDate ? new Date(raw.interventionDate).toISOString().split('T')[0] : '',
       startTime: raw.startTime || '',
       endTime: raw.endTime || '',
@@ -1052,7 +1056,6 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       status: raw.status || 'draft',
       reportId: raw.reportId || raw._id || ''
     }
-    const projectId = raw.projectId?._id || raw.projectId
     const interventionId = raw.interventionId?._id || raw.interventionId || (raw.typeIntervention ? raw._id : undefined)
     return (
       <div className="space-y-6">
@@ -1068,6 +1071,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
         <EnhancedMaintenanceForm
           projectId={projectId}
+          clientId={clientId}
           interventionId={interventionId}
           existingReportId={raw._id}
           existingReport={existing}
@@ -1081,10 +1085,13 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   const renderCreateReport = () => {
     const prefill: any = {}
     const projectId = prefillClient?.activeContracts?.[0]?.projectId
+    const clientId = prefillClient?.id
     if (prefillClient) {
       prefill.site = prefillClient.address || prefillClient.company || prefillClient.name || ''
       prefill.clientName = prefillClient.company || prefillClient.name || ''
       prefill.clientContact = prefillClient.contactPerson || ''
+      prefill.clientId = clientId
+      prefill.projectId = projectId
     }
     return (
       <div className="space-y-6">
@@ -1100,6 +1107,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
         <EnhancedMaintenanceForm
           projectId={projectId}
+          clientId={clientId}
           existingReport={Object.keys(prefill).length > 0 ? prefill : undefined}
           onSave={handleSaveReport}
           onSubmit={handleSubmitReport}

@@ -437,6 +437,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Si clientId fourni sans projectId, on tente de récupérer un projet actif du client
+    if (clientId && !projectId) {
+      const project = await Project.findOne({ clientId: new mongoose.Types.ObjectId(clientId) }).select('_id').lean() as any
+      if (project?._id) {
+        projectId = project._id.toString()
+      }
+    }
+
     if (!clientId || !projectId) {
       return NextResponse.json(
         { error: 'Impossible de déterminer le client et le projet pour ce rapport' },
