@@ -29,7 +29,7 @@ export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColo
         {icon}
       </View>
       <View style={s.text}>
-        <Animated.Text style={[s.value, { transform: [{ scale }] }]}>{value}</Animated.Text>
+        <Animated.Text style={[s.value, { transform: [{ scale }] }]} numberOfLines={1} ellipsizeMode="tail">{value}</Animated.Text>
         <Text style={s.label}>{label}</Text>
         {subLabel ? <Text style={s.subLabel} numberOfLines={1} ellipsizeMode="tail">{subLabel}</Text> : null}
       </View>

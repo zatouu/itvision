@@ -1,4 +1,4 @@
-import { Text, View, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert, Animated } from 'react-native'
+import { Text, View, TouchableOpacity, StyleSheet, Switch, ScrollView, Alert, Animated, Image, Dimensions } from 'react-native'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Location from 'expo-location'
@@ -20,6 +20,7 @@ import {
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
+import Logo from '../src/components/Logo'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../src/design'
 import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff } from 'lucide-react-native'
 import { apiGet } from '../src/api'
@@ -54,24 +55,39 @@ function remainingHM(iso?: string) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-function getAdvice(profile: any, offers: any[], nearbyCount: number, earnings: any, activeMission: number, gpsActive: boolean, online: boolean) {
+type AdviceItem = { title: string; sub: string }
+
+function getAdviceList(profile: any, offers: any[], nearbyCount: number, earnings: any, activeMission: number, gpsActive: boolean, online: boolean): AdviceItem[] {
   const user = profile?.user || profile || {}
   const provider = profile?.provider || user?.providerProfile || {}
   const kyc = user.kycVerified || provider.kycVerified || false
   const hasAvatar = !!user.avatarUrl
   const score = provider.scoreXeuy || user.scoreXeuy || 0
   const pending = offers.filter((o: any) => o.status === 'submitted').length
+  const totalOffers = offers.length
 
-  if (!online) return { title: 'Activez-vous pour recevoir des demandes', sub: 'Passez en ligne dès que vous êtes disponible.' }
-  if (!gpsActive) return { title: 'Activez votre GPS', sub: 'Les clients voient les prestataires proches en priorité.' }
-  if (!hasAvatar) return { title: 'Ajoutez une photo de profil', sub: 'Les clients font confiance aux profils visibles.' }
-  if (!kyc) return { title: 'Complétez votre vérification', sub: 'Gagnez le badge vérifié et rassurez les clients.' }
-  if (nearbyCount > 0 && pending === 0) return { title: 'Répondez en moins de 3 minutes', sub: 'La rapidité augmente vos chances d’acceptation.' }
-  if (score < 50) return { title: 'Améliorez votre Score Xeuy', sub: 'Ajoutez des réalisations, diplômes et catégories.' }
-  if (activeMission > 0) return { title: 'Mission en cours', sub: 'Soyez ponctuel et professionnel pour gagner 5 étoiles.' }
-  if (nearbyCount === 0 && offers.length === 0) return { title: 'Profitez-en pour compléter votre profil', sub: 'Un profil complet attire plus de demandes.' }
-  if ((earnings.last7Days || 0) === 0) return { title: 'Augmentez votre rayon de visibilité', sub: 'Plus de visibilité = plus d’opportunités.' }
-  return { title: 'Répondez en moins de 3 minutes', sub: 'La réactivité est votre meilleur allié.' }
+  const tips: AdviceItem[] = []
+
+  if (!online) {
+    tips.push({ title: 'Activez-vous pour recevoir des demandes', sub: 'Passez en ligne dès que vous êtes disponible.' })
+  } else {
+    if (!gpsActive) tips.push({ title: 'Activez votre GPS', sub: 'Les clients voient les prestataires proches en priorité.' })
+    if (nearbyCount > 0 && pending === 0) tips.push({ title: 'Répondez en moins de 3 minutes', sub: 'La rapidité augmente vos chances d’acceptation.' })
+    if (activeMission > 0) tips.push({ title: 'Mission en cours', sub: 'Soyez ponctuel et professionnel pour gagner 5 étoiles.' })
+    if (nearbyCount === 0 && totalOffers === 0) tips.push({ title: 'Profitez-en pour compléter votre profil', sub: 'Un profil complet attire plus de demandes.' })
+    if ((earnings.last7Days || 0) === 0) tips.push({ title: 'Augmentez votre rayon de visibilité', sub: 'Plus de visibilité = plus d’opportunités.' })
+  }
+  if (!hasAvatar) tips.push({ title: 'Ajoutez une photo de profil', sub: 'Les clients font confiance aux profils visibles.' })
+  if (!kyc) tips.push({ title: 'Complétez votre vérification', sub: 'Gagnez le badge vérifié et rassurez les clients.' })
+  if (score < 50) tips.push({ title: 'Améliorez votre Score Xeuy', sub: 'Ajoutez des réalisations, diplômes et catégories.' })
+
+  // Bonnes pratiques génériques
+  tips.push({ title: 'Demandez un avis après chaque mission', sub: 'Les avis positifs boostent votre ranking.' })
+  tips.push({ title: 'Gardez une réactivité rapide', sub: 'Répondez aux messages clients dans les plus brefs délais.' })
+  tips.push({ title: 'Mettez à jour vos disponibilités', sub: 'Un planning à jour évite les missions manquées.' })
+  tips.push({ title: 'Soyez clair sur vos tarifs', sub: 'Des prix transparents rassurent les clients.' })
+
+  return tips.slice(0, 8)
 }
 
 function Home() {
@@ -92,6 +108,7 @@ function Home() {
   const [dailyRevenue, setDailyRevenue] = useState(0)
   const [hideRevenue, setHideRevenue] = useState(false)
   const [initials, setInitials] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState(() => getAuthUser()?.avatarUrl || '')
   const [profile, setProfile] = useState<any>(null)
   const [earnings, setEarnings] = useState<any>({})
   const [offers, setOffers] = useState<any[]>([])
@@ -99,10 +116,15 @@ function Home() {
   const [gpsActive, setGpsActive] = useState(false)
   const [synced, setSynced] = useState(false)
   const [pulse, setPulse] = useState(false)
+  const [tipIndex, setTipIndex] = useState(0)
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const pulseAnim = useRef(new Animated.Value(1)).current
   const prevNearbyCount = useRef(0)
+  const adviceScrollRef = useRef<ScrollView>(null)
+
+  const screenWidth = Dimensions.get('window').width
+  const adviceCardWidth = screenWidth - spacing.lg * 2
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
@@ -193,7 +215,10 @@ function Home() {
         setDailyRevenue(dash.value.dailyRevenue ?? 0)
       }
       if (earn.status === 'fulfilled') setEarnings(earn.value || {})
-      if (prof.status === 'fulfilled') setProfile(prof.value)
+      if (prof.status === 'fulfilled') {
+        setProfile(prof.value)
+        setAvatarUrl(prof.value?.user?.avatarUrl || getAuthUser()?.avatarUrl || '')
+      }
       if (off.status === 'fulfilled') setOffers(Array.isArray(off.value?.items) ? off.value.items : [])
       if (match.status === 'fulfilled') {
         const items = Array.isArray(match.value?.items) ? match.value.items : []
@@ -265,7 +290,18 @@ function Home() {
   const offersExpired = offers.filter((it: any) => it.status === 'expired').length
 
   const topRequest = [...nearbyItems].sort((a: any, b: any) => (b._score || 0) - (a._score || 0))[0]
-  const advice = getAdvice(profile, offers, nearbyCount, earnings, activeMission, gpsActive, online)
+  const currentTips = useMemo(() => getAdviceList(profile, offers, nearbyCount, earnings, activeMission, gpsActive, online), [profile, offers, nearbyCount, earnings, activeMission, gpsActive, online])
+  const safeTipIndex = Math.min(tipIndex, Math.max(0, currentTips.length - 1))
+
+  useEffect(() => {
+    if (currentTips.length <= 1) return
+    const interval = setInterval(() => {
+      const next = (safeTipIndex + 1) % currentTips.length
+      adviceScrollRef.current?.scrollTo({ x: next * adviceCardWidth, animated: true })
+      setTipIndex(next)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [safeTipIndex, currentTips.length, adviceCardWidth])
 
   const missionsToday = (earnings.latest || []).filter((e: any) => e.completedAt && new Date(e.completedAt).getTime() >= todayStart.getTime()).length
   const missionGoal = 3
@@ -283,22 +319,35 @@ function Home() {
       <AnimatedScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} style={{ opacity: fadeAnim }}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Menu size={24} color={colors.text} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, marginHorizontal: spacing.sm }}>
-            <Text style={s.greeting} numberOfLines={1}>{greeting}</Text>
+          <View style={s.logoRow}>
+            <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Menu size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Logo size={28} />
+            <Text style={s.appName}>Xeuy Bi Pro</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
-            <BellRing size={18} color={colors.text} />
-            <View style={s.notifDot} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn} accessibilityLabel="Profil">
-            <Text style={s.avatarText}>{initials}</Text>
-          </TouchableOpacity>
+          <View style={s.headerRight}>
+            <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
+              <BellRing size={18} color={colors.text} />
+              <View style={s.notifDot} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/profile')} style={s.avatarBtn} accessibilityLabel="Profil">
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={s.avatarImage} resizeMode="cover" />
+              ) : (
+                <Text style={s.avatarText}>{initials}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <OfflineQueueBadge />
+
+        {/* Greeting */}
+        <View style={s.greeting}>
+          <Text style={s.greetingTitle} numberOfLines={1}>{greeting}</Text>
+          <Text style={s.greetingSub}>Votre tableau de bord</Text>
+        </View>
 
         {/* Status card */}
         <View style={[s.statusCard, online ? s.statusCardOnline : s.statusCardOffline]}>
@@ -431,12 +480,37 @@ function Home() {
           <ChevronRight size={22} color={colors.textMuted} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.actionRow} activeOpacity={0.85}>
-          <View style={[s.actionRowTag, { backgroundColor: '#EFF6FF' }]}><Text style={[s.actionRowTagText, { color: colors.info }]}>Conseil</Text></View>
-          <Text style={s.actionRowTitle}>{advice.title}</Text>
-          <Text style={s.actionRowSub}>{advice.sub}</Text>
-          <ChevronRight size={22} color={colors.textMuted} />
-        </TouchableOpacity>
+        <View style={s.adviceCard}>
+          <View style={s.adviceHeader}>
+            <View style={[s.adviceTag, { backgroundColor: '#EFF6FF' }]}>
+              <Text style={[s.adviceTagText, { color: colors.info }]}>Conseil</Text>
+            </View>
+            <Text style={s.advicePaging}>{safeTipIndex + 1} / {currentTips.length}</Text>
+          </View>
+          <ScrollView
+            ref={adviceScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / adviceCardWidth)
+              setTipIndex(idx)
+            }}
+            contentContainerStyle={{ width: adviceCardWidth * currentTips.length }}
+          >
+            {currentTips.map((tip, i) => (
+              <View key={i} style={[s.advicePage, { width: adviceCardWidth }]}>
+                <Text style={s.adviceTitle}>{tip.title}</Text>
+                <Text style={s.adviceSub}>{tip.sub}</Text>
+              </View>
+            ))}
+          </ScrollView>
+          <View style={s.adviceDots}>
+            {currentTips.map((_, i) => (
+              <View key={i} style={[s.adviceDot, i === safeTipIndex && s.adviceDotActive]} />
+            ))}
+          </View>
+        </View>
 
         {showGoals && (
           <View style={s.goalCard}>
@@ -459,12 +533,18 @@ function Home() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
-  greeting: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  appName: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  greeting: { paddingHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.md },
+  greetingTitle: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
+  greetingSub: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
   iconBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
   iconBtnText: { color: colors.text },
   notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
-  avatarBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary },
+  avatarBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary, overflow: 'hidden' },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary },
   statusCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.md },
   statusCardOnline: { backgroundColor: colors.primary },
@@ -490,7 +570,7 @@ const s = StyleSheet.create({
   activityDot: { width: 8, height: 8, borderRadius: 4 },
   activityText: { flex: 1, fontSize: 13, color: colors.textSecondary },
   activityLabel: { fontWeight: '700' },
-  kpiGrid: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md },
+  kpiGrid: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.xl, marginTop: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
   actionHero: { marginHorizontal: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, position: 'relative', overflow: 'hidden', ...shadows.lg },
   actionDisabled: { opacity: 0.55 },
@@ -509,6 +589,17 @@ const s = StyleSheet.create({
   requestHeroCta: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   requestHeroCtaText: { color: colors.navy, fontWeight: '700', fontSize: 14 },
   actionRow: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, position: 'relative', ...shadows.sm },
+  adviceCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, paddingTop: spacing.md, ...shadows.sm, overflow: 'hidden' },
+  adviceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  adviceTag: { alignSelf: 'flex-start', backgroundColor: '#EFF6FF', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  adviceTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.info },
+  advicePaging: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.textMuted },
+  advicePage: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  adviceTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: 2 },
+  adviceSub: { fontSize: 13, color: colors.textSecondary },
+  adviceDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.md },
+  adviceDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
+  adviceDotActive: { backgroundColor: colors.info },
   actionRowTag: { alignSelf: 'flex-start', backgroundColor: '#F1F5F9', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.sm },
   actionRowTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary },
   actionRowTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: 2 },
