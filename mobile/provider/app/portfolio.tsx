@@ -6,6 +6,7 @@ import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { ArrowLeft, Plus, Image as ImageIcon, Heart, ChevronRight } from 'lucide-react-native'
 import { apiGet } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { resolveMediaUrl } from '../src/media'
 
 const TABS = [
   { id: 'realisation', label: 'Réalisations' },
@@ -54,7 +55,7 @@ function Portfolio() {
         <View style={s.tabs}>
           {tabs.map((t) => (
             <TouchableOpacity key={t.id} onPress={() => setActive(t.id)} style={[s.tab, active === t.id && s.tabActive]}>
-              <Text style={[s.tabLabel, active === t.id && s.tabLabelActive]}>{t.label} ({t.count})</Text>
+              <Text style={[s.tabLabel, active === t.id && s.tabLabelActive]} numberOfLines={1} ellipsizeMode="tail">{t.label} ({t.count})</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -64,7 +65,7 @@ function Portfolio() {
             <Text style={s.sectionLabel}>Mise en avant</Text>
             <TouchableOpacity style={[s.featured, { width: width - 48 }]}>
               {featured.images?.[0]?.url ? (
-                <Image source={{ uri: featured.images[0].url }} style={{ width: width - 48, height: 180 }} resizeMode="cover" />
+                <Image source={{ uri: resolveMediaUrl(featured.images[0].url) }} style={{ width: width - 48, height: 180 }} resizeMode="cover" />
               ) : (
                 <View style={[s.featuredThumb, { width: width - 48, height: 180 }]}>
                   <ImageIcon size={40} color={colors.textMuted} />
@@ -94,7 +95,7 @@ function Portfolio() {
             return (
               <View key={item._id || item.id} style={[s.card, { width: itemW }]}>
                 {thumb ? (
-                  <Image source={{ uri: thumb }} style={[s.thumb, { width: itemW - 24, height: itemW - 24 }]} resizeMode="cover" />
+                  <Image source={{ uri: resolveMediaUrl(thumb) }} style={[s.thumb, { width: itemW - 24, height: itemW - 24 }]} resizeMode="cover" />
                 ) : (
                   <View style={[s.thumb, { width: itemW - 24, height: itemW - 24 }]}>
                     <ImageIcon size={28} color={colors.textMuted} />
@@ -134,7 +135,7 @@ const s = StyleSheet.create({
   introTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: spacing.xs },
   introDesc: { fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
   tabs: { flexDirection: 'row', paddingBottom: spacing.md, gap: spacing.sm },
-  tab: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabLabel: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
   tabLabelActive: { color: '#fff' },

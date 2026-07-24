@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, Image } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, Image, Platform, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { apiGet, apiPatch } from '../src/api'
+import { apiGet, apiPatch, apiUpload } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import TabBar from '../src/components/TabBar'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
@@ -13,6 +13,8 @@ import {
   CreditCard, Lock, HelpCircle, Bell, Power, CheckCircle2, Circle, Plus
 } from 'lucide-react-native'
 import { loadCategories } from '../src/categories'
+import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
+import { updateAuthUser } from '../src/auth'
 
 const HERO_H = 280
 
@@ -90,6 +92,46 @@ function Profile() {
   const [categories, setCategories] = useState<any[]>([])
   const dirty = useRef(false)
   const timer = useRef<any>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const promptSource = async (): Promise<'camera' | 'gallery' | null> => {
+    return new Promise((resolve) => {
+      const options = ['Appareil photo', 'Galerie', 'Annuler']
+      if (Platform.OS === 'ios') {
+        const ActionSheetIOS = require('react-native').ActionSheetIOS
+        ActionSheetIOS.showActionSheetWithOptions(
+          { options, cancelButtonIndex: 2, title: 'Photo de profil' },
+          (idx: number) => resolve(idx === 0 ? 'camera' : idx === 1 ? 'gallery' : null)
+        )
+      } else {
+        Alert.alert('Photo de profil', '', [
+          { text: options[0], onPress: () => resolve('camera') },
+          { text: options[1], onPress: () => resolve('gallery') },
+          { text: options[2], style: 'cancel', onPress: () => resolve(null) },
+        ])
+      }
+    })
+  }
+
+  const uploadAvatar = async () => {
+    try {
+      const source = await promptSource()
+      if (!source) return
+      setUploading(true)
+      const assets = source === 'camera' ? await captureMedia({ selfie: true }) : await pickMedia({ maxFiles: 1 })
+      if (!assets.length) return setUploading(false)
+      const file = assets[0]
+      const uploaded = await apiUpload(file.uri, file.name, 'image/jpeg', 'avatars')
+      const url = uploaded.url || uploaded.staticUrl
+      await apiPatch('/api/users/me', { avatarUrl: url })
+      await updateAuthUser({ avatarUrl: url })
+      setData((d: any) => ({ ...d, user: { ...d.user, avatarUrl: url } }))
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible de mettre à jour la photo')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   useEffect(() => { loadCategories().then(setCategories).catch(() => {}) }, [])
 
@@ -147,11 +189,16 @@ function Profile() {
           <View style={s.heroInner}>
             <View style={s.avatarWrap}>
               {u.avatarUrl ? (
-                <Image source={{ uri: u.avatarUrl }} style={s.avatar} />
+                <Image source={{ uri: resolveMediaUrl(u.avatarUrl) }} style={s.avatar} />
               ) : (
                 <View style={s.avatar}><User size={32} color="#fff" /></View>
               )}
-              <TouchableOpacity style={s.camera}>
+              {uploading && (
+                <View style={[s.camera, { backgroundColor: colors.textMuted }]}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
+              )}
+              <TouchableOpacity style={s.camera} onPress={uploadAvatar} disabled={uploading} activeOpacity={0.8}>
                 <Camera size={12} color="#fff" />
               </TouchableOpacity>
             </View>

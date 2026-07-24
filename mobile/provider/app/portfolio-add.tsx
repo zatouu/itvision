@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Switch, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Switch, ActivityIndicator, Image, Platform, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors, spacing, radius, shadows } from '../src/design'
-import { ArrowLeft, Plus, X, Image as ImageIcon } from 'lucide-react-native'
-import { apiPost } from '../src/api'
+import { ArrowLeft, Plus, X, Image as ImageIcon, Camera } from 'lucide-react-native'
+import { apiPost, apiUpload } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { pickMedia, captureMedia, resolveMediaUrl } from '../src/media'
 
 const TYPES = [
   { id: 'realisation', label: 'Réalisation' },
@@ -21,6 +22,7 @@ function PortfolioAdd() {
   const [images, setImages] = useState<string[]>([''])
   const [featured, setFeatured] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
   const setImage = (index: number, value: string) => {
@@ -33,6 +35,67 @@ function PortfolioAdd() {
   const removeImage = (index: number) => {
     const copy = images.filter((_, i) => i !== index)
     setImages(copy.length ? copy : [''])
+  }
+
+  const appendUrls = (urls: string[]) => {
+    setImages((prev) => {
+      const withoutEmpty = prev.filter((u) => u.trim())
+      const next = [...withoutEmpty, ...urls]
+      return next.length ? next : ['']
+    })
+  }
+
+  const uploadAndAppend = async (assets: { uri: string; name: string }[]) => {
+    const urls: string[] = []
+    for (const file of assets) {
+      try {
+        const uploaded = await apiUpload(file.uri, file.name, 'image/jpeg', 'portfolio')
+        const url = uploaded.url || uploaded.staticUrl
+        if (url) urls.push(url)
+      } catch (e: any) {
+        console.warn('Upload portfolio failed:', e?.message)
+      }
+    }
+    if (urls.length) appendUrls(urls)
+    return urls.length
+  }
+
+  const promptSource = async (): Promise<'camera' | 'gallery' | null> => {
+    return new Promise((resolve) => {
+      const options = ['Appareil photo', 'Galerie', 'Annuler']
+      if (Platform.OS === 'ios') {
+        const ActionSheetIOS = require('react-native').ActionSheetIOS
+        ActionSheetIOS.showActionSheetWithOptions(
+          { options, cancelButtonIndex: 2, title: 'Ajouter une photo' },
+          (idx: number) => resolve(idx === 0 ? 'camera' : idx === 1 ? 'gallery' : null)
+        )
+      } else {
+        Alert.alert('Ajouter une photo', '', [
+          { text: options[0], onPress: () => resolve('camera') },
+          { text: options[1], onPress: () => resolve('gallery') },
+          { text: options[2], style: 'cancel', onPress: () => resolve(null) },
+        ])
+      }
+    })
+  }
+
+  const addMedia = async () => {
+    try {
+      const source = await promptSource()
+      if (!source) return
+      setUploading(true)
+      const assets = source === 'camera'
+        ? await captureMedia()
+        : await pickMedia({ maxFiles: 5 })
+      if (assets.length) {
+        const added = await uploadAndAppend(assets)
+        if (!added) setError('Aucune image n\'a pu être uploadée')
+      }
+    } catch (e: any) {
+      setError(e.message || 'Erreur lors de la sélection des images')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const submit = async () => {
@@ -90,9 +153,12 @@ function PortfolioAdd() {
         <Text style={s.label}>Description</Text>
         <TextInput style={[s.input, s.textarea]} multiline numberOfLines={4} value={description} onChangeText={setDescription} placeholder="Décrivez la mission, le client, les résultats…" placeholderTextColor={colors.textMuted} />
 
-        <Text style={s.label}>Photos (URL)</Text>
+        <Text style={s.label}>Photos</Text>
         {images.map((img, i) => (
           <View key={i} style={s.imageRow}>
+            {img.trim() ? (
+              <Image source={{ uri: resolveMediaUrl(img) }} style={s.imagePreview} />
+            ) : null}
             <TextInput
               style={[s.input, s.imageInput]}
               value={img}
@@ -107,10 +173,16 @@ function PortfolioAdd() {
             </TouchableOpacity>
           </View>
         ))}
-        <TouchableOpacity onPress={addImage} style={s.addBtn}>
-          <Plus size={18} color={colors.primary} />
-          <Text style={s.addText}>Ajouter une image</Text>
-        </TouchableOpacity>
+        <View style={s.mediaBtnRow}>
+          <TouchableOpacity onPress={addImage} style={s.addBtn}>
+            <Plus size={18} color={colors.primary} />
+            <Text style={s.addText}>URL</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={addMedia} style={[s.addBtn, uploading && { opacity: 0.6 }]} disabled={uploading}>
+            {uploading ? <ActivityIndicator size="small" color={colors.primary} /> : <Camera size={18} color={colors.primary} />}
+            <Text style={s.addText}>Galerie</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={s.featuredRow}>
           <View>
@@ -145,8 +217,10 @@ const s = StyleSheet.create({
   typeText: { fontSize: 14, color: colors.text, fontWeight: '500' },
   typeTextActive: { color: '#fff' },
   imageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  imagePreview: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bg, marginRight: spacing.sm },
   imageInput: { flex: 1, marginBottom: 0 },
   removeBtn: { padding: spacing.sm, backgroundColor: colors.dangerLight, borderRadius: radius.md },
+  mediaBtnRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, alignSelf: 'flex-start' },
   addText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   featuredRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg, ...shadows.sm },
