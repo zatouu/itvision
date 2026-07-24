@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Switch, ActivityIndicator, Image, Platform, Alert } from 'react-native'
+
+const uid = () => Math.random().toString(36).slice(2, 9)
+
+type ImageItem = { id: string; url: string; fromDevice: boolean }
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors, spacing, radius, shadows } from '../src/design'
@@ -19,7 +23,7 @@ function PortfolioAdd() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
-  const [images, setImages] = useState<string[]>([''])
+  const [images, setImages] = useState<ImageItem[]>([{ id: uid(), url: '', fromDevice: false }])
   const [featured, setFeatured] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -27,21 +31,22 @@ function PortfolioAdd() {
 
   const setImage = (index: number, value: string) => {
     const copy = [...images]
-    copy[index] = value
+    copy[index] = { ...copy[index], url: value }
     setImages(copy)
   }
 
-  const addImage = () => setImages([...images, ''])
+  const addImage = () => setImages([...images, { id: uid(), url: '', fromDevice: false }])
   const removeImage = (index: number) => {
     const copy = images.filter((_, i) => i !== index)
-    setImages(copy.length ? copy : [''])
+    setImages(copy.length ? copy : [{ id: uid(), url: '', fromDevice: false }])
   }
 
   const appendUrls = (urls: string[]) => {
     setImages((prev) => {
-      const withoutEmpty = prev.filter((u) => u.trim())
-      const next = [...withoutEmpty, ...urls]
-      return next.length ? next : ['']
+      const items = urls.map((url) => ({ id: uid(), url, fromDevice: true }))
+      const withoutEmpty = prev.filter((it) => it.url.trim())
+      const next = [...withoutEmpty, ...items]
+      return next.length ? next : [{ id: uid(), url: '', fromDevice: false }]
     })
   }
 
@@ -103,7 +108,7 @@ function PortfolioAdd() {
     setSaving(true)
     setError('')
     try {
-      const imageList = images.filter((u) => u.trim()).map((url) => ({ url }))
+      const imageList = images.filter((it) => it.url.trim()).map((it) => ({ url: it.url.trim() }))
       await apiPost('/api/provider/portfolio', {
         title: title.trim(),
         description: description.trim(),
@@ -155,19 +160,25 @@ function PortfolioAdd() {
 
         <Text style={s.label}>Photos</Text>
         {images.map((img, i) => (
-          <View key={i} style={s.imageRow}>
-            {img.trim() ? (
-              <Image source={{ uri: resolveMediaUrl(img) }} style={s.imagePreview} />
+          <View key={img.id} style={s.imageRow}>
+            {img.url.trim() ? (
+              <Image source={{ uri: resolveMediaUrl(img.url) }} style={s.imagePreview} />
             ) : null}
-            <TextInput
-              style={[s.input, s.imageInput]}
-              value={img}
-              onChangeText={(v) => setImage(i, v)}
-              placeholder="https://..."
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
+            {!img.fromDevice ? (
+              <TextInput
+                style={[s.input, s.imageInput]}
+                value={img.url}
+                onChangeText={(v) => setImage(i, v)}
+                placeholder="https://..."
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            ) : (
+              <View style={s.imageNameBox}>
+                <Text style={s.imageName} numberOfLines={1} ellipsizeMode="tail">Image</Text>
+              </View>
+            )}
             <TouchableOpacity onPress={() => removeImage(i)} style={s.removeBtn}>
               <X size={18} color={colors.danger} />
             </TouchableOpacity>
@@ -219,6 +230,8 @@ const s = StyleSheet.create({
   imageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   imagePreview: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bg, marginRight: spacing.sm },
   imageInput: { flex: 1, marginBottom: 0 },
+  imageNameBox: { flex: 1, justifyContent: 'center' },
+  imageName: { fontSize: 14, color: colors.textSecondary },
   removeBtn: { padding: spacing.sm, backgroundColor: colors.dangerLight, borderRadius: radius.md },
   mediaBtnRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, alignSelf: 'flex-start' },
