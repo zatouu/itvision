@@ -31,6 +31,9 @@ export interface ProviderCandidate {
   // Éligibilité
   kycVerified: boolean
   categories: string[]
+  secondaryCategories: string[]
+  availabilityStatus: string
+  available: boolean
   presenceStatus: PresenceStatus
   currentLoad: number
   maxConcurrentMissions: number | null

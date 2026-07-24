@@ -232,6 +232,10 @@ export async function getCandidates(
 
     const kycVerified = Boolean(profile?.kycVerified ?? user?.kycVerified ?? false)
     const categories: string[] = profile?.serviceCategories || []
+    const secondaryCategories: string[] = profile?.secondaryCategories || []
+    const availabilityStatus = profile?.availabilityStatus || 'Disponible'
+    const visible = profile?.visible !== false
+    const available = visible && availabilityStatus === 'Disponible'
     const tierDef = sub ? { radiusKm: sub.visibilityRadiusKm, priorityLevel: sub.priorityLevel, boostMultiplier: sub.boostMultiplier, id: sub.tier } : freeTier
 
     candidates.push({
@@ -243,7 +247,10 @@ export async function getCandidates(
       distanceKm: Number(p.distanceKm.toFixed(3)),
       kycVerified,
       categories,
-      presenceStatus: p.status,
+      secondaryCategories,
+      availabilityStatus,
+      available,
+      presenceStatus: available ? p.status : 'offline',
       currentLoad: profile?.currentLoad ?? 0,
       maxConcurrentMissions: profile?.maxConcurrentMissions ?? null,
       ratingAvg: ratings.get(p.providerId) ?? null,

@@ -22,6 +22,9 @@ export interface IProviderProfile extends Document {
   }
   coverUrl?: string
   maxConcurrentMissions?: number
+  availabilityStatus?: 'Disponible' | 'Occupé' | 'En pause' | 'En vacances' | 'Hors ligne'
+  visible?: boolean
+  scoreXeuy?: number
   preferences?: any
   currentLoad: number
   createdAt: Date
@@ -57,6 +60,9 @@ const ProviderProfileSchema = new Schema<IProviderProfile>({
   coverUrl: { type: String },
   currentLoad: { type: Number, default: 0, min: 0 },
   maxConcurrentMissions: { type: Number, min: 1 },
+  availabilityStatus: { type: String, default: 'Disponible' },
+  visible: { type: Boolean, default: true, index: true },
+  scoreXeuy: { type: Number, default: 0, min: 0, max: 100 },
   preferences: { type: Schema.Types.Mixed, default: {} }
 }, { timestamps: true })
 

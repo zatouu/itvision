@@ -31,6 +31,14 @@ const AVAILABILITY_SCORE: Record<PresenceStatus, number> = {
   offline: 0.2,
 }
 
+const AVAILABILITY_LABEL_SCORE: Record<string, number> = {
+  Disponible: 1,
+  Occupé: 0.2,
+  'En pause': 0.1,
+  'En vacances': 0.05,
+  'Hors ligne': 0,
+}
+
 /** Registre des facteurs de score. `key` doit correspondre à une clé de scoreWeights. */
 export const FACTORS: ScoreFactor[] = [
   {
@@ -43,11 +51,15 @@ export const FACTORS: ScoreFactor[] = [
   },
   {
     key: 'availability',
-    compute: (c) => AVAILABILITY_SCORE[c.presenceStatus] ?? 0.2,
+    compute: (c) => (c.available ? (AVAILABILITY_LABEL_SCORE[c.availabilityStatus] ?? AVAILABILITY_SCORE[c.presenceStatus] ?? 0.2) : 0),
   },
   {
     key: 'category',
-    compute: (c, req) => (c.categories.includes(req.category) ? 1 : 0),
+    compute: (c, req) => {
+      const allCats = [...c.categories, ...(c.secondaryCategories || [])]
+      if (allCats.includes(req.category)) return 1
+      return (c.secondaryCategories || []).includes(req.category) ? 0.5 : 0
+    },
   },
   {
     key: 'rating',

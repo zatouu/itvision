@@ -125,6 +125,27 @@ export async function penalizeProviderCancellation(
   }
 }
 
+export function computeScoreXeuy(profile: any, user: any, reviews: any = {}): number {
+  const stats = user?.providerStats || {}
+  const p = profile || {}
+  let score = 50
+  score += Math.min((reviews.average || 0) * 10, 20) // avis
+  score += (user?.kycVerified ? 10 : 0) // KYC
+  score += (p.serviceCategories?.length ? 5 : 0) + (p.secondaryCategories?.length ? 3 : 0) // compétences
+  const completed = stats.completedMissions || 0
+  score += Math.min(completed * 0.5, 10) // ancienneté / expérience
+  score += Math.min((stats.reliabilityScore || 100) * 0.1, 10) // fiabilité
+  const balance = user?.referralBalance || 0
+  score += Math.min(balance / 100000, 5) // portefeuille
+  const cancelledByProvider = stats.cancelledByProvider || 0
+  const disputes = stats.cancelledByClient || 0
+  score -= Math.min(cancelledByProvider * 3 + disputes * 2, 20) // litiges/annulations
+  const responseTimeMin = p.preferences?.notifications?.responseTimeMinutes ?? 10
+  score += Math.max(0, 5 - responseTimeMin / 6) // temps de réponse
+  score += Math.min((p.preferences?.profileCompleteness || 0) * 0.2, 10) // complétude
+  return Math.round(Math.max(0, Math.min(100, score)))
+}
+
 export async function recordClientCancellation(providerId: string) {
   try {
     await User.updateOne(

@@ -36,6 +36,11 @@ export const colors = {
   painting: '#7C3AED',
   airConditioning: '#06B6D4',
   security: '#166534',
+  // Profil premium
+  bgGlobal: '#F5F6FA',
+  heroDark: '#091A2F',
+  heroGreen: '#0F7B4F',
+  platinum: '#E5E4E2',
   // Misc
   border: '#E2E8F0',
   borderLight: '#E2E8F0',

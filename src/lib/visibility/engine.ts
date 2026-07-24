@@ -24,10 +24,11 @@ import { rankProviders } from './ranking'
  * - Pas en surcharge (currentLoad < maxConcurrentMissions si défini)
  */
 export function isEligible(candidate: ProviderCandidate, req: DispatchRequestContext, config?: IVisibilityConfig): boolean {
+  if (!candidate.available) return false
   if (config?.requireKycForNotification && !candidate.kycVerified) return false
   if (candidate.distanceKm == null) return false
-  const cats = candidate.categories || []
-  const categoryOk = cats.length === 0 || cats.includes(req.category)
+  const allCats = [...(candidate.categories || []), ...(candidate.secondaryCategories || [])]
+  const categoryOk = allCats.length === 0 || allCats.includes(req.category)
   if (!categoryOk) return false
   if (candidate.maxConcurrentMissions != null && candidate.currentLoad >= candidate.maxConcurrentMissions) return false
   return true
@@ -44,11 +45,12 @@ export function filterAndRank(
   for (const c of candidates) {
     const ok = isEligible(c, req, config)
     if (!ok) {
-      if (config.requireKycForNotification && !c.kycVerified) reasons[c.providerId] = 'kyc_missing'
+      if (!c.available) reasons[c.providerId] = 'unavailable'
+      else if (config.requireKycForNotification && !c.kycVerified) reasons[c.providerId] = 'kyc_missing'
       else if (c.distanceKm == null) reasons[c.providerId] = 'no_distance'
       else {
-        const cats = c.categories || []
-        const categoryOk = cats.length === 0 || cats.includes(req.category)
+        const allCats = [...(c.categories || []), ...(c.secondaryCategories || [])]
+        const categoryOk = allCats.length === 0 || allCats.includes(req.category)
         if (!categoryOk) reasons[c.providerId] = 'category_mismatch'
         else if (c.maxConcurrentMissions != null && c.currentLoad >= c.maxConcurrentMissions) reasons[c.providerId] = 'max_load'
         else reasons[c.providerId] = 'unknown'

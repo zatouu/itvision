@@ -730,3 +730,5 @@ Proceeding with outdated version.
 
 Unsupported platform, macOS or Linux is required to build apps for Android
     Error: build command failed.
+[consumer] Aucun changement detecte depuis 8fb0e0e93f7a354bce604f451abd3b0d70d1fb61. Skip.
+[provider] Aucun changement detecte depuis 8fb0e0e93f7a354bce604f451abd3b0d70d1fb61. Skip.
