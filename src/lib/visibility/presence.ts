@@ -14,7 +14,7 @@
 import { IVisibilityConfig } from '../models/AppConfig'
 import ProviderProfile from '../models/ProviderProfile'
 import ProviderSubscription from '../models/ProviderSubscription'
-import Rating from '../models/Rating'
+import ServiceReview from '../models/ServiceReview'
 import User from '../models/User'
 import { connectMongoose } from '../mongoose'
 import { resolveTier } from './config'
@@ -144,9 +144,9 @@ async function getRatingAverages(providerIds: string[]): Promise<Map<string, num
   const map = new Map<string, number>()
   if (!providerIds.length) return map
   try {
-    const rows = await Rating.aggregate([
-      { $match: { rateeId: { $in: providerIds.map(id => toObjectId(id)).filter(Boolean) } } },
-      { $group: { _id: '$rateeId', avg: { $avg: '$score' } } },
+    const rows = await ServiceReview.aggregate([
+      { $match: { providerId: { $in: providerIds } } },
+      { $group: { _id: '$providerId', avg: { $avg: '$rating' } } },
     ])
     for (const r of rows) map.set(String(r._id), Number(r.avg))
   } catch (err: any) {

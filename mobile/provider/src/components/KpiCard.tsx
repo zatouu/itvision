@@ -1,9 +1,11 @@
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native'
+import { TouchableOpacity, View, Text, StyleSheet, Animated } from 'react-native'
+import { useEffect, useRef } from 'react'
 import { colors, radius, shadows, spacing, typography } from '../design'
 
 type KpiCardProps = {
   value: string | number
   label: string
+  subLabel?: string
   icon: React.ReactNode
   iconBg: string
   iconColor: string
@@ -11,15 +13,25 @@ type KpiCardProps = {
   right?: React.ReactNode
 }
 
-export default function KpiCard({ value, label, icon, iconBg, iconColor, onPress, right }: KpiCardProps) {
+export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColor, onPress, right }: KpiCardProps) {
+  const scale = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.06, duration: 120, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }),
+    ]).start()
+  }, [value])
+
   const content = (
     <>
       <View style={[s.icon, { backgroundColor: iconBg }]}>
         {icon}
       </View>
       <View style={s.text}>
-        <Text style={s.value}>{value}</Text>
+        <Animated.Text style={[s.value, { transform: [{ scale }] }]}>{value}</Animated.Text>
         <Text style={s.label}>{label}</Text>
+        {subLabel ? <Text style={s.subLabel} numberOfLines={1} ellipsizeMode="tail">{subLabel}</Text> : null}
       </View>
       {right ? <View style={s.right}>{right}</View> : null}
     </>
@@ -60,4 +72,5 @@ const s = StyleSheet.create({
   right: { justifyContent: 'center' },
   value: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },
   label: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  subLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
 })

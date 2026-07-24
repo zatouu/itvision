@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
     const { userId } = await requireAuth(request)
 
-    const activeStatuses = ['assigned', 'provider_arriving', 'in_progress']
+    const activeStatuses = ['assigned', 'provider_arriving', 'on_the_way', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
     const [activeMissions, pendingOffers, dailyRevenueAgg] = await Promise.all([
       ServiceRequest.countDocuments({ assignedProviderId: userId, status: { $in: activeStatuses } }),
       Offer.countDocuments({ providerId: userId, status: 'submitted' }),
