@@ -32,6 +32,7 @@ export function clearAuthCookie(response: NextResponse) {
     maxAge: 0,
     domain: getAuthCookieDomain(),
   })
+  return response
 }
 
 export interface AuthResult {
