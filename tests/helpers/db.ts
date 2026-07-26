@@ -11,6 +11,9 @@ import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Product from '@/lib/models/Product.validated'
 import ProviderProfile from '@/lib/models/ProviderProfile'
+import ServiceRequest from '@/lib/models/ServiceRequest'
+import Offer from '@/lib/models/Offer'
+import Payment from '@/lib/models/Payment'
 import mongoose from 'mongoose'
 
 const DEFAULT_PASSWORD = 'test123'
@@ -352,5 +355,61 @@ export async function cleanupNamespaceTestData() {
     providerUser
       ? ProviderProfile.deleteMany({ userId: providerUser._id })
       : Promise.resolve()
+  ])
+}
+
+export async function createTestServiceMission(clientId: string, providerId: string, amount = 10000) {
+  await connectMongoose()
+  const now = new Date()
+
+  const request = await ServiceRequest.create({
+    clientId,
+    category: 'plomberie',
+    description: 'Fuite E2E',
+    location: { type: 'Point', coordinates: [-17.467686, 14.716677], address: 'Dakar E2E' },
+    budget: amount,
+    status: 'in_progress',
+    assignedProviderId: new mongoose.Types.ObjectId(providerId),
+    startedAt: now,
+    lastActivityAt: now,
+  })
+
+  const offer = await Offer.create({
+    requestId: request._id,
+    providerId,
+    providerName: 'E2E Provider',
+    price: amount,
+    etaMinutes: 30,
+    validUntil: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+    status: 'accepted',
+  })
+
+  request.selectedOfferId = offer._id
+  await request.save()
+
+  const payment = await Payment.create({
+    requestId: request._id,
+    offerId: offer._id,
+    clientId,
+    providerId,
+    amount,
+    provider: 'wave',
+    phase: 'full',
+    status: 'held',
+    heldAt: now,
+    useEscrow: true,
+  })
+
+  return { requestId: String(request._id), offerId: String(offer._id), paymentId: String(payment._id) }
+}
+
+export async function cleanupServiceTestData(prefix: string | RegExp = /E2E/) {
+  await connectMongoose()
+  const requests = await ServiceRequest.find({ description: { $regex: prefix } }).lean() as any[]
+  const requestIds = requests.map((r) => String(r._id))
+  await Promise.all([
+    ServiceRequest.deleteMany({ _id: { $in: requestIds } }),
+    Offer.deleteMany({ requestId: { $in: requestIds } }),
+    Payment.deleteMany({ requestId: { $in: requestIds } }),
   ])
 }

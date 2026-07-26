@@ -4,6 +4,9 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { requireAuth } from '@/lib/jwt'
 import User from '@/lib/models/User'
+import DisputeEvidence from '@/lib/models/DisputeEvidence'
+import DisputeMessage from '@/lib/models/DisputeMessage'
+import MissionAuditLog from '@/lib/models/MissionAuditLog'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -47,6 +50,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       payment = await Payment.findOne({ requestId: id, status: { $in: ['pending', 'held', 'released', 'refunded', 'failed'] } })
         .select('status provider phase amount depositAmount balanceAmount useEscrow').lean()
     }
+
+    const hasDispute = sr.status === 'dispute' || sr.disputeStatus || sr.disputeDecision
+    const [disputeEvidence, disputeMessages, disputeAudit] = hasDispute
+      ? await Promise.all([
+          DisputeEvidence.find({ requestId: id }).sort({ createdAt: -1 }).lean(),
+          DisputeMessage.find({ requestId: id }).sort({ createdAt: 1 }).lean(),
+          MissionAuditLog.find({ requestId: id, action: { $in: ['dispute_opened', 'dispute_resolved', 'payment_released', 'payment_refunded'] } }).sort({ createdAt: -1 }).lean(),
+        ])
+      : [[], [], []]
+
     const lifecycle = await import('@/lib/mission-lifecycle')
     const metrics = lifecycle.computeMetrics(sr)
     const display = lifecycle.DISPLAY_LABELS[lifecycle.normalizeStatus(sr.status)]
@@ -72,6 +85,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         anomalyScore: sr.anomalyScore || 0,
       },
       escrowLocked: !!sr.escrowLocked,
+      disputeEvidence,
+      disputeMessages,
+      disputeAudit,
     }})
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
@@ -110,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // Une seule action métier par requête
-    const actionCount = [body.status !== undefined, body.action === 'pause', body.action === 'resume', body.action === 'validate', body.action === 'dispute'].filter(Boolean).length
+    const actionCount = [body.status !== undefined, body.action === 'pause', body.action === 'resume', body.action === 'validate', body.action === 'dispute', body.action === 'resolve-dispute'].filter(Boolean).length
     if (actionCount > 1) {
       return NextResponse.json({ error: 'Une seule action à la fois' }, { status: 400 })
     }
@@ -175,6 +191,52 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         await lifecycle.openDispute(id, body.reason, { userId, role: missionRole }, context)
       } catch (err: any) {
         return NextResponse.json({ error: err.message || 'Litige impossible' }, { status: 409 })
+      }
+    }
+
+    // ─── Message dans le litige ───
+    if (body.action === 'dispute-message') {
+      if (!body.text) return NextResponse.json({ error: 'Le message est obligatoire' }, { status: 400 })
+      if (!['dispute'].includes(sr.status)) return NextResponse.json({ error: 'La mission n\'est pas en litige' }, { status: 409 })
+      await DisputeMessage.create({
+        requestId: id,
+        senderId: userId,
+        senderRole: missionRole,
+        text: String(body.text).slice(0, 2000),
+      })
+      await (await import('@/lib/mission-lifecycle')).touch(id, 'dispute-message', userId)
+    }
+
+    // ─── Preuve du litige ───
+    if (body.action === 'dispute-evidence') {
+      if (!body.url) return NextResponse.json({ error: 'L\'URL de la preuve est obligatoire' }, { status: 400 })
+      if (!['dispute'].includes(sr.status)) return NextResponse.json({ error: 'La mission n\'est pas en litige' }, { status: 409 })
+      await DisputeEvidence.create({
+        requestId: id,
+        uploadedBy: userId,
+        uploadedByRole: missionRole,
+        type: body.type || 'image',
+        url: String(body.url),
+        title: body.title ? String(body.title).slice(0, 200) : undefined,
+        description: body.description ? String(body.description).slice(0, 1000) : undefined,
+      })
+      await (await import('@/lib/mission-lifecycle')).touch(id, 'dispute-evidence', userId)
+    }
+
+    // ─── Résolution du litige (admin) ───
+    if (body.action === 'resolve-dispute') {
+      if (!isAdmin) return NextResponse.json({ error: 'Seul un administrateur peut résoudre un litige' }, { status: 403 })
+      if (!body.decision) return NextResponse.json({ error: 'La décision est obligatoire' }, { status: 400 })
+      const lifecycle = await import('@/lib/mission-lifecycle')
+      try {
+        await lifecycle.resolveDispute(id, body.decision as any, {
+          actor: { userId, role: 'admin' },
+          refundAmount: body.refundAmount ? Number(body.refundAmount) : undefined,
+          adminNote: body.adminNote,
+          context,
+        })
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message || 'Résolution impossible' }, { status: 409 })
       }
     }
 

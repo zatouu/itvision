@@ -540,6 +540,34 @@ function MissionDetail() {
             )}
           </View>
 
+          {/* Info litige */}
+          {(item?.status === 'dispute' || item?.disputeStatus || item?.disputeDecision) && (
+            <View style={[s.detailsCard, { borderLeftWidth: 4, borderLeftColor: item?.disputeStatus === 'resolved' ? colors.success : colors.danger }]}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
+                {item?.disputeStatus === 'resolved' ? 'Litige résolu' : 'Litige en cours'}
+              </Text>
+              {item?.disputeReason && (
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Motif : {item.disputeReason}</Text>
+              )}
+              {item?.disputeDecision && (
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+                  Décision : {({ release_escrow: 'Paiement libéré au prestataire', refund: 'Remboursement intégral', partial_refund: 'Remboursement partiel', reject: 'Litige rejeté', cancel: 'Litige annulé', other: 'Autre' } as any)[item.disputeDecision]}
+                  {item?.disputeRefundAmount ? ` (${item.disputeRefundAmount.toLocaleString('fr-FR')} FCFA)` : ''}
+                </Text>
+              )}
+              {item?.disputeAdminNote && (
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Note : {item.disputeAdminNote}</Text>
+              )}
+              <TouchableOpacity
+                style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                onPress={() => router.push(`/dispute/${requestId}`)}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Voir le litige →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Métriques cycle de vie */}
           {item?.metrics && (
             <View style={s.detailsCard}>

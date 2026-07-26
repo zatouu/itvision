@@ -35,6 +35,7 @@ const PaymentSchema = new Schema({
   releasedBy: { type: String },
   refundedAt: { type: Date },
   refundedBy: { type: String },
+  refundAmount: { type: Number, default: 0, min: 0 },
   failedAt: { type: Date },
   failReason: { type: String },
 }, { timestamps: true })

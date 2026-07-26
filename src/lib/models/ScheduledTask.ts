@@ -25,6 +25,7 @@ export type ScheduledTaskType =
   | 'offer_expiry'
   | 'credit_refund'
   | 'followup'
+  | 'dispute_sla'
 
 export type ScheduledTaskStatus = 'pending' | 'running' | 'done' | 'cancelled' | 'failed'
 

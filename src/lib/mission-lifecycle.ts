@@ -198,6 +198,7 @@ export async function transition(
 
   // Transition vers 'paused' interdite ici : utiliser pause()
   if (to === 'paused') throw new Error('Utilisez pause() pour mettre en pause')
+  if (from === 'dispute' && to !== 'dispute') throw new Error('Mission en litige : utilisez resolveDispute pour la résoudre')
 
   const prevStatus = sr.status
   const now = new Date()
@@ -229,6 +230,7 @@ export async function transition(
   if (to === 'expired') $set.expiredAt = now
   if (to === 'dispute') {
     $set.disputeOpenedAt = now
+    $set.disputeStatus = 'open'
     if (reason) $set.disputeReason = String(reason).slice(0, 500)
     // Verrouiller l'escrow : ajouter un flag pour interdire toute libération.
     $set.escrowLocked = true
@@ -396,6 +398,106 @@ export async function openDispute(
   context?: TransitionContext
 ) {
   return transition(requestId, 'dispute', { actor, reason, context })
+}
+
+export type DisputeDecisionType =
+  | 'release_escrow'
+  | 'refund'
+  | 'partial_refund'
+  | 'reject'
+  | 'cancel'
+  | 'other'
+
+export async function resolveDispute(
+  requestId: string,
+  decision: DisputeDecisionType,
+  options: {
+    actor: { userId: string; role: MissionRole }
+    refundAmount?: number
+    adminNote?: string
+    context?: TransitionContext
+  }
+) {
+  const { actor, refundAmount, adminNote, context } = options
+
+  if (actor.role !== 'admin') {
+    throw new Error('Seul un administrateur peut résoudre un litige')
+  }
+
+  await connectIfNeeded()
+  const sr = await ServiceRequest.findById(requestId)
+  if (!sr) throw new Error('Mission introuvable')
+
+  const from = normalizeStatus(sr.status)
+  if (from !== 'dispute') {
+    throw new Error(`La mission doit être en litige pour être résolue (statut actuel : ${from})`)
+  }
+
+  if ((decision === 'partial_refund') && (refundAmount == null || refundAmount <= 0)) {
+    throw new Error('Le montant du remboursement partiel est requis')
+  }
+
+  const now = new Date()
+  const prevStatus = sr.status
+
+  // Déterminer le statut cible après résolution
+  let toStatus: MissionStatus
+  if (decision === 'refund') {
+    toStatus = 'cancelled'
+  } else if (decision === 'cancel' || decision === 'other') {
+    toStatus = 'archived'
+  } else {
+    toStatus = 'completed'
+  }
+
+  // Appliquer la résolution
+  sr.status = toStatus
+  sr.escrowLocked = false
+  sr.disputeStatus = 'resolved'
+  sr.disputeDecision = decision
+  sr.disputeResolvedAt = now
+  sr.disputeAdminId = actor.userId
+  sr.disputeAdminNote = adminNote ? String(adminNote).slice(0, 2000) : undefined
+  if (decision === 'partial_refund') {
+    sr.disputeRefundAmount = refundAmount
+  }
+
+  if (toStatus === 'completed') {
+    sr.completedAt = now
+    sr.providerCompletedAt = now
+    sr.validatedByClientAt = now
+  } else if (toStatus === 'cancelled') {
+    sr.cancelledAt = now
+    sr.cancelledBy = 'admin'
+    sr.cancelReason = adminNote ? String(adminNote).slice(0, 500) : 'Litige résolu : remboursement'
+  } else if (toStatus === 'archived') {
+    sr.archivedAt = now
+    sr.archivedReason = adminNote ? String(adminNote).slice(0, 500) : 'Litige annulé/clôturé'
+  }
+
+  sr.updatedAt = now
+  await sr.save()
+
+  // Effets financiers
+  await executeDisputePayments(sr, decision, refundAmount ?? 0, actor.userId)
+
+  // Audit + notifications
+  await logAudit({
+    requestId,
+    actorId: actor.userId,
+    actorRole: actor.role,
+    action: 'dispute_resolved',
+    fromStatus: prevStatus,
+    toStatus,
+    reason: adminNote,
+    metadata: { decision, refundAmount },
+    context,
+  })
+
+  await notifyStatusChange(sr, prevStatus, actor, { decision, refundAmount })
+  await notifyDisputeResolved(sr, decision, refundAmount)
+
+  return sr
 }
 
 export async function archive(requestId: string, archiveReason: string, actor: { userId: string; role: MissionRole }) {
@@ -708,6 +810,159 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
     }
   } catch (e) {
     console.error('[lifecycle] cancellation payment side effect', e)
+  }
+}
+
+async function executeDisputePayments(
+  sr: any,
+  decision: DisputeDecisionType,
+  refundAmount: number,
+  adminId: string
+) {
+  try {
+    const cfg = await getAppConfig()
+    const commissionRate = Number(cfg.monetization?.commissionRate) || 0
+    const now = new Date()
+
+    let remainingRefund = refundAmount
+    let totalRefunded = 0
+    let totalReleased = 0
+
+    while (true) {
+      const payment: any = await Payment.findOne({ requestId: sr._id, status: 'held' })
+        .sort({ createdAt: 1 })
+        .lean()
+      if (!payment) break
+
+      const rawAmount = payment.phase === 'deposit' ? (payment.depositAmount || 0)
+        : payment.phase === 'balance' ? (payment.balanceAmount || 0)
+        : (payment.amount || 0)
+      if (rawAmount <= 0) {
+        await Payment.updateOne(
+          { _id: payment._id, status: 'held' },
+          { $set: { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: 0 } }
+        )
+        continue
+      }
+
+      if (decision === 'refund') {
+        // Remboursement intégral au client
+        const escrowCost = payment.escrowPointsCharged || 0
+        if (escrowCost > 0) {
+          await refundEscrowPoints(String(payment.clientId), String(sr._id), escrowCost)
+        }
+        await Payment.updateOne(
+          { _id: payment._id, status: 'held' },
+          { $set: { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: rawAmount } }
+        )
+        totalRefunded += rawAmount
+      } else if (decision === 'release_escrow' || decision === 'reject') {
+        // Libération intégrale au prestataire
+        const commission = Math.round((rawAmount * commissionRate) / 100)
+        const net = rawAmount - commission
+        if (payment.provider !== 'cash' && net > 0) {
+          await creditCashBalance(String(payment.providerId), net, {
+            relatedMissionId: String(sr._id),
+            paymentRef: String(payment._id),
+            description: `Reversement mission validée (litige résolu)`,
+          })
+        }
+        await Payment.updateOne(
+          { _id: payment._id, status: 'held' },
+          { $set: { status: 'released', releasedAt: now, releasedBy: adminId } }
+        )
+        totalReleased += net
+      } else if (decision === 'partial_refund') {
+        // Remboursement partiel au client, le solde au prestataire
+        const paymentRefund = Math.min(remainingRefund, rawAmount)
+        const providerGross = rawAmount - paymentRefund
+        const commission = Math.round((providerGross * commissionRate) / 100)
+        const providerNet = providerGross - commission
+
+        await Payment.updateOne(
+          { _id: payment._id, status: 'held' },
+          {
+            $set: {
+              status: 'refunded',
+              refundedAt: now,
+              refundedBy: adminId,
+              refundAmount: paymentRefund,
+            },
+          }
+        )
+        if (paymentRefund > 0) totalRefunded += paymentRefund
+        remainingRefund -= paymentRefund
+
+        if (providerNet > 0 && payment.provider !== 'cash') {
+          await creditCashBalance(String(payment.providerId), providerNet, {
+            relatedMissionId: String(sr._id),
+            paymentRef: String(payment._id),
+            description: `Reversement litige résolu (remboursement partiel client de ${paymentRefund} FCFA)`,
+          })
+          totalReleased += providerNet
+        }
+      } else {
+        // cancel / other : aucun effet financier, on libère juste le statut
+        await Payment.updateOne(
+          { _id: payment._id, status: 'held' },
+          { $set: { status: 'released', releasedAt: now, releasedBy: adminId } }
+        )
+      }
+    }
+
+    // Notifications financières agrégées
+    if (totalRefunded > 0 && sr.clientId) {
+      void sendPushToUser(String(sr.clientId), {
+        title: 'Remboursement effectué',
+        body: `${totalRefunded.toLocaleString('fr-FR')} FCFA remboursés suite à la résolution du litige.`,
+        data: { type: 'payment:refunded', requestId: String(sr._id), decision },
+        appType: 'consumer',
+      })
+    }
+
+    if (totalReleased > 0 && sr.assignedProviderId) {
+      void sendPushToUser(String(sr.assignedProviderId), {
+        title: 'Paiement reçu',
+        body: `${totalReleased.toLocaleString('fr-FR')} FCFA crédités sur votre portefeuille suite au litige.`,
+        data: { type: 'payment:released', requestId: String(sr._id), decision },
+        appType: 'provider',
+      })
+    }
+  } catch (e) {
+    console.error('[lifecycle] executeDisputePayments', e)
+  }
+}
+
+async function notifyDisputeResolved(
+  sr: any,
+  decision: DisputeDecisionType,
+  refundAmount?: number
+) {
+  try {
+    const decisionLabels: Record<string, string> = {
+      release_escrow: 'Paiement libéré au prestataire',
+      refund: 'Remboursement intégral au client',
+      partial_refund: 'Remboursement partiel au client',
+      reject: 'Litige rejeté',
+      cancel: 'Litige annulé',
+      other: 'Litige clôturé',
+    }
+    const label = decisionLabels[decision] || 'Litige résolu'
+
+    const recipients: { userId: string; appType: 'consumer' | 'provider' }[] = []
+    if (sr.clientId) recipients.push({ userId: String(sr.clientId), appType: 'consumer' })
+    if (sr.assignedProviderId) recipients.push({ userId: String(sr.assignedProviderId), appType: 'provider' })
+
+    for (const r of recipients) {
+      void sendPushToUser(r.userId, {
+        title: 'Litige résolu',
+        body: `${label}${refundAmount ? ` (${refundAmount.toLocaleString('fr-FR')} FCFA)` : ''} — Mission ${String(sr._id).slice(-6).toUpperCase()}`,
+        data: { type: 'dispute:resolved', requestId: String(sr._id), decision, refundAmount },
+        appType: r.appType,
+      })
+    }
+  } catch (e) {
+    console.error('[lifecycle] notifyDisputeResolved', e)
   }
 }
 

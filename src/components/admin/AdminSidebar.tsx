@@ -38,7 +38,8 @@ import {
   Globe,
   Search,
   ImageIcon,
-  Eye
+  Eye,
+  Scale
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -270,6 +271,19 @@ const menuItems: MenuItem[] = [
     label: 'Techniciens',
     icon: Users,
     href: '/admin/technicians'
+  },
+  {
+    id: 'services',
+    label: 'Services',
+    icon: Wrench,
+    children: [
+      {
+        id: 'services-disputes',
+        label: 'Litiges',
+        icon: Scale,
+        href: '/admin/services/disputes'
+      }
+    ]
   },
   {
     id: 'maintenance',
