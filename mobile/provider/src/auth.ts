@@ -1,7 +1,38 @@
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
 
 const TOKEN_KEY = 'auth:token'
 const USER_KEY = 'auth:user'
+const isWeb = Platform.OS === 'web'
+
+// Token JWT → stockage chiffré (SecureStore) sur natif, AsyncStorage sur web
+async function readToken(): Promise<string | null> {
+  try {
+    if (isWeb) return await AsyncStorage.getItem(TOKEN_KEY)
+    const t = await SecureStore.getItemAsync(TOKEN_KEY)
+    if (t) return t
+    // Migration depuis AsyncStorage (versions précédentes)
+    const legacy = await AsyncStorage.getItem(TOKEN_KEY)
+    if (legacy) {
+      await SecureStore.setItemAsync(TOKEN_KEY, legacy).catch(() => {})
+      await AsyncStorage.removeItem(TOKEN_KEY).catch(() => {})
+    }
+    return legacy
+  } catch {
+    return null
+  }
+}
+
+async function writeToken(token: string): Promise<void> {
+  if (isWeb) { await AsyncStorage.setItem(TOKEN_KEY, token); return }
+  await SecureStore.setItemAsync(TOKEN_KEY, token)
+}
+
+async function deleteToken(): Promise<void> {
+  if (isWeb) { await AsyncStorage.removeItem(TOKEN_KEY); return }
+  await SecureStore.deleteItemAsync(TOKEN_KEY)
+}
 
 export interface AuthUser {
   _id: string
@@ -36,7 +67,7 @@ export function isLoggedIn(): boolean { return !!_token }
 export async function loadAuth(): Promise<boolean> {
   try {
     const [t, u] = await Promise.all([
-      AsyncStorage.getItem(TOKEN_KEY),
+      readToken(),
       AsyncStorage.getItem(USER_KEY),
     ])
     _token = t
@@ -53,7 +84,7 @@ export async function setAuth(token: string, user: AuthUser): Promise<void> {
   _token = token
   _user = user
   await Promise.all([
-    AsyncStorage.setItem(TOKEN_KEY, token),
+    writeToken(token),
     AsyncStorage.setItem(USER_KEY, JSON.stringify(user)),
   ])
   notify()
@@ -72,7 +103,7 @@ export async function clearAuth(): Promise<void> {
   _token = null
   _user = null
   await Promise.all([
-    AsyncStorage.removeItem(TOKEN_KEY),
+    deleteToken(),
     AsyncStorage.removeItem(USER_KEY),
   ])
   notify()

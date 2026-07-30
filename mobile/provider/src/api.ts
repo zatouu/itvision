@@ -20,6 +20,11 @@ export function setOnUnauthorized(handler: () => void) {
   }
 }
 
+/** Réarmer l'intercepteur 401 après un (re)login */
+export function resetUnauthorizedFlag() {
+  _unauthorizedFired = false
+}
+
 export function getToken(): string | null { return getAuthToken() }
 export function getBaseUrl(): string { return base }
 

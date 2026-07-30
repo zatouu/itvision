@@ -56,6 +56,7 @@ function NearbyRequests() {
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [unlockEnabled, setUnlockEnabled] = useState(false)
+  const [scopeFiltered, setScopeFiltered] = useState(false)
   const successScale = useRef(new Animated.Value(0))
 
   const openOfferSheet = useCallback((it: any) => {
@@ -161,7 +162,10 @@ function NearbyRequests() {
     try {
       await fetchWithCache(
         key,
-        () => apiGet(`/api/services/matching?lng=${target.lng}&lat=${target.lat}&radiusKm=${RADIUS_KM}&excludeMine=true`).then(r => r.items || []),
+        () => apiGet(`/api/services/matching?lng=${target.lng}&lat=${target.lat}&radiusKm=${RADIUS_KM}&excludeMine=true`).then(r => {
+          setScopeFiltered(r?.browseScope === 'category')
+          return r.items || []
+        }),
         (items) => {
           setItems(items)
           setLoading(false)
@@ -321,6 +325,12 @@ function NearbyRequests() {
           <RefreshCw size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
+
+      {scopeFiltered && (
+        <View style={s.scopeChip}>
+          <Text style={s.scopeChipTxt}>{t('nearby.scopeFiltered', 'Demandes filtrées selon vos métiers')}</Text>
+        </View>
+      )}
 
       {/* Toggle Carte / Liste */}
       <View style={s.toggleBar}>
@@ -668,6 +678,8 @@ const s = StyleSheet.create({
   title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
   refreshBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   refreshIcon: { color: colors.text },
+  scopeChip: { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.infoLight, borderRadius: radius.lg, paddingVertical: 8, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#BFDBFE' },
+  scopeChipTxt: { fontSize: 12, fontWeight: typography.weight.semibold as any, color: colors.info, textAlign: 'center' },
   toggleBar: { flexDirection: 'row', backgroundColor: colors.bg, margin: spacing.md, borderRadius: radius.lg, padding: 3, gap: 3 },
   toggleBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: radius.md },
   toggleBtnActive: { backgroundColor: colors.surface, ...shadows.sm },

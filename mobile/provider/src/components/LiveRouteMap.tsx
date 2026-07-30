@@ -119,6 +119,12 @@ function LiveRouteMapComponent({
     return origin || null
   }, [providerLocation?.lat, providerLocation?.lng, origin?.lat, origin?.lng])
 
+  // Refs stables : évitent de recréer les callbacks à chaque tick GPS
+  const activeOriginRef = useRef(activeOrigin)
+  activeOriginRef.current = activeOrigin
+  const routeRef = useRef<RouteInfo | null>(null)
+  routeRef.current = route
+
   const hasRoute = !!route?.polyline?.length
   const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(status || '')
   const showVehicle = isTracking && activeOrigin
@@ -141,13 +147,15 @@ function LiveRouteMapComponent({
       if (!mapRef.current || fitToRouteLock.current) return
       fitToRouteLock.current = true
       await new Promise(resolve => setTimeout(resolve, 50))
+      const originPt = activeOriginRef.current
+      const routePt = routeRef.current
       const coords: Array<{ latitude: number; longitude: number }> = [
         { latitude: destination.lat, longitude: destination.lng },
       ]
-      if (activeOrigin) {
-        coords.push({ latitude: activeOrigin.lat, longitude: activeOrigin.lng })
-      } else if (route?.polyline?.length) {
-        coords.push(...route.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
+      if (originPt) {
+        coords.push({ latitude: originPt.lat, longitude: originPt.lng })
+      } else if (routePt?.polyline?.length) {
+        coords.push(...routePt.polyline.slice(0, 1).map(p => ({ latitude: p.lat, longitude: p.lng })))
       }
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: fitPadding,
@@ -155,7 +163,7 @@ function LiveRouteMapComponent({
       })
       fitToRouteLock.current = false
     },
-    [activeOrigin, destination, route, fitPadding]
+    [destination.lat, destination.lng, fitPadding]
   )
 
   const fetchRoute = useCallback(async () => {
@@ -220,12 +228,16 @@ function LiveRouteMapComponent({
     }
   }, [activeOrigin, destination, mode, onRouteInfo, t, computeRouteFallback])
 
+  // (ne redémarre PAS à chaque tick GPS : fetchRoute lue via ref)
+  const fetchRouteRef = useRef(fetchRoute)
+  fetchRouteRef.current = fetchRoute
+  const hasOrigin = !!activeOrigin
   useEffect(() => {
-    if (!activeOrigin) return
+    if (!hasOrigin) return
     let cancelled = false
     const schedule = () => {
       if (cancelled) return
-      fetchRoute()
+      fetchRouteRef.current()
       pendingFetch.current = setTimeout(schedule, ROUTE_REFRESH_MIN_MS)
     }
     schedule()
@@ -233,7 +245,7 @@ function LiveRouteMapComponent({
       cancelled = true
       if (pendingFetch.current) clearTimeout(pendingFetch.current)
     }
-  }, [activeOrigin, fetchRoute])
+  }, [hasOrigin])
 
   useEffect(() => {
     if (!activeOrigin) return
@@ -259,8 +271,19 @@ function LiveRouteMapComponent({
     Animated.spring(headingAnim, { toValue: next, useNativeDriver: true, friction: 6, tension: 40 }).start()
   }, [providerLocation?.heading, headingAnim])
 
+  // Fit initial unique (quand l'origine devient disponible)
+  const didInitialFit = useRef(false)
   useEffect(() => {
-    if (!mapRef.current) return
+    if (didInitialFit.current || !activeOrigin || !mapRef.current) return
+    didInitialFit.current = true
+    fitToRoute(true)
+  }, [activeOrigin, fitToRoute])
+
+  // Re-fit uniquement quand une NOUVELLE route (polyline) arrive — pas à chaque tick GPS
+  const lastFittedRoute = useRef<RouteInfo | null>(null)
+  useEffect(() => {
+    if (!route?.polyline?.length || lastFittedRoute.current === route || !mapRef.current) return
+    lastFittedRoute.current = route
     fitToRoute(true)
   }, [route, fitToRoute])
 

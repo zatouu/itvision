@@ -1,38 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-interface DecodedToken {
-  userId: string
-  role: string
-  email: string
-}
-
-async function verifyToken(request: NextRequest): Promise<DecodedToken> {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-
-  if (!payload.userId || !payload.role || !payload.email) throw new Error('Token invalide')
-
-  return {
-    userId: payload.userId as string,
-    role: payload.role as string,
-    email: payload.email as string,
-  }
-}
+import { requireAuth } from '@/lib/jwt'
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    const decoded = await verifyToken(request)
-    const userId = decoded.userId
+    const { userId } = await requireAuth(request)
 
     const providerObjectId = new mongoose.Types.ObjectId(userId)
 
@@ -109,6 +85,10 @@ export async function GET(request: NextRequest) {
       latest,
     })
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 401 })
+    const isAuth = err?.message === 'Non authentifié' || err?.message === 'Token invalide'
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: isAuth ? 401 : 500 }
+    )
   }
 }

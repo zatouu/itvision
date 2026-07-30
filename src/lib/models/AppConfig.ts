@@ -36,9 +36,13 @@ export interface IVisibilityTier {
   boostMultiplier: number // multiplicateur appliqué au Visibility Score
 }
 
+export type VisibilityBrowseScope = 'all' | 'category'
+
 export interface IVisibilityConfig {
   enabled: boolean // interrupteur maître ; si false, fallback legacy
   requireKycForNotification: boolean // si false, les prestataires sans KYC reçoivent quand même les notifs (mais classés plus bas)
+  /** Portée des demandes visibles dans l'app prestataire : 'all' = toutes les catégories, 'category' = uniquement ses métiers (catégorie & sous-catégorie) */
+  browseScope: VisibilityBrowseScope
   defaultRadiusKm: number
   maxRadiusKm: number // borne haute d'escalade (région) — jamais tout le pays
   presenceFreshnessSec: number // GPS considéré "récent" en deçà de N secondes
@@ -177,6 +181,7 @@ const AppConfigSchema = new Schema<IAppConfig>({
   visibility: {
     enabled: { type: Boolean, default: true },
     requireKycForNotification: { type: Boolean, default: false },
+    browseScope: { type: String, enum: ['all', 'category'], default: 'category' },
     defaultRadiusKm: { type: Number, default: 10, min: 1 },
     maxRadiusKm: { type: Number, default: 200, min: 1 },
     presenceFreshnessSec: { type: Number, default: 600, min: 30 },

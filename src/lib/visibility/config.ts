@@ -14,6 +14,7 @@ import { connectMongoose } from '../mongoose'
 export const DEFAULT_VISIBILITY_CONFIG: IVisibilityConfig = {
   enabled: true,
   requireKycForNotification: false,
+  browseScope: 'category',
   defaultRadiusKm: 10,
   maxRadiusKm: 200,
   presenceFreshnessSec: 600,
@@ -51,6 +52,7 @@ export function mergeVisibilityConfig(partial?: Partial<IVisibilityConfig> | nul
   return {
     enabled: partial.enabled ?? d.enabled,
     requireKycForNotification: partial.requireKycForNotification ?? d.requireKycForNotification,
+    browseScope: partial.browseScope === 'all' ? 'all' : (partial.browseScope === 'category' ? 'category' : d.browseScope),
     defaultRadiusKm: partial.defaultRadiusKm ?? d.defaultRadiusKm,
     maxRadiusKm: partial.maxRadiusKm ?? d.maxRadiusKm,
     presenceFreshnessSec: partial.presenceFreshnessSec ?? d.presenceFreshnessSec,

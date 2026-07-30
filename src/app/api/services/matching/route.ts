@@ -6,6 +6,7 @@ import MissionUnlock from '@/lib/models/MissionUnlock'
 import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { computeUnlockCost } from '@/lib/credit-cost'
+import { getVisibilityConfig } from '@/lib/visibility'
 
 const REQUEST_TTL_HOURS = 2 // doit rester aligné avec /api/services/requests
 
@@ -54,13 +55,6 @@ export async function GET(request: NextRequest) {
     const q = parseNearQuery(request)
     if (!q) return NextResponse.json({ error: 'Paramètres géo invalides' }, { status: 400 })
 
-    // Mettre à jour la zone du provider pour le fallback last_known du Visibility Engine
-    ProviderProfile.findOneAndUpdate(
-      { userId: userId },
-      { $set: { 'zone.coordinates': [q.lng, q.lat], 'zone.updatedAt': new Date() } },
-      { upsert: true, new: true }
-    ).catch(() => {})
-
     console.log(`[MATCHING] user=${userId} lng=${q.lng} lat=${q.lat} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
 
     const geoFilter: any = {
@@ -78,7 +72,26 @@ export async function GET(request: NextRequest) {
     const statusFilter = { status: { $in: ['created', 'pending_offers'] } }
     // Une demande legacy (sans expiresAt) n'est valide que si elle est plus récente que le TTL
     const expiryFilter = { $or: [{ expiresAt: { $gt: now } }, { expiresAt: null, createdAt: { $gte: legacyCutoff } }] }
-    const catFilter = q.category ? { category: q.category } : {}
+    let catFilter: Record<string, unknown> = q.category ? { category: q.category } : {}
+    let scopeCategories: string[] = []
+
+    // Portée de navigation pilotée par l'admin (visibility.browseScope) :
+    // 'category' = le prestataire ne voit que les demandes de ses métiers (catégories principales + secondaires)
+    if (!q.category) {
+      const config = await getVisibilityConfig()
+      if (config.browseScope === 'category') {
+        const profile = await ProviderProfile.findOne({ userId })
+          .select('serviceCategories secondaryCategories')
+          .lean() as any
+        scopeCategories = [
+          ...(profile?.serviceCategories || []),
+          ...(profile?.secondaryCategories || []),
+        ].filter(Boolean)
+        if (scopeCategories.length > 0) {
+          catFilter = { category: { $in: scopeCategories } }
+        }
+      }
+    }
     const mineFilter = q.excludeMine ? { clientId: { $ne: userId } } : {}
 
     const totalCount = await ServiceRequest.countDocuments({ ...statusFilter, ...expiryFilter, ...catFilter })
@@ -137,7 +150,11 @@ export async function GET(request: NextRequest) {
       }
     }))
 
-    return NextResponse.json({ items: withScore })
+    return NextResponse.json({
+      items: withScore,
+      browseScope: (q.category || scopeCategories.length > 0) ? 'category' : 'all',
+      scopeCategories,
+    })
   } catch (e: any) {
     console.error('MATCHING ERROR:', e)
     return NextResponse.json({ error: 'Erreur matching: ' + (e?.message || String(e)) }, { status: 500 })

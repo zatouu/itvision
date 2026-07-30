@@ -8,7 +8,7 @@ import { bindNotificationSocket, loadNotifications, resetNotificationBinding } f
 import { loadProfile } from '../src/user-profile'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
-import { initOfflineReplay, setOnUnauthorized } from '../src/api'
+import { initOfflineReplay, setOnUnauthorized, resetUnauthorizedFlag } from '../src/api'
 import { resetSocket, emitGps } from '../src/socket'
 import { loadInitial, subscribe as subscribeOnline } from '../src/online'
 import { initSentry, setUser, clearUser } from '../src/sentry'
@@ -65,6 +65,7 @@ export default function Layout(){
     })
     return subscribeAuth(ok => {
       setLoggedIn(ok)
+      if (ok) resetUnauthorizedFlag()
       if (!ok) clearUser()
     })
   }, [])

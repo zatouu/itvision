@@ -1,34 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import ProviderProfile from '@/lib/models/ProviderProfile'
 import KycRequest from '@/lib/models/KycRequest'
 import ServiceReview from '@/lib/models/ServiceReview'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { requireAuth } from '@/lib/jwt'
 import { computeScoreXeuy } from '@/lib/provider-stats'
-
-interface DecodedToken {
-  userId: string
-  role: string
-  email: string
-}
-
-async function verifyToken(request: NextRequest): Promise<DecodedToken> {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-
-  if (!payload.userId || !payload.role || !payload.email) throw new Error('Token invalide')
-
-  return {
-    userId: payload.userId as string,
-    role: payload.role as string,
-    email: payload.email as string,
-  }
-}
 
 function normalizeUser(user: any) {
   return {
@@ -74,7 +51,7 @@ function normalizeProvider(pp: any) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await verifyToken(request)
+    const { userId } = await requireAuth(request)
     await connectMongoose()
 
     const user = await User.findById(userId).select('-passwordHash').lean() as any
@@ -123,6 +100,9 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Non authentifié') {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
     console.error('[provider/profile] GET error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erreur serveur' },
@@ -133,7 +113,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId } = await verifyToken(request)
+    const { userId } = await requireAuth(request)
     await connectMongoose()
 
     const body = await request.json()
@@ -186,6 +166,9 @@ export async function PATCH(request: NextRequest) {
       provider: normalizeProvider(saved),
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Non authentifié') {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
     console.error('[provider/profile] PATCH error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erreur serveur' },

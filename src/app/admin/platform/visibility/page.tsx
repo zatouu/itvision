@@ -15,6 +15,7 @@ type EscalationStage = {
 type VisibilityConfig = {
   enabled: boolean
   requireKycForNotification: boolean
+  browseScope: 'all' | 'category'
   defaultRadiusKm: number
   maxRadiusKm: number
   presenceFreshnessSec: number
@@ -224,6 +225,38 @@ export default function VisibilityConfigPage() {
                 className="w-5 h-5 text-blue-600 rounded"
               />
             </label>
+            <div className="p-3 border rounded-lg">
+              <div className="font-medium text-gray-900 mb-1">Demandes visibles dans l'app prestataire</div>
+              <div className="text-xs text-gray-500 mb-3">Portée de navigation (écran "Demandes à proximité")</div>
+              <div className="space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="browseScope"
+                    checked={config.browseScope === 'category'}
+                    onChange={() => setConfig({ ...config, browseScope: 'category' })}
+                    className="mt-1 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">Uniquement ses métiers (recommandé)</div>
+                    <div className="text-xs text-gray-500">Le prestataire ne voit que les demandes de ses catégories et sous-catégories</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="browseScope"
+                    checked={config.browseScope === 'all'}
+                    onChange={() => setConfig({ ...config, browseScope: 'all' })}
+                    className="mt-1 w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">Toutes les catégories</div>
+                    <div className="text-xs text-gray-500">Le prestataire voit toutes les demandes de la zone, quel que soit son métier</div>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 

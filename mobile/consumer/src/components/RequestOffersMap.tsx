@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState } from 'react'
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Platform, StyleSheet, AppState } from 'react-native'
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
@@ -43,6 +43,8 @@ const RequestOffersMap = memo(function RequestOffersMap({
 }) {
   const { t } = useTranslation()
   const [viewerLocations, setViewerLocations] = useState<Record<string, Viewer>>({})
+  // Throttle des updates WS : 1 update / 4s max par prestataire (sauf si déplacement > 15m)
+  const lastTickRef = useRef<Record<string, { at: number; lat: number; lng: number }>>({})
 
   useEffect(() => {
     if (requestDone || !requestId || requestLat == null || requestLng == null) return
@@ -53,6 +55,16 @@ const RequestOffersMap = memo(function RequestOffersMap({
     const handleProviderLocation = (data: any) => {
       if (!data?.providerId) return
       if (!Number.isFinite(Number(data?.lat)) || !Number.isFinite(Number(data?.lng))) return
+      const lat = Number(data.lat)
+      const lng = Number(data.lng)
+      const prev = lastTickRef.current[data.providerId]
+      const now = Date.now()
+      if (prev && now - prev.at < 4000) {
+        const dLat = (lat - prev.lat) * 111_000
+        const dLng = (lng - prev.lng) * 111_000 * Math.cos((lat * Math.PI) / 180)
+        if (Math.sqrt(dLat * dLat + dLng * dLng) < 15) return
+      }
+      lastTickRef.current[data.providerId] = { at: now, lat, lng }
       setViewerLocations(prev => ({
         ...prev,
         [data.providerId]: {
@@ -199,6 +211,7 @@ const RequestOffersMap = memo(function RequestOffersMap({
             coordinate={{ latitude: requestLat, longitude: requestLng }}
             title={t('offers.requestLocation')}
             pinColor={colors.primary}
+            tracksViewChanges={false}
           />
           {markerEntries.map(([key, v]) => {
             const statusColor = v.status === 'selected' || v.status === 'arriving' || v.status === 'in_progress' ? '#2563EB'
@@ -216,6 +229,7 @@ const RequestOffersMap = memo(function RequestOffersMap({
               <Marker
                 key={key}
                 coordinate={{ latitude: v.lat, longitude: v.lng }}
+                tracksViewChanges={false}
               >
                 <View style={[s.providerMarker, { borderColor: statusColor }]}>
                   <Text style={[s.providerMarkerText, { color: statusColor }]}>{(v.name || 'P').slice(0, 1).toUpperCase()}</Text>

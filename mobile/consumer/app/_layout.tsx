@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications, resetNotificationBinding } from '../src/notifications'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
-import { initOfflineReplay, setOnUnauthorized } from '../src/api'
+import { initOfflineReplay, setOnUnauthorized, resetUnauthorizedFlag } from '../src/api'
 import { resetSocket } from '../src/socket'
 import { initSentry, setUser, clearUser } from '../src/sentry'
 import '../src/i18n'
@@ -64,6 +64,7 @@ export default function Layout(){
     })
     return subscribeAuth(ok => {
       setLoggedIn(ok)
+      if (ok) resetUnauthorizedFlag()
       if (!ok) clearUser()
     })
   }, [])
