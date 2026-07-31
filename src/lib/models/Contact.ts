@@ -16,7 +16,7 @@ const ContactSchema = new Schema<IContact>({
     type: Schema.Types.ObjectId,
     ref: 'Client',
     required: true,
-    index: true
+
   },
   nom: {
     type: String,
@@ -46,13 +46,4 @@ ContactSchema.index({ clientId: 1, isPrimary: 1 })
 ContactSchema.index({ nom: 'text', email: 'text', fonction: 'text' })
 
 export default mongoose.models.Contact || mongoose.model<IContact>('Contact', ContactSchema)
-
-
-
-
-
-
-
-
-
 

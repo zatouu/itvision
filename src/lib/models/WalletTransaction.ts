@@ -35,7 +35,7 @@ export interface IWalletTransaction extends Document {
 }
 
 const WalletTransactionSchema = new Schema<IWalletTransaction>({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   kind: {
     type: String,
     enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund', 'unlock_spend', 'unlock_refund', 'mission_reserve', 'mission_release', 'promo'],

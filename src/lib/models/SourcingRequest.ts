@@ -248,9 +248,8 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
         'expired'
       ],
       default: 'new',
-      index: true
     },
-    slaDueAt: { type: Date, required: true, index: true },
+    slaDueAt: { type: Date, required: true, },
     assignedToUserId: { type: String, index: true, sparse: true },
     assignedAt: { type: Date },
     adminNotes: { type: String, trim: true, maxlength: 5000 },

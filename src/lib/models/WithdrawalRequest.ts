@@ -16,7 +16,7 @@ export interface IWithdrawalRequest extends Document {
 }
 
 const WithdrawalRequestSchema = new Schema<IWithdrawalRequest>({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   amount: { type: Number, required: true, min: 1000 },
   method: { type: String, enum: ['wave', 'orange_money', 'free_money'], required: true },
   phone: { type: String, required: true },

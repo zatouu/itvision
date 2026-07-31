@@ -26,6 +26,7 @@ export type ScheduledTaskType =
   | 'credit_refund'
   | 'followup'
   | 'dispute_sla'
+  | 'payment_reconcile'
 
 export type ScheduledTaskStatus = 'pending' | 'running' | 'done' | 'cancelled' | 'failed'
 
@@ -48,8 +49,8 @@ const ScheduledTaskSchema = new Schema<IScheduledTask>({
   type: { type: String, required: true, index: true },
   requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', index: true },
   stage: { type: Number },
-  runAt: { type: Date, required: true, index: true },
-  status: { type: String, enum: ['pending', 'running', 'done', 'cancelled', 'failed'], default: 'pending', index: true },
+  runAt: { type: Date, required: true, },
+  status: { type: String, enum: ['pending', 'running', 'done', 'cancelled', 'failed'], default: 'pending', },
   payload: { type: Schema.Types.Mixed, default: {} },
   attempts: { type: Number, default: 0 },
   maxAttempts: { type: Number, default: 3 },

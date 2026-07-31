@@ -39,8 +39,8 @@ export interface IMilestoneKnowledge extends Document {
 }
 
 const MilestoneKnowledgeSchema = new Schema<IMilestoneKnowledge>({
-  phaseTemplate: { type: String, required: true, index: true },
-  serviceType: { type: String, required: true, index: true },
+  phaseTemplate: { type: String, required: true, },
+  serviceType: { type: String, required: true, },
   title: { type: String, required: true },
   description: { type: String },
   expectedTasks: [{

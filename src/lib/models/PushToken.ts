@@ -11,7 +11,7 @@ export interface IPushToken extends Document {
 
 const PushTokenSchema = new Schema<IPushToken>(
   {
-    userId: { type: String, required: true, index: true },
+    userId: { type: String, required: true, },
     token: { type: String, required: true, unique: true },
     platform: { type: String, enum: ['ios', 'android', 'web'], default: 'android' },
     appType: { type: String, enum: ['consumer', 'provider'], default: 'consumer' },

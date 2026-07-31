@@ -4,7 +4,7 @@ export const DISPUTE_EVIDENCE_TYPES = ['image', 'video', 'audio', 'file'] as con
 export type DisputeEvidenceType = typeof DISPUTE_EVIDENCE_TYPES[number]
 
 const DisputeEvidenceSchema = new Schema({
-  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, index: true },
+  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, },
   uploadedBy: { type: String, required: true },
   uploadedByRole: { type: String, enum: ['client', 'provider', 'admin'], required: true },
   type: { type: String, enum: DISPUTE_EVIDENCE_TYPES, required: true },

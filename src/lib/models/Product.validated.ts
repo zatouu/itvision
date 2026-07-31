@@ -194,7 +194,7 @@ const ProductSchema = new Schema<IProduct>({
   category: {
     type: String,
     trim: true,
-    index: true
+
   },
   description: {
     type: String,
@@ -219,7 +219,7 @@ const ProductSchema = new Schema<IProduct>({
   tags: {
     type: [String],
     default: [],
-    index: true
+
   },
   
   // Pricing standard
@@ -363,19 +363,19 @@ const ProductSchema = new Schema<IProduct>({
   isPublished: {
     type: Boolean,
     default: true,
-    index: true
+
   },
   isFeatured: {
     type: Boolean,
     default: false,
-    index: true
+
   },
   
   // Canaux de distribution
   channels: {
     type: [String],
     default: ['marketplace'],
-    index: true,
+
     validate: {
       validator: (arr: string[]) => arr.every((v) => ['marketplace', 'corporate', 'xeuy-bi'].includes(v)),
       message: 'Canaux invalides. Valeurs acceptées: marketplace, corporate, xeuy-bi'
@@ -384,12 +384,12 @@ const ProductSchema = new Schema<IProduct>({
   corporateVisible: {
     type: Boolean,
     default: false,
-    index: true
+
   },
 
   // Espace vendeur / storefront public
   sellerName: { type: String, trim: true, index: true, sparse: true },
-  sellerSlug: { type: String, trim: true, index: true, sparse: true },
+  sellerSlug: { type: String, trim: true, sparse: true },
   sellerVerified: { type: Boolean, default: false },
   sellerRating: { type: Number, min: 0, max: 5 },
 

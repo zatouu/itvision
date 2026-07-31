@@ -3,11 +3,15 @@ import { connectMongoose } from '@/lib/mongoose'
 import Offer from '@/lib/models/Offer'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { getAppConfig } from '@/lib/wallet'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const limit = await rateLimitRequest(request, { windowMs: 10_000, max: 3, keyPrefix: 'requests:accept' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     await connectMongoose()
     const { userId } = await requireAuth(request)
 

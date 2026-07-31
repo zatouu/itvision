@@ -33,7 +33,15 @@ export default function Button({
   const textStyle = [s.text, variantStyles[variant].text, sizeStyles[size].text, isDisabled && s.textDisabled]
 
   return (
-    <TouchableOpacity onPress={onPress} disabled={isDisabled} style={containerStyle} activeOpacity={0.85}>
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={isDisabled}
+      style={containerStyle}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+    >
       {loading && <ActivityIndicator color={variantStyles[variant].text.color} size="small" style={{ marginRight: 8 }} />}
       {!loading && icon && <View style={{ marginRight: 8 }}>{icon}</View>}
       <Text style={textStyle}>{title}</Text>
@@ -42,7 +50,7 @@ export default function Button({
 }
 
 const s = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
+  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, minHeight: 44 },
   sm: { paddingVertical: 8, paddingHorizontal: 12 },
   md: { paddingVertical: 14, paddingHorizontal: 20 },
   lg: { paddingVertical: 17, paddingHorizontal: 24 },

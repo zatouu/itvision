@@ -853,3 +853,21 @@ Commit             c8922971ef2957a4b1bf839a8b7be557119a4edd*
 EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates/215d00da-b4f2-4f69-a32e-76ce4bfd5fbb
 
 [provider] OK - tag 'mobile-provider-published' mis a jour.
+[consumer] Fichiers modifies depuis c8922971ef2957a4b1bf839a8b7be557119a4edd :
+  - mobile/consumer/app/_layout.tsx
+  - mobile/consumer/package-lock.json
+  - mobile/consumer/package.json
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/auth.ts
+  - mobile/consumer/src/components/LiveRouteMap.tsx
+  - mobile/consumer/src/components/RequestOffersMap.tsx
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/package.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@21.4.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.

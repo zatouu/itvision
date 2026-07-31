@@ -80,7 +80,7 @@ const InstallationSchema = new Schema<IInstallation>({
   clientId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    index: true
+
   },
   clientName: {
     type: String,
@@ -143,14 +143,14 @@ const InstallationSchema = new Schema<IInstallation>({
       message: 'Statut invalide'
     },
     default: 'pending',
-    index: true
+
   },
   
   // Affectation
   assignedTechnicianId: {
     type: Schema.Types.ObjectId,
     ref: 'Technician',
-    index: true
+
   },
   assignedTechnicianName: {
     type: String,
@@ -168,7 +168,7 @@ const InstallationSchema = new Schema<IInstallation>({
   allowMarketplace: {
     type: Boolean,
     default: true,
-    index: true
+
   },
   bidsCount: {
     type: Number,

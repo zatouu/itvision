@@ -56,7 +56,7 @@ const AccountingEntrySchema = new Schema<IAccountingEntry>({
     type: String,
     enum: ['sale', 'purchase', 'expense', 'revenue', 'margin', 'commission'],
     required: true,
-    index: true
+
   },
   entryNumber: {
     type: String,
@@ -67,7 +67,7 @@ const AccountingEntrySchema = new Schema<IAccountingEntry>({
   productId: {
     type: Schema.Types.ObjectId,
     ref: 'Product',
-    index: true
+
   },
   productName: String,
   orderId: String,
@@ -103,13 +103,13 @@ const AccountingEntrySchema = new Schema<IAccountingEntry>({
   category: {
     type: String,
     required: true,
-    index: true
+
   },
   subCategory: String,
   transactionDate: {
     type: Date,
     required: true,
-    index: true
+
   },
   recordedAt: {
     type: Date,
@@ -122,7 +122,7 @@ const AccountingEntrySchema = new Schema<IAccountingEntry>({
     type: String,
     enum: ['pending', 'confirmed', 'cancelled'],
     default: 'confirmed',
-    index: true
+
   },
   confirmedBy: {
     type: Schema.Types.ObjectId,

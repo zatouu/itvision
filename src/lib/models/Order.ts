@@ -213,7 +213,7 @@ const OrderSchema = new Schema<IOrder>({
   clientName: { type: String, required: true },
   clientEmail: { type: String, sparse: true },
   clientPhone: { type: String, required: true },
-  clientId: { type: mongoose.Schema.Types.ObjectId, sparse: true, index: true },
+  clientId: { type: mongoose.Schema.Types.ObjectId, sparse: true, },
 
   trackingAccessTokenHash: { type: String, sparse: true, index: true },
   trackingAccessTokenCreatedAt: { type: Date, sparse: true },
@@ -249,7 +249,7 @@ const OrderSchema = new Schema<IOrder>({
     type: String,
     enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending',
-    index: true
+
   },
   paymentStatus: {
     type: String,
@@ -262,7 +262,7 @@ const OrderSchema = new Schema<IOrder>({
   notes: { type: String },
   internalNotes: { type: String },
   
-  createdAt: { type: Date, default: () => new Date(), index: true },
+  createdAt: { type: Date, default: () => new Date(), },
   updatedAt: { type: Date, default: () => new Date() },
   confirmedAt: { type: Date, sparse: true },
   shippedAt: { type: Date, sparse: true },

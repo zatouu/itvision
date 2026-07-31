@@ -111,13 +111,13 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
     type: String,
     required: true,
     unique: true,
-    index: true
+
   },
   clientId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    index: true
+
   },
   projectId: {
     type: Schema.Types.ObjectId,
@@ -136,7 +136,7 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
     type: String,
     enum: ['draft', 'active', 'suspended', 'expired', 'cancelled'],
     default: 'draft',
-    index: true
+
   },
   startDate: {
     type: Date,
@@ -295,6 +295,4 @@ const MaintenanceContract = mongoose.models.MaintenanceContract ||
   mongoose.model<IMaintenanceContract>('MaintenanceContract', MaintenanceContractSchema)
 
 export default MaintenanceContract
-
-
 

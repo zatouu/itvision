@@ -40,7 +40,7 @@ const PaymentSchema = new Schema({
   failReason: { type: String },
 }, { timestamps: true })
 
-PaymentSchema.index({ requestId: 1 })
+PaymentSchema.index({ requestId: 1, status: 1 })
 PaymentSchema.index({ offerId: 1 })
 PaymentSchema.index({ clientId: 1, createdAt: -1 })
 PaymentSchema.index({ domain: 1, status: 1, createdAt: -1 })

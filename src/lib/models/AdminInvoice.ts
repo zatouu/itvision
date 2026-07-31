@@ -102,8 +102,8 @@ const AdminInvoiceSchema = new Schema<IAdminInvoice>({
   dueDate: { type: Date },
   status: { type: String, enum: ['draft', 'sent', 'paid', 'overdue', 'cancelled'], default: 'draft', index: true },
 
-  clientUserId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
-  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  clientUserId: { type: Schema.Types.ObjectId, ref: 'User', },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', },
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
 
   client: { type: AdminInvoiceClientSchema, required: true },

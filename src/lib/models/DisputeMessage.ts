@@ -1,7 +1,7 @@
 import mongoose, { Schema, model, models } from 'mongoose'
 
 const DisputeMessageSchema = new Schema({
-  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, index: true },
+  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, },
   senderId: { type: String, required: true },
   senderRole: { type: String, enum: ['client', 'provider', 'admin'], required: true },
   text: { type: String, required: true, maxlength: 2000 },

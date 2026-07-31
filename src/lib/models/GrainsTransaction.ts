@@ -13,7 +13,7 @@ export interface IGrainsTransaction extends Document {
 }
 
 const GrainsTransactionSchema = new Schema<IGrainsTransaction>({
-  userId: { type: Schema.Types.ObjectId, required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, required: true, },
   amount: { type: Number, required: true },
   type: { type: String, enum: ['earned', 'spent', 'expired', 'bonus'], required: true },
   source: { type: String, enum: ['order', 'group_join', 'group_complete', 'referral', 'review', 'redemption', 'admin', 'birthday', 'favorite'], required: true },

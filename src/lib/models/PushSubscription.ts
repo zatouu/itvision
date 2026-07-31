@@ -15,7 +15,7 @@ const PushSubscriptionSchema = new Schema<IPushSubscription>({
   endpoint: { type: String, required: true, unique: true, index: true },
   p256dh: { type: String, required: true },
   auth: { type: String, required: true },
-  userId: { type: String, index: true, sparse: true },
+  userId: { type: String, sparse: true },
   orderId: { type: String, index: true, sparse: true },
   clientPhone: { type: String },
 }, { timestamps: true })

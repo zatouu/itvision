@@ -39,15 +39,15 @@ export interface IPageVisit extends Document {
 }
 
 const PageVisitSchema = new Schema<IPageVisit>({
-  path: { type: String, required: true, index: true },
+  path: { type: String, required: true, },
   pageName: { type: String, required: true },
   pageType: { 
     type: String, 
     enum: ['public', 'admin', 'client', 'technician'],
     required: true,
-    index: true
+
   },
-  userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', },
   userRole: { type: String, index: true },
   isAuthenticated: { type: Boolean, default: false, index: true },
   sessionId: { type: String, index: true },
@@ -60,7 +60,7 @@ const PageVisitSchema = new Schema<IPageVisit>({
   deviceType: { type: String, enum: ['desktop', 'mobile', 'tablet'] },
   browser: { type: String },
   os: { type: String },
-  visitedAt: { type: Date, required: true, default: Date.now, index: true },
+  visitedAt: { type: Date, required: true, default: Date.now, },
   createdAt: { type: Date, default: Date.now }
 }, {
   timestamps: true

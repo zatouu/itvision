@@ -18,7 +18,7 @@ export interface IProductQuestion extends Document {
 }
 
 const ProductQuestionSchema = new Schema<IProductQuestion>({
-  productId: { type: String, required: true, index: true },
+  productId: { type: String, required: true, },
   question: { type: String, required: true, trim: true },
   askedByName: { type: String, required: true, trim: true },
   askedByEmail: { type: String, trim: true },

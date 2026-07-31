@@ -73,14 +73,14 @@ const LocalizedKeywordsSchema = new Schema<ILocalizedKeywords>({
 
 const ProductCategorySchema = new Schema<IProductCategory>({
   slug: { type: String, required: true, unique: true, index: true },
-  name: { type: String, required: true, index: true },
+  name: { type: String, required: true, },
   labelFr: { type: String, required: true },
   labelEn: { type: String },
   labelWo: { type: String },
   icon: { type: String, default: 'tag' },
   color: { type: String, default: '#f97316' },
   description: { type: String },
-  parentSlug: { type: String, index: true },
+  parentSlug: { type: String, },
   subCategories: {
     type: [new Schema({
       slug: { type: String, required: true },
@@ -94,7 +94,7 @@ const ProductCategorySchema = new Schema<IProductCategory>({
   isActive: { type: Boolean, default: true },
   // Taxonomy v2 fields
   taxonomyId: { type: String, index: true },
-  level: { type: Number, default: 1, index: true },
+  level: { type: Number, default: 1, },
   isLeaf: { type: Boolean, default: false, index: true },
   image: { type: String },
   seoTitle: { type: LocalizedStringSchema },

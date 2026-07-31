@@ -118,9 +118,9 @@ const InterventionSchema = new Schema<IIntervention>({
   description: { type: String },
   
   // Client et projet
-  clientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  clientId: { type: Schema.Types.ObjectId, ref: 'Client', },
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
-  technicienId: { type: Schema.Types.ObjectId, ref: 'Technician', index: true },
+  technicienId: { type: Schema.Types.ObjectId, ref: 'Technician', },
   maintenanceContractId: { type: Schema.Types.ObjectId, ref: 'MaintenanceContract', index: true },
   maintenanceActivityId: { type: Schema.Types.ObjectId, ref: 'MaintenanceActivity' },
   isCoveredByContract: { type: Boolean, default: false },
@@ -151,7 +151,7 @@ const InterventionSchema = new Schema<IIntervention>({
   requiredSkills: [{ type: String }],
   
   // Date et heures
-  date: { type: Date, default: Date.now, index: true },
+  date: { type: Date, default: Date.now, },
   heureDebut: { type: String, default: '09:00' },
   heureFin: { type: String, default: '10:00' },
   duree: { type: Number }, // Calculé en minutes
@@ -215,7 +215,7 @@ const InterventionSchema = new Schema<IIntervention>({
     type: String, 
     enum: ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'],
     default: 'pending', 
-    index: true 
+
   },
   assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician' },
   
@@ -301,5 +301,4 @@ InterventionSchema.methods.addHistoryEntry = function(action: string, userId: st
 }
 
 export default mongoose.models.Intervention || mongoose.model<IIntervention>('Intervention', InterventionSchema)
-
 

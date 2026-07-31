@@ -20,8 +20,8 @@ const RealizationSchema = new Schema<IRealization>({
   services: [{ type: String }],
   mainImage: { type: String, required: true },
   images: [{ type: String }],
-  featured: { type: Boolean, default: false, index: true },
-  order: { type: Number, default: 0, index: true }
+  featured: { type: Boolean, default: false, },
+  order: { type: Number, default: 0, }
 }, { timestamps: true })
 
 RealizationSchema.index({ featured: -1, order: 1, createdAt: -1 })

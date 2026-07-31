@@ -122,11 +122,11 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
     type: String, 
     enum: ['draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled'],
     default: 'draft',
-    index: true
+
   },
   
   product: {
-    productId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, required: true, },
     name: { type: String, required: true },
     image: { type: String },
     basePrice: { type: Number, required: true },
@@ -152,7 +152,7 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
   participants: { type: [GroupOrderParticipantSchema], default: [] },
   maxParticipants: { type: Number },
   
-  deadline: { type: Date, required: true, index: true },
+  deadline: { type: Date, required: true, },
   estimatedDelivery: { type: Date },
   
   shippingMethod: { 

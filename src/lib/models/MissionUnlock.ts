@@ -18,8 +18,8 @@ export interface IMissionUnlock extends Document {
 }
 
 const MissionUnlockSchema = new Schema<IMissionUnlock>({
-  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, index: true },
-  providerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, },
+  providerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   points: { type: Number, required: true, min: 0 },
   status: { type: String, enum: ['active', 'reserved', 'released', 'refunded', 'spent', 'expired'], default: 'active' },
   offerSentAt: { type: Date },

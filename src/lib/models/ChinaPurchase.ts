@@ -122,8 +122,8 @@ const ChinaPurchaseItemSchema = new Schema<IChinaPurchaseItem>({
 const ChinaPurchaseSchema = new Schema<IChinaPurchase>({
   purchaseId: { type: String, required: true, unique: true, index: true },
   source: {
-    type: { type: String, enum: ['order', 'group_order', 'manual'], required: true, index: true },
-    id: { type: String, index: true },
+    type: { type: String, enum: ['order', 'group_order', 'manual'], required: true, },
+    id: { type: String, },
     label: { type: String }
   },
   platform: { type: String, enum: ['1688', 'taobao', 'alibaba', 'manual'], default: '1688', index: true },
@@ -131,7 +131,7 @@ const ChinaPurchaseSchema = new Schema<IChinaPurchase>({
   productUrl: { type: String },
   sellerName: { type: String },
   sellerContact: { type: String },
-  status: { type: String, enum: CHINA_PURCHASE_STATUSES, default: 'to_purchase', index: true },
+  status: { type: String, enum: CHINA_PURCHASE_STATUSES, default: 'to_purchase', },
   items: { type: [ChinaPurchaseItemSchema], default: [] },
   customerFinancials: {
     expectedAmount: { type: Number, default: 0 },

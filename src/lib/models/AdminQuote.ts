@@ -106,8 +106,8 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   title: { type: String },
   date: { type: Date, required: true },
   client: { type: AdminQuoteClientSchema, required: true },
-  clientUserId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
-  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  clientUserId: { type: Schema.Types.ObjectId, ref: 'User', },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', },
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
   cci: { type: String },
   products: { type: [AdminQuoteProductSchema], default: [] },
@@ -147,7 +147,4 @@ AdminQuoteSchema.index({ clientUserId: 1, createdAt: -1 })
 AdminQuoteSchema.index({ clientCompanyId: 1, createdAt: -1 })
 
 export default mongoose.models.AdminQuote || mongoose.model<IAdminQuote>('AdminQuote', AdminQuoteSchema)
-
-
-
 

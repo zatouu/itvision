@@ -7,6 +7,7 @@ import Offer from '@/lib/models/Offer'
 import { sendPushToUser } from '@/lib/push'
 import { refundEscrowPoints } from '@/lib/wallet'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { verifyWebhookSignature } from '@/lib/webhook-verify'
 
 /**
  * Webhook endpoint for Mobile Money providers.
@@ -14,8 +15,16 @@ import { acceptOfferForRequest } from '@/lib/service-acceptance'
  */
 export async function POST(request: NextRequest) {
   try {
+    const rawBody = await request.text()
+
+    const sig = verifyWebhookSignature(request.headers, rawBody)
+    if (!sig.valid) {
+      console.warn('[Webhook] Signature invalide:', sig.error)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await connectMongoose()
-    const body = await request.json()
+    const body = JSON.parse(rawBody)
 
     // Extract transaction ID and status (varies by provider)
     const externalId = body.id || body.transactionId || body.payToken || body.client_reference

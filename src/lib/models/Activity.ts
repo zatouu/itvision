@@ -34,7 +34,7 @@ export interface IActivity extends Document {
 }
 
 const ActivitySchema = new Schema<IActivity>({
-  userId: { type: Schema.Types.ObjectId, required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, required: true, },
   type: {
     type: String,
     enum: [

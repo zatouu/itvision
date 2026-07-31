@@ -83,14 +83,14 @@ const TicketHistorySchema = new Schema<ITicketHistory>({
 })
 
 const TicketSchema = new Schema<ITicket>({
-  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: false, index: true },
-  clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: false, },
+  clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   assignedTo: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
   watchers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   title: { type: String, required: true },
   category: { type: String, enum: ['incident', 'request', 'change', 'general', 'technical', 'billing', 'urgent'], default: 'request', index: true },
-  priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', index: true },
-  status: { type: String, enum: ['open', 'in_progress', 'waiting_client', 'resolved', 'closed', 'waiting'], default: 'open', index: true },
+  priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', },
+  status: { type: String, enum: ['open', 'in_progress', 'waiting_client', 'resolved', 'closed', 'waiting'], default: 'open', },
   channel: { type: String, enum: ['client_portal', 'admin', 'automation'], default: 'client_portal' },
   tags: { type: [String], default: [] },
   source: { type: String },

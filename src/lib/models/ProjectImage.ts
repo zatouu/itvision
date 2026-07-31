@@ -12,7 +12,7 @@ export interface IProjectImage extends Document {
 }
 
 const ProjectImageSchema = new Schema<IProjectImage>({
-  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true, },
   filename: { type: String, required: true },
   url: { type: String, required: true },
   title: { type: String },

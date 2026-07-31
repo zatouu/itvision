@@ -13,8 +13,8 @@ export interface IUserChallenge extends Document {
 }
 
 const UserChallengeSchema = new Schema<IUserChallenge>({
-  userId: { type: Schema.Types.ObjectId, required: true, index: true },
-  challengeId: { type: Schema.Types.ObjectId, required: true, index: true, ref: 'Challenge' },
+  userId: { type: Schema.Types.ObjectId, required: true, },
+  challengeId: { type: Schema.Types.ObjectId, required: true, ref: 'Challenge' },
   progress: { type: Number, default: 0 },
   targetCount: { type: Number, required: true },
   completed: { type: Boolean, default: false },

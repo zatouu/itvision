@@ -15,7 +15,7 @@ export interface IGroupOrderChatMessage extends Document {
 
 const GroupOrderChatMessageSchema = new Schema<IGroupOrderChatMessage>(
   {
-    groupId: { type: String, required: true, index: true },
+    groupId: { type: String, required: true, },
     authorType: { type: String, enum: ['participant', 'admin'], required: true, index: true },
     authorParticipantId: { type: String, index: true },
     authorUserId: { type: Schema.Types.ObjectId, ref: 'User', index: true },

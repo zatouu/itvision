@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import { requireAuth } from '@/lib/jwt'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import User from '@/lib/models/User'
 import DisputeEvidence from '@/lib/models/DisputeEvidence'
 import DisputeMessage from '@/lib/models/DisputeMessage'
@@ -105,6 +106,9 @@ const MISSION_ROLE_MAP: Record<string, 'client' | 'provider' | 'admin'> = {
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const limit = await rateLimitRequest(request, { windowMs: 10_000, max: 5, keyPrefix: 'requests:patch' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     await connectMongoose()
     const { userId, role } = await requireAuth(request)
     const { id } = await params

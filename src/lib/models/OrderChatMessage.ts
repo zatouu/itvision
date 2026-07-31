@@ -4,7 +4,7 @@ export type OrderChatSenderRole = 'client' | 'admin' | 'system'
 
 const OrderChatMessageSchema = new Schema({
   orderId: { type: String, required: true, index: true },
-  orderReference: { type: String, required: true, index: true },
+  orderReference: { type: String, required: true, },
   senderId: { type: String, sparse: true, index: true },
   senderRole: { type: String, enum: ['client', 'admin', 'system'], required: true },
   senderName: { type: String },

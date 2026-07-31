@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import Payment from '@/lib/models/Payment'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { sendPushToUser } from '@/lib/push'
 import { getAppConfig, creditCashBalance } from '@/lib/wallet'
+import { schedulePaymentReconcile } from '@/lib/payment-reconcile'
 
 /**
  * Release escrow payment to provider when mission is completed.
@@ -13,6 +15,9 @@ import { getAppConfig, creditCashBalance } from '@/lib/wallet'
  */
 export async function POST(request: NextRequest) {
   try {
+    const limit = await rateLimitRequest(request, { windowMs: 30_000, max: 3, keyPrefix: 'payments:release' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     await connectMongoose()
     const { userId } = await requireAuth(request)
     const { requestId } = await request.json()
@@ -63,11 +68,23 @@ export async function POST(request: NextRequest) {
       totalCommission += commission
 
       if (payment.provider !== 'cash' && net > 0) {
-        await creditCashBalance(String(payment.providerId), net, {
-          relatedMissionId: String(requestId),
-          paymentRef: String(payment._id),
-          description: `Reversement mission ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
-        })
+        try {
+          await creditCashBalance(String(payment.providerId), net, {
+            relatedMissionId: String(requestId),
+            paymentRef: String(payment._id),
+            description: `Reversement mission ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
+          })
+        } catch (creditErr) {
+          // Le paiement est déjà 'released' mais le crédit wallet a échoué.
+          // Planifier une réconciliation automatique.
+          console.error(`[release] creditCashBalance échoué pour payment=${payment._id}, planification retry`, creditErr)
+          await schedulePaymentReconcile(
+            String(payment._id),
+            String(payment.providerId),
+            net,
+            String(requestId),
+          )
+        }
       }
 
       totalReleased += net

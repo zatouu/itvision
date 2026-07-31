@@ -109,11 +109,11 @@ const ExpenseSchema = new Schema<IExpense>({
       'services', 'taxes', 'commissions', 'marketing', 'logistique', 'douane', 'autre'
     ],
     required: true,
-    index: true
+
   },
   subCategory: { type: String },
 
-  projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', },
   projectName: { type: String },
 
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
@@ -141,7 +141,7 @@ const ExpenseSchema = new Schema<IExpense>({
     type: String,
     enum: ['unpaid', 'partial', 'paid', 'cancelled'],
     default: 'unpaid',
-    index: true
+
   },
   paymentMethod: { type: String },
   paidAmount: { type: Number, default: 0 },
@@ -151,7 +151,7 @@ const ExpenseSchema = new Schema<IExpense>({
   isBillable: { type: Boolean, default: false, index: true },
   billedToInvoiceId: { type: Schema.Types.ObjectId, ref: 'AdminInvoice' },
 
-  expenseDate: { type: Date, required: true, index: true },
+  expenseDate: { type: Date, required: true, },
 
   attachments: { type: [ExpenseAttachmentSchema], default: [] },
 

@@ -13,7 +13,7 @@ const PortfolioDocumentSchema = new Schema({
 }, { _id: false })
 
 const ProviderPortfolioSchema = new Schema({
-  userId: { type: String, required: true, index: true },
+  userId: { type: String, required: true, },
   title: { type: String, required: true },
   description: { type: String },
   category: { type: String },

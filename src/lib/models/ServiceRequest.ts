@@ -100,6 +100,7 @@ ServiceRequestSchema.index({ status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ clientId: 1, status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, category: 1, expiresAt: 1 })
+ServiceRequestSchema.index({ status: 1, lastActivityAt: 1 })
 
 const ServiceRequest = models.ServiceRequest || model('ServiceRequest', ServiceRequestSchema)
 export default ServiceRequest

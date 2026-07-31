@@ -41,6 +41,12 @@ export function ensureVisibilityStarted(): void {
     scheduler.register(WAVE, runVisibilityWave)
     g.__visibilityHandlersRegistered = true
   }
+  if (!g.__paymentReconcileRegistered) {
+    import('@/lib/payment-reconcile').then(m => {
+      scheduler.register('payment_reconcile', m.handlePaymentReconcile)
+    }).catch(() => {})
+    g.__paymentReconcileRegistered = true
+  }
   if (!g.__visibilityStarted) {
     scheduler.start()
     g.__visibilityStarted = true

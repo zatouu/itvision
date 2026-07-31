@@ -63,7 +63,7 @@ const ReturnRequestSchema = new Schema<IReturnRequest>({
   reason: { type: String, required: true },
   details: { type: String },
   photos: { type: [String], default: [] },
-  status: { type: String, enum: ['requested', 'approved', 'rejected', 'in_transit', 'received', 'refunded', 'closed'], default: 'requested', index: true },
+  status: { type: String, enum: ['requested', 'approved', 'rejected', 'in_transit', 'received', 'refunded', 'closed'], default: 'requested', },
   trackingNumber: { type: String },
   refundAmount: { type: Number },
   refundMethod: { type: String, enum: ['original', 'wallet', 'voucher'] },

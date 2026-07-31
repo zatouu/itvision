@@ -10,7 +10,7 @@ export const MISSION_AUDIT_ACTIONS = [
 export type MissionAuditAction = typeof MISSION_AUDIT_ACTIONS[number]
 
 const MissionAuditLogSchema = new Schema({
-  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, index: true },
+  requestId: { type: Schema.Types.ObjectId, ref: 'ServiceRequest', required: true, },
   actorId: { type: String, index: true },
   actorRole: { type: String, enum: ['client', 'provider', 'admin', 'system'], index: true },
   action: { type: String, enum: MISSION_AUDIT_ACTIONS, required: true },

@@ -13,7 +13,7 @@ export interface IUserReward extends Document {
 }
 
 const UserRewardSchema = new Schema<IUserReward>({
-  userId: { type: Schema.Types.ObjectId, required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, required: true, },
   rewardId: { type: Schema.Types.ObjectId, required: true, index: true, ref: 'Reward' },
   code: { type: String, required: true, unique: true, index: true },
   status: { type: String, enum: ['active', 'used', 'expired'], default: 'active' },

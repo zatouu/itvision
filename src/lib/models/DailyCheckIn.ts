@@ -11,8 +11,8 @@ export interface IDailyCheckIn extends Document {
 }
 
 const DailyCheckInSchema = new Schema<IDailyCheckIn>({
-  userId: { type: Schema.Types.ObjectId, required: true, index: true },
-  date: { type: Date, required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, required: true, },
+  date: { type: Date, required: true, },
   streak: { type: Number, default: 1 },
   totalDays: { type: Number, default: 1 },
   grainsEarned: { type: Number, default: 0 },

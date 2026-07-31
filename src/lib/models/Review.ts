@@ -21,7 +21,7 @@ const ReviewSchema = new Schema<IReview>({
   productId: {
     type: String,
     required: true,
-    index: true
+
   },
   userId: {
     type: String,
