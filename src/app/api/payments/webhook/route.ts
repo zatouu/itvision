@@ -26,9 +26,13 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const body = JSON.parse(rawBody)
 
+    // Enveloppe Wave : { id: eventId, type: 'checkout.session.completed'|'checkout.session.payment_failed', data: { id: 'cos-...', payment_status, ... } }
+    const isWaveEnvelope = typeof body.type === 'string' && body.type.startsWith('checkout.session.') && body.data
+    const payload = isWaveEnvelope ? body.data : body
+
     // Extract transaction ID and status (varies by provider)
-    const externalId = body.id || body.transactionId || body.payToken || body.client_reference
-    const status = body.status || body.payment_status || ''
+    const externalId = payload.id || payload.transactionId || payload.payToken || payload.client_reference || body.transaction_id
+    const status = payload.status || payload.payment_status || (body.type === 'checkout.session.completed' ? 'succeeded' : body.type === 'checkout.session.payment_failed' ? 'cancelled' : '')
 
     if (!externalId) {
       return NextResponse.json({ error: 'Missing transaction ID' }, { status: 400 })
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map provider status to our status
-    const isSuccess = ['successful', 'completed', 'SUCCEEDED', 'paid'].includes(status)
+    const isSuccess = ['successful', 'succeeded', 'completed', 'SUCCEEDED', 'paid'].includes(status)
     const isFailed = ['failed', 'cancelled', 'expired', 'FAILED'].includes(status)
 
     if (isSuccess && payment.status === 'pending') {
@@ -77,7 +81,7 @@ export async function POST(request: NextRequest) {
     } else if (isFailed && payment.status === 'pending') {
       payment.status = 'failed'
       payment.failedAt = new Date()
-      payment.failReason = body.failure_reason || body.error || status
+      payment.failReason = payload.last_payment_error?.code || payload.failure_reason || payload.error || body.error || status
       await payment.save()
 
       // Rembourser les points escrow prélevés

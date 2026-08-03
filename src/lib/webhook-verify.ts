@@ -46,15 +46,32 @@ export function verifyWebhookSignature(
     return { valid: true, provider: 'unknown' }
   }
 
-  // ─── Wave : header "wave-signature" ou "authorization" ───
+  // ─── Wave : header "Wave-Signature: t=<ts>,v1=<sig>" ou "authorization" ───
   const waveSecret = process.env.WAVE_WEBHOOK_SECRET
   if (waveSecret) {
     const waveSignature = headers.get('wave-signature') || ''
     const authHeader = headers.get('authorization') || ''
 
     if (waveSignature) {
-      const expected = hmacSha256(waveSecret, rawBody)
-      if (safeCompare(waveSignature, expected)) {
+      const parts = Object.fromEntries(
+        waveSignature.split(',').map(p => {
+          const idx = p.indexOf('=')
+          return [p.slice(0, idx).trim(), p.slice(idx + 1).trim()]
+        })
+      )
+      const timestamp = Number(parts.t)
+      const signatures = Object.keys(parts).filter(k => k === 'v1' || /^v\d+$/.test(k)).map(k => parts[k])
+
+      if (!Number.isFinite(timestamp) || signatures.length === 0) {
+        return { valid: false, provider: 'wave', error: 'Malformed Wave-Signature header' }
+      }
+      // Tolérance 5 min contre les replay attacks
+      if (Math.abs(Date.now() / 1000 - timestamp) > 300) {
+        return { valid: false, provider: 'wave', error: 'Stale Wave webhook timestamp' }
+      }
+      const expected = hmacSha256(waveSecret, `${timestamp}.${rawBody}`)
+      const legacyExpected = hmacSha256(waveSecret, rawBody)
+      if (signatures.some(sig => safeCompare(sig, expected) || safeCompare(sig, legacyExpected))) {
         return { valid: true, provider: 'wave' }
       }
       return { valid: false, provider: 'wave', error: 'Invalid Wave signature' }

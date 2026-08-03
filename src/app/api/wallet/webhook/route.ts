@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import TopupPayment from '@/lib/models/TopupPayment'
 import { creditPoints } from '@/lib/wallet'
+import { verifyWebhookSignature } from '@/lib/webhook-verify'
 
 /**
  * Webhook endpoint for Mobile Money topup confirmations.
@@ -10,12 +11,24 @@ import { creditPoints } from '@/lib/wallet'
  */
 export async function POST(request: NextRequest) {
   try {
+    const rawBody = await request.text()
+
+    const sig = verifyWebhookSignature(request.headers, rawBody)
+    if (!sig.valid) {
+      console.warn('[Wallet Webhook] Signature invalide:', sig.error)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await connectMongoose()
-    const body = await request.json()
+    const body = JSON.parse(rawBody)
+
+    // Enveloppe Wave : { id: eventId, type: 'checkout.session.*', data: { id: 'cos-...', payment_status, ... } }
+    const isWaveEnvelope = typeof body.type === 'string' && body.type.startsWith('checkout.session.') && body.data
+    const payload = isWaveEnvelope ? body.data : body
 
     // Extract transaction ID and status (varies by provider)
-    const externalId = body.id || body.transactionId || body.payToken || body.client_reference
-    const status = body.status || body.payment_status || ''
+    const externalId = payload.id || payload.transactionId || payload.payToken || payload.client_reference || body.transaction_id
+    const status = payload.status || payload.payment_status || (body.type === 'checkout.session.completed' ? 'succeeded' : body.type === 'checkout.session.payment_failed' ? 'cancelled' : '')
 
     if (!externalId) {
       return NextResponse.json({ error: 'Missing transaction ID' }, { status: 400 })
@@ -33,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map provider status to our status
-    const isSuccess = ['successful', 'completed', 'SUCCEEDED', 'paid'].includes(status)
+    const isSuccess = ['successful', 'succeeded', 'completed', 'SUCCEEDED', 'paid'].includes(status)
     const isFailed = ['failed', 'cancelled', 'expired', 'FAILED'].includes(status)
 
     if (isSuccess) {
@@ -72,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (isFailed) {
       topup.status = 'failed'
       topup.completedAt = new Date()
-      topup.failReason = body.failure_reason || body.error || status
+      topup.failReason = payload.last_payment_error?.code || payload.failure_reason || payload.error || body.error || status
       await topup.save()
 
       const { sendPushToUser } = await import('@/lib/push')
